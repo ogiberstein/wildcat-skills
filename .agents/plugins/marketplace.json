@@ -1,0 +1,20 @@
+{
+  "name": "wildcat-labs",
+  "interface": {
+    "displayName": "Wildcat Labs"
+  },
+  "plugins": [
+    {
+      "name": "hermes-gas-optimiser",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hermes-gas-optimiser"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
