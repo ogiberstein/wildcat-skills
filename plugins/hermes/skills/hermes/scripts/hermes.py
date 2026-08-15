@@ -43,6 +43,10 @@ FUZZ_SNAPSHOT_RE = re.compile(
     r"^(?P<name>.+) \(runs: (?P<runs>[0-9]+), μ: (?P<mean>[0-9]+), ~: (?P<median>[0-9]+)\)$"
 )
 LABEL_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+# solc appends compilation-local AST IDs to user-defined type references in the
+# storage-layout JSON. Those IDs are not part of storage semantics and can move
+# after an unrelated source edit.
+SOLC_TYPE_AST_ID_RE = re.compile(r"(?<=\))\d+(?=(?:_storage)?(?:\)|$))")
 
 
 @dataclass
@@ -188,6 +192,40 @@ def canonical_json(raw: str, description: str, gate: int, exit_code: int) -> tup
     return value, canonical
 
 
+def canonical_storage_layout(value: Any, gate: int, exit_code: int) -> Any:
+    """Remove solc's non-semantic AST IDs while preserving layout structure.
+
+    `forge inspect storageLayout` represents user-defined types by generated
+    names such as `t_contract(Token)1234`. The numeric suffix changes with the
+    compiler AST numbering, even when every slot, offset, member, and type
+    shape is unchanged. The raw output remains in the command log; this value
+    is solely the fail-closed comparison form.
+    """
+
+    def normalise(node: Any) -> Any:
+        if isinstance(node, list):
+            return [normalise(item) for item in node]
+        if isinstance(node, dict):
+            result: dict[str, Any] = {}
+            for key, item in node.items():
+                # This is a compiler AST reference, not a storage property.
+                if key == "astId":
+                    continue
+                normalised_key = SOLC_TYPE_AST_ID_RE.sub("", key)
+                if normalised_key in result:
+                    raise ValueError(f"normalising solc type IDs collides at key {normalised_key!r}")
+                result[normalised_key] = normalise(item)
+            return result
+        if isinstance(node, str):
+            return SOLC_TYPE_AST_ID_RE.sub("", node)
+        return node
+
+    try:
+        return normalise(value)
+    except ValueError as exc:
+        raise GateFailure(gate, f"could not canonicalise storage layout: {exc}", exit_code) from exc
+
+
 def parse_protected_contract(raw: str) -> dict[str, str]:
     if "=" not in raw:
         raise argparse.ArgumentTypeError("expected LABEL=PATH:CONTRACT")
@@ -292,10 +330,13 @@ def inspect_layout(
         echo=False,
     )
     require_success(result, gate, f"storage layout inspection for {contract['identifier']}", exit_code)
-    value, canonical = canonical_json(result.stdout, f"storage layout for {contract['identifier']}", gate, exit_code)
-    if not isinstance(value, dict) or not value:
+    raw_value, raw_canonical = canonical_json(result.stdout, f"storage layout for {contract['identifier']}", gate, exit_code)
+    if not isinstance(raw_value, dict) or not raw_value:
         raise GateFailure(gate, f"empty storage layout for {contract['identifier']}", exit_code)
+    value = canonical_storage_layout(raw_value, gate, exit_code)
+    canonical = json.dumps(value, indent=2, sort_keys=True, separators=(",", ": ")) + "\n"
     path = run_dir / "storage-layout" / f"{label}.{suffix}.json"
+    write_text(run_dir / "storage-layout" / f"{label}.{suffix}.raw.json", raw_canonical)
     write_text(path, canonical)
     return path, value
 

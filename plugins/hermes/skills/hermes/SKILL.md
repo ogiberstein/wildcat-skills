@@ -109,7 +109,7 @@ Run the full `forge test` suite with the pinned seed, followed by a full unpinne
 
 ### Gate 5: preserve layouts and selectors
 
-Re-run `forge inspect <C> storageLayout --json --force` and `methodIdentifiers` for every recorded contract. Hard-abort on any protected-layout difference or method-selector difference. A declared layout change is allowed only for an unprotected contract under the rules below.
+Re-run `forge inspect <C> storageLayout --json --force` and `methodIdentifiers` for every recorded contract. The layout comparison canonicalises solc's compilation-local AST IDs, while retaining raw inspector output in evidence; it hard-aborts on any structural protected-layout difference or method-selector difference. A declared layout change is allowed only for an unprotected contract under the rules below.
 
 ### Gate 6: prove state-sensitive unchecked arithmetic
 

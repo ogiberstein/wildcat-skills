@@ -85,7 +85,10 @@ if args and args[0] == "inspect":
         print(json.dumps({"read()": "57de26a4", "value()": "3fa4f245"}))
         raise SystemExit(0)
     slot = read_int(".layout-slot", 0)
-    print(json.dumps({"storage": [{"astId": 1, "contract": args[1], "label": "value", "offset": 0, "slot": str(slot), "type": "t_uint256"}], "types": {"t_uint256": {"encoding": "inplace", "label": "uint256", "numberOfBytes": "32"}}}))
+    ast_id = read_int(".layout-ast-id", 1)
+    type_ast_id = read_int(".layout-type-ast-id", 1234)
+    type_name = f"t_contract(Token){type_ast_id}"
+    print(json.dumps({"storage": [{"astId": ast_id, "contract": args[1], "label": "value", "offset": 0, "slot": str(slot), "type": type_name}], "types": {type_name: {"encoding": "inplace", "label": "contract Token", "numberOfBytes": "20"}}}))
     raise SystemExit(0)
 
 print(f"unsupported fake forge invocation: {args}", file=sys.stderr)
@@ -305,6 +308,18 @@ class HermesHarnessTests(unittest.TestCase):
         result = json.loads((self.run_dir / "result.json").read_text())
         self.assertEqual(result["failed_gate"], 5)
         self.assertIn("storage layout changed", result["reason"])
+
+    def test_accepts_compiler_ast_id_only_layout_difference(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        (self.repo / ".layout-ast-id").write_text("99")
+        (self.repo / ".layout-type-ast-id").write_text("5678")
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 0)
+        result = json.loads((self.run_dir / "result.json").read_text())
+        self.assertEqual(result["storage_layouts"][0]["status"], "identical")
+        before_raw = self.run_dir / "storage-layout" / "C.before.raw.json"
+        after_raw = self.run_dir / "storage-layout" / "C.after.raw.json"
+        self.assertNotEqual(before_raw.read_bytes(), after_raw.read_bytes())
 
     def test_records_declared_layout_change_on_non_frozen_contract(self) -> None:
         self.baseline(protected=False)

@@ -1,5 +1,0 @@
---- baseline/src/access/BaseAccessControls.sol
-+++ candidate/src/access/BaseAccessControls.sol
-@@ -387 +387 @@
--  function grantRoles(address[] memory accounts, uint32[] memory roleGrantedTimestamps) external {
-+  function grantRoles(address[] calldata accounts, uint32[] calldata roleGrantedTimestamps) external {
