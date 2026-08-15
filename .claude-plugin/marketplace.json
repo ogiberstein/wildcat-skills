@@ -26,6 +26,28 @@
         "gas-optimisation",
         "evm"
       ]
+    },
+    {
+      "name": "hexaemeron",
+      "displayName": "Hexaemeron",
+      "source": "./plugins/hexaemeron",
+      "description": "One-shot delivery loop with receipts: study, runbook, then per-step issue, build, audit, prose, push.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/hexaemeron",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Developer Tools",
+      "tags": [
+        "workflow",
+        "delivery",
+        "audit",
+        "fuzzing",
+        "solidity",
+        "receipts"
+      ]
     }
   ]
 }
