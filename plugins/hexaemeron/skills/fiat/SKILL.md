@@ -1,0 +1,158 @@
+---
+name: fiat
+description: >
+  Run the one-shot delivery loop: study, runbook, then per-step
+  issue/implement/audit/prose/push until a working prototype exists.
+  Use only when a Wildcat contributor invokes /hexaemeron:fiat with a topic,
+  a bare /hexaemeron:fiat to resume, or /hexaemeron:fiat status for a report.
+  Do not invoke automatically.
+metadata:
+  version: "1.0.0"
+---
+
+# Fiat
+
+Let there be light.
+
+Drive the whole loop from durable controller state, never from conversation
+history. The controller emits one directive at a time; do the work it names,
+receipt it, ask for the next one. A phase without a receipt did not happen.
+
+`$SKILL_DIR` = the directory containing this SKILL.md file; resolve it from
+the path you loaded this skill from. `$PLUGIN_ROOT` = two directories above
+`$SKILL_DIR`; sibling skills live at `$PLUGIN_ROOT/skills/<name>/`. Both
+hold on any host that can read this file.
+
+Controller:
+
+```text
+python3 "$SKILL_DIR/scripts/hexctl.py" --dir "$PWD" <cmd>
+```
+
+Alias it as `hexctl` mentally; every command below means that invocation.
+State lives in `.hexaemeron/` beside a hash-chained ledger. The directory
+ships its own `.gitignore`, so git never sees it.
+
+## Start or resume
+
+1. If the user passed `status`, run `hexctl status` and report. Stop.
+2. If `.hexaemeron/state.json` exists, this is a resume: run `hexctl verify`,
+   then `hexctl status`, then enter the loop. Ignore anything the chat claims
+   about progress; the state file is canonical.
+3. Otherwise: say exactly `Let there be light.` and nothing else before it,
+   then run preflight (below), then `hexctl init --topic "<topic>"
+   --base <ref>` and enter the loop. `--base` defaults to `main`; honour any
+   branch, repo, or commit the user named as the starting point.
+
+## Preflight (new runs only)
+
+1. Confirm `git` and `gh auth status` work in the target directory. If the
+   target repo does not exist yet, create it empty first (issues enabled) so
+   there is somewhere to file issues.
+2. The prose masks ship inside this plugin: the `imprimatur` lint (a script
+   at `$PLUGIN_ROOT/skills/imprimatur/scripts/imprimatur.py`) and the
+   `vulgate` voice mask (rules at `$PLUGIN_ROOT/skills/vulgate/SKILL.md`).
+   Nothing to resolve.
+3. The security suite is vendored in this plugin: the Pashov `x-ray`,
+   `solidity-auditor`, and `fizz` skills sit under `$PLUGIN_ROOT/skills/`.
+   After init, record the bundled ids:
+   `hexctl record security_suite
+   '["hexaemeron:x-ray","hexaemeron:solidity-auditor","hexaemeron:fizz"]'`.
+   If the run will produce no Solidity and no suite applies, record a waiver
+   instead: `hexctl record security_suite '"waived: <reason>"'` -- and say so
+   out loud. Never claim a tool ran when it did not.
+4. Nothing else. The epic tracking issue (when `config issue.epic` is
+   true) is filed at runbook time, when the step list exists to become its
+   checklist -- see the runbook reference.
+
+## The loop
+
+Repeat until `next` returns `done`, `halted`, or `audit-verdict`:
+
+```text
+hexctl next
+```
+
+Act on the single directive it prints, then receipt it. The directory:
+
+| `do` | Action | Reference | Receipt |
+| --- | --- | --- | --- |
+| `study` | Research the topic; write the study | [study.md](references/study.md) | `done study --artifact <path> --skills <csv>` |
+| `runbook` | Derive discrete steps from the study | [runbook-format.md](references/runbook-format.md) | `done runbook --artifact <path> --steps-file <path> [--epic-issue <url>]` |
+| `issue` | File the step's issue | [issue-discipline.md](references/issue-discipline.md) | `done issue --issue-url <url> [--subissue-url <url>]...` |
+| `implement` | Build the step, simplest construction that satisfies the issue | [runbook-format.md](references/runbook-format.md) | `done implement --branch <name> --commit <sha> [--tests <summary>]` |
+| `audit-round` | One security round: run the suite, log, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> [--log <path>] [--fixes-commit <sha>]` |
+| `close-audit` | Last round was clean; close the phase | [audit-loop.md](references/audit-loop.md) | `done audit [--fixes-ref <ref>]` |
+| `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 3 | `record security_suite ...` |
+| `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
+| `push` | Push, open the PR, reconcile the issue | [issue-discipline.md](references/issue-discipline.md) | `done push --pr-url <url> --checkboxes <x/y> --issue-state <open\|closed>` |
+| `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
+| `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
+| `done` | Final report | below | -- |
+
+Read the named reference before working a phase for the first time in a run.
+The receipt command is the boundary: if it exits non-zero, the phase is not
+done -- fix what it complained about rather than arguing with it.
+
+## Phase notes
+
+**Implementation.** Pick the construction that takes the least effort to
+comprehend, then stop. The issue is the yardstick: reread it before declaring
+the step complete, and do not add anything it does not ask for. Branch as
+`issue-<n>-<slug>` from the base named by `config git.step_base` (`chain`
+means branch from the previous step's branch; `base` means branch from
+`config git.base`).
+
+**Audit.** The longest phase by design. One round is the full suite: `x-ray`
+first, then `solidity-auditor`; when the step ships Solidity under Foundry or
+Hardhat, `fizz` builds or refreshes the invariant fuzz suite and its campaign
+results count as part of the round. Read each skill's SKILL.md from
+`$PLUGIN_ROOT/skills/<name>/` and follow it. Every finding is logged
+to the audit file, fixes committed to the stacked branch. Record the round even when it finds nothing.
+Zero findings closes the loop; a genuine judgement that the remaining leads
+are not worth another round closes it with `--no-further-leads --reason`.
+Never report a round that did not run.
+
+**Prose.** Every prose artefact in scope plus the PR title and body, through
+the `imprimatur` lint first and the `vulgate` mask second, content held
+constant. Both are bundled: run the lint script by path, read the mask's
+SKILL.md by path and apply it. The receipt refuses a skills list missing
+either configured id.
+
+**Push.** Push the branch, open the PR referencing the issue (`Refs #n`
+unless merge alone satisfies every acceptance criterion), then reconcile the
+issue checkboxes against what was pushed. Tick only what the pushed state
+satisfies, with evidence you could cite. All boxes ticked means close the issue; anything
+unticked means it stays open -- the receipt enforces both directions. Pushing
+opens a PR; it never merges one. Merge review belongs to humans and to
+whatever gate the repo runs.
+
+## Delegation and context
+
+For long runs, hand research and implementation bulk to the bundled agents
+(`surveyor`, `mason`) via the Task tool, passing the controller path, the
+state directory, and the current directive verbatim. Keep the audit and
+prose phases in the main session when they depend on invoking other
+installed skills, since a subagent may not see them. After each `done push`,
+compact: the receipts carry everything a fresh context needs.
+
+## Stop conditions
+
+Stop and ask the user when: `next` says `audit-verdict`; an issue cannot be
+created (auth, permissions, issues disabled); a push is rejected; the
+security suite cannot be resolved for a Solidity repo; or `verify` fails.
+Use `hexctl halt --reason ...` so the stop itself is on the ledger.
+
+## Hard rules
+
+- Never advance past a phase whose receipt command failed.
+- Never reconstruct progress from chat; `status` and `next` are the truth.
+- Never claim a lint, audit round, or test run happened when it did not.
+- Never merge a PR or force-push over someone else's work.
+- Never tick an issue checkbox the pushed state does not satisfy.
+
+## Final report
+
+When `next` returns `done`, run `hexctl status` and `hexctl verify`, then
+hand over: topic, step list with issue and PR URLs, audit rounds per step
+with the closing state of each, and where the study and runbook live.

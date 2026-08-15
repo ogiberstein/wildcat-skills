@@ -1,0 +1,23 @@
+{
+  "name": "hexaemeron",
+  "displayName": "Hexaemeron",
+  "version": "1.0.0",
+  "description": "One-shot delivery loop: study, runbook, then per-step issue/implement/audit/prose/push to a working prototype, receipt-backed and resumable.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/hexaemeron",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "workflow",
+    "delivery",
+    "audit",
+    "fuzzing",
+    "solidity",
+    "receipts",
+    "prose"
+  ],
+  "skills": "./skills/"
+}
