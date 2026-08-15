@@ -7,16 +7,16 @@
   "description": "Agent skills written and used by Wildcat Labs.",
   "plugins": [
     {
-      "name": "hermes-gas-optimiser",
-      "displayName": "Hermes Gas Optimiser",
-      "source": "./plugins/hermes-gas-optimiser",
+      "name": "hermes",
+      "displayName": "Hermes",
+      "source": "./plugins/hermes",
       "description": "Fail-closed Solidity gas optimisation with measured Foundry evidence.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
         "url": "https://wildcat.finance"
       },
-      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/hermes-gas-optimiser",
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/hermes",
       "repository": "https://github.com/wildcat-finance/skills",
       "category": "Developer Tools",
       "tags": [

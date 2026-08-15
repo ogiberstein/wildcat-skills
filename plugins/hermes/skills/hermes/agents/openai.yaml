@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hermes"
+  short_description: "Measure Solidity gas savings and reject regressions"
+  default_prompt: "Use $hermes to run the complete Foundry verification loop for one Solidity gas-optimisation class."

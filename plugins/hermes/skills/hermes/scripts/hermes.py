@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 
-SCHEMA = "hermes-gas-optimiser/v1"
-SKILL_NAME = "hermes-gas-optimiser"
+SCHEMA = "hermes/v1"
+SKILL_NAME = "hermes"
 OPTIMISATION_CLASSES = (
     "assembly",
     "calldata-memory",

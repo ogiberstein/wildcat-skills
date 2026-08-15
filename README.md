@@ -6,9 +6,9 @@ This is where we publish workflows that have earned more than a prompt. Each plu
 
 ## Plugins
 
-### Hermes gas optimiser
+### Hermes
 
-[Hermes](./plugins/hermes-gas-optimiser) treats Solidity gas work as a verification problem.
+[Hermes](./plugins/hermes) treats Solidity gas work as a verification problem.
 
 Gas changes are easy to praise and surprisingly easy to get wrong. Hermes takes one optimisation class at a time through a fail-closed Foundry run:
 
@@ -23,8 +23,8 @@ A candidate only clears Hermes when every gate clears. The run leaves behind `re
 
 Hermes includes:
 
-- the executable [`hermes.py`](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/scripts/hermes.py) harness;
-- a catalogue of [12 optimisation classes](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/references/optimisation-catalogue.md);
+- the executable [`hermes.py`](./plugins/hermes/skills/hermes/scripts/hermes.py) harness;
+- a catalogue of [12 optimisation classes](./plugins/hermes/skills/hermes/references/optimisation-catalogue.md);
 - Codex metadata for explicit or automatic invocation; and
 - a test suite covering accepted runs and representative failures across Gates 2 to 6.
 
@@ -92,7 +92,7 @@ Add the Wildcat Labs marketplace from the Codex CLI:
 codex plugin marketplace add wildcat-finance/skills
 ```
 
-Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes Gas Optimiser** or **Hexaemeron**.
+Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes** or **Hexaemeron**.
 
 To inspect configured sources or fetch later updates:
 
@@ -109,14 +109,14 @@ Add the same marketplace and install either plugin from inside Claude Code:
 
 ```text
 /plugin marketplace add wildcat-finance/skills
-/plugin install hermes-gas-optimiser@wildcat-labs
+/plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
 ```
 
 If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Hermes is available as:
 
 ```text
-/hermes-gas-optimiser:hermes-gas-optimiser
+/hermes:hermes
 ```
 
 and Hexaemeron's entry skill as:
@@ -132,10 +132,10 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
 
 ```text
-Use $hermes-gas-optimiser to optimise gas in this repository. Work one optimisation class at a time and keep the complete verification record.
+Use $hermes to optimise gas in this repository. Work one optimisation class at a time and keep the complete verification record.
 ```
 
-The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/SKILL.md).
+The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes/skills/hermes/SKILL.md).
 
 Hexaemeron needs Python 3, Git and `gh` in the target repository (plus [Foundry](https://getfoundry.sh/) when the run ships Solidity). Ask:
 
@@ -151,11 +151,11 @@ The loop, the receipt contract and the controller reference live in [Hexaemeron'
 .claude-plugin/marketplace.json
 .agents/plugins/marketplace.json
 plugins/
-├── hermes-gas-optimiser/
+├── hermes/
 │   ├── .claude-plugin/plugin.json
 │   ├── .codex-plugin/plugin.json
 │   └── skills/
-│       └── hermes-gas-optimiser/
+│       └── hermes/
 │           ├── SKILL.md
 │           ├── agents/
 │           ├── references/

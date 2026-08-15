@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "hermes-gas-optimiser",
+      "name": "hermes",
       "source": {
         "source": "local",
-        "path": "./plugins/hermes-gas-optimiser"
+        "path": "./plugins/hermes"
       },
       "policy": {
         "installation": "AVAILABLE",
