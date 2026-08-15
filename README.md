@@ -28,25 +28,34 @@ Hermes includes:
 - Codex metadata for explicit or automatic invocation; and
 - a test suite covering accepted runs and representative failures across Gates 2 to 6.
 
+#### Gate 3: quantify the gas change
+
+Run the baseline diff and gas report. Every declared target must have a deterministic saving, and no deterministic snapshot row may regress.
+
+#### Gate 4: prove behaviour is unchanged
+
+Run the complete test suite again with the pinned fuzz seed, then repeat it without the pin.
+
+#### Gate 5: preserve layouts and selectors
+
+Compare every recorded storage layout and method map before and after the candidate. Any change to a protected contract rejects the run.
+
+#### Gate 6: prove state-sensitive unchecked arithmetic
+
+Unchecked arithmetic that can affect persistent state or externally visible results needs an existing targeted differential or property test. Other candidates record why this gate does not apply.
+
 ### Hexaemeron
 
-[Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working
-prototype through one receipted loop.
+[Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working prototype through one receipted loop.
 
-Let there be light. A deterministic controller (`hexctl`) decides what comes
-next and refuses to advance without a receipt; state and a hash-chained
-ledger survive context resets, so resume is the same command.
+Let there be light. A deterministic controller (`hexctl`) decides what comes next and refuses to advance without a receipt; state and a hash-chained ledger survive context resets, so resume is the same command.
 
 1. Study the topic and write a linted study file.
 2. Derive a runbook of discrete, self-contained steps.
-3. Per step: file an issue with `TODO`, `Acceptance Criteria`, and
-   `User Value / Need` checklists.
+3. Per step: file an issue with `TODO`, `Acceptance Criteria`, and `User Value / Need` checklists.
 4. Implement the least complicated construction that satisfies the issue.
-5. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in
-   rounds until a round comes back clean or the remaining leads are judged
-   not worth another pass, fixes on a stacked branch.
-6. Rewrite every shipped document and the PR text through the bundled
-   `imprimatur` lint and `vulgate` voice mask.
+5. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
+6. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
 7. Push the PR, reconcile the issue, move to the next step.
 
 Hexaemeron includes:
@@ -59,9 +68,11 @@ Hexaemeron includes:
 
 ## Code findings
 
-The first live Hermes pass found that [`BaseAccessControls.grantRoles`](./plugins/hermes-gas-optimiser/examples/v2-protocol-v2.1.0/README.md) receives two read-only dynamic arrays through `memory` despite being external. The recorded candidate moves both parameters to `calldata`, avoiding the ABI copy. The candidate is published as a finding, not an accepted optimisation: its Gate 3 gas-report command did not complete.
+What the plugins turn up in real repositories collects here, each entry carrying the record behind it and whatever it failed to clear. The ideas are cheap. The evidence is the job.
 
-The ideas are cheap. The evidence is the job.
+### Hermes: `BaseAccessControls.grantRoles` memory parameters
+
+The first live Hermes pass found that [`BaseAccessControls.grantRoles`](./plugins/hermes-gas-optimiser/examples/v2-protocol-v2.1.0/README.md) receives two read-only dynamic arrays through `memory` despite being external. The recorded candidate moves both parameters to `calldata`, avoiding the ABI copy. The candidate is published as a finding, not an accepted optimisation: its Gate 3 gas-report command did not complete.
 
 ## Install
 
@@ -86,7 +97,7 @@ See OpenAI's [plugin packaging documentation](https://developers.openai.com/plug
 
 ### Claude Code
 
-Add the same marketplace and install Hermes from inside Claude Code:
+Add the same marketplace and install either plugin from inside Claude Code:
 
 ```text
 /plugin marketplace add wildcat-finance/skills
@@ -126,24 +137,6 @@ Use $hexaemeron to take "<topic>" from study to a pushed prototype, one receipte
 
 The loop, the receipt contract and the controller reference live in [Hexaemeron's `SKILL.md`](./plugins/hexaemeron/skills/fiat/SKILL.md).
 
-## Verification gates
-
-### Gate 3: quantify the gas change
-
-Run the baseline diff and gas report. Every declared target must have a deterministic saving, and no deterministic snapshot row may regress.
-
-### Gate 4: prove behaviour is unchanged
-
-Run the complete test suite again with the pinned fuzz seed, then repeat it without the pin.
-
-### Gate 5: preserve layouts and selectors
-
-Compare every recorded storage layout and method map before and after the candidate. Any change to a protected contract rejects the run.
-
-### Gate 6: prove state-sensitive unchecked arithmetic
-
-Unchecked arithmetic that can affect persistent state or externally visible results needs an existing targeted differential or property test. Other candidates record why this gate does not apply.
-
 ## Repository layout
 
 ```text
@@ -174,4 +167,4 @@ plugins/
         └── fizz/
 ```
 
-Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; Hermes's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
+Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
