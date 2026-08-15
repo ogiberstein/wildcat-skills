@@ -9,6 +9,12 @@ The ideas are cheap. The evidence is the job.
 
 Use `scripts/hermes.py` for every run. It owns the order, seals the baseline, writes the evidence, and exits non-zero at the first bad gate. Use [references/optimisation-catalogue.md](references/optimisation-catalogue.md) to pick a candidate class.
 
+## Day to day
+
+**Developers.** A gas change shaves a few hundred units off a hot path and nobody can say whether behaviour moved with it. Run Hermes on that one optimisation class and the review arrives with the snapshot diff, both fuzz passes, the storage layout comparison and a `result.json`, rather than a number and an assurance.
+
+**Security and audit.** A gas change arrives from outside the team. Instead of reading it for intent, put it through Gate 5 to see whether any protected contract's storage layout or method identifiers moved, and Gate 6 for unchecked arithmetic that reaches persistent state.
+
 ## Before touching source
 
 1. Work from the Foundry root. If the repository keeps `foundry.toml` under `build/`, pass `build/` as `--repo`.

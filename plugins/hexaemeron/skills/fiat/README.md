@@ -33,6 +33,27 @@ Alias it as `hexctl` mentally; every command below means that invocation.
 State lives in `.hexaemeron/` beside a hash-chained ledger. The directory
 ships its own `.gitignore`, so git never sees it.
 
+## Day to day
+
+**Developers.** A half-formed idea and a week to find out whether it
+holds. Hexaemeron turns it into a study, a runbook of discrete steps,
+and one issue and one pull request per step, with the audit suite run
+against each before it is pushed.
+
+**Security and audit.** You want the Pashov suite over a contract and
+nothing else. `x-ray`, `solidity-auditor` and `fizz` are vendored whole
+and run on their own, without taking on the loop around them.
+
+**Marketing.** A launch post reads like a machine wrote it. `imprimatur`
+says what is wrong with it across three tiers and `vulgate` rewrites it
+in house voice. Neither needs the controller, and neither needs
+installing separately.
+
+**Business development.** An integration document has to be accurate
+about what the protocol does and readable by someone who is not an
+engineer. The study phase produces the first and the prose masks produce
+the second.
+
 ## Start or resume
 
 1. If the user passed `status`, run `hexctl status` and report. Stop.
