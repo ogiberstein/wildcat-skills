@@ -1,6 +1,6 @@
 ---
 name: hermes-gas-optimiser
-description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for unchecked accrual code. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
+description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
 ---
 
 # hermes gas optimiser
@@ -54,7 +54,7 @@ Choose one value from the catalogue and make only that kind of source change. Do
 
 Review `candidate.solidity.diff` before attesting. The harness rejects Solidity file additions or removals, test-source edits, an empty candidate, added `unchecked` outside `unchecked-arithmetic`, and added assembly outside `assembly`. The attestation remains a judgement: read the diff and confirm that every hunk belongs to the declared class.
 
-If the required accrual property test is absent, add it in a preparatory change, get green, and take a fresh baseline. The optimisation candidate uses the existing fuzz suite rather than changing its own oracle.
+If the required property test is absent, add it in a preparatory change, get green, and take a fresh baseline. The optimisation candidate uses the existing fuzz suite rather than changing its own oracle.
 
 ## Gates 3 to 6: verify the candidate
 
@@ -65,41 +65,49 @@ python3 "$HERMES_PY" verify \
   --run-dir "<run-dir>" \
   --optimisation-class storage-load-caching \
   --attest-single-class \
-  --gas-target 'MarketTest:test_deposit' \
-  --gas-target 'MarketTest:test_withdraw' \
-  --no-accrual-unchecked
+  --gas-target 'LedgerTest:test_update' \
+  --gas-target 'LedgerTest:test_batch' \
+  --no-sensitive-unchecked
 ```
 
-For unchecked arithmetic outside accrual code, add a real explanation:
+For unchecked arithmetic outside state-sensitive code, add a real explanation:
 
 ```bash
-  --no-accrual-unchecked \
-  --non-accrual-rationale "The loop counter is bounded by the in-memory array length and cannot feed debt, rate, fee, timestamp, rounding, or withdrawal accounting."
+  --no-sensitive-unchecked \
+  --non-sensitive-rationale "The loop counter is bounded by the in-memory array length and cannot affect persistent state, asset balances, external call parameters, or rounding."
 ```
 
-For unchecked arithmetic in or feeding accrual code, run the existing targeted differential or property test:
+For unchecked arithmetic that can affect persistent state, asset accounting, external calls, permissions, or rounding, run the existing targeted differential or property test:
 
 ```bash
 python3 "$HERMES_PY" verify \
   --run-dir "<run-dir>" \
   --optimisation-class unchecked-arithmetic \
   --attest-single-class \
-  --gas-target 'AccrualTest:test_accrue' \
-  --accrual-unchecked \
-  --targeted-match-path 'test/AccrualDifferential.t.sol' \
-  --targeted-match-test 'testFuzz_diff_accrual' \
-  --property-proof "Compare the checked reference and candidate across the full reachable debt, rate, and timestamp domains; assert equal results and equal overflow reverts at the exact multiplication boundaries."
+  --gas-target 'LedgerTest:test_update' \
+  --sensitive-unchecked \
+  --targeted-match-path 'test/StateDifferential.t.sol' \
+  --targeted-match-test 'testFuzz_diff_stateTransition' \
+  --property-proof "Compare the checked reference and candidate across the complete reachable input domain; assert equal state transitions and equal overflow reverts at the arithmetic boundaries."
 ```
 
-The verification command executes these gates in order:
+### Gate 3: quantify the gas change
 
-1. Confirm one declared optimisation class against the sealed Solidity source set.
-2. Run `forge snapshot --diff <baseline>` and capture a candidate snapshot. Reject a positive delta anywhere, a changed measurement set, a target with no match, or a target with no saving. Then run `forge test --gas-report`.
-3. Run the full `forge test` suite again with the pinned seed, followed by a full unpinned run.
-4. Re-run `forge inspect <C> storageLayout --json --force` and `methodIdentifiers` for every recorded contract. Hard-abort on any frozen-layout difference or method-selector difference.
-5. Run the targeted accrual differential/property command when `--accrual-unchecked` applies. Record an explicit reason when it does not.
+Run `forge snapshot --diff <baseline>` and capture a candidate snapshot. Reject a positive deterministic delta anywhere, a changed measurement set, a target with no match, or a target with no saving. Then run `forge test --gas-report`.
 
-The extra candidate snapshot exists so Hermes can compare every row itself; it does not replace `forge snapshot --diff`.
+Historical Foundry snapshots also contain fuzz statistics whose sampled inputs can change when the compiled bytecode changes. Hermes records their baseline and candidate means and medians, but does not call those aggregates a gas regression or saving. It still rejects a changed fuzz-test set or run count. Foundry `invariant_callSummary()` rows are stricter: their test set, run count, call count, and revert count must stay identical.
+
+### Gate 4: prove behaviour is unchanged
+
+Run the full `forge test` suite with the pinned seed, followed by a full unpinned run. Any failure rejects the candidate.
+
+### Gate 5: preserve layouts and selectors
+
+Re-run `forge inspect <C> storageLayout --json --force` and `methodIdentifiers` for every recorded contract. Hard-abort on any protected-layout difference or method-selector difference. A declared layout change is allowed only for an unprotected contract under the rules below.
+
+### Gate 6: prove state-sensitive unchecked arithmetic
+
+When `--sensitive-unchecked` applies, run the named targeted differential or property test and record its oracle. Otherwise, record why the candidate does not introduce or rely on state-sensitive unchecked arithmetic.
 
 ## Deliberate layout change outside the frozen set
 
@@ -112,14 +120,14 @@ Only `storage-packing` and `constants-immutables` may declare one. The contract 
 
 Hermes records the diff. It rejects an undeclared difference, a declared difference that never occurred, or any difference on the frozen set.
 
-## Accrual property standard
+## State-sensitive arithmetic property standard
 
 Before accepting the Gate 6 result, inspect the named test and confirm all of the following:
 
 - Exercise the changed unchecked operation rather than a neighbouring helper.
 - Compare against the original checked implementation or enforce an equivalent property oracle.
 - Preserve checked overflow and underflow behaviour; a wrapped result cannot stand in for a reference revert.
-- Cover applicable `0`, `1`, maxima, timestamp deltas, rate bounds, principal bounds, fee and rounding boundaries, plus the exact safe/unsafe multiplication edges.
+- Cover applicable `0`, `1`, maxima, time deltas, input bounds, balance bounds, rounding boundaries, plus the exact safe and unsafe arithmetic edges.
 - Avoid a `bound()` or assumption that removes the dangerous region.
 - Keep the existing fuzz or invariant configuration from the named test path, such as `test/Fuzz.t.sol`, with the baseline seed recorded in the command.
 
@@ -146,4 +154,4 @@ That accepted state becomes the baseline for the next class. Never run two class
 - If someone asks to skip the layout diff, keep the gate.
 - If someone asks to bundle changes, run them in sequence.
 - If the gas saving cannot be quantified, reject it.
-- If an accrual unchecked change lacks the targeted proof, reject it whatever the gas number says.
+- If a state-sensitive unchecked change lacks the targeted proof, reject it whatever the gas number says.

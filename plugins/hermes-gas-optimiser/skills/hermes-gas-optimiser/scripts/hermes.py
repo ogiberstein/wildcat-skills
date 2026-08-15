@@ -36,6 +36,12 @@ OPTIMISATION_CLASSES = (
     "unchecked-arithmetic",
 )
 SNAPSHOT_RE = re.compile(r"^(?P<name>.+) \(gas: (?P<gas>[0-9]+)\)$")
+INVARIANT_SNAPSHOT_RE = re.compile(
+    r"^(?P<name>.+) \(runs: (?P<runs>[0-9]+), calls: (?P<calls>[0-9]+), reverts: (?P<reverts>[0-9]+)\)$"
+)
+FUZZ_SNAPSHOT_RE = re.compile(
+    r"^(?P<name>.+) \(runs: (?P<runs>[0-9]+), μ: (?P<mean>[0-9]+), ~: (?P<median>[0-9]+)\)$"
+)
 LABEL_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
@@ -44,6 +50,13 @@ class CommandResult:
     returncode: int
     stdout: str
     stderr: str
+
+
+@dataclass
+class SnapshotMeasurements:
+    gas: dict[str, int]
+    fuzz: dict[str, dict[str, int]]
+    invariants: dict[str, dict[str, int]]
 
 
 class GateFailure(RuntimeError):
@@ -320,37 +333,84 @@ def forge_test_arguments(seed: str | None, excluded_paths: Sequence[str]) -> lis
     return arguments
 
 
-def parse_gas_snapshot(path: Path, gate: int = 3) -> dict[str, int]:
-    measurements: dict[str, int] = {}
+def parse_gas_snapshot(path: Path, gate: int = 3) -> SnapshotMeasurements:
+    gas: dict[str, int] = {}
+    fuzz: dict[str, dict[str, int]] = {}
+    invariants: dict[str, dict[str, int]] = {}
     if not path.is_file() or path.stat().st_size == 0:
         raise GateFailure(gate, f"missing or empty gas snapshot: {path}", 30 if gate == 3 else 10)
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        match = SNAPSHOT_RE.fullmatch(line.strip())
-        if not match:
-            raise GateFailure(gate, f"unrecognised gas snapshot line {line_number}: {line}", 30 if gate == 3 else 10)
-        name = match.group("name")
-        if name in measurements:
-            raise GateFailure(gate, f"duplicate gas snapshot measurement: {name}", 30 if gate == 3 else 10)
-        measurements[name] = int(match.group("gas"))
-    if not measurements:
+        stripped = line.strip()
+        gas_match = SNAPSHOT_RE.fullmatch(stripped)
+        if gas_match:
+            name = gas_match.group("name")
+            if name in gas:
+                raise GateFailure(gate, f"duplicate gas snapshot measurement: {name}", 30 if gate == 3 else 10)
+            gas[name] = int(gas_match.group("gas"))
+            continue
+        invariant_match = INVARIANT_SNAPSHOT_RE.fullmatch(stripped)
+        if invariant_match:
+            name = invariant_match.group("name")
+            if name in invariants:
+                raise GateFailure(
+                    gate, f"duplicate invariant snapshot measurement: {name}", 30 if gate == 3 else 10
+                )
+            invariants[name] = {
+                "runs": int(invariant_match.group("runs")),
+                "calls": int(invariant_match.group("calls")),
+                "reverts": int(invariant_match.group("reverts")),
+            }
+            continue
+        fuzz_match = FUZZ_SNAPSHOT_RE.fullmatch(stripped)
+        if fuzz_match:
+            name = fuzz_match.group("name")
+            if name in fuzz:
+                raise GateFailure(gate, f"duplicate fuzz snapshot measurement: {name}", 30 if gate == 3 else 10)
+            fuzz[name] = {
+                "runs": int(fuzz_match.group("runs")),
+                "mean": int(fuzz_match.group("mean")),
+                "median": int(fuzz_match.group("median")),
+            }
+            continue
+        raise GateFailure(gate, f"unrecognised gas snapshot line {line_number}: {line}", 30 if gate == 3 else 10)
+    if not gas and not fuzz and not invariants:
         raise GateFailure(gate, "gas snapshot contains no measurements", 30 if gate == 3 else 10)
-    return measurements
+    return SnapshotMeasurements(gas=gas, fuzz=fuzz, invariants=invariants)
 
 
 def compare_gas(
-    baseline: dict[str, int], candidate: dict[str, int], target_patterns: Sequence[str]
+    baseline: SnapshotMeasurements, candidate: SnapshotMeasurements, target_patterns: Sequence[str]
 ) -> dict[str, Any]:
-    if set(baseline) != set(candidate):
-        missing = sorted(set(baseline) - set(candidate))
-        added = sorted(set(candidate) - set(baseline))
+    if set(baseline.gas) != set(candidate.gas):
+        missing = sorted(set(baseline.gas) - set(candidate.gas))
+        added = sorted(set(candidate.gas) - set(baseline.gas))
         raise GateFailure(3, f"gas snapshot measurement set changed; missing={missing}, added={added}", 30)
+    if set(baseline.invariants) != set(candidate.invariants):
+        missing = sorted(set(baseline.invariants) - set(candidate.invariants))
+        added = sorted(set(candidate.invariants) - set(baseline.invariants))
+        raise GateFailure(3, f"invariant snapshot measurement set changed; missing={missing}, added={added}", 30)
+
+    changed_invariants = sorted(
+        name for name in baseline.invariants if baseline.invariants[name] != candidate.invariants[name]
+    )
+    if changed_invariants:
+        raise GateFailure(3, f"invariant snapshot changed in: {changed_invariants}", 30)
+    if set(baseline.fuzz) != set(candidate.fuzz):
+        missing = sorted(set(baseline.fuzz) - set(candidate.fuzz))
+        added = sorted(set(candidate.fuzz) - set(baseline.fuzz))
+        raise GateFailure(3, f"fuzz snapshot measurement set changed; missing={missing}, added={added}", 30)
+    changed_fuzz_runs = sorted(
+        name for name in baseline.fuzz if baseline.fuzz[name]["runs"] != candidate.fuzz[name]["runs"]
+    )
+    if changed_fuzz_runs:
+        raise GateFailure(3, f"fuzz snapshot run count changed in: {changed_fuzz_runs}", 30)
 
     rows: list[dict[str, Any]] = []
     regressions: list[str] = []
     improvements: set[str] = set()
-    for name in sorted(baseline):
-        before = baseline[name]
-        after = candidate[name]
+    for name in sorted(baseline.gas):
+        before = baseline.gas[name]
+        after = candidate.gas[name]
         delta = after - before
         percentage = (delta / before * 100.0) if before else None
         rows.append(
@@ -377,14 +437,38 @@ def compare_gas(
             pattern = re.compile(pattern_text)
         except re.error as exc:
             raise GateFailure(3, f"invalid gas target regex {pattern_text!r}: {exc}", 30) from exc
-        matched = sorted(name for name in baseline if pattern.search(name))
+        matched = sorted(name for name in baseline.gas if pattern.search(name))
         if not matched:
             raise GateFailure(3, f"gas target matched no measurements: {pattern_text}", 30)
         improved = sorted(name for name in matched if name in improvements)
         if not improved:
             raise GateFailure(3, f"gas target has no improved measurement: {pattern_text}", 30)
         target_results.append({"pattern": pattern_text, "matched": matched, "improved": improved})
-    return {"measurements": rows, "targets": target_results}
+    invariant_rows = [
+        {"measurement": name, **baseline.invariants[name], "status": "identical"}
+        for name in sorted(baseline.invariants)
+    ]
+    fuzz_statistics = []
+    for name in sorted(baseline.fuzz):
+        fuzz_statistics.append(
+            {
+                "measurement": name,
+                "runs": baseline.fuzz[name]["runs"],
+                "baseline_mean": baseline.fuzz[name]["mean"],
+                "candidate_mean": candidate.fuzz[name]["mean"],
+                "mean_delta": candidate.fuzz[name]["mean"] - baseline.fuzz[name]["mean"],
+                "baseline_median": baseline.fuzz[name]["median"],
+                "candidate_median": candidate.fuzz[name]["median"],
+                "median_delta": candidate.fuzz[name]["median"] - baseline.fuzz[name]["median"],
+                "status": "informational_not_comparable",
+            }
+        )
+    return {
+        "measurements": rows,
+        "fuzz_statistics": fuzz_statistics,
+        "invariants": invariant_rows,
+        "targets": target_results,
+    }
 
 
 def artifact_hashes(run_dir: Path, paths: Iterable[Path]) -> dict[str, str]:
@@ -592,17 +676,17 @@ def verify_command(args: argparse.Namespace) -> int:
             raise GateFailure(2, "candidate adds assembly outside the assembly class", 20)
         if {"unchecked", "assembly"}.issubset(added_tokens):
             raise GateFailure(2, "candidate combines unchecked arithmetic and assembly", 20)
-        if args.no_accrual_unchecked and ("unchecked" in added_tokens or optimisation_class == "unchecked-arithmetic"):
-            if not args.non_accrual_rationale or len(args.non_accrual_rationale.strip()) < 20:
-                raise GateFailure(2, "non-accrual unchecked classification requires a substantive rationale", 20)
+        if args.no_sensitive_unchecked and ("unchecked" in added_tokens or optimisation_class == "unchecked-arithmetic"):
+            if not args.non_sensitive_rationale or len(args.non_sensitive_rationale.strip()) < 20:
+                raise GateFailure(2, "non-sensitive unchecked classification requires a substantive rationale", 20)
 
         state["candidate"] = {
             "optimisation_class": optimisation_class,
             "single_class_attested": True,
             "changed_files": changed_files,
             "added_sensitive_tokens": sorted(added_tokens),
-            "accrual_unchecked": bool(args.accrual_unchecked),
-            "non_accrual_rationale": args.non_accrual_rationale,
+            "sensitive_unchecked": bool(args.sensitive_unchecked),
+            "non_sensitive_rationale": args.non_sensitive_rationale,
         }
         state["gates"].append(
             {
@@ -775,10 +859,10 @@ def verify_command(args: argparse.Namespace) -> int:
         )
         write_json(state_path, state)
 
-        accrual_evidence: dict[str, Any]
-        if args.accrual_unchecked:
+        sensitive_evidence: dict[str, Any]
+        if args.sensitive_unchecked:
             if not args.property_proof or len(args.property_proof.strip()) < 40:
-                raise GateFailure(6, "accrual unchecked verification requires a substantive property proof description", 60)
+                raise GateFailure(6, "state-sensitive unchecked verification requires a substantive property proof description", 60)
             targeted_command = [
                 "forge",
                 "test",
@@ -793,24 +877,24 @@ def verify_command(args: argparse.Namespace) -> int:
                 repo,
                 run_dir / "logs" / "gate6.targeted-property-test.log",
             )
-            require_success(targeted, 6, "targeted accrual differential/property test", 60)
-            accrual_evidence = {
+            require_success(targeted, 6, "targeted state-sensitive differential/property test", 60)
+            sensitive_evidence = {
                 "applicable": True,
                 "command": quote_command(targeted_command),
                 "property_proof": args.property_proof,
                 "status": "passed",
             }
         else:
-            accrual_evidence = {
+            sensitive_evidence = {
                 "applicable": False,
-                "reason": args.non_accrual_rationale or "candidate does not introduce, expand, or rely on accrual-adjacent unchecked arithmetic",
+                "reason": args.non_sensitive_rationale or "candidate does not introduce, expand, or rely on state-sensitive unchecked arithmetic",
                 "status": "not_applicable",
             }
         state["gates"].append(
             {
                 "id": 6,
-                "name": "accrual_unchecked_property",
-                **accrual_evidence,
+                "name": "sensitive_unchecked_property",
+                **sensitive_evidence,
                 "passed_at": utc_now(),
             }
         )
@@ -828,7 +912,7 @@ def verify_command(args: argparse.Namespace) -> int:
             "gas": gas,
             "storage_layouts": layouts,
             "method_identifiers": methods,
-            "accrual_unchecked": accrual_evidence,
+            "sensitive_unchecked": sensitive_evidence,
             "candidate_snapshot": str(candidate_snapshot_path.relative_to(run_dir)),
             "candidate_snapshot_sha256": sha256_file(candidate_snapshot_path),
             "finished_at": utc_now(),
@@ -941,18 +1025,18 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="REGEX",
         help="Expected gas measurement regex; repeat as needed and require an improvement in each group",
     )
-    accrual = verify.add_mutually_exclusive_group(required=True)
-    accrual.add_argument(
-        "--accrual-unchecked",
+    sensitive = verify.add_mutually_exclusive_group(required=True)
+    sensitive.add_argument(
+        "--sensitive-unchecked",
         action="store_true",
-        help="Candidate introduces, expands, or relies on unchecked arithmetic adjacent to accrual",
+        help="Candidate introduces, expands, or relies on unchecked arithmetic that can affect persistent state or asset accounting",
     )
-    accrual.add_argument(
-        "--no-accrual-unchecked",
+    sensitive.add_argument(
+        "--no-sensitive-unchecked",
         action="store_true",
-        help="Candidate has no accrual-adjacent unchecked change",
+        help="Candidate has no state-sensitive unchecked change",
     )
-    verify.add_argument("--non-accrual-rationale", help="Required for a non-accrual unchecked candidate")
+    verify.add_argument("--non-sensitive-rationale", help="Required for an unchecked candidate classified as non-sensitive")
     verify.add_argument(
         "--allow-unprotected-layout-change",
         action="store_true",
@@ -989,12 +1073,12 @@ def validate_cross_arguments(parser: argparse.ArgumentParser, args: argparse.Nam
     if args.command != "verify":
         return
     targeted = [args.targeted_match_path, args.targeted_match_test, args.property_proof]
-    if args.accrual_unchecked and not all(targeted):
+    if args.sensitive_unchecked and not all(targeted):
         parser.error(
-            "--accrual-unchecked requires --targeted-match-path, --targeted-match-test, and --property-proof"
+            "--sensitive-unchecked requires --targeted-match-path, --targeted-match-test, and --property-proof"
         )
-    if args.no_accrual_unchecked and any(targeted):
-        parser.error("targeted accrual options require --accrual-unchecked")
+    if args.no_sensitive_unchecked and any(targeted):
+        parser.error("targeted property options require --sensitive-unchecked")
     if args.allow_unprotected_layout_change:
         if not args.layout_change_rationale or len(args.layout_change_rationale.strip()) < 40:
             parser.error("--allow-unprotected-layout-change requires a substantive --layout-change-rationale")
