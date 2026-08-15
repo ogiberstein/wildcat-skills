@@ -55,7 +55,15 @@ if args and args[0] == "snapshot":
         output = repo / ".gas-snapshot"
         gas = baseline
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(f"CTest:testGas_target() (gas: {gas})\n")
+    snapshot = f"CTest:testGas_target() (gas: {gas})\n"
+    if (repo / ".include-invariant").exists():
+        calls = read_int(".candidate-invariant-calls", 60000) if (repo / ".candidate-gas").exists() else 60000
+        snapshot += f"InvariantTest:invariant_callSummary() (runs: 2000, calls: {calls}, reverts: 0)\n"
+    if (repo / ".include-fuzz").exists():
+        mean = read_int(".candidate-fuzz-mean", 120)
+        runs = read_int(".candidate-fuzz-runs", 1000)
+        snapshot += f"CTest:testFuzz_stat(uint256) (runs: {runs}, μ: {mean}, ~: 115)\n"
+    output.write_text(snapshot)
     print("snapshot ok")
     raise SystemExit(0)
 
@@ -199,7 +207,7 @@ class HermesHarnessTests(unittest.TestCase):
     def test_accepts_and_promotes_a_fully_verified_candidate(self) -> None:
         self.baseline()
         self.prepare_candidate()
-        self.assertEqual(self.verify("--no-accrual-unchecked"), 0)
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 0)
         result = json.loads((self.run_dir / "result.json").read_text())
         self.assertEqual(result["status"], "accepted")
         self.assertEqual([gate["id"] for gate in result["gates"]], [1, 2, 3, 4, 5, 6])
@@ -211,23 +219,89 @@ class HermesHarnessTests(unittest.TestCase):
     def test_rejects_any_gas_regression_at_gate_three(self) -> None:
         self.baseline()
         self.prepare_candidate(gas=101)
-        self.assertEqual(self.verify("--no-accrual-unchecked"), 30)
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 30)
         result = json.loads((self.run_dir / "result.json").read_text())
         self.assertEqual(result["failed_gate"], 3)
         self.assertIn("gas regression", result["reason"])
+
+    def test_accepts_unchanged_invariant_snapshot_rows(self) -> None:
+        (self.repo / ".include-invariant").write_text("1")
+        subprocess.run(["git", "add", ".include-invariant"], cwd=self.repo, check=True)
+        subprocess.run(["git", "commit", "-qm", "enable invariant snapshot"], cwd=self.repo, check=True)
+        self.baseline()
+        self.prepare_candidate()
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 0)
+        comparison = json.loads((self.run_dir / "gas-comparison.json").read_text())
+        self.assertEqual(
+            comparison["invariants"],
+            [
+                {
+                    "calls": 60000,
+                    "measurement": "InvariantTest:invariant_callSummary()",
+                    "reverts": 0,
+                    "runs": 2000,
+                    "status": "identical",
+                }
+            ],
+        )
+
+    def test_rejects_changed_invariant_snapshot_rows(self) -> None:
+        (self.repo / ".include-invariant").write_text("1")
+        subprocess.run(["git", "add", ".include-invariant"], cwd=self.repo, check=True)
+        subprocess.run(["git", "commit", "-qm", "enable invariant snapshot"], cwd=self.repo, check=True)
+        self.baseline()
+        self.prepare_candidate()
+        (self.repo / ".candidate-invariant-calls").write_text("59999")
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 30)
+        result = json.loads((self.run_dir / "result.json").read_text())
+        self.assertEqual(result["failed_gate"], 3)
+        self.assertIn("invariant snapshot changed", result["reason"])
+
+    def test_accepts_fuzz_statistic_snapshot_rows(self) -> None:
+        (self.repo / ".include-fuzz").write_text("1")
+        subprocess.run(["git", "add", ".include-fuzz"], cwd=self.repo, check=True)
+        subprocess.run(["git", "commit", "-qm", "enable fuzz snapshot"], cwd=self.repo, check=True)
+        self.baseline()
+        self.prepare_candidate()
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 0)
+        comparison = json.loads((self.run_dir / "gas-comparison.json").read_text())
+        self.assertEqual(comparison["fuzz_statistics"][0]["runs"], 1000)
+        self.assertEqual(comparison["fuzz_statistics"][0]["status"], "informational_not_comparable")
+
+    def test_records_changed_fuzz_statistics_without_calling_them_a_regression(self) -> None:
+        (self.repo / ".include-fuzz").write_text("1")
+        subprocess.run(["git", "add", ".include-fuzz"], cwd=self.repo, check=True)
+        subprocess.run(["git", "commit", "-qm", "enable fuzz snapshot"], cwd=self.repo, check=True)
+        self.baseline()
+        self.prepare_candidate()
+        (self.repo / ".candidate-fuzz-mean").write_text("121")
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 0)
+        comparison = json.loads((self.run_dir / "gas-comparison.json").read_text())
+        self.assertEqual(comparison["fuzz_statistics"][0]["mean_delta"], 1)
+
+    def test_rejects_changed_fuzz_run_count(self) -> None:
+        (self.repo / ".include-fuzz").write_text("1")
+        subprocess.run(["git", "add", ".include-fuzz"], cwd=self.repo, check=True)
+        subprocess.run(["git", "commit", "-qm", "enable fuzz snapshot"], cwd=self.repo, check=True)
+        self.baseline()
+        self.prepare_candidate()
+        (self.repo / ".candidate-fuzz-runs").write_text("999")
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 30)
+        result = json.loads((self.run_dir / "result.json").read_text())
+        self.assertIn("fuzz snapshot run count changed", result["reason"])
 
     def test_rejects_full_suite_failure_at_gate_four(self) -> None:
         self.baseline()
         self.prepare_candidate()
         (self.repo / ".fail-full-test").write_text("1")
-        self.assertEqual(self.verify("--no-accrual-unchecked"), 40)
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 40)
         self.assertEqual(json.loads((self.run_dir / "result.json").read_text())["failed_gate"], 4)
 
     def test_hard_aborts_on_protected_layout_change(self) -> None:
         self.baseline()
         self.prepare_candidate()
         (self.repo / ".layout-slot").write_text("1")
-        self.assertEqual(self.verify("--no-accrual-unchecked"), 50)
+        self.assertEqual(self.verify("--no-sensitive-unchecked"), 50)
         result = json.loads((self.run_dir / "result.json").read_text())
         self.assertEqual(result["failed_gate"], 5)
         self.assertIn("storage layout changed", result["reason"])
@@ -237,7 +311,7 @@ class HermesHarnessTests(unittest.TestCase):
         self.prepare_candidate()
         (self.repo / ".layout-slot").write_text("1")
         code = self.verify(
-            "--no-accrual-unchecked",
+            "--no-sensitive-unchecked",
             "--allow-unprotected-layout-change",
             "--layout-change-rationale",
             "No proxy, hook, role provider, delegate call, factory deployment, or indexer reads this layout.",
@@ -252,44 +326,44 @@ class HermesHarnessTests(unittest.TestCase):
         self.prepare_candidate(source=SOURCE_UNCHECKED)
         self.assertEqual(
             self.verify(
-                "--no-accrual-unchecked",
-                "--non-accrual-rationale",
-                "This arithmetic is unrelated to every accrual input and output.",
+                "--no-sensitive-unchecked",
+                "--non-sensitive-rationale",
+                "This arithmetic cannot affect persistent state, asset balances, or external call parameters.",
             ),
             20,
         )
         self.assertEqual(json.loads((self.run_dir / "result.json").read_text())["failed_gate"], 2)
 
-    def test_requires_and_runs_targeted_accrual_property_test(self) -> None:
+    def test_requires_and_runs_targeted_sensitive_property_test(self) -> None:
         self.baseline()
         self.prepare_candidate(source=SOURCE_UNCHECKED)
         code = self.verify(
-            "--accrual-unchecked",
+            "--sensitive-unchecked",
             "--targeted-match-path",
             "test/C.t.sol",
             "--targeted-match-test",
-            "testFuzz_accrualDifferential",
+            "testFuzz_stateDifferential",
             "--property-proof",
-            "Compare checked and unchecked accrual results across the bounded timestamp and rate domains.",
+            "Compare checked and unchecked state transitions across the complete bounded input domain.",
             optimisation_class="unchecked-arithmetic",
         )
         self.assertEqual(code, 0)
         result = json.loads((self.run_dir / "result.json").read_text())
-        self.assertTrue(result["accrual_unchecked"]["applicable"])
-        self.assertEqual(result["accrual_unchecked"]["status"], "passed")
+        self.assertTrue(result["sensitive_unchecked"]["applicable"])
+        self.assertEqual(result["sensitive_unchecked"]["status"], "passed")
 
-    def test_targeted_accrual_property_failure_rejects_gate_six(self) -> None:
+    def test_targeted_sensitive_property_failure_rejects_gate_six(self) -> None:
         self.baseline()
         self.prepare_candidate(source=SOURCE_UNCHECKED)
         (self.repo / ".fail-targeted").write_text("1")
         code = self.verify(
-            "--accrual-unchecked",
+            "--sensitive-unchecked",
             "--targeted-match-path",
             "test/C.t.sol",
             "--targeted-match-test",
-            "testFuzz_accrualDifferential",
+            "testFuzz_stateDifferential",
             "--property-proof",
-            "Compare checked and unchecked accrual results across the bounded timestamp and rate domains.",
+            "Compare checked and unchecked state transitions across the complete bounded input domain.",
             optimisation_class="unchecked-arithmetic",
         )
         self.assertEqual(code, 60)

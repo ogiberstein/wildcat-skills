@@ -7,12 +7,12 @@ Use this list to nominate one Gate 2 class. Search for candidates, make a predic
 | `storage-load-caching` | Hoist repeated `SLOAD`s into locals and reuse already-read struct fields | Low | Check that no call or state write between reads can change the value |
 | `calldata-memory` | Change read-only external parameters from `memory` to `calldata`; avoid needless copies | Low | Confirm the public signature and selector stay unchanged |
 | `custom-errors` | Replace revert strings with custom errors | Low | Find tests and callers that inspect revert data; record bytecode and runtime effects |
-| `loop-arithmetic` | Cache `.length`, remove repeated indexing work, or use a proven-safe unchecked increment | Low-medium | Find real loops first; prove the increment bound and keep accrual rules in force |
+| `loop-arithmetic` | Cache `.length`, remove repeated indexing work, or use a proven-safe unchecked increment | Low-medium | Find real loops first; prove the increment bound and keep state-sensitive arithmetic rules in force |
 | `constants-immutables` | Move values from storage to `constant` or `immutable` | Medium | Expect a layout change; frozen contracts cannot take this class |
 | `external-call-reduction` | Collapse duplicate calls or cache stable return data | Medium | Prove the target is unchanged across intervening calls, callbacks, and state writes |
 | `event-packing` | Reduce event data or indexed arguments | Medium | Confirm indexers and off-chain consumers can take the event change |
 | `storage-packing` | Narrow or reorder fields to share slots | High | Use only outside the frozen set; declare and record the layout difference |
-| `unchecked-arithmetic` | Remove checked arithmetic where bounds prove wraparound impossible | High | Treat debt, rates, time, fees, rounding, delinquency, and withdrawals as accrual-adjacent; run Gate 6 |
+| `unchecked-arithmetic` | Remove checked arithmetic where bounds prove wraparound impossible | High | Treat persistent state, asset accounting, permissions, external-call parameters, time and rounding as sensitive; run Gate 6 |
 | `control-flow` | Reorder branches, remove duplicate predicates, or change `public` to `external` | Medium | Inspect selectors and measure every affected dispatch path; one function may get cheaper while another gets dearer |
 | `hashing-encoding` | Remove duplicate encoding or hashing work and prefer fixed-width operations where semantics match | Medium | Compare exact bytes, collision assumptions, and downstream signature/domain use |
 | `assembly` | Replace Solidity with a small assembly section | High | Keep this class separate from unchecked arithmetic; prove memory safety, returndata handling, and revert behaviour |

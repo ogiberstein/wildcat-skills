@@ -17,7 +17,7 @@ Gas changes are easy to praise and surprisingly easy to get wrong. Hermes takes 
 3. Prove the saving with `forge snapshot --diff`, reject every positive delta, and capture `forge test --gas-report`.
 4. Run the full test suite again with the pinned fuzz seed, then once more unpinned.
 5. Diff storage layouts and method identifiers for every recorded contract. Any layout change to a hook, role provider, proxied contract or other protected contract aborts the run.
-6. For unchecked arithmetic in or feeding accrual code, run the existing targeted differential or property test before accepting the candidate.
+6. For unchecked arithmetic that can affect persistent state, asset accounting, external calls, permissions, or rounding, run the existing targeted differential or property test before accepting the candidate.
 
 A candidate only clears Hermes when every gate clears. The run leaves behind `result.json`, command logs, gas comparisons, the Solidity diff, storage layouts and method maps, so the number and the safety case can be reviewed together.
 
@@ -27,6 +27,10 @@ Hermes includes:
 - a catalogue of [12 optimisation classes](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/references/optimisation-catalogue.md);
 - Codex metadata for explicit or automatic invocation; and
 - a test suite covering accepted runs and representative failures across Gates 2 to 6.
+
+## Code findings
+
+The first live Hermes pass found that [`BaseAccessControls.grantRoles`](./plugins/hermes-gas-optimiser/examples/v2-protocol-v2.1.0/README.md) receives two read-only dynamic arrays through `memory` despite being external. The recorded candidate moves both parameters to `calldata`, avoiding the ABI copy. The candidate is published as a finding, not an accepted optimisation: its Gate 3 gas-report command did not complete.
 
 The ideas are cheap. The evidence is the job.
 
@@ -76,7 +80,25 @@ Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in th
 Use $hermes-gas-optimiser to optimise gas in this repository. Work one optimisation class at a time and keep the complete verification record.
 ```
 
-The full command contract, layout rules and accrual proof standard live in [Hermes's `SKILL.md`](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/SKILL.md).
+The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/SKILL.md).
+
+## Verification gates
+
+### Gate 3: quantify the gas change
+
+Run the baseline diff and gas report. Every declared target must have a deterministic saving, and no deterministic snapshot row may regress.
+
+### Gate 4: prove behaviour is unchanged
+
+Run the complete test suite again with the pinned fuzz seed, then repeat it without the pin.
+
+### Gate 5: preserve layouts and selectors
+
+Compare every recorded storage layout and method map before and after the candidate. Any change to a protected contract rejects the run.
+
+### Gate 6: prove state-sensitive unchecked arithmetic
+
+Unchecked arithmetic that can affect persistent state or externally visible results needs an existing targeted differential or property test. Other candidates record why this gate does not apply.
 
 ## Repository layout
 
