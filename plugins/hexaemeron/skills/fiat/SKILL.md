@@ -3,9 +3,9 @@ name: fiat
 description: >
   Run the one-shot delivery loop: study, runbook, then per-step
   issue/implement/audit/prose/push until a working prototype exists.
-  Use only when a Wildcat contributor invokes /hexaemeron:fiat with a topic,
-  a bare /hexaemeron:fiat to resume, or /hexaemeron:fiat status for a report.
-  Do not invoke automatically.
+  Use only when a Wildcat contributor explicitly asks to start, run, resume,
+  or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
+  Do not infer activation from a similar task.
 metadata:
   version: "1.0.0"
 ---
@@ -151,11 +151,13 @@ whatever gate the repo runs.
 ## Delegation and context
 
 For long runs, hand research and implementation bulk to the bundled agents
-(`surveyor`, `mason`) via the Task tool, passing the controller path, the
-state directory, and the current directive verbatim. Keep the audit and
-prose phases in the main session when they depend on invoking other
-installed skills, since a subagent may not see them. After each `done push`,
-compact: the receipts carry everything a fresh context needs.
+(`surveyor`, `mason`) through the runtime's subagent mechanism, passing the
+controller path, the state directory, and the current directive verbatim. If
+the runtime has no subagent mechanism, perform the work in the main session
+and keep the controller receipt as the boundary. Keep the audit and prose
+phases in the main session when a delegated context cannot load the bundled
+skills. After each `done push`, compact if the runtime supports it: the
+receipts carry everything a fresh context needs.
 
 ## Stop conditions
 

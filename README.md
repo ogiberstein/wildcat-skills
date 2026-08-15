@@ -127,6 +127,31 @@ and Hexaemeron's entry skill as:
 
 See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) documentation for the underlying format.
 
+### Local agents
+
+Agents that support the open Agent Skills convention can discover the two
+host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
+agent at this repository and include that directory in its project skill
+search path. Keep the repository layout intact: each entry routes to the
+canonical plugin instructions instead of copying them.
+
+A file-reading agent without automatic skill discovery should begin with
+[`AGENTS.md`](./AGENTS.md). That file identifies the entrypoints, path rules,
+and plugin-specific runtime contracts. Named tools in vendored skills describe
+capabilities; the Hexaemeron contract maps them to file, shell, search,
+planning, question, and subagent operations available in a local runtime.
+
+Plain-text activation works alongside host syntax:
+
+```text
+Use Hermes to optimise gas in this Foundry repository.
+Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
+Use Hexaemeron Fizz to generate a stateful fuzz suite.
+```
+
+Fiat remains explicit-only. Mentioning a similar delivery task does not start
+the controller unless the user names Hexaemeron or Fiat and asks to run it.
+
 ## Use
 
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
@@ -176,3 +201,7 @@ plugins/
 ```
 
 Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
+
+Local agents load the same canonical directories through the two portable
+entries. The portable layer translates discovery and tool vocabulary; it does
+not weaken a skill's checks or invent receipts for work that did not run.

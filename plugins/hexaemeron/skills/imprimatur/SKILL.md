@@ -1,7 +1,15 @@
 ---
 name: imprimatur
-version: 1.0.0
-description: Organisation-wide banned lexicon for AI writing tells. Blocks a hard list of banned words and phrases, gates technical terms of art on evidence, and catches the structural formulae that survive any wordlist. A mask over drafting: it strips the tells so shipped prose reads plainly, and is easier to grasp than the usual AI slop. Use when drafting, editing, or reviewing any prose that ships, when checking whether a draft reads as machine-written, or when the user names a term to ban.
+description: >-
+  Organisation-wide banned lexicon for AI writing tells. Blocks a hard list
+  of banned words and phrases, gates technical terms of art on evidence, and
+  catches the structural formulae that survive any wordlist. A mask over
+  drafting: it strips the tells so shipped prose reads plainly, and is easier
+  to grasp than the usual AI slop. Use when drafting, editing, or reviewing
+  any prose that ships, when checking whether a draft reads as
+  machine-written, or when the user names a term to ban.
+metadata:
+  version: "1.0.0"
 ---
 
 # Imprimatur
