@@ -12,6 +12,8 @@ the canonical `SKILL.md` it names.
 - Hexaemeron is under `plugins/hexaemeron/`. Read
   `plugins/hexaemeron/AGENTS.md` before running one of its skills or changing
   that plugin.
+- Probitas is under `plugins/probitas/`. Read `plugins/probitas/AGENTS.md`
+  before running its skill or changing that plugin.
 - `.claude-plugin/` and `.codex-plugin/` files install the same canonical skill
   directories on their named hosts. They do not change the meaning of a skill.
 - `.agents/skills/` contains host-neutral entrypoints for agents that implement
@@ -39,6 +41,7 @@ python3 -m unittest discover -s tests
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
 python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
+python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
 ```
 
 Validate every changed skill directory against the Agent Skills frontmatter

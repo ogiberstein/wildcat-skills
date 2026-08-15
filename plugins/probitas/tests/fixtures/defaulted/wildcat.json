@@ -1,0 +1,74 @@
+{
+  "markets": [
+    {
+      "id": "0x3333333333333333333333333333333333333333",
+      "name": "Cygnus USD Coin",
+      "symbol": "wccygnus",
+      "borrower": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "createdAt": 1740000000,
+      "isClosed": false,
+      "isDelinquent": true,
+      "isIncurringPenalties": true,
+      "timeDelinquent": 1209600,
+      "delinquencyGracePeriod": 259200,
+      "delinquencyFeeBips": 1000,
+      "reserveRatioBips": 2000,
+      "originalReserveRatioBips": 2000,
+      "annualInterestBips": 1200,
+      "totalBorrowed": "9000000000000",
+      "totalRepaid": "500000000000",
+      "totalDelinquencyFeesAccrued": "41000000000",
+      "asset": {
+        "symbol": "USDC",
+        "decimals": 6
+      },
+      "deployedEvent": {
+        "transactionHash": "0x3131313131313131313131313131313131313131313131313131313131313131",
+        "blockNumber": 21900000,
+        "blockTimestamp": 1740000000
+      },
+      "marketClosedEvent": null,
+      "delinquencyRecords": [
+        {
+          "isDelinquent": true,
+          "blockTimestamp": 1745184000,
+          "blockNumber": 22332000,
+          "transactionHash": "0x3232323232323232323232323232323232323232323232323232323232323232",
+          "liquidityCoverageRequired": "1800000000000",
+          "totalAssets": "20000000000"
+        }
+      ],
+      "borrowRecords": [
+        {
+          "assetAmount": "9000000000000",
+          "blockTimestamp": 1740086400,
+          "blockNumber": 21907200,
+          "transactionHash": "0x3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "repaymentRecords": [
+        {
+          "assetAmount": "500000000000",
+          "blockTimestamp": 1741728000,
+          "blockNumber": 22044000,
+          "transactionHash": "0x3434343434343434343434343434343434343434343434343434343434343434"
+        }
+      ],
+      "withdrawalBatches": [
+        {
+          "expiry": 1745875200,
+          "totalNormalizedRequests": "1500000000000",
+          "normalizedAmountPaid": "0",
+          "isExpired": true,
+          "isClosed": false,
+          "isCompleted": false,
+          "expiration": {
+            "transactionHash": "0x3535353535353535353535353535353535353535353535353535353535353535",
+            "blockNumber": 22389600,
+            "blockTimestamp": 1745875200
+          }
+        }
+      ]
+    }
+  ]
+}

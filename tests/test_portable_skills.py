@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PortableSkillTests(unittest.TestCase):
     def test_portable_entrypoints_exist_and_match_parent_name(self):
-        for name in ("hermes", "hexaemeron"):
+        for name in ("hermes", "hexaemeron", "probitas"):
             path = ROOT / ".agents" / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
             self.assertTrue(text.startswith("---\n"))
@@ -31,6 +31,11 @@ class PortableSkillTests(unittest.TestCase):
         hermes = ROOT / "plugins" / "hermes" / "skills" / "hermes" / "SKILL.md"
         self.assertTrue(hermes.is_file())
 
+        probitas = ROOT / "plugins" / "probitas"
+        contract = (probitas / "AGENTS.md").read_text(encoding="utf-8")
+        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
+            self.assertTrue((probitas / relative).is_file(), relative)
+
         hexa_root = ROOT / "plugins" / "hexaemeron"
         contract = (hexa_root / "AGENTS.md").read_text(encoding="utf-8")
         paths = re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract)
@@ -44,6 +49,7 @@ class PortableSkillTests(unittest.TestCase):
         skills += list(
             (ROOT / "plugins" / "hexaemeron" / "skills" / "fizz" / "skills").glob("*/SKILL.md")
         )
+        skills += list((ROOT / "plugins" / "probitas" / "skills").glob("*/SKILL.md"))
         for path in skills:
             text = path.read_text(encoding="utf-8")
             match = re.search(r"^name:\s*([^\n]+)$", text, re.MULTILINE)

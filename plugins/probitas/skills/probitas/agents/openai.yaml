@@ -1,0 +1,4 @@
+interface:
+  display_name: "Probitas"
+  short_description: "Sourced dossier of a counterparty's on-chain lending record, with the gaps named out loud"
+  default_prompt: "Use $probitas to build a sourced dossier on this counterparty from the addresses they declared."

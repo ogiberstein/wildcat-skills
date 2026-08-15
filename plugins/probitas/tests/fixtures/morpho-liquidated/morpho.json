@@ -1,0 +1,55 @@
+{
+  "items": [
+    {
+      "txHash": "0x5151515151515151515151515151515151515151515151515151515151515151",
+      "timestamp": 1740086400,
+      "blockNumber": 21907200,
+      "type": "Borrow",
+      "user": {
+        "address": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+      },
+      "market": {
+        "marketId": "0xaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+        "loanAsset": {
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "collateralAsset": {
+          "symbol": "WETH",
+          "decimals": 18
+        }
+      },
+      "data": {
+        "__typename": "MarketTransactionTransferData",
+        "assets": "4000000000",
+        "shares": "4000000000"
+      }
+    },
+    {
+      "txHash": "0x5252525252525252525252525252525252525252525252525252525252525252",
+      "timestamp": 1742592000,
+      "blockNumber": 22116000,
+      "type": "Liquidation",
+      "user": {
+        "address": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+      },
+      "market": {
+        "marketId": "0xaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+        "loanAsset": {
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "collateralAsset": {
+          "symbol": "WETH",
+          "decimals": 18
+        }
+      },
+      "data": {
+        "__typename": "MarketTransactionLiquidationData",
+        "repaidAssets": 1200000920,
+        "seizedAssets": "115730723260805373169",
+        "badDebtAssets": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+# Probitas
+
+A sourced dossier on a counterparty's record across on-chain lending venues,
+built from the addresses they declared.
+
+Give it an entity name and the addresses a counterparty has declared, and it
+produces the writeup: what they borrowed, whether they gave it back, and what
+could not be established.
+
+The reason to want this is undercollateralised lending, where nothing stands
+between a lender and a total loss except a judgement about the borrower, and
+that judgement usually gets assembled by hand out of whatever whoever is
+asking happens to remember. The tool is not limited to that case. Most
+on-chain borrowing is overcollateralised and it still tells you plenty: a
+liquidation says a price moved, a bad debt says somebody was not made whole,
+and a missed maturity says what it says anywhere.
+
+The protocol stays out of it. Wildcat Labs doesn't vet borrowers, and becoming
+the party that blesses counterparties would make us the underwriter we chose
+not to be. So this runs on the lender's own machine, against a borrower they're
+considering, and they reach their own conclusion. We hand over the instrument
+and not the verdict.
+
+## Run it
+
+From this directory, `plugins/probitas`:
+
+```bash
+python3 scripts/probitas.py venues
+
+python3 scripts/probitas.py collect --entity "Acme Trading Ltd" \
+  --address 0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1 \
+  --fixtures tests/fixtures/demo --run-id demo --out evidence.json
+
+python3 scripts/probitas.py render evidence.json --out dossier.md
+
+python3 scripts/probitas.py verify dossier.md evidence.json
+```
+
+Five gate lines and exit 0. `verify` exits 1 and names the gate when a dossier
+breaches one, which is the only exit code worth wiring into anything.
+
+That sequence produces [`docs/example-dossier.md`](docs/example-dossier.md)
+exactly. The test suite regenerates it and compares, so the committed example
+can't drift from what the tool actually does.
+
+Drop `--fixtures` to run against the live venues instead of a synthetic
+borrower.
+
+### Options
+
+| Flag | What it does |
+| --- | --- |
+| `--entity` | The counterparty's name. Required |
+| `--address` | An address they declared. Repeatable, required |
+| `--inferred` | An address suspected but neither declared nor provably linked. Kept in its own section, and gate 1 fails the dossier if a finding against one appears anywhere else |
+| `--fixtures` | Read venue responses from a directory instead of the network |
+| `--run-id` | A label for the run, printed in the dossier |
+| `--timeout` | Seconds per request, default 30 |
+| `--out` | Where to write, or `-` for stdout |
+
+### The fixtures
+
+Nine of them, covering both shipped venues and the cases worth being sure
+about.
+
+For Wildcat: a clean record, a delinquency cured inside the grace period, a
+default with penalty interest running and a withdrawal batch that expired
+unpaid, and a borrower with no history at all. The cured one is the case a
+hand-assembled writeup usually reads as a default.
+
+For Morpho: a clean borrower, a liquidation the collateral covered, a
+liquidation that left bad debt behind, and again an empty one. The two
+liquidations are the pair that keeps the distinction honest, since only the
+second one cost anybody money.
+
+`demo` combines a Wildcat default with Morpho bad debt, and is what the
+quickstart above runs.
+
+## How it works
+
+Two halves, doing different jobs.
+
+The deterministic half is a Python program. It queries lending venues for the
+declared addresses and writes every result into an evidence file. A record
+can't enter that file without a transaction hash, a URL or a document reference
+attached, because the schema won't represent one.
+
+The model half writes the narrative, reading the evidence file and nothing
+else. Then a gate checker reads the dossier and the evidence together and
+decides whether the document may ship.
+
+The split is the whole design. Ask a model to cite its sources and some
+proportion of what comes back will be citation-shaped and hollow, and nothing
+inside the model will notice. [The five gates](skills/probitas/references/gates.md)
+covers what each check does about that.
+
+## The gates
+
+1. **Address provenance.** Every address is declared by the counterparty or
+   provably linked on chain. Inferred addresses get their own section.
+2. **Coverage is stated.** The venues checked and the block range, by name.
+   Silence about a venue is a gap in the dossier, not a clean record.
+3. **Sourcing is total.** Every assertion carries a transaction hash, a URL or
+   a document reference, and every figure traces back to a record.
+4. **Negative space is explicit.** What could not be established, in its own
+   section, ahead of any summary.
+5. **No score without a rubric.** If a rating is ever emitted, the rubric
+   prints beside it and the inputs to each component are shown.
+
+## What it never does
+
+No personal data. No social handles, no employment history, no working out
+which individual controls an address. A dossier that starts profiling people is
+a different product and a worse one, and that line sits in the tool rather than
+in whoever is operating it at two in the morning.
+
+No score, in this version. The specification leaves the question open and leans
+toward evidence without a rating, because a rating invites people to lean on it
+harder than the data can bear. Gate 5 is implemented anyway, so whoever adds a
+rubric later finds the check already standing.
+
+## Venues
+
+Thirteen in the registry, two with adapters. The other eleven appear in every
+coverage table saying nobody checked, which is gate 2 working rather than an
+omission.
+
+| Venue | Status |
+| --- | --- |
+| Wildcat | Shipped. Public Goldsky subgraph, no key |
+| Morpho Blue | Shipped. Borrowing on Blue markets, keyless public API |
+| Centrifuge | Keyless GraphQL, introspects cleanly. The most build-ready of the gaps |
+| Aave v3, Aave v4 | Keyless first-party API. v4 went live on mainnet in March 2026 |
+| MetaMorpho vaults, Morpho Vaults V2, Morpho Midnight | Three further Morpho surfaces, all keyless, none collected |
+| Maple Finance | Answers, but disables introspection and publishes no schema |
+| Compound v3, Goldfinch | Need a paid Graph gateway key |
+| Clearpool | Live, behind a bot challenge. An agreement is the way in, not a workaround |
+| TrueFi | Restructured through a token migration; no public endpoint answered |
+
+Six of the eleven gaps need only an adapter and nothing from anyone: Centrifuge,
+both Aave versions, and Morpho's three other surfaces. The rest wait on a key,
+a schema, or an agreement.
+
+Goldfinch is worth a line of its own. It wound down in June 2026 after
+defaults, which makes it a list of counterparties who did not repay, sitting on
+chain and directly relevant to anyone they approach next. A dead protocol is
+not a dead record.
+
+The two that ship read differently on purpose. Wildcat is undercollateralised,
+so a missed reserve ratio is about the borrower. Morpho is overcollateralised,
+so a liquidation is about a price, and the dossier says so in as many words.
+Bad debt is the one Morpho signal that bears on conduct, and it gets its own
+line.
+
+[Adding a venue](docs/adding-a-venue.md) says what each gap actually is and
+what closing one takes. It assumes no knowledge of Wildcat.
+
+## Tests
+
+From the repository root:
+
+```bash
+python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
+```
+
+Python 3.9 or later, standard library only. No install step, no lockfile, no
+dependency tree. Someone deciding whether to trust a counterparty should not
+first have to decide whether to trust forty transitive packages.
+
+## Reading further
+
+- [`docs/adding-a-venue.md`](docs/adding-a-venue.md) -- every gap, what blocks
+  it, and how to close one.
+- [`docs/example-dossier.md`](docs/example-dossier.md) -- what the output
+  looks like.
+- [`audit/AUDIT.md`](audit/AUDIT.md) -- every audit round, including the
+  findings that were wrong the first time.
+
+## Licence
+
+Apache-2.0. See [LICENSE](LICENSE).

@@ -1,0 +1,81 @@
+{
+  "markets": [
+    {
+      "id": "0x1111111111111111111111111111111111111111",
+      "name": "Acme USD Coin",
+      "symbol": "wcacme",
+      "borrower": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "createdAt": 1740000000,
+      "isClosed": true,
+      "isDelinquent": false,
+      "isIncurringPenalties": false,
+      "timeDelinquent": -4617984,
+      "delinquencyGracePeriod": 259200,
+      "delinquencyFeeBips": 1000,
+      "reserveRatioBips": 2000,
+      "originalReserveRatioBips": 2000,
+      "annualInterestBips": 1200,
+      "totalBorrowed": "5000000000000",
+      "totalRepaid": "5000000000000",
+      "totalDelinquencyFeesAccrued": "0",
+      "asset": {
+        "symbol": "USDC",
+        "decimals": 6
+      },
+      "deployedEvent": {
+        "transactionHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "blockNumber": 21900000,
+        "blockTimestamp": 1740000000
+      },
+      "marketClosedEvent": {
+        "transactionHash": "0x1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+        "blockNumber": 23340000,
+        "blockTimestamp": 1757280000
+      },
+      "delinquencyRecords": [],
+      "borrowRecords": [
+        {
+          "assetAmount": "3000000000000",
+          "blockTimestamp": 1740172800,
+          "blockNumber": 21914400,
+          "transactionHash": "0x1212121212121212121212121212121212121212121212121212121212121212"
+        },
+        {
+          "assetAmount": "2000000000000",
+          "blockTimestamp": 1742592000,
+          "blockNumber": 22116000,
+          "transactionHash": "0x1313131313131313131313131313131313131313131313131313131313131313"
+        }
+      ],
+      "repaymentRecords": [
+        {
+          "assetAmount": "2500000000000",
+          "blockTimestamp": 1747776000,
+          "blockNumber": 22548000,
+          "transactionHash": "0x1414141414141414141414141414141414141414141414141414141414141414"
+        },
+        {
+          "assetAmount": "2500000000000",
+          "blockTimestamp": 1755552000,
+          "blockNumber": 23196000,
+          "transactionHash": "0x1515151515151515151515151515151515151515151515151515151515151515"
+        }
+      ],
+      "withdrawalBatches": [
+        {
+          "expiry": 1748640000,
+          "totalNormalizedRequests": "1000000000000",
+          "normalizedAmountPaid": "1000000000000",
+          "isExpired": true,
+          "isClosed": true,
+          "isCompleted": true,
+          "expiration": {
+            "transactionHash": "0x1616161616161616161616161616161616161616161616161616161616161616",
+            "blockNumber": 22620000,
+            "blockTimestamp": 1748640000
+          }
+        }
+      ]
+    }
+  ]
+}
