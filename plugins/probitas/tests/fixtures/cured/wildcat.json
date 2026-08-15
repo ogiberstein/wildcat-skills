@@ -1,0 +1,68 @@
+{
+  "markets": [
+    {
+      "id": "0x2222222222222222222222222222222222222222",
+      "name": "Borealis USD Coin",
+      "symbol": "wcborealis",
+      "borrower": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "createdAt": 1740000000,
+      "isClosed": false,
+      "isDelinquent": false,
+      "isIncurringPenalties": false,
+      "timeDelinquent": -90000,
+      "delinquencyGracePeriod": 259200,
+      "delinquencyFeeBips": 1000,
+      "reserveRatioBips": 2000,
+      "originalReserveRatioBips": 2000,
+      "annualInterestBips": 1200,
+      "totalBorrowed": "4000000000000",
+      "totalRepaid": "1000000000000",
+      "totalDelinquencyFeesAccrued": "0",
+      "asset": {
+        "symbol": "USDC",
+        "decimals": 6
+      },
+      "deployedEvent": {
+        "transactionHash": "0x2121212121212121212121212121212121212121212121212121212121212121",
+        "blockNumber": 21900000,
+        "blockTimestamp": 1740000000
+      },
+      "marketClosedEvent": null,
+      "delinquencyRecords": [
+        {
+          "isDelinquent": true,
+          "blockTimestamp": 1743456000,
+          "blockNumber": 22188000,
+          "transactionHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "liquidityCoverageRequired": "800000000000",
+          "totalAssets": "600000000000"
+        },
+        {
+          "isDelinquent": false,
+          "blockTimestamp": 1743542400,
+          "blockNumber": 22195200,
+          "transactionHash": "0x2323232323232323232323232323232323232323232323232323232323232323",
+          "liquidityCoverageRequired": "800000000000",
+          "totalAssets": "850000000000"
+        }
+      ],
+      "borrowRecords": [
+        {
+          "assetAmount": "4000000000000",
+          "blockTimestamp": 1740086400,
+          "blockNumber": 21907200,
+          "transactionHash": "0x2424242424242424242424242424242424242424242424242424242424242424"
+        }
+      ],
+      "repaymentRecords": [
+        {
+          "assetAmount": "1000000000000",
+          "blockTimestamp": 1743542400,
+          "blockNumber": 22195100,
+          "transactionHash": "0x2525252525252525252525252525252525252525252525252525252525252525"
+        }
+      ],
+      "withdrawalBatches": []
+    }
+  ]
+}

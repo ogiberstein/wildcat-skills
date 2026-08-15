@@ -67,18 +67,53 @@ Hexaemeron includes:
 
 **Business development.** An integration document has to be accurate about what the protocol does and readable by someone who is not an engineer. The study phase produces the first and the prose masks produce the second.
 
+### Probitas
+
+[Probitas](./plugins/probitas) builds a sourced dossier on what a counterparty has done across on-chain lending venues.
+
+Undercollateralised lending is the reason to want one: nothing stands between a lender and a total loss except a judgement about the borrower, and that judgement usually gets assembled by hand out of whatever whoever is asking happens to remember. The tool is not limited to that case. Most on-chain borrowing is collateralised and it still tells you plenty, because a liquidation says a price moved, a bad debt says somebody was not made whole, and a missed maturity says what it says anywhere.
+
+Two halves, doing different jobs. A deterministic collector queries venue adapters and writes an evidence file in which a record cannot exist without a transaction hash, a URL or a document reference. The model writes the narrative from that file, and a gate checker reads the document and the evidence together before either ships.
+
+Five gates decide whether a dossier is honest enough to hand to a lender:
+
+1. Declared, provably linked and inferred addresses stay in separate sections.
+2. Every venue in the registry gets a coverage row, and a venue that was queried says over what block range. Silence about a venue would read as a clean record.
+3. Every assertion carries a citation, and every figure in the document traces back to a record.
+4. What could not be established gets its own section, ahead of anything that reads like a conclusion.
+5. No score without a rubric printed beside it. This version emits none.
+
+Gate 3 is the one that does the work. It rebuilds, from the evidence alone, every number and hash a truthful dossier could carry, then fails the document on any figure that is not in that set. An invented transaction hash, an amount rounded in the retelling, a market that was never there: each fails the run rather than shipping in it.
+
+Probitas includes:
+
+- the executable [`probitas.py`](./plugins/probitas/scripts/probitas.py) collector, renderer and gate checker, standard library only;
+- adapters for [Wildcat](https://wildcat.finance) and Morpho Blue, and eleven further venues carried as named gaps rather than silence;
+- nine synthetic borrower fixtures, including the cured delinquency that a hand-assembled writeup usually reads as a default;
+- a [committed example dossier](./plugins/probitas/docs/example-dossier.md) that the tests regenerate and compare, so it cannot drift;
+- [a guide to closing a coverage gap](./plugins/probitas/docs/adding-a-venue.md) that assumes no knowledge of Wildcat; and
+- 234 tests and an audit log ([`audit/AUDIT.md`](./plugins/probitas/audit/AUDIT.md)) recording every round, including the fixes that were wrong the first time.
+
+#### Day to day
+
+**Business development.** A counterparty asks for a market and someone has to decide whether their word is worth anything. Give this the addresses they declared and it comes back with what they borrowed elsewhere, whether they gave it back, and a list of the venues nobody could check, so the thin parts of the record are visible rather than absent.
+
+**Finance.** Exposure to a name that also borrows in three other places. The dossier states each position's venue, the amounts as exact on-chain integers, and whether anything was left unpaid after a liquidation, which is the number that ends up mattering.
+
+**Security and audit.** A document arrives asserting things about a counterparty and you have to decide whether to believe it. Run `verify` against the evidence file it came with: every figure in the document has to trace back to a record with a transaction hash, and one that does not fails the check by arithmetic rather than by your reading it closely.
+
 ## Who these are for
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Hermes | Hexaemeron |
-| --- | --- | --- |
-| Developers | 9 | 9 |
-| Security and audit | 7 | 8 |
-| Marketing | 3 | 6 |
-| Business development | 2 | 5 |
-| Finance | 3 | 4 |
-| Legal | 1 | 4 |
+| Role | Hermes | Hexaemeron | Probitas |
+| --- | --- | --- | --- |
+| Developers | 9 | 9 | 4 |
+| Security and audit | 7 | 8 | 5 |
+| Marketing | 3 | 6 | 1 |
+| Business development | 2 | 5 | 9 |
+| Finance | 3 | 4 | 7 |
+| Legal | 1 | 4 | 4 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -92,7 +127,7 @@ Add the Wildcat Labs marketplace from the Codex CLI:
 codex plugin marketplace add wildcat-finance/skills
 ```
 
-Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes** or **Hexaemeron**.
+Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes**, **Hexaemeron** or **Probitas**.
 
 To inspect configured sources or fetch later updates:
 
@@ -111,6 +146,7 @@ Add the same marketplace and install either plugin from inside Claude Code:
 /plugin marketplace add wildcat-finance/skills
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
+/plugin install probitas@wildcat-labs
 ```
 
 If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Hermes is available as:
@@ -125,11 +161,17 @@ and Hexaemeron's entry skill as:
 /hexaemeron:fiat "<topic>"
 ```
 
+Probitas is available as:
+
+```text
+/probitas:probitas
+```
+
 See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) documentation for the underlying format.
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the two
+Agents that support the open Agent Skills convention can discover the three
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -147,6 +189,7 @@ Plain-text activation works alongside host syntax:
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
+Use Probitas to build a dossier on this counterparty from the addresses they declared.
 ```
 
 Fiat remains explicit-only. Mentioning a similar delivery task does not start
@@ -170,6 +213,14 @@ Use $hexaemeron to take "<topic>" from study to a pushed prototype, one receipte
 
 The loop, the receipt contract and the controller reference live in [Hexaemeron's `SKILL.md`](./plugins/hexaemeron/skills/fiat/SKILL.md).
 
+Probitas needs Python 3 and nothing else. Neither shipped venue asks for a key, and `--fixtures` runs it with no network at all. Ask:
+
+```text
+Use $probitas to build a sourced dossier on "<entity>" from the addresses they declared.
+```
+
+The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./plugins/probitas/skills/probitas/SKILL.md).
+
 ## Repository layout
 
 ```text
@@ -185,19 +236,29 @@ plugins/
 │           ├── agents/
 │           ├── references/
 │           └── scripts/
-└── hexaemeron/
+├── hexaemeron/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── agents/
+│   ├── audit/
+│   ├── tests/
+│   └── skills/
+│       ├── fiat/
+│       ├── imprimatur/
+│       ├── vulgate/
+│       ├── x-ray/
+│       ├── solidity-auditor/
+│       └── fizz/
+└── probitas/
     ├── .claude-plugin/plugin.json
     ├── .codex-plugin/plugin.json
-    ├── agents/
+    ├── AGENTS.md
     ├── audit/
+    ├── docs/
+    ├── scripts/
     ├── tests/
     └── skills/
-        ├── fiat/
-        ├── imprimatur/
-        ├── vulgate/
-        ├── x-ray/
-        ├── solidity-auditor/
-        └── fizz/
+        └── probitas/
 ```
 
 Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.

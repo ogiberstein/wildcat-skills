@@ -48,6 +48,28 @@
         "solidity",
         "receipts"
       ]
+    },
+    {
+      "name": "probitas",
+      "displayName": "Probitas",
+      "source": "./plugins/probitas",
+      "description": "Sourced dossier of a counterparty's on-chain lending record, with the gaps named out loud.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/probitas",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Research",
+      "tags": [
+        "diligence",
+        "underwriting",
+        "counterparty",
+        "lending",
+        "wildcat",
+        "provenance"
+      ]
     }
   ]
 }

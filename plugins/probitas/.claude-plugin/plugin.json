@@ -1,0 +1,23 @@
+{
+  "name": "probitas",
+  "displayName": "Probitas",
+  "version": "0.1.0",
+  "description": "Sourced dossier of a counterparty's on-chain lending record: every assertion carries a transaction hash, a URL or a document reference, and the gaps are named out loud.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/probitas",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "diligence",
+    "underwriting",
+    "counterparty",
+    "lending",
+    "wildcat",
+    "subgraph",
+    "provenance"
+  ],
+  "skills": "./skills/"
+}
