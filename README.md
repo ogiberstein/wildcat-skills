@@ -115,7 +115,17 @@ Scored out of 10 for doing the job, not for reading the output. A marketer can q
 | Finance | 3 | 4 | 7 |
 | Legal | 1 | 4 | 4 |
 
-Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
+Five is the barrier. At or above it, the plugin's entry carries a worked
+example of what that role would use it for. Below it there is no example,
+because there is no honest one to give. A low score means we could not find a
+reason for that desk to open the plugin rather than read what it produced.
+
+Probitas scores 9 for business development because the dossier is the job, 7
+for finance because the same record describes counterparty exposure, and 5 for
+security and audit because `verify` checks somebody else's document against
+its evidence. Its 4s for developers and legal reflect useful output rather
+than a strong reason for either desk to operate the plugin. Marketing has no
+credible operating case, so it scores 1.
 
 ## Install
 
