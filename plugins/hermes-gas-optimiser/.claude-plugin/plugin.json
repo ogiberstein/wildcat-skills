@@ -1,0 +1,20 @@
+{
+  "name": "hermes-gas-optimiser",
+  "displayName": "Hermes Gas Optimiser",
+  "version": "0.1.0",
+  "description": "Fail-closed Solidity gas optimisation with measured Foundry evidence.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/hermes-gas-optimiser",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "solidity",
+    "gas-optimisation",
+    "foundry",
+    "forge",
+    "evm"
+  ],
+  "skills": "./skills/"
+}
