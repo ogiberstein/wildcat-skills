@@ -28,6 +28,12 @@ Hermes includes:
 - Codex metadata for explicit or automatic invocation; and
 - a test suite covering accepted runs and representative failures across Gates 2 to 6.
 
+#### Day to day
+
+**Developers.** A gas change shaves a few hundred units off a hot path and nobody can say whether behaviour moved with it. Run Hermes on that one optimisation class and the review arrives with the snapshot diff, both fuzz passes, the storage layout comparison and a `result.json`, rather than a number and an assurance.
+
+**Security and audit.** A gas change arrives from outside the team. Instead of reading it for intent, put it through Gate 5 to see whether any protected contract's storage layout or method identifiers moved, and Gate 6 for unchecked arithmetic that reaches persistent state.
+
 #### Gate 3: quantify the gas change
 
 Run the baseline diff and gas report. Every declared target must have a deterministic saving, and no deterministic snapshot row may regress.
@@ -66,13 +72,30 @@ Hexaemeron includes:
 - Codex metadata for explicit or automatic invocation; and
 - 32 controller tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
 
-## Code findings
+#### Day to day
 
-What the plugins turn up in real repositories collects here, each entry carrying the record behind it and whatever it failed to clear. The ideas are cheap. The evidence is the job.
+**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one issue and one pull request per step, with the audit suite run against each before it is pushed.
 
-### Hermes: `BaseAccessControls.grantRoles` memory parameters
+**Security and audit.** You want the Pashov suite over a contract and nothing else. `x-ray`, `solidity-auditor` and `fizz` are vendored whole and run on their own, without taking on the loop around them.
 
-The first live Hermes pass found that [`BaseAccessControls.grantRoles`](./plugins/hermes-gas-optimiser/examples/v2-protocol-v2.1.0/README.md) receives two read-only dynamic arrays through `memory` despite being external. The recorded candidate moves both parameters to `calldata`, avoiding the ABI copy. The candidate is published as a finding, not an accepted optimisation: its Gate 3 gas-report command did not complete.
+**Marketing.** A launch post reads like a machine wrote it. `imprimatur` says what is wrong with it across three tiers and `vulgate` rewrites it in house voice. Neither needs the controller, and neither needs installing separately.
+
+**Business development.** An integration document has to be accurate about what the protocol does and readable by someone who is not an engineer. The study phase produces the first and the prose masks produce the second.
+
+## Who these are for
+
+Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
+
+| Role | Hermes | Hexaemeron |
+| --- | --- | --- |
+| Developers | 9 | 9 |
+| Security and audit | 7 | 8 |
+| Marketing | 3 | 6 |
+| Business development | 2 | 5 |
+| Finance | 3 | 4 |
+| Legal | 1 | 4 |
+
+Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
 ## Install
 
