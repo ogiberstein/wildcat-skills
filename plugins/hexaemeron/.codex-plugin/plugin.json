@@ -1,0 +1,30 @@
+{
+  "name": "hexaemeron",
+  "version": "1.0.0",
+  "description": "One-shot delivery loop: study, runbook, then per-step issue/implement/audit/prose/push to a working prototype, receipt-backed and resumable.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/hexaemeron",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "workflow",
+    "delivery",
+    "audit",
+    "fuzzing",
+    "solidity",
+    "receipts",
+    "prose"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hexaemeron",
+    "shortDescription": "One-shot delivery loop with receipts: study, runbook, issue, build, audit, prose, push.",
+    "longDescription": "Takes a topic from nothing to a working prototype through a receipt-backed controller: a linted study, a runbook of discrete steps, then per step an issue, the simplest satisfying implementation, a security loop over the vendored Pashov suite (x-ray, solidity-auditor, fizz) until clean or reasoned out, a prose pass through the bundled imprimatur and vulgate masks, and a pushed PR. State survives resets in a hash-chained ledger; resume is the same command.",
+    "developerName": "Wildcat Labs",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Use $hexaemeron to take \"<topic>\" from study to a pushed prototype, one receipted phase at a time."
+  }
+}

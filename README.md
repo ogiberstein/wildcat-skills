@@ -28,6 +28,35 @@ Hermes includes:
 - Codex metadata for explicit or automatic invocation; and
 - a test suite covering accepted runs and representative failures across Gates 2 to 6.
 
+### Hexaemeron
+
+[Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working
+prototype through one receipted loop.
+
+Let there be light. A deterministic controller (`hexctl`) decides what comes
+next and refuses to advance without a receipt; state and a hash-chained
+ledger survive context resets, so resume is the same command.
+
+1. Study the topic and write a linted study file.
+2. Derive a runbook of discrete, self-contained steps.
+3. Per step: file an issue with `TODO`, `Acceptance Criteria`, and
+   `User Value / Need` checklists.
+4. Implement the least complicated construction that satisfies the issue.
+5. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in
+   rounds until a round comes back clean or the remaining leads are judged
+   not worth another pass, fixes on a stacked branch.
+6. Rewrite every shipped document and the PR text through the bundled
+   `imprimatur` lint and `vulgate` voice mask.
+7. Push the PR, reconcile the issue, move to the next step.
+
+Hexaemeron includes:
+
+- the executable [`hexctl.py`](./plugins/hexaemeron/skills/fiat/scripts/hexctl.py) controller with a tamper-evident ledger (`verify` proves both chain and state);
+- the [`imprimatur`](./plugins/hexaemeron/skills/imprimatur) three-tier prose lint and the [`vulgate`](./plugins/hexaemeron/skills/vulgate) voice mask, invokable on their own;
+- the Pashov Audit Group suite vendored verbatim (MIT; `LICENSE` and `NOTICE.md` in each skill directory);
+- Codex metadata for explicit or automatic invocation; and
+- 32 controller tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
+
 ## Code findings
 
 The first live Hermes pass found that [`BaseAccessControls.grantRoles`](./plugins/hermes-gas-optimiser/examples/v2-protocol-v2.1.0/README.md) receives two read-only dynamic arrays through `memory` despite being external. The recorded candidate moves both parameters to `calldata`, avoiding the ABI copy. The candidate is published as a finding, not an accepted optimisation: its Gate 3 gas-report command did not complete.
@@ -44,7 +73,7 @@ Add the Wildcat Labs marketplace from the Codex CLI:
 codex plugin marketplace add wildcat-finance/skills
 ```
 
-Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes Gas Optimiser**.
+Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes Gas Optimiser** or **Hexaemeron**.
 
 To inspect configured sources or fetch later updates:
 
@@ -62,12 +91,19 @@ Add the same marketplace and install Hermes from inside Claude Code:
 ```text
 /plugin marketplace add wildcat-finance/skills
 /plugin install hermes-gas-optimiser@wildcat-labs
+/plugin install hexaemeron@wildcat-labs
 ```
 
 If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Hermes is available as:
 
 ```text
 /hermes-gas-optimiser:hermes-gas-optimiser
+```
+
+and Hexaemeron's entry skill as:
+
+```text
+/hexaemeron:fiat "<topic>"
 ```
 
 See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) documentation for the underlying format.
@@ -81,6 +117,14 @@ Use $hermes-gas-optimiser to optimise gas in this repository. Work one optimisat
 ```
 
 The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes-gas-optimiser/skills/hermes-gas-optimiser/SKILL.md).
+
+Hexaemeron needs Python 3, Git and `gh` in the target repository (plus [Foundry](https://getfoundry.sh/) when the run ships Solidity). Ask:
+
+```text
+Use $hexaemeron to take "<topic>" from study to a pushed prototype, one receipted phase at a time.
+```
+
+The loop, the receipt contract and the controller reference live in [Hexaemeron's `SKILL.md`](./plugins/hexaemeron/skills/fiat/SKILL.md).
 
 ## Verification gates
 
@@ -106,15 +150,28 @@ Unchecked arithmetic that can affect persistent state or externally visible resu
 .claude-plugin/marketplace.json
 .agents/plugins/marketplace.json
 plugins/
-└── hermes-gas-optimiser/
-    ├── .claude-plugin/plugin.json
-    ├── .codex-plugin/plugin.json
-    └── skills/
-        └── hermes-gas-optimiser/
-            ├── SKILL.md
-            ├── agents/
-            ├── references/
-            └── scripts/
+├── hermes-gas-optimiser/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   └── skills/
+│       └── hermes-gas-optimiser/
+│           ├── SKILL.md
+│           ├── agents/
+│           ├── references/
+│           └── scripts/
+└── hexaemeron/
+    ├── .claude-plugin/plugin.json
+    ├── .codex-plugin/plugin.json
+    ├── agents/
+    ├── audit/
+    ├── tests/
+    └── skills/
+        ├── fiat/
+        ├── imprimatur/
+        ├── vulgate/
+        ├── x-ray/
+        ├── solidity-auditor/
+        └── fizz/
 ```
 
 Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; Hermes's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
