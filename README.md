@@ -34,21 +34,6 @@ Hermes includes:
 
 **Security and audit.** A gas change arrives from outside the team. Instead of reading it for intent, put it through Gate 5 to see whether any protected contract's storage layout or method identifiers moved, and Gate 6 for unchecked arithmetic that reaches persistent state.
 
-#### Gate 3: quantify the gas change
-
-Run the baseline diff and gas report. Every declared target must have a deterministic saving, and no deterministic snapshot row may regress.
-
-#### Gate 4: prove behaviour is unchanged
-
-Run the complete test suite again with the pinned fuzz seed, then repeat it without the pin.
-
-#### Gate 5: preserve layouts and selectors
-
-Compare every recorded storage layout and method map before and after the candidate. Any change to a protected contract rejects the run.
-
-#### Gate 6: prove state-sensitive unchecked arithmetic
-
-Unchecked arithmetic that can affect persistent state or externally visible results needs an existing targeted differential or property test. Other candidates record why this gate does not apply.
 
 ### Hexaemeron
 
