@@ -1,0 +1,30 @@
+{
+  "name": "ariadne",
+  "version": "0.1.0",
+  "description": "Signed evidence another person can check: an in-toto statement core with a predicate registry and a verifier that keeps absence visible, so a release claim stays joined to the build, test, review and deployment evidence behind it.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/laurenceday/wildcat-skills-todo/tree/main/plugins/ariadne",
+  "repository": "https://github.com/laurenceday/wildcat-skills-todo",
+  "keywords": [
+    "attestation",
+    "in-toto",
+    "dsse",
+    "provenance",
+    "release",
+    "solidity",
+    "wildcat"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Ariadne",
+    "shortDescription": "Signed release evidence, with the absences kept in the statement.",
+    "longDescription": "A release publishes a claim while the evidence behind it sits somewhere else, joined by a URL and a promise. Ariadne writes the join down as a statement whose subject is a digest, borrowing in-toto's structure and DSSE's envelope rather than minting either, and adding what a bare statement does not carry: every claim names the exact digest it covers, skipped and failed work stays in the signed record, a result is never upgraded into a verdict, and a comparison fails when either baseline cannot be identified. The core is artefact-neutral, so a dataset, a chain-state fixture and a contract release share one verifier and one signing path without sharing a schema. Ariadne holds no signing key: it reads and writes the envelope and cosign signs it, and an unsigned statement is a supported state that is labelled unsigned rather than a degraded one.",
+    "developerName": "Wildcat Labs",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Use $ariadne to inspect what this attestation covers and which of its gates hold."
+  }
+}

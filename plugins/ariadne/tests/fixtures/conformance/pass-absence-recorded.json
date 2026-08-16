@@ -1,0 +1,64 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "example-artefact",
+      "digest": {
+        "sha256": "e27e1a41ee8f2f299591f3c2abba2211b93add454d3e30d4a58d863c1577266b"
+      }
+    }
+  ],
+  "predicateType": "https://ariadne.wildcat.finance/conformance-example/v1",
+  "predicate": {
+    "claims": [
+      {
+        "name": "unit tests",
+        "subject": {
+          "sha256": "e27e1a41ee8f2f299591f3c2abba2211b93add454d3e30d4a58d863c1577266b"
+        },
+        "disposition": "passed",
+        "detail": {
+          "cases": 87
+        }
+      },
+      {
+        "name": "fuzz campaign",
+        "subject": {
+          "sha256": "e27e1a41ee8f2f299591f3c2abba2211b93add454d3e30d4a58d863c1577266b"
+        },
+        "disposition": "skipped",
+        "reason": "no fuzz engine configured for this artefact"
+      },
+      {
+        "name": "long property run",
+        "subject": {
+          "sha256": "e27e1a41ee8f2f299591f3c2abba2211b93add454d3e30d4a58d863c1577266b"
+        },
+        "disposition": "timed_out",
+        "reason": "budget of 30 minutes reached with 4 properties outstanding"
+      }
+    ],
+    "commands": [
+      {
+        "name": "build",
+        "argv": [
+          "make",
+          "build"
+        ],
+        "determinism": "exact",
+        "output_digest": {
+          "sha256": "0cb8f21ce86e5ccdf7c7828f664c3614dab3a32f603943465e58ebfc1ef7f891"
+        }
+      },
+      {
+        "name": "fuzz",
+        "argv": [
+          "echidna",
+          "--config",
+          "echidna.yaml"
+        ],
+        "determinism": "nondeterministic"
+      }
+    ]
+  }
+}

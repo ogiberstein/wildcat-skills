@@ -6,6 +6,39 @@ This is where we publish workflows that have earned more than a prompt. Each plu
 
 ## Plugins
 
+### Ariadne
+
+[Ariadne](./plugins/ariadne) binds a release to the evidence behind it, in a statement another person can check.
+
+A release publishes a claim. The compiler that produced the bytecode, the test run, the fuzz campaign, the audit and its scope, the deployment: all of it sits somewhere else, joined to the claim by a URL and a promise. Those links do not establish that the audit covered the released commit, that the build produced the deployed bytecode, or that the fuzz run used the settings the report describes. Ariadne writes the join down as a statement whose subject is a digest, so the binding survives the assembly.
+
+The statement is [in-toto's](https://github.com/in-toto/attestation) and the envelope is [DSSE's](https://github.com/secure-systems-lab/dsse). Neither is forked. What Ariadne adds is the discipline a bare statement does not carry, as seven gates:
+
+1. Every claim names the exact digest it covers. A result tied to a repository or a branch is refused, because those move.
+2. The environment is recoverable. A compiler version without the optimiser settings, the EVM target, the dependency lock and the command is not a build description.
+3. Absence stays visible. Skipped, failed, timed-out and redacted work stays in the signed record, and anything other than a pass carries a reason.
+4. Results are not upgraded into conclusions. A passing property records the property and the run, never that the artefact is safe.
+5. Deltas name both sides. A comparison fails when either baseline cannot be identified by digest, rather than degrading into a report of no changes.
+6. Replay distinguishes deterministic work. Bytecode can require an exact match; a fuzz campaign's coverage cannot.
+7. Signing is optional and verification is not. Ariadne holds no key, checks no signature, and says so every time it is asked.
+
+Five of those belong to an artefact-neutral core and run for any predicate, including a type the build has never seen. The other two come from the predicate, and a type without them is reported as unchecked rather than clean.
+
+Ariadne includes:
+
+- the executable [`ariadne.py`](./plugins/ariadne/scripts/ariadne.py) capture, verifier and replay, standard library only;
+- the [Solidity release predicate](./plugins/ariadne/docs/solidity-release.md) and [its published schema](./plugins/ariadne/schemas/solidity-release-v1.json), tied together by a test so the two cannot drift;
+- capture from a Foundry build that reads the compiler's own output, refuses to decide whether your tests passed, and scrubs a build command before recording it;
+- conformance fixtures with a passing statement and one breach per core gate, for anyone writing another producer or verifier;
+- two example attestations, one of them carrying a fuzz campaign that timed out and an audit covering an earlier revision; and
+- 298 tests and an audit log ([`audit/AUDIT.md`](./plugins/ariadne/audit/AUDIT.md)) recording every round.
+
+#### Day to day
+
+**Developers.** A release goes out, and six months later somebody asks which commit the deployed bytecode came from and whether the audit covered it. `capture` reads that out of the build you already ran, and the statement answers from its own contents rather than from a changelog nobody updated.
+
+**Security and audit.** An attestation arrives with a release. `verify` says which gates hold, which went unchecked and why, and states plainly that it checked no signature. `replay` re-runs the deterministic half and compares the artefacts, so the recorded digests are something you can test rather than something you accept.
+
 ### Hermes
 
 [Hermes](./plugins/hermes) treats Solidity gas work as a verification problem.
@@ -132,14 +165,14 @@ Probitas includes:
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Hermes | Hexaemeron | Lemma | Probitas |
-| --- | --- | --- | --- | --- |
-| Developers | 9 | 9 | 6 | 4 |
-| Security and audit | 7 | 8 | 4 | 5 |
-| Marketing | 3 | 6 | 1 | 1 |
-| Business development | 2 | 5 | 1 | 9 |
-| Finance | 3 | 4 | 1 | 7 |
-| Legal | 1 | 4 | 1 | 4 |
+| Role | Ariadne | Hermes | Hexaemeron | Lemma | Probitas |
+| --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 9 | 9 | 6 | 4 |
+| Security and audit | 9 | 7 | 8 | 4 | 5 |
+| Marketing | 1 | 3 | 6 | 1 | 1 |
+| Business development | 2 | 2 | 5 | 1 | 9 |
+| Finance | 1 | 3 | 4 | 1 | 7 |
+| Legal | 3 | 1 | 4 | 1 | 4 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -170,13 +203,20 @@ Add the same marketplace and install a plugin from inside Claude Code:
 
 ```text
 /plugin marketplace add wildcat-finance/skills
+/plugin install ariadne@wildcat-labs
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
 /plugin install lemma@wildcat-labs
 /plugin install probitas@wildcat-labs
 ```
 
-If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Hermes is available as:
+If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Ariadne is available as:
+
+```text
+/ariadne:ariadne
+```
+
+Hermes is:
 
 ```text
 /hermes:hermes
@@ -204,7 +244,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the four
+Agents that support the open Agent Skills convention can discover the five
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -219,6 +259,7 @@ planning, question, and subagent operations available in a local runtime.
 Plain-text activation works alongside host syntax:
 
 ```text
+Use Ariadne to capture this release into a signed statement and verify it.
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
@@ -230,6 +271,15 @@ Fiat remains explicit-only. Mentioning a similar delivery task does not start
 the controller unless the user names Hexaemeron or Fiat and asks to run it.
 
 ## Use
+
+Ariadne needs Python 3 and nothing else. Capturing from a Foundry project needs
+that project's build output, which `forge build` already wrote. Ask:
+
+```text
+Use $ariadne to capture this release into a signed statement and verify what it covers.
+```
+
+The gates, the predicate and the refusals live in [Ariadne's `SKILL.md`](./plugins/ariadne/skills/ariadne/SKILL.md).
 
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
 
@@ -270,6 +320,18 @@ The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./
 .claude-plugin/marketplace.json
 .agents/plugins/marketplace.json
 plugins/
+├── ariadne/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── AGENTS.md
+│   ├── audit/
+│   ├── docs/
+│   ├── examples/
+│   ├── schemas/
+│   ├── scripts/
+│   ├── tests/
+│   └── skills/
+│       └── ariadne/
 ├── hermes/
 │   ├── .claude-plugin/plugin.json
 │   ├── .codex-plugin/plugin.json
@@ -324,18 +386,18 @@ accountability and verification. That follows from the sphere it works in. In
 private credit, trust is the most valuable currency there is, and a promise is
 worth only as much as the evidence and recourse behind it.
 
-Doing that work keeps exposing the same missing tools. We need a way to carry
-evidence with a release, a durable public record of on-chain credit, shared
-laws for credit implementations, agents that can show their sources, a
-conformance suite for hooks and a way to replay chain state after the original
-infrastructure is gone. Another protocol, auditor, researcher or agent builder
-should be able to use each one without needing to use Wildcat.
+Doing that work keeps exposing the same missing tools: a durable public record
+of on-chain credit, shared laws for credit implementations, agents that can show
+their sources, a conformance suite for hooks and a way to replay chain state
+after the original infrastructure is gone. Carrying evidence with a release was
+the first of them, and `ariadne` above is the answer to it. Another protocol,
+auditor, researcher or agent builder should be able to use each one without
+needing to use Wildcat.
 
-The current slate, listed alphabetically:
+What remains, listed alphabetically:
 
 | Name | The public good |
 | --- | --- |
-| `ariadne` | Signed evidence binding a Solidity release to its source, build, tests, review and deployment |
 | `berean` | A release manifest and evaluation corpus for agents that must support answers with exact documents and chain state |
 | `janus` | A conformance suite for what contract hooks may observe and change before and after a host action |
 | `lazarus` | Finite, verifiable historical-chain fixtures that can be replayed without the original RPC |
