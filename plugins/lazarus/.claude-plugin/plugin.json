@@ -1,0 +1,22 @@
+{
+  "name": "lazarus",
+  "displayName": "Lazarus",
+  "version": "0.1.0",
+  "description": "Proof-checked historical Ethereum fixtures with deterministic exact-request replay and no live fallback.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/lazarus",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "license": "MIT",
+  "keywords": [
+    "ethereum",
+    "historical-state",
+    "eip-1186",
+    "json-rpc",
+    "fixtures",
+    "replay"
+  ],
+  "skills": "./skills/"
+}

@@ -16,6 +16,8 @@ the canonical `SKILL.md` it names.
   that plugin.
 - Lemma is under `plugins/lemma/`. Read `plugins/lemma/AGENTS.md` before
   running its skill or changing that plugin.
+- Lazarus is under `plugins/lazarus/`. Read `plugins/lazarus/AGENTS.md` before
+  running its skill or changing that plugin.
 - Pandects is under `plugins/pandects/`. Read `plugins/pandects/AGENTS.md`
   before running its skill or changing that plugin.
 - Probitas is under `plugins/probitas/`. Read `plugins/probitas/AGENTS.md`
@@ -53,6 +55,7 @@ python3 plugins/hexaemeron/tests/run_tests.py
 python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
 python3 plugins/lemma/tests/test_markdown.py
 python3 plugins/lemma/tests/test_solidity.py
+python3 -m unittest discover -s plugins/lazarus/tests -t plugins/lazarus
 python3 -m unittest discover -s plugins/pandects/tests -t plugins/pandects
 python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
 python3 -m unittest discover -s plugins/tabularium/tests -t plugins/tabularium

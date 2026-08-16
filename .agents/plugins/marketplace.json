@@ -53,6 +53,18 @@
       "category": "Developer Tools"
     },
     {
+      "name": "lazarus",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lazarus"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
       "name": "pandects",
       "source": {
         "source": "local",

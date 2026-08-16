@@ -93,6 +93,28 @@
       ]
     },
     {
+      "name": "lazarus",
+      "displayName": "Lazarus",
+      "source": "./plugins/lazarus",
+      "description": "Proof-checked historical Ethereum fixtures with deterministic exact-request replay and no live fallback.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/lazarus",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Developer Tools",
+      "tags": [
+        "ethereum",
+        "historical-state",
+        "eip-1186",
+        "json-rpc",
+        "fixtures",
+        "replay"
+      ]
+    },
+    {
       "name": "pandects",
       "displayName": "Pandects",
       "source": "./plugins/pandects",
