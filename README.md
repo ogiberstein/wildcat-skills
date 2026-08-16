@@ -126,6 +126,44 @@ lemmatisation.
 JSONL before it can enter a retrieval system. Lemma creates that file and
 rejects chunks that fail its schema checks.
 
+### Lazarus
+
+[Lazarus](./plugins/lazarus) preserves the finite part of historical Ethereum
+state and RPC evidence that one application test needs, then replays only the
+requests in that fixture.
+
+Capture fixes a block, records exact JSON-RPC requests and responses, and binds
+the fixture to a deterministic manifest. Account and storage claims must pass
+EIP-1186 trie-proof checks against the captured header; contract code must match
+the proved code hash. Receipts, log queries, calls and traces remain labelled as
+recorded RPC evidence. They are not promoted into state proofs.
+
+Replay verifies the fixture before opening a loopback server. An uncaptured
+request returns a stable `-32070` error describing the missing plan entry, and
+there is no provider fallback. The checked-in Goldfinch example exercises
+proof-backed code and storage, a receipt, a log query, a deliberate miss, proof
+mutation rejection and byte-for-byte manifest rebuilding without a network.
+
+Lazarus includes:
+
+- finite, bounded capture from one fixed historical block;
+- canonical JSON and JSONL formats with versioned, digest-pinned schemas;
+- offline header, account, storage, code and manifest verification;
+- exact-request JSON-RPC replay over loopback, including batches and
+  notifications; and
+- 144 tests plus a proof-checked Goldfinch demonstration.
+
+#### Day to day
+
+**Developers.** An old integration test depends on an archive endpoint that is
+slow, costly or gone. Capture the exact historical state and responses the test
+uses, commit the fixture, and run the same requests locally with a visible miss
+for anything the plan omitted.
+
+**Security and audit.** A historical fixture claims an account balance, code
+hash or storage value. Run `verify` to check the trie path against the named
+header and keep ordinary RPC evidence outside that proof boundary.
+
 ### Pandects
 
 [Pandects](./plugins/pandects) is a corpus of executable laws for credit
@@ -253,14 +291,14 @@ economic meaning attached.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Ariadne | Hermes | Hexaemeron | Lemma | Pandects | Probitas | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 9 | 9 | 6 | 8 | 4 | 7 |
-| Security and audit | 9 | 7 | 8 | 4 | 9 | 5 | 7 |
-| Marketing | 1 | 3 | 6 | 1 | 1 | 1 | 1 |
-| Business development | 2 | 2 | 5 | 1 | 2 | 9 | 3 |
-| Finance | 1 | 3 | 4 | 1 | 2 | 7 | 7 |
-| Legal | 3 | 1 | 4 | 1 | 2 | 4 | 2 |
+| Role | Ariadne | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 7 |
+| Security and audit | 9 | 7 | 8 | 4 | 8 | 9 | 5 | 7 |
+| Marketing | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 |
+| Business development | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 3 |
+| Finance | 1 | 3 | 4 | 1 | 2 | 2 | 7 | 7 |
+| Legal | 3 | 1 | 4 | 1 | 2 | 2 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -295,6 +333,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
 /plugin install lemma@wildcat-labs
+/plugin install lazarus@wildcat-labs
 /plugin install pandects@wildcat-labs
 /plugin install probitas@wildcat-labs
 /plugin install tabularium@wildcat-labs
@@ -324,6 +363,12 @@ Lemma is available as:
 /lemma:chunk
 ```
 
+Lazarus is available as:
+
+```text
+/lazarus:lazarus
+```
+
 Pandects is available as:
 
 ```text
@@ -346,7 +391,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the seven
+Agents that support the open Agent Skills convention can discover the eight
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -366,6 +411,7 @@ Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
 Use Lemma to chunk this Solidity standard input into JSONL.
+Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
 Use Pandects to check this credit protocol against the executable laws in the corpus.
 Use Probitas to build a dossier on this counterparty from the addresses they declared.
 Use Tabularium to build and verify a source-bound Goldfinch credit-event release.
@@ -409,6 +455,16 @@ Use $chunk to turn this Solidity standard input into validated JSONL chunks.
 ```
 
 The command selection and output rules live in [Lemma's `chunk` skill](./plugins/lemma/skills/chunk/SKILL.md).
+
+Lazarus needs Python 3.11 or later and the packages pinned in its lock file.
+Capture is the only command that needs an archive RPC; verification, replay and
+the shipped Goldfinch demonstration run offline. Ask:
+
+```text
+Use $lazarus to capture this finite historical fixture, verify its proof-backed state, and replay only its exact requests.
+```
+
+The evidence boundary, refusal rules and commands live in [Lazarus's `SKILL.md`](./plugins/lazarus/skills/lazarus/SKILL.md).
 
 Probitas needs Python 3 and nothing else. Neither shipped venue asks for a key, and `--fixtures` runs it with no network at all. Ask:
 
@@ -475,6 +531,17 @@ plugins/
 │   ├── tests/
 │   └── skills/
 │       └── chunk/
+├── lazarus/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── AGENTS.md
+│   ├── docs/
+│   ├── examples/
+│   ├── schemas/
+│   ├── scripts/
+│   ├── tests/
+│   └── skills/
+│       └── lazarus/
 ├── pandects/
 │   ├── .claude-plugin/plugin.json
 │   ├── .codex-plugin/plugin.json
@@ -530,8 +597,9 @@ their sources, a conformance suite for hooks and a way to replay chain state
 after the original infrastructure is gone. Carrying evidence with a release was
 the first of them, and `ariadne` above is the answer to it. Preserving the credit
 record was the next, and `tabularium` now has its first venue. `pandects` now
-carries the shared credit laws. Another protocol, auditor, researcher or agent
-builder should be able to use each one without needing to use Wildcat.
+carries the shared credit laws. `lazarus` preserves and replays a finite slice
+of historical state. Another protocol, auditor, researcher or agent builder
+should be able to use each one without needing to use Wildcat.
 
 What remains, listed alphabetically:
 
@@ -539,7 +607,6 @@ What remains, listed alphabetically:
 | --- | --- |
 | `berean` | A release manifest and evaluation corpus for agents that must support answers with exact documents and chain state |
 | `janus` | A conformance suite for what contract hooks may observe and change before and after a host action |
-| `lazarus` | Finite, verifiable historical-chain fixtures that can be replayed without the original RPC |
 
 These are tools we wanted and then needed. Their formats, datasets, properties,
 fixtures and tests become more useful when other teams can inspect, run and

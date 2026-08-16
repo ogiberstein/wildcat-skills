@@ -1,0 +1,29 @@
+{
+  "name": "lazarus",
+  "version": "0.1.0",
+  "description": "Proof-checked historical Ethereum fixtures with deterministic exact-request replay and no live fallback.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/lazarus",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "ethereum",
+    "historical-state",
+    "eip-1186",
+    "json-rpc",
+    "fixtures",
+    "replay"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lazarus",
+    "shortDescription": "Proof-checked historical Ethereum fixtures",
+    "longDescription": "Lazarus captures the finite historical Ethereum state and exact JSON-RPC evidence one application test needs, checks account and storage claims through EIP-1186 against the named header, writes deterministic digest-bound fixture files and replays only exact captured requests over loopback. Calls, receipts, logs and traces remain labelled recorded evidence, and an uncaptured request fails visibly without a live provider fallback.",
+    "developerName": "Wildcat Labs",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Use $lazarus to capture, verify or replay this finite historical Ethereum fixture without a live replay fallback."
+  }
+}

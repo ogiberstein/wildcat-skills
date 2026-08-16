@@ -28,7 +28,7 @@ class PortableSkillTests(unittest.TestCase):
 
     def test_portable_entrypoints_exist_and_match_parent_name(self):
         for name in (
-            "ariadne", "hermes", "hexaemeron", "lemma", "probitas", "tabularium"
+            "ariadne", "hermes", "hexaemeron", "lazarus", "lemma", "pandects", "probitas", "tabularium"
         ):
             path = ROOT / ".agents" / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
@@ -60,6 +60,11 @@ class PortableSkillTests(unittest.TestCase):
         for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
             self.assertTrue((lemma / relative).is_file(), relative)
 
+        lazarus = ROOT / "plugins" / "lazarus"
+        contract = (lazarus / "AGENTS.md").read_text(encoding="utf-8")
+        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
+            self.assertTrue((lazarus / relative).is_file(), relative)
+
         probitas = ROOT / "plugins" / "probitas"
         contract = (probitas / "AGENTS.md").read_text(encoding="utf-8")
         for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
@@ -85,6 +90,8 @@ class PortableSkillTests(unittest.TestCase):
             (ROOT / "plugins" / "hexaemeron" / "skills" / "fizz" / "skills").glob("*/SKILL.md")
         )
         skills += list((ROOT / "plugins" / "lemma" / "skills").glob("*/SKILL.md"))
+        skills += list((ROOT / "plugins" / "lazarus" / "skills").glob("*/SKILL.md"))
+        skills += list((ROOT / "plugins" / "pandects" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "probitas" / "skills").glob("*/SKILL.md"))
         skills += list(
             (ROOT / "plugins" / "tabularium" / "skills").glob("*/SKILL.md")

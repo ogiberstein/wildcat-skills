@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lazarus"
+  short_description: "Proof-checked historical Ethereum fixtures"
+  default_prompt: "Use $lazarus to capture, verify or replay this finite historical Ethereum fixture without a live replay fallback."
