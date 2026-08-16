@@ -31,7 +31,7 @@ Ariadne includes:
 - capture from a Foundry build that reads the compiler's own output, refuses to decide whether your tests passed, and scrubs a build command before recording it;
 - conformance fixtures with a passing statement and one breach per core gate, for anyone writing another producer or verifier;
 - two example attestations, one of them carrying a fuzz campaign that timed out and an audit covering an earlier revision; and
-- 298 tests and an audit log ([`audit/AUDIT.md`](./plugins/ariadne/audit/AUDIT.md)) recording every round.
+- 310 tests, including a set that fails when a shipped document drifts from the code it describes, and an audit log ([`audit/AUDIT.md`](./plugins/ariadne/audit/AUDIT.md)) recording every round.
 
 #### Day to day
 
