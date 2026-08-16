@@ -1,6 +1,7 @@
 """Checks for the host-neutral Agent Skills entrypoints."""
 
 from pathlib import Path
+import json
 import re
 import unittest
 
@@ -9,6 +10,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PortableSkillTests(unittest.TestCase):
+    def test_plugin_manifests_name_the_public_repository(self):
+        repository = "https://github.com/wildcat-finance/skills"
+        for plugin in sorted((ROOT / "plugins").iterdir()):
+            if not plugin.is_dir():
+                continue
+            for host in (".claude-plugin", ".codex-plugin"):
+                manifest = json.loads(
+                    (plugin / host / "plugin.json").read_text(encoding="utf-8")
+                )
+                with self.subTest(plugin=plugin.name, host=host):
+                    self.assertEqual(manifest["repository"], repository)
+                    self.assertEqual(
+                        manifest["homepage"],
+                        "%s/tree/main/plugins/%s" % (repository, plugin.name),
+                    )
+
     def test_portable_entrypoints_exist_and_match_parent_name(self):
         for name in (
             "ariadne", "hermes", "hexaemeron", "lemma", "probitas", "tabularium"

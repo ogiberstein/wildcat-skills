@@ -7,8 +7,8 @@
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"
   },
-  "homepage": "https://github.com/laurenceday/wildcat-skills-todo/tree/main/plugins/ariadne",
-  "repository": "https://github.com/laurenceday/wildcat-skills-todo",
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/ariadne",
+  "repository": "https://github.com/wildcat-finance/skills",
   "license": "Apache-2.0",
   "keywords": [
     "attestation",
