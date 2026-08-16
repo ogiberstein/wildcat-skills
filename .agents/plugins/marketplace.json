@@ -53,6 +53,18 @@
       "category": "Developer Tools"
     },
     {
+      "name": "pandects",
+      "source": {
+        "source": "local",
+        "path": "./plugins/pandects"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
       "name": "ariadne",
       "source": {
         "source": "local",

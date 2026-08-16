@@ -1,2 +1,15 @@
 __pycache__/
-*.pyc
+*.py[cod]
+.DS_Store
+
+# Foundry build output inside plugins that carry Solidity
+plugins/*/out/
+plugins/*/cache/
+
+# Fuzzing and audit output
+plugins/*/crytic-export/
+plugins/*/corpus/
+plugins/*/search-record.json
+plugins/*/.medusa-artifact-hash
+plugins/*/slither.err
+plugins/*/slither_results.json

@@ -1,0 +1,24 @@
+{
+  "name": "pandects",
+  "displayName": "Pandects",
+  "version": "0.1.0",
+  "description": "Executable laws for credit contracts: each one a Solidity component, a broken specimen it is proven to catch, a counterexample replayable without a fuzzer, and a statement of where it means anything.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/pandects",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "solidity",
+    "invariants",
+    "property-testing",
+    "fuzzing",
+    "credit",
+    "foundry",
+    "echidna",
+    "wildcat"
+  ],
+  "skills": "./skills/"
+}
