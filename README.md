@@ -67,6 +67,32 @@ Hexaemeron includes:
 
 **Business development.** An integration document has to be accurate about what the protocol does and readable by someone who is not an engineer. The study phase produces the first and the prose masks produce the second.
 
+### Lemma
+
+[Lemma](./plugins/lemma) turns Solidity compiler inputs and Markdown documents
+into JSONL chunks. The two chunkers share one schema and keep source text used
+for quotation separate from text prepared for a model or embedder.
+
+Lemma includes:
+
+- a Solidity chunker driven by the compiler AST;
+- a Markdown chunker that splits on rendered heading structure;
+- schema validation and an invented baseline corpus; and
+- a pinned `solc` container wrapper for reproducible compiler output.
+
+It stops after chunking. It does not embed, index, retrieve, or answer from the
+output.
+
+Its one skill is `chunk`, giving the qualified name `lemma:chunk`. The plain
+name matches the operation and avoids implying the unrelated NLP operation of
+lemmatisation.
+
+#### Day to day
+
+**Developers.** A documentation or verified-contract corpus needs source-linked
+JSONL before it can enter a retrieval system. Lemma creates that file and
+rejects chunks that fail its schema checks.
+
 ### Probitas
 
 [Probitas](./plugins/probitas) builds a sourced dossier on what a counterparty has done across on-chain lending venues.
@@ -106,14 +132,14 @@ Probitas includes:
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Hermes | Hexaemeron | Probitas |
-| --- | --- | --- | --- |
-| Developers | 9 | 9 | 4 |
-| Security and audit | 7 | 8 | 5 |
-| Marketing | 3 | 6 | 1 |
-| Business development | 2 | 5 | 9 |
-| Finance | 3 | 4 | 7 |
-| Legal | 1 | 4 | 4 |
+| Role | Hermes | Hexaemeron | Lemma | Probitas |
+| --- | --- | --- | --- | --- |
+| Developers | 9 | 9 | 6 | 4 |
+| Security and audit | 7 | 8 | 4 | 5 |
+| Marketing | 3 | 6 | 1 | 1 |
+| Business development | 2 | 5 | 1 | 9 |
+| Finance | 3 | 4 | 1 | 7 |
+| Legal | 1 | 4 | 1 | 4 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -127,7 +153,7 @@ Add the Wildcat Labs marketplace from the Codex CLI:
 codex plugin marketplace add wildcat-finance/skills
 ```
 
-Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install **Hermes**, **Hexaemeron** or **Probitas**.
+Restart the ChatGPT desktop app, open the Plugins Directory, select **Wildcat Labs**, and install the plugin you need.
 
 To inspect configured sources or fetch later updates:
 
@@ -140,12 +166,13 @@ See OpenAI's [plugin packaging documentation](https://developers.openai.com/plug
 
 ### Claude Code
 
-Add the same marketplace and install either plugin from inside Claude Code:
+Add the same marketplace and install a plugin from inside Claude Code:
 
 ```text
 /plugin marketplace add wildcat-finance/skills
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
+/plugin install lemma@wildcat-labs
 /plugin install probitas@wildcat-labs
 ```
 
@@ -155,10 +182,16 @@ If the install summary asks for it, run `/reload-plugins`. Claude namespaces plu
 /hermes:hermes
 ```
 
-and Hexaemeron's entry skill as:
+Hexaemeron's entry skill is:
 
 ```text
 /hexaemeron:fiat "<topic>"
+```
+
+Lemma is available as:
+
+```text
+/lemma:chunk
 ```
 
 Probitas is available as:
@@ -171,7 +204,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the three
+Agents that support the open Agent Skills convention can discover the four
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -189,6 +222,7 @@ Plain-text activation works alongside host syntax:
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
+Use Lemma to chunk this Solidity standard input into JSONL.
 Use Probitas to build a dossier on this counterparty from the addresses they declared.
 ```
 
@@ -212,6 +246,15 @@ Use $hexaemeron to take "<topic>" from study to a pushed prototype, one receipte
 ```
 
 The loop, the receipt contract and the controller reference live in [Hexaemeron's `SKILL.md`](./plugins/hexaemeron/skills/fiat/SKILL.md).
+
+Lemma needs Python 3.10 or later. Solidity input also needs `solc`, Docker, or
+Podman. Ask:
+
+```text
+Use $chunk to turn this Solidity standard input into validated JSONL chunks.
+```
+
+The command selection and output rules live in [Lemma's `chunk` skill](./plugins/lemma/skills/chunk/SKILL.md).
 
 Probitas needs Python 3 and nothing else. Neither shipped venue asks for a key, and `--fixtures` runs it with no network at all. Ask:
 
@@ -249,6 +292,13 @@ plugins/
 │       ├── x-ray/
 │       ├── solidity-auditor/
 │       └── fizz/
+├── lemma/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── chunkers/
+│   ├── tests/
+│   └── skills/
+│       └── chunk/
 └── probitas/
     ├── .claude-plugin/plugin.json
     ├── .codex-plugin/plugin.json
@@ -263,7 +313,7 @@ plugins/
 
 Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
 
-Local agents load the same canonical directories through the two portable
+Local agents load the same canonical directories through the portable
 entries. The portable layer translates discovery and tool vocabulary; it does
 not weaken a skill's checks or invent receipts for work that did not run.
 
