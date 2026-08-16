@@ -118,7 +118,7 @@
       "name": "ariadne",
       "displayName": "Ariadne",
       "source": "./plugins/ariadne",
-      "description": "Signed release evidence, with the absences kept in the statement.",
+      "description": "Release evidence statements with absences kept visible.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",

@@ -2,7 +2,7 @@
   "name": "ariadne",
   "displayName": "Ariadne",
   "version": "0.1.0",
-  "description": "Signed evidence another person can check: an in-toto statement core with a predicate registry and a verifier that keeps absence visible, so a release claim stays joined to the build, test, review and deployment evidence behind it.",
+  "description": "Release evidence another person can check: an in-toto statement core with a predicate registry and gates that keep absence visible, without signing or verifying signatures.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"

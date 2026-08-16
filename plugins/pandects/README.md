@@ -199,11 +199,12 @@ point: a campaign reporting every property holding against a contract built to
 break one has not searched hard enough. Replay a failing sequence and call
 `explain()` for the reason, in the law's own words.
 
-The ninth is the one worth knowing about. `CompoundsPerStepCampaign` passes
-every property under both engines, and the contract underneath it is broken.
-Its defect is path independence, which compares two systems advanced by
-different routes; a campaign drives one system along one route and can never
-see it. That is what a passing campaign is worth on its own.
+Two harnesses pass. `SoundCampaign` is the sound specimen.
+`CompoundsPerStepCampaign` also passes every property under both engines, but
+the contract underneath it is broken. Its defect is path independence, which
+compares two systems advanced by different routes; a campaign drives one
+system along one route and can never see it. That is what a passing campaign
+is worth on its own.
 
 Exit codes: 0 success, 1 a check failed, 2 usage or validation error.
 
