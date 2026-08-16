@@ -1,0 +1,25 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "example-artefact",
+      "digest": {
+        "sha256": "e27e1a41ee8f2f299591f3c2abba2211b93add454d3e30d4a58d863c1577266b"
+      }
+    }
+  ],
+  "predicateType": "https://ariadne.wildcat.finance/conformance-example/v1",
+  "predicate": {
+    "claims": [
+      {
+        "name": "unit tests",
+        "subject": "refs/heads/main",
+        "disposition": "passed",
+        "detail": {
+          "cases": 87
+        }
+      }
+    ],
+    "commands": []
+  }
+}

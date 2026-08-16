@@ -1,0 +1,151 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "Escrow (creation)",
+      "digest": {
+        "sha256": "786b00f7765bdd184cbc07c718f5a7c1b7e71f975bce1aa36440f49f2a9491fb"
+      }
+    },
+    {
+      "name": "Escrow (runtime)",
+      "digest": {
+        "sha256": "ce5444e06f5ba175345757e0a6158757ffb50ec01ff0ea79ed3b81dd97414c30"
+      }
+    }
+  ],
+  "predicateType": "https://ariadne.wildcat.finance/solidity-release/v1",
+  "predicate": {
+    "source": {
+      "repository": "https://github.com/wildcat-finance/example-escrow",
+      "commit": "9f2c1a4d6b8e0f2a4c6e8a0c2e4a6c8e0a2c4e6a",
+      "tree_digest": {
+        "sha256": "0566b89b69bd4bd00c67c6a97937a41163aebccc0a67eee92851a3936c07e8cc"
+      }
+    },
+    "build": {
+      "compiler": "solc",
+      "compiler_version": "0.8.28",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evm_version": "cancun",
+      "via_ir": false,
+      "dependency_lock_digest": {
+        "sha256": "9c099a482797c7f67e34417a0ade97bda31190cbcdfa2931b74da68f53748738"
+      },
+      "command": [
+        "forge",
+        "build",
+        "--sizes"
+      ]
+    },
+    "release_subjects": [
+      {
+        "name": "Escrow",
+        "source_path": "src/Escrow.sol",
+        "creation_digest": {
+          "sha256": "786b00f7765bdd184cbc07c718f5a7c1b7e71f975bce1aa36440f49f2a9491fb"
+        },
+        "runtime_digest": {
+          "sha256": "ce5444e06f5ba175345757e0a6158757ffb50ec01ff0ea79ed3b81dd97414c30"
+        }
+      }
+    ],
+    "deltas": {
+      "baseline": {
+        "name": "v1.0.0",
+        "digest": {
+          "sha256": "f7f5dd74fdb3131cc639b1e7d12cf687623a7226cc9eedbaf5cbfbf3ac7866e9"
+        }
+      },
+      "current": {
+        "name": "v1.1.0",
+        "digest": {
+          "sha256": "ce5444e06f5ba175345757e0a6158757ffb50ec01ff0ea79ed3b81dd97414c30"
+        }
+      },
+      "abi": {
+        "added": [
+          "sweep(address)"
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "method_identifiers": {
+        "added": [
+          "sweep(address)"
+        ],
+        "removed": [],
+        "moved": []
+      },
+      "storage": {
+        "added": [],
+        "removed": [],
+        "moved": [],
+        "retyped": []
+      }
+    },
+    "audits": [
+      {
+        "report_digest": {
+          "sha256": "606d562c9a2412b91b17756ebb439224028c0965868ad205b20504545153b673"
+        },
+        "covered_revision": "9f2c1a4d6b8e0f2a4c6e8a0c2e4a6c8e0a2c4e6a",
+        "scope": "src/Escrow.sol and its library dependencies"
+      }
+    ],
+    "deployments": [
+      {
+        "chain_id": 1,
+        "address": "0x00000000000000000000000000000000000e5c40",
+        "creation_tx": "0xabababababababababababababababababababababababababababababababab",
+        "confirmed_against_chain": false
+      }
+    ],
+    "claims": [
+      {
+        "name": "forge test",
+        "subject": {
+          "sha256": "ce5444e06f5ba175345757e0a6158757ffb50ec01ff0ea79ed3b81dd97414c30"
+        },
+        "disposition": "passed",
+        "detail": {
+          "cases": 42
+        }
+      },
+      {
+        "name": "invariant fuzz campaign",
+        "subject": {
+          "sha256": "ce5444e06f5ba175345757e0a6158757ffb50ec01ff0ea79ed3b81dd97414c30"
+        },
+        "disposition": "skipped",
+        "reason": "no fuzz suite in this repository yet"
+      }
+    ],
+    "commands": [
+      {
+        "name": "build",
+        "argv": [
+          "forge",
+          "build",
+          "--sizes"
+        ],
+        "determinism": "exact",
+        "output_digest": {
+          "sha256": "a9168b98d92ca99d5a08dc172697224e0d57e24d5e4a296ea7d6183ae0dced02"
+        }
+      },
+      {
+        "name": "test",
+        "argv": [
+          "forge",
+          "test",
+          "-vvv"
+        ],
+        "determinism": "nondeterministic"
+      }
+    ]
+  }
+}

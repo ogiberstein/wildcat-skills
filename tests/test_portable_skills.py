@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PortableSkillTests(unittest.TestCase):
     def test_portable_entrypoints_exist_and_match_parent_name(self):
-        for name in ("hermes", "hexaemeron", "lemma", "probitas"):
+        for name in ("ariadne", "hermes", "hexaemeron", "lemma", "probitas"):
             path = ROOT / ".agents" / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
             self.assertTrue(text.startswith("---\n"))
@@ -31,6 +31,11 @@ class PortableSkillTests(unittest.TestCase):
         hermes = ROOT / "plugins" / "hermes" / "skills" / "hermes" / "SKILL.md"
         self.assertTrue(hermes.is_file())
 
+        ariadne = ROOT / "plugins" / "ariadne"
+        contract = (ariadne / "AGENTS.md").read_text(encoding="utf-8")
+        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
+            self.assertTrue((ariadne / relative).is_file(), relative)
+
         lemma = ROOT / "plugins" / "lemma"
         contract = (lemma / "AGENTS.md").read_text(encoding="utf-8")
         for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
@@ -49,7 +54,8 @@ class PortableSkillTests(unittest.TestCase):
             self.assertTrue((hexa_root / relative).is_file(), relative)
 
     def test_skill_names_match_canonical_parent_directories(self):
-        skills = list((ROOT / "plugins" / "hermes" / "skills").glob("*/SKILL.md"))
+        skills = list((ROOT / "plugins" / "ariadne" / "skills").glob("*/SKILL.md"))
+        skills += list((ROOT / "plugins" / "hermes" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "hexaemeron" / "skills").glob("*/SKILL.md"))
         skills += list(
             (ROOT / "plugins" / "hexaemeron" / "skills" / "fizz" / "skills").glob("*/SKILL.md")

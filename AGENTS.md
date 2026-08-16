@@ -7,6 +7,8 @@ the canonical `SKILL.md` it names.
 
 ## Repository map
 
+- Ariadne is under `plugins/ariadne/`. Read `plugins/ariadne/AGENTS.md` before
+  running its skill or changing that plugin.
 - Hermes is under `plugins/hermes/`. Read `plugins/hermes/AGENTS.md` before
   running its skill or changing that plugin.
 - Hexaemeron is under `plugins/hexaemeron/`. Read
@@ -40,6 +42,7 @@ Run the checks that cover every changed area:
 
 ```bash
 python3 -m unittest discover -s tests
+python3 -m unittest discover -s plugins/ariadne/tests -t plugins/ariadne
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
 python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
