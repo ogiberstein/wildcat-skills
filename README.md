@@ -88,7 +88,7 @@ Hexaemeron includes:
 - the [`imprimatur`](./plugins/hexaemeron/skills/imprimatur) three-tier prose lint and the [`vulgate`](./plugins/hexaemeron/skills/vulgate) voice mask, invokable on their own;
 - the Pashov Audit Group suite vendored verbatim (MIT; `LICENSE` and `NOTICE.md` in each skill directory);
 - Codex metadata for explicit or automatic invocation; and
-- 37 controller and contract tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
+- 42 controller and contract tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
 
 #### Day to day
 

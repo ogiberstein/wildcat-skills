@@ -59,6 +59,11 @@ hexctl halt / resume        # put a stop itself on the ledger
 hexctl verify               # prove the chain and state were not edited
 ```
 
+Mutating commands hold a kernel lock for their whole run. A second writer is
+refused with the first process's details and a worktree command; `next`,
+`status`, and `verify` still answer. The operating system releases the lock if
+the holder crashes, so a stale metadata file never needs manual cleanup.
+
 The receipts are opinionated where the process is: the audit phase will not
 open without a resolved (or explicitly waived) security suite; it will not
 close with findings open unless a reasoned no-further-leads verdict is
@@ -119,7 +124,7 @@ path, so the warden and scribe always have their tools.
 python3 tests/run_tests.py
 ```
 
-Thirty-seven tests cover the controller and Fiat contract: phase ordering,
+Forty-two tests cover the controller and Fiat contract: phase ordering,
 audit gating and round caps, fixes evidence, prose skill enforcement,
-checkbox/issue-state rules, halt/resume, ledger tamper detection, and the
-Wildcat marketplace boundary.
+checkbox/issue-state rules, halt/resume, ledger tamper detection, concurrent
+writer exclusion, crash recovery, and the Wildcat marketplace boundary.

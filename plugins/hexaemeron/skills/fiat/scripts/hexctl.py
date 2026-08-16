@@ -18,11 +18,13 @@ human-facing goes to plain text or stderr.
 import argparse
 import contextlib
 import datetime
+import fcntl
 import hashlib
 import json
 import os
 import re
 import sys
+import time
 
 STATE_DIR_NAME = ".hexaemeron"
 STATE_FILE = "state.json"
@@ -134,13 +136,18 @@ def lock_path(base_dir: str) -> str:
     return os.path.join(state_root(base_dir), "lock")
 
 
-def holder_is_alive(pid: int) -> bool:
-    """Whether the process holding the lock still exists.
+def read_holder(descriptor: int) -> dict:
+    try:
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        data = os.read(descriptor, 4096)
+        return json.loads(data.decode("utf-8")) if data else {}
+    except (UnicodeDecodeError, ValueError, OSError):
+        return {}
 
-    `kill(pid, 0)` signals nothing and reports whether it could have. A
-    `PermissionError` means the process is alive and owned by somebody else,
-    which still counts as held.
-    """
+
+def holder_is_alive(pid) -> bool:
+    if not isinstance(pid, int):
+        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -148,16 +155,19 @@ def holder_is_alive(pid: int) -> bool:
     except PermissionError:
         return True
     except OSError:
-        return True
+        return False
     return True
 
 
-def read_holder(path: str) -> dict:
-    try:
-        with open(path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except (ValueError, OSError):
-        return {}
+def read_live_holder(descriptor: int) -> dict:
+    """Wait briefly for a new owner to replace metadata left by a crash."""
+    holder = {}
+    for _ in range(50):
+        holder = read_holder(descriptor)
+        if holder_is_alive(holder.get("pid")):
+            break
+        time.sleep(0.002)
+    return holder
 
 
 @contextlib.contextmanager
@@ -169,10 +179,10 @@ def held_lock(base_dir: str, command: str):
     claiming the same parent, and `verify` reports the chain as broken
     afterwards. This turns that into a refusal beforehand.
 
-    `O_CREAT | O_EXCL` is the whole mechanism. Creating the file is atomic, so
-    exactly one process wins, with no dependency and nothing to configure. A
-    lock whose holder has died is broken and taken, because a crashed run
-    should not need a manual clean-up before the next one can start.
+    The kernel owns the exclusion. It releases the lock when a process exits,
+    including after a crash, so stale metadata never needs to be unlinked and
+    two contenders cannot both reclaim it. The file remains as an ignored
+    place to publish holder details for a refused writer.
     """
     root = state_root(base_dir)
     if not os.path.isdir(root):
@@ -185,33 +195,33 @@ def held_lock(base_dir: str, command: str):
         os.makedirs(root, exist_ok=True)
 
     path = lock_path(base_dir)
-    fd = None
-    while fd is None:
+    fd = os.open(
+        path,
+        os.O_CREAT | os.O_RDWR | getattr(os, "O_CLOEXEC", 0),
+        0o644,
+    )
+    acquired = False
+
+    try:
         try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
-            holder = read_holder(path)
-            pid = holder.get("pid")
-            if not isinstance(pid, int) or not holder_is_alive(pid):
-                try:
-                    os.unlink(path)
-                except FileNotFoundError:
-                    pass
-                continue
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+        except BlockingIOError:
+            holder = read_live_holder(fd)
             die(
                 "another hexctl is holding this run: pid {pid} running "
                 "`{cmd}` since {since}.\n"
                 "Two agents in one directory share one run and one ledger. "
                 "Give each its own working directory, for example "
                 "`git worktree add ../<name> main`, and run one there.".format(
-                    pid=pid,
+                    pid=holder.get("pid", "unknown"),
                     cmd=holder.get("command", "unknown"),
                     since=holder.get("ts", "unknown"),
                 ),
                 1,
             )
-
-    try:
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
         os.write(
             fd,
             json.dumps(
@@ -219,16 +229,18 @@ def held_lock(base_dir: str, command: str):
             ).encode()
             + b"\n",
         )
-        os.close(fd)
-        fd = None
+        os.fsync(fd)
         yield
     finally:
-        if fd is not None:
+        if acquired:
+            try:
+                os.ftruncate(fd, 0)
+                os.fsync(fd)
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
+        else:
             os.close(fd)
-        try:
-            os.unlink(path)
-        except FileNotFoundError:
-            pass
 
 
 def save_state(base_dir: str, state: dict) -> None:
