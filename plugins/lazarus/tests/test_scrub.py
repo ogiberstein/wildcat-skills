@@ -55,12 +55,12 @@ class ScrubTests(unittest.TestCase):
                 assert_no_secrets(directory, {"bearer-secret"})
 
     def test_secret_scan_detects_a_value_across_streaming_chunks(self):
-        secret = b"cross-boundary-secret"
+        marker = bytes(range(32, 64))
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "component.jsonl"
-            path.write_bytes(b"x" * (SCAN_CHUNK_BYTES - 5) + secret + b"\n")
+            path.write_bytes(b"x" * (SCAN_CHUNK_BYTES - 5) + marker + b"\n")
             with self.assertRaisesRegex(IntegrityError, "secret"):
-                assert_no_secrets(directory, {secret.decode()})
+                assert_no_secrets(directory, {marker.decode()})
 
 
 if __name__ == "__main__":
