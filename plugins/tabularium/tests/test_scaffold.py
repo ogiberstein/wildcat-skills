@@ -59,6 +59,7 @@ class TabulariumPackagingTests(unittest.TestCase):
         for relative in (
             "README.md",
             "docs/adding-an-adapter.md",
+            "docs/compound-v3-preservation.md",
             "docs/release-policy.md",
             "audit/AUDIT.md",
             "examples/goldfinch-v0/README.md",
@@ -95,6 +96,22 @@ class TabulariumPackagingTests(unittest.TestCase):
                 (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text()
             )["interface"]["shortDescription"],
         )
+
+    def test_compound_spec_fails_closed_and_keeps_collection_offline(self):
+        spec = " ".join(
+            (PLUGIN_ROOT / "docs" / "compound-v3-preservation.md")
+            .read_text()
+            .split()
+        )
+        for phrase in (
+            "Do not build from logs alone",
+            "successful call frames whose destination is the Comet proxy",
+            "Coverage fails closed",
+            "It makes no RPC request",
+            "not an independent confirmation source",
+            "28 production market",
+        ):
+            self.assertIn(phrase, spec)
 
 
 if __name__ == "__main__":
