@@ -22,6 +22,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 
 STATE_DIR_NAME = ".hexaemeron"
@@ -113,6 +115,101 @@ def load_state(base_dir: str) -> dict:
             return json.load(fh)
     except (ValueError, OSError) as exc:
         die(f"state file unreadable at {path}: {exc}", 1)
+
+
+CHECKED_BOX = re.compile(r"^\s*[-*]\s+\[[xX]\]", re.MULTILINE)
+UNCHECKED_BOX = re.compile(r"^\s*[-*]\s+\[ \]", re.MULTILINE)
+
+
+def run(cmd: list, cwd: str = None, timeout: int = 60):
+    """Run a command and return (ok, output). Never raises, never shells."""
+    try:
+        done = subprocess.run(  # noqa: S603  (argv list, no shell)
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False, ""
+    return done.returncode == 0, done.stdout.decode("utf-8", "replace").strip()
+
+
+def have(tool: str) -> bool:
+    return shutil.which(tool) is not None
+
+
+def unverifiable(args, tool: str, what: str) -> bool:
+    """Whether to proceed without checking, and record that we did.
+
+    A receipt whose claim was never checked is worth less than one that was,
+    and the difference belongs on the ledger rather than in somebody's memory.
+    Passing `--unverified` is allowed and recorded; not passing it, with the
+    tool absent, is refused.
+    """
+    reason = getattr(args, "unverified", None)
+    if reason:
+        return True
+    if not have(tool):
+        die(
+            "{what} needs `{tool}`, which is not on PATH. Install it, or pass "
+            "`--unverified '<why>'` to receipt the claim unchecked; the reason "
+            "goes on the ledger either way.".format(what=what, tool=tool)
+        )
+    return False
+
+
+def verify_commit(base_dir: str, sha: str, label: str) -> None:
+    ok, _ = run(["git", "cat-file", "-e", sha + "^{commit}"], cwd=base_dir)
+    if not ok:
+        die("{label} {sha} is not a commit in this repository".format(label=label, sha=sha))
+
+
+def verify_branch(base_dir: str, branch: str) -> None:
+    ok, _ = run(
+        ["git", "rev-parse", "--verify", "--quiet", "refs/heads/" + branch],
+        cwd=base_dir,
+    )
+    if not ok:
+        die("branch {branch} does not exist".format(branch=branch))
+
+
+def verify_contains(base_dir: str, branch: str, sha: str) -> None:
+    ok, _ = run(["git", "merge-base", "--is-ancestor", sha, branch], cwd=base_dir)
+    if not ok:
+        die(
+            "commit {sha} is not on branch {branch}; the receipt would name a "
+            "commit the branch does not carry".format(sha=sha, branch=branch)
+        )
+
+
+def verify_descends(base_dir: str, branch: str, base: str) -> None:
+    ok, _ = run(["git", "rev-parse", "--verify", "--quiet", base], cwd=base_dir)
+    if not ok:
+        # The expected base is gone, which is not the branch's fault.
+        return
+    ok, _ = run(["git", "merge-base", "--is-ancestor", base, branch], cwd=base_dir)
+    if not ok:
+        die(
+            "branch {branch} does not descend from {base}, which `git.step_base` "
+            "asks for; branch again from there or pass `--unverified '<why>'`"
+            .format(branch=branch, base=base)
+        )
+
+
+def gh_json(args_list: list, cwd: str):
+    ok, out = run(["gh"] + args_list, cwd=cwd)
+    if not ok:
+        return None
+    try:
+        return json.loads(out)
+    except ValueError:
+        return None
+
+
+def count_boxes(body: str):
+    return len(CHECKED_BOX.findall(body)), len(UNCHECKED_BOX.findall(body))
 
 
 MUTATING = frozenset(
@@ -354,10 +451,28 @@ def cmd_init(args) -> None:
 RESERVED_RECEIPTS = {"study", "runbook"}
 
 
+def tree_has_solidity(base_dir: str) -> bool:
+    """Whether this working tree carries Solidity git knows about."""
+    ok, out = run(["git", "ls-files", "*.sol"], cwd=base_dir)
+    if not ok:
+        return False
+    return bool(out.strip())
+
+
 def cmd_record(args) -> None:
     state = load_state(args.dir)
     if args.key in RESERVED_RECEIPTS:
         die(f"'{args.key}' is a phase receipt; only `hexctl done {args.key}` writes it")
+    if args.key == "security_suite":
+        value = parse_value(args.value)
+        waived = isinstance(value, str) and value.strip().lower().startswith("waived")
+        setting = state["config"].get("solidity", "auto")
+        if waived and setting is not False and tree_has_solidity(args.dir):
+            die(
+                "the suite cannot be waived here: this tree carries Solidity, "
+                "which is what the suite is for. Record the ids instead, or set "
+                "config solidity to false first and say why in the run."
+            )
     if state.get("halted") and args.key != "halt_note":
         # Recording context while halted is allowed; progress commands are not.
         pass
@@ -404,6 +519,12 @@ def done_study(args, state: dict) -> None:
     require_global_phase(state, "study")
     artifact = _require_file(args.artifact, "artifact")
     skills = [s for s in (args.skills or "").split(",") if s]
+    lint = str(state["config"]["skills"]["prose_lint"])
+    if lint not in skills:
+        die(
+            "the study ships as a document, so it goes through {lint} like any "
+            "other; pass it in --skills once it has".format(lint=lint)
+        )
     state["receipts"]["study"] = {"artifact": artifact, "skills": skills}
     state["phase"] = "runbook"
     commit(args.dir, state, "done:study", {"artifact": artifact, "skills": skills})
@@ -442,6 +563,11 @@ def done_runbook(args, state: dict) -> None:
         }
         for i, title in enumerate(titles)
     ]
+    if state["config"]["issue"].get("epic") and not args.epic_issue:
+        die(
+            "config issue.epic is true, so the run carries a tracking issue; "
+            "file it with the step list as its checklist and pass --epic-issue"
+        )
     state["steps"][0]["status"] = "open"
     state["steps"][0]["phase"] = "issue"
     state["current_step"] = 1
@@ -459,9 +585,44 @@ def done_issue(args, state: dict) -> None:
     step = require_step_phase(state, "issue")
     if not args.issue_url:
         die("--issue-url is required")
+    subissues = args.subissue_url or []
+    if subissues and not state["config"]["issue"].get("allow_subissues", True):
+        die("config issue.allow_subissues is false; do not attach sub-issues")
+
+    checked = False
+    if not unverifiable(args, "gh", "checking the issue"):
+        found = gh_json(
+            ["issue", "view", args.issue_url, "--json", "state,body"], args.dir
+        )
+        if found is None:
+            die(
+                "cannot read {url}; the receipt would name an issue nobody can "
+                "open".format(url=args.issue_url)
+            )
+        if found.get("state", "").upper() != "OPEN":
+            die(
+                "issue {url} is {state}; a step's issue is the yardstick while "
+                "the step is worked, so it stays open until the push reconciles "
+                "it".format(url=args.issue_url, state=found.get("state"))
+            )
+        body = found.get("body") or ""
+        missing = [
+            h for h in state["config"]["issue"]["headers"] if "## " + h not in body
+        ]
+        if missing:
+            die(
+                "issue {url} has no {missing} section; config issue.headers "
+                "names the four an issue carries".format(
+                    url=args.issue_url, missing=", ".join(missing)
+                )
+            )
+        checked = True
+
     step["receipts"]["issue"] = {
         "url": args.issue_url,
-        "subissues": args.subissue_url or [],
+        "subissues": subissues,
+        "verified": checked,
+        "unverified_reason": getattr(args, "unverified", None),
     }
     step["phase"] = "implement"
     commit(
@@ -473,14 +634,35 @@ def done_issue(args, state: dict) -> None:
     print(f"step {step['n']} issue receipted; phase -> implement")
 
 
+def expected_step_base(state: dict, step: dict) -> str:
+    """Where `git.step_base` says this step's branch should have started."""
+    if state["config"]["git"].get("step_base") == "chain":
+        for earlier in reversed(state["steps"][: step["n"] - 1]):
+            branch = (earlier.get("receipts", {}).get("implement") or {}).get("branch")
+            if branch:
+                return branch
+    return str(state["config"]["git"]["base"])
+
+
 def done_implement(args, state: dict) -> None:
     step = require_step_phase(state, "implement")
     if not args.branch or not args.commit:
         die("--branch and --commit are required")
+
+    checked = False
+    if not unverifiable(args, "git", "checking the branch and commit"):
+        verify_branch(args.dir, args.branch)
+        verify_commit(args.dir, args.commit, "--commit")
+        verify_contains(args.dir, args.branch, args.commit)
+        verify_descends(args.dir, args.branch, expected_step_base(state, step))
+        checked = True
+
     step["receipts"]["implement"] = {
         "branch": args.branch,
         "commit": args.commit,
         "tests": args.tests,
+        "verified": checked,
+        "unverified_reason": getattr(args, "unverified", None),
     }
     step["phase"] = "audit"
     commit(
@@ -509,6 +691,22 @@ def cmd_audit_round(args) -> None:
         )
     if args.findings is None or args.findings < 0:
         die("--findings must be a non-negative integer")
+    if args.findings > 0 and not args.log:
+        # The log is required and the fixes commit is not. A round may find
+        # things and fix none of them, which is what `done audit
+        # --no-further-leads` exists for, and requiring a commit here would
+        # make that path unreachable. Writing the finding down has no such
+        # exception: a finding nobody recorded is a finding nobody has.
+        die(
+            "a round that found something writes it down; pass --log "
+            "(config audit.log_path names the convention)"
+        )
+    if args.log:
+        _require_file(args.log, "log")
+    if args.fixes_commit and not unverifiable(
+        args, "git", "checking the fixes commit"
+    ):
+        verify_commit(args.dir, args.fixes_commit, "--fixes-commit")
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
@@ -549,8 +747,34 @@ def done_audit(args, state: dict) -> None:
             "findings were recorded but no fixes reference exists; pass "
             "--fixes-ref or record fixes commits on the rounds"
         )
+    stacked = None
+    folded = None
+    if had_findings and not unverifiable(args, "git", "checking the stacked branch"):
+        implement = step.get("receipts", {}).get("implement") or {}
+        branch = implement.get("branch")
+        if branch:
+            stacked = branch + str(state["config"]["audit"]["stacked_suffix"])
+            verify_branch(args.dir, stacked)
+            if state["config"]["audit"].get("fold"):
+                ok, _ = run(
+                    ["git", "merge-base", "--is-ancestor", stacked, branch],
+                    cwd=args.dir,
+                )
+                if not ok:
+                    die(
+                        "config audit.fold is true, so {stacked} merges into "
+                        "{branch} before the prose pass; it has not".format(
+                            stacked=stacked, branch=branch
+                        )
+                    )
+                folded = True
+            else:
+                folded = False
+
     step["receipts"]["audit"] = {
         "rounds": len(rounds),
+        "stacked_branch": stacked,
+        "folded": folded,
         "clean": clean,
         "no_further_leads": bool(args.no_further_leads),
         "reason": args.reason,
@@ -609,10 +833,65 @@ def done_push(args, state: dict) -> None:
             f"only {checked}/{total} checkboxes ticked: the issue must stay "
             "open; do not close early"
         )
+
+    confirmed = False
+    if not unverifiable(args, "gh", "checking the issue and the pull request"):
+        issue_url = (step.get("receipts", {}).get("issue") or {}).get("url")
+        if issue_url:
+            found = gh_json(
+                ["issue", "view", issue_url, "--json", "state,body"], args.dir
+            )
+            if found is None:
+                die("cannot read {url} to reconcile it".format(url=issue_url))
+            ticked, unticked = count_boxes(found.get("body") or "")
+            if (ticked, ticked + unticked) != (checked, total):
+                die(
+                    "--checkboxes says {c}/{t}; {url} carries {rc}/{rt}. The "
+                    "receipt records what the issue says, not what it was "
+                    "meant to say.".format(
+                        c=checked, t=total, url=issue_url,
+                        rc=ticked, rt=ticked + unticked,
+                    )
+                )
+            state_now = found.get("state", "").lower()
+            if state_now != args.issue_state:
+                die(
+                    "--issue-state says {claim}; {url} is {actual}".format(
+                        claim=args.issue_state, url=issue_url, actual=state_now
+                    )
+                )
+
+        pr = gh_json(
+            ["pr", "view", args.pr_url, "--json", "state,headRefName,isDraft"],
+            args.dir,
+        )
+        if pr is None:
+            die(
+                "cannot read {url}; the receipt would name a pull request "
+                "nobody can open".format(url=args.pr_url)
+            )
+        branch = (step.get("receipts", {}).get("implement") or {}).get("branch")
+        if branch and pr.get("headRefName") != branch:
+            die(
+                "the pull request is from {head}; this step built {branch}".format(
+                    head=pr.get("headRefName"), branch=branch
+                )
+            )
+        if bool(pr.get("isDraft")) != bool(state["config"]["git"].get("draft_pr")):
+            die(
+                "config git.draft_pr is {want}; the pull request is {got}".format(
+                    want=bool(state["config"]["git"].get("draft_pr")),
+                    got="a draft" if pr.get("isDraft") else "not a draft",
+                )
+            )
+        confirmed = True
+
     step["receipts"]["push"] = {
         "pr_url": args.pr_url,
         "checkboxes": f"{checked}/{total}",
         "issue_state": args.issue_state,
+        "verified": confirmed,
+        "unverified_reason": getattr(args, "unverified", None),
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -655,9 +934,41 @@ def cmd_done(args) -> None:
     handler(args, state)
 
 
+STOPPING = {
+    "halted": "the run is halted; clear it with `hexctl resume --note ...`",
+    "audit-verdict": "max audit rounds reached with findings open; the call is the user's",
+    "done": "every step is pushed",
+    "resolve-security-suite": "the suite receipt is missing and only a person can settle it",
+}
+
+
 def cmd_next(args) -> None:
     state = load_state(args.dir)
     out = _next_directive(state)
+
+    # The loop's boundary, decided here rather than left to whoever is reading.
+    # Every reason to stop is something this controller already knows, so the
+    # caller reads a flag instead of exercising judgement about when a phase
+    # boundary is also a conversation boundary. It is not.
+    reason = STOPPING.get(out.get("do"))
+    out["stop"] = reason is not None
+    if reason:
+        out["stop_reason"] = reason
+    else:
+        out["continue_after_receipt"] = True
+
+    # A phase that is folded carries the instruction with the directive, so a
+    # config value cannot go unread the way one sitting in a dict can.
+    if out.get("do") == "prose" and state["config"]["audit"].get("fold"):
+        step = current_step(state)
+        implement = (step or {}).get("receipts", {}).get("implement") or {}
+        branch = implement.get("branch")
+        if branch:
+            out["fold"] = {
+                "from": branch + str(state["config"]["audit"]["stacked_suffix"]),
+                "into": branch,
+            }
+
     print(json.dumps(out))
 
 
@@ -858,9 +1169,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--pr-url", dest="pr_url")
     sp.add_argument("--checkboxes")
     sp.add_argument("--issue-state", dest="issue_state")
+    sp.add_argument("--unverified", help="receipt this claim without checking it, for the reason given; the reason is recorded on the ledger")
     sp.set_defaults(fn=cmd_done)
 
     sp = sub.add_parser("audit-round", help="record one security round")
+    sp.add_argument("--unverified", help="receipt this claim without checking it, for the reason given; the reason is recorded on the ledger")
     sp.add_argument("--findings", type=int, required=True)
     sp.add_argument("--log")
     sp.add_argument("--fixes-commit", dest="fixes_commit")
