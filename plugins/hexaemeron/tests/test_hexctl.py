@@ -19,12 +19,29 @@ class HexctlCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_ctl(self, *args, expect=0):
+    def run_ctl(self, *args, expect=0, verify=False, env=None):
+        """Drive hexctl the way the skill does.
+
+        These cases run in a bare temporary directory with no repository and no
+        `gh`, so by default they receipt with `--unverified`, which is the
+        escape the controller offers for exactly that situation. `verify=True`
+        leaves it off, for the cases in TestVerification that build a real
+        repository and put a stub `gh` on PATH to exercise the checks.
+        """
+        args = list(args)
+        if (
+            not verify
+            and args
+            and args[0] in ("done", "audit-round")
+            and "--unverified" not in args
+        ):
+            args += ["--unverified", "unit test: no repository or gh here"]
         proc = subprocess.run(
             [sys.executable, HEXCTL, *args],
             cwd=self.dir,
             capture_output=True,
             text=True,
+            env=env,
         )
         if proc.returncode != expect:
             raise AssertionError(
@@ -54,7 +71,7 @@ class HexctlCase(unittest.TestCase):
         runbook = self.write("runbook.md")
         steps = self.write("steps.json", json.dumps(list(titles)))
         self.run_ctl("done", "runbook", "--artifact", runbook,
-                     "--steps-file", steps)
+                     "--steps-file", steps, "--epic-issue", "https://x/epic")
 
     def to_audit(self):
         self.to_steps()
@@ -66,7 +83,8 @@ class HexctlCase(unittest.TestCase):
         self.run_ctl("done", "issue", "--issue-url", f"https://x/{issue_no}")
         self.run_ctl("done", "implement", "--branch", f"issue-{issue_no}",
                      "--commit", "abc123")
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "0",
+                     "--log", self.write("audit/AUDIT.md"))
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
@@ -98,7 +116,8 @@ class TestLifecycle(HexctlCase):
         self.init()
         rb = self.write("runbook.md")
         steps = self.write("steps.json", '["a"]')
-        proc = self.run_ctl("done", "runbook", "--artifact", rb,
+        proc = self.run_ctl("done", "runbook", "--epic-issue", "https://x/epic",
+                            "--artifact", rb,
                             "--steps-file", steps, expect=2)
         self.assertIn("out of order", proc.stderr)
 
@@ -111,11 +130,13 @@ class TestLifecycle(HexctlCase):
     def test_runbook_registers_steps_and_opens_first(self):
         self.init()
         study = self.write("study.md")
-        self.run_ctl("done", "study", "--artifact", study)
+        self.run_ctl("done", "study", "--artifact", study,
+                     "--skills", "hexaemeron:imprimatur")
         rb = self.write("runbook.md")
         steps = self.write("steps.json",
                            json.dumps(["Scaffold", {"title": "Core"}]))
-        self.run_ctl("done", "runbook", "--artifact", rb, "--steps-file", steps)
+        self.run_ctl("done", "runbook", "--artifact", rb, "--steps-file", steps,
+                     "--epic-issue", "https://x/epic")
         out = self.next_json()
         self.assertEqual(out["do"], "issue")
         self.assertEqual(out["step"], 1)
@@ -157,7 +178,7 @@ class TestAuditLoop(HexctlCase):
         self.run_ctl("record", "security_suite",
                      '["pashov-xray","pashov-solidity-auditor"]')
         self.assertEqual(self.next_json()["do"], "audit-round")
-        self.run_ctl("audit-round", "--findings", "3", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "3", "--log", self.write("audit/AUDIT.md"), "--fixes-commit", "cafe3")
         out = self.next_json()
         self.assertEqual(out["do"], "audit-round")
         self.assertEqual(out["round"], 2)
@@ -166,14 +187,15 @@ class TestAuditLoop(HexctlCase):
     def test_close_blocked_while_findings_open(self):
         self.to_audit()
         self.run_ctl("record", "security_suite", '"waived: prose-only repo"')
-        self.run_ctl("audit-round", "--findings", "2")
+        self.run_ctl("audit-round", "--findings", "2", "--log", self.write("audit/AUDIT.md"), "--fixes-commit", "cafe2")
         proc = self.run_ctl("done", "audit", expect=2)
         self.assertIn("open", proc.stderr)
 
     def test_clean_close_requires_fixes_evidence_when_findings_existed(self):
         self.to_audit()
         self.run_ctl("record", "security_suite", '"suite"')
-        self.run_ctl("audit-round", "--findings", "2")
+        self.run_ctl("audit-round", "--findings", "2",
+                     "--log", self.write("audit/AUDIT.md"))
         self.run_ctl("audit-round", "--findings", "0")
         proc = self.run_ctl("done", "audit", expect=2)
         self.assertIn("fixes", proc.stderr)
@@ -184,6 +206,7 @@ class TestAuditLoop(HexctlCase):
         self.to_audit()
         self.run_ctl("record", "security_suite", '"suite"')
         self.run_ctl("audit-round", "--findings", "1",
+                     "--log", self.write("audit/AUDIT.md"),
                      "--fixes-commit", "beef01")
         self.run_ctl("audit-round", "--findings", "0")
         self.run_ctl("done", "audit")
@@ -191,7 +214,7 @@ class TestAuditLoop(HexctlCase):
     def test_no_further_leads_verdict(self):
         self.to_audit()
         self.run_ctl("record", "security_suite", '"suite"')
-        self.run_ctl("audit-round", "--findings", "1", "--fixes-commit", "b1")
+        self.run_ctl("audit-round", "--findings", "1", "--log", self.write("audit/AUDIT.md"), "--fixes-commit", "b1")
         proc = self.run_ctl("done", "audit", "--no-further-leads", expect=2)
         self.assertIn("--reason", proc.stderr)
         self.run_ctl("done", "audit", "--no-further-leads",
@@ -201,8 +224,8 @@ class TestAuditLoop(HexctlCase):
         self.to_audit()
         self.run_ctl("record", "security_suite", '"suite"')
         self.run_ctl("config", "set", "audit.max_rounds", "2")
-        self.run_ctl("audit-round", "--findings", "2", "--fixes-commit", "b1")
-        self.run_ctl("audit-round", "--findings", "1", "--fixes-commit", "b2")
+        self.run_ctl("audit-round", "--findings", "2", "--log", self.write("audit/AUDIT.md"), "--fixes-commit", "b1")
+        self.run_ctl("audit-round", "--findings", "1", "--log", self.write("audit/AUDIT.md"), "--fixes-commit", "b2")
         proc = self.run_ctl("audit-round", "--findings", "1", expect=2)
         self.assertIn("max audit rounds", proc.stderr)
         out = self.next_json()
@@ -309,7 +332,7 @@ class TestFuzzRegressions(HexctlCase):
 
     def test_state_edit_detected_by_verify(self):
         self.to_audit_with_suite()
-        self.run_ctl("audit-round", "--findings", "2", "--log", "a.md",
+        self.run_ctl("audit-round", "--findings", "2", "--log", self.write("a.md"),
                      "--fixes-commit", "fff")
         with open(self.state_file()) as fh:
             st = json.load(fh)
@@ -399,10 +422,247 @@ class TestFuzzRegressions(HexctlCase):
         runbook = self.write("runbook.md")
         sf = self.write("s.json", json.dumps(["\u001b[31mEVIL\u001b[0m step"]))
         self.run_ctl("done", "runbook", "--artifact", runbook,
-                     "--steps-file", sf)
+                     "--steps-file", sf, "--epic-issue", "https://x/epic")
         proc = self.run_ctl("status")
         self.assertNotIn("\x1b", proc.stdout)
 
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestVerification(HexctlCase):
+    """The claims a receipt makes, checked against the world it makes them about.
+
+    Every case here builds a real repository and puts a stub `gh` on PATH, so
+    the controller is answering from git and from GitHub's shape rather than
+    from what it was told. The bug these exist for is real: a push was once
+    receipted as 21/21 against an issue carrying 20 boxes, and nothing noticed.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.bin = os.path.join(self.dir, "stub-bin")
+        os.makedirs(self.bin, exist_ok=True)
+        self.env = os.environ.copy()
+        self.env["PATH"] = self.bin + os.pathsep + self.env["PATH"]
+
+    # -- fixtures ---------------------------------------------------------
+
+    def git(self, *args):
+        return subprocess.run(
+            ["git", *args], cwd=self.dir, capture_output=True, text=True
+        )
+
+    def repo(self):
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@example.invalid")
+        self.git("config", "user.name", "Test")
+        self.write("seed.txt")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "seed")
+        return self.git("rev-parse", "HEAD").stdout.strip()
+
+    def branch(self, name):
+        self.git("checkout", "-q", "-b", name)
+        self.write(name.replace("/", "_") + ".txt")
+        self.git("add", "-A")
+        self.git("commit", "-qm", name)
+        return self.git("rev-parse", "HEAD").stdout.strip()
+
+    def stub_gh(self, issue=None, pr=None):
+        """A `gh` that answers with whatever the case wants it to say."""
+        issue = issue or {"state": "OPEN", "body": "## Description\n"}
+        pr = pr or {"state": "OPEN", "headRefName": "b", "isDraft": False}
+        with open(os.path.join(self.dir, "issue.json"), "w") as fh:
+            json.dump(issue, fh)
+        with open(os.path.join(self.dir, "pr.json"), "w") as fh:
+            json.dump(pr, fh)
+        path = os.path.join(self.bin, "gh")
+        with open(path, "w") as fh:
+            fh.write(
+                "#!/bin/sh\ncase \"$1\" in\n"
+                "  issue) cat %s ;;\n"
+                "  pr) cat %s ;;\n"
+                "  *) exit 1 ;;\nesac\n"
+                % (
+                    json.dumps(os.path.join(self.dir, "issue.json")),
+                    json.dumps(os.path.join(self.dir, "pr.json")),
+                )
+            )
+        os.chmod(path, 0o755)
+
+    def headers_body(self, checked=0, unchecked=0):
+        body = "".join("## %s\n" % h for h in (
+            "Description", "TODO", "Acceptance Criteria", "User Value / Need"
+        ))
+        body += "".join("- [x] done\n" for _ in range(checked))
+        body += "".join("- [ ] todo\n" for _ in range(unchecked))
+        return body
+
+    def to_implement(self):
+        """A run at step 1's implement phase, in a real repository."""
+        self.repo()
+        self.to_steps()
+        self.stub_gh(issue={"state": "OPEN", "body": self.headers_body()})
+        self.run_ctl("done", "issue", "--issue-url", "https://x/1",
+                     verify=True, env=self.env)
+
+    # -- git: the commit and the branch a receipt names --------------------
+
+    def test_a_commit_that_does_not_exist_is_refused(self):
+        self.to_implement()
+        proc = self.run_ctl("done", "implement", "--branch", "main",
+                            "--commit", "deadbeefdeadbeef",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("not a commit", proc.stderr)
+
+    def test_a_branch_that_does_not_exist_is_refused(self):
+        self.to_implement()
+        head = self.git("rev-parse", "HEAD").stdout.strip()
+        proc = self.run_ctl("done", "implement", "--branch", "no-such-branch",
+                            "--commit", head,
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("does not exist", proc.stderr)
+
+    def test_a_commit_not_on_the_named_branch_is_refused(self):
+        self.to_implement()
+        main_head = self.git("rev-parse", "main").stdout.strip()
+        side = self.branch("issue-1-scaffold")
+        self.git("checkout", "-q", "main")
+        proc = self.run_ctl("done", "implement", "--branch", "main",
+                            "--commit", side,
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("is not on branch", proc.stderr)
+        self.assertTrue(main_head)
+
+    def test_a_verified_implement_records_that_it_was_checked(self):
+        self.to_implement()
+        head = self.branch("issue-1-scaffold")
+        self.run_ctl("done", "implement", "--branch", "issue-1-scaffold",
+                     "--commit", head, verify=True, env=self.env)
+        state = json.load(open(os.path.join(self.dir, ".hexaemeron", "state.json")))
+        self.assertTrue(state["steps"][0]["receipts"]["implement"]["verified"])
+
+    def test_unverified_is_allowed_and_its_reason_is_recorded(self):
+        self.to_implement()
+        self.run_ctl("done", "implement", "--branch", "whatever",
+                     "--commit", "nonsense", "--unverified", "no repo today",
+                     verify=True, env=self.env)
+        state = json.load(open(os.path.join(self.dir, ".hexaemeron", "state.json")))
+        receipt = state["steps"][0]["receipts"]["implement"]
+        self.assertFalse(receipt["verified"])
+        self.assertEqual(receipt["unverified_reason"], "no repo today")
+
+    # -- gh: the issue and the pull request --------------------------------
+
+    def test_an_issue_missing_a_configured_header_is_refused(self):
+        self.repo()
+        self.to_steps()
+        self.stub_gh(issue={"state": "OPEN", "body": "## Description\n"})
+        proc = self.run_ctl("done", "issue", "--issue-url", "https://x/1",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("Acceptance Criteria", proc.stderr)
+
+    def test_an_issue_that_is_already_closed_is_refused(self):
+        self.repo()
+        self.to_steps()
+        self.stub_gh(issue={"state": "CLOSED", "body": self.headers_body()})
+        proc = self.run_ctl("done", "issue", "--issue-url", "https://x/1",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("stays open", proc.stderr)
+
+    def to_push(self, checked, unchecked, pr=None):
+        self.to_implement()
+        head = self.branch("issue-1-scaffold")
+        self.run_ctl("done", "implement", "--branch", "issue-1-scaffold",
+                     "--commit", head, verify=True, env=self.env)
+        self.run_ctl("record", "security_suite", '"waived: python only"')
+        self.run_ctl("audit-round", "--findings", "0", verify=True, env=self.env)
+        self.run_ctl("done", "audit", verify=True, env=self.env)
+        self.run_ctl("done", "prose", "--files", "1", "--skills",
+                     "hexaemeron:imprimatur,hexaemeron:vulgate",
+                     verify=True, env=self.env)
+        self.stub_gh(
+            issue={"state": "CLOSED" if not unchecked else "OPEN",
+                   "body": self.headers_body(checked, unchecked)},
+            pr=pr or {"state": "OPEN", "headRefName": "issue-1-scaffold",
+                      "isDraft": False},
+        )
+
+    def test_a_checkbox_count_the_issue_does_not_carry_is_refused(self):
+        """The bug this whole class exists for."""
+        self.to_push(checked=20, unchecked=0)
+        proc = self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+                            "--checkboxes", "21/21", "--issue-state", "closed",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("carries 20/20", proc.stderr)
+
+    def test_a_truthful_checkbox_count_is_accepted(self):
+        self.to_push(checked=20, unchecked=0)
+        self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+                     "--checkboxes", "20/20", "--issue-state", "closed",
+                     verify=True, env=self.env)
+
+    def test_an_issue_state_that_disagrees_with_the_issue_is_refused(self):
+        """The counts agree; the state does not. Only the state is at fault."""
+        self.to_push(checked=1, unchecked=1)
+        self.stub_gh(
+            issue={"state": "CLOSED", "body": self.headers_body(1, 1)},
+            pr={"state": "OPEN", "headRefName": "issue-1-scaffold",
+                "isDraft": False},
+        )
+        proc = self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+                            "--checkboxes", "1/2", "--issue-state", "open",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("--issue-state says open", proc.stderr)
+        self.assertNotIn("carries", proc.stderr)
+
+    def test_a_pull_request_from_another_branch_is_refused(self):
+        self.to_push(checked=20, unchecked=0,
+                     pr={"state": "OPEN", "headRefName": "someone-elses",
+                         "isDraft": False})
+        proc = self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+                            "--checkboxes", "20/20", "--issue-state", "closed",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("this step built", proc.stderr)
+
+    def test_a_draft_pull_request_against_a_non_draft_config_is_refused(self):
+        self.to_push(checked=20, unchecked=0,
+                     pr={"state": "OPEN", "headRefName": "issue-1-scaffold",
+                         "isDraft": True})
+        proc = self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+                            "--checkboxes", "20/20", "--issue-state", "closed",
+                            expect=2, verify=True, env=self.env)
+        self.assertIn("draft_pr", proc.stderr)
+
+    # -- the waiver, and the loop boundary ---------------------------------
+
+    def test_the_suite_cannot_be_waived_over_a_tree_carrying_solidity(self):
+        self.repo()
+        self.to_steps()
+        self.write("contracts/Thing.sol", "// SPDX-License-Identifier: MIT\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "solidity")
+        proc = self.run_ctl("record", "security_suite", '"waived: felt like it"',
+                            expect=2, env=self.env)
+        self.assertIn("carries Solidity", proc.stderr)
+
+    def test_the_suite_may_still_be_waived_without_solidity(self):
+        self.repo()
+        self.to_steps()
+        self.run_ctl("record", "security_suite", '"waived: python only"',
+                     env=self.env)
+
+    def test_next_says_whether_the_loop_should_continue(self):
+        self.to_steps()
+        out = self.next_json()
+        self.assertFalse(out["stop"])
+        self.assertTrue(out["continue_after_receipt"])
+
+    def test_next_says_stop_when_the_run_is_halted(self):
+        self.to_steps()
+        self.run_ctl("halt", "--reason", "asked to")
+        out = self.next_json()
+        self.assertTrue(out["stop"])
+        self.assertIn("halted", out["stop_reason"])

@@ -95,11 +95,18 @@ the second.
 
 ## The loop
 
-Repeat until `next` returns `done`, `halted`, or `audit-verdict`:
+Repeat while `next` reports `"stop": false`:
 
 ```text
 hexctl next
 ```
+
+The controller decides where the loop ends, not you. Every directive carries
+`"stop"`, and when it is true it carries `"stop_reason"` as well. When it is
+false the directive carries `"continue_after_receipt": true`, which means
+exactly what it says: receipt the phase and ask for the next directive in the
+same breath. A phase boundary is not a conversation boundary, and treating one
+as the other is how a five-step run turns into forty interruptions.
 
 Act on the single directive it prints, then receipt it. The directory:
 
@@ -175,10 +182,31 @@ receipts carry everything a fresh context needs.
 
 ## Stop conditions
 
-Stop and ask the user when: `next` says `audit-verdict`; an issue cannot be
-created (auth, permissions, issues disabled); a push is rejected; the
-security suite cannot be resolved for a Solidity repo; or `verify` fails.
-Use `hexctl halt --reason ...` so the stop itself is on the ledger.
+`next` sets `"stop": true` and names the reason: the run is halted, the audit
+hit `audit-verdict`, the suite receipt is missing, or every step is pushed.
+Those are the controller's, and you do not need to recognise them.
+
+The rest announce themselves as failures rather than as directives: an issue
+that cannot be created, a rejected push, a receipt that exits non-zero, or a
+`verify` that fails. Stop on those too, and use `hexctl halt --reason ...` so
+the stop itself is on the ledger.
+
+Nothing else is a reason to stop.
+
+## What the controller checks, and what it takes on trust
+
+Receipts are checked against the world they describe. `done implement` resolves
+the commit, the branch, and that the branch descends from where
+`config git.step_base` says it should. `done issue` reads the issue and refuses
+one that is closed or missing a section `config issue.headers` names.
+`done push` counts the issue's checkboxes itself and refuses a figure that
+disagrees, reads the pull request, and refuses one raised from another branch.
+`record security_suite` refuses a waiver over a tree that carries Solidity.
+
+Those need `git` and `gh`. Where a run genuinely has neither, every one of them
+takes `--unverified "<why>"`, which receipts the claim unchecked and puts the
+reason on the ledger beside it. Use it when it is true and never to get past a
+refusal you should have fixed: the ledger keeps what you said.
 
 ## Hard rules
 
