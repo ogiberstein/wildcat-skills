@@ -18,6 +18,9 @@ the canonical `SKILL.md` it names.
   running its skill or changing that plugin.
 - Probitas is under `plugins/probitas/`. Read `plugins/probitas/AGENTS.md`
   before running its skill or changing that plugin.
+- Tabularium is under `plugins/tabularium/`. Read
+  `plugins/tabularium/AGENTS.md` before running its skill or changing that
+  plugin.
 - `.claude-plugin/` and `.codex-plugin/` files install the same canonical skill
   directories on their named hosts. They do not change the meaning of a skill.
 - `.agents/skills/` contains host-neutral entrypoints for agents that implement
@@ -49,6 +52,7 @@ python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
 python3 plugins/lemma/tests/test_markdown.py
 python3 plugins/lemma/tests/test_solidity.py
 python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
+python3 -m unittest discover -s plugins/tabularium/tests -t plugins/tabularium
 ```
 
 Validate every changed skill directory against the Agent Skills frontmatter

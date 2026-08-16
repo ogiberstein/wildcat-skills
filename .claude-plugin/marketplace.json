@@ -113,6 +113,27 @@
         "release",
         "solidity"
       ]
+    },
+    {
+      "name": "tabularium",
+      "displayName": "Tabularium",
+      "source": "./plugins/tabularium",
+      "description": "Source-bound Goldfinch credit-event releases, reproducible and verifiable offline.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/tabularium",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Research",
+      "tags": [
+        "credit",
+        "events",
+        "datasets",
+        "provenance",
+        "preservation"
+      ]
     }
   ]
 }

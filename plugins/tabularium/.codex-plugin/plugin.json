@@ -1,0 +1,28 @@
+{
+  "name": "tabularium",
+  "version": "0.1.0",
+  "description": "Source-bound Goldfinch credit-event releases, reproducible and verifiable offline.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/tabularium",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "credit",
+    "events",
+    "datasets",
+    "provenance",
+    "preservation"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Tabularium",
+    "shortDescription": "Source-bound Goldfinch credit-event releases, reproducible and verifiable offline.",
+    "longDescription": "Tabularium turns preserved Goldfinch borrow and repay entities into deterministic canonical JSONL without discarding the source meaning or native record behind a row. Its coverage manifest binds the raw source, capture manifest and canonical ledger, declares mapped and unsupported entity counts, and names the hosted-indexer and block-proof gaps. Verification uses only local files, confines every path to the release directory and rebuilds expected event bytes rather than trusting the release's row claims.",
+    "developerName": "Wildcat Labs",
+    "category": "Research",
+    "capabilities": [],
+    "defaultPrompt": "Use $tabularium to build and verify a source-bound Goldfinch credit-event release."
+  }
+}
