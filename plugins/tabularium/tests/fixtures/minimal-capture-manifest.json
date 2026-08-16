@@ -1,0 +1,18 @@
+{
+  "dataset": "minimal-goldfinch-fixture",
+  "source": {"chain": "ethereum-mainnet"},
+  "captured": {
+    "indexed_block": 100,
+    "indexed_block_timestamp": 200,
+    "deployment": "fixture"
+  },
+  "entities": {
+    "borrows": 1,
+    "repays": 1,
+    "creditLines": 1,
+    "tranchedPools": 2,
+    "callableLoans": 0
+  },
+  "sha256": "55ea322672afd761fa6ad272a579b1b68143e734a7aca70d0e0fbd2bcf2462f5",
+  "bytes": 1092
+}

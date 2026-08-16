@@ -119,6 +119,7 @@ path, so the warden and scribe always have their tools.
 python3 tests/run_tests.py
 ```
 
-23 tests cover the controller end to end through the CLI: phase ordering,
+Thirty-seven tests cover the controller and Fiat contract: phase ordering,
 audit gating and round caps, fixes evidence, prose skill enforcement,
-checkbox/issue-state rules, halt/resume, and ledger tamper detection.
+checkbox/issue-state rules, halt/resume, ledger tamper detection, and the
+Wildcat marketplace boundary.

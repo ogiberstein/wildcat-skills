@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "block": {"number": 100, "timestamp": 200},
+    "deployment": "fixture"
+  },
+  "borrows": [
+    {
+      "id": "0x1111111111111111111111111111111111111111111111111111111111111111-12",
+      "hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "timestamp": "20",
+      "amount": "1000000",
+      "account": {"id": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "market": {"id": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+      "asset": {"symbol": "USDC", "decimals": 6},
+      "futureField": {"kept": true}
+    }
+  ],
+  "repays": [
+    {
+      "id": "0x2222222222222222222222222222222222222222222222222222222222222222-3",
+      "hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "timestamp": "10",
+      "amount": "500000",
+      "account": {"id": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "market": {"id": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+      "asset": {"symbol": "USDC", "decimals": 6}
+    }
+  ],
+  "creditLines": [{}],
+  "tranchedPools": [{}, {}],
+  "callableLoans": []
+}

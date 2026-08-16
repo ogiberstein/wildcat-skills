@@ -1,0 +1,166 @@
+# Tabularium audit log
+
+The Solidity security suite is waived for this run because Tabularium is a
+Python data and agent-skill prototype with no Solidity contracts. Each step
+still receives a review against the study's risk register and the exact branch
+diff.
+
+## Step 1, round 1 -- 2026-08-16
+
+Scope: `main...45213e3f95e3f69a0f5dab02a656e4fa64ead45a`. Reviewed the
+plugin and marketplace metadata, runtime contract, portable entrypoint,
+canonical skill, CLI placeholder, design records and tests. The command has no
+network or write path; every non-help invocation exits non-zero without
+producing or verifying a release. JSON manifests parse, Python sources compile,
+`git diff --check` reports no errors, the 10 root tests pass and the 6
+Tabularium tests pass.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-16
+
+Scope:
+`issue-74-scaffold-tabularium...ca4d8e85f916dce351b6c5364d4c60dd987750f0`.
+Reviewed canonical serialisation, numeric bounds, Goldfinch source validation,
+mapping semantics, output ordering, source preservation, the event and
+coverage schemas, CLI failure behaviour and all tests. Reproduced the 511-row
+build twice at SHA-256
+`751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `scripts/tabularium_lib/core.py`, `scripts/tabularium_lib/builder.py` | The builder checked whether output aliased the source and then wrote with `Path.write_bytes`. A symlink introduced between those operations would be followed, so the output write could replace the preserved source despite the alias gate. | fixed in `f6131579cba199cea111f1e65de6d6e28c64b244` |
+
+The fix writes to a same-directory temporary file, flushes and fsyncs it, then
+uses atomic replacement. A regression test inserts a source-pointing symlink
+after the alias check and proves the source stays unchanged while the symlink
+itself is replaced.
+
+Leads not pursued: none.
+
+## Step 2, round 2 -- 2026-08-16
+
+Scope: `issue-74-scaffold-tabularium...0ccc4db8c8c1f4f4e06cd6ca79fb0eaa9858f16f`,
+including the round 1 fix. Re-read the mapper and serialisation paths against
+the event schema and study risk register. Exercised the same-path, symlink,
+hardlink and post-check symlink cases; compiled the Python sources; parsed the
+schemas; rebuilt the full snapshot twice; and re-ran 10 root and 42 Tabularium
+tests. Both outputs have SHA-256
+`751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1`.
+The raw capture remains
+`644b706804b6e28d69b1028b87937e0e36c882f703419d0e2bf568b056892bc9`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-16
+
+Scope:
+`issue-77-event-model-goldfinch--audit...508f0426d5b21e1e44c0e8ad81a2be37477c239e`.
+Reviewed release construction, manifest binding, path confinement, source and
+capture preservation, canonical reconstruction, unsupported-version refusal,
+tamper cases, offline operation and read-only verification. Rebuilt the real
+511-row release in separate directories and obtained identical canonical and
+coverage bytes. The canonical SHA-256 remains
+`751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | `scripts/tabularium_lib/core.py` | An extremely long JSON integer or a recursive encoder failure could escape as `ValueError` or `RecursionError` instead of the documented `TabulariumError`, exposing an uncontrolled CLI traceback for malformed input. | fixed in `dbcaf19c443493606a1eef807fc7982cd9607cb7` |
+
+The fix keeps parser and encoder failures on the controlled error path and
+uses an iterative numeric-validation walk for deeply nested values. Regression
+tests cover an overlong integer, deep nesting and an encoder recursion error.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-16
+
+Scope:
+`issue-77-event-model-goldfinch--audit...02267b631a8063c5c1bba922f9c48d6157ffef19`,
+including the round 1 fix. Re-ran both test suites, compiled the Python sources,
+parsed the schemas, compared separate real builds, verified a read-only release
+offline and exercised source and canonical tampering. The 511-row canonical and
+coverage SHA-256 values remained
+`751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1` and
+`58184a75d8eca6ae8d9b44653c36ce8c482549c5d3cecd1a2a991b0936561f6d`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | low | `scripts/tabularium_lib/paths.py` | A manifest artefact path containing a NUL character reached `Path.resolve` and raised an uncontrolled `ValueError` instead of a verification failure. | fixed in `307fa255a354b220aa5ab725de5a9c0e392f1e32` |
+| S3-R2-02 | low | `scripts/tabularium_lib/verifier.py` | Verification read the entry coverage manifest before confirming it was a regular file, so a FIFO at that path could block indefinitely. | fixed in `307fa255a354b220aa5ab725de5a9c0e392f1e32` |
+
+The fix rejects NUL-bearing artefact paths and refuses non-regular entry
+manifests before opening them. Regression tests cover both cases.
+
+Leads not pursued: none.
+
+## Step 3, round 3 -- 2026-08-16
+
+Scope:
+`issue-77-event-model-goldfinch--audit...9393ff7e4a351958cad980b2eda20669d2d69fe0`,
+including both earlier rounds of fixes. Re-read the release and verifier paths,
+ran 10 root and 77 Tabularium tests, compiled the Python sources and exercised
+NUL paths, FIFOs, directories, symlinks, hardlink aliases, malformed JSON,
+duplicate keys, non-finite numbers and rebound tampering. Verification stayed
+offline and left a read-only release unchanged. Separate real builds remained
+byte-identical, with canonical SHA-256
+`751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1` and
+coverage SHA-256
+`58184a75d8eca6ae8d9b44653c36ce8c482549c5d3cecd1a2a991b0936561f6d`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Step 4, round 1 -- 2026-08-16
+
+Scope:
+`issue-82-coverage-offline-verifier--audit...dbbc02c867f7227cfb5728ba577e36bd6dc5a537`.
+Reviewed the checked-in release bytes, coverage, counts, source preservation,
+offline and read-only verification, temporary rebuild demonstration, public
+status changes, data dictionary, adapter guide, supersession policy and tests.
+Reproduced all four release hashes and 511 unique rows, then exercised rebound
+capture and canonical tampering, path escapes, symlinks and demo mismatches.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `scripts/tabularium_lib/release.py` | Capture validation reconciled the indexed block number with source metadata but did not reconcile the indexed block timestamp or deployment identifier. An altered capture with a rebound coverage digest could contradict either source field and still verify. | fixed in `87cb45b2cc32728eaf4aafcdc23c26df1f7a4c9f` |
+
+The fix binds both capture fields to `source._meta` and adds regression tests
+for timestamp and deployment drift. The root, Ariadne, Probitas and Tabularium
+suites passed 10, 310, 422 and 90 tests after the fix, and the real temporary
+rebuild still matched the committed release.
+
+Leads not pursued: none.
+
+## Step 4, round 2 -- 2026-08-16
+
+Scope:
+`issue-82-coverage-offline-verifier--audit...ed38efcbf6fb6b6b33c9d6dd2f46ee07d10d47a3`,
+including the round 1 fix. Repeated the complete release and documentation
+review and exercised missing, wrong-type and conflicting timestamp and
+deployment values on both sides of the capture binding. Invalid builds failed
+without a traceback or output. Rehashed tampering, traversal, symlinks and a
+demo mismatch were refused. The source and capture stayed byte-identical to
+staging, the 511-row release verified read-only and offline, and its hashes
+remained unchanged.
+
+The root, Ariadne, Probitas and Tabularium suites passed 10, 310, 422 and 90
+tests. Probitas emitted one pre-existing unclosed-file `ResourceWarning` in
+`test_abi.py`; it did not fail the suite and is outside this step's diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.

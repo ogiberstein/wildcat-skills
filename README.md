@@ -88,7 +88,7 @@ Hexaemeron includes:
 - the [`imprimatur`](./plugins/hexaemeron/skills/imprimatur) three-tier prose lint and the [`vulgate`](./plugins/hexaemeron/skills/vulgate) voice mask, invokable on their own;
 - the Pashov Audit Group suite vendored verbatim (MIT; `LICENSE` and `NOTICE.md` in each skill directory);
 - Codex metadata for explicit or automatic invocation; and
-- 32 controller tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
+- 37 controller and contract tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
 
 #### Day to day
 
@@ -161,18 +161,72 @@ Probitas includes:
 
 **Security and audit.** A document arrives asserting things about a counterparty and you have to decide whether to believe it. Run `verify` against the evidence file it came with: every figure in the document has to trace back to a record with a transaction hash, and one that does not fails the check by arithmetic rather than by your reading it closely.
 
+### Tabularium
+
+[Tabularium](./plugins/tabularium) preserves on-chain credit events in a form
+another person can rebuild after the endpoint that served them is gone.
+
+The first release captures Goldfinch's borrower-side record: 34 borrow and 477
+repay entities from a hosted indexer, mapped into 511 canonical rows. Each row
+keeps the complete venue-native entity beside the common fields and names the
+source selector, adapter version and mapping rule that produced it. A
+Goldfinch repayment stays `goldfinch.repay`; it does not become a claim that
+the borrower's whole debt was settled.
+
+The release is four files doing separate jobs. `source.json` is the preserved
+response. `capture.json` records where and when it was taken. `events.jsonl` is
+the interpretation. `coverage.json` binds all three by digest, counts what was
+mapped and what was not, and states the evidence gaps.
+
+Verification does not stop at those digests. It checks the capture against the
+source, confines every path to the release directory, requires one ordered
+source selector per event and rebuilds the canonical bytes from the preserved
+input. The worked release is unsigned and its block boundary is what the hosted
+indexer reported, so a clean run establishes internal consistency rather than
+publisher authenticity or an independent chain proof.
+
+Tabularium includes:
+
+- the standard-library [`tabularium.py`](./plugins/tabularium/scripts/tabularium.py)
+  builder and offline verifier;
+- versioned [event](./plugins/tabularium/schemas/canonical-event-v1.json) and
+  [coverage](./plugins/tabularium/schemas/coverage-manifest-v1.json) schemas;
+- the complete [`goldfinch-v0`](./plugins/tabularium/examples/goldfinch-v0/README.md)
+  release, its data dictionary and a fresh-directory rebuild demonstration;
+- an [adapter guide](./plugins/tabularium/docs/adding-an-adapter.md) and an
+  immutable [release policy](./plugins/tabularium/docs/release-policy.md); and
+- 91 tests and an audit log
+  ([`audit/AUDIT.md`](./plugins/tabularium/audit/AUDIT.md)) recording every
+  review round and fix.
+
+#### Day to day
+
+**Developers.** A hosted indexer is still answering for a venue whose front end
+has gone. Preserve the response and its capture boundary, then publish a
+release whose mapping and bytes somebody else can reproduce without that
+endpoint.
+
+**Security and audit.** A dataset arrives with a digest and a claim that it was
+built from a named source. Run `verify`: it rebuilds the event bytes and checks
+the one-to-one source trace rather than trusting the release's own row count.
+
+**Finance.** A repayment record needs to be compared with another venue's
+record without erasing the difference between them. The common family makes
+the rows searchable; the venue-qualified action and native record keep the
+economic meaning attached.
+
 ## Who these are for
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Ariadne | Hermes | Hexaemeron | Lemma | Probitas |
-| --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 9 | 9 | 6 | 4 |
-| Security and audit | 9 | 7 | 8 | 4 | 5 |
-| Marketing | 1 | 3 | 6 | 1 | 1 |
-| Business development | 2 | 2 | 5 | 1 | 9 |
-| Finance | 1 | 3 | 4 | 1 | 7 |
-| Legal | 3 | 1 | 4 | 1 | 4 |
+| Role | Ariadne | Hermes | Hexaemeron | Lemma | Probitas | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 9 | 9 | 6 | 4 | 7 |
+| Security and audit | 9 | 7 | 8 | 4 | 5 | 7 |
+| Marketing | 1 | 3 | 6 | 1 | 1 | 1 |
+| Business development | 2 | 2 | 5 | 1 | 9 | 3 |
+| Finance | 1 | 3 | 4 | 1 | 7 | 7 |
+| Legal | 3 | 1 | 4 | 1 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -208,6 +262,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin install hexaemeron@wildcat-labs
 /plugin install lemma@wildcat-labs
 /plugin install probitas@wildcat-labs
+/plugin install tabularium@wildcat-labs
 ```
 
 If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Ariadne is available as:
@@ -240,11 +295,17 @@ Probitas is available as:
 /probitas:probitas
 ```
 
+Tabularium is available as:
+
+```text
+/tabularium:tabularium
+```
+
 See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) documentation for the underlying format.
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the five
+Agents that support the open Agent Skills convention can discover the six
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -265,6 +326,7 @@ Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
 Use Lemma to chunk this Solidity standard input into JSONL.
 Use Probitas to build a dossier on this counterparty from the addresses they declared.
+Use Tabularium to build and verify a source-bound Goldfinch credit-event release.
 ```
 
 Fiat remains explicit-only. Mentioning a similar delivery task does not start
@@ -314,6 +376,16 @@ Use $probitas to build a sourced dossier on "<entity>" from the addresses they d
 
 The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./plugins/probitas/skills/probitas/SKILL.md).
 
+Tabularium needs Python 3.9 or later and nothing else. Its shipped release and
+tests use no network. Ask:
+
+```text
+Use $tabularium to rebuild the checked-in Goldfinch release and verify it offline.
+```
+
+The mapping, release rules and evidence boundary live in
+[Tabularium's `SKILL.md`](./plugins/tabularium/skills/tabularium/SKILL.md).
+
 ## Repository layout
 
 ```text
@@ -361,16 +433,28 @@ plugins/
 │   ├── tests/
 │   └── skills/
 │       └── chunk/
-└── probitas/
+├── probitas/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── AGENTS.md
+│   ├── audit/
+│   ├── docs/
+│   ├── scripts/
+│   ├── tests/
+│   └── skills/
+│       └── probitas/
+└── tabularium/
     ├── .claude-plugin/plugin.json
     ├── .codex-plugin/plugin.json
     ├── AGENTS.md
     ├── audit/
     ├── docs/
+    ├── examples/
+    ├── schemas/
     ├── scripts/
     ├── tests/
     └── skills/
-        └── probitas/
+        └── tabularium/
 ```
 
 Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
@@ -390,7 +474,8 @@ Doing that work keeps exposing the same missing tools: a durable public record
 of on-chain credit, shared laws for credit implementations, agents that can show
 their sources, a conformance suite for hooks and a way to replay chain state
 after the original infrastructure is gone. Carrying evidence with a release was
-the first of them, and `ariadne` above is the answer to it. Another protocol,
+the first of them, and `ariadne` above is the answer to it. Preserving the credit
+record was the next, and `tabularium` now has its first venue. Another protocol,
 auditor, researcher or agent builder should be able to use each one without
 needing to use Wildcat.
 
@@ -402,7 +487,6 @@ What remains, listed alphabetically:
 | `janus` | A conformance suite for what contract hooks may observe and change before and after a host action |
 | `lazarus` | Finite, verifiable historical-chain fixtures that can be replayed without the original RPC |
 | `pandects` | Executable laws for credit systems, each supplied with a broken specimen and a counterexample |
-| `tabularium` | A sourced, reproducible ledger of credit events across protocols, with the raw record preserved |
 
 These are tools we wanted and then needed. Their formats, datasets, properties,
 fixtures and tests become more useful when other teams can inspect, run and
