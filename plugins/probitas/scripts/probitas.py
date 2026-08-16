@@ -90,8 +90,13 @@ def _collect_alexandria(index_path, evidence):
     )
     if alexandria_scripts not in sys.path:
         sys.path.insert(0, alexandria_scripts)
-    from alexandria_lib.errors import AlexandriaError  # noqa: E402
-    from alexandria_lib.probitas import translate  # noqa: E402
+    try:
+        from alexandria_lib.errors import AlexandriaError  # noqa: E402
+        from alexandria_lib.probitas import translate  # noqa: E402
+    except ImportError as error:
+        raise EvidenceError(
+            "Alexandria support is not installed beside Probitas"
+        ) from error
 
     try:
         translated = translate(index_path, evidence.addresses)

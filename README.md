@@ -6,6 +6,46 @@ This is where we publish workflows that have earned more than a prompt. Each plu
 
 ## Plugins
 
+### Alexandria
+
+[Alexandria](./plugins/alexandria) keeps heterogeneous lending data unchanged,
+then derives only the credit rows a reviewed mapping can defend.
+
+Raw GraphQL responses and archive logs do not need one payload schema. Each
+release stores the original bytes under their SHA-256, names the source, chain,
+scope, finality class and counted coverage, and verifies offline. Goldfinch and
+Clearpool releases can then produce a narrow Tabularium view without turning
+the archive itself into an interpretation layer.
+
+The SQLite address index is disposable. Every query rechecks its schema,
+logical digest and exact release-backed contents before returning rows. The
+explicit Probitas route keeps both venue and archive provenance and leaves all
+unharvested registry venues visible as gaps.
+
+Alexandria includes:
+
+- the standard-library [`alexandria.py`](./plugins/alexandria/scripts/alexandria.py)
+  ingest, verify, derive, index and query command;
+- raw-release, coverage, credit-row, query and demonstration schemas;
+- registered Goldfinch and Clearpool mappings with exact source and context
+  selectors;
+- the offline [`credit-history-v0`](./plugins/alexandria/examples/credit-history-v0/README.md)
+  path through Probitas's five gates; and
+- a pinned [Compound v3 harvest specification](./plugins/alexandria/docs/compound-v3-harvest.md)
+  for the production collector that does not exist yet.
+
+#### Day to day
+
+**Developers.** Preserve a protocol response now, with its gaps and usage
+restrictions, then rebuild the same release after the endpoint is gone.
+
+**Security and audit.** Check that every derived row resolves to the raw object
+and mapping rule that assigned its meaning. An unknown implementation or
+selector stays unsupported.
+
+**Finance.** Query a counterparty address across the archived venues without
+letting an unharvested venue read as clean history.
+
 ### Ariadne
 
 [Ariadne](./plugins/ariadne) binds a release to the evidence behind it, in a statement another person can check.
@@ -286,46 +326,6 @@ the one-to-one source trace rather than trusting the release's own row count.
 record without erasing the difference between them. The common family makes
 the rows searchable; the venue-qualified action and native record keep the
 economic meaning attached.
-
-### Alexandria
-
-[Alexandria](./plugins/alexandria) keeps heterogeneous lending data unchanged,
-then derives only the credit rows a reviewed mapping can defend.
-
-Raw GraphQL responses and archive logs do not need one payload schema. Each
-release stores the original bytes under their SHA-256, names the source, chain,
-scope, finality class and counted coverage, and verifies offline. Goldfinch and
-Clearpool releases can then produce a narrow Tabularium view without turning
-the archive itself into an interpretation layer.
-
-The SQLite address index is disposable. Every query rechecks its schema,
-logical digest and exact release-backed contents before returning rows. The
-explicit Probitas route keeps both venue and archive provenance and leaves all
-unharvested registry venues visible as gaps.
-
-Alexandria includes:
-
-- the standard-library [`alexandria.py`](./plugins/alexandria/scripts/alexandria.py)
-  ingest, verify, derive, index and query command;
-- raw-release, coverage, credit-row, query and demonstration schemas;
-- registered Goldfinch and Clearpool mappings with exact source and context
-  selectors;
-- the offline [`credit-history-v0`](./plugins/alexandria/examples/credit-history-v0/README.md)
-  path through Probitas's five gates; and
-- a pinned [Compound v3 harvest specification](./plugins/alexandria/docs/compound-v3-harvest.md)
-  for the production collector that does not exist yet.
-
-#### Day to day
-
-**Developers.** Preserve a protocol response now, with its gaps and usage
-restrictions, then rebuild the same release after the endpoint is gone.
-
-**Security and audit.** Check that every derived row resolves to the raw object
-and mapping rule that assigned its meaning. An unknown implementation or
-selector stays unsupported.
-
-**Finance.** Query a counterparty address across the archived venues without
-letting an unharvested venue read as clean history.
 
 ## Who these are for
 

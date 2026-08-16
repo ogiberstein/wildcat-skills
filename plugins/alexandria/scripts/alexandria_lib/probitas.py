@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from .query import query
 
 
@@ -59,7 +57,7 @@ def translate(index_path, addresses):
         )
         coverage.append({
             "block_range": _block_range(captures),
-            "endpoint": f"alexandria:{Path(index_path).name}",
+            "endpoint": "Alexandria index",
             "note": (
                 f"archive-backed coverage {chain_status}; evidence "
                 f"{','.join(evidence) if evidence else 'none'}; releases "

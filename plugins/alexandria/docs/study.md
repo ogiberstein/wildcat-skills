@@ -1,15 +1,18 @@
 # Alexandria study
 
+This is the historical staging study that selected Alexandria's design. Its
+future tense and repository references describe the work before the prototype
+was built. The public README and skill state what now ships.
+
 ## Problem statement
 
-Probitas can collect a declared address's borrowing record from 10 lending
-venue surfaces today. Several of those surfaces are less durable than the
-transactions they describe. Three Euler subgraphs were published but unserved
-during the work that built Probitas, TrueFi's endpoint no longer answered, and
-Goldfinch wound down with its front end gone. A live adapter is useful until an
-API changes, an indexer deallocates a subgraph, or a protocol stops paying for
-infrastructure. Reconstructing the same history later means archive-node work,
-new indexing code, or both.
+At study time, Probitas depended on several live lending-venue surfaces. Some
+were less durable than the transactions they described. Three Euler subgraphs
+were published but unserved during the work that built Probitas, TrueFi's
+endpoint no longer answered, and Goldfinch wound down with its front end gone.
+A live adapter is useful until an API changes, an indexer deallocates a
+subgraph, or a protocol stops paying for infrastructure. Reconstructing the
+same history later means archive-node work, new indexing code, or both.
 
 Alexandria will preserve the material those adapters depend on and make the
 preserved record address-queryable. It has two consumers with different needs:

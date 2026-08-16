@@ -372,6 +372,16 @@ class ProbitasBridgeTests(IndexTestCase):
         self.assertEqual(record["values"]["evidence_class"], "archive-log")
         self.assertEqual(record["values"]["source_release_id"], self.raw_id)
 
+    def test_translation_does_not_copy_the_operator_chosen_index_name(self):
+        self.build_index()
+        renamed = self.index.with_name("index|injected-column.sqlite")
+        self.index.rename(renamed)
+        translated = translate(renamed, [CLEARPOOL])
+        self.assertEqual(
+            {item["endpoint"] for item in translated["coverage"]},
+            {"Alexandria index"},
+        )
+
     def test_translation_does_not_infer_credit_conclusions(self):
         self.build_index()
         text = json.dumps(translate(self.index, [CLEARPOOL]), sort_keys=True)
@@ -450,6 +460,31 @@ class ProbitasBridgeTests(IndexTestCase):
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("not allowed with", result.stderr)
+
+    def test_standalone_probitas_refuses_archive_mode_without_alexandria(self):
+        standalone = self.root / "standalone" / "probitas"
+        shutil.copytree(PROBITAS.parents[1], standalone)
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(standalone / "scripts" / "probitas.py"),
+                "collect",
+                "--entity",
+                "Acme",
+                "--address",
+                CLEARPOOL,
+                "--alexandria-index",
+                str(self.root / "missing.sqlite"),
+                "--out",
+                "-",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not installed beside Probitas", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def _command(self, address, output="-"):
         return [

@@ -1,4 +1,4 @@
 interface:
   display_name: "Alexandria"
-  short_description: "Scaffold for a digest-bound lending-data archive"
-  default_prompt: "Use $alexandria to inspect the lending-data archive scaffold and its implementation plan."
+  short_description: "Digest-bound lending-data archive and credit view"
+  default_prompt: "Use $alexandria to preserve or verify this lending-data release, or query its source-bound credit view."

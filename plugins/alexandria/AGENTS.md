@@ -63,7 +63,8 @@ local tool.
 
 ## What this skill must refuse
 
-- No claim that a scaffold archived, verified, indexed or queried data.
+- No claim that Alexandria archived, verified, indexed or queried data unless
+  that exact operation ran successfully.
 - No publisher-authenticity claim from a digest check alone.
 - No claim that provider-reported or recorded data proves a canonical chain
   boundary.
