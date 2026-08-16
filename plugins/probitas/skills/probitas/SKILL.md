@@ -62,6 +62,27 @@ python3 scripts/probitas.py verify dossier.md evidence.json
 evidence file. A record cannot enter that file without a transaction hash, a
 URL or a document reference, because the schema will not represent one.
 
+To use verified Alexandria releases instead of live or fixture adapters, pass
+an explicit disposable index:
+
+```bash
+python3 scripts/probitas.py collect \
+  --entity "<name>" --address 0x... \
+  --alexandria-index alexandria.sqlite --out evidence.json
+```
+
+This path keeps Goldfinch and Clearpool as venue IDs and records Alexandria's
+release, component, capture, row and evidence identities. It combines
+per-chain coverage conservatively and leaves every unharvested registry venue
+visible as a gap. A zero-row venue is empty only when complete archive coverage
+includes every requested address, venue, chain and time boundary and the
+mapping has no unsupported records. It does not infer a person, default, full
+repayment or current balance.
+
+The checked-in Alexandria `credit-history-v0` example exercises this explicit
+index path offline and checks the resulting evidence and dossier against fixed
+receipts. It does not alter the normal live and fixture routes.
+
 `render` builds the document in the order the specification sets: coverage and
 what could not be established stand ahead of anything that reads like a
 conclusion, and findings against addresses the counterparty did not declare sit

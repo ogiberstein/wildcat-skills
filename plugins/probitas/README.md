@@ -47,6 +47,19 @@ can't drift from what the tool actually does.
 Drop `--fixtures` to run against the live venues instead of a synthetic
 borrower.
 
+To use a verified Alexandria address index instead of live or fixture adapters:
+
+```bash
+python3 scripts/probitas.py collect --entity "Acme Trading Ltd" \
+  --address 0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1 \
+  --alexandria-index alexandria.sqlite --out evidence.json
+```
+
+This route keeps the original Goldfinch or Clearpool venue and the Alexandria
+release, capture, component and row identities on every record. Every registry
+venue absent from the index remains a named gap. The normal live and fixture
+routes do not change unless this option is passed.
+
 ### Options
 
 | Flag | What it does |
@@ -55,6 +68,7 @@ borrower.
 | `--address` | An address they declared. Repeatable, required |
 | `--inferred` | An address suspected but neither declared nor provably linked. Kept in its own section, and gate 1 fails the dossier if a finding against one appears anywhere else |
 | `--fixtures` | Read venue responses from a directory instead of the network |
+| `--alexandria-index` | Read verified archive-backed evidence instead of live or fixture adapters |
 | `--run-id` | A label for the run, printed in the dossier |
 | `--timeout` | Seconds per request, default 30 |
 | `--out` | Where to write, or `-` for stdout |

@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from probitas_lib import registry, sanitise  # noqa: E402
 from probitas_lib.adapters import run_adapter, unchecked_coverage  # noqa: E402
 from probitas_lib.adapters import morpho, wildcat  # noqa: E402
-from probitas_lib.evidence import Evidence, EvidenceError, Gap  # noqa: E402
+from probitas_lib.evidence import Coverage, Evidence, EvidenceError, Gap, Record  # noqa: E402
 from probitas_lib import gates, render  # noqa: E402
 
 ADAPTERS = {
@@ -56,6 +56,10 @@ def cmd_collect(args):
         return 2
 
     evidence = Evidence(entity=entity, addresses=declared + inferred, run_id=args.run_id)
+    if args.alexandria_index:
+        _collect_alexandria(args.alexandria_index, evidence)
+        return _write_evidence(args, evidence)
+
     config = {"fixtures": args.fixtures, "timeout": args.timeout}
 
     for venue in registry.all_venues():
@@ -77,6 +81,65 @@ def cmd_collect(args):
                 )
             )
 
+    return _write_evidence(args, evidence)
+
+
+def _collect_alexandria(index_path, evidence):
+    alexandria_scripts = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "alexandria", "scripts")
+    )
+    if alexandria_scripts not in sys.path:
+        sys.path.insert(0, alexandria_scripts)
+    try:
+        from alexandria_lib.errors import AlexandriaError  # noqa: E402
+        from alexandria_lib.probitas import translate  # noqa: E402
+    except ImportError as error:
+        raise EvidenceError(
+            "Alexandria support is not installed beside Probitas"
+        ) from error
+
+    try:
+        translated = translate(index_path, evidence.addresses)
+    except (AlexandriaError, OSError) as error:
+        raise EvidenceError(f"Alexandria index: {error}") from error
+
+    by_venue = {item["venue"]: item for item in translated["coverage"]}
+    for item in translated["records"]:
+        address = item["address"]
+        values = dict(item["values"])
+        for key in [name for name in values if name.startswith("token_symbol")]:
+            values[key] = sanitise.clean(values[key], max_length=32)
+        evidence.add_record(Record(
+            venue=item["venue"], address=address,
+            provenance=evidence.addresses[address], claim=item["claim"],
+            values=values, source=item["source"],
+            observed_at=item["observed_at"], block=item["block"],
+        ))
+
+    for venue in registry.all_venues():
+        item = by_venue.get(venue.id)
+        if item is not None:
+            evidence.add_coverage(Coverage(**item))
+            continue
+        status = "unconfigured" if venue.implemented else "unimplemented"
+        evidence.add_coverage(Coverage(
+            venue=venue.id, status=status, endpoint="Alexandria index",
+            note="venue was not harvested into the selected Alexandria index",
+        ))
+
+    for item in translated["gaps"]:
+        evidence.add_gap(Gap(**item))
+    for coverage in evidence.coverage:
+        if coverage.status in ("unimplemented", "unconfigured", "error"):
+            subject = f"{coverage.venue} borrowing history"
+            if not any(gap.subject == subject for gap in evidence.gaps):
+                evidence.add_gap(Gap(
+                    subject=subject,
+                    reason=coverage.note or f"venue not checked ({coverage.status})",
+                ))
+
+
+def _write_evidence(args, evidence):
     payload = evidence.to_json()
     if args.out == "-":
         sys.stdout.write(payload)
@@ -159,10 +222,16 @@ def build_parser():
         help="an address suspected but not declared or provably linked; "
         "kept in its own section and never mixed with the declared ones",
     )
-    collect.add_argument(
+    sources = collect.add_mutually_exclusive_group()
+    sources.add_argument(
         "--fixtures",
         metavar="DIR",
         help="read venue responses from this directory instead of the network",
+    )
+    sources.add_argument(
+        "--alexandria-index",
+        metavar="SQLITE",
+        help="read verified archive-backed evidence instead of live or fixture adapters",
     )
     collect.add_argument("--run-id", default=None)
     collect.add_argument(

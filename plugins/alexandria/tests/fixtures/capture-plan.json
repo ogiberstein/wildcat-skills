@@ -1,0 +1,37 @@
+{
+  "format": "alexandria-capture-plan/v1",
+  "release": {"name": "two-coverage-shapes", "created_at": "2026-08-16T12:00:00Z"},
+  "components": [
+    {"name": "subject-logs", "path": "subject-scoped.json", "media_type": "application/json", "role": "raw-capture", "access": "public", "redistribution": "permitted"},
+    {"name": "full-response", "path": "full-dataset.json", "media_type": "application/json", "role": "raw-capture", "access": "public", "redistribution": "permitted"}
+  ],
+  "captures": [
+    {
+      "id": "subject-capture", "component": "subject-logs", "venue": "clearpool", "chain": "eip155:1", "evidence_class": "archive-log",
+      "source": {"kind": "ethereum-logs", "locator_class": "local-fixture", "reference": "subject-scoped.json"},
+      "scope": {
+        "kind": "subject-scoped", "deployment": "clearpool-mainnet", "finality": "unknown",
+        "subjects": ["eip155:1:0x1111111111111111111111111111111111111111"],
+        "interval": {"kind": "block-range", "start": "256", "end": "257"}
+      },
+      "coverage": {
+        "status": "complete", "record_count": 2,
+        "collections": [{"name": "logs", "selector": "/logs", "record_count": 2}],
+        "unsupported_collections": [], "gaps": []
+      }
+    },
+    {
+      "id": "full-capture", "component": "full-response", "venue": "goldfinch", "chain": "eip155:1", "evidence_class": "hosted-indexer",
+      "source": {"kind": "hosted-indexer", "locator_class": "local-fixture", "reference": "full-dataset.json"},
+      "scope": {"kind": "full-dataset", "deployment": "goldfinch-v1", "finality": "provider-reported", "interval": {"kind": "snapshot", "observed_at": "2022-11-04T00:00:00Z"}},
+      "coverage": {
+        "status": "complete", "record_count": 3,
+        "collections": [
+          {"name": "pools", "selector": "/data/pools", "record_count": 2},
+          {"name": "repayments", "selector": "/data/repayments", "record_count": 1}
+        ],
+        "unsupported_collections": [], "gaps": []
+      }
+    }
+  ]
+}

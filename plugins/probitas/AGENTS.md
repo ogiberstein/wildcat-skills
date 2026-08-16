@@ -40,11 +40,17 @@ run as clean when it exited 1.
 
 ## Network and side effects
 
-Without `--fixtures`, `collect` makes outbound requests to public venue APIs.
+Without `--fixtures` or `--alexandria-index`, `collect` makes outbound requests
+to public venue APIs.
 It sends the addresses it was given and nothing else, and it needs no
 credential for either shipped venue. Ask for whatever approval the runtime or
 the target repository requires before running it against a live counterparty,
 and prefer a fixture directory when demonstrating rather than investigating.
+
+`--alexandria-index` reads a disposable Alexandria SQLite index and its
+referenced verified releases without reaching the network. It keeps the
+original venue and archive provenance on every record and reports every
+unharvested registry venue as a gap.
 
 `collect`, `render` and `verify` write only where `--out` points. Nothing else
 in the plugin writes outside its own directory.

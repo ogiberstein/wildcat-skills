@@ -93,10 +93,10 @@ interpretations immutable: a corrected mapping gets a new version and a new
 release directory rather than replacing old bytes.
 
 [`docs/compound-v3-preservation.md`](docs/compound-v3-preservation.md) specifies
-the larger Compound III collection path. It explains why logs alone miss or
-misclassify debt transitions, what execution evidence must be preserved and
-where Hinterlight can supply archive, debug and trace reads without becoming
-part of the offline verifier.
+the Compound III mapping and preservation requirements. Alexandria's linked
+harvest specification owns raw collection; this document explains why logs
+alone miss or misclassify debt transitions and what execution evidence the
+Tabularium mapping needs.
 
 ## Tests
 
@@ -117,7 +117,7 @@ Python 3.9 or later, standard library only. The tests make no network request.
 - [`docs/release-policy.md`](docs/release-policy.md) -- how a later
   interpretation supersedes an earlier one without rewriting it.
 - [`docs/compound-v3-preservation.md`](docs/compound-v3-preservation.md) -- the
-  staged Compound III capture, evidence and infrastructure design.
+  Compound III mapping and preservation requirements.
 - [`audit/AUDIT.md`](audit/AUDIT.md) -- every audit round and the fixes it
   required.
 

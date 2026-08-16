@@ -178,6 +178,28 @@
         "provenance",
         "preservation"
       ]
+    },
+    {
+      "name": "alexandria",
+      "displayName": "Alexandria",
+      "source": "./plugins/alexandria",
+      "description": "Digest-bound lending-data releases and a narrow address-queryable credit view for Probitas.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/alexandria",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Research",
+      "tags": [
+        "credit",
+        "archive",
+        "datasets",
+        "provenance",
+        "preservation",
+        "diligence"
+      ]
     }
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "name": "alexandria",
+  "displayName": "Alexandria",
+  "version": "0.1.0",
+  "description": "Digest-bound lending-data releases with explicit capture coverage and a narrow Tabularium credit view for Probitas.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/alexandria",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "credit",
+    "archive",
+    "datasets",
+    "provenance",
+    "preservation"
+  ],
+  "skills": "./skills/"
+}
