@@ -1,6 +1,6 @@
 {
   "name": "hexaemeron",
-  "version": "1.0.0",
+  "version": "1.0.0+codex.20260816055928",
   "description": "One-shot delivery loop: study, runbook, then per-step issue/implement/audit/prose/push to a working prototype, receipt-backed and resumable.",
   "author": {
     "name": "Wildcat Labs",
