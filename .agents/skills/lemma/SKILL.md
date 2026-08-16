@@ -6,7 +6,10 @@ description: Route Solidity or Markdown chunking requests to the canonical Lemma
 # Lemma portable entrypoint
 
 Read [the Lemma runtime contract](../../../plugins/lemma/AGENTS.md), then read
-[the canonical Lemma skill](../../../plugins/lemma/skills/lemma/SKILL.md) in
+[the canonical `chunk` skill](../../../plugins/lemma/skills/chunk/SKILL.md) in
 full and follow it. Resolve every relative path from the canonical skill's
 directory. The canonical file is authoritative if this entrypoint and it ever
 disagree.
+
+`/lemma:chunk` is the plugin-qualified invocation. `$lemma` remains the
+host-neutral entrypoint for agents that discover this portable skill.

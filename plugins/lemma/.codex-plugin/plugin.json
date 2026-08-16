@@ -24,6 +24,6 @@
     "developerName": "Wildcat Labs",
     "category": "Developer Tools",
     "capabilities": [],
-    "defaultPrompt": "Use $lemma to chunk Solidity or Markdown sources into validated JSONL."
+    "defaultPrompt": "Use $chunk to turn Solidity or Markdown sources into validated JSONL chunks."
   }
 }

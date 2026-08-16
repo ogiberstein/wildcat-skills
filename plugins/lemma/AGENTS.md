@@ -1,7 +1,7 @@
 # Lemma runtime contract
 
-Lemma contains one Agent Skill. Its canonical instructions are in
-`skills/lemma/SKILL.md`; read that file in full before chunking Solidity or
+Lemma contains one Agent Skill, `chunk`. Its canonical instructions are in
+`skills/chunk/SKILL.md`; read that file in full before chunking Solidity or
 Markdown.
 
 ## Capabilities and paths
@@ -16,7 +16,7 @@ Markdown.
 
 ## Interpretation
 
-- `$lemma`, `/lemma:lemma`, and a plain request to use Lemma are equivalent
+- `$chunk`, `/lemma:chunk`, and a plain request to use Lemma are equivalent
   activation forms.
 - Lemma only creates chunks. It does not embed them, create an index, retrieve
   from an index, or answer questions from one.

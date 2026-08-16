@@ -83,6 +83,10 @@ Lemma includes:
 It stops after chunking. It does not embed, index, retrieve, or answer from the
 output.
 
+Its one skill is `chunk`, giving the qualified name `lemma:chunk`. The plain
+name matches the operation and avoids implying the unrelated NLP operation of
+lemmatisation.
+
 #### Day to day
 
 **Developers.** A documentation or verified-contract corpus needs source-linked
@@ -187,7 +191,7 @@ Hexaemeron's entry skill is:
 Lemma is available as:
 
 ```text
-/lemma:lemma
+/lemma:chunk
 ```
 
 Probitas is available as:
@@ -247,10 +251,10 @@ Lemma needs Python 3.10 or later. Solidity input also needs `solc`, Docker, or
 Podman. Ask:
 
 ```text
-Use $lemma to chunk this Solidity standard input into validated JSONL.
+Use $chunk to turn this Solidity standard input into validated JSONL chunks.
 ```
 
-The command selection and output rules live in [Lemma's `SKILL.md`](./plugins/lemma/skills/lemma/SKILL.md).
+The command selection and output rules live in [Lemma's `chunk` skill](./plugins/lemma/skills/chunk/SKILL.md).
 
 Probitas needs Python 3 and nothing else. Neither shipped venue asks for a key, and `--fixtures` runs it with no network at all. Ask:
 
@@ -294,7 +298,7 @@ plugins/
 │   ├── chunkers/
 │   ├── tests/
 │   └── skills/
-│       └── lemma/
+│       └── chunk/
 └── probitas/
     ├── .claude-plugin/plugin.json
     ├── .codex-plugin/plugin.json
