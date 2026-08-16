@@ -19,7 +19,7 @@ then rest. The entry skill is `fiat`, so the invocation is
 | --- | --- | --- |
 | 1 | `study` | Study the topic; write `.hexaemeron/study.md`, linted |
 | 2 | `runbook` | Divide the work into discrete, self-contained steps |
-| 3–4 | `implement` | Build the step, least mental load that satisfies the runbook |
+| 3-4 | `implement` | Build the step, least mental load that satisfies the runbook |
 | 5 | `audit` | The vendored Pashov suite in rounds until clean or reasoned out; fixes on a stacked branch |
 | 6 | `prose` | The `imprimatur` lint, then the `vulgate` voice mask, on every document and the PR text |
 | rest | `push` | Push, open the PR, move on |

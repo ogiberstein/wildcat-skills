@@ -88,7 +88,7 @@ Hexaemeron includes:
 - the [`imprimatur`](./plugins/hexaemeron/skills/imprimatur) three-tier prose lint and the [`vulgate`](./plugins/hexaemeron/skills/vulgate) voice mask, invokable on their own;
 - the Pashov Audit Group suite vendored verbatim (MIT; `LICENSE` and `NOTICE.md` in each skill directory);
 - Codex metadata for explicit or automatic invocation; and
-- 42 controller and contract tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
+- 50 controller and contract tests, 56 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./plugins/hexaemeron/audit/AUDIT.md)) covering the controller's own surfaces.
 
 #### Day to day
 
@@ -267,7 +267,7 @@ Tabularium includes:
   release, its data dictionary and a fresh-directory rebuild demonstration;
 - an [adapter guide](./plugins/tabularium/docs/adding-an-adapter.md) and an
   immutable [release policy](./plugins/tabularium/docs/release-policy.md); and
-- 91 tests and an audit log
+- 92 tests and an audit log
   ([`audit/AUDIT.md`](./plugins/tabularium/audit/AUDIT.md)) recording every
   review round and fix.
 
