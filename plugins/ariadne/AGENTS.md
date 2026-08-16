@@ -5,7 +5,7 @@ Ariadne contains one Agent Skill. Select from this table, then read the chosen
 
 | Skill | Canonical instructions | Select when |
 | --- | --- | --- |
-| `ariadne` | `skills/ariadne/SKILL.md` | Read or write a signed statement binding an artefact to the evidence behind it |
+| `ariadne` | `skills/ariadne/SKILL.md` | Read or write an evidence statement binding an artefact to the record behind it |
 
 `skills/ariadne/README.md` is a copy of that file, kept identical so the
 directory renders when browsed. Read either; a test fails if they diverge.

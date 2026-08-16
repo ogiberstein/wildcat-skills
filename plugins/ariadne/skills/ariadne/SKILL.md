@@ -1,13 +1,13 @@
 ---
 name: ariadne
 description: >
-  Read and write the signed statements that keep a release joined to the
-  evidence behind it: an in-toto statement over a DSSE envelope, with a
-  predicate registry and gates that keep absence visible. Use when someone
-  hands over an attestation and asks what it actually covers, when a release
-  needs evidence a stranger can check rather than a badge, or when a new kind
-  of artefact needs a predicate of its own. Never use it to claim a signature
-  was verified; that is cosign's job.
+  Read and write the evidence statements that keep a release joined to the
+  record behind it: an in-toto statement, optionally inside a DSSE envelope,
+  with a predicate registry and gates that keep absence visible. Use when
+  someone hands over an attestation and asks what it actually covers, when a
+  release needs evidence a stranger can check rather than a badge, or when a
+  new kind of artefact needs a predicate of its own. Ariadne neither signs nor
+  verifies signatures; those operations belong to cosign.
 metadata:
   version: "0.1.0"
 ---
@@ -124,11 +124,11 @@ a predicate fills in.
 | --- | --- | --- |
 | 1 Every claim names its subject | core | A result tied to a repository or a branch is rejected; it names the digest it covers |
 | 2 The environment is recoverable | predicate | A bare tool version is not a build description |
-| 3 Absence stays visible | core | Skipped, failed, timed-out and redacted work stays in the signed statement |
+| 3 Absence stays visible | core | Skipped, failed, timed-out and redacted work stays in the statement |
 | 4 Results are not upgraded into conclusions | core | A passing property records the property and the run, not that the artefact is safe |
 | 5 Deltas name both sides | predicate | A comparison fails when either baseline cannot be identified exactly |
 | 6 Replay distinguishes deterministic work | core | Bytecode can require an exact match; a fuzz campaign's coverage cannot |
-| 7 Signing is optional, verification is not | core | An unsigned statement is labelled unsigned and receives no implied author |
+| 7 Signature verification is external | core | An unsigned statement is labelled unsigned and no statement receives an implied author |
 
 The five core gates run for any predicate, including a type this build has
 never heard of. Gates 2 and 5 come from the predicate: the Solidity release

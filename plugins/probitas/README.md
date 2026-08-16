@@ -9,8 +9,8 @@ could not be established.
 
 The reason to want this is undercollateralised lending, where nothing stands
 between a lender and a total loss except a judgement about the borrower, and
-that judgement usually gets assembled by hand out of whatever whoever is
-asking happens to remember. The tool is not limited to that case. Most
+that judgement usually gets assembled by hand from whatever the person asking
+happens to remember. The tool is not limited to that case. Most
 on-chain borrowing is overcollateralised and it still tells you plenty: a
 liquidation says a price moved, a bad debt says somebody was not made whole,
 and a missed maturity says what it says anywhere.

@@ -18,24 +18,14 @@ One command produces:
 | `Reproduction tests` | A deterministic Foundry test for each distinct violation found |
 | `report.md` | Campaign summary — coverage reached and violations surfaced |
 
-## Demo
-
-_Part of a Fizz run shown below_
-
-![Running Fizz in the terminal](../static/fizz.gif)
-
 ## Usage
 
 ```
-Install https://github.com/pashov/skills/ and run fizz on the codebase
+Use the bundled `hexaemeron:fizz` skill to generate a fuzz suite for this codebase.
 ```
 
 ```
 Generate a fuzz suite for this lending protocol. Focus on solvency and liquidation invariants.
-```
-
-```
-update skill to latest version
 ```
 
 ## Tips

@@ -61,7 +61,7 @@ byte from what cannot.
 **A predicate is the shape for one kind of artefact.** It declares which fields
 a statement of that kind carries and how a verifier checks them. The core holds
 predicates apart so a dataset statement and a contract statement share a
-verifier and a signing path without sharing a schema.
+verifier and one envelope format without sharing a schema.
 
 | Module | Holds |
 | --- | --- |
@@ -87,11 +87,11 @@ predicate fills in.
 | --- | --- | --- |
 | 1 Every claim names its subject | core | A result tied to a repository or a branch is rejected; it names the digest it covers |
 | 2 The environment is recoverable | predicate | A bare tool version is not a build description |
-| 3 Absence stays visible | core | Skipped, failed, timed-out and redacted work stays in the signed statement |
+| 3 Absence stays visible | core | Skipped, failed, timed-out and redacted work stays in the statement |
 | 4 Results are not upgraded into conclusions | core | A passing property records the property and the run, not that the artefact is safe |
 | 5 Deltas name both sides | predicate | A comparison fails when either baseline cannot be identified exactly |
 | 6 Replay distinguishes deterministic work | core | Bytecode can require an exact match; a fuzz campaign's coverage cannot |
-| 7 Signing is optional, verification is not | core | An unsigned statement is labelled unsigned and receives no implied author |
+| 7 Signature verification is external | core | An unsigned statement is labelled unsigned and no statement receives an implied author |
 
 ## Choices, and what they cost
 

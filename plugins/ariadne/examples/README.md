@@ -46,11 +46,11 @@ pass instead. Nothing in the gates can tell that apart from a run that really
 passed, because both parse, both pass every gate, and neither contradicts
 anything else in the document.
 
-What catches it is the signature. A statement is signed over its bytes, so an
-edit after signing fails verification, and an edit before signing puts the
-producer's name on the claim. That is what gate 7 is protecting: signing is
-optional, verification is not, and an unsigned statement is labelled unsigned
-precisely because it carries nobody's name.
+What catches it is an externally verified signature. A statement is signed
+over its bytes, so an edit after signing fails verification, and an edit before
+signing puts the producer's name on the claim. Gate 7 keeps that boundary
+visible: Ariadne labels an unsigned statement unsigned and never supplies an
+author from a signature it did not check.
 
 The gates refuse the shapes that let a careless statement read as a careful
 one. They do not, and cannot, refuse a producer willing to lie in a document

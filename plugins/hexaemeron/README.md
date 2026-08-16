@@ -88,13 +88,15 @@ Per-run, via `hexctl config set <path> <value>`:
 | `git.base` | `main` | Starting ref |
 | `git.step_base` | `chain` | Steps branch from the prior step (`base` for independent) |
 
-The Pashov suite -- `x-ray`, `solidity-auditor`, and `fizz` -- is vendored
-verbatim from https://github.com/pashov/skills (tag `v28062026`, MIT; see
-`skills/<name>/LICENSE` and `NOTICE.md` in each). Credit: Pashov Audit
-Group, https://www.pashov.com/. Preflight records the bundled ids in the
-`security_suite` receipt; the controller gates on the receipt, not the
-config, so a stale config cannot fake a suite. Prose-free or
-Solidity-free runs record a waiver instead.
+The Pashov suite -- `x-ray`, `solidity-auditor`, and `fizz` -- is based on
+https://github.com/pashov/skills tag `v28062026` under the MIT licence. Each
+`NOTICE.md` records the local distribution changes. The copies keep their
+upstream instructional register; Wildcat's house prose lint does not rewrite
+third-party source solely for style. Credit: Pashov Audit Group,
+https://www.pashov.com/. Preflight records the bundled ids in the
+`security_suite` receipt; the controller gates on the receipt, not the config,
+so a stale config cannot fake a suite. Prose-free or Solidity-free runs record
+a waiver instead.
 
 ## The prose masks
 
