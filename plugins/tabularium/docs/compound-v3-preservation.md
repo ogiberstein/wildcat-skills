@@ -1,14 +1,18 @@
-# Compound III preservation specification
+# Compound III mapping and preservation requirements
 
 Status: proposed, 2026-08-16. This document defines the work; it does not
 claim that a Compound III release exists.
 
 ## Decision
 
-Preserve Compound III under Tabularium, beginning with the Ethereum mainnet
-USDC Comet and then widening by market and chain. Use Hinterlight for the first
-archive, debug and trace pass where its exact methods have been tested. Keep
-collection separate from Tabularium's offline builder and verifier.
+Preserve the raw Compound III record under Alexandria, beginning with the
+Ethereum mainnet USDC Comet and then widening by market and chain. Alexandria's
+[harvest specification](https://github.com/wildcat-finance/skills/blob/main/plugins/alexandria/docs/compound-v3-harvest.md)
+owns the registry pin, RPC collection, provider reconciliation and raw-release
+boundary.
+Use Hinterlight for the first archive, debug and trace pass where its exact
+methods have been tested. Tabularium starts from a verified Alexandria release
+and owns the reviewed credit mapping, canonical rows and mapping coverage.
 
 Do not build from logs alone. Compound III records base-asset movement, signed
 principal and accrued interest through the same account balance. A `Supply`
@@ -106,7 +110,8 @@ completeness check, not the sole source of credit semantics.
 
 ## Collection architecture
 
-Collection has four stages. Every stage writes immutable, digest-bound shards.
+Collection and derivation have four stages. Every stage writes immutable,
+digest-bound shards.
 An interrupted stage resumes from its journal and never edits a completed
 shard.
 
@@ -163,22 +168,22 @@ it does not replace the ordered witness.
 Capture full raw RPC responses before producing normalized witness records.
 The normalization is versioned and reproducible from those bytes.
 
-### 4. Offline release build
+### 4. Offline derivation
 
-The Tabularium adapter consumes only the frozen registry and capture shards.
-It makes no RPC request. It validates the witness, replays the relevant Comet
-principal transitions and writes deterministic canonical JSONL plus a coverage
-manifest.
+The Tabularium adapter consumes only a verified Alexandria raw release. It
+makes no RPC request. It validates the witness, replays the relevant Comet
+principal transitions and writes deterministic canonical JSONL plus mapping
+coverage.
 
 The verifier repeats that work without network access or writes. It rejects a
 missing range, duplicate call locator, unbound shard, implementation interval
 gap, undecodable successful call, unexplained principal write, log mismatch or
 canonical byte drift.
 
-## Native capture layout
+## Release layout
 
-A release is partitioned by chain, Comet proxy and block interval. It contains
-at least:
+An Alexandria raw release is partitioned by chain, Comet proxy and block
+interval. Its captured objects include at least:
 
 ```text
 registry.json
@@ -189,11 +194,12 @@ receipts.jsonl
 logs.jsonl
 traces.jsonl
 storage-writes.jsonl
-events.jsonl
-coverage.json
+raw-coverage.json
 ```
 
-The first prototype keeps these files uncompressed. Large releases may use
+The Tabularium derived release adds canonical `events.jsonl` and mapping
+coverage without rewriting those raw objects. The first prototype keeps the
+files uncompressed. Large releases may use
 deterministic gzip shards with fixed headers after the same bytes can be
 rebuilt on Linux and macOS. Each shard has a path, SHA-256 digest, byte count,
 row count and first/last source locator in `capture.json`.
@@ -313,10 +319,11 @@ corpus:
 - historical `eth_getStorageAt` for initial slot values; and
 - repeated reads that return identical finalized results.
 
-Hinterlight supplies RPC evidence. It does not supply Tabularium's registry,
-journal, completeness accounting, canonical mapping, object storage or offline
-verification. It is one operator and one physical site, so it is not an
-independent confirmation source. Public Wildcat material currently documents
+Hinterlight supplies RPC evidence. It does not supply Alexandria's registry,
+journal, completeness accounting, object storage or raw-release verification,
+nor Tabularium's canonical mapping. It is one operator and one physical site,
+so it is not an independent confirmation source. Public Wildcat material
+currently documents
 the Ethereum endpoint and the operator's archive/debug/trace role; it does not
 establish those capabilities for all ten Compound networks. Test each chain
 separately.
@@ -335,8 +342,9 @@ Do not begin with a distributed service. The first slice needs:
 - a local content-addressed spool;
 - Hinterlight's Ethereum RPC;
 - an S3-compatible bucket for sealed raw shards; and
-- the existing Tabularium repository for schemas, adapter, fixtures and small
-  manifests.
+- Alexandria for collector policy, raw schemas, fixtures and small manifests;
+  and
+- Tabularium for the adapter, derived schemas and mapping fixtures.
 
 Use a database server and multiple workers only after measurements show that
 one process cannot keep the selected RPC lane busy or the journal cannot be

@@ -99,6 +99,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Research"
+    },
+    {
+      "name": "alexandria",
+      "source": {
+        "source": "local",
+        "path": "./plugins/alexandria"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Research"
     }
   ]
 }

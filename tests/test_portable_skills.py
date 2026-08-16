@@ -28,7 +28,7 @@ class PortableSkillTests(unittest.TestCase):
 
     def test_portable_entrypoints_exist_and_match_parent_name(self):
         for name in (
-            "ariadne", "hermes", "hexaemeron", "lazarus", "lemma", "pandects", "probitas", "tabularium"
+            "alexandria", "ariadne", "hermes", "hexaemeron", "lazarus", "lemma", "pandects", "probitas", "tabularium"
         ):
             path = ROOT / ".agents" / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
@@ -83,7 +83,8 @@ class PortableSkillTests(unittest.TestCase):
             self.assertTrue((hexa_root / relative).is_file(), relative)
 
     def test_skill_names_match_canonical_parent_directories(self):
-        skills = list((ROOT / "plugins" / "ariadne" / "skills").glob("*/SKILL.md"))
+        skills = list((ROOT / "plugins" / "alexandria" / "skills").glob("*/SKILL.md"))
+        skills += list((ROOT / "plugins" / "ariadne" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "hermes" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "hexaemeron" / "skills").glob("*/SKILL.md"))
         skills += list(

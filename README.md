@@ -287,18 +287,58 @@ record without erasing the difference between them. The common family makes
 the rows searchable; the venue-qualified action and native record keep the
 economic meaning attached.
 
+### Alexandria
+
+[Alexandria](./plugins/alexandria) keeps heterogeneous lending data unchanged,
+then derives only the credit rows a reviewed mapping can defend.
+
+Raw GraphQL responses and archive logs do not need one payload schema. Each
+release stores the original bytes under their SHA-256, names the source, chain,
+scope, finality class and counted coverage, and verifies offline. Goldfinch and
+Clearpool releases can then produce a narrow Tabularium view without turning
+the archive itself into an interpretation layer.
+
+The SQLite address index is disposable. Every query rechecks its schema,
+logical digest and exact release-backed contents before returning rows. The
+explicit Probitas route keeps both venue and archive provenance and leaves all
+unharvested registry venues visible as gaps.
+
+Alexandria includes:
+
+- the standard-library [`alexandria.py`](./plugins/alexandria/scripts/alexandria.py)
+  ingest, verify, derive, index and query command;
+- raw-release, coverage, credit-row, query and demonstration schemas;
+- registered Goldfinch and Clearpool mappings with exact source and context
+  selectors;
+- the offline [`credit-history-v0`](./plugins/alexandria/examples/credit-history-v0/README.md)
+  path through Probitas's five gates; and
+- a pinned [Compound v3 harvest specification](./plugins/alexandria/docs/compound-v3-harvest.md)
+  for the production collector that does not exist yet.
+
+#### Day to day
+
+**Developers.** Preserve a protocol response now, with its gaps and usage
+restrictions, then rebuild the same release after the endpoint is gone.
+
+**Security and audit.** Check that every derived row resolves to the raw object
+and mapping rule that assigned its meaning. An unknown implementation or
+selector stays unsupported.
+
+**Finance.** Query a counterparty address across the archived venues without
+letting an unharvested venue read as clean history.
+
 ## Who these are for
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Ariadne | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 7 |
-| Security and audit | 9 | 7 | 8 | 4 | 8 | 9 | 5 | 7 |
-| Marketing | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 |
-| Business development | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 3 |
-| Finance | 1 | 3 | 4 | 1 | 2 | 2 | 7 | 7 |
-| Legal | 3 | 1 | 4 | 1 | 2 | 2 | 4 | 2 |
+| Role | Alexandria | Ariadne | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 7 |
+| Security and audit | 8 | 9 | 7 | 8 | 4 | 8 | 9 | 5 | 7 |
+| Marketing | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 |
+| Business development | 6 | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 3 |
+| Finance | 8 | 1 | 3 | 4 | 1 | 2 | 2 | 7 | 7 |
+| Legal | 3 | 3 | 1 | 4 | 1 | 2 | 2 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -329,6 +369,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 
 ```text
 /plugin marketplace add wildcat-finance/skills
+/plugin install alexandria@wildcat-labs
 /plugin install ariadne@wildcat-labs
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
@@ -339,7 +380,13 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin install tabularium@wildcat-labs
 ```
 
-If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Ariadne is available as:
+If the install summary asks for it, run `/reload-plugins`. Claude namespaces plugin skills, so Alexandria is available as:
+
+```text
+/alexandria:alexandria
+```
+
+Ariadne is:
 
 ```text
 /ariadne:ariadne
@@ -391,7 +438,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the eight
+Agents that support the open Agent Skills convention can discover the nine
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -406,6 +453,7 @@ planning, question, and subagent operations available in a local runtime.
 Plain-text activation works alongside host syntax:
 
 ```text
+Use Alexandria to preserve this lending-data capture and query its source-bound credit view.
 Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
@@ -421,6 +469,16 @@ Fiat remains explicit-only. Mentioning a similar delivery task does not start
 the controller unless the user names Hexaemeron or Fiat and asks to run it.
 
 ## Use
+
+Alexandria needs Python 3 and nothing else. Its checked-in demonstration and
+all verification paths run offline. Ask:
+
+```text
+Use $alexandria to preserve this lending-data capture, derive its reviewed credit rows, and query the declared address without hiding coverage gaps.
+```
+
+The release contracts, mapping boundary and refusal rules live in
+[Alexandria's `SKILL.md`](./plugins/alexandria/skills/alexandria/SKILL.md).
 
 Ariadne needs Python 3 and nothing else. Capturing from a Foundry project needs
 that project's build output, which `forge build` already wrote. Ask:
@@ -490,6 +548,17 @@ The mapping, release rules and evidence boundary live in
 .claude-plugin/marketplace.json
 .agents/plugins/marketplace.json
 plugins/
+├── alexandria/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── AGENTS.md
+│   ├── docs/
+│   ├── examples/
+│   ├── schemas/
+│   ├── scripts/
+│   ├── tests/
+│   └── skills/
+│       └── alexandria/
 ├── ariadne/
 │   ├── .claude-plugin/plugin.json
 │   ├── .codex-plugin/plugin.json
@@ -599,7 +668,9 @@ the first of them, and `ariadne` above is the answer to it. Preserving the credi
 record was the next, and `tabularium` now has its first venue. `pandects` now
 carries the shared credit laws. `lazarus` preserves and replays a finite slice
 of historical state. Another protocol, auditor, researcher or agent builder
-should be able to use each one without needing to use Wildcat.
+should be able to use each one without needing to use Wildcat. `alexandria`
+now keeps the heterogeneous raw record and serves a reviewed address view to
+`probitas` without making either one own the other's claims.
 
 What remains, listed alphabetically:
 
