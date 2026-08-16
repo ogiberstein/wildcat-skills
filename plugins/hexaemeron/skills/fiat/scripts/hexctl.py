@@ -16,6 +16,7 @@ human-facing goes to plain text or stderr.
 """
 
 import argparse
+import contextlib
 import datetime
 import hashlib
 import json
@@ -112,6 +113,122 @@ def load_state(base_dir: str) -> dict:
             return json.load(fh)
     except (ValueError, OSError) as exc:
         die(f"state file unreadable at {path}: {exc}", 1)
+
+
+MUTATING = frozenset(
+    {
+        "cmd_init",
+        "cmd_record",
+        "cmd_config",
+        "cmd_done",
+        "cmd_audit_round",
+        "cmd_halt",
+        "cmd_resume",
+    }
+)
+"""Commands that write. `status`, `next` and `verify` only read, and blocking
+them would stop a second agent from finding out why it is blocked."""
+
+
+def lock_path(base_dir: str) -> str:
+    return os.path.join(state_root(base_dir), "lock")
+
+
+def holder_is_alive(pid: int) -> bool:
+    """Whether the process holding the lock still exists.
+
+    `kill(pid, 0)` signals nothing and reports whether it could have. A
+    `PermissionError` means the process is alive and owned by somebody else,
+    which still counts as held.
+    """
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return True
+    return True
+
+
+def read_holder(path: str) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (ValueError, OSError):
+        return {}
+
+
+@contextlib.contextmanager
+def held_lock(base_dir: str, command: str):
+    """Hold the run for the length of one mutating command.
+
+    The ledger is a read-modify-write: an entry takes the previous entry's
+    hash as its parent. Two commands interleaving there produce two entries
+    claiming the same parent, and `verify` reports the chain as broken
+    afterwards. This turns that into a refusal beforehand.
+
+    `O_CREAT | O_EXCL` is the whole mechanism. Creating the file is atomic, so
+    exactly one process wins, with no dependency and nothing to configure. A
+    lock whose holder has died is broken and taken, because a crashed run
+    should not need a manual clean-up before the next one can start.
+    """
+    root = state_root(base_dir)
+    if not os.path.isdir(root):
+        # Only `init` legitimately runs without a state directory, and it
+        # creates one. Anything else is about to fail with a better message
+        # than a lock could give, so do not litter the directory to say so.
+        if command != "cmd_init":
+            yield
+            return
+        os.makedirs(root, exist_ok=True)
+
+    path = lock_path(base_dir)
+    fd = None
+    while fd is None:
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            holder = read_holder(path)
+            pid = holder.get("pid")
+            if not isinstance(pid, int) or not holder_is_alive(pid):
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
+                continue
+            die(
+                "another hexctl is holding this run: pid {pid} running "
+                "`{cmd}` since {since}.\n"
+                "Two agents in one directory share one run and one ledger. "
+                "Give each its own working directory, for example "
+                "`git worktree add ../<name> main`, and run one there.".format(
+                    pid=pid,
+                    cmd=holder.get("command", "unknown"),
+                    since=holder.get("ts", "unknown"),
+                ),
+                1,
+            )
+
+    try:
+        os.write(
+            fd,
+            json.dumps(
+                {"pid": os.getpid(), "command": command, "ts": now()}
+            ).encode()
+            + b"\n",
+        )
+        os.close(fd)
+        fd = None
+        yield
+    finally:
+        if fd is not None:
+            os.close(fd)
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
 
 
 def save_state(base_dir: str, state: dict) -> None:
@@ -765,6 +882,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.fn.__name__ in MUTATING:
+        with held_lock(args.dir, args.fn.__name__):
+            args.fn(args)
+        return
     args.fn(args)
 
 
