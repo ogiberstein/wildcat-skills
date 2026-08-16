@@ -1,0 +1,21 @@
+{
+  "name": "lemma",
+  "displayName": "Lemma",
+  "version": "0.1.0",
+  "description": "Chunk Solidity compiler inputs and Markdown documents into source-linked JSONL.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/lemma",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "solidity",
+    "markdown",
+    "chunking",
+    "retrieval",
+    "citations"
+  ],
+  "skills": "./skills/"
+}
