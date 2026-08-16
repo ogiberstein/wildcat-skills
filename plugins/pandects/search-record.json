@@ -1,0 +1,35 @@
+{
+  "corpus": {
+    "version": "0.1.0",
+    "laws": 9,
+    "digest": {
+      "sha256": "197a01e6dbf1feea13b2845e332ddc9d89b78bb0bb20936c9203f245b0b60efd"
+    }
+  },
+  "commands": [
+    {
+      "name": "fuzz campaign: foundry invariant",
+      "argv": [
+        "forge",
+        "test"
+      ],
+      "determinism": "nondeterministic",
+      "detail": {
+        "engine": "foundry",
+        "configuration": {
+          "runs": "64",
+          "depth": "64",
+          "fail_on_revert": "false",
+          "call_override": "false"
+        },
+        "sequence_length": "64",
+        "corpus_digest": {
+          "sha256": "197a01e6dbf1feea13b2845e332ddc9d89b78bb0bb20936c9203f245b0b60efd"
+        },
+        "laws_searched": 9,
+        "outcome": "passed",
+        "engine_version": "forge Version: 1.7.1"
+      }
+    }
+  ]
+}

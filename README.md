@@ -126,6 +126,40 @@ lemmatisation.
 JSONL before it can enter a retrieval system. Lemma creates that file and
 rejects chunks that fail its schema checks.
 
+### Pandects
+
+[Pandects](./plugins/pandects) is a corpus of executable laws for credit
+contracts. Each law is a Solidity component with a deliberately broken
+contract it is proven to catch, a reduced counterexample, and a statement of
+the accounting model and observables it requires.
+
+The catalogue holds nine laws across conservation, accrual and withdrawal
+claims. Eight are exact. The path-independence law carries a bound derived from
+the rounding performed by linear accrual, and its tests assert the figures on
+both the sound reference and the compounding specimen.
+
+Pandects includes:
+
+- one-state and transition laws written against economic observables rather
+  than protocol-specific function names;
+- broken specimens and replayable counterexamples for every law;
+- observer, driver and differential adapters for Foundry, Echidna and Medusa;
+- a reduced Wildcat market model recording where three laws need narrower
+  applicability; and
+- a checker, catalogue renderer, search record and tests that keep each law's
+  six required parts together.
+
+#### Day to day
+
+**Security and audit.** A credit protocol arrives and its economic invariants
+have to be settled before a fuzz campaign can mean anything. Pandects supplies
+the laws, the assumptions behind them, and evidence that each catches the fault
+it names.
+
+**Developers.** A change touches accrual or a withdrawal queue. Run the
+applicable laws against the build and inspect the quantities behind any verdict
+that moved.
+
 ### Probitas
 
 [Probitas](./plugins/probitas) builds a sourced dossier on what a counterparty has done across on-chain lending venues.
@@ -433,6 +467,18 @@ plugins/
 │   ├── tests/
 │   └── skills/
 │       └── chunk/
+├── pandects/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── adapters/
+│   ├── catalogue/
+│   ├── docs/
+│   ├── specimens/
+│   ├── src/
+│   ├── test/
+│   ├── tests/
+│   └── skills/
+│       └── pandects/
 ├── probitas/
 │   ├── .claude-plugin/plugin.json
 │   ├── .codex-plugin/plugin.json
@@ -475,9 +521,9 @@ of on-chain credit, shared laws for credit implementations, agents that can show
 their sources, a conformance suite for hooks and a way to replay chain state
 after the original infrastructure is gone. Carrying evidence with a release was
 the first of them, and `ariadne` above is the answer to it. Preserving the credit
-record was the next, and `tabularium` now has its first venue. Another protocol,
-auditor, researcher or agent builder should be able to use each one without
-needing to use Wildcat.
+record was the next, and `tabularium` now has its first venue. `pandects` now
+carries the shared credit laws. Another protocol, auditor, researcher or agent
+builder should be able to use each one without needing to use Wildcat.
 
 What remains, listed alphabetically:
 
@@ -486,7 +532,6 @@ What remains, listed alphabetically:
 | `berean` | A release manifest and evaluation corpus for agents that must support answers with exact documents and chain state |
 | `janus` | A conformance suite for what contract hooks may observe and change before and after a host action |
 | `lazarus` | Finite, verifiable historical-chain fixtures that can be replayed without the original RPC |
-| `pandects` | Executable laws for credit systems, each supplied with a broken specimen and a counterexample |
 
 These are tools we wanted and then needed. Their formats, datasets, properties,
 fixtures and tests become more useful when other teams can inspect, run and
