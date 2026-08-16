@@ -266,3 +266,35 @@ Codex and Claude Code load the same skill directory. The host manifests only han
 Local agents load the same canonical directories through the two portable
 entries. The portable layer translates discovery and tool vocabulary; it does
 not weaken a skill's checks or invent receipts for work that did not run.
+
+# Wildcat Commons
+
+Wildcat Labs spends much of its time on trust roots, attestation,
+accountability and verification. That follows from the sphere it works in. In
+private credit, trust is the most valuable currency there is, and a promise is
+worth only as much as the evidence and recourse behind it.
+
+Doing that work keeps exposing the same missing tools. We need a way to carry
+evidence with a release, a durable public record of on-chain credit, shared
+laws for credit implementations, agents that can show their sources, a
+conformance suite for hooks and a way to replay chain state after the original
+infrastructure is gone. Another protocol, auditor, researcher or agent builder
+should be able to use each one without needing to use Wildcat.
+
+The current slate, listed alphabetically:
+
+| Name | The public good |
+| --- | --- |
+| `ariadne` | Signed evidence binding a Solidity release to its source, build, tests, review and deployment |
+| `berean` | A release manifest and evaluation corpus for agents that must support answers with exact documents and chain state |
+| `janus` | A conformance suite for what contract hooks may observe and change before and after a host action |
+| `lazarus` | Finite, verifiable historical-chain fixtures that can be replayed without the original RPC |
+| `pandects` | Executable laws for credit systems, each supplied with a broken specimen and a counterexample |
+| `tabularium` | A sourced, reproducible ledger of credit events across protocols, with the raw record preserved |
+
+These are tools we wanted and then needed. Their formats, datasets, properties,
+fixtures and tests become more useful when other teams can inspect, run and
+improve them, so that is who they are for too.
+
+If Wildcat Labs means what it says about the Commons, publishing only the work
+that happens to be convenient is not enough. Fine. We'll do it ourselves.
