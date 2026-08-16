@@ -16,11 +16,11 @@ The statement is [in-toto's](https://github.com/in-toto/attestation) and the env
 
 1. Every claim names the exact digest it covers. A result tied to a repository or a branch is refused, because those move.
 2. The environment is recoverable. A compiler version without the optimiser settings, the EVM target, the dependency lock and the command is not a build description.
-3. Absence stays visible. Skipped, failed, timed-out and redacted work stays in the signed record, and anything other than a pass carries a reason.
+3. Absence stays visible. Skipped, failed, timed-out and redacted work stays in the statement record, and anything other than a pass carries a reason.
 4. Results are not upgraded into conclusions. A passing property records the property and the run, never that the artefact is safe.
 5. Deltas name both sides. A comparison fails when either baseline cannot be identified by digest, rather than degrading into a report of no changes.
 6. Replay distinguishes deterministic work. Bytecode can require an exact match; a fuzz campaign's coverage cannot.
-7. Signing is optional and verification is not. Ariadne holds no key, checks no signature, and says so every time it is asked.
+7. Signature verification is external. Ariadne holds no key, checks no signature, and says so every time it is asked.
 
 Five of those belong to an artefact-neutral core and run for any predicate, including a type the build has never seen. The other two come from the predicate, and a type without them is reported as unchecked rather than clean.
 
@@ -164,7 +164,7 @@ that moved.
 
 [Probitas](./plugins/probitas) builds a sourced dossier on what a counterparty has done across on-chain lending venues.
 
-Undercollateralised lending is the reason to want one: nothing stands between a lender and a total loss except a judgement about the borrower, and that judgement usually gets assembled by hand out of whatever whoever is asking happens to remember. The tool is not limited to that case. Most on-chain borrowing is collateralised and it still tells you plenty, because a liquidation says a price moved, a bad debt says somebody was not made whole, and a missed maturity says what it says anywhere.
+Undercollateralised lending is the reason to want one: nothing stands between a lender and a total loss except a judgement about the borrower, and that judgement usually gets assembled by hand from whatever the person asking happens to remember. The tool is not limited to that case. Most on-chain borrowing is collateralised and it still tells you plenty, because a liquidation says a price moved, a bad debt says somebody was not made whole, and a missed maturity says what it says anywhere.
 
 Two halves, doing different jobs. A deterministic collector queries venue adapters and writes an evidence file in which a record cannot exist without a transaction hash, a URL or a document reference. The model writes the narrative from that file, and a gate checker reads the document and the evidence together before either ships.
 
@@ -253,14 +253,14 @@ economic meaning attached.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Ariadne | Hermes | Hexaemeron | Lemma | Probitas | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 9 | 9 | 6 | 4 | 7 |
-| Security and audit | 9 | 7 | 8 | 4 | 5 | 7 |
-| Marketing | 1 | 3 | 6 | 1 | 1 | 1 |
-| Business development | 2 | 2 | 5 | 1 | 9 | 3 |
-| Finance | 1 | 3 | 4 | 1 | 7 | 7 |
-| Legal | 3 | 1 | 4 | 1 | 4 | 2 |
+| Role | Ariadne | Hermes | Hexaemeron | Lemma | Pandects | Probitas | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 9 | 9 | 6 | 8 | 4 | 7 |
+| Security and audit | 9 | 7 | 8 | 4 | 9 | 5 | 7 |
+| Marketing | 1 | 3 | 6 | 1 | 1 | 1 | 1 |
+| Business development | 2 | 2 | 5 | 1 | 2 | 9 | 3 |
+| Finance | 1 | 3 | 4 | 1 | 2 | 7 | 7 |
+| Legal | 3 | 1 | 4 | 1 | 2 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -295,6 +295,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
 /plugin install lemma@wildcat-labs
+/plugin install pandects@wildcat-labs
 /plugin install probitas@wildcat-labs
 /plugin install tabularium@wildcat-labs
 ```
@@ -323,6 +324,12 @@ Lemma is available as:
 /lemma:chunk
 ```
 
+Pandects is available as:
+
+```text
+/pandects:pandects
+```
+
 Probitas is available as:
 
 ```text
@@ -339,7 +346,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the six
+Agents that support the open Agent Skills convention can discover the seven
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -354,11 +361,12 @@ planning, question, and subagent operations available in a local runtime.
 Plain-text activation works alongside host syntax:
 
 ```text
-Use Ariadne to capture this release into a signed statement and verify it.
+Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
 Use Lemma to chunk this Solidity standard input into JSONL.
+Use Pandects to check this credit protocol against the executable laws in the corpus.
 Use Probitas to build a dossier on this counterparty from the addresses they declared.
 Use Tabularium to build and verify a source-bound Goldfinch credit-event release.
 ```
@@ -372,7 +380,7 @@ Ariadne needs Python 3 and nothing else. Capturing from a Foundry project needs
 that project's build output, which `forge build` already wrote. Ask:
 
 ```text
-Use $ariadne to capture this release into a signed statement and verify what it covers.
+Use $ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
 ```
 
 The gates, the predicate and the refusals live in [Ariadne's `SKILL.md`](./plugins/ariadne/skills/ariadne/SKILL.md).

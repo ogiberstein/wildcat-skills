@@ -1,6 +1,6 @@
 # Ariadne
 
-Signed evidence another person can check.
+Release evidence another person can check.
 
 A release publishes a claim. The evidence behind it sits somewhere else, joined
 by a URL and a promise: the compiler that produced the bytecode, the test run,
@@ -12,7 +12,7 @@ The statement is [in-toto's](https://github.com/in-toto/attestation) and the
 envelope is [DSSE's](https://github.com/secure-systems-lab/dsse). Neither is
 forked. What Ariadne adds is the part a bare statement does not carry: every
 claim names the exact digest it covers, skipped and failed work stays in the
-signed record, a result is never upgraded into a verdict, a comparison fails
+statement record, a result is never upgraded into a verdict, a comparison fails
 when either baseline cannot be identified, and replay separates what must match
 byte for byte from what cannot.
 

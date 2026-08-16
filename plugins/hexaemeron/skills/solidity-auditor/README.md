@@ -10,24 +10,14 @@ Built for:
 
 Not a substitute for a formal audit - but the check you should never skip.
 
-## Demo
-
-_Portrayed below: finding multiple high-confidence vulnerabilities in a codebase_
-
-![Running solidity-auditor in terminal](../static/skill_pag.gif)
-
 ## Usage
 
 ```
-Install https://github.com/pashov/skills/ and run solidity auditor on the codebase
+Use the bundled `hexaemeron:solidity-auditor` skill to audit this codebase.
 ```
 
 ```
 run solidity auditor on *specified files*
-```
-
-```
-update skill to latest version
 ```
 
 ## Tips

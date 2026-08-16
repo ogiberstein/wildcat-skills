@@ -1,6 +1,6 @@
 ---
 name: ariadne
-description: Route a request about signed release evidence to the canonical Ariadne instructions. Use when the user names Ariadne, hands over an attestation and asks what it covers, or wants a release bound to the build, test, review and deployment evidence behind it. Never use it to claim a signature was verified.
+description: Route a request about release evidence statements to the canonical Ariadne instructions. Use when the user names Ariadne, hands over an attestation and asks what it covers, or wants a release bound to the build, test, review and deployment evidence behind it. Ariadne neither signs nor verifies signatures.
 ---
 
 # Ariadne portable entrypoint

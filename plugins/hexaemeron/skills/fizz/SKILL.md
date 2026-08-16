@@ -127,20 +127,14 @@ Start by checking whether `{PROJECT_ROOT}/x-ray/` exists and contains `x-ray.md`
 
 If `{PROJECT_ROOT}/x-ray/x-ray.md` exists, read it first as the primary project-understanding source. Then also read any of these supplementary files present in `{PROJECT_ROOT}/x-ray/`:
 
-If `{PROJECT_ROOT}/x-ray/x-ray.md` does NOT exist, you MUST run the **x-ray Acquisition Protocol** below. The Protocol Analyzer fallback (Attempt 4) is FORBIDDEN until Attempts 1–3 have each been executed and their outcomes recorded in `/tmp/x-ray-attempts.md`. "I think x-ray isn't available" is NOT a valid skip — only the recorded output of an actual tool/command counts.
+If `{PROJECT_ROOT}/x-ray/x-ray.md` does NOT exist, you MUST run the **x-ray Acquisition Protocol** below. The Protocol Analyzer fallback (Attempt 4) is FORBIDDEN until Attempts 1 through 3 have each been executed and their outcomes recorded in `/tmp/x-ray-attempts.md`. "I think x-ray isn't available" is NOT a valid skip. Only the recorded output of an actual tool or command counts.
 
 ### x-ray Acquisition Protocol
 
 Before Attempt 1, delete `/tmp/x-ray-attempts.md` if it exists (`rm -f /tmp/x-ray-attempts.md`) — stale entries from a previous run would falsely satisfy the Attempt 4 gate. Then create a fresh `/tmp/x-ray-attempts.md` and append one entry per attempt: timestamp, attempt name, command/tool invoked, exact output (or "no output"), outcome (`SUCCESS` / `FAILED: {reason}` / `SKIPPED: {reason}`). Attempt 4 requires the file to contain exactly 3 entries (one per Attempt 1, 2, 3) — `SKIPPED` entries count toward this total.
 
-- **Attempt 1 — invoke the skill.** Call the `x-ray` skill via the `Skill` tool with `args="{PROJECT_ROOT}"`. Do NOT pre-judge availability — invoke it. Only a runtime error of the form "skill not found" / "unknown skill" counts as unavailable. If it runs, wait for completion, then verify `{PROJECT_ROOT}/x-ray/x-ray.md` was written. If yes → SUCCESS, exit Protocol.
-- **Attempt 2 — install from the official source and re-invoke.** Run:
-  ```bash
-  git clone --depth 1 https://github.com/pashov/skills.git /tmp/pashov-skills-xray-install \
-    && mkdir -p ~/.claude/skills \
-    && cp -r /tmp/pashov-skills-xray-install/x-ray ~/.claude/skills/x-ray
-  ```
-  Then re-invoke `Skill('x-ray', args="{PROJECT_ROOT}")`. If `{PROJECT_ROOT}/x-ray/x-ray.md` is produced → SUCCESS, exit Protocol. If the re-invocation still returns "skill not found" / "unknown skill" (auto-discovery did not pick up the freshly installed skill mid-session), do NOT mark this attempt failed yet — instead read `~/.claude/skills/x-ray/SKILL.md` (or `/tmp/pashov-skills-xray-install/x-ray/SKILL.md`) and execute its instructions inline against `{PROJECT_ROOT}`. If that produces `{PROJECT_ROOT}/x-ray/x-ray.md` → SUCCESS, exit Protocol. Only if ALL of (Skill re-invocation, inline execution) fail does this attempt count as FAILED.
+- **Attempt 1: run the bundled skill.** Resolve `{SKILL_PATH}/../x-ray/SKILL.md`, read it completely, and execute its instructions against `{PROJECT_ROOT}`. The sibling path is the pinned X-Ray copy distributed with Hexaemeron. If the file is absent or unreadable, record the exact path and failure. If it runs, wait for completion, then verify `{PROJECT_ROOT}/x-ray/x-ray.md` was written. If yes → SUCCESS, exit Protocol.
+- **Attempt 2: invoke a host-registered skill.** If the bundled copy failed, call the `x-ray` skill through the host skill tool with `args="{PROJECT_ROOT}"`. Do not install or update anything. Only a runtime error of the form "skill not found" or "unknown skill" counts as unavailable. If it runs, wait for completion, then verify `{PROJECT_ROOT}/x-ray/x-ray.md` was written. If yes → SUCCESS, exit Protocol. Otherwise record the exact failure.
 - **Attempt 3 — guided-mode user gate (guided only).** If `{MODE} = "guided"` AND Attempts 1–2 both failed, ASK the user: *"Could not obtain x-ray automatically (logs in `/tmp/x-ray-attempts.md`). Options: (a) paste an x-ray.md path, (b) authorize Protocol Analyzer fallback, (c) abort. Choose a/b/c."* Record their answer. If (a) and the file exists → copy to `{PROJECT_ROOT}/x-ray/x-ray.md`, SUCCESS. If (c) → halt the skill. Only (b) — explicit user authorization — permits Attempt 4. In `{MODE} = "automatic"`, skip this attempt and record `SKIPPED: automatic mode`.
 - **Attempt 4 — Protocol Analyzer fallback.** Permitted ONLY after Attempts 1–3 are recorded in `/tmp/x-ray-attempts.md` (with status FAILED, SKIPPED, or — for Attempt 3 only — `(b) authorized`). Before spawning, confirm the file exists and contains 3 entries; if not, GO BACK to the missing attempt — do not proceed.
 

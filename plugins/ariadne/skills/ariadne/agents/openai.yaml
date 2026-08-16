@@ -1,4 +1,4 @@
 interface:
   display_name: "Ariadne"
-  short_description: "Signed release evidence, with the absences kept in the statement"
-  default_prompt: "Use $ariadne to capture this release into a signed statement and verify what it covers."
+  short_description: "Release evidence statements with absences kept visible"
+  default_prompt: "Use $ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures."
