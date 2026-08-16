@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -15,8 +16,13 @@ class HexctlCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = self.tmp.name
+        self.processes = []
 
     def tearDown(self):
+        for process in self.processes:
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=5)
         self.tmp.cleanup()
 
     def run_ctl(self, *args, expect=0):
@@ -45,6 +51,67 @@ class HexctlCase(unittest.TestCase):
 
     def init(self, topic="test topic"):
         self.run_ctl("init", "--topic", topic)
+
+    def spawn_lock_holder(self, ready, release, command="cmd_record"):
+        program = """
+import importlib.util
+from pathlib import Path
+import sys
+import time
+
+spec = importlib.util.spec_from_file_location("hexctl_under_test", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+with module.held_lock(sys.argv[2], sys.argv[3]):
+    Path(sys.argv[4]).write_text("ready\\n", encoding="utf-8")
+    while not Path(sys.argv[5]).exists():
+        time.sleep(0.01)
+"""
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                program,
+                HEXCTL,
+                self.dir,
+                command,
+                ready,
+                release,
+            ],
+            cwd=self.dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.processes.append(process)
+        return process
+
+    def wait_for_file(self, path, process, timeout=5):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if os.path.exists(path):
+                return
+            if process.poll() is not None:
+                stdout, stderr = process.communicate()
+                self.fail(
+                    f"lock holder exited {process.returncode} before ready\n"
+                    f"stdout: {stdout}\nstderr: {stderr}"
+                )
+            time.sleep(0.01)
+        self.fail("lock holder did not become ready")
+
+    def start_lock_holder(self, name="holder", command="cmd_record"):
+        ready = os.path.join(self.dir, f"{name}.ready")
+        release = os.path.join(self.dir, f"{name}.release")
+        process = self.spawn_lock_holder(ready, release, command)
+        self.wait_for_file(ready, process)
+        return process, ready, release
+
+    def release_lock_holder(self, process, release):
+        with open(release, "w", encoding="utf-8") as handle:
+            handle.write("release\n")
+        stdout, stderr = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 0, (stdout, stderr))
 
     def to_steps(self, titles=("Scaffold", "Core")):
         self.init()
@@ -120,6 +187,81 @@ class TestLifecycle(HexctlCase):
         self.assertEqual(out["do"], "issue")
         self.assertEqual(out["step"], 1)
         self.assertEqual(out["title"], "Scaffold")
+
+
+class TestRunLock(HexctlCase):
+    def test_live_holder_refuses_a_second_writer_with_an_actionable_message(self):
+        self.init()
+        holder, _, release = self.start_lock_holder()
+        result = self.run_ctl("record", "key", '"value"', expect=1)
+        self.assertIn(f"pid {holder.pid}", result.stderr)
+        self.assertIn("`cmd_record`", result.stderr)
+        self.assertIn("git worktree add", result.stderr)
+        self.release_lock_holder(holder, release)
+
+    def test_read_only_commands_answer_while_a_writer_holds_the_run(self):
+        self.init()
+        holder, _, release = self.start_lock_holder()
+        for arguments in (("next",), ("status", "--json"), ("verify",)):
+            with self.subTest(command=arguments[0]):
+                self.run_ctl(*arguments)
+        self.release_lock_holder(holder, release)
+
+    def test_crashed_holder_needs_no_manual_cleanup(self):
+        self.init()
+        holder, _, _ = self.start_lock_holder()
+        holder.kill()
+        holder.communicate(timeout=5)
+        self.run_ctl("record", "after_crash", '"accepted"')
+
+    def test_normal_exit_clears_holder_metadata(self):
+        self.init()
+        holder, _, release = self.start_lock_holder()
+        self.release_lock_holder(holder, release)
+        path = os.path.join(self.dir, ".hexaemeron", "lock")
+        with open(path, "rb") as handle:
+            self.assertEqual(handle.read(), b"")
+
+    def test_two_contenders_after_a_crash_cannot_both_take_the_lock(self):
+        self.init()
+        stale, _, _ = self.start_lock_holder("stale")
+        stale.kill()
+        stale.communicate(timeout=5)
+
+        paths = []
+        contenders = []
+        for name in ("first", "second"):
+            ready = os.path.join(self.dir, f"{name}.ready")
+            release = os.path.join(self.dir, f"{name}.release")
+            contenders.append(self.spawn_lock_holder(ready, release))
+            paths.append((ready, release))
+
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            ready_indexes = [
+                index
+                for index, (ready, _) in enumerate(paths)
+                if os.path.exists(ready)
+            ]
+            exited_indexes = [
+                index
+                for index, process in enumerate(contenders)
+                if process.poll() is not None
+            ]
+            if len(ready_indexes) == 1 and len(exited_indexes) == 1:
+                break
+            time.sleep(0.01)
+        else:
+            self.fail("contenders did not resolve to one holder and one refusal")
+
+        winner = ready_indexes[0]
+        loser = exited_indexes[0]
+        self.assertNotEqual(winner, loser)
+        loser_out, loser_err = contenders[loser].communicate(timeout=5)
+        self.assertEqual(contenders[loser].returncode, 1, (loser_out, loser_err))
+        self.assertIn("another hexctl is holding this run", loser_err)
+        self.assertIn(f"pid {contenders[winner].pid}", loser_err)
+        self.release_lock_holder(contenders[winner], paths[winner][1])
 
 
 class TestStepGates(HexctlCase):

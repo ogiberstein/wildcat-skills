@@ -33,6 +33,12 @@ Alias it as `hexctl` mentally; every command below means that invocation.
 State lives in `.hexaemeron/` beside a hash-chained ledger. The directory
 ships its own `.gitignore`, so git never sees it.
 
+Mutating commands hold a kernel lock for their whole run. If another writer is
+active, `hexctl` names it and prints a worktree command. Use another worktree;
+do not retry against the same state. `next`, `status`, and `verify` remain
+available while the writer runs, and a crashed process releases the lock
+without manual cleanup.
+
 ## Day to day
 
 **Developers.** A half-formed idea and a week to find out whether it
