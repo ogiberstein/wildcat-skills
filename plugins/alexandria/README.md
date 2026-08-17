@@ -7,7 +7,9 @@ Alexandria preserves heterogeneous lending data as digest-bound releases, then d
 
 **Try something else when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
 
-**Current frontier.** The production Compound v3 harvester is specified and not implemented.
+**Current frontier.** The specified production Compound v3 harvester is not implemented.
+
+**Next Fiat job.** Use /hexaemeron:fiat to build the specified production Compound v3 harvester with pinned deployment discovery, explicit coverage and finality evidence, and a reproducible offline release. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 An offline tool for digest-bound lending-data releases.

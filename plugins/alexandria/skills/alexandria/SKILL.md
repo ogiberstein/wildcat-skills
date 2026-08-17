@@ -20,7 +20,7 @@ Alexandria preserves heterogeneous lending data as digest-bound releases, then d
 
 **Use another tool when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
 
-**Current frontier.** The production Compound v3 harvester is specified and not implemented.
+**Current frontier.** The specified production Compound v3 harvester is not implemented.
 <!-- marketplace-context:end -->
 
 Alexandria is the archive and catalogue behind durable lending-protocol

@@ -7,7 +7,9 @@ Probitas builds a sourced record of what a counterparty did across lending venue
 
 **Try something else when.** Use Alexandria for archived lending inputs and Tabularium when the job is publishing a reusable credit-event release rather than assessing one counterparty.
 
-**Current frontier.** Euler v1/v2 coverage is tracked in wildcat-finance/skills#57; Morpho Midnight and curation remain tracked in the planning repository.
+**Current frontier.** Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented.
+
+**Next Fiat job.** Use /hexaemeron:fiat to add fail-closed Morpho Midnight fixed-maturity coverage so a dossier can establish whether repayment was timely. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 A sourced dossier on a counterparty's record across on-chain lending venues,

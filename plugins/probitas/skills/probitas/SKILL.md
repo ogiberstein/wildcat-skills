@@ -21,7 +21,7 @@ Probitas builds a sourced record of what a counterparty did across lending venue
 
 **Use another tool when.** Use Alexandria for archived lending inputs and Tabularium when the job is publishing a reusable credit-event release rather than assessing one counterparty.
 
-**Current frontier.** Euler v1/v2 coverage is tracked in wildcat-finance/skills#57; Morpho Midnight and curation remain tracked in the planning repository.
+**Current frontier.** Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented.
 <!-- marketplace-context:end -->
 
 Wildcat lends without collateral. Nothing stands between a lender and a total

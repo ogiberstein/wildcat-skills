@@ -60,8 +60,9 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         self.assertIn("invalid choice", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
-    def test_skill_and_browsable_readme_are_byte_identical(self):
-        self.assertEqual(SKILL.read_bytes(), (SKILL.parent / "README.md").read_bytes())
+    def test_skill_is_canonical_and_has_no_browsable_readme_shadow(self):
+        self.assertTrue(SKILL.is_file())
+        self.assertFalse((SKILL.parent / "README.md").exists())
 
     def test_skill_frontmatter_matches_its_directory(self):
         text = SKILL.read_text(encoding="utf-8")

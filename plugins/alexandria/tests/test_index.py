@@ -420,7 +420,7 @@ class ProbitasBridgeTests(IndexTestCase):
     def test_probitas_cli_keeps_all_registry_coverage_rows(self):
         self.build_index()
         result = self._collect(CLEARPOOL)
-        self.assertEqual(len(result["coverage"]), 13)
+        self.assertEqual(len(result["coverage"]), 15)
         self.assertEqual({row["venue"] for row in result["records"]}, {"clearpool"})
 
     def test_probitas_archive_evidence_passes_all_five_gates(self):

@@ -12,7 +12,7 @@ Hermes measures one Solidity gas optimisation class at a time and rejects the ca
 
 **Use another tool when.** Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review.
 
-**Current frontier.** There is no published follow-on; the shipped catalogue and fail-closed loop are the current boundary.
+**Current frontier.** No complete, reproducible live Wildcat evidence bundle is published.
 <!-- marketplace-context:end -->
 
 The ideas are cheap. The evidence is the job.

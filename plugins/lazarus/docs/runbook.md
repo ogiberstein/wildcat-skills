@@ -1,7 +1,7 @@
 # Lazarus implementation runbook
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Preservation-pipeline integration and an Ariadne state-fixture predicate remain follow-on work.
+> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
 <!-- marketplace-context:end -->
 
 This runbook builds the proof-checked, exact-request historical Ethereum
@@ -17,8 +17,8 @@ or replay.
 
 **Entry.** `main` at `83fef6634a560860b930a532861dbfff8cbb3442`.
 
-**Exit.** `plugins/lazarus/` has its runtime contract, canonical skill and
-identical README shadow, host manifests, agent metadata, MIT licence, package
+**Exit.** `plugins/lazarus/` has its runtime contract, canonical skill, host
+manifests, agent metadata, MIT licence, package
 shell, dependency pins and committed copies of this study and runbook. The
 portable entrypoint, both marketplace manifests, root plugin inventory, root
 instructions and a Lazarus CI workflow include the new plugin. `python3 -m

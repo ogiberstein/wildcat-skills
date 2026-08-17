@@ -1,7 +1,7 @@
 # Pandects runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
 <!-- marketplace-context:end -->
 
 Pandects contains one Agent Skill. Select from this table, then read the chosen
@@ -11,8 +11,8 @@ Pandects contains one Agent Skill. Select from this table, then read the chosen
 | --- | --- | --- |
 | `pandects` | `skills/pandects/SKILL.md` | Check a credit protocol against executable laws, or write a new law for the corpus |
 
-`skills/pandects/README.md` is a copy of that file, kept identical so the
-directory renders when browsed. Read either; a test fails if they diverge.
+`skills/pandects/SKILL.md` is the only canonical instruction document. Do not
+add a sibling browsing README.
 
 ## Translate tool names by capability
 

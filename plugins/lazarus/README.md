@@ -7,7 +7,9 @@ Lazarus captures the finite fixed-block Ethereum state and RPC evidence an appli
 
 **Try something else when.** Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence.
 
-**Current frontier.** Preservation-pipeline integration and an Ariadne state-fixture predicate remain follow-on work.
+**Current frontier.** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
+
+**Next Fiat job.** Use /hexaemeron:fiat to bind a Lazarus fixture through an Ariadne state-fixture predicate in the first end-to-end Goldfinch preservation release without upgrading recorded RPC evidence into proof-backed state. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 Lazarus preserves the finite part of historical Ethereum state and RPC

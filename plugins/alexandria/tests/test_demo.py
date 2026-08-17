@@ -98,7 +98,7 @@ class DemoBuildTests(DemoTestCase):
         })
         self.assertEqual(summary["probitas"]["records"], 11)
         self.assertEqual(summary["probitas"]["coverage"], {
-            "checked": 1, "error": 1, "unconfigured": 2, "unimplemented": 9,
+            "checked": 1, "error": 1, "unconfigured": 4, "unimplemented": 9,
         })
         self.assertEqual(len(summary["probitas"]["gate_lines"]), 5)
         self.assertTrue(all("pass" in line for line in summary["probitas"]["gate_lines"]))
