@@ -30,6 +30,10 @@ An official liquidation bot README uses “Euler V3 lending protocol”, but its
 code still targets EVC and EVault. The release therefore records
 `protocol_generation: euler-v2` and `source_api: euler-v3` independently. An
 API path or repository name cannot create a protocol-generation claim.
+This run considered Euler V3 explicitly. The inspected primary sources did
+not establish a third architecture or history source separate from EVC,
+EVault and the V3 API. A future distinct protocol generation would need its
+own adapter and source-bound release.
 
 The source limits remain explicit. The public RPC and hosted indexer report
 their boundaries; neither release independently proves a chain boundary.
