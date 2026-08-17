@@ -18,6 +18,14 @@
   },
   "holdout_labels_sha256": "e42c40d2d27938ff99de0fbd332b9b5e6f85e2546c89c69f67a4efe3d976989b",
   "holdout_status": "sealed",
+  "schema_hashes": {
+    "adjudication.schema.json": "e81ec7066b7f10d28be0136b9dc3f5e38617e07f845a181813c66a54933b0c76",
+    "annotation-packet.schema.json": "cd4d6c53f843b4531a81c5f7c1df1712bbfc0a466dfaf4f32f4e09e0ccba1a8b",
+    "labels.schema.json": "29110a4b607188bd8a00249df07e5b13603844191087657cb4eb0f9be2c5fae3",
+    "raw-label.schema.json": "785312f4f674868d9e531be15b19c5621357735f595bd54275f2127e33206cd6",
+    "sample.schema.json": "bae46ce6cf649482fa5a63e88717a1bfd0068fdb874a489363fc284684cfe2f8",
+    "split.schema.json": "417b2213327ffa70fceed832081abf637e1ed360868572811306d9ba9871a9d0"
+  },
   "schema_version": 1,
   "source_commit": "bcbaede047e746aec5573a31d70201275ee58533"
 }

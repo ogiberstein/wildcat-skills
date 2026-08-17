@@ -80,6 +80,97 @@ def canonical_json(value) -> str:
     return json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
+def validate_schema(value, schema: dict, context: str) -> None:
+    """Validate the JSON Schema subset used by this frozen fixture."""
+    allowed_types = schema.get("type")
+    if allowed_types is not None:
+        if not isinstance(allowed_types, list):
+            allowed_types = [allowed_types]
+        predicates = {
+            "object": lambda item: isinstance(item, dict),
+            "array": lambda item: isinstance(item, list),
+            "string": lambda item: isinstance(item, str),
+            "integer": lambda item: isinstance(item, int) and not isinstance(item, bool),
+            "number": lambda item: isinstance(item, (int, float)) and not isinstance(item, bool),
+            "null": lambda item: item is None,
+        }
+        if not any(predicates[name](value) for name in allowed_types):
+            raise EvaluationError(f"schema type mismatch at {context}: expected {allowed_types}")
+    if "const" in schema and value != schema["const"]:
+        raise EvaluationError(f"schema const mismatch at {context}")
+    if "enum" in schema and value not in schema["enum"]:
+        raise EvaluationError(f"schema enum mismatch at {context}: {value!r}")
+    if isinstance(value, dict):
+        required = set(schema.get("required", []))
+        missing = required - set(value)
+        if missing:
+            raise EvaluationError(f"schema missing keys at {context}: {sorted(missing)}")
+        properties = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            extra = set(value) - set(properties)
+            if extra:
+                raise EvaluationError(f"schema extra keys at {context}: {sorted(extra)}")
+        if len(value) < schema.get("minProperties", 0):
+            raise EvaluationError(f"schema too few properties at {context}")
+        for key, item in value.items():
+            if key in properties:
+                validate_schema(item, properties[key], f"{context}/{key}")
+    elif isinstance(value, list):
+        if len(value) < schema.get("minItems", 0) or len(value) > schema.get("maxItems", len(value)):
+            raise EvaluationError(f"schema array length mismatch at {context}")
+        if schema.get("uniqueItems"):
+            rendered = [json.dumps(item, sort_keys=True, ensure_ascii=False) for item in value]
+            if len(rendered) != len(set(rendered)):
+                raise EvaluationError(f"schema duplicate array item at {context}")
+        if "items" in schema:
+            for index, item in enumerate(value):
+                validate_schema(item, schema["items"], f"{context}/{index}")
+    elif isinstance(value, str):
+        if len(value) < schema.get("minLength", 0):
+            raise EvaluationError(f"schema string too short at {context}")
+        if "pattern" in schema and re.search(schema["pattern"], value) is None:
+            raise EvaluationError(f"schema pattern mismatch at {context}: {value!r}")
+        if schema.get("format") == "date-time":
+            parse_timestamp(value)
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "minimum" in schema and value < schema["minimum"]:
+            raise EvaluationError(f"schema number below minimum at {context}")
+        if "maximum" in schema and value > schema["maximum"]:
+            raise EvaluationError(f"schema number above maximum at {context}")
+        if "exclusiveMaximum" in schema and value >= schema["exclusiveMaximum"]:
+            raise EvaluationError(f"schema number above exclusive maximum at {context}")
+
+
+def verify_fixture_hashes(fixture: Path) -> None:
+    """Bind the evaluated rows and schemas to both published digest seals."""
+    seal = read_json(fixture / "annotation-seal.json")
+    freeze = read_json(fixture / "candidate-freeze.json")
+    direct = {
+        "samples.jsonl": seal["samples_sha256"],
+        "split.json": seal["split_sha256"],
+        "blind-id-map.json": seal["hidden_id_map_sha256"],
+    }
+    for name, expected in direct.items():
+        if sha256_bytes((fixture / name).read_bytes()) != expected:
+            raise EvaluationError(f"annotation seal mismatch for {name}")
+    for name, expected in seal["schema_sha256"].items():
+        if sha256_bytes((fixture / "schemas" / name).read_bytes()) != expected:
+            raise EvaluationError(f"annotation seal mismatch for schema {name}")
+    for name, expected in freeze["fixture_hashes"].items():
+        path = fixture / name
+        if name == "annotation-packet.jsonl":
+            if expected != seal["packet_sha256"]:
+                raise EvaluationError("packet digest differs between published seals")
+            continue
+        if sha256_bytes(path.read_bytes()) != expected:
+            raise EvaluationError(f"candidate freeze mismatch for {name}")
+    for name, expected in freeze["schema_hashes"].items():
+        if sha256_bytes((fixture / "schemas" / name).read_bytes()) != expected:
+            raise EvaluationError(f"candidate freeze mismatch for schema {name}")
+    if freeze["candidate_hashes"] != file_hashes():
+        raise EvaluationError("candidate code or lexicon digest differs from freeze")
+
+
 def normalized_text(text: str) -> str:
     text = unicodedata.normalize("NFKC", text).lower()
     text = re.sub(r"!\[([^]]*)\]\([^)]*\)", r"\1", text)
@@ -160,6 +251,7 @@ def load_fixture(fixture: Path) -> dict:
     adjudication = read_jsonl(fixture / "adjudication.jsonl")
     id_map = read_json(fixture / "blind-id-map.json")
     return {
+        "fixture": fixture,
         "samples": samples,
         "split": split,
         "labels": labels,
@@ -171,13 +263,26 @@ def load_fixture(fixture: Path) -> dict:
 
 
 def validate_fixture(data: dict) -> dict:
+    fixture = data["fixture"]
+    verify_fixture_hashes(fixture)
+    schemas = {
+        name: read_json(fixture / "schemas" / name)
+        for name in (
+            "sample.schema.json",
+            "split.schema.json",
+            "labels.schema.json",
+            "raw-label.schema.json",
+            "adjudication.schema.json",
+        )
+    }
     samples = data["samples"]
     if len(samples) != 64:
         raise EvaluationError(f"expected 64 samples, found {len(samples)}")
     sample_by_id = {}
     groups = defaultdict(list)
     normalized_hashes = set()
-    for row in samples:
+    for index, row in enumerate(samples, 1):
+        validate_schema(row, schemas["sample.schema.json"], f"samples.jsonl:{index}")
         sample_id = row.get("sample_id")
         if not isinstance(sample_id, str) or not re.fullmatch(r"[HM]-(?:TD|DR|GH)-0[1-8]-0[1-4]", sample_id):
             raise EvaluationError(f"invalid internal sample id {sample_id!r}")
@@ -223,6 +328,7 @@ def validate_fixture(data: dict) -> dict:
                 raise EvaluationError(f"sample duplicate leakage: {left['sample_id']} {right['sample_id']} {score}")
 
     split = data["split"]
+    validate_schema(split, schemas["split.schema.json"], "split.json")
     calibration, holdout = set(split["calibration_samples"]), set(split["holdout_samples"])
     if len(calibration) != 32 or len(holdout) != 32 or calibration & holdout or calibration | holdout != set(sample_by_id):
         raise EvaluationError("invalid 32/32 sample split")
@@ -276,7 +382,7 @@ def validate_fixture(data: dict) -> dict:
     if len(set(blind_to_internal.values())) != 64:
         raise EvaluationError("blind mapping is not one-to-one")
 
-    families = read_json(Path(__file__).resolve().parent.parent / "evals" / "labelled-prose-v1" / "schemas" / "annotation-packet.schema.json")
+    families = read_json(fixture / "schemas" / "annotation-packet.schema.json")
     del families  # Schema parses here; family membership comes from the sealed packet rules below.
     packet_rules = {
         "hard": {"structural_metaphor", "claude_tic", "hedge_pivot", "closer", "brochure", "consultant", "invented_confidence", "register_cosplay", "empty_hedge"},
@@ -286,7 +392,8 @@ def validate_fixture(data: dict) -> dict:
     label_by_id = {}
     if len(data["labels"]) != 64:
         raise EvaluationError("mapped labels must cover 64 samples")
-    for row in data["labels"]:
+    for index, row in enumerate(data["labels"], 1):
+        validate_schema(row, schemas["labels.schema.json"], f"labels.jsonl:{index}")
         sample_id, blind = row.get("sample_id"), row.get("blind_id")
         if sample_id not in sample_by_id or blind_to_internal.get(blind) != sample_id or sample_id in label_by_id:
             raise EvaluationError(f"invalid mapped label row {sample_id}/{blind}")
@@ -303,15 +410,20 @@ def validate_fixture(data: dict) -> dict:
         annotators = {row.get("annotator_id") for row in rows}
         if len(annotators) != 1:
             raise EvaluationError(f"{key} has mixed annotator ids")
-        for row in rows:
+        for index, row in enumerate(rows, 1):
+            validate_schema(row, schemas["raw-label.schema.json"], f"{key}:{index}")
             blind = row["sample_id"]
             for number, label in enumerate(row.get("annotations", []), 1):
                 validate_annotation(sample_by_id[blind_to_internal[blind]]["text"], label, packet_rules, f"{key}/{blind}/{number}")
             raw_sets[key][blind] = row["annotations"]
 
+    if {row["annotator_id"] for row in data["raw_a"]} == {row["annotator_id"] for row in data["raw_b"]}:
+        raise EvaluationError("raw annotation sets must name distinct annotators")
+
     if len(data["adjudication"]) != 64 or {row.get("sample_id") for row in data["adjudication"]} != set(blind_to_internal):
         raise EvaluationError("adjudication does not cover every blind id")
-    for row in data["adjudication"]:
+    for index, row in enumerate(data["adjudication"], 1):
+        validate_schema(row, schemas["adjudication.schema.json"], f"adjudication.jsonl:{index}")
         if not isinstance(row.get("disagreement_count"), int) or row["disagreement_count"] < 0:
             raise EvaluationError(f"invalid disagreement count for {row.get('sample_id')}")
         if not isinstance(row.get("adjudicator_reason"), str) or not row["adjudicator_reason"].strip():

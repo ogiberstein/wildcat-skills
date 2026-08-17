@@ -7,8 +7,10 @@ import hashlib
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -100,6 +102,50 @@ class LabelledCorpusTests(unittest.TestCase):
             for row in rows
         ).encode("utf-8")
         self.assertEqual(hashlib.sha256(blob).hexdigest(), self.freeze["holdout_labels_sha256"])
+
+    def test_published_seals_bind_fixture_and_schemas(self):
+        with tempfile.TemporaryDirectory() as directory:
+            copied = Path(directory) / FIXTURE.name
+            shutil.copytree(FIXTURE, copied)
+            labels = copied / "labels.jsonl"
+            rows = labels.read_text(encoding="utf-8").splitlines()
+            first = json.loads(rows[0])
+            first["adjudicator_reason"] += " altered"
+            rows[0] = json.dumps(first, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+            labels.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(EVALUATOR.EvaluationError, "candidate freeze mismatch"):
+                EVALUATOR.validate_fixture(EVALUATOR.load_fixture(copied))
+
+        with tempfile.TemporaryDirectory() as directory:
+            copied = Path(directory) / FIXTURE.name
+            shutil.copytree(FIXTURE, copied)
+            schema = copied / "schemas" / "sample.schema.json"
+            schema.write_bytes(schema.read_bytes() + b" ")
+            with self.assertRaisesRegex(EVALUATOR.EvaluationError, "annotation seal mismatch"):
+                EVALUATOR.validate_fixture(EVALUATOR.load_fixture(copied))
+
+    def test_json_schemas_reject_unpublished_row_shapes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            copied = Path(directory) / FIXTURE.name
+            shutil.copytree(FIXTURE, copied)
+            samples = copied / "samples.jsonl"
+            rows = samples.read_text(encoding="utf-8").splitlines()
+            first = json.loads(rows[0])
+            first["unsealed_field"] = True
+            rows[0] = json.dumps(first, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+            samples.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            seal = load(copied / "annotation-seal.json")
+            seal["samples_sha256"] = hashlib.sha256(samples.read_bytes()).hexdigest()
+            (copied / "annotation-seal.json").write_text(
+                json.dumps(seal, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            freeze = load(copied / "candidate-freeze.json")
+            freeze["fixture_hashes"]["samples.jsonl"] = seal["samples_sha256"]
+            (copied / "candidate-freeze.json").write_text(
+                json.dumps(freeze, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(EVALUATOR.EvaluationError, "schema extra keys"):
+                EVALUATOR.validate_fixture(EVALUATOR.load_fixture(copied))
 
     def test_calibration_report_replays_byte_for_byte(self):
         completed = subprocess.run(
