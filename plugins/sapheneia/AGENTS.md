@@ -1,0 +1,28 @@
+# Sapheneia runtime contract
+
+<!-- marketplace-context:start -->
+> **Marketplace context: Sapheneia.** Sapheneia shapes the agent's own interaction with an AuDHD reader: the action, meaning, working state and evidence stay visible from turn to turn. Use Imprimatur to inspect prose for banned machine-writing patterns, and use Vulgate or another voice mask to change register. Sapheneia governs interaction shape; it does not diagnose the reader or choose a house voice. **Current frontier:** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
+<!-- marketplace-context:end -->
+
+Sapheneia contains one Agent Skill. Read `skills/sapheneia/SKILL.md` in full
+before applying it.
+
+## The agent is the subject
+
+Once selected, Sapheneia governs the agent's own commentary, progress updates,
+questions, error reports and final replies for the rest of the session. Do not
+reduce it to a document template or apply it only to an artefact requested by
+the user.
+
+Topic changes and context resets do not end the contract. Only the stop phrases
+named in the canonical skill do. System, safety, harness and target-repository
+instructions still take precedence.
+
+The canonical `SKILL.md` is the authoritative behaviour contract.
+
+## Invocation and paths
+
+- `$sapheneia`, `/sapheneia:sapheneia`, `use Sapheneia`, and explicit requests for ADHD-, autism- or AuDHD-shaped agent interaction select the skill.
+- Resolve relative paths from `skills/sapheneia/`.
+- This skill needs no shell, network or write access. Other active skills retain their own tool and side-effect rules.
+- Preserve another skill's facts, gates, qualifications and output requirements. Sapheneia changes how the agent presents and tracks them.

@@ -7,15 +7,17 @@ the canonical `SKILL.md` it names.
 
 ## Marketplace boundaries
 
-The nine plugins form one marketplace, not nine competing descriptions of the
+The ten plugins form one marketplace, not ten competing descriptions of the
 same job. Alexandria preserves lending inputs; Tabularium interprets preserved
 venue records; Probitas assembles a counterparty dossier. Lazarus preserves the
 finite historical Ethereum state and exact RPC traffic a test needs, while
 Ariadne binds a released artefact digest to its evidence. Pandects supplies
 reviewed credit laws, Hermes measures a single gas-optimisation class,
 Hexaemeron controls a receipted delivery loop and Lemma stops after producing
-source-linked chunks. If a request crosses one of those boundaries, hand it to
-the named sibling rather than broadening the selected skill.
+source-linked chunks. Sapheneia shapes the agent's own replies for AuDHD
+readers without changing another skill's facts or gates. If a request crosses
+one of those boundaries, hand it to the named sibling rather than broadening
+the selected skill.
 
 ## Repository map
 
@@ -37,6 +39,9 @@ the named sibling rather than broadening the selected skill.
   before running its skill or changing that plugin.
 - Probitas is under `plugins/probitas/`. Read `plugins/probitas/AGENTS.md`
   before running its skill or changing that plugin.
+- Sapheneia is under `plugins/sapheneia/`. Read
+  `plugins/sapheneia/AGENTS.md` before running its skill or changing that
+  plugin.
 - Tabularium is under `plugins/tabularium/`. Read
   `plugins/tabularium/AGENTS.md` before running its skill or changing that
   plugin.
@@ -74,6 +79,7 @@ python3 plugins/lemma/tests/test_solidity.py
 python3 -m unittest discover -s plugins/lazarus/tests -t plugins/lazarus
 python3 -m unittest discover -s plugins/pandects/tests -t plugins/pandects
 python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
+python3 -m unittest discover -s plugins/sapheneia/tests -t plugins/sapheneia
 python3 -m unittest discover -s plugins/tabularium/tests -t plugins/tabularium
 ```
 

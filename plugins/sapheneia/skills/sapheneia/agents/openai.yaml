@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sapheneia"
+  short_description: "AuDHD-shaped replies with visible state and next actions."
+  default_prompt: "Use $sapheneia to shape your replies for an AuDHD engineer throughout this task."

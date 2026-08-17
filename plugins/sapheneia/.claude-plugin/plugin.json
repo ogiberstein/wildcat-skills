@@ -1,0 +1,20 @@
+{
+  "name": "sapheneia",
+  "displayName": "Sapheneia",
+  "version": "0.1.0",
+  "description": "AuDHD-shaped replies with visible state and next actions.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/sapheneia",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "audhd",
+    "adhd",
+    "autism",
+    "accessibility",
+    "agent-communication"
+  ],
+  "skills": "./skills/"
+}

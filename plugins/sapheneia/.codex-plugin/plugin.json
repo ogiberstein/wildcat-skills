@@ -1,0 +1,28 @@
+{
+  "name": "sapheneia",
+  "version": "0.1.0",
+  "description": "AuDHD-shaped replies with visible state and next actions.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/sapheneia",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "audhd",
+    "adhd",
+    "autism",
+    "accessibility",
+    "agent-communication"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Sapheneia",
+    "shortDescription": "AuDHD-shaped replies with visible state and next actions.",
+    "longDescription": "Shapes the agent's own commentary and final replies for AuDHD engineers. Actions, task boundaries, done conditions, working state, evidence, assumptions, unknowns and next steps remain explicit from turn to turn. The contract persists for the session until the reader turns it off and yields to stated personal preferences.",
+    "developerName": "Wildcat Labs",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Use $sapheneia to shape your replies for an AuDHD engineer throughout this task."
+  }
+}

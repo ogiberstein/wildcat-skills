@@ -17,6 +17,7 @@ PLUGINS = (
     "lazarus",
     "pandects",
     "probitas",
+    "sapheneia",
     "tabularium",
 )
 CANONICAL_SKILLS = {
@@ -28,6 +29,7 @@ CANONICAL_SKILLS = {
     "lazarus": ROOT / "plugins" / "lazarus" / "skills" / "lazarus" / "SKILL.md",
     "pandects": ROOT / "plugins" / "pandects" / "skills" / "pandects" / "SKILL.md",
     "probitas": ROOT / "plugins" / "probitas" / "skills" / "probitas" / "SKILL.md",
+    "sapheneia": ROOT / "plugins" / "sapheneia" / "skills" / "sapheneia" / "SKILL.md",
     "tabularium": ROOT / "plugins" / "tabularium" / "skills" / "tabularium" / "SKILL.md",
 }
 NEXT_JOB_PREFIX = "**Next Fiat job.** Use /hexaemeron:fiat to "
@@ -123,7 +125,7 @@ class MarketplaceProseTests(unittest.TestCase):
     def test_plugin_landing_readmes_publish_unique_rolling_fiat_jobs(self):
         landings = plugin_landing_readmes()
         self.assertEqual(set(landings), set(PLUGINS))
-        self.assertEqual(len(landings), 9)
+        self.assertEqual(len(landings), 10)
 
         topics = {}
         for name, path in landings.items():

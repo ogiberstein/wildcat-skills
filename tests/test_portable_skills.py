@@ -30,7 +30,16 @@ class PortableSkillTests(unittest.TestCase):
 
     def test_portable_entrypoints_exist_and_match_parent_name(self):
         for name in (
-            "alexandria", "ariadne", "hermes", "hexaemeron", "lazarus", "lemma", "pandects", "probitas", "tabularium"
+            "alexandria",
+            "ariadne",
+            "hermes",
+            "hexaemeron",
+            "lazarus",
+            "lemma",
+            "pandects",
+            "probitas",
+            "sapheneia",
+            "tabularium",
         ):
             path = ROOT / ".agents" / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
@@ -96,6 +105,7 @@ class PortableSkillTests(unittest.TestCase):
         skills += list((ROOT / "plugins" / "lazarus" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "pandects" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "probitas" / "skills").glob("*/SKILL.md"))
+        skills += list((ROOT / "plugins" / "sapheneia" / "skills").glob("*/SKILL.md"))
         skills += list(
             (ROOT / "plugins" / "tabularium" / "skills").glob("*/SKILL.md")
         )
