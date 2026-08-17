@@ -20,9 +20,9 @@ EXAMPLES = support.PLUGIN_ROOT / "examples"
 RELEASES = {
     "euler-v1-v0": {
         "source.json": "1241cbed85189e79f9b0f8418e6838b297b4b661ad3e9f2d8a86903e22a6e790",
-        "capture.json": "6f8d4cfb1a07cda441def7295e40d028b341e5eb62324cfa905435cb1bdc033d",
+        "capture.json": "59cd57ad5d8c54e1fd97cd4e62d37e31ac0d157ee5fa8f396c00be042c25041a",
         "events.jsonl": "4034622f8b34147dead8a87d7c16b2a7c7197ed6417809fec41716a8028552aa",
-        "coverage.json": "3c3d3043bb11ab8b5a3baa64b3659900ad0201a9f19f33ff96ba643598fd5e70",
+        "coverage.json": "ba4c5c127449b9be257069d302b442484fbd5d83023798eb9247aa893a45d301",
     },
     "euler-v2-v0": {
         "source.json": "10f5c8e8242ef3745fbd69c4d8aed458f31b165fc4526f638e76df59a69a18cc",
@@ -117,6 +117,20 @@ class EulerReleaseTests(unittest.TestCase):
         manifest["capture_manifest"]["bytes"] = len(capture_path.read_bytes())
         manifest_path.write_bytes(canonical_json(manifest) + b"\n")
         with self.assertRaisesRegex(TabulariumError, "timestamp does not match"):
+            verify(manifest_path)
+
+    def test_euler_v1_request_id_is_bound_to_the_response(self):
+        root = self.copied_release("euler-v1-v0")
+        capture_path = root / "capture.json"
+        capture = json.loads(capture_path.read_text())
+        del capture["request"]["id"]
+        capture_path.write_bytes(canonical_json(capture) + b"\n")
+        manifest_path = root / "coverage.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["capture_manifest"]["sha256"] = sha256_bytes(capture_path.read_bytes())
+        manifest["capture_manifest"]["bytes"] = len(capture_path.read_bytes())
+        manifest_path.write_bytes(canonical_json(manifest) + b"\n")
+        with self.assertRaisesRegex(TabulariumError, "request does not match"):
             verify(manifest_path)
 
 

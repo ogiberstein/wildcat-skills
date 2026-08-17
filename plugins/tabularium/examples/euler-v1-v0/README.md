@@ -18,9 +18,9 @@ consistency, not publisher identity or authenticity.
 | File | SHA-256 |
 | --- | --- |
 | `source.json` | `1241cbed85189e79f9b0f8418e6838b297b4b661ad3e9f2d8a86903e22a6e790` |
-| `capture.json` | `6f8d4cfb1a07cda441def7295e40d028b341e5eb62324cfa905435cb1bdc033d` |
+| `capture.json` | `59cd57ad5d8c54e1fd97cd4e62d37e31ac0d157ee5fa8f396c00be042c25041a` |
 | `events.jsonl` | `4034622f8b34147dead8a87d7c16b2a7c7197ed6417809fec41716a8028552aa` |
-| `coverage.json` | `3c3d3043bb11ab8b5a3baa64b3659900ad0201a9f19f33ff96ba643598fd5e70` |
+| `coverage.json` | `ba4c5c127449b9be257069d302b442484fbd5d83023798eb9247aa893a45d301` |
 
 Verify or rebuild from the repository root:
 

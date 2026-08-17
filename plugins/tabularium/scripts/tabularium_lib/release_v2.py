@@ -133,6 +133,7 @@ def validate_capture(capture, source, source_bytes, expected_adapter=None):
             raise TabulariumError("capture endpoint is not the declared Euler v1 RPC")
         expected_request = {
             "jsonrpc": "2.0",
+            "id": 1,
             "method": "eth_getLogs",
             "params": [{
                 "address": euler_v1.PROXY,
