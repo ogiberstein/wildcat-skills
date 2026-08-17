@@ -1,0 +1,9 @@
+{
+  "evidence_class": "synthetic-conformance",
+  "principal_destination_after": -300,
+  "principal_destination_before": -900,
+  "principal_source_after": -1600,
+  "principal_source_before": -1000,
+  "source": "compound-finance/comet scenario/TransferScenario.ts at f766f51583c23acc33b2a7824654ef2029a96804",
+  "warning": "Hostile no-log debt-to-debt shape only; not a mined transaction or chain observation."
+}

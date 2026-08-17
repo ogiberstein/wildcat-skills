@@ -29,6 +29,8 @@ class TabulariumPackagingTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("build", result.stdout)
         self.assertIn("verify", result.stdout)
+        self.assertIn("compound-witness", result.stdout)
+        self.assertIn("verify-compound-witness", result.stdout)
         self.assertIn("deterministic", result.stdout)
 
     def test_verify_help_requires_a_coverage_manifest(self):
@@ -47,7 +49,7 @@ class TabulariumPackagingTests(unittest.TestCase):
             path = PLUGIN_ROOT / host / "plugin.json"
             manifests.append(json.loads(path.read_text(encoding="utf-8")))
         self.assertEqual([item["name"] for item in manifests], ["tabularium"] * 2)
-        self.assertEqual([item["version"] for item in manifests], ["0.2.0"] * 2)
+        self.assertEqual([item["version"] for item in manifests], ["0.3.0"] * 2)
         self.assertEqual([item["skills"] for item in manifests], ["./skills/"] * 2)
         self.assertEqual(manifests[0]["description"], manifests[1]["description"])
         self.assertEqual(

@@ -7,9 +7,9 @@ Tabularium maps preserved venue-native records into reproducible, venue-qualifie
 
 **Try something else when.** Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay.
 
-**Current frontier.** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
+**Current frontier.** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 
-**Next Fiat job.** Use /hexaemeron:fiat to complete Compound v3 Phase 0 across Alexandria and Tabularium by pinning the Comet registry, proving archive, nested-call and ordered-storage methods against old and recent Ethereum transactions, and rebuilding one preserved transaction into ordered call and principal-transition facts offline. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
+**Next Fiat job.** Use /hexaemeron:fiat to ship Compound v3 Phase 1 from Alexandria raw evidence with a new canonical and coverage schema version, supply, withdraw, base-transfer and absorb mappings, a mined borrower-to-borrower transfer witness, hostile fixtures and a byte-identical offline Ethereum USDC specimen. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 A public record of on-chain credit events that keeps the venue's source record
@@ -19,6 +19,12 @@ The checked-in releases preserve three narrow credit records: Goldfinch's
 borrower-side index, one Euler v1 canonical-proxy block and one Euler V2 owner
 activity response from the Euler V3 API. Each can be rebuilt after its source
 endpoint changes or disappears.
+
+Tabularium also ships a non-canonical Compound v3 Phase 0 execution witness.
+It consumes a verified Alexandria raw release and rebuilds ordered calls,
+relevant proxy-storage writes and one signed-principal transition. These facts
+prove the recorded method for one transaction; they are not canonical credit
+events or a market history.
 
 The common event families do not flatten the venue. A row says
 `goldfinch.borrow`, `euler-v1.borrow` or `euler-v2.interest-accrued`, keeps the
@@ -51,6 +57,13 @@ python3 scripts/tabularium.py build \
   --release <release-id>
 
 python3 scripts/tabularium.py verify <release-dir>/coverage.json
+
+python3 scripts/tabularium.py compound-witness \
+  --alexandria-release <alexandria-release> \
+  --out facts.jsonl --manifest witness.json
+python3 scripts/tabularium.py verify-compound-witness \
+  --alexandria-release <alexandria-release> \
+  --facts facts.jsonl --manifest witness.json
 ```
 
 `build` refuses a capture whose source digest, byte count, adapter, scope or
@@ -76,12 +89,18 @@ fixed owner/second response from the Euler V3 API. Its manifest calls the
 protocol generation `euler-v2` and the source API `euler-v3`; these are not the
 same version axis.
 
+[`examples/compound-v3-phase0-v0`](examples/compound-v3-phase0-v0/README.md)
+rebuilds 11 non-canonical facts from Alexandria's checked-in release: two
+ordered calls, eight relevant storage writes and one signed-principal
+transition.
+
 From the repository root:
 
 ```bash
 python3 plugins/tabularium/examples/goldfinch-v0/rebuild.py
 python3 plugins/tabularium/examples/euler-v1-v0/rebuild.py
 python3 plugins/tabularium/examples/euler-v2-v0/rebuild.py
+python3 plugins/tabularium/examples/compound-v3-phase0-v0/rebuild.py
 ```
 
 The demonstration copies the preserved inputs to a new temporary directory,
@@ -119,8 +138,8 @@ release directory rather than replacing old bytes.
 [`docs/compound-v3-preservation.md`](docs/compound-v3-preservation.md) specifies
 the Compound III mapping and preservation requirements. Alexandria's linked
 harvest specification owns raw collection; this document explains why logs
-alone miss or misclassify debt transitions and what execution evidence the
-Tabularium mapping needs.
+alone miss or misclassify debt transitions, what Phase 0 now proves and what
+the Phase 1 canonical mapping still needs.
 
 ## Tests
 
@@ -139,6 +158,8 @@ Python 3.9 or later, standard library only. The tests make no network request.
 - [`examples/euler-v1-v0/DATA-DICTIONARY.md`](examples/euler-v1-v0/DATA-DICTIONARY.md)
   and [`examples/euler-v2-v0/DATA-DICTIONARY.md`](examples/euler-v2-v0/DATA-DICTIONARY.md)
   -- Euler schema v2 provenance, amount legs and source limits.
+- [`examples/compound-v3-phase0-v0/DATA-DICTIONARY.md`](examples/compound-v3-phase0-v0/DATA-DICTIONARY.md)
+  -- the non-canonical execution facts and their refusal boundaries.
 - [`docs/adding-an-adapter.md`](docs/adding-an-adapter.md) -- how a second venue
   earns a release.
 - [`docs/release-policy.md`](docs/release-policy.md) -- how a later

@@ -1,11 +1,13 @@
 # Compound III mapping and preservation requirements
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
+> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
 
-Status: proposed, 2026-08-16. This document defines the work; it does not
-claim that a Compound III release exists.
+Status: Phase 0 method proof shipped, 2026-08-17. The checked-in witness is
+non-canonical and transaction-scoped. This document defines the remaining
+canonical release work; it does not claim that a Compound III event release or
+interval history exists.
 
 ## Decision
 
@@ -24,7 +26,7 @@ can be a repayment, a deposit, or both. A `Withdraw` can remove supplied funds,
 create debt, or do both. A base `transfer` can create debt for its source and
 repay debt for its destination without emitting a credit-specific event.
 
-The first release therefore needs execution evidence for every successful call
+The first canonical release therefore needs execution evidence for every successful call
 to a Comet proxy, not merely the proxy's logs. The canonical rows must be
 derived from per-call principal transitions at the indices used by that call.
 
@@ -220,11 +222,12 @@ verification memory.
 
 ## Canonical mapping
 
-Compound III needs canonical event schema v2. The Goldfinch v1 schema is fixed
-to a hosted-indexer entity, requires a log index and permits only `borrowing`
-and `repayment` families.
+Compound III needs a new canonical event schema version. V1 is fixed to the
+Goldfinch hosted-indexer entity, while v2 is already published for Euler and
+cannot be widened in place. Phase 1 therefore adds schema v3, or the next
+available version if another release lands first.
 
-V2 adds:
+The Compound schema adds:
 
 - `block.number`, `block.hash` and `transaction.index`;
 - a source locator with call path, optional log index and deterministic leg
@@ -265,7 +268,7 @@ account role and leg index.
 matching `AbsorbCollateral` records, prices and reserve-funded amount beside
 the debt leg.
 
-## Coverage manifest v2
+## Compound coverage manifest
 
 Coverage is declared for each release and for the registry as a whole. It
 records:
@@ -366,19 +369,23 @@ dropping their transactions.
 
 ### Phase 0: method proof
 
-Pin the Comet commit and write the registry generator. Run the Hinterlight
-acceptance corpus against old and recent Ethereum transactions, including a
-nested Bulker call and a base transfer that changes debt on both sides. Record
-the client and method variants that actually work.
+Shipped. The release pins the Comet commit and 28-market registry, then records
+one old and one recent Ethereum USDC transaction from Hinterlight. The corpus
+passes archive, nested-call, ordered-storage and provider-reported finality
+gates. Tabularium rebuilds two ordered Comet calls, eight relevant storage
+writes and one signed-principal transition without network access.
 
-Exit when one preserved transaction can be rebuilt from raw RPC responses into
-ordered call and principal-transition facts without network access.
+The checked-in mined transaction does not exercise a borrower-to-borrower base
+transfer. A synthetic hostile fixture proves the log-silent shape and refusal
+rules, but it is not mined evidence. Finding and preserving the mined case is a
+Phase 1 gate.
 
 ### Phase 1: Ethereum USDC specimen
 
 Capture a small finalized interval around hand-picked supply, withdraw,
-crossing-zero transfer and absorption cases. Add canonical schema v2, coverage
-manifest v2, the Compound adapter and hostile fixtures.
+crossing-zero transfer and absorption cases. Include a mined
+borrower-to-borrower transfer. Add a new canonical and coverage schema version,
+the Compound adapter and hostile fixtures.
 
 Exit when an offline rebuild is byte-identical and deliberate omissions,
 reordering, unknown selectors, extra logs, altered block hashes and unexplained

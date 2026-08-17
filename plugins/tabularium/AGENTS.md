@@ -1,7 +1,7 @@
 # Tabularium runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
+> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
 
 Tabularium contains one Agent Skill. Select from this table, then read the
@@ -49,6 +49,11 @@ named by its flags, then writes canonical JSONL and a coverage manifest only
 to the named output paths. Every artefact must sit inside the coverage
 manifest's directory. `verify` reads those local files, rebuilds expected event
 bytes and writes nothing.
+
+`compound-witness` first verifies the named sibling Alexandria release, then
+writes non-canonical facts and a witness manifest to the named paths.
+`verify-compound-witness` reads the release and those two outputs, rebuilds the
+facts and writes nothing. Neither command changes the Alexandria release.
 
 ## What this skill must refuse
 

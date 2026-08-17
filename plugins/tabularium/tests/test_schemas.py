@@ -56,3 +56,18 @@ class SchemaDocumentTests(unittest.TestCase):
         self.assertIn("scope", schema["properties"]["source"]["required"])
         self.assertIn("included_events", schema["properties"]["coverage"]["required"])
         self.assertEqual(schema["properties"]["versions"]["properties"]["event_schema"]["const"], 2)
+
+    def test_compound_phase0_schemas_are_noncanonical_and_closed(self):
+        facts = self.load("compound-v3-execution-fact-v1.json")
+        self.assertEqual(len(facts["oneOf"]), 3)
+        for name in ("call", "storageWrite", "principalTransition"):
+            contract = facts["$defs"][name]["allOf"][1]
+            self.assertFalse(contract["additionalProperties"])
+        manifest = self.load("compound-v3-witness-manifest-v1.json")
+        self.assertFalse(manifest["additionalProperties"])
+        self.assertIn("scope", manifest["required"])
+        self.assertIn("facts_bytes", manifest["required"])
+        self.assertEqual(
+            manifest["properties"]["registry_commit"]["const"],
+            "f766f51583c23acc33b2a7824654ef2029a96804",
+        )

@@ -1,6 +1,6 @@
 {
   "name": "alexandria",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Digest-bound lending-data releases with reviewed credit views and address queries.",
   "author": {
     "name": "Wildcat Labs",
@@ -19,10 +19,10 @@
   "interface": {
     "displayName": "Alexandria",
     "shortDescription": "Digest-bound lending-data releases with reviewed credit views and address queries.",
-    "longDescription": "Alexandria preserves heterogeneous lending-protocol captures as unchanged digest-addressed objects, binds them to exact scope and coverage, derives reviewed Goldfinch and Clearpool credit rows, and rebuilds a disposable address index for Probitas. Verification is offline. The Compound v3 collector is specified but not implemented.",
+    "longDescription": "Alexandria preserves heterogeneous lending-protocol captures as unchanged digest-addressed objects, binds them to exact scope and coverage, derives reviewed Goldfinch and Clearpool credit rows, and rebuilds a disposable address index for Probitas. A separate Compound v3 Phase 0 path pins the Comet registry, captures a bounded RPC corpus and verifies its method gates offline; the resumable interval collector remains unimplemented.",
     "developerName": "Wildcat Labs",
     "category": "Research",
     "capabilities": [],
-    "defaultPrompt": "Use $alexandria to preserve or verify this lending-data release, or query its source-bound credit view."
+    "defaultPrompt": "Use $alexandria to preserve or verify this lending-data release, query its source-bound credit view, or build and check a bounded Compound v3 Phase 0 method release."
   }
 }

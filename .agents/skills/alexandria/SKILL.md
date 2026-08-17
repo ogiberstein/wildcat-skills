@@ -12,7 +12,7 @@ Alexandria preserves heterogeneous lending data as digest-bound releases, then d
 
 **Use another tool when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
 
-**Current frontier.** The specified production Compound v3 harvester is not implemented.
+**Current frontier.** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
 Read [the Alexandria runtime contract](../../../plugins/alexandria/AGENTS.md).
@@ -26,5 +26,6 @@ Invocation prefixes are aliases:
 
 The current release can ingest and verify raw releases, derive registered
 Goldfinch and Clearpool credit views, rebuild a disposable address index and
-query it for Probitas. The canonical skill and runtime contract are
-authoritative if this entrypoint disagrees with them.
+query it for Probitas. It also builds and checks the bounded Compound v3 Phase
+0 method release. The canonical skill and runtime contract are authoritative
+if this entrypoint disagrees with them.
