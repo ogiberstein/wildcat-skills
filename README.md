@@ -15,7 +15,7 @@ build.
 
 | Plugin | Use it for | Try this instead | Current frontier |
 | --- | --- | --- | --- |
-| [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Tabularium for semantic event mapping; Probitas for a dossier. | The specified production Compound v3 harvester is not implemented. |
+| [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Tabularium for semantic event mapping; Probitas for a dossier. | Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented. |
 | [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | An external Sigstore or cosign verifier for signatures. | The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented. |
 | [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Pandects or the audit skills for broader behavioural and security work. | No complete, reproducible live Wildcat evidence bundle is published. |
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, or using its fuzzing, audit and prose skills separately. | A named bundled skill when the controller is unnecessary. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
@@ -23,7 +23,7 @@ build.
 | [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
 | [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches. |
 | [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
-| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof. |
+| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented. |
 
 ## Plugins
 
@@ -37,6 +37,13 @@ release stores the original bytes under their SHA-256, names the source, chain,
 scope, finality class and counted coverage, and verifies offline. Goldfinch and
 Clearpool releases can then produce a narrow Tabularium view without turning
 the archive itself into an interpretation layer.
+
+The Compound v3 Phase 0 release pins 28 production Comet deployments at one
+upstream commit and preserves a bounded old-and-recent Ethereum USDC RPC
+corpus. Its offline checker binds archive access, nested calls,
+transaction-start state, proxy implementation code, ordered storage writes and
+a provider-reported finalized boundary. It is a one-provider method proof, not
+an interval history or independent chain proof.
 
 The SQLite address index is disposable. Every query rechecks its schema,
 logical digest and exact release-backed contents before returning rows. The
@@ -52,8 +59,9 @@ Alexandria includes:
   selectors;
 - the offline [`credit-history-v0`](./plugins/alexandria/examples/credit-history-v0/README.md)
   path through Probitas's five gates; and
-- a pinned [Compound v3 harvest specification](./plugins/alexandria/docs/compound-v3-harvest.md)
-  for the production collector that does not exist yet.
+- a checked-in [Compound v3 Phase 0 raw release](./plugins/alexandria/examples/compound-v3-phase0-v0/README.md),
+  separate explicit network capture command and pinned
+  [production harvest specification](./plugins/alexandria/docs/compound-v3-harvest.md).
 
 #### Day to day
 
@@ -306,6 +314,12 @@ venue-native record and names the source selector, adapter version and mapping
 rule that produced it. Euler V2 protocol generation and Euler V3 source API
 remain separate fields.
 
+A separate Compound v3 Phase 0 path consumes Alexandria's verified raw release
+and rebuilds non-canonical ordered calls, relevant proxy-storage writes and one
+signed-principal transition. It establishes the recorded interpretation method
+for one transaction; the canonical Compound event adapter and interval
+specimen remain Phase 1 work.
+
 The release is four files doing separate jobs. `source.json` is the preserved
 response. `capture.json` records where and when it was taken. `events.jsonl` is
 the interpretation. `coverage.json` binds all three by digest, counts what was
@@ -331,9 +345,11 @@ Tabularium includes:
 - source-bound [`euler-v1-v0`](./plugins/tabularium/examples/euler-v1-v0/README.md)
   and [`euler-v2-v0`](./plugins/tabularium/examples/euler-v2-v0/README.md)
   releases with their own dictionaries and rebuild demonstrations;
+- a non-canonical [Compound v3 Phase 0 witness](./plugins/tabularium/examples/compound-v3-phase0-v0/README.md)
+  rebuilt from Alexandria's verified release;
 - an [adapter guide](./plugins/tabularium/docs/adding-an-adapter.md) and an
   immutable [release policy](./plugins/tabularium/docs/release-policy.md); and
-- 123 tests and an audit log
+- 134 tests and an audit log
   ([`audit/AUDIT.md`](./plugins/tabularium/audit/AUDIT.md)) recording every
   review round and fix.
 

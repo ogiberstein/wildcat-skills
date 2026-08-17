@@ -1,5 +1,9 @@
 # Compound v3 Phase 0 method proof
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
+<!-- marketplace-context:end -->
+
 This release pins Compound's 28 production Comet deployments at commit
 `f766f51583c23acc33b2a7824654ef2029a96804` and preserves the raw JSON-RPC
 requests and responses for two Ethereum USDC transactions. The 2022

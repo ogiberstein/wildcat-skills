@@ -1,7 +1,7 @@
 # Alexandria schemas
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The specified production Compound v3 harvester is not implemented.
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
 Step 2 defines three raw-release contracts:
@@ -38,3 +38,9 @@ used by the offline example. `demo-summary-v1.schema.json` covers its release
 identities, logical index digest and artifact receipts. These are demonstration
 contracts; production captures still enter through the ordinary capture-plan
 schema.
+
+Compound v3 Phase 0 adds `compound-v3-registry-v1.schema.json` for the pinned
+28-market deployment catalogue and
+`compound-v3-method-receipt-v1.schema.json` for the bounded archive, nested
+call, ordered-storage and provider-reported finality gate outcomes. Runtime
+checks bind these contracts to the exact upstream commit and raw RPC objects.

@@ -1,14 +1,16 @@
 # Compound v3 harvest specification
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The specified production Compound v3 harvester is not implemented.
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
-This is the production collection plan for Compound v3. It is not a network
-harvester and it does not register a Compound mapping. A production harvester
-should preserve the RPC responses and scope receipts described here as an
-Alexandria raw release. A separate, reviewed mapping would turn that release
-into credit events and position observations.
+This is the production collection plan for Compound v3. Phase 0 now ships a
+bounded network capture and checked-in method-proof release; it is not the
+resumable interval harvester specified below and it does not register a
+Compound mapping. A production harvester should preserve the RPC responses and
+scope receipts described here as an Alexandria raw release. A separate,
+reviewed mapping would turn that release into credit events and position
+observations.
 
 ## Registry pin
 

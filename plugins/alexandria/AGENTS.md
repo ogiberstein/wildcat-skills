@@ -1,7 +1,7 @@
 # Alexandria runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The specified production Compound v3 harvester is not implemented.
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
 Alexandria contains one Agent Skill. Select it from this table, then read the
@@ -64,6 +64,13 @@ local tool.
   a new directory and removes a partial output after failure. `verify` changes
   no demo file and reaches no network. Its short-lived Probitas handoff files
   live in an operating-system temporary directory, not in the demo tree.
+- `scripts/compound_v3_phase0.py registry` reads one local Comet checkout at
+  the fixed commit and writes the canonical 28-market registry. `build` and
+  `check` consume local files only; `check` is read-only.
+- `scripts/compound_v3_phase0.py capture` is the one explicit network path. It
+  reads the HTTPS endpoint from `ALEXANDRIA_COMPOUND_RPC_URL`, writes the fixed
+  bounded corpus through a sibling temporary directory and never records the
+  endpoint, headers or credentials.
 
 ## What this skill must refuse
 

@@ -33,8 +33,10 @@ Euler schema v2.
 **Prose.** Cold-read every mutable first-party marketplace surface. After the
 prototype ships, rotate Alexandria to the first resumable, reconciled Ethereum
 USDC interval collector and Tabularium to the Phase 1 canonical adapter and
-specimen. Keep mined debt-to-debt transfer discovery and Euler v3 coverage
-visible as evidence gaps. Preserve vendored and historical prose.
+specimen. Keep mined debt-to-debt transfer discovery open. Keep Euler V2
+protocol generation separate from the Euler V3 hosted API name, and require
+new primary evidence before declaring another protocol generation. Preserve
+vendored and historical prose.
 
 **Verification.** Run the repository-prescribed Python matrix, Pandects
 `forge build` and `forge test`, both socket-denied example rebuilds,

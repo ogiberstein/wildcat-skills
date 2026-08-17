@@ -5,11 +5,12 @@ description: >
   with venue-native records, mapping provenance and explicit coverage. Use
   when the user names Tabularium, asks to preserve a credit-event record, or
   wants to rebuild or verify a Tabularium release offline. This version maps
-  preserved Goldfinch, Euler v1 and Euler V2 credit events. Do not use it to collect
+  preserved Goldfinch, Euler v1 and Euler V2 credit events and rebuilds a
+  non-canonical Compound v3 Phase 0 execution witness. Do not use it to collect
   live data, infer who controls an address, rate a counterparty, authenticate a
   publisher or claim an independently proved chain boundary.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Tabularium
@@ -21,7 +22,7 @@ Tabularium maps preserved venue-native records into reproducible, venue-qualifie
 
 **Use another tool when.** Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay.
 
-**Current frontier.** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
+**Current frontier.** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
 
 Tabularium turns preserved venue records into a common event ledger without
@@ -66,6 +67,7 @@ From the repository root:
 python3 plugins/tabularium/examples/goldfinch-v0/rebuild.py
 python3 plugins/tabularium/examples/euler-v1-v0/rebuild.py
 python3 plugins/tabularium/examples/euler-v2-v0/rebuild.py
+python3 plugins/tabularium/examples/compound-v3-phase0-v0/rebuild.py
 ```
 
 The demonstration copies the inputs to a fresh temporary directory, builds
@@ -114,6 +116,28 @@ checks supported schema, adapter and mapping versions; reconciles the capture
 with source metadata; requires one ordered selector per mapped entity; and
 rebuilds the expected JSONL from source. Exit 0 means those checks passed.
 
+## Compound v3 Phase 0 witness
+
+This non-canonical path consumes Alexandria's verified checked-in raw release.
+It does not write a canonical event or coverage-v2 row:
+
+```bash
+python3 scripts/tabularium.py compound-witness \
+  --alexandria-release <alexandria-release> \
+  --out facts.jsonl --manifest witness.json
+python3 scripts/tabularium.py verify-compound-witness \
+  --alexandria-release <alexandria-release> \
+  --facts facts.jsonl --manifest witness.json
+```
+
+The witness binds the Alexandria release and component digests, pinned Comet
+commit, proxy implementation and code. It rebuilds ordered successful Comet
+calls, relevant proxy-storage writes and one packed signed-principal
+transition. Unknown implementations, layouts, call shapes, relevant writes,
+source selectors or changed bytes are refused. This proves only the recorded
+method for one transaction; Compound canonical mapping and interval coverage
+remain Phase 1 work.
+
 ## What the result means
 
 A Goldfinch repayment row means the source recorded a repayment amount. It
@@ -145,6 +169,10 @@ The [Euler preservation study](../../docs/euler-preservation-study.md) records
 the source and version boundary. Its
 [runbook](../../docs/euler-preservation-runbook.md) records the atomic delivery
 and verification gates.
+
+The Euler study also records the `Euler V3` naming boundary: in the preserved
+evidence, V2 is the protocol generation and V3 is the hosted API name. Do not
+invent a separate protocol generation without new primary evidence.
 
 ## What this never does
 

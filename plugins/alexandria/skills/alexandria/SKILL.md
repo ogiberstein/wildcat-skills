@@ -6,9 +6,10 @@ description: >
   user names Alexandria or asks to archive lending data for reproducible,
   address-scoped credit research. Raw release and registered Goldfinch and
   Clearpool derivation, disposable indexing, address queries and a checked-in
-  offline demonstration are available.
+  offline demonstration and bounded Compound v3 Phase 0 method proof are
+  available.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Alexandria
@@ -20,7 +21,7 @@ Alexandria preserves heterogeneous lending data as digest-bound releases, then d
 
 **Use another tool when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
 
-**Current frontier.** The specified production Compound v3 harvester is not implemented.
+**Current frontier.** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
 Alexandria is the archive and catalogue behind durable lending-protocol
@@ -137,9 +138,35 @@ python3 plugins/alexandria/examples/credit-history-v0/demo.py verify "$output"
 The plan pins existing Goldfinch and Clearpool files by digest. The result is a
 reproducibility fixture, not a production corpus. Its Goldfinch source remains
 provider-reported and its Clearpool source remains subject-scoped with unknown
-finality. The [Compound v3 harvest specification](../../docs/compound-v3-harvest.md)
-describes what a production collector must retain. There is no Compound
-harvester or mapping yet.
+finality.
+
+## Compound v3 Phase 0
+
+The [Compound method-proof example](../../examples/compound-v3-phase0-v0/README.md)
+pins all 28 production Comet deployments at one upstream commit and preserves
+two Ethereum USDC transactions. Its checker binds old-state access, nested
+calls, the proxy implementation and code, transaction-start storage, ordered
+storage writes and a provider-reported finalized boundary.
+
+Generate the fixed registry from a local pinned checkout, or build and check a
+captured source tree offline:
+
+```bash
+python3 "$SKILL_DIR/../../scripts/compound_v3_phase0.py" registry \
+  --comet-repository <comet-checkout> --output registry.json
+python3 "$SKILL_DIR/../../scripts/compound_v3_phase0.py" build \
+  --input <captured-input> --output <release>
+python3 "$SKILL_DIR/../../scripts/compound_v3_phase0.py" check <release>
+```
+
+The separate `capture` subcommand is networked. It requires
+`ALEXANDRIA_COMPOUND_RPC_URL`, omits the endpoint and headers from the release,
+and collects only the fixed corpus. Do not describe the result as an interval
+history, chain proof or independent finality check.
+
+The [Compound v3 harvest specification](../../docs/compound-v3-harvest.md)
+describes the resumable, reconciled production collector that remains to be
+built. Tabularium owns the separate canonical mapping.
 
 Read the [study](../../docs/study.md) for the selected construction and the
 [runbook](../../docs/runbook.md) for the implementation boundaries.

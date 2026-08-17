@@ -7,9 +7,9 @@ Alexandria preserves heterogeneous lending data as digest-bound releases, then d
 
 **Try something else when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
 
-**Current frontier.** The specified production Compound v3 harvester is not implemented.
+**Current frontier.** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 
-**Next Fiat job.** Use /hexaemeron:fiat to build the specified production Compound v3 harvester with pinned deployment discovery, explicit coverage and finality evidence, and a reproducible offline release. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
+**Next Fiat job.** Use /hexaemeron:fiat to build the first resumable Ethereum USDC interval collector with implementation-epoch discovery, bounded shards, a second-provider reconciliation path, explicit finality and offline raw-release verification. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 An offline tool for digest-bound lending-data releases.
@@ -71,6 +71,40 @@ Its expected receipts bind 522 derived events, 31 observations, an 11-event
 Clearpool address query and 11 Probitas records. Goldfinch remains partial for
 that query because the mapping declares 25 unsupported native records.
 
+## Compound v3 Phase 0
+
+The checked-in [`compound-v3-phase0-v0`](examples/compound-v3-phase0-v0/README.md)
+release pins all 28 production Comet deployments from ten chains at Compound
+commit `f766f51583c23acc33b2a7824654ef2029a96804`. It preserves exact JSON-RPC
+requests and responses for one old and one recent Ethereum USDC transaction.
+The offline checker binds the registry, proxy implementation and code, block,
+transaction, receipt, call traces, transaction-start storage and ordered
+`SSTORE` trace.
+
+Generate the registry from a local checkout at the pinned commit, or rebuild
+and check fixed local captures:
+
+```bash
+python3 scripts/compound_v3_phase0.py registry \
+  --comet-repository <comet-checkout> --output registry.json
+python3 scripts/compound_v3_phase0.py build \
+  --input <captured-input> --output <release>
+python3 scripts/compound_v3_phase0.py check <release>
+```
+
+Live capture is a separate, explicit network boundary. It reads the endpoint
+only from `ALEXANDRIA_COMPOUND_RPC_URL` and does not preserve that URL or its
+headers:
+
+```bash
+python3 scripts/compound_v3_phase0.py capture \
+  --registry registry.json --corpus corpus.json \
+  --comet-repository <comet-checkout> --output <captured-input>
+```
+
+This is a fixed method proof from one RPC provider, not an interval harvester,
+independent finality evidence or a canonical Compound event release.
+
 ## Architecture
 
 The design separates:
@@ -98,7 +132,12 @@ its reported block was canonical.
   queries, false-empty refusal and the Probitas bridge.
 - [`docs/compound-v3-harvest.md`](docs/compound-v3-harvest.md) pins Compound's
   official registry and specifies production capture, revision, checkpoint,
-  reconciliation and acceptance rules. It is a plan, not a harvester.
+  reconciliation and acceptance rules. Phase 0 proves the required methods;
+  the interval harvester remains a plan.
+- [`docs/compound-v3-phase0-study.md`](../../docs/compound-v3-phase0-study.md)
+  records the method study, and
+  [`docs/compound-v3-phase0-runbook.md`](../../docs/compound-v3-phase0-runbook.md)
+  records the shipped atomic step.
 - [`docs/data-dictionary.md`](docs/data-dictionary.md) names the fields that
   cross raw releases, derived views, queries and Probitas.
 - [`schemas/README.md`](schemas/README.md) states when each machine-readable
@@ -114,7 +153,9 @@ From the repository root:
 python3 -m unittest discover -s plugins/alexandria/tests -t plugins/alexandria
 ```
 
-The implementation uses Python's standard library and reaches no network.
+The implementation uses Python's standard library. The five core Alexandria
+commands, Compound build/check commands and checked-in demonstrations reach no
+network. Only the explicit Compound `capture` command performs network I/O.
 
 ## Licence
 
