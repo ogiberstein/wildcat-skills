@@ -44,3 +44,23 @@ MORPHO_BLUE_FIRST_MARKET_BLOCK = 18919623
 # `/users/<address>/positions` and `/users/<address>/transactions` both answer.
 # No adapter yet; the registry names it so a dossier does not imply otherwise.
 MORPHO_MIDNIGHT_ENDPOINT = "https://api.morpho.org/v0/midnight"
+
+# Euler v2's keyless event ledger and vault metadata service.  The Goldsky
+# simple subgraph is useful for active-position discovery but is intentionally
+# not a historical ledger, so it is not an evidence endpoint for Probitas.
+EULER_V3_ENDPOINT = "https://v3.euler.finance"
+
+# Euler v1's Graph deployment remains registered on the decentralized network,
+# but the assigned indexers did not serve it during capture. These identifiers
+# preserve that failed route; the shipped adapter uses the canonical log below.
+EULER_V1_SUBGRAPH_ID = "95nyAWFFaiz6gykko3HtBCyhRuP5vZzuKYsZiLxHxLhr"
+EULER_V1_DEPLOYMENT_ID = "QmfTzwSoE3krDFMfYT9XTdwLcdMYBmMwyPqA1FHTMkmsVs"
+EULER_V1_SCHEMA_ID = "QmVPZNPakG2WBJ9AaTi3gcMp6uG538vGJMYcTCUW7m8S74"
+EULER_V1_GRAPH_GATEWAY = "https://gateway.thegraph.com/api"
+
+# The subgraph and Euler's old history websocket are no longer serving, but
+# the canonical proxy log is the transaction-level source they indexed.  The
+# public Tenderly gateway serves borrower-filtered archival eth_getLogs calls
+# without a credential.
+EULER_V1_RPC_ENDPOINT = "https://mainnet.gateway.tenderly.co"
+EULER_V1_PROXY = "0x27182842e098f60e3d576794a5bffb0777e025d3"

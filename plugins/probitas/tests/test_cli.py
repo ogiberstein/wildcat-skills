@@ -9,6 +9,8 @@ import unittest
 
 from . import support
 
+from probitas_lib import registry  # noqa: E402
+
 PROBITAS = os.path.join(support.SCRIPTS, "probitas.py")
 FIXTURES = os.path.join(support.PLUGIN_ROOT, "tests", "fixtures")
 
@@ -27,7 +29,7 @@ class TestVenuesCommand(unittest.TestCase):
         result = run("venues", "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
         venues = json.loads(result.stdout)
-        self.assertEqual(len(venues), 13)
+        self.assertEqual(len(venues), len(registry.all_venues()))
         self.assertIn("wildcat", [v["id"] for v in venues])
 
     def test_the_plain_listing_says_which_are_implemented(self):
@@ -68,17 +70,18 @@ class TestCollectCommand(unittest.TestCase):
 
     def test_every_registry_venue_appears_in_coverage(self):
         payload = self.collect()
-        self.assertEqual(len(payload["coverage"]), 13)
+        self.assertEqual(len(payload["coverage"]), len(registry.all_venues()))
 
     def test_an_unchecked_venue_becomes_a_named_gap(self):
         payload = self.collect()
         subjects = [gap["subject"] for gap in payload["gaps"]]
         self.assertIn("maple borrowing history", subjects)
-        # Eleven venues have no adapter. Wildcat and Morpho Blue do, and a venue
-        # that was checked and came back empty is a finding rather than a hole.
+        # Venues with no adapter remain named gaps. A venue that was checked
+        # and came back empty is a finding rather than a hole.
         self.assertNotIn("wildcat borrowing history", subjects)
         self.assertNotIn("morpho-blue borrowing history", subjects)
-        self.assertEqual(len(payload["gaps"]), 11)
+        self.assertNotIn("euler borrowing history", subjects)
+        self.assertEqual(len(payload["gaps"]), len(registry.unimplemented()))
 
     def test_inferred_addresses_stay_in_their_own_tier(self):
         payload = self.collect("--inferred", "0x" + "b2" * 20)
@@ -116,7 +119,11 @@ class TestCollectCommand(unittest.TestCase):
                 path,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("2 of 13 venue(s) checked", result.stderr)
+            self.assertIn(
+                f"{len(registry.implemented())} of "
+                f"{len(registry.all_venues())} venue(s) checked",
+                result.stderr,
+            )
             with open(path, encoding="utf-8") as handle:
                 self.assertEqual(json.load(handle)["schema"], 1)
 

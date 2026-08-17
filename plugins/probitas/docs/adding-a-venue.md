@@ -7,7 +7,7 @@
 Probitas builds a dossier on what a counterparty has done across on-chain
 lending venues: what they borrowed, whether they gave it back, and what could
 not be established. It reads lending venues through small adapters, one
-per venue, and it currently reads two of the thirteen it knows about.
+per venue, and it currently reads four of the fifteen it knows about.
 
 The other eleven are the interesting part of this document. Each one is a named
 gap in every dossier the tool produces, and closing one is a self-contained
@@ -52,6 +52,8 @@ live request.
 | --- | --- | --- |
 | Wildcat | Goldsky subgraph | none |
 | Morpho Blue | `blue-api.morpho.org/graphql` | none |
+| Euler v1 | Canonical proxy log through `mainnet.gateway.tenderly.co` | none |
+| Euler v2 | `v3.euler.finance` activity, liquidation and EVK vault endpoints | none |
 
 ### Reachable, keyless, and unbuilt
 
@@ -122,6 +124,45 @@ fixed-rate, fixed-maturity lending on its own keyless REST API at
 three, because a maturity is a date by which the money was due, and that makes
 it the only venue outside Wildcat where repayment timeliness has an answer
 rather than a story about a price.
+
+### Euler: two versions, two data routes
+
+**Euler v2** ships against the keyless V3 Data API, not the Goldsky simple
+subgraph. `/v3/activity/accounts/<owner>/events` supplies the paginated event
+ledger and an explicit complete indexed range. `/v3/liquidations` supplies
+both liquidation legs. `/v3/evk/vaults/batch` resolves the assets and decimals
+once per vault. Records are filed under the EVC owner and retain the subaccount.
+`interest_accrued` is checked and omitted; it cannot cause a neighbouring
+borrow to disappear.
+
+The Goldsky schema remains preserved because it explains why the adapter does
+not use that endpoint: it overwrites active-position balances and cannot
+distinguish never borrowed from fully repaid.
+
+**Euler v1** ships from the mainnet event log of proxy
+`0x27182842E098f60e3D576794A5bFFb0777E025d3`. The archived contract source
+defines borrower-indexed `Borrow`, `Repay` and `Liquidation` events. The first
+two carry exact debt amounts; liquidation carries both exact debt repaid and
+collateral seized. The adapter queries those topics through the keyless
+archival RPC at `mainnet.gateway.tenderly.co`, through its finalized block.
+
+The Messari Euler Finance Ethereum subgraph remains useful as source history.
+Its subgraph ID is
+`95nyAWFFaiz6gykko3HtBCyhRuP5vZzuKYsZiLxHxLhr`. Graph Explorer currently
+points to deployment `QmfTzwSoE3krDFMfYT9XTdwLcdMYBmMwyPqA1FHTMkmsVs`,
+version `1.3.0_1.4.0`; the separately reported `QmVRgU…` deployment is not the
+current version. Its preserved schema has immutable `Borrow`, `Repay` and
+`Liquidate` entities, but it omits the exact debt repaid during liquidation.
+
+Authenticated probes of `_meta`, accounts, markets and borrows all failed at
+the gateway because none of the three assigned indexers could serve the
+deployment. The archived EulerScan hostname also no longer resolves. Neither
+failure affects the shipped adapter. The schema, API probes and successful raw
+log capture are preserved in `euler-v1-thegraph-schema.graphql`,
+`euler-v1-thegraph-capture.json` and `euler-goldsky-discovery.md`.
+
+The exact probes and preserved v2 schema are in
+[`euler-goldsky-discovery.md`](euler-goldsky-discovery.md).
 
 ### Reachable, but not without something from someone else
 
@@ -225,7 +266,7 @@ The mechanics above are a day's work for someone who knows the protocol. What
 takes real care is deciding what an event means, and getting it wrong produces
 a confident, well-cited, wrong claim about a named company.
 
-Two worked examples from the venues already built.
+Four worked examples from the venues already built.
 
 **On Wildcat, a cured delinquency is not a default.** A borrower who dipped
 below their reserve ratio and came back inside the grace period paid no penalty
@@ -239,6 +280,13 @@ says a price moved and the protocol closed a position. The record says so in as
 many words, because a reader's instinct will be to call it a default. Bad debt
 is the exception: when a liquidation does not cover what was owed, lenders lost
 money, and that gets its own record.
+
+**On Euler v2, the EVC owner is the subject.** One owner controls 256
+subaccounts. A record filed under the touched subaccount alone would split one
+counterparty into many apparent borrowers, so each record uses the owner and
+keeps the subaccount as event context. Interest accrual is not a new draw and
+is omitted. A liquidation remains a collateral event, with its debt and
+collateral assets kept on separate scales.
 
 The general shape: ask what the event would have meant if the collateral were
 not there. On an overcollateralised venue, most of what looks alarming is a

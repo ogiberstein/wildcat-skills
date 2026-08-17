@@ -34,6 +34,8 @@ WORDS = {
     11: "eleven",
     12: "twelve",
     13: "thirteen",
+    14: "fourteen",
+    15: "fifteen",
 }
 
 
@@ -109,10 +111,20 @@ class TestTheQuickstartIsTheOneThatWasRun(unittest.TestCase):
     def test_the_contributor_guide_uses_it_too(self):
         self.assertEqual(self.fixture_in(os.path.join(DOCS, "adding-a-venue.md")), {"demo"})
 
-    def test_the_demo_fixture_carries_both_shipped_venues(self):
+    def test_the_demo_fixture_carries_all_shipped_venues(self):
         directory = os.path.join(support.PLUGIN_ROOT, "tests", "fixtures", "demo")
-        present = {f.split(".")[0] for f in os.listdir(directory)}
-        self.assertEqual(present, {"wildcat", "morpho"})
+        present = set(os.listdir(directory))
+        self.assertEqual(
+            present,
+            {
+                "wildcat.json",
+                "morpho.json",
+                "euler-v1.json",
+                "euler-events.json",
+                "euler-liquidations.json",
+                "euler-vaults.json",
+            },
+        )
 
 
 class TestTheReadmeDescribesTheToolThatExists(unittest.TestCase):

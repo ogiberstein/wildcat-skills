@@ -32,6 +32,8 @@ a clean record.
 | Centrifuge | unimplemented | -- | 0 | Keyless GraphQL at api.centrifuge.io, introspects cleanly, 24 pools on mainnet. Carries pools, holdings, investor transactions and debt changes. The most build-ready of the unbuilt venues. |
 | Clearpool | unimplemented | -- | 0 | Live, and the API sits behind a bot challenge that returns 403 to a plain request. Working around that is not something this tool should do; an agreement with them is the way in. |
 | Compound v3 | unimplemented | -- | 0 | No first-party API found. The Graph gateway rejects unauthenticated requests and the old hosted service is gone. |
+| Euler v2 | empty | fixture | 0 | ethereum mainnet V3 event ledger; complete indexed coverage; no borrowing activity found for any subject EVC owner |
+| Euler v1 | empty | fixture | 0 | ethereum mainnet canonical Euler v1 proxy log; Borrow, Repay and Liquidation events checked through finalized block 18000000; no borrowing activity found for any subject address |
 | Goldfinch | unimplemented | -- | 0 | The protocol wound down in June 2026 after roughly 100 million dollars originated, with depositors reporting far heavier losses than the dashboard showed. The record stays on chain and is worth more to a dossier than most live venues, since it is a list of who did not repay. |
 | Maple Finance | unimplemented | -- | 0 | api.maple.finance responds but disables introspection, so the query shape could not be established. Undercollateralised, so worth the work. |
 | MetaMorpho vaults | unimplemented | -- | 0 | 450 vaults on mainnet, on the same keyless API. A counterparty may appear here as a curator rather than a borrower, and a curator who allocated into a market that took bad debt made a call that cost lenders money. Not collected yet. |

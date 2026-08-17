@@ -1,0 +1,14 @@
+{
+  "data": [],
+  "meta": {
+    "hasMore": false,
+    "nextCursor": null,
+    "source": "v3-ponder",
+    "coverage": {
+      "status": "complete",
+      "chains": [{"chainId": 1, "status": "complete", "indexedFromBlock": "20529207", "indexedToBlock": "22000300", "missingCategories": []}],
+      "missingCategories": []
+    },
+    "timestamp": "2026-01-04T00:01:00.000Z"
+  }
+}
