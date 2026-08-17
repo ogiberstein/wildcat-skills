@@ -74,3 +74,17 @@ Tabularium tests pass. Both socket-denied rebuilds match, and the twelve
 published Goldfinch and Euler truth digests are unchanged.
 
 Leads not pursued: none.
+
+## Fiat installed-path proof, step 1, round 1 -- 2026-08-17
+
+The Solidity suite was waived because this step changes only Markdown
+evidence and governed skill metadata. The review covered every changed line
+against the runbook risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | `plugins/hexaemeron/docs/fiat-installed-path-and-maturity-proof/proof.md` | The proof reported 14 non-blocking Imprimatur signals, but the reproducible per-file total is 15. | Fixed on the stacked audit branch before round 2. |
+
+Leads not pursued: publisher authentication, cache signing, native Windows
+support, and general release attestation are outside this frontier and are
+not claimed by the proof.

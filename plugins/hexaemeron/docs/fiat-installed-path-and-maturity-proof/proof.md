@@ -106,7 +106,7 @@ The implementation checks produced these results:
 - Fiat frontmatter and the four targeted version, digest, history-axis, and
   maturity checks passed; and
 - installed Imprimatur found no defects or hard hits in the five Markdown
-  files shipped by this step. Its 14 rule-of-three cadence notices are
+  files shipped by this step. Its 15 rule-of-three cadence notices are
   non-blocking signals under the lint contract.
 
 The implementation receipt and later controller phases carry the audit,
