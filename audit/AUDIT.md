@@ -124,3 +124,19 @@ tests, 61 Hexaemeron tests and 14 repository tests also pass. Replaying
 Leads not pursued: model authorship beyond the declared provenance rule,
 population-prevalence claims and tuning against the spent v1 holdout are
 outside this frontier and are explicitly disclaimed by the fixture.
+
+## Imprimatur labelled prose, step 1, round 2 -- 2026-08-18
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+
+The clean review repeated the fixture-row schema checks, annotation and
+candidate digest checks, distinct-annotator check, UTF-8 span validation,
+split isolation, metric replay and frontier digest verification against the
+stacked audit branch. The focused evaluator has 15 passing checks and the
+published calibration and final reports replay without a byte difference.
+
+Leads not pursued: model authorship beyond the declared provenance rule,
+population-prevalence claims and tuning against the spent v1 holdout remain
+outside this frontier.
