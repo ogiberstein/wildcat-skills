@@ -60,7 +60,7 @@ class CompoundWitnessTests(unittest.TestCase):
     def test_checked_witness_has_fixed_bytes_and_expected_semantics(self):
         facts = EXAMPLE / "facts.jsonl"
         manifest = EXAMPLE / "witness.json"
-        self.assertEqual(hashlib.sha256(facts.read_bytes()).hexdigest(), "08cc6cac67fb8ec9070d32c97b712047cecbcd255e4218245c3593f7df53d6fe")
+        self.assertEqual(hashlib.sha256(facts.read_bytes()).hexdigest(), "54ecb3896f7f78e9f6138b2c89ea34acbca616a678204d6b046f07a007b46929")
         with mock.patch.object(socket.socket, "connect", side_effect=AssertionError("network used")):
             report = verify_compound_witness(ALEXANDRIA, facts, manifest)
         rows = [json.loads(line) for line in facts.read_text().splitlines()]
@@ -72,6 +72,9 @@ class CompoundWitnessTests(unittest.TestCase):
         self.assertTrue(all(row["call_path"] == [1] for row in storage[1:]))
         principal = next(row for row in rows if row["kind"] == "principal-transition")
         self.assertEqual((principal["principal_before"], principal["principal_after"]), (0, -6349137978))
+        self.assertEqual(principal["sources"][0]["json_pointer"], "/result/pre/0xc3d688b66703497daa19211eedff47f25384cdc3/storage")
+        self.assertTrue(all(source["json_pointer"].startswith("/result/") for source in principal["sources"]))
+        self.assertEqual(report["facts_bytes"], len(facts.read_bytes()))
 
     def test_two_builds_are_identical_and_idempotent(self):
         with mock.patch.object(socket.socket, "connect", side_effect=AssertionError("network used")):

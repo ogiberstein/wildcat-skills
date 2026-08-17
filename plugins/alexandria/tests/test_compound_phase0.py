@@ -195,6 +195,30 @@ class CompoundReleaseTests(unittest.TestCase):
             )
         self.assertNotIn(endpoint.encode(), b"".join(path.read_bytes() for path in output.rglob("*") if path.is_file()))
 
+    def test_capture_total_byte_limit_fails_atomically(self):
+        output = self.root / "capture"
+        registry_bytes = (EXAMPLE / "source" / "registry.json").read_bytes()
+        upstream = {
+            path.name: path.read_bytes()
+            for path in (EXAMPLE / "input" / "upstream").iterdir()
+        }
+        with (
+            mock.patch.dict(os.environ, {"TEST_COMPOUND_RPC": "https://example.invalid/rpc"}),
+            mock.patch("alexandria_lib.compound_phase0.registry_bytes", return_value=registry_bytes),
+            mock.patch("alexandria_lib.compound_phase0.deployment_source_bytes", return_value=upstream),
+            mock.patch("alexandria_lib.compound_phase0.urllib.request.build_opener", return_value=_Opener()),
+            mock.patch("alexandria_lib.compound_phase0.MAX_CAPTURE_BYTES", 1),
+        ):
+            with self.assertRaisesRegex(AlexandriaError, "total byte limit"):
+                capture(
+                    EXAMPLE / "source" / "registry.json",
+                    EXAMPLE / "source" / "corpus.json",
+                    self.root,
+                    output,
+                    endpoint_env="TEST_COMPOUND_RPC",
+                )
+        self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

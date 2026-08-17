@@ -10,7 +10,7 @@ transaction, block, proxy implementation and implementation-code digest.
 | `principal-transition` | The packed `userBasic` word before and after the transaction, its Ethereum mapping slot, signed `int104` values and active base borrow index. |
 
 `witness.json` binds the Alexandria release ID, pinned Comet commit, raw
-component digests, fact digest and Alexandria method receipt. The receipt
+component digests, fact byte count and digest, and Alexandria method receipt. The receipt
 records archive-state, nested-call, ordered-storage and provider-reported
 finality gate outcomes. `rpc_modules` is recorded as unsupported by the
 gateway.

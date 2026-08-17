@@ -45,3 +45,18 @@ committed registry. The focused hostile tests and both socket-denied rebuilds
 pass after the nested evidence checks.
 
 Leads not pursued: none.
+
+## Compound v3 Phase 0, step 1, round 3 -- 2026-08-17
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | The capture bounded each response but not aggregate bytes, so a permitted 48-request run could exhaust disk well before a component crossed its individual ceiling. | fixed in this round |
+| S1-R3-02 | medium | `plugins/tabularium/scripts/tabularium_lib/compound_witness.py` | The principal fact pointed at the entire opcode list and only the poststate slot; it did not bind the prestate map that establishes an absent slot as zero or each exact principal-writing struct log. | fixed in this round |
+
+The aggregate capture cap is 128 MiB and fails before installation. The
+principal fact now selects the prestate storage map, exact poststate slot and
+each contributing struct log. The witness manifest also binds the fact byte
+count. Focused tests and both offline rebuilds pass with the regenerated
+unpublished witness bytes.
+
+Leads not pursued: none.

@@ -376,14 +376,17 @@ def _make_bytes(release_root):
         "sources": [
             {
                 "component": "response-recent-prestate-trace",
-                "json_pointer": "/result/post/%s/storage/%s" % (PROXY, user_slot),
+                "json_pointer": "/result/pre/%s/storage" % PROXY,
                 "sha256": component_digests["response-recent-prestate-trace"],
             },
             {
-                "component": "response-recent-opcode-trace",
-                "json_pointer": "/result/structLogs",
-                "sha256": component_digests["response-recent-opcode-trace"],
+                "component": "response-recent-prestate-trace",
+                "json_pointer": "/result/post/%s/storage/%s" % (PROXY, user_slot),
+                "sha256": component_digests["response-recent-prestate-trace"],
             },
+            *[
+                item["source"] for item in storage_facts if item["slot"] == user_slot
+            ],
         ],
         "transaction_hash": transaction_hash,
     })
@@ -392,6 +395,7 @@ def _make_bytes(release_root):
         "alexandria_method_receipt": receipt,
         "alexandria_release_id": release_id,
         "component_digests": component_digests,
+        "facts_bytes": len(facts_bytes),
         "facts_sha256": sha256_bytes(facts_bytes),
         "format": MANIFEST_FORMAT,
         "registry_commit": corpus["registry_commit"],

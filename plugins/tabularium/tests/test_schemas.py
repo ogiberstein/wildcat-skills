@@ -66,6 +66,7 @@ class SchemaDocumentTests(unittest.TestCase):
         manifest = self.load("compound-v3-witness-manifest-v1.json")
         self.assertFalse(manifest["additionalProperties"])
         self.assertIn("scope", manifest["required"])
+        self.assertIn("facts_bytes", manifest["required"])
         self.assertEqual(
             manifest["properties"]["registry_commit"]["const"],
             "f766f51583c23acc33b2a7824654ef2029a96804",

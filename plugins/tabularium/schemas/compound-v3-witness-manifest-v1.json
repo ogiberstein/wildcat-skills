@@ -3,7 +3,7 @@
   "$id": "https://wildcat.finance/schemas/tabularium/compound-v3-witness-manifest-v1.json",
   "title": "Tabularium Compound v3 Phase 0 witness manifest",
   "type": "object", "additionalProperties": false,
-  "required": ["format", "alexandria_release_id", "registry_commit", "transaction_hash", "scope", "row_count", "facts_sha256", "component_digests", "alexandria_method_receipt"],
+  "required": ["format", "alexandria_release_id", "registry_commit", "transaction_hash", "scope", "row_count", "facts_bytes", "facts_sha256", "component_digests", "alexandria_method_receipt"],
   "properties": {
     "format": {"const": "tabularium-compound-v3-witness/v1"},
     "alexandria_release_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -11,6 +11,7 @@
     "transaction_hash": {"type": "string", "pattern": "^0x[0-9a-f]{64}$"},
     "scope": {"const": "one Ethereum USDC transaction; method proof, not market history"},
     "row_count": {"type": "integer", "minimum": 1},
+    "facts_bytes": {"type": "integer", "minimum": 1},
     "facts_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "component_digests": {
       "type": "object", "additionalProperties": false,

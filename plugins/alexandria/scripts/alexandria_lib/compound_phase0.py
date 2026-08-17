@@ -31,6 +31,7 @@ USER_BASIC_SLOT = 5
 MAX_REQUESTS = 48
 MAX_PHASE0_JSON_NODES = 1_000_000
 MAX_CAPTURE_SECONDS = 300
+MAX_CAPTURE_BYTES = 128 * 1024 * 1024
 WORD_RE = re.compile(r"^0x[0-9a-f]{64}$")
 OLD_WITNESS = {
     "block_hash": "0xf56dbfce61b5f2ae9b0a7b25a4a2f8cb7c47f716db7abc4f64a0c8dcf914d1e8",
@@ -201,7 +202,9 @@ def capture(
         (temporary / "responses").mkdir()
         (temporary / "upstream").mkdir()
         (temporary / "registry.json").write_bytes(registry_data)
-        (temporary / "corpus.json").write_bytes(canonical_bytes(corpus))
+        corpus_data = canonical_bytes(corpus)
+        (temporary / "corpus.json").write_bytes(corpus_data)
+        total_bytes = len(registry_data) + len(corpus_data)
         opener = urllib.request.build_opener(_NoRedirect)
         started = time.monotonic()
         components = [
@@ -213,6 +216,9 @@ def capture(
             _capture_declaration("registry", corpus["observed_at"]),
         ]
         for filename, data in deployment_source_bytes(comet_repository).items():
+            total_bytes += len(data)
+            if total_bytes > MAX_CAPTURE_BYTES:
+                raise AlexandriaError("Compound capture exceeded the total byte limit")
             relative = f"upstream/{filename}"
             (temporary / relative).write_bytes(data)
             name = "upstream-" + filename.replace(".", "-")
@@ -223,6 +229,9 @@ def capture(
                 raise AlexandriaError("Compound capture exceeded the elapsed-time limit")
             name = declaration["name"]
             request_data = _request_bytes(identifier, declaration["method"], declaration["params"])
+            total_bytes += len(request_data)
+            if total_bytes > MAX_CAPTURE_BYTES:
+                raise AlexandriaError("Compound capture exceeded the total byte limit")
             request_path = temporary / "requests" / f"{name}.json"
             request_path.write_bytes(request_data)
             request = urllib.request.Request(
@@ -240,6 +249,9 @@ def capture(
                 raise AlexandriaError(f"Compound RPC {name} transport failed") from error
             if len(response_data) > MAX_RAW_COMPONENT_BYTES:
                 raise AlexandriaError(f"Compound RPC {name} exceeded the component byte limit")
+            total_bytes += len(response_data)
+            if total_bytes > MAX_CAPTURE_BYTES:
+                raise AlexandriaError("Compound capture exceeded the total byte limit")
             if time.monotonic() - started > MAX_CAPTURE_SECONDS:
                 raise AlexandriaError("Compound capture exceeded the elapsed-time limit")
             load_raw_json(
@@ -263,7 +275,10 @@ def capture(
             "format": "alexandria-capture-plan/v1",
             "release": {"created_at": corpus["observed_at"], "name": "compound-v3-phase0-v0"},
         }
-        (temporary / "capture-plan.json").write_bytes(canonical_bytes(plan))
+        plan_data = canonical_bytes(plan)
+        if total_bytes + len(plan_data) > MAX_CAPTURE_BYTES:
+            raise AlexandriaError("Compound capture exceeded the total byte limit")
+        (temporary / "capture-plan.json").write_bytes(plan_data)
         os.replace(temporary, output)
     except Exception:
         if temporary.exists():
