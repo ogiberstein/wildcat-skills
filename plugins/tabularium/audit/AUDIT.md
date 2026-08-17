@@ -63,6 +63,24 @@ event bytes did not change. No earlier Tabularium release byte changed.
 
 Leads not pursued: none.
 
+## Euler releases, step 1, round 3 -- 2026-08-17
+
+Scope: `27e930f...2feeb85`, including both earlier audit rounds. Re-read
+multi-row consistency and empty-result behaviour, then repeated the release
+rebuilds, source tampering, Python compilation, 14 root tests and 121
+Tabularium tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R3-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | An empty response could claim complete coverage over a reversed indexed block interval without being refused. | fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a` |
+| E1-R3-02 | medium | `scripts/tabularium_lib/adapters/euler_v1.py`, `scripts/tabularium_lib/adapters/euler_v2.py` | Rows sharing a block or transaction identity could disagree about its hash, block number, transaction index or timestamp. | fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a` |
+
+The fixes reject reversed coverage and reconcile shared block and transaction
+metadata before ordering or serialising events. Both release rebuilds remain
+byte-identical, and all prior Goldfinch artifacts remain unchanged.
+
+Leads not pursued: none.
+
 ## Step 2, round 1 -- 2026-08-16
 
 Scope:
