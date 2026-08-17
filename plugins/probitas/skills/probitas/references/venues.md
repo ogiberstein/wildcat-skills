@@ -4,7 +4,7 @@
 > **Marketplace context: Probitas.** Probitas builds a sourced record of what a counterparty did across lending venues from addresses they declared, without identifying a person or issuing a Wildcat verdict. Use Alexandria for archived lending inputs and Tabularium when the job is publishing a reusable credit-event release rather than assessing one counterparty. **Current frontier:** Euler v1/v2 coverage is tracked in wildcat-finance/skills#57; Morpho Midnight and curation remain tracked in the planning repository.
 <!-- marketplace-context:end -->
 
-Thirteen venues in the registry, two of them with adapters. The other eleven
+Fifteen venues in the registry, four of them with adapters. The other eleven
 still get a row in every dossier, saying plainly that nobody checked. That is
 gate 2 doing its job.
 
@@ -20,8 +20,10 @@ explains why it looks the way it does.
 | --- | --- | --- |
 | Wildcat | Public Goldsky subgraph, Ethereum mainnet | none |
 | Morpho Blue | `blue-api.morpho.org/graphql`, Ethereum mainnet | none |
+| Euler v1 | Canonical proxy log through `mainnet.gateway.tenderly.co` | none |
+| Euler v2 | `v3.euler.finance`, Ethereum mainnet event ledger | none |
 
-Both adapters name their chain in the coverage note. Wildcat is deployed on
+All four adapters name their chain in the coverage note. Wildcat is deployed on
 Plasma as well and Morpho on several chains, and a row that says only `checked`
 would let a reader take one chain's silence for all of them.
 
@@ -44,7 +46,7 @@ would let a reader take one chain's silence for all of them.
 Six of the eleven need only an adapter. The rest are blocked on somebody else's
 key, bot protection or documentation.
 
-## The three venues read differently, and the dossier says so
+## The four venues read differently, and the dossier says so
 
 **Wildcat is undercollateralised.** Nothing stood between the lender and a loss
 except the borrower, so a missed reserve ratio is about conduct. This is the
@@ -57,6 +59,17 @@ and the protocol closed a position. Reporting one as a default would be the
 wrong claim about a named company. Bad debt is the exception, and it gets a record of
 its own: a liquidation that failed to cover the debt is a loss somebody else
 absorbed.
+
+**Euler v1 is overcollateralised and proxy-scoped.** The adapter reads exact
+borrow, repayment and liquidation amounts from the canonical mainnet proxy
+log. It filters by the indexed borrower, checks every event block hash before
+using its timestamp, and reports the finalized RPC boundary.
+
+**Euler v2 is overcollateralised and EVC-scoped.** The adapter reads borrow,
+repayment and liquidation events from the V3 ledger, files them under the EVC
+owner and retains the touched subaccount. Interest accrual is omitted because
+it is not a new draw. Liquidations retain debt and collateral decimals and are
+not called defaults.
 
 **Morpho Midnight is fixed-maturity**, which is why it is worth building next.
 A maturity is a date by which the money was due, so it is the only venue
@@ -112,3 +125,8 @@ The Wildcat block range starts at the arch controller deployment, block
 creation across all 1,727 mainnet markets, taken by paging the API rather than
 by trusting an announcement. Before those blocks there was nothing on either
 venue to have a history in, so they are the honest lower bounds.
+
+Euler v1 queries the canonical proxy from block 0 through a finalized block.
+Euler v2 reports its own complete indexed range on every activity response. The
+adapter refuses partial, syncing or category-incomplete coverage and records
+the common mainnet range across all requested EVC owners.

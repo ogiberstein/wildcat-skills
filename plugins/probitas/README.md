@@ -85,7 +85,7 @@ routes do not change unless this option is passed.
 
 ### The fixtures
 
-Nine of them, covering both shipped venues and the cases worth being sure
+Eleven of them, covering all four shipped venues and the cases worth being sure
 about.
 
 For Wildcat: a clean record, a delinquency cured inside the grace period, a
@@ -97,6 +97,15 @@ For Morpho: a clean borrower, a liquidation the collateral covered, a
 liquidation that left bad debt behind, and again an empty one. The two
 liquidations are the pair that keeps the distinction honest, since only the
 second one cost anybody money.
+
+For Euler v2: an EVC owner with a borrow, repayment, interest accrual and
+liquidation, plus an empty event ledger. The fixture checks that interest
+accrual is omitted without losing the borrow and that liquidation debt and
+collateral retain their own decimals.
+
+For Euler v1: proxy-log borrow, repayment and liquidation events, plus an empty
+history. The fixture binds each log to its block hash and keeps the debt and
+collateral scales separate.
 
 `demo` combines a Wildcat default with Morpho bad debt, and is what the
 quickstart above runs.
@@ -146,7 +155,7 @@ rubric later finds the check already standing.
 
 ## Venues
 
-Thirteen in the registry, two with adapters. The other eleven appear in every
+Fifteen in the registry, four with adapters. The other eleven appear in every
 coverage table saying nobody checked, which is gate 2 working rather than an
 omission.
 
@@ -154,6 +163,8 @@ omission.
 | --- | --- |
 | Wildcat | Shipped. Public Goldsky subgraph, no key |
 | Morpho Blue | Shipped. Borrowing on Blue markets, keyless public API |
+| Euler v1 | Shipped. Canonical proxy event log through a keyless archival RPC |
+| Euler v2 | Shipped. Keyless V3 event ledger and liquidation API; Goldsky is not used for history |
 | Centrifuge | Keyless GraphQL, introspects cleanly. The most build-ready of the gaps |
 | Aave v3, Aave v4 | Keyless first-party API. v4 went live on mainnet in March 2026 |
 | MetaMorpho vaults, Morpho Vaults V2, Morpho Midnight | Three further Morpho surfaces, all keyless, none collected |
@@ -171,11 +182,14 @@ defaults, which makes it a list of counterparties who did not repay, sitting on
 chain and directly relevant to anyone they approach next. A dead protocol is
 not a dead record.
 
-The two that ship read differently on purpose. Wildcat is undercollateralised,
+The four that ship read differently on purpose. Wildcat is undercollateralised,
 so a missed reserve ratio is about the borrower. Morpho is overcollateralised,
 so a liquidation is about a price, and the dossier says so in as many words.
 Bad debt is the one Morpho signal that bears on conduct, and it gets its own
-line.
+line. Euler v1 reads the monolithic protocol proxy and preserves exact borrow,
+repayment and liquidation amounts. Euler v2 is also overcollateralised: it records borrows and repayments
+under the EVC owner, keeps the subaccount, and never labels a liquidation a
+default.
 
 [Adding a venue](docs/adding-a-venue.md) says what each gap actually is and
 what closing one takes. It assumes no knowledge of Wildcat.
@@ -196,6 +210,11 @@ first have to decide whether to trust forty transitive packages.
 
 - [`docs/adding-a-venue.md`](docs/adding-a-venue.md) -- every gap, what blocks
   it, and how to close one.
+- [`docs/euler-goldsky-discovery.md`](docs/euler-goldsky-discovery.md) -- the
+  preserved schemas, failed legacy probes, V3 event source and Euler v1
+  canonical-log source.
+- [`docs/euler-v1-thegraph-schema.graphql`](docs/euler-v1-thegraph-schema.graphql)
+  -- the current Euler v1 schema embedded by Graph Explorer.
 - [`docs/example-dossier.md`](docs/example-dossier.md) -- what the output
   looks like.
 - [`audit/AUDIT.md`](audit/AUDIT.md) -- every audit round, including the

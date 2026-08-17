@@ -1,0 +1,84 @@
+{
+  "finalized": {
+    "number": "0x112a880",
+    "timestamp": "0x6507a5c0",
+    "hash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "logs": [
+    {
+      "address": "0x27182842e098f60e3d576794a5bffb0777e025d3",
+      "removed": false,
+      "topics": [
+        "0x312a5e5e1079f5dda4e95dbbd0b908b291fd5b992ef22073643ab691572c5b52",
+        "0x000000000000000000000000a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+        "0x000000000000000000000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+      ],
+      "data": "0x00000000000000000000000000000000000000000000000000000000000003e8",
+      "blockNumber": "0xddbc05",
+      "transactionHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "transactionIndex": "0x0",
+      "blockHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "logIndex": "0x0"
+    },
+    {
+      "address": "0x27182842e098f60e3d576794a5bffb0777e025d3",
+      "removed": false,
+      "topics": [
+        "0x05f2eeda0e08e4b437f487c8d7d29b14537d15e3488170dc3de5dbdf8dac4684",
+        "0x000000000000000000000000a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+        "0x000000000000000000000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+      ],
+      "data": "0x0000000000000000000000000000000000000000000000000000000000000190",
+      "blockNumber": "0xddbc06",
+      "transactionHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "transactionIndex": "0x0",
+      "blockHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "logIndex": "0x0"
+    },
+    {
+      "address": "0x27182842e098f60e3d576794a5bffb0777e025d3",
+      "removed": false,
+      "topics": [
+        "0xbba0f1d6fb8b9abe2bbc543b7c13d43faba91c6f78da4700381c94041ac7267d",
+        "0x000000000000000000000000a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4",
+        "0x000000000000000000000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "0x000000000000000000000000a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+      ],
+      "data": "0x000000000000000000000000a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3000000000000000000000000000000000000000000000000000000000000025800000000000000000000000000000000000000000000000000000000000002bc0000000000000000000000000000000000000000000000000b1a2bc2ec50000000000000000000000000000000000000000000000000000000b1a2bc2ec50000000000000000000000000000000000000000000000000000016345785d8a0000",
+      "blockNumber": "0xddbc07",
+      "transactionHash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      "transactionIndex": "0x0",
+      "blockHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "logIndex": "0x0"
+    }
+  ],
+  "blocks": [
+    {
+      "number": "0xddbc05",
+      "timestamp": "0x624c5650",
+      "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "number": "0xddbc06",
+      "timestamp": "0x624c565c",
+      "hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "number": "0xddbc07",
+      "timestamp": "0x624c5668",
+      "hash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "tokens": [
+    {
+      "address": "0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+      "symbol": "USDC",
+      "decimals": 6
+    },
+    {
+      "address": "0xa3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
+      "symbol": "WETH",
+      "decimals": 18
+    }
+  ]
+}

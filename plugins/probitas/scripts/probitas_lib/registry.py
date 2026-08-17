@@ -57,6 +57,27 @@ VENUES = (
         "is the signal that bears on conduct.",
     ),
     Venue(
+        "euler-v1",
+        "Euler v1",
+        "ethereum",
+        True,
+        "none",
+        "Canonical Ethereum log from the Euler v1 proxy, read through a "
+        "keyless archival RPC. Borrow, Repay and Liquidation events carry "
+        "borrower-indexed addresses, exact integer amounts and transaction hashes.",
+    ),
+    Venue(
+        "euler",
+        "Euler v2",
+        "ethereum",
+        True,
+        "none",
+        "Keyless Euler V3 Data API event ledger, with complete indexed "
+        "coverage reported by /activity/accounts/<EVC owner>/events. "
+        "Liquidations are cross-checked against /liquidations and token "
+        "decimals are resolved from cached EVK vault metadata.",
+    ),
+    Venue(
         "metamorpho",
         "MetaMorpho vaults",
         "ethereum",

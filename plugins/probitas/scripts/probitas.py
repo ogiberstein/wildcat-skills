@@ -20,11 +20,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from probitas_lib import registry, sanitise  # noqa: E402
 from probitas_lib.adapters import run_adapter, unchecked_coverage  # noqa: E402
-from probitas_lib.adapters import morpho, wildcat  # noqa: E402
-from probitas_lib.evidence import Coverage, Evidence, EvidenceError, Gap, Record  # noqa: E402
+from probitas_lib.adapters import euler, euler_v1, morpho, wildcat  # noqa: E402
+from probitas_lib.evidence import (  # noqa: E402
+    Coverage,
+    Evidence,
+    EvidenceError,
+    Gap,
+    Record,
+)
 from probitas_lib import gates, render  # noqa: E402
 
 ADAPTERS = {
+    "euler": euler.adapter,
+    "euler-v1": euler_v1.adapter,
     "morpho-blue": morpho.adapter,
     "wildcat": wildcat.adapter,
 }

@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "chainId": 1,
+      "vault": "0x1111111111111111111111111111111111111111",
+      "violator": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "liquidator": "0x5555555555555555555555555555555555555555",
+      "collateral": "0x2222222222222222222222222222222222222222",
+      "repayAssets": "1000000",
+      "yieldBalance": "2000000000000000000",
+      "debtAsset": "0x3333333333333333333333333333333333333333",
+      "debtAssetDecimals": 6,
+      "collateralAsset": "0x4444444444444444444444444444444444444444",
+      "collateralAssetDecimals": 18,
+      "collateralAssets": "1900000000000000000",
+      "blockNumber": "22000300",
+      "txHash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "timestamp": "2026-01-04T00:00:00.000Z"
+    }
+  ],
+  "meta": {"total": 1, "offset": 0, "limit": 100, "timestamp": "2026-01-04T00:01:00.000Z", "chainId": "1"}
+}

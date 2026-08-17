@@ -11,6 +11,8 @@ from probitas_lib.evidence import Coverage, EvidenceError  # noqa: E402
 EXPECTED = {
     "wildcat",
     "morpho-blue",
+    "euler-v1",
+    "euler",
     "metamorpho",
     "morpho-vaults-v2",
     "morpho-midnight",

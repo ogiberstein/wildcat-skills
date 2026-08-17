@@ -1,0 +1,21 @@
+{
+  "data": [
+    {
+      "chainId": 1,
+      "address": "0x1111111111111111111111111111111111111111",
+      "name": "Euler USDC vault",
+      "symbol": "eUSDC",
+      "decimals": 6,
+      "asset": {"address": "0x3333333333333333333333333333333333333333", "symbol": "USDC", "decimals": 6, "name": "USD Coin"}
+    },
+    {
+      "chainId": 1,
+      "address": "0x2222222222222222222222222222222222222222",
+      "name": "Euler collateral vault",
+      "symbol": "eCOLL",
+      "decimals": 18,
+      "asset": {"address": "0x4444444444444444444444444444444444444444", "symbol": "COLL", "decimals": 18, "name": "Collateral"}
+    }
+  ],
+  "meta": {"count": 2, "requested": 2, "notFound": [], "timestamp": "2026-01-04T00:01:00.000Z", "chainId": "1"}
+}
