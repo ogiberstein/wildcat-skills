@@ -1,9 +1,18 @@
 ---
 name: hermes
 description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
+metadata:
+  version: "0.1.0"
 ---
 
 # hermes gas optimiser
+
+## Frontier
+
+Hermes owns its own gas-optimisation evidence frontier, not Hexaemeron's delivery or
+Solidity frontier. Its version, held target, next job, and maturity
+state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
+another frontier pass after that ledger becomes mature.
 
 <!-- marketplace-context:start -->
 ## Where this sits

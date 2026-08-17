@@ -1,9 +1,18 @@
 ---
 name: sapheneia
 description: Shape the agent's own replies for AuDHD readers with explicit actions, boundaries, state, evidence and next steps. Use when a user names Sapheneia or asks for ADHD-, autism- or AuDHD-shaped agent interaction, persistent working state, literal asks or a visible next action. Once active, apply it to commentary and final replies for the rest of the session until the user turns it off.
+metadata:
+  version: "0.1.0"
 ---
 
 # Sapheneia
+
+## Frontier
+
+Sapheneia owns its own interaction-shaping frontier, not Hexaemeron's delivery or
+Solidity frontier. Its version, held target, next job, and maturity
+state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
+another frontier pass after that ledger becomes mature.
 
 <!-- marketplace-context:start -->
 ## Where this sits

@@ -1,9 +1,18 @@
 ---
 name: chunk
 description: Turn Solidity solc standard JSON inputs or Markdown document trees into validated JSONL chunks with source locations and separate quotation, model, and embedding text. Use when asked to run Lemma, invoke lemma:chunk, prepare Solidity or Markdown for retrieval, generate citation-aware chunks, or inspect Lemma output. Do not use it to embed, index, retrieve, or answer from the chunks.
+metadata:
+  version: "0.1.0"
 ---
 
 # Chunk with Lemma
+
+## Frontier
+
+Chunk owns its own chunking and validation frontier, not Hexaemeron's delivery or
+Solidity frontier. Its version, held target, next job, and maturity
+state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
+another frontier pass after that ledger becomes mature.
 
 <!-- marketplace-context:start -->
 ## Where this sits

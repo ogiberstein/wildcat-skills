@@ -14,6 +14,13 @@ metadata:
 
 # Ariadne
 
+## Frontier
+
+Ariadne owns its own attestation-predicate frontier, not Hexaemeron's delivery or
+Solidity frontier. Its version, held target, next job, and maturity
+state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
+another frontier pass after that ledger becomes mature.
+
 <!-- marketplace-context:start -->
 ## Where this sits
 
