@@ -47,6 +47,11 @@ def counted(number, singular, plural, capitalised=False):
 
 PREAMBLE = """# The catalogue
 
+Pandects supplies executable laws for credit contracts, each paired with a
+deliberately broken specimen and a reduced counterexample. Use Fizz to generate
+a protocol-specific harness. Nine laws ship here; broader families remain in
+the planning specification.
+
 %s in %s, rendered for a reader. The catalogue itself is
 `catalogue/pandects.json`, and a test fails if this document and that file stop
 naming the same laws, so this is a rendering rather than a second source.

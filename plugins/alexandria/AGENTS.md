@@ -1,5 +1,9 @@
 # Alexandria runtime contract
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The production Compound v3 harvester is specified and not implemented.
+<!-- marketplace-context:end -->
+
 Alexandria contains one Agent Skill. Select it from this table, then read the
 chosen `SKILL.md` in full.
 

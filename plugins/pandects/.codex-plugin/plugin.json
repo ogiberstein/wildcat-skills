@@ -1,7 +1,7 @@
 {
   "name": "pandects",
   "version": "0.1.0",
-  "description": "Executable laws for credit contracts: each one a Solidity component, a broken specimen it is proven to catch, a counterexample replayable without a fuzzer, and a statement of where it means anything.",
+  "description": "Executable credit laws with broken specimens and reduced counterexamples.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"
@@ -21,7 +21,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Pandects",
-    "shortDescription": "Executable laws for credit contracts, each proven against a contract built to break it.",
+    "shortDescription": "Executable credit laws with broken specimens and reduced counterexamples.",
     "longDescription": "A fuzzer searches a state space; it cannot decide which economic facts must survive that search. Generic token properties cover balances, approvals and round trips, while credit adds time, accrual, queues, changing terms, delinquency and claims that are neither liquid nor reducible to a token balance. Pandects is the reviewed corpus of those facts, in which a law is not a sentence: it is a Solidity component that executes, a deliberately broken contract it is proven to catch, a minimal counterexample replayable without a fuzzer, and an applicability contract saying which accounting model it means anything for. Laws read economic roles through an observables interface, so no law names an implementation. A law returns rather than reverts, because under fail_on_revert a revert carries no verdict. Nothing here is a fuzzer, a harness generator or a generic assertion library.",
     "developerName": "Wildcat Labs",
     "category": "Developer Tools",

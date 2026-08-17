@@ -1,5 +1,9 @@
 # Alexandria study
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The production Compound v3 harvester is specified and not implemented.
+<!-- marketplace-context:end -->
+
 This is the historical staging study that selected Alexandria's design. Its
 future tense and repository references describe the work before the prototype
 was built. The public README and skill state what now ships.

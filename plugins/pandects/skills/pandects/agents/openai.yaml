@@ -1,4 +1,4 @@
 interface:
   display_name: "Pandects"
-  short_description: "Executable laws for credit contracts, each proven against a contract built to break it"
-  default_prompt: "Use $pandects to check this credit protocol against the executable laws in the corpus."
+  short_description: "Executable credit laws with broken specimens and reduced counterexamples."
+  default_prompt: "Use Pandects to select, run or add executable credit laws without claiming more than the recorded search established."

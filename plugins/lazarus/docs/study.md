@@ -1,5 +1,9 @@
 # Lazarus study
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Preservation-pipeline integration and an Ariadne state-fixture predicate remain follow-on work.
+<!-- marketplace-context:end -->
+
 ## Problem statement
 
 Lazarus captures the finite part of historical Ethereum state that one

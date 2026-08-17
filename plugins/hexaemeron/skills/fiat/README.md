@@ -12,6 +12,16 @@ metadata:
 
 # Fiat
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own.
+
+**Use another tool when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
+
+**Current frontier.** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+<!-- marketplace-context:end -->
+
 Let there be light.
 
 Drive the whole loop from durable controller state, never from conversation

@@ -1,5 +1,9 @@
 # The Solidity release predicate
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+<!-- marketplace-context:end -->
+
 Type URI: `https://ariadne.wildcat.finance/solidity-release/v1`.
 Schema: [`schemas/solidity-release-v1.json`](../schemas/solidity-release-v1.json).
 

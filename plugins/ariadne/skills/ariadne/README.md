@@ -14,6 +14,16 @@ metadata:
 
 # Ariadne
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
+
+**Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
+
+**Current frontier.** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+<!-- marketplace-context:end -->
+
 A release publishes a claim. The evidence behind it sits somewhere else, joined
 by a URL and a promise: the compiler that produced the bytecode, the test run,
 the fuzz campaign, the audit and its scope, the deployment. Ariadne writes the

@@ -1,5 +1,15 @@
 # Lemma
 
+<!-- marketplace-context:start -->
+## In one line
+
+Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text.
+
+**Try something else when.** It does not embed, index, retrieve or answer; Berean is the adjacent unbuilt release discipline for a grounded protocol agent.
+
+**Current frontier.** No retrieval system is shipped or promised here; the plugin stops after validated chunking.
+<!-- marketplace-context:end -->
+
 Lemma turns Solidity compiler inputs and Markdown documents into JSONL chunks.
 Each chunk uses the same schema and records enough source information for a
 downstream system to distinguish quoted source text from assembled text.

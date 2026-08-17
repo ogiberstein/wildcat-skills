@@ -2,7 +2,28 @@
 
 Agent skills written and used by [Wildcat Labs](https://wildcat.finance).
 
-This is where we publish workflows that have earned more than a prompt. Each plugin gets a narrow job, a clear trigger, and whatever scripts, references and tests it needs to make the result checkable. Read a plugin before running it: skills can execute commands and edit source.
+This is where we publish workflows that have earned more than a prompt. Each
+plugin has a narrow job, a clear trigger and enough code, evidence and tests to
+make its result checkable. Read a plugin before running it: skills can execute
+commands and edit source.
+
+## Choose the job, then the plugin
+
+The names are memorable; the boundaries matter more. This is the short map of
+what each plugin does, where it hands work over and what is honestly left to
+build.
+
+| Plugin | Use it for | Try this instead | Current frontier |
+| --- | --- | --- | --- |
+| [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Tabularium for semantic event mapping; Probitas for a dossier. | The specified production Compound v3 harvester is not implemented. |
+| [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | An external Sigstore or cosign verifier for signatures. | Dataset, state-fixture and grounded-agent predicates are specified but not implemented. |
+| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Pandects or the audit skills for broader behavioural and security work. | No follow-on is published. |
+| [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, or using its fuzzing, audit and prose skills separately. | A named bundled skill when the controller is unnecessary. | No follow-on is published; the controller and bundled skills are the shipped boundary. |
+| [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | An embedding, index, retrieval or answering system for every later stage. | Berean is the adjacent unbuilt agent-release specification. |
+| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline and Ariadne state-fixture integration remain follow-on work. |
+| [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | Nine laws ship; broader families remain in the planning specification. |
+| [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 is tracked in [issue #57](https://github.com/wildcat-finance/skills/issues/57); Morpho Midnight and curation remain in planning. |
+| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Compound v3 schema and adapter work is specified; Euler v1/v2 preservation is tracked in [issue #57](https://github.com/wildcat-finance/skills/issues/57). |
 
 ## Plugins
 

@@ -1,7 +1,7 @@
 {
   "name": "alexandria",
   "version": "0.1.0",
-  "description": "Digest-bound lending-data releases with explicit capture coverage and a narrow Tabularium credit view for Probitas.",
+  "description": "Digest-bound lending-data releases with reviewed credit views and address queries.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"
@@ -18,7 +18,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Alexandria",
-    "shortDescription": "Digest-bound lending-data archive and credit view",
+    "shortDescription": "Digest-bound lending-data releases with reviewed credit views and address queries.",
     "longDescription": "Alexandria preserves heterogeneous lending-protocol captures as unchanged digest-addressed objects, binds them to exact scope and coverage, derives reviewed Goldfinch and Clearpool credit rows, and rebuilds a disposable address index for Probitas. Verification is offline. The Compound v3 collector is specified but not implemented.",
     "developerName": "Wildcat Labs",
     "category": "Research",

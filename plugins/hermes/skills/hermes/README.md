@@ -5,6 +5,16 @@ description: Optimise Solidity gas usage with an executable, fail-closed Foundry
 
 # hermes gas optimiser
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate.
+
+**Use another tool when.** Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review.
+
+**Current frontier.** There is no published follow-on; the shipped catalogue and fail-closed loop are the current boundary.
+<!-- marketplace-context:end -->
+
 The ideas are cheap. The evidence is the job.
 
 Use `scripts/hermes.py` for every run. It owns the order, seals the baseline, writes the evidence, and exits non-zero at the first bad gate. Use [references/optimisation-catalogue.md](references/optimisation-catalogue.md) to pick a candidate class.

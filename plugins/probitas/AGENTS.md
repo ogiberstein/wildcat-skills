@@ -1,5 +1,9 @@
 # Probitas runtime contract
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Probitas.** Probitas builds a sourced record of what a counterparty did across lending venues from addresses they declared, without identifying a person or issuing a Wildcat verdict. Use Alexandria for archived lending inputs and Tabularium when the job is publishing a reusable credit-event release rather than assessing one counterparty. **Current frontier:** Euler v1/v2 coverage is tracked in wildcat-finance/skills#57; Morpho Midnight and curation remain tracked in the planning repository.
+<!-- marketplace-context:end -->
+
 Probitas contains one Agent Skill. Select from this table, then read the chosen
 `SKILL.md` in full.
 

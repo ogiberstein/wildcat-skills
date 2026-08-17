@@ -18,7 +18,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Hermes",
-    "shortDescription": "Measure Solidity gas savings and reject regressions.",
+    "shortDescription": "Fail-closed Solidity gas optimisation with measured Foundry evidence.",
     "longDescription": "Runs one Solidity gas-optimisation class at a time through measured Foundry checks, full tests, layout and selector diffs, and targeted accrual proofs.",
     "developerName": "Wildcat Labs",
     "category": "Developer Tools",

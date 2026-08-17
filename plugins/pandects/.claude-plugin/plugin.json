@@ -2,7 +2,7 @@
   "name": "pandects",
   "displayName": "Pandects",
   "version": "0.1.0",
-  "description": "Executable laws for credit contracts: each one a Solidity component, a broken specimen it is proven to catch, a counterexample replayable without a fuzzer, and a statement of where it means anything.",
+  "description": "Executable credit laws with broken specimens and reduced counterexamples.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"

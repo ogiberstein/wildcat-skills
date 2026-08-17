@@ -5,6 +5,16 @@ description: Rewrite AI-assisted or generic text into a plain human register -- 
 
 # Vulgate
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own.
+
+**Use another tool when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
+
+**Current frontier.** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+<!-- marketplace-context:end -->
+
 A voice mask: it renders machine-register text into the common tongue. The
 output should read as though a busy, competent person wrote it -- someone who
 says the thing and stops.

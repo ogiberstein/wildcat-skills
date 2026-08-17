@@ -1,7 +1,7 @@
 {
   "name": "probitas",
   "version": "0.1.0",
-  "description": "Sourced dossier of a counterparty's on-chain lending record: every assertion carries a transaction hash, a URL or a document reference, and the gaps are named out loud.",
+  "description": "Sourced counterparty lending dossiers from declared addresses, with coverage gaps kept visible.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"
@@ -20,7 +20,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Probitas",
-    "shortDescription": "Sourced dossier of a counterparty's on-chain lending record, with the gaps named out loud.",
+    "shortDescription": "Sourced counterparty lending dossiers from declared addresses, with coverage gaps kept visible.",
     "longDescription": "Takes an entity name and the wallet addresses a counterparty has declared, and produces a dossier a lender can act on: what they borrowed across on-chain lending venues, whether they gave it back, and what could not be established. A deterministic collector queries venue adapters and writes an evidence file in which a record cannot exist without a transaction hash, a URL or a document reference. The model writes the narrative and a gate checker binds it afterwards, so a citation-shaped sentence with nothing behind it fails the document rather than shipping in it. Coverage is stated: a venue nobody checked is a named line saying so, not silence that reads as a clean record. No personal data, no social graph, no working out which individual controls an address, and no score without a rubric printed beside it.",
     "developerName": "Wildcat Labs",
     "category": "Research",

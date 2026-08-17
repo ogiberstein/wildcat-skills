@@ -1,5 +1,9 @@
 # Applicability
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+<!-- marketplace-context:end -->
+
 The rules a law obeys, stated once here rather than nine times in nine
 docstrings.
 

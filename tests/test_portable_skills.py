@@ -12,9 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 class PortableSkillTests(unittest.TestCase):
     def test_plugin_manifests_name_the_public_repository(self):
         repository = "https://github.com/wildcat-finance/skills"
-        for plugin in sorted((ROOT / "plugins").iterdir()):
-            if not plugin.is_dir():
-                continue
+        marketplace = json.loads(
+            (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+        )
+        for name in sorted(entry["name"] for entry in marketplace["plugins"]):
+            plugin = ROOT / "plugins" / name
             for host in (".claude-plugin", ".codex-plugin"):
                 manifest = json.loads(
                     (plugin / host / "plugin.json").read_text(encoding="utf-8")

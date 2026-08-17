@@ -1,9 +1,19 @@
 ---
 name: ariadne
-description: Route a request about release evidence statements to the canonical Ariadne instructions. Use when the user names Ariadne, hands over an attestation and asks what it covers, or wants a release bound to the build, test, review and deployment evidence behind it. Ariadne neither signs nor verifies signatures.
+description: Route release-evidence work to Ariadne. Use it to bind an artefact digest to build, test, review and deployment evidence; use an external Sigstore or cosign verifier for signatures.
 ---
 
 # Ariadne portable entrypoint
+
+<!-- marketplace-context:start -->
+## Where this sits
+
+Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
+
+**Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
+
+**Current frontier.** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+<!-- marketplace-context:end -->
 
 Read [the Ariadne runtime contract](../../../plugins/ariadne/AGENTS.md). Use its
 selection table to choose the skill, then read that canonical `SKILL.md` in full

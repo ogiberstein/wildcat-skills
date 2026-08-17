@@ -1,5 +1,9 @@
 # The corpus against a Wildcat market
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+<!-- marketplace-context:end -->
+
 `WildcatMarketModel.sol` is a reduced model, not a reimplementation. It keeps
 the shape the corpus has to survive -- withdrawals pooled into batches, a
 reserve the borrower may not touch, delinquency, and a penalty rate on top of

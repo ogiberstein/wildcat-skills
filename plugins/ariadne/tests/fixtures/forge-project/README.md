@@ -1,5 +1,9 @@
 # The Foundry fixture project
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+<!-- marketplace-context:end -->
+
 Two versions of one contract, with their build output committed. The tests read
 this output rather than running `forge`, so nothing in the suite needs a
 Solidity toolchain.

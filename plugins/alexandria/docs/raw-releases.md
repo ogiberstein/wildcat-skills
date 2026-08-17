@@ -1,5 +1,9 @@
 # Raw releases
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The production Compound v3 harvester is specified and not implemented.
+<!-- marketplace-context:end -->
+
 Alexandria ingests local source files into a self-contained release directory.
 It does not fetch, interpret or rewrite them.
 

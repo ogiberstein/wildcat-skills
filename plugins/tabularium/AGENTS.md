@@ -1,5 +1,9 @@
 # Tabularium runtime contract
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 schema and adapter work is specified; Euler v1/v2 preservation is tracked in wildcat-finance/skills#57.
+<!-- marketplace-context:end -->
+
 Tabularium contains one Agent Skill. Select from this table, then read the
 chosen `SKILL.md` in full.
 

@@ -1,7 +1,7 @@
 {
   "name": "lemma",
   "version": "0.1.0",
-  "description": "Chunk Solidity compiler inputs and Markdown documents into source-linked JSONL.",
+  "description": "Source-linked JSONL chunks from Solidity compiler inputs and Markdown documents.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"
@@ -19,7 +19,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Lemma",
-    "shortDescription": "Chunk Solidity and Markdown into source-linked JSONL.",
+    "shortDescription": "Source-linked JSONL chunks from Solidity compiler inputs and Markdown documents.",
     "longDescription": "Runs one of two standard-library Python chunkers: Solidity from solc standard JSON input, or Markdown from a document tree. The output uses a shared schema that separates source text used for quotation from model and embedding text. Lemma does not embed, index, retrieve, or answer from the chunks.",
     "developerName": "Wildcat Labs",
     "category": "Developer Tools",

@@ -1,9 +1,19 @@
 ---
 name: alexandria
-description: Route requests to preserve lending-protocol captures by digest and expose a narrow, source-bound credit view to the canonical Alexandria instructions. Use when the user names Alexandria or asks for an address-queryable archive for Tabularium or Probitas. Raw ingest and verification, Goldfinch and Clearpool derivation, disposable indexing, address queries and an offline demonstration are available.
+description: Route lending-data preservation, reviewed credit-view and verified address-query work to Alexandria. Use it for digest-bound releases with explicit coverage; use Tabularium for semantic event releases or Probitas for a dossier.
 ---
 
 # Alexandria portable entrypoint
+
+<!-- marketplace-context:start -->
+## Where this sits
+
+Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend.
+
+**Use another tool when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
+
+**Current frontier.** The production Compound v3 harvester is specified and not implemented.
+<!-- marketplace-context:end -->
 
 Read [the Alexandria runtime contract](../../../plugins/alexandria/AGENTS.md).
 Use its selection table to choose the skill, then read the canonical

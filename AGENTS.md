@@ -5,6 +5,18 @@ because its files are present in context. Match the user's request against the
 portable entries under `.agents/skills/`, load the selected entry, and follow
 the canonical `SKILL.md` it names.
 
+## Marketplace boundaries
+
+The nine plugins form one marketplace, not nine competing descriptions of the
+same job. Alexandria preserves lending inputs; Tabularium interprets preserved
+venue records; Probitas assembles a counterparty dossier. Lazarus preserves the
+finite historical Ethereum state and exact RPC traffic a test needs, while
+Ariadne binds a released artefact digest to its evidence. Pandects supplies
+reviewed credit laws, Hermes measures a single gas-optimisation class,
+Hexaemeron controls a receipted delivery loop and Lemma stops after producing
+source-linked chunks. If a request crosses one of those boundaries, hand it to
+the named sibling rather than broadening the selected skill.
+
 ## Repository map
 
 - Alexandria is under `plugins/alexandria/`. Read

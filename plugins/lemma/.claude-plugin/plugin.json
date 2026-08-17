@@ -2,7 +2,7 @@
   "name": "lemma",
   "displayName": "Lemma",
   "version": "0.1.0",
-  "description": "Chunk Solidity compiler inputs and Markdown documents into source-linked JSONL.",
+  "description": "Source-linked JSONL chunks from Solidity compiler inputs and Markdown documents.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"

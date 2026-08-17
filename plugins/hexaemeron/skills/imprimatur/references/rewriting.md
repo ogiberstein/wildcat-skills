@@ -1,5 +1,9 @@
 # Rewriting
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+<!-- marketplace-context:end -->
+
 What to do once the lint finds something. Absorbed from upstream (see `NOTICE.md`), compressed.
 
 ## Order of operations

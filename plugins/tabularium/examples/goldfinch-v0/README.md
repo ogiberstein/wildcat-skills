@@ -1,5 +1,9 @@
 # Goldfinch borrower record v0
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 schema and adapter work is specified; Euler v1/v2 preservation is tracked in wildcat-finance/skills#57.
+<!-- marketplace-context:end -->
+
 This directory is a complete, offline-verifiable Tabularium release made from
 the preserved Goldfinch borrower snapshot. It maps 34 `borrows` and 477
 `repays` into 511 canonical rows. A Goldfinch repayment row records the venue's

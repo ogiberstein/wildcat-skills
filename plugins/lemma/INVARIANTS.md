@@ -1,5 +1,9 @@
 # Invariants
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Lemma.** Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text. It does not embed, index, retrieve or answer; Berean is the adjacent unbuilt release discipline for a grounded protocol agent. **Current frontier:** No retrieval system is shipped or promised here; the plugin stops after validated chunking.
+<!-- marketplace-context:end -->
+
 This document states the current chunker guarantees, the classes of defect
 adversarial review has found in them, and the residual weak points. A past
 finding is recorded where it explains a non-obvious design decision or a

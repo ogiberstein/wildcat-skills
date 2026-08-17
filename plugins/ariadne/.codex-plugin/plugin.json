@@ -1,7 +1,7 @@
 {
   "name": "ariadne",
   "version": "0.1.0",
-  "description": "Release evidence another person can check: an in-toto statement core with a predicate registry and gates that keep absence visible, without signing or verifying signatures.",
+  "description": "Release evidence statements binding artefact digests to the record behind them.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"
@@ -20,7 +20,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Ariadne",
-    "shortDescription": "Release evidence statements with absences kept visible.",
+    "shortDescription": "Release evidence statements binding artefact digests to the record behind them.",
     "longDescription": "A release publishes a claim while the evidence behind it sits somewhere else, joined by a URL and a promise. Ariadne records the join in a statement whose subject is a digest, using in-toto's structure and optionally DSSE's envelope. Every claim names the exact digest it covers, skipped and failed work stays in the record, a result is never upgraded into a verdict, and a comparison fails when either baseline cannot be identified. The core is artefact-neutral, so datasets, chain-state fixtures, and contract releases can share the gates without sharing a schema. Ariadne holds no signing key, produces no signature, and checks no signature. Cosign performs signing and signature verification outside Ariadne.",
     "developerName": "Wildcat Labs",
     "category": "Developer Tools",
