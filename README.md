@@ -333,7 +333,7 @@ Tabularium includes:
   releases with their own dictionaries and rebuild demonstrations;
 - an [adapter guide](./plugins/tabularium/docs/adding-an-adapter.md) and an
   immutable [release policy](./plugins/tabularium/docs/release-policy.md); and
-- 118 tests and an audit log
+- 121 tests and an audit log
   ([`audit/AUDIT.md`](./plugins/tabularium/audit/AUDIT.md)) recording every
   review round and fix.
 

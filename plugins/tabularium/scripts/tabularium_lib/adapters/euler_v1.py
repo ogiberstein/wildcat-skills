@@ -129,6 +129,24 @@ def map_source(source, capture):
     selectors = [event["provenance"]["source_selector"] for event in events]
     if len(selectors) != len(set(selectors)):
         raise TabulariumError("Euler v1 source repeats a transaction/log selector")
+    block_hashes = {}
+    transactions = {}
+    for event in events:
+        transaction = event["transaction"]
+        block_number = transaction["block_number"]
+        block_hash = transaction["block_hash"]
+        if block_number in block_hashes and block_hashes[block_number] != block_hash:
+            raise TabulariumError("Euler v1 source gives one block conflicting hashes")
+        block_hashes[block_number] = block_hash
+        transaction_context = (
+            block_number,
+            block_hash,
+            transaction["transaction_index"],
+        )
+        transaction_hash = transaction["hash"]
+        if transaction_hash in transactions and transactions[transaction_hash] != transaction_context:
+            raise TabulariumError("Euler v1 source gives one transaction conflicting metadata")
+        transactions[transaction_hash] = transaction_context
     events.sort(key=lambda item: (
         item["transaction"]["block_number"],
         item["transaction"]["transaction_index"],

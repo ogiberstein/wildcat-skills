@@ -61,6 +61,15 @@ class EulerV1AdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(TabulariumError, "different borrower"):
             euler_v1.map_source(source, self.capture)
 
+    def test_one_block_cannot_have_conflicting_hashes(self):
+        source = deepcopy(self.source)
+        duplicate = deepcopy(source["result"][0])
+        duplicate["blockHash"] = "0x" + "44" * 32
+        duplicate["logIndex"] = "0x210"
+        source["result"].append(duplicate)
+        with self.assertRaisesRegex(TabulariumError, "conflicting hashes"):
+            euler_v1.map_source(source, self.capture)
+
 
 class EulerV2AdapterTests(unittest.TestCase):
     def setUp(self):
@@ -132,6 +141,20 @@ class EulerV2AdapterTests(unittest.TestCase):
         source = deepcopy(self.source)
         source["meta"]["coverage"]["chains"][0]["indexedToBlock"] = "9" * 5000
         with self.assertRaisesRegex(TabulariumError, "safe integer"):
+            euler_v2.map_source(source, self.capture)
+
+    def test_reversed_reported_coverage_fails_even_without_events(self):
+        source = deepcopy(self.source)
+        source["data"] = []
+        chain = source["meta"]["coverage"]["chains"][0]
+        chain["indexedFromBlock"], chain["indexedToBlock"] = "25774728", "20529207"
+        with self.assertRaisesRegex(TabulariumError, "reversed indexed range"):
+            euler_v2.map_source(source, self.capture)
+
+    def test_one_transaction_cannot_have_conflicting_metadata(self):
+        source = deepcopy(self.source)
+        source["data"][0]["blockNumber"] = "25771829"
+        with self.assertRaisesRegex(TabulariumError, "conflicting metadata"):
             euler_v2.map_source(source, self.capture)
 
 

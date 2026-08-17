@@ -174,10 +174,11 @@ def _coverage(source):
         raise TabulariumError("Euler V3 response does not report complete mainnet coverage")
     if list_(required(chain, "missingCategories", "coverage.chains[0]"), "coverage.chains[0].missingCategories"):
         raise TabulariumError("Euler V3 mainnet coverage reports missing categories")
-    return (
-        bounded_decimal_integer(chain, "indexedFromBlock", "coverage.chains[0]"),
-        bounded_decimal_integer(chain, "indexedToBlock", "coverage.chains[0]"),
-    )
+    first = bounded_decimal_integer(chain, "indexedFromBlock", "coverage.chains[0]")
+    last = bounded_decimal_integer(chain, "indexedToBlock", "coverage.chains[0]")
+    if first > last:
+        raise TabulariumError("Euler V3 response reports a reversed indexed range")
+    return first, last
 
 
 def map_source(source, capture):
@@ -209,6 +210,14 @@ def map_source(source, capture):
     ]
     if len(identities) != len(set(identities)):
         raise TabulariumError("Euler V3 response repeats a transaction/log identity")
+    transactions = {}
+    for event in events:
+        transaction = event["transaction"]
+        context = (transaction["block_number"], transaction["timestamp"])
+        transaction_hash = transaction["hash"]
+        if transaction_hash in transactions and transactions[transaction_hash] != context:
+            raise TabulariumError("Euler V3 response gives one transaction conflicting metadata")
+        transactions[transaction_hash] = context
     events.sort(key=lambda item: (
         item["transaction"]["block_number"],
         item["transaction"]["hash"],
