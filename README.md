@@ -2,10 +2,10 @@
 
 Agent skills written and used by [Wildcat Labs](https://wildcat.finance).
 
-This is where we publish workflows that have earned more than a prompt. Each
-plugin has a narrow job, a clear trigger and enough code, evidence and tests to
-make its result checkable. Read a plugin before running it: skills can execute
-commands and edit source.
+This is where we publish workflows and agent contracts that are worth keeping.
+Each plugin has a narrow job, a clear trigger and the instructions, code,
+evidence or tests that job needs. Read a plugin before running it: skills can
+execute commands and edit source.
 
 ## Choose the job, then the plugin
 
@@ -23,6 +23,7 @@ build.
 | [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
 | [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches. |
 | [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
+| [Sapheneia](./plugins/sapheneia) | Shaping the agent's own replies so an AuDHD reader can see the action, boundaries, state and evidence. | Imprimatur for prose linting; Vulgate or another voice mask for register. | Cross-model behaviour has not yet been held against a published AuDHD task corpus. |
 | [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented. |
 
 ## Plugins
@@ -302,6 +303,39 @@ Probitas includes:
 
 **Security and audit.** A document arrives asserting things about a counterparty and you have to decide whether to believe it. Run `verify` against the evidence file it came with: every figure in the document has to trace back to a record with a transaction hash, and one that does not fails the check by arithmetic rather than by your reading it closely.
 
+### Sapheneia
+
+[Sapheneia](./plugins/sapheneia) shapes the agent's own replies for AuDHD
+engineers. It keeps the next action, task boundary, done condition, current
+state, evidence and unknowns visible from turn to turn.
+
+The contract sits upstream of whatever the agent is producing. It applies to
+commentary, progress updates, questions, errors and final replies for the rest
+of the session once selected. It does not diagnose the reader, and it yields
+as soon as the reader states a different preference.
+
+The ten rules are ranked. The first line carries the action or finished result;
+asks are literal and labelled; multi-step work has one active step; facts,
+assumptions and unknowns stay separate; and unfinished work ends with one next
+action. Imprimatur remains the prose lint, and a voice mask remains responsible
+for register.
+
+Sapheneia includes:
+
+- one canonical [`SKILL.md`](./plugins/sapheneia/skills/sapheneia/SKILL.md) shared by Codex, Claude Code and portable agents;
+- an agent-facing runtime contract that makes the agent itself the subject;
+- contract tests that hold the ranked rule count, persistence language, host descriptions and portable links together.
+
+#### Day to day
+
+**Developers.** A coding task spans several turns and the current step keeps
+falling out of view. Sapheneia keeps one step active, says what changed and
+what was verified, and ends with one next action.
+
+**Security and audit.** A finding mixes observed behaviour, inference and an
+untested assumption. Sapheneia labels each one and keeps the risk-bearing
+qualification attached to the decision it changes.
+
 ### Tabularium
 
 [Tabularium](./plugins/tabularium) preserves on-chain credit events in a form
@@ -374,14 +408,14 @@ economic meaning attached.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Alexandria | Ariadne | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 7 |
-| Security and audit | 8 | 9 | 7 | 8 | 4 | 8 | 9 | 5 | 7 |
-| Marketing | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 |
-| Business development | 6 | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 3 |
-| Finance | 8 | 1 | 3 | 4 | 1 | 2 | 2 | 7 | 7 |
-| Legal | 3 | 3 | 1 | 4 | 1 | 2 | 2 | 4 | 2 |
+| Role | Alexandria | Ariadne | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 8 | 7 |
+| Security and audit | 8 | 9 | 7 | 8 | 4 | 8 | 9 | 5 | 7 | 7 |
+| Marketing | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 3 | 1 |
+| Business development | 6 | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 4 | 3 |
+| Finance | 8 | 1 | 3 | 4 | 1 | 2 | 2 | 7 | 4 | 7 |
+| Legal | 3 | 3 | 1 | 4 | 1 | 2 | 2 | 4 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -420,6 +454,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin install lazarus@wildcat-labs
 /plugin install pandects@wildcat-labs
 /plugin install probitas@wildcat-labs
+/plugin install sapheneia@wildcat-labs
 /plugin install tabularium@wildcat-labs
 ```
 
@@ -471,6 +506,12 @@ Probitas is available as:
 /probitas:probitas
 ```
 
+Sapheneia is available as:
+
+```text
+/sapheneia:sapheneia
+```
+
 Tabularium is available as:
 
 ```text
@@ -481,7 +522,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the nine
+Agents that support the open Agent Skills convention can discover the ten
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -505,6 +546,7 @@ Use Lemma to chunk this Solidity standard input into JSONL.
 Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
 Use Pandects to check this credit protocol against the executable laws in the corpus.
 Use Probitas to build a dossier on this counterparty from the addresses they declared.
+Use Sapheneia to shape your replies for an AuDHD reader for the rest of this task.
 Use Tabularium to build and verify a source-bound Goldfinch, Euler v1 or Euler V2 credit-event release.
 ```
 
@@ -574,6 +616,15 @@ Use $probitas to build a sourced dossier on "<entity>" from the addresses they d
 ```
 
 The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./plugins/probitas/skills/probitas/SKILL.md).
+
+Sapheneia needs no runtime dependency. Ask:
+
+```text
+Use $sapheneia to shape your replies for an AuDHD reader throughout this task.
+```
+
+The activation contract and ten ranked rules live in
+[Sapheneia's `SKILL.md`](./plugins/sapheneia/skills/sapheneia/SKILL.md).
 
 Tabularium needs Python 3.9 or later and nothing else. Its shipped releases and
 tests use no network. Ask:
@@ -676,6 +727,13 @@ plugins/
 │   ├── tests/
 │   └── skills/
 │       └── probitas/
+├── sapheneia/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── AGENTS.md
+│   ├── tests/
+│   └── skills/
+│       └── sapheneia/
 └── tabularium/
     ├── .claude-plugin/plugin.json
     ├── .codex-plugin/plugin.json

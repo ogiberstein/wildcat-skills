@@ -29,6 +29,18 @@
       "category": "Developer Tools"
     },
     {
+      "name": "sapheneia",
+      "source": {
+        "source": "local",
+        "path": "./plugins/sapheneia"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
       "name": "probitas",
       "source": {
         "source": "local",
