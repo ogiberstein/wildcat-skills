@@ -73,6 +73,14 @@ def decimal(mapping, key, where):
     return value
 
 
+def bounded_decimal_integer(mapping, key, where, maximum=MAX_SAFE_INTEGER):
+    value = decimal(mapping, key, where)
+    limit = str(maximum)
+    if len(value) > len(limit) or (len(value) == len(limit) and value > limit):
+        raise TabulariumError("%s.%s is outside the safe integer range" % (where, key))
+    return int(value)
+
+
 def hex_integer(value, where):
     if not isinstance(value, str) or not value.startswith("0x") or not value[2:]:
         raise TabulariumError("%s is not a JSON-RPC hex integer" % where)

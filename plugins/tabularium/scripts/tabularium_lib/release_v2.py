@@ -1,5 +1,6 @@
 """Capture and coverage contracts for Euler event-schema v2 releases."""
 
+from datetime import datetime, timezone
 import re
 
 from .adapters import euler_v1, euler_v2
@@ -57,6 +58,17 @@ def _text(value, where):
     return value
 
 
+def _utc_timestamp(value, where):
+    value = _text(value, where)
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise TabulariumError("%s is not an ISO-8601 timestamp" % where) from error
+    if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+        raise TabulariumError("%s is not a UTC timestamp" % where)
+    return value
+
+
 def _digest(value, where):
     value = _text(value, where)
     if not HEX64.fullmatch(value):
@@ -93,7 +105,7 @@ def validate_capture(capture, source, source_bytes, expected_adapter=None):
         raise TabulariumError("capture protocol generation does not match its adapter")
     if capture["source_api"] != module.SOURCE_API:
         raise TabulariumError("capture source API does not match its adapter")
-    _text(capture["captured_at"], "capture manifest.captured_at")
+    captured_at = _utc_timestamp(capture["captured_at"], "capture manifest.captured_at")
     _text(capture["endpoint"], "capture manifest.endpoint")
     _object(capture["request"], "capture manifest.request")
     scope = _object(capture["scope"], "capture manifest.scope")
@@ -160,6 +172,9 @@ def validate_capture(capture, source, source_bytes, expected_adapter=None):
         }
         if capture["request"] != expected_request:
             raise TabulariumError("capture request does not match the Euler V3 scope")
+        source_meta = _object(source.get("meta"), "Euler V3 response.meta")
+        if _utc_timestamp(source_meta.get("timestamp"), "Euler V3 response.meta.timestamp") != captured_at:
+            raise TabulariumError("capture timestamp does not match the Euler V3 response")
     mapped = module.map_source(source, capture)
     return module, mapped
 

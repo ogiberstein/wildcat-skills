@@ -120,6 +120,20 @@ class EulerV2AdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(TabulariumError, "query scope"):
             euler_v2.map_source(source, self.capture)
 
+    def test_duplicate_transaction_log_identity_fails_even_with_distinct_ids(self):
+        source = deepcopy(self.source)
+        duplicate = deepcopy(source["data"][0])
+        duplicate["id"] = "v3-ponder:distinct-id:same-log"
+        source["data"] = [source["data"][0], duplicate]
+        with self.assertRaisesRegex(TabulariumError, "transaction/log identity"):
+            euler_v2.map_source(source, self.capture)
+
+    def test_huge_decimal_coverage_boundary_is_a_controlled_failure(self):
+        source = deepcopy(self.source)
+        source["meta"]["coverage"]["chains"][0]["indexedToBlock"] = "9" * 5000
+        with self.assertRaisesRegex(TabulariumError, "safe integer"):
+            euler_v2.map_source(source, self.capture)
+
 
 if __name__ == "__main__":
     unittest.main()

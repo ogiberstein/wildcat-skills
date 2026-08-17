@@ -105,6 +105,20 @@ class EulerReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(TabulariumError, "request does not match"):
             verify(manifest_path)
 
+    def test_capture_timestamp_must_match_preserved_response(self):
+        root = self.copied_release("euler-v2-v0")
+        capture_path = root / "capture.json"
+        capture = json.loads(capture_path.read_text())
+        capture["captured_at"] = "2026-08-17T02:32:00.000Z"
+        capture_path.write_bytes(canonical_json(capture) + b"\n")
+        manifest_path = root / "coverage.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["capture_manifest"]["sha256"] = sha256_bytes(capture_path.read_bytes())
+        manifest["capture_manifest"]["bytes"] = len(capture_path.read_bytes())
+        manifest_path.write_bytes(canonical_json(manifest) + b"\n")
+        with self.assertRaisesRegex(TabulariumError, "timestamp does not match"):
+            verify(manifest_path)
+
 
 if __name__ == "__main__":
     unittest.main()

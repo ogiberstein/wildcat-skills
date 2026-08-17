@@ -4,10 +4,11 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timezone
 
-from ..core import MAX_SAFE_INTEGER, TabulariumError
+from ..core import TabulariumError
 from .euler_common import (
     MappingResult,
     address,
+    bounded_decimal_integer,
     decimal,
     hash_,
     integer,
@@ -95,8 +96,8 @@ def _event(raw, requested_owner, first_timestamp, last_timestamp,
     if text(row, "vaultType", where) != "evk":
         raise TabulariumError("%s is not an EVK vault event" % where)
     transaction_hash = hash_(row, "txHash", where)
-    block_number = int(decimal(row, "blockNumber", where))
-    if block_number > MAX_SAFE_INTEGER or not indexed_from <= block_number <= indexed_to:
+    block_number = bounded_decimal_integer(row, "blockNumber", where)
+    if not indexed_from <= block_number <= indexed_to:
         raise TabulariumError("%s block is outside the reported indexed range" % where)
     log_index = integer(row, "logIndex", where)
     source_id = text(row, "id", where)
@@ -173,7 +174,10 @@ def _coverage(source):
         raise TabulariumError("Euler V3 response does not report complete mainnet coverage")
     if list_(required(chain, "missingCategories", "coverage.chains[0]"), "coverage.chains[0].missingCategories"):
         raise TabulariumError("Euler V3 mainnet coverage reports missing categories")
-    return int(decimal(chain, "indexedFromBlock", "coverage.chains[0]")), int(decimal(chain, "indexedToBlock", "coverage.chains[0]"))
+    return (
+        bounded_decimal_integer(chain, "indexedFromBlock", "coverage.chains[0]"),
+        bounded_decimal_integer(chain, "indexedToBlock", "coverage.chains[0]"),
+    )
 
 
 def map_source(source, capture):
@@ -199,6 +203,12 @@ def map_source(source, capture):
     selectors = [event["provenance"]["source_selector"] for event in events]
     if len(selectors) != len(set(selectors)):
         raise TabulariumError("Euler V3 response repeats an event id")
+    identities = [
+        (event["transaction"]["hash"], event["transaction"]["log_index"])
+        for event in events
+    ]
+    if len(identities) != len(set(identities)):
+        raise TabulariumError("Euler V3 response repeats a transaction/log identity")
     events.sort(key=lambda item: (
         item["transaction"]["block_number"],
         item["transaction"]["hash"],
