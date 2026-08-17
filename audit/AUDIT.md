@@ -88,3 +88,17 @@ against the runbook risk register.
 Leads not pursued: publisher authentication, cache signing, native Windows
 support, and general release attestation are outside this frontier and are
 not claimed by the proof.
+
+## Fiat installed-path proof, step 1, round 2 -- 2026-08-17
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The corrected non-Solidity tree has no open finding. | clean |
+
+The clean review repeated the controller-path, target-root, receipt-order,
+source-hash, frontier-version, digest, maturity, test-result, and prose-count
+checks against the stacked branch.
+
+Leads not pursued: publisher authentication, cache signing, native Windows
+support, and general release attestation remain outside this frontier and are
+not claimed by the proof.
