@@ -60,3 +60,17 @@ count. Focused tests and both offline rebuilds pass with the regenerated
 unpublished witness bytes.
 
 Leads not pursued: none.
+
+## Compound v3 Phase 0, step 1, round 4 -- 2026-08-17
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+
+The clean review repeated the registry, capture, JSON-RPC, trace alignment,
+storage attribution, source-selector, safe-read, schema and immutable-byte
+checks against the accumulated audit branch. All 255 Alexandria tests and 134
+Tabularium tests pass. Both socket-denied rebuilds match, and the twelve
+published Goldfinch and Euler truth digests are unchanged.
+
+Leads not pursued: none.
