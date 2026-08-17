@@ -1,0 +1,161 @@
+"""Govern every skill evolution ledger in the marketplace.
+
+Hexaemeron-local rules stay in plugins/hexaemeron/tests/test_evolution.py.
+This file owns the rules that hold for every governed skill, wherever it
+lives, and deliberately assumes nothing about baseline version numbers:
+skills adopt this contract at whatever version they already declared.
+"""
+
+from pathlib import Path
+import hashlib
+import re
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+PLUGINS = ROOT / "plugins"
+
+# Vendored or third-party skills are not governed and keep no ledger. The
+# bundled Pashov suite stays covered by Hexaemeron's own plugin frontier.
+UNGOVERNED = {"fizz", "fizz-convert", "fizz-sync", "x-ray", "solidity-auditor"}
+
+AXES = ("baseline", "evolution", "generation", "epoch")
+
+
+def field(text, name):
+    match = re.search(rf"(?m)^- {re.escape(name)}: (.+)$", text)
+    if match is None:
+        raise AssertionError(f"missing {name}")
+    return match.group(1).strip().strip("`")
+
+
+def version_parts(label, skill):
+    match = re.fullmatch(rf"{re.escape(skill)}-v(\d+)\.(\d+)\.(\d+)", label)
+    if match is None:
+        raise AssertionError(f"invalid version label for {skill}: {label}")
+    return tuple(int(part) for part in match.groups())
+
+
+def history_rows(text):
+    pattern = re.compile(
+        r"(?m)^\| `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+        r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
+        r"\| (?P<evidence>.*?) \| (?P<change>.*?) \|$"
+    )
+    return [m.groupdict() for m in pattern.finditer(text)]
+
+
+def governed_skills():
+    """Every skill directory holding a SKILL.md, minus the ungoverned ones."""
+    for skill_md in sorted(PLUGINS.glob("*/skills/**/SKILL.md")):
+        directory = skill_md.parent
+        if directory.name in UNGOVERNED:
+            continue
+        yield directory.name, directory
+
+
+class EvolutionContractTests(unittest.TestCase):
+    def test_every_governed_skill_has_a_ledger(self):
+        for skill, directory in governed_skills():
+            with self.subTest(skill=skill):
+                self.assertTrue(
+                    (directory / "EVOLUTION.md").is_file(),
+                    f"{directory} has no EVOLUTION.md; add one or list it as ungoverned",
+                )
+                self.assertIn(
+                    "[EVOLUTION.md](EVOLUTION.md)",
+                    (directory / "SKILL.md").read_text(encoding="utf-8"),
+                )
+
+    def test_skill_metadata_matches_current_ledger_version(self):
+        for skill, directory in governed_skills():
+            instructions = (directory / "SKILL.md").read_text(encoding="utf-8")
+            ledger = (directory / "EVOLUTION.md").read_text(encoding="utf-8")
+            with self.subTest(skill=skill):
+                metadata = re.search(r'(?m)^  version: "(\d+\.\d+\.\d+)"$', instructions)
+                self.assertIsNotNone(metadata, f"{skill} has no metadata.version")
+                self.assertEqual(
+                    field(ledger, "Current version"), f"{skill}-v{metadata.group(1)}"
+                )
+
+    def test_current_frontier_digest_matches_latest_history_row(self):
+        for skill, directory in governed_skills():
+            ledger = (directory / "EVOLUTION.md").read_text(encoding="utf-8")
+            canonical = "|".join(
+                (
+                    field(ledger, "Frontier status"),
+                    field(ledger, "Frontier revision"),
+                    field(ledger, "Current frontier"),
+                    field(ledger, "Next Fiat job"),
+                )
+            ) + "\n"
+            rows = history_rows(ledger)
+            with self.subTest(skill=skill):
+                self.assertGreaterEqual(len(rows), 1)
+                self.assertEqual(rows[-1]["version"], field(ledger, "Current version"))
+                self.assertEqual(rows[-1]["revision"], field(ledger, "Frontier revision"))
+                self.assertEqual(
+                    rows[-1]["digest"],
+                    hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+                )
+
+    def test_history_axes_enforce_independent_counters_and_frontier_hold(self):
+        for skill, directory in governed_skills():
+            ledger = (directory / "EVOLUTION.md").read_text(encoding="utf-8")
+            rows = history_rows(ledger)
+            with self.subTest(skill=skill):
+                self.assertEqual(rows[0]["axis"], "baseline")
+            previous = rows[0]
+            previous_version = version_parts(rows[0]["version"], skill)
+            for row in rows[1:]:
+                current_version = version_parts(row["version"], skill)
+                with self.subTest(skill=skill, version=row["version"]):
+                    if row["axis"] == "evolution":
+                        self.assertEqual(
+                            current_version,
+                            (previous_version[0] + 1, previous_version[1], previous_version[2]),
+                        )
+                        self.assertNotEqual(row["digest"], previous["digest"])
+                    elif row["axis"] == "generation":
+                        self.assertEqual(
+                            current_version,
+                            (previous_version[0], previous_version[1] + 1, previous_version[2]),
+                        )
+                        self.assertEqual(row["revision"], previous["revision"])
+                        self.assertEqual(row["digest"], previous["digest"])
+                    elif row["axis"] == "epoch":
+                        self.assertEqual(
+                            current_version,
+                            (previous_version[0], previous_version[1], previous_version[2] + 1),
+                        )
+                        if row["digest"] != previous["digest"]:
+                            self.assertIn(
+                                "reopen", (row["evidence"] + row["change"]).lower()
+                            )
+                previous = row
+                previous_version = current_version
+
+    def test_mature_frontiers_have_no_next_job(self):
+        for skill, directory in governed_skills():
+            ledger = (directory / "EVOLUTION.md").read_text(encoding="utf-8")
+            status = field(ledger, "Frontier status")
+            with self.subTest(skill=skill):
+                self.assertIn(status, {"open", "mature"})
+                if status == "mature":
+                    self.assertEqual(field(ledger, "Next Fiat job"), "None -- mature")
+                else:
+                    self.assertNotEqual(field(ledger, "Next Fiat job"), "None -- mature")
+
+    def test_ledgers_cite_the_versioning_contract(self):
+        policy = (PLUGINS / "hexaemeron" / "skills" / "VERSIONING.md").resolve()
+        for skill, directory in governed_skills():
+            ledger_path = directory / "EVOLUTION.md"
+            ledger = ledger_path.read_text(encoding="utf-8")
+            match = re.search(r"(?m)^Policy: \[[^\]]+\]\(([^)]+)\)$", ledger)
+            with self.subTest(skill=skill):
+                self.assertIsNotNone(match, f"{skill} ledger cites no policy")
+                self.assertEqual((ledger_path.parent / match.group(1)).resolve(), policy)
+
+
+if __name__ == "__main__":
+    unittest.main()
