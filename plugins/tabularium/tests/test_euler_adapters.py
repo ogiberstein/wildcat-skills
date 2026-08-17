@@ -82,6 +82,12 @@ class EulerV2AdapterTests(unittest.TestCase):
         row["type"] = kind
         row["category"] = euler_v2.EXPECTED_CATEGORIES[kind]
         row["id"] = "v3-ponder:fixture:%s" % kind
+        if kind == "liquidation":
+            row["assets"].append({
+                "kind": "collateral",
+                "amountRaw": "1000000000000000000",
+                "address": "0x" + "22" * 20,
+            })
         return euler_v2.map_source(source, self.capture).events[0]
 
     def test_protocol_generation_and_source_api_are_not_conflated(self):
@@ -155,6 +161,21 @@ class EulerV2AdapterTests(unittest.TestCase):
         source = deepcopy(self.source)
         source["data"][0]["blockNumber"] = "25771829"
         with self.assertRaisesRegex(TabulariumError, "conflicting metadata"):
+            euler_v2.map_source(source, self.capture)
+
+    def test_unknown_amount_leg_fails_closed(self):
+        source = deepcopy(self.source)
+        source["data"][0]["assets"][0]["kind"] = "shares"
+        with self.assertRaisesRegex(TabulariumError, "amount legs"):
+            euler_v2.map_source(source, self.capture)
+
+    def test_liquidation_requires_an_addressed_collateral_leg(self):
+        source = deepcopy(self.source)
+        source["data"] = [source["data"][0]]
+        row = source["data"][0]
+        row["type"] = "liquidation"
+        row["category"] = "liquidations"
+        with self.assertRaisesRegex(TabulariumError, "amount legs"):
             euler_v2.map_source(source, self.capture)
 
 

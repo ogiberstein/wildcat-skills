@@ -49,7 +49,7 @@ def _subaccount(owner, account, index, where):
         raise TabulariumError("%s account does not match its EVC owner and sub-account index" % where)
 
 
-def _amounts(row, where):
+def _amounts(row, event_kind, where):
     raw = list_(required(row, "assets", where), "%s.assets" % where)
     amounts = []
     seen = set()
@@ -63,6 +63,8 @@ def _amounts(row, where):
         asset = item.get("address")
         if asset is not None:
             asset = address(item, "address", item_where)
+        if event_kind == "liquidation" and kind == "collateral" and asset is None:
+            raise TabulariumError("%s collateral leg has no vault address" % where)
         amounts.append({
             "kind": kind,
             "base_units": decimal(item, "amountRaw", item_where),
@@ -70,6 +72,9 @@ def _amounts(row, where):
         })
     if not amounts:
         raise TabulariumError("%s has no exact amount legs" % where)
+    expected = {"assets", "collateral"} if event_kind == "liquidation" else {"assets"}
+    if seen != expected:
+        raise TabulariumError("%s amount legs do not match event type %r" % (where, event_kind))
     return amounts
 
 
@@ -137,7 +142,7 @@ def _event(raw, requested_owner, first_timestamp, last_timestamp,
         },
         "parties": parties,
         "instrument": {"type": "euler-vault", "id": vault},
-        "amounts": _amounts(row, where),
+        "amounts": _amounts(row, kind, where),
         "provenance": {
             "source_kind": "hosted-indexer-event",
             "source_contract": vault,
