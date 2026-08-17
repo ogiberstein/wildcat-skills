@@ -134,6 +134,23 @@ class CompoundReleaseTests(unittest.TestCase):
             build(source, output)
         self.assertFalse(output.exists())
 
+    def test_malformed_nested_trace_and_prestate_are_controlled_refusals(self):
+        for filename, mutate, message in (
+            ("recent-opcode-trace.json", lambda value: value["result"]["structLogs"].__setitem__(0, []), "opcode trace is incomplete"),
+            ("recent-prestate-trace.json", lambda value: value["result"].__setitem__("pre", []), "prestate diff is incomplete"),
+        ):
+            source = self.root / ("input-" + filename)
+            shutil.copytree(EXAMPLE / "input", source)
+            response = source / "responses" / filename
+            value = json.loads(response.read_text())
+            mutate(value)
+            response.write_text(
+                json.dumps(value, separators=(",", ":"), sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            with self.subTest(filename=filename), self.assertRaisesRegex(AlexandriaError, message):
+                build(source, self.root / ("release-" + filename))
+
     def test_trace_filter_frame_must_belong_to_the_selected_transaction(self):
         source = self.root / "input"
         shutil.copytree(EXAMPLE / "input", source)

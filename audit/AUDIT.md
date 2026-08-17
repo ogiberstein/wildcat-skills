@@ -32,3 +32,16 @@ tests and 134 Tabularium tests. Both socket-denied rebuilds match the committed
 release and witness.
 
 Leads not pursued: none.
+
+## Compound v3 Phase 0, step 1, round 2 -- 2026-08-17
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | Round 1's top-level type checks did not cover malformed struct-log elements, nested prestate maps or non-hexadecimal proxy runtime code, so some rebound evidence could still fail outside the controlled refusal path. | fixed in this round |
+
+The hardening review also checked the registry generator against the pinned
+Comet Git objects with replacement refs disabled. Its bytes match the
+committed registry. The focused hostile tests and both socket-denied rebuilds
+pass after the nested evidence checks.
+
+Leads not pursued: none.

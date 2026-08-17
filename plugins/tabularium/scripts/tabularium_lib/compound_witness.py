@@ -65,7 +65,10 @@ def _alexandria_api():
         from alexandria_lib.errors import AlexandriaError  # pylint: disable=import-outside-toplevel
     except ImportError as error:
         raise TabulariumError("Alexandria Compound verification API is unavailable") from error
-    module_path = Path(phase0.__file__).resolve()
+    module_file = getattr(phase0, "__file__", None)
+    if not isinstance(module_file, str):
+        raise TabulariumError("loaded Alexandria verifier has no local module path")
+    module_path = Path(module_file).resolve()
     try:
         module_path.relative_to(alexandria_scripts.resolve())
     except ValueError as error:
@@ -269,8 +272,14 @@ def _make_bytes(release_root):
     account = _address_word(withdraw["input"], 0, "withdrawFrom")
     user_slot = mapping_slot(account, USER_BASIC_MAPPING_SLOT)
 
-    proxy_pre = prestate.get("pre", {}).get(PROXY, {})
-    proxy_post = prestate.get("post", {}).get(PROXY, {})
+    pre_accounts = prestate.get("pre")
+    post_accounts = prestate.get("post")
+    if not isinstance(pre_accounts, dict) or not isinstance(post_accounts, dict):
+        raise TabulariumError("prestate tracer did not return account maps")
+    proxy_pre = pre_accounts.get(PROXY, {})
+    proxy_post = post_accounts.get(PROXY, {})
+    if not isinstance(proxy_pre, dict) or not isinstance(proxy_post, dict):
+        raise TabulariumError("prestate tracer did not return proxy account objects")
     pre_storage = proxy_pre.get("storage", {})
     post_storage = proxy_post.get("storage", {})
     if not isinstance(pre_storage, dict) or not isinstance(post_storage, dict):

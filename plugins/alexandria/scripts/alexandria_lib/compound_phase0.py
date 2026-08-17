@@ -482,13 +482,21 @@ def check_phase0(release_root: Path) -> dict:
         if not isinstance(opcode, dict):
             raise AlexandriaError(f"Compound {label} opcode trace is not an object")
         struct_logs = opcode.get("structLogs") if isinstance(opcode, dict) else None
-        if opcode.get("failed") is not False or not isinstance(struct_logs, list):
+        if (
+            opcode.get("failed") is not False
+            or not isinstance(struct_logs, list)
+            or any(not isinstance(item, dict) for item in struct_logs)
+        ):
             raise AlexandriaError(f"Compound {label} opcode trace is incomplete")
         sstores = [index for index, item in enumerate(struct_logs) if item.get("op") == "SSTORE"]
         if not sstores or sstores != sorted(sstores):
             raise AlexandriaError(f"Compound {label} opcode trace has no ordered storage writes")
         prestate = responses[f"{label}-prestate-trace"]["result"]
-        if not isinstance(prestate, dict) or "pre" not in prestate or "post" not in prestate:
+        if (
+            not isinstance(prestate, dict)
+            or not isinstance(prestate.get("pre"), dict)
+            or not isinstance(prestate.get("post"), dict)
+        ):
             raise AlexandriaError(f"Compound {label} prestate diff is incomplete")
         implementation_slot = responses[f"{label}-implementation-slot"]["result"]
         if not isinstance(implementation_slot, str) or WORD_RE.fullmatch(implementation_slot) is None:
@@ -500,6 +508,7 @@ def check_phase0(release_root: Path) -> dict:
         proxy_code = responses[f"{label}-proxy-code"]["result"]
         if not isinstance(proxy_code, str) or len(proxy_code) <= 2:
             raise AlexandriaError(f"Compound {label} proxy code binding is empty")
+        _runtime_code_digest(proxy_code, f"Compound {label} proxy code")
         base_token = responses[f"{label}-base-token"]["result"]
         if not isinstance(base_token, str) or "0x" + base_token[-40:].lower() != ethereum_usdc["base_token"]:
             raise AlexandriaError(f"Compound {label} base token does not match the registry")
