@@ -81,6 +81,23 @@ byte-identical, and all prior Goldfinch artifacts remain unchanged.
 
 Leads not pursued: none.
 
+## Euler releases, step 1, round 4 -- 2026-08-17
+
+Scope: `27e930f...e1e3fb7`, including all prior fixes. Compared the V2
+amount mapping with the checked-in API response and Probitas' independently
+validated event shapes, then ran 14 root and 123 Tabularium tests and rebuilt
+both releases.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R4-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | The mapper accepted arbitrary amount-leg names, and a liquidation could pass with a borrow-shaped single `assets` leg. An API shape change could therefore acquire an old canonical meaning. | fixed in `e1e3fb71fb779aa2dc5d4295c69c66943a2f570c` |
+
+The fix requires exactly one `assets` leg for non-liquidation events and both
+`assets` and addressed `collateral` legs for liquidations. Regression tests
+cover an unknown leg and an incomplete liquidation.
+
+Leads not pursued: none.
+
 ## Step 2, round 1 -- 2026-08-16
 
 Scope:
