@@ -1,9 +1,19 @@
 ---
 name: hermes
-description: Optimise Solidity gas usage with a fail-closed Foundry loop that measures savings, reruns behaviour tests, checks storage layouts and method identifiers, and requires property evidence for state-sensitive unchecked arithmetic. Use for Solidity gas work, Forge snapshots, gas reports, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
+description: Route one-class Solidity gas optimisation to Hermes. Use it for measured, fail-closed Foundry work; use Pandects or the audit skills for broader behavioural and security review.
 ---
 
 # Hermes portable entrypoint
+
+<!-- marketplace-context:start -->
+## Where this sits
+
+Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate.
+
+**Use another tool when.** Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review.
+
+**Current frontier.** There is no published follow-on; the shipped catalogue and fail-closed loop are the current boundary.
+<!-- marketplace-context:end -->
 
 Read [the Hermes runtime contract](../../../plugins/hermes/AGENTS.md), then read
 [the canonical Hermes skill](../../../plugins/hermes/skills/hermes/SKILL.md) in

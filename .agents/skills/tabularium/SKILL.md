@@ -1,9 +1,19 @@
 ---
 name: tabularium
-description: Route requests for a reproducible ledger of sourced on-chain credit events to the canonical Tabularium instructions. Use when the user names Tabularium, asks to preserve a credit-event record, or wants to build or verify a source-bound Goldfinch borrow and repayment release offline. Never use it to claim publisher authenticity or an independently proved chain boundary.
+description: Route reproducible, venue-qualified credit-event releases to Tabularium. Use preserved source records and explicit mapping provenance; use Alexandria for raw harvesting or Probitas for a dossier.
 ---
 
 # Tabularium portable entrypoint
+
+<!-- marketplace-context:start -->
+## Where this sits
+
+Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning.
+
+**Use another tool when.** Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay.
+
+**Current frontier.** Compound v3 schema and adapter work is specified; Euler v1/v2 preservation is tracked in wildcat-finance/skills#57.
+<!-- marketplace-context:end -->
 
 Read [the Tabularium runtime contract](../../../plugins/tabularium/AGENTS.md).
 Use its selection table to choose the skill, then read that canonical

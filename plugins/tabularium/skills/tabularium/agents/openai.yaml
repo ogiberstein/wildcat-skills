@@ -1,4 +1,4 @@
 interface:
   display_name: "Tabularium"
-  short_description: "Source-bound Goldfinch credit-event releases, reproducible and verifiable offline"
-  default_prompt: "Use $tabularium to build and verify a source-bound Goldfinch credit-event release."
+  short_description: "Venue-qualified credit-event releases rebuilt from preserved source records."
+  default_prompt: "Use Tabularium to build or verify a reproducible venue-qualified credit-event release from preserved source records."

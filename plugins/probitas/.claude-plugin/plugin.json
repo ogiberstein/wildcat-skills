@@ -2,7 +2,7 @@
   "name": "probitas",
   "displayName": "Probitas",
   "version": "0.1.0",
-  "description": "Sourced dossier of a counterparty's on-chain lending record: every assertion carries a transaction hash, a URL or a document reference, and the gaps are named out loud.",
+  "description": "Sourced counterparty lending dossiers from declared addresses, with coverage gaps kept visible.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"

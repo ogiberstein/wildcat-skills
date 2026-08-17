@@ -1,3 +1,7 @@
+<!-- marketplace-context:start -->
+> **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+<!-- marketplace-context:end -->
+
 ---
 name: scribe
 description: Use this agent when the fiat loop's prose phase needs the lint-voice-relint pass run in an isolated context. Both masks are bundled files in the plugin, so the scribe can always run them by path.

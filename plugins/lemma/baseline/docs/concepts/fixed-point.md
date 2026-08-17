@@ -1,5 +1,9 @@
 # Fixed-point arithmetic
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Lemma.** Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text. It does not embed, index, retrieve or answer; Berean is the adjacent unbuilt release discipline for a grounded protocol agent. **Current frontier:** No retrieval system is shipped or promised here; the plugin stops after validated chunking.
+<!-- marketplace-context:end -->
+
 All proportional values are fixed-point with eighteen decimals. The scaling
 factor is exposed as `ONE`.
 

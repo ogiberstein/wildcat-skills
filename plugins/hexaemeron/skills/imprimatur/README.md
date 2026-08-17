@@ -14,6 +14,16 @@ metadata:
 
 # Imprimatur
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own.
+
+**Use another tool when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
+
+**Current frontier.** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+<!-- marketplace-context:end -->
+
 A banned lexicon with three enforcement tiers and a rule about why wordlists fail on their own.
 
 Ban a token and the model reaches for its neighbour. Ban "load-bearing" and the next draft says "does the heavy lifting", then "the crux", then "the operative word". The list here is organised by family for that reason, and the instruction is to reject the move, not the string.

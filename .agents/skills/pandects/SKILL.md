@@ -1,9 +1,19 @@
 ---
 name: pandects
-description: Route a request about executable credit invariants to the canonical Pandects instructions. Use when the user names Pandects, asks which laws a lending or credit system should hold, or wants reviewed properties for a fuzzing campaign. Never use it to report a campaign under an engine that did not run.
+description: Route executable credit-law work to Pandects. Use it for the reviewed law corpus, broken specimens and reduced counterexamples; use Fizz to generate a protocol-specific harness.
 ---
 
 # Pandects portable entrypoint
+
+<!-- marketplace-context:start -->
+## Where this sits
+
+Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample.
+
+**Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
+
+**Current frontier.** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+<!-- marketplace-context:end -->
 
 Read [the Pandects runtime contract](../../../plugins/pandects/AGENTS.md). Use
 its selection table to choose the skill, then read that canonical `SKILL.md` in

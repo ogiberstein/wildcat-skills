@@ -13,6 +13,16 @@ metadata:
 
 # Alexandria
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend.
+
+**Use another tool when.** Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay.
+
+**Current frontier.** The production Compound v3 harvester is specified and not implemented.
+<!-- marketplace-context:end -->
+
 Alexandria is the archive and catalogue behind durable lending-protocol
 research. Raw captures remain unchanged. Small manifests describe what was
 captured, what was missed and which digest names each object. Tabularium owns

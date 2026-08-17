@@ -14,6 +14,16 @@ metadata:
 
 # Pandects
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample.
+
+**Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
+
+**Current frontier.** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+<!-- marketplace-context:end -->
+
 A fuzzer searches a state space. It cannot decide which economic facts must
 survive that search. Generic token property libraries cover balances, approvals
 and round trips; credit adds time, accrual, queues, changing terms,

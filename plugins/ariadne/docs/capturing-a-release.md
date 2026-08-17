@@ -1,5 +1,9 @@
 # Capturing a release from a Foundry build
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+<!-- marketplace-context:end -->
+
 ```bash
 python3 scripts/ariadne.py capture solidity-release \
   --project path/to/project \

@@ -31,7 +31,7 @@
       "name": "hexaemeron",
       "displayName": "Hexaemeron",
       "source": "./plugins/hexaemeron",
-      "description": "One-shot delivery loop with receipts: study, runbook, then per-step issue, build, audit, prose, push.",
+      "description": "Receipted delivery from study to draft pull request, with audit, fuzzing and prose tools.",
       "version": "1.0.0",
       "author": {
         "name": "Wildcat Labs",
@@ -53,7 +53,7 @@
       "name": "probitas",
       "displayName": "Probitas",
       "source": "./plugins/probitas",
-      "description": "Sourced dossier of a counterparty's on-chain lending record, with the gaps named out loud.",
+      "description": "Sourced counterparty lending dossiers from declared addresses, with coverage gaps kept visible.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
@@ -75,7 +75,7 @@
       "name": "lemma",
       "displayName": "Lemma",
       "source": "./plugins/lemma",
-      "description": "Chunk Solidity compiler inputs and Markdown documents into source-linked JSONL.",
+      "description": "Source-linked JSONL chunks from Solidity compiler inputs and Markdown documents.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
@@ -96,7 +96,7 @@
       "name": "lazarus",
       "displayName": "Lazarus",
       "source": "./plugins/lazarus",
-      "description": "Proof-checked historical Ethereum fixtures with deterministic exact-request replay and no live fallback.",
+      "description": "Proof-checked historical Ethereum fixtures with exact-request replay and no live fallback.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
@@ -118,7 +118,7 @@
       "name": "pandects",
       "displayName": "Pandects",
       "source": "./plugins/pandects",
-      "description": "Executable laws for credit contracts, each proven against a contract built to break it.",
+      "description": "Executable credit laws with broken specimens and reduced counterexamples.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
@@ -140,7 +140,7 @@
       "name": "ariadne",
       "displayName": "Ariadne",
       "source": "./plugins/ariadne",
-      "description": "Release evidence statements with absences kept visible.",
+      "description": "Release evidence statements binding artefact digests to the record behind them.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
@@ -162,7 +162,7 @@
       "name": "tabularium",
       "displayName": "Tabularium",
       "source": "./plugins/tabularium",
-      "description": "Source-bound Goldfinch credit-event releases, reproducible and verifiable offline.",
+      "description": "Venue-qualified credit-event releases rebuilt from preserved source records.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",
@@ -183,7 +183,7 @@
       "name": "alexandria",
       "displayName": "Alexandria",
       "source": "./plugins/alexandria",
-      "description": "Digest-bound lending-data releases and a narrow address-queryable credit view for Probitas.",
+      "description": "Digest-bound lending-data releases with reviewed credit views and address queries.",
       "version": "0.1.0",
       "author": {
         "name": "Wildcat Labs",

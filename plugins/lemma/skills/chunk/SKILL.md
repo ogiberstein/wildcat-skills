@@ -5,6 +5,16 @@ description: Turn Solidity solc standard JSON inputs or Markdown document trees 
 
 # Chunk with Lemma
 
+<!-- marketplace-context:start -->
+## Where this sits
+
+Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text.
+
+**Use another tool when.** It does not embed, index, retrieve or answer; Berean is the adjacent unbuilt release discipline for a grounded protocol agent.
+
+**Current frontier.** No retrieval system is shipped or promised here; the plugin stops after validated chunking.
+<!-- marketplace-context:end -->
+
 Use Lemma to create chunks. Stop at the JSONL output unless the user separately
 asks for another system to consume it.
 

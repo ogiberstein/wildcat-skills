@@ -2,7 +2,7 @@
   "name": "tabularium",
   "displayName": "Tabularium",
   "version": "0.1.0",
-  "description": "Source-bound Goldfinch credit-event releases, reproducible and verifiable offline.",
+  "description": "Venue-qualified credit-event releases rebuilt from preserved source records.",
   "author": {
     "name": "Wildcat Labs",
     "url": "https://wildcat.finance"

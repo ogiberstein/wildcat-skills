@@ -1,5 +1,9 @@
 # Design: pandects, executable laws for credit contracts
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+<!-- marketplace-context:end -->
+
 The specification is `specs/pandects.md` in the repository this was built in. This study fixes the
 reading the runbook builds from, records the experiments that decided the
 architecture, and says where the spec left a choice open.

@@ -1,5 +1,9 @@
 # Hexaemeron runtime contract
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+<!-- marketplace-context:end -->
+
 Hexaemeron contains several Agent Skills. Select from this table, then read the
 chosen `SKILL.md` in full. Do not start `fiat` merely because another
 Hexaemeron skill matches a task.
