@@ -98,6 +98,25 @@ cover an unknown leg and an incomplete liquidation.
 
 Leads not pursued: none.
 
+## Euler releases, step 1, round 5 -- 2026-08-17
+
+Scope: `27e930f...2d7dc28`, including all four finding rounds. Re-read the
+adapter, release and verifier paths against the study risk register and the
+preserved source shapes. Exercised malformed numbers, duplicate and
+contradictory identities, incomplete amount legs, request and timestamp
+rebinding, unknown event types, path and artifact tampering, offline read-only
+verification and deterministic order.
+
+The 14 root and 123 Tabularium tests passed. Each Euler release rebuilt twice
+to its committed bytes. The four Goldfinch artifacts retained their fixed
+digests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
 ## Step 2, round 1 -- 2026-08-16
 
 Scope:
