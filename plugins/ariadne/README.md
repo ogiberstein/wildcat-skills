@@ -7,7 +7,9 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 
 **Try something else when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
 
-**Current frontier.** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+**Current frontier.** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
+
+**Next Fiat job.** Use /hexaemeron:fiat to implement the dataset predicate with its schema, gates, conformance fixtures and capture path while keeping signing and signature verification external. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 Release evidence another person can check.

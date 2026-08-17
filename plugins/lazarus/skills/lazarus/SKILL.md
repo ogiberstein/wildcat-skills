@@ -19,7 +19,7 @@ Lazarus captures the finite fixed-block Ethereum state and RPC evidence an appli
 
 **Use another tool when.** Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence.
 
-**Current frontier.** Preservation-pipeline integration and an Ariadne state-fixture predicate remain follow-on work.
+**Current frontier.** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
 <!-- marketplace-context:end -->
 
 Lazarus turns a finite historical Ethereum capture plan into a deterministic

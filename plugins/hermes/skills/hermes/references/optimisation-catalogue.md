@@ -1,7 +1,7 @@
 # Optimisation catalogue
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Hermes.** Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate. Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review. **Current frontier:** There is no published follow-on; the shipped catalogue and fail-closed loop are the current boundary.
+> **Marketplace context: Hermes.** Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate. Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review. **Current frontier:** No complete, reproducible live Wildcat evidence bundle is published.
 <!-- marketplace-context:end -->
 
 Use this list to nominate one Gate 2 class. Search for candidates, make a prediction, then let Hermes measure it. A plausible compiler story does not count as a result.

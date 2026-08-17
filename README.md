@@ -16,14 +16,14 @@ build.
 | Plugin | Use it for | Try this instead | Current frontier |
 | --- | --- | --- | --- |
 | [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Tabularium for semantic event mapping; Probitas for a dossier. | The specified production Compound v3 harvester is not implemented. |
-| [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | An external Sigstore or cosign verifier for signatures. | Dataset, state-fixture and grounded-agent predicates are specified but not implemented. |
-| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Pandects or the audit skills for broader behavioural and security work. | No follow-on is published. |
-| [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, or using its fuzzing, audit and prose skills separately. | A named bundled skill when the controller is unnecessary. | No follow-on is published; the controller and bundled skills are the shipped boundary. |
-| [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | An embedding, index, retrieval or answering system for every later stage. | Berean is the adjacent unbuilt agent-release specification. |
-| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline and Ariadne state-fixture integration remain follow-on work. |
-| [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | Nine laws ship; broader families remain in the planning specification. |
-| [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 is tracked in [issue #57](https://github.com/wildcat-finance/skills/issues/57); Morpho Midnight and curation remain in planning. |
-| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Compound v3 schema and adapter work is specified; Euler v1/v2 preservation is tracked in [issue #57](https://github.com/wildcat-finance/skills/issues/57). |
+| [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | An external Sigstore or cosign verifier for signatures. | The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented. |
+| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Pandects or the audit skills for broader behavioural and security work. | No complete, reproducible live Wildcat evidence bundle is published. |
+| [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, or using its fuzzing, audit and prose skills separately. | A named bundled skill when the controller is unnecessary. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
+| [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | An embedding, index, retrieval or answering system for every later stage. | Callable-surface ABI validation does not independently check return types or state mutability. |
+| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
+| [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches. |
+| [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
+| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Euler v1/v2 preservation from issue #57 remains unimplemented; Compound v3 adapter work is specified. |
 
 ## Plugins
 
@@ -137,11 +137,10 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 
 1. Study the topic and write a linted study file.
 2. Derive a runbook of discrete, self-contained steps.
-3. Per step: file an issue with `TODO`, `Acceptance Criteria`, and `User Value / Need` checklists.
-4. Implement the least complicated construction that satisfies the issue.
-5. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
-6. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
-7. Push the PR, reconcile the issue, move to the next step.
+3. Implement the least complicated construction that satisfies each runbook step.
+4. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
+5. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
+6. Push the PR and move to the next step.
 
 Hexaemeron includes:
 
@@ -153,7 +152,7 @@ Hexaemeron includes:
 
 #### Day to day
 
-**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one issue and one pull request per step, with the audit suite run against each before it is pushed.
+**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one pull request per step, with the audit suite run against each before it is pushed.
 
 **Security and audit.** You want the Pashov suite over a contract and nothing else. `x-ray`, `solidity-auditor` and `fizz` are vendored whole and run on their own, without taking on the loop around them.
 

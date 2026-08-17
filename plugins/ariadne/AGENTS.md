@@ -1,7 +1,7 @@
 # Ariadne runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** Dataset, state-fixture and grounded-agent predicates are specified but not implemented.
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
 <!-- marketplace-context:end -->
 
 Ariadne contains one Agent Skill. Select from this table, then read the chosen
@@ -11,8 +11,8 @@ Ariadne contains one Agent Skill. Select from this table, then read the chosen
 | --- | --- | --- |
 | `ariadne` | `skills/ariadne/SKILL.md` | Read or write an evidence statement binding an artefact to the record behind it |
 
-`skills/ariadne/README.md` is a copy of that file, kept identical so the
-directory renders when browsed. Read either; a test fails if they diverge.
+`skills/ariadne/SKILL.md` is the only canonical instruction document. Do not
+add a sibling browsing README.
 
 ## Translate tool names by capability
 

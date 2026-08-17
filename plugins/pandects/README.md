@@ -7,7 +7,9 @@ Pandects supplies executable laws for credit contracts, each paired with a delib
 
 **Try something else when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
 
-**Current frontier.** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+**Current frontier.** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
+
+**Next Fiat job.** Use /hexaemeron:fiat to add and prove the missing law that fees cannot reduce pooled lender claims below amounts owed on open withdrawal batches, including its specimen, reduced counterexample and applicability. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 Executable laws for credit contracts.

@@ -7,7 +7,9 @@ Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzin
 
 **Try something else when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
 
-**Current frontier.** There is no published follow-on; the controller and bundled skills described here are the shipped boundary.
+**Current frontier.** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
+
+**Next Fiat job.** Use /hexaemeron:fiat to run and publish the first Solidity delivery that exercises the bundled x-ray, solidity-auditor and fizz loop end to end, recording every round and closing state. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose, then replace every completed or stale Next Fiat job with the next evidenced repair or frontier step.
 <!-- marketplace-context:end -->
 
 Let there be light.

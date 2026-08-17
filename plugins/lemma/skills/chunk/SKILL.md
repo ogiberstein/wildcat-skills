@@ -12,7 +12,7 @@ Lemma turns Solidity compiler input or Markdown trees into validated, source-lin
 
 **Use another tool when.** It does not embed, index, retrieve or answer; Berean is the adjacent unbuilt release discipline for a grounded protocol agent.
 
-**Current frontier.** No retrieval system is shipped or promised here; the plugin stops after validated chunking.
+**Current frontier.** Callable-surface ABI validation does not independently check return types or state mutability.
 <!-- marketplace-context:end -->
 
 Use Lemma to create chunks. Stop at the JSONL output unless the user separately

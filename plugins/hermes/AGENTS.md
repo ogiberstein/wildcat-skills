@@ -1,13 +1,12 @@
 # Hermes runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Hermes.** Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate. Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review. **Current frontier:** There is no published follow-on; the shipped catalogue and fail-closed loop are the current boundary.
+> **Marketplace context: Hermes.** Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate. Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review. **Current frontier:** No complete, reproducible live Wildcat evidence bundle is published.
 <!-- marketplace-context:end -->
 
 Hermes is one Agent Skill. Its canonical instructions are in
 `skills/hermes/SKILL.md`; read that file in full before working on Solidity gas
-usage. The `README.md` beside it is for repository browsing and is not the
-instruction source.
+usage. It is the only instruction copy; do not add a sibling browsing README.
 
 ## Capabilities and paths
 

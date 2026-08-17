@@ -1,7 +1,7 @@
 # Lazarus study
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Preservation-pipeline integration and an Ariadne state-fixture predicate remain follow-on work.
+> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
 <!-- marketplace-context:end -->
 
 ## Problem statement
@@ -100,7 +100,7 @@ fixture format and proof verifier are stable.
   its tests use network-free fixtures. The Lazarus replay miss should be just
   as visible.
 - Root `AGENTS.md` and `tests/test_portable_skills.py` define the plugin shape:
-  a canonical `SKILL.md`, identical README shadow, portable entrypoint, plugin
+  a canonical `SKILL.md`, portable entrypoint, plugin
   contract, Claude and Codex manifests, marketplace entries and tests.
 
 The branch `codex/mnemosyne-synthesis` at `0d929a0` contains

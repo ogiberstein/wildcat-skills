@@ -21,7 +21,7 @@ Pandects supplies executable laws for credit contracts, each paired with a delib
 
 **Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
 
-**Current frontier.** Nine laws are implemented; the broader families in the planning specification remain proposals rather than shipped corpus entries.
+**Current frontier.** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
 <!-- marketplace-context:end -->
 
 A fuzzer searches a state space. It cannot decide which economic facts must

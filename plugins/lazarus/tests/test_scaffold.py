@@ -27,11 +27,9 @@ class ScaffoldTests(unittest.TestCase):
         }
         self.assertEqual(versions, {"0.1.0"})
 
-    def test_skill_has_an_identical_readme_shadow(self):
-        self.assertEqual(
-            support.SKILL.read_bytes(),
-            (support.SKILL.parent / "README.md").read_bytes(),
-        )
+    def test_skill_is_canonical_and_has_no_readme_shadow(self):
+        self.assertTrue(support.SKILL.is_file())
+        self.assertFalse((support.SKILL.parent / "README.md").exists())
 
     def test_portable_entrypoint_routes_to_the_runtime_contract(self):
         path = support.REPO_ROOT / ".agents" / "skills" / "lazarus" / "SKILL.md"

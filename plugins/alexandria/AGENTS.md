@@ -1,7 +1,7 @@
 # Alexandria runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The production Compound v3 harvester is specified and not implemented.
+> **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** The specified production Compound v3 harvester is not implemented.
 <!-- marketplace-context:end -->
 
 Alexandria contains one Agent Skill. Select it from this table, then read the
@@ -11,8 +11,8 @@ chosen `SKILL.md` in full.
 | --- | --- | --- |
 | `alexandria` | `skills/alexandria/SKILL.md` | Build or verify a digest-bound lending-data release, or inspect the archive contract |
 
-`skills/alexandria/README.md` is an identical copy of the canonical skill.
-A test fails if the two files diverge.
+`skills/alexandria/SKILL.md` is the only canonical instruction document. Do
+not add a sibling browsing README.
 
 ## Translate tool names by capability
 
