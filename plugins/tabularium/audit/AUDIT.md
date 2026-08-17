@@ -46,6 +46,23 @@ byte-identical to the checked-in artifacts.
 
 Leads not pursued: none.
 
+## Euler releases, step 1, round 2 -- 2026-08-17
+
+Scope: `27e930f...ea8bcea`, including the round 1 fixes. Re-read both
+capture contracts against the preserved response bytes, repeated the offline
+rebuilds and tamper cases, compiled the Python sources, and ran 14 root and 118
+Tabularium tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R2-01 | medium | `examples/euler-v1-v0/capture.json`, `scripts/tabularium_lib/release_v2.py` | The preserved JSON-RPC response carried request ID `1`, but the capture's request descriptor omitted that ID. The purported exact request was therefore incomplete. | fixed in `ea8bcead3a2e2dcad6f652485ed0aac41c2c98fe` |
+
+The fix binds request ID `1`, rotates only the new Euler v1 capture and
+coverage digests, and adds a rebound-tamper test. The source and canonical
+event bytes did not change. No earlier Tabularium release byte changed.
+
+Leads not pursued: none.
+
 ## Step 2, round 1 -- 2026-08-16
 
 Scope:
