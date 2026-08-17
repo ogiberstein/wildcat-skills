@@ -102,3 +102,41 @@ checks against the stacked branch.
 Leads not pursued: publisher authentication, cache signing, native Windows
 support, and general release attestation remain outside this frontier and are
 not claimed by the proof.
+
+## Imprimatur labelled prose, step 1, round 1 -- 2026-08-18
+
+The Solidity suite was waived because this step changes a Python evaluator,
+frozen evaluation data, tests, prose and governed skill metadata. The review
+covered provenance and the 1 August 2025 cutoff, default-branch reachability,
+blind-id separation, independent annotator ids, UTF-8 offsets, source-group
+split isolation, duplicate checks, one-to-one span pairing, metric
+denominators, candidate freezing, the spent holdout and the open-frontier
+decision.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/evaluate_labelled_corpus.py` | The evaluator parsed the published schemas but did not apply them to fixture rows, and it did not verify the annotation-seal or candidate-freeze digests before scoring. A changed row or schema could therefore be evaluated under the same published evidence claims. | Fixed in this round: the standard-library evaluator now enforces the schema subset, checks both digest manifests, and rejects identical annotator ids; mutation regressions cover row and schema changes. |
+
+The focused evaluator has 15 passing checks after the fix. The 55 Imprimatur
+tests, 61 Hexaemeron tests and 14 repository tests also pass. Replaying
+`final.json` still produces the same metrics and gate decisions.
+
+Leads not pursued: model authorship beyond the declared provenance rule,
+population-prevalence claims and tuning against the spent v1 holdout are
+outside this frontier and are explicitly disclaimed by the fixture.
+
+## Imprimatur labelled prose, step 1, round 2 -- 2026-08-18
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+
+The clean review repeated the fixture-row schema checks, annotation and
+candidate digest checks, distinct-annotator check, UTF-8 span validation,
+split isolation, metric replay and frontier digest verification against the
+stacked audit branch. The focused evaluator has 15 passing checks and the
+published calibration and final reports replay without a byte difference.
+
+Leads not pursued: model authorship beyond the declared provenance rule,
+population-prevalence claims and tuning against the spent v1 holdout remain
+outside this frontier.

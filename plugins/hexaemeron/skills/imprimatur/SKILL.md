@@ -9,7 +9,7 @@ description: >-
   any prose that ships, when checking whether a draft reads as
   machine-written, or when the user names a term to ban.
 metadata:
-  version: "1.1.0"
+  version: "2.1.0"
 ---
 
 # Imprimatur
