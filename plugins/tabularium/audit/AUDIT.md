@@ -25,6 +25,27 @@ Tabularium tests pass.
 
 Leads not pursued: none.
 
+## Euler releases, step 1, round 1 -- 2026-08-17
+
+Scope: `27e930f...83b3b58`. Reviewed source-to-event mapping, capture and
+coverage binding, numeric bounds, selector uniqueness, offline rebuilds,
+tamper refusals and the separation between the Euler V2 protocol generation
+and Euler V3 source API. Rebuilt both Euler releases and re-ran 14 root and 117
+Tabularium tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R1-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | An oversized decimal block field could escape the controlled validation path through Python's integer-string conversion limit. | fixed in `83b3b58f1419c04e2450da2df3cfd1ecdb8530dc` |
+| E1-R1-02 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | Distinct source IDs could name the same transaction and log index, allowing duplicate canonical event identities. | fixed in `83b3b58f1419c04e2450da2df3cfd1ecdb8530dc` |
+| E1-R1-03 | medium | `scripts/tabularium_lib/release_v2.py` | A rebound capture could claim a timestamp different from the preserved Euler V3 response metadata. | fixed in `83b3b58f1419c04e2450da2df3cfd1ecdb8530dc` |
+
+The fixes bound decimal block fields before conversion, reject repeated
+transaction/log identities, and require the capture timestamp to equal the
+preserved response timestamp. The two Euler release rebuilds remain
+byte-identical to the checked-in artifacts.
+
+Leads not pursued: none.
+
 ## Step 2, round 1 -- 2026-08-16
 
 Scope:
