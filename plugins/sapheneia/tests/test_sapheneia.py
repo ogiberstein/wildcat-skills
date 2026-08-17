@@ -10,6 +10,11 @@ SKILL = PLUGIN / "skills" / "sapheneia" / "SKILL.md"
 
 
 class SapheneiaContractTests(unittest.TestCase):
+    def test_canonical_description_fits_shared_upload_limit(self):
+        text = SKILL.read_text(encoding="utf-8")
+        description = re.search(r"(?m)^description: (.+)$", text).group(1)
+        self.assertLessEqual(len(description), 200)
+
     def test_ranked_contract_has_exactly_ten_rules(self):
         text = SKILL.read_text(encoding="utf-8")
         rules = [int(value) for value in re.findall(r"(?m)^### ([0-9]+)\. ", text)]
