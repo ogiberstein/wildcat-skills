@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Tabularium's deterministic Goldfinch event ledger."""
+"""Build and verify deterministic Tabularium credit-event releases."""
 
 import argparse
 import sys
@@ -15,7 +15,13 @@ def make_parser():
     )
     subcommands = parser.add_subparsers(dest="command", metavar="{build,verify}")
     build_parser = subcommands.add_parser(
-        "build", help="build canonical Goldfinch borrow and repay JSONL"
+        "build", help="build canonical venue-qualified credit-event JSONL"
+    )
+    build_parser.add_argument(
+        "--adapter",
+        choices=("goldfinch", "euler-v1", "euler-v2"),
+        default="goldfinch",
+        help="source adapter (default: goldfinch)",
     )
     build_parser.add_argument("--source", required=True, help="preserved source JSON")
     build_parser.add_argument(
@@ -59,16 +65,16 @@ def main(argv=None):
             args.out,
             args.manifest,
             args.release,
+            args.adapter,
         )
     except (OSError, TabulariumError) as error:
         print("tabularium: %s" % error, file=sys.stderr)
         return 2
     print(
-        "built %d event(s): %d borrowing, %d repayment; sha256 %s"
+        "built %d event(s): %s; sha256 %s"
         % (
             report.rows,
-            report.families.get("borrowing", 0),
-            report.families.get("repayment", 0),
+            ", ".join("%s=%d" % item for item in sorted(report.families.items())),
             report.sha256,
         ),
         file=sys.stderr,

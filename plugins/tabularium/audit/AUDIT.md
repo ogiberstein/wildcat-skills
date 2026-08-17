@@ -1,7 +1,7 @@
 # Tabularium audit log
 
 <!-- marketplace-context:start -->
-> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation from issue #57 remains unimplemented; Compound v3 adapter work is specified.
+> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
 <!-- marketplace-context:end -->
 
 The Solidity security suite is waived for this run because Tabularium is a
@@ -18,6 +18,98 @@ network or write path; every non-help invocation exits non-zero without
 producing or verifying a release. JSON manifests parse, Python sources compile,
 `git diff --check` reports no errors, the 10 root tests pass and the 6
 Tabularium tests pass.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Euler releases, step 1, round 1 -- 2026-08-17
+
+Scope: `27e930f...83b3b58`. Reviewed source-to-event mapping, capture and
+coverage binding, numeric bounds, selector uniqueness, offline rebuilds,
+tamper refusals and the separation between the Euler V2 protocol generation
+and Euler V3 source API. Rebuilt both Euler releases and re-ran 14 root and 117
+Tabularium tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R1-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | An oversized decimal block field could escape the controlled validation path through Python's integer-string conversion limit. | fixed in `83b3b58f1419c04e2450da2df3cfd1ecdb8530dc` |
+| E1-R1-02 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | Distinct source IDs could name the same transaction and log index, allowing duplicate canonical event identities. | fixed in `83b3b58f1419c04e2450da2df3cfd1ecdb8530dc` |
+| E1-R1-03 | medium | `scripts/tabularium_lib/release_v2.py` | A rebound capture could claim a timestamp different from the preserved Euler V3 response metadata. | fixed in `83b3b58f1419c04e2450da2df3cfd1ecdb8530dc` |
+
+The fixes bound decimal block fields before conversion, reject repeated
+transaction/log identities, and require the capture timestamp to equal the
+preserved response timestamp. The two Euler release rebuilds remain
+byte-identical to the checked-in artifacts.
+
+Leads not pursued: none.
+
+## Euler releases, step 1, round 2 -- 2026-08-17
+
+Scope: `27e930f...ea8bcea`, including the round 1 fixes. Re-read both
+capture contracts against the preserved response bytes, repeated the offline
+rebuilds and tamper cases, compiled the Python sources, and ran 14 root and 118
+Tabularium tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R2-01 | medium | `examples/euler-v1-v0/capture.json`, `scripts/tabularium_lib/release_v2.py` | The preserved JSON-RPC response carried request ID `1`, but the capture's request descriptor omitted that ID. The purported exact request was therefore incomplete. | fixed in `ea8bcead3a2e2dcad6f652485ed0aac41c2c98fe` |
+
+The fix binds request ID `1`, rotates only the new Euler v1 capture and
+coverage digests, and adds a rebound-tamper test. The source and canonical
+event bytes did not change. No earlier Tabularium release byte changed.
+
+Leads not pursued: none.
+
+## Euler releases, step 1, round 3 -- 2026-08-17
+
+Scope: `27e930f...2feeb85`, including both earlier audit rounds. Re-read
+multi-row consistency and empty-result behaviour, then repeated the release
+rebuilds, source tampering, Python compilation, 14 root tests and 121
+Tabularium tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R3-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | An empty response could claim complete coverage over a reversed indexed block interval without being refused. | fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a` |
+| E1-R3-02 | medium | `scripts/tabularium_lib/adapters/euler_v1.py`, `scripts/tabularium_lib/adapters/euler_v2.py` | Rows sharing a block or transaction identity could disagree about its hash, block number, transaction index or timestamp. | fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a` |
+
+The fixes reject reversed coverage and reconcile shared block and transaction
+metadata before ordering or serialising events. Both release rebuilds remain
+byte-identical, and all prior Goldfinch artifacts remain unchanged.
+
+Leads not pursued: none.
+
+## Euler releases, step 1, round 4 -- 2026-08-17
+
+Scope: `27e930f...e1e3fb7`, including all prior fixes. Compared the V2
+amount mapping with the checked-in API response and Probitas' independently
+validated event shapes, then ran 14 root and 123 Tabularium tests and rebuilt
+both releases.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E1-R4-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | The mapper accepted arbitrary amount-leg names, and a liquidation could pass with a borrow-shaped single `assets` leg. An API shape change could therefore acquire an old canonical meaning. | fixed in `e1e3fb71fb779aa2dc5d4295c69c66943a2f570c` |
+
+The fix requires exactly one `assets` leg for non-liquidation events and both
+`assets` and addressed `collateral` legs for liquidations. Regression tests
+cover an unknown leg and an incomplete liquidation.
+
+Leads not pursued: none.
+
+## Euler releases, step 1, round 5 -- 2026-08-17
+
+Scope: `27e930f...2d7dc28`, including all four finding rounds. Re-read the
+adapter, release and verifier paths against the study risk register and the
+preserved source shapes. Exercised malformed numbers, duplicate and
+contradictory identities, incomplete amount legs, request and timestamp
+rebinding, unknown event types, path and artifact tampering, offline read-only
+verification and deterministic order.
+
+The 14 root and 123 Tabularium tests passed. Each Euler release rebuilt twice
+to its committed bytes. The four Goldfinch artifacts retained their fixed
+digests.
 
 | id | severity | file | finding | status |
 | --- | --- | --- | --- | --- |

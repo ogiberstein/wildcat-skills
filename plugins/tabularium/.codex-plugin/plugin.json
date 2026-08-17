@@ -1,6 +1,6 @@
 {
   "name": "tabularium",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Venue-qualified credit-event releases rebuilt from preserved source records.",
   "author": {
     "name": "Wildcat Labs",
@@ -19,10 +19,10 @@
   "interface": {
     "displayName": "Tabularium",
     "shortDescription": "Venue-qualified credit-event releases rebuilt from preserved source records.",
-    "longDescription": "Tabularium turns preserved Goldfinch borrow and repay entities into deterministic canonical JSONL without discarding the source meaning or native record behind a row. Its coverage manifest binds the raw source, capture manifest and canonical ledger, declares mapped and unsupported entity counts, and names the hosted-indexer and block-proof gaps. Verification uses only local files, confines every path to the release directory and rebuilds expected event bytes rather than trusting the release's row claims.",
+    "longDescription": "Tabularium turns preserved Goldfinch, Euler v1 and Euler V2 credit records into deterministic canonical JSONL without discarding source meaning or native records. Versioned coverage manifests bind source, capture and canonical bytes, declare scope and gaps, and keep Euler V2 protocol generation separate from the Euler V3 source API. Verification uses only local files, confines every path to the release directory and rebuilds expected event bytes rather than trusting row claims.",
     "developerName": "Wildcat Labs",
     "category": "Research",
     "capabilities": [],
-    "defaultPrompt": "Use $tabularium to build and verify a source-bound Goldfinch credit-event release."
+    "defaultPrompt": "Use $tabularium to build or verify a source-bound Goldfinch, Euler v1 or Euler V2 credit-event release offline."
   }
 }

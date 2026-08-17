@@ -46,6 +46,46 @@ def build_args(source, capture, output, manifest, release="fixture-v1"):
 
 
 class BuilderCliTests(unittest.TestCase):
+    def test_euler_adapter_selection_builds_schema_v2(self):
+        release = support.PLUGIN_ROOT / "examples" / "euler-v1-v0"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.json"
+            capture = root / "capture.json"
+            output = root / "events.jsonl"
+            manifest = root / "coverage.json"
+            source.write_bytes((release / "source.json").read_bytes())
+            capture.write_bytes((release / "capture.json").read_bytes())
+            result = run(
+                "build", "--adapter", "euler-v1",
+                "--source", source, "--capture-manifest", capture,
+                "--out", output, "--manifest", manifest,
+                "--release", "euler-v1-borrow-block-14531589-v0",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(manifest.read_text())["schema_version"], 2)
+
+    def test_wrong_euler_adapter_fails_before_outputs(self):
+        release = support.PLUGIN_ROOT / "examples" / "euler-v1-v0"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.json"
+            capture = root / "capture.json"
+            output = root / "events.jsonl"
+            manifest = root / "coverage.json"
+            source.write_bytes((release / "source.json").read_bytes())
+            capture.write_bytes((release / "capture.json").read_bytes())
+            result = run(
+                "build", "--adapter", "euler-v2",
+                "--source", source, "--capture-manifest", capture,
+                "--out", output, "--manifest", manifest,
+                "--release", "wrong-adapter",
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("capture adapter", result.stderr)
+            self.assertFalse(output.exists())
+            self.assertFalse(manifest.exists())
+
     def test_build_writes_sorted_canonical_jsonl_and_reports_unmapped_kinds(self):
         with tempfile.TemporaryDirectory() as directory:
             source, capture, output, manifest = release_paths(directory)
