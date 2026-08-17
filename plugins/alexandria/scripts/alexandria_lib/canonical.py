@@ -78,7 +78,14 @@ def load_bytes(data: bytes, label: str = "JSON document", *, max_bytes=MAX_CONTR
     return value
 
 
-def load_raw_json(data: bytes, label: str, *, max_bytes: int):
+def load_raw_json(
+    data: bytes,
+    label: str,
+    *,
+    max_bytes: int,
+    max_nodes=MAX_NODES,
+    preserve_integers=False,
+):
     """Parse raw JSON for collection counts without narrowing valid numbers."""
     if len(data) > max_bytes:
         raise AlexandriaError(f"{label} exceeds the {max_bytes}-byte limit")
@@ -100,6 +107,17 @@ def load_raw_json(data: bytes, label: str, *, max_bytes: int):
     def ignore_number(_value):
         return None
 
+    def parse_integer(value):
+        digits = value.lstrip("-")
+        if len(digits) > MAX_INTEGER_DIGITS:
+            raise AlexandriaError(
+                f"{label} contains an integer longer than {MAX_INTEGER_DIGITS} digits"
+            )
+        return int(value)
+
+    def reject_float(_value):
+        raise AlexandriaError(f"{label} contains a floating-point number")
+
     def reject_constant(_value):
         raise AlexandriaError(f"{label} contains a non-finite number")
 
@@ -107,26 +125,26 @@ def load_raw_json(data: bytes, label: str, *, max_bytes: int):
         value = json.loads(
             text,
             object_pairs_hook=pairs_hook,
-            parse_int=ignore_number,
-            parse_float=ignore_number,
+            parse_int=parse_integer if preserve_integers else ignore_number,
+            parse_float=reject_float if preserve_integers else ignore_number,
             parse_constant=reject_constant,
         )
     except AlexandriaError:
         raise
     except (json.JSONDecodeError, RecursionError) as exc:
         raise AlexandriaError(f"{label} is not valid JSON") from exc
-    _check_tree(value, label)
+    _check_tree(value, label, max_nodes=max_nodes)
     return value
 
 
-def _check_tree(value, label: str = "JSON value") -> None:
+def _check_tree(value, label: str = "JSON value", *, max_nodes=MAX_NODES) -> None:
     nodes = 0
     stack = [(value, 0)]
     while stack:
         current, depth = stack.pop()
         nodes += 1
-        if nodes > MAX_NODES:
-            raise AlexandriaError(f"{label} exceeds the {MAX_NODES}-node limit")
+        if nodes > max_nodes:
+            raise AlexandriaError(f"{label} exceeds the {max_nodes}-node limit")
         if depth > MAX_NESTING:
             raise AlexandriaError(f"{label} exceeds the nesting limit of {MAX_NESTING}")
         if isinstance(current, float):

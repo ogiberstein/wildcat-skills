@@ -29,6 +29,8 @@ class TabulariumPackagingTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("build", result.stdout)
         self.assertIn("verify", result.stdout)
+        self.assertIn("compound-witness", result.stdout)
+        self.assertIn("verify-compound-witness", result.stdout)
         self.assertIn("deterministic", result.stdout)
 
     def test_verify_help_requires_a_coverage_manifest(self):

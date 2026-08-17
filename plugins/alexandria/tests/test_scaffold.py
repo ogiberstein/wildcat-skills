@@ -11,6 +11,7 @@ import unittest
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
 COMMAND = PLUGIN_ROOT / "scripts" / "alexandria.py"
+COMPOUND_COMMAND = PLUGIN_ROOT / "scripts" / "compound_v3_phase0.py"
 SKILL = PLUGIN_ROOT / "skills" / "alexandria" / "SKILL.md"
 PLANNED = ("ingest", "verify", "derive", "index", "query")
 
@@ -32,6 +33,17 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         for command in PLANNED:
             with self.subTest(command=command):
                 self.assertIn(command, result.stdout)
+
+    def test_compound_phase0_cli_keeps_network_capture_explicit(self):
+        result = subprocess.run(
+            [sys.executable, str(COMPOUND_COMMAND), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for command in ("registry", "capture", "build", "check"):
+            self.assertIn(command, result.stdout)
 
     def test_no_command_is_a_controlled_usage_error(self):
         result = run()

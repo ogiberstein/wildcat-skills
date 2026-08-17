@@ -7,7 +7,8 @@ from .derivation import derive
 from .index import rebuild
 from .query import query, query_bytes
 from .release import ingest, verify
+from .compound_phase0 import check_phase0
 
 __all__ = [
-    "AlexandriaError", "derive", "ingest", "query", "query_bytes", "rebuild", "verify"
+    "AlexandriaError", "check_phase0", "derive", "ingest", "query", "query_bytes", "rebuild", "verify"
 ]
