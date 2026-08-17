@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import hashlib
+import re
 import shutil
 import tempfile
 import time
@@ -24,11 +25,13 @@ from .release import MAX_RAW_COMPONENT_BYTES, ingest, verify
 
 
 CORPUS_FORMAT = "alexandria-compound-v3-corpus/v1"
+CORPUS_SHA256 = "fdafb894bc212bc23133ddf80a8ad11384332e2ac6fba871c251a8a082fe0880"
 PROXY = "0xc3d688b66703497daa19211eedff47f25384cdc3"
 USER_BASIC_SLOT = 5
 MAX_REQUESTS = 48
 MAX_PHASE0_JSON_NODES = 1_000_000
 MAX_CAPTURE_SECONDS = 300
+WORD_RE = re.compile(r"^0x[0-9a-f]{64}$")
 OLD_WITNESS = {
     "block_hash": "0xf56dbfce61b5f2ae9b0a7b25a4a2f8cb7c47f716db7abc4f64a0c8dcf914d1e8",
     "block_number": "0xeb2c89",
@@ -130,7 +133,7 @@ def validate_corpus(corpus) -> None:
         raise AlexandriaError("Compound corpus has an unknown shape")
     if corpus["format"] != CORPUS_FORMAT or corpus["registry_commit"] != COMET_COMMIT:
         raise AlexandriaError("Compound corpus pin does not match")
-    if corpus["proxy"].lower() != PROXY:
+    if not isinstance(corpus["proxy"], str) or corpus["proxy"].lower() != PROXY:
         raise AlexandriaError("Compound corpus proxy does not match Ethereum USDC Comet")
     if corpus["old"] != OLD_WITNESS or corpus["recent"] != RECENT_WITNESS:
         raise AlexandriaError("Compound corpus transaction set does not match Phase 0")
@@ -166,6 +169,8 @@ def validate_corpus(corpus) -> None:
     unsupported = next(item for item in requests if item["name"] == "rpc-modules-unsupported")
     if unsupported.get("expected_error_code") != -32601:
         raise AlexandriaError("Compound rpc_modules refusal code does not match")
+    if hashlib.sha256(canonical_bytes(corpus)).hexdigest() != CORPUS_SHA256:
+        raise AlexandriaError("Compound corpus bytes do not match Phase 0")
 
 
 def capture(
@@ -345,7 +350,11 @@ def _response(release_root: Path, manifest, declaration, identifier: int):
         raise AlexandriaError(f"Compound response {name} envelope does not match")
     expected_error = declaration.get("expected_error_code")
     if expected_error is not None:
-        if not isinstance(response.get("error"), dict) or response["error"].get("code") != expected_error:
+        if (
+            "result" in response
+            or not isinstance(response.get("error"), dict)
+            or response["error"].get("code") != expected_error
+        ):
             raise AlexandriaError(f"Compound response {name} did not return the expected error")
         return response
     if "error" in response or "result" not in response:
@@ -374,7 +383,16 @@ def load_phase0_responses(release_root: Path, manifest, corpus) -> dict:
 def _hex_number(value, label):
     if not isinstance(value, str) or not value.startswith("0x"):
         raise AlexandriaError(f"{label} is not a hexadecimal quantity")
-    return int(value, 16)
+    try:
+        return int(value, 16)
+    except ValueError as error:
+        raise AlexandriaError(f"{label} is not a hexadecimal quantity") from error
+
+
+def _object(value, label):
+    if not isinstance(value, dict):
+        raise AlexandriaError(f"{label} is not an object")
+    return value
 
 
 def _runtime_code_digest(value, label):
@@ -399,7 +417,7 @@ def check_phase0(release_root: Path) -> dict:
         raise AlexandriaError("Compound client identity is not the measured Reth variant")
     if responses["chain-id"]["result"] != "0x1":
         raise AlexandriaError("Compound chain id is not Ethereum mainnet")
-    finalized = responses["finalized-block"]["result"]
+    finalized = _object(responses["finalized-block"]["result"], "Compound finalized header")
     if finalized.get("number") != corpus["recent"]["finalized_number"] or finalized.get("hash") != corpus["recent"]["finalized_hash"]:
         raise AlexandriaError("Compound finalized header does not match the corpus boundary")
 
@@ -419,9 +437,9 @@ def check_phase0(release_root: Path) -> dict:
     }
     for label in ("old", "recent"):
         expected = corpus[label]
-        block = responses[f"{label}-block"]["result"]
-        transaction = responses[f"{label}-transaction"]["result"]
-        transaction_receipt = responses[f"{label}-receipt"]["result"]
+        block = _object(responses[f"{label}-block"]["result"], f"Compound {label} block")
+        transaction = _object(responses[f"{label}-transaction"]["result"], f"Compound {label} transaction")
+        transaction_receipt = _object(responses[f"{label}-receipt"]["result"], f"Compound {label} receipt")
         if block.get("number") != expected["block_number"] or block.get("hash") != expected["block_hash"]:
             raise AlexandriaError(f"Compound {label} block does not match the corpus")
         if (
@@ -438,8 +456,16 @@ def check_phase0(release_root: Path) -> dict:
         ):
             raise AlexandriaError(f"Compound {label} receipt is not a successful matching receipt")
         flat = responses[f"{label}-trace-filter"]["result"]
-        proxy_frames = [item for item in flat if str(item.get("action", {}).get("to", "")).lower() == PROXY]
-        if not proxy_frames or not any(item.get("traceAddress") for item in proxy_frames):
+        if not isinstance(flat, list) or any(not isinstance(item, dict) for item in flat):
+            raise AlexandriaError(f"Compound {label} trace filter is not a frame list")
+        proxy_frames = [
+            item for item in flat
+            if isinstance(item.get("action"), dict)
+            and str(item["action"].get("to", "")).lower() == PROXY
+            and item.get("transactionHash") == expected["transaction_hash"]
+            and "error" not in item
+        ]
+        if not proxy_frames or not any(isinstance(item.get("traceAddress"), list) and item["traceAddress"] for item in proxy_frames):
             raise AlexandriaError(f"Compound {label} trace filter did not retain a nested proxy call")
         call_root = responses[f"{label}-call-trace"]["result"]
         calls = [
@@ -453,6 +479,8 @@ def check_phase0(release_root: Path) -> dict:
         if selectors != expected_selectors:
             raise AlexandriaError(f"Compound {label} call trace selectors do not match Phase 0")
         opcode = responses[f"{label}-opcode-trace"]["result"]
+        if not isinstance(opcode, dict):
+            raise AlexandriaError(f"Compound {label} opcode trace is not an object")
         struct_logs = opcode.get("structLogs") if isinstance(opcode, dict) else None
         if opcode.get("failed") is not False or not isinstance(struct_logs, list):
             raise AlexandriaError(f"Compound {label} opcode trace is incomplete")
@@ -463,6 +491,8 @@ def check_phase0(release_root: Path) -> dict:
         if not isinstance(prestate, dict) or "pre" not in prestate or "post" not in prestate:
             raise AlexandriaError(f"Compound {label} prestate diff is incomplete")
         implementation_slot = responses[f"{label}-implementation-slot"]["result"]
+        if not isinstance(implementation_slot, str) or WORD_RE.fullmatch(implementation_slot) is None:
+            raise AlexandriaError(f"Compound {label} implementation slot is not a word")
         implementation = "0x" + implementation_slot[-40:].lower()
         implementation_code = responses[f"{label}-implementation-code"]["result"]
         if implementation == "0x" + "0" * 40 or not isinstance(implementation_code, str) or len(implementation_code) <= 2:

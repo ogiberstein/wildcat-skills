@@ -15,6 +15,7 @@ from .errors import AlexandriaError
 COMET_COMMIT = "f766f51583c23acc33b2a7824654ef2029a96804"
 COMET_TREE = "1101bf195fce18dc1feb3e56c992adfddac27b0e"
 DEPLOYMENTS_TREE = "cf2dc2381d00a3c60563f4b5aa486412ddd40d62"
+REGISTRY_SHA256 = "3eff07d0c032d8ab1b614d5ee7691b77e198daa31fa824c739ee7056340b848e"
 CHAIN_IDS = {
     "arbitrum": 42161,
     "base": 8453,
@@ -47,7 +48,7 @@ SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 
 def _git(repo: Path, *arguments: str, binary: bool = False):
     result = subprocess.run(
-        ["git", "-C", str(repo), *arguments],
+        ["git", "--no-replace-objects", "-C", str(repo), *arguments],
         check=False,
         capture_output=True,
     )
@@ -144,7 +145,9 @@ def generate_registry(repo: Path) -> dict:
 
 
 def registry_bytes(repo: Path) -> bytes:
-    return canonical_bytes(generate_registry(repo))
+    registry = generate_registry(repo)
+    validate_registry(registry)
+    return canonical_bytes(registry)
 
 
 def deployment_source_bytes(repo: Path, deployment="mainnet/usdc") -> dict[str, bytes]:
@@ -210,3 +213,5 @@ def validate_registry(registry) -> None:
             raise AlexandriaError(f"{key} source-file paths do not match the pin")
     if tuple(keys) != EXPECTED_MARKETS or len(proxies) != len(set(proxies)):
         raise AlexandriaError("Compound registry entries do not match the pinned allowlist")
+    if hashlib.sha256(canonical_bytes(registry)).hexdigest() != REGISTRY_SHA256:
+        raise AlexandriaError("Compound registry bytes do not match the pinned registry")

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import shutil
 import socket
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -18,6 +19,9 @@ from tabularium_lib.compound_witness import (
 )
 from tabularium_lib.core import TabulariumError
 from tabularium_lib.keccak import keccak256, mapping_slot
+
+sys.path.insert(0, str(support.REPO_ROOT / "plugins" / "alexandria" / "scripts"))
+from alexandria_lib.compound_phase0 import build as build_alexandria  # noqa: E402
 
 
 EXAMPLE = support.PLUGIN_ROOT / "examples" / "compound-v3-phase0-v0"
@@ -41,6 +45,7 @@ class CompoundWitnessTests(unittest.TestCase):
 
     def test_ethereum_keccak_and_mapping_slot_vectors(self):
         self.assertEqual(keccak256(b"").hex(), "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+        self.assertEqual(keccak256(b"abc").hex(), "4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45")
         self.assertEqual(
             mapping_slot("0x56105c17bef06455e1066f7c455ff28f15c7283e", 5),
             "0xcd0f529d81158ba9167238f24519db12c14ccee8db94d025c74b9a693804a040",
@@ -99,6 +104,8 @@ class CompoundWitnessTests(unittest.TestCase):
         self.assertEqual(legs, {"source_principal_delta": -600, "destination_principal_delta": 600})
         with self.assertRaises(TabulariumError):
             debt_transfer_conformance(-1000, -900, -900, -300)
+        with self.assertRaisesRegex(TabulariumError, "int104"):
+            debt_transfer_conformance(-(1 << 103) - 1, -2, -3, -1)
 
     def test_tampered_alexandria_object_is_refused(self):
         copied = self.root / "alexandria"
@@ -109,6 +116,39 @@ class CompoundWitnessTests(unittest.TestCase):
         object_path.write_bytes(object_path.read_bytes() + b"\n")
         with self.assertRaisesRegex(TabulariumError, "failed verification"):
             build_compound_witness(copied, self.root / "facts.jsonl", self.root / "witness.json")
+
+    def test_relevant_write_outside_the_bound_delegatecall_is_refused(self):
+        source = self.root / "input"
+        alexandria_example = ALEXANDRIA.parent
+        shutil.copytree(alexandria_example / "input", source)
+        response = source / "responses" / "recent-opcode-trace.json"
+        value = json.loads(response.read_text())
+        user_slot = mapping_slot("0x56105c17bef06455e1066f7c455ff28f15c7283e", 5)[2:]
+        changed = False
+        for item in value["result"]["structLogs"]:
+            if item.get("op") == "SSTORE" and item.get("stack", [""])[-1].removeprefix("0x").rjust(64, "0") == user_slot:
+                item["depth"] = 4
+                changed = True
+                break
+        self.assertTrue(changed)
+        response.write_text(
+            json.dumps(value, separators=(",", ":"), sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        rebound = self.root / "rebound-release"
+        build_alexandria(source, rebound)
+        with self.assertRaisesRegex(TabulariumError, "not bound"):
+            build_compound_witness(rebound, self.root / "facts.jsonl", self.root / "witness.json")
+
+    def test_oversized_or_nonregular_witness_inputs_are_refused(self):
+        facts, manifest, _ = self.build()
+        facts.write_bytes(b"x" * 1_048_577)
+        with self.assertRaisesRegex(TabulariumError, "byte limit"):
+            verify_compound_witness(ALEXANDRIA, facts, manifest)
+        directory = self.root / "directory"
+        directory.mkdir()
+        with self.assertRaisesRegex(TabulariumError, "regular file"):
+            verify_compound_witness(ALEXANDRIA, directory, manifest)
 
 
 if __name__ == "__main__":

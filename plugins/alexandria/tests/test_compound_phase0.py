@@ -1,6 +1,5 @@
 """Pinned registry, bounded capture and offline Compound Phase 0 checks."""
 
-from contextlib import contextmanager
 from copy import deepcopy
 import json
 import os
@@ -122,6 +121,39 @@ class CompoundReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(AlexandriaError, "transaction does not match"):
             build(source, output)
         self.assertFalse(output.exists())
+
+    def test_malformed_rpc_result_is_a_controlled_refusal(self):
+        source = self.root / "input"
+        shutil.copytree(EXAMPLE / "input", source)
+        response = source / "responses" / "recent-block.json"
+        value = json.loads(response.read_text())
+        value["result"] = []
+        response.write_bytes(canonical_bytes(value))
+        output = self.root / "release"
+        with self.assertRaisesRegex(AlexandriaError, "block is not an object"):
+            build(source, output)
+        self.assertFalse(output.exists())
+
+    def test_trace_filter_frame_must_belong_to_the_selected_transaction(self):
+        source = self.root / "input"
+        shutil.copytree(EXAMPLE / "input", source)
+        response = source / "responses" / "recent-trace-filter.json"
+        value = json.loads(response.read_text())
+        for frame in value["result"]:
+            frame["transactionHash"] = "0x" + "11" * 32
+        response.write_bytes(canonical_bytes(value))
+        with self.assertRaisesRegex(AlexandriaError, "nested proxy call"):
+            build(source, self.root / "release")
+
+    def test_expected_error_cannot_also_carry_a_result(self):
+        source = self.root / "input"
+        shutil.copytree(EXAMPLE / "input", source)
+        response = source / "responses" / "rpc-modules-unsupported.json"
+        value = json.loads(response.read_text())
+        value["result"] = {}
+        response.write_bytes(canonical_bytes(value))
+        with self.assertRaisesRegex(AlexandriaError, "expected error"):
+            build(source, self.root / "release")
 
     def test_fake_capture_never_persists_endpoint_credentials(self):
         output = self.root / "capture"

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
+import os
 from pathlib import Path
+import stat
 import sys
 
 from .core import (
@@ -24,6 +27,8 @@ SUPPLY_FROM = "0x90323177"
 WITHDRAW_FROM = "0x26441318"
 FACT_FORMAT = "tabularium-compound-v3-execution-fact/v1"
 MANIFEST_FORMAT = "tabularium-compound-v3-witness/v1"
+MAX_FACT_BYTES = 1_048_576
+MAX_WITNESS_BYTES = 1_048_576
 
 
 def debt_transfer_conformance(principal_source_before, principal_source_after,
@@ -35,6 +40,8 @@ def debt_transfer_conformance(principal_source_before, principal_source_after,
     )
     if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
         raise TabulariumError("debt-transfer principals must be integers")
+    if any(not -(1 << 103) <= value < (1 << 103) for value in values):
+        raise TabulariumError("debt-transfer principal is outside signed int104")
     if not (principal_source_before < 0 and principal_destination_before < 0):
         raise TabulariumError("debt-transfer fixture must start with debt on both sides")
     if principal_source_after >= principal_source_before:
@@ -54,15 +61,16 @@ def _alexandria_api():
         raise TabulariumError("the Alexandria plugin is required to verify a Compound witness")
     sys.path.insert(0, str(alexandria_scripts))
     try:
-        from alexandria_lib.compound_phase0 import (  # pylint: disable=import-outside-toplevel
-            check_phase0,
-            load_phase0,
-            load_phase0_responses,
-        )
+        phase0 = importlib.import_module("alexandria_lib.compound_phase0")
         from alexandria_lib.errors import AlexandriaError  # pylint: disable=import-outside-toplevel
     except ImportError as error:
         raise TabulariumError("Alexandria Compound verification API is unavailable") from error
-    return check_phase0, load_phase0, load_phase0_responses, AlexandriaError
+    module_path = Path(phase0.__file__).resolve()
+    try:
+        module_path.relative_to(alexandria_scripts.resolve())
+    except ValueError as error:
+        raise TabulariumError("loaded Alexandria verifier is outside the sibling plugin") from error
+    return phase0.check_phase0, phase0.load_phase0, phase0.load_phase0_responses, AlexandriaError
 
 
 def _word(value, label):
@@ -87,6 +95,70 @@ def _address_word(input_data, argument, label):
     if word[:24] != "0" * 24:
         raise TabulariumError("%s address argument is not ABI-canonical" % label)
     return "0x" + word[-40:].lower()
+
+
+def _address(value, label):
+    if not isinstance(value, str) or len(value) != 42 or not value.startswith("0x"):
+        raise TabulariumError("%s is not an address" % label)
+    try:
+        int(value[2:], 16)
+    except ValueError as error:
+        raise TabulariumError("%s is not a hexadecimal address" % label) from error
+    return value.lower()
+
+
+def _hex_data(value, label):
+    if not isinstance(value, str) or not value.startswith("0x") or len(value) % 2:
+        raise TabulariumError("%s is not hexadecimal data" % label)
+    try:
+        bytes.fromhex(value[2:])
+    except ValueError as error:
+        raise TabulariumError("%s is not hexadecimal data" % label) from error
+    return value.lower()
+
+
+def _bounded_file_bytes(path, limit, label):
+    path = Path(path)
+    required = ("O_CLOEXEC", "O_NOFOLLOW", "O_NONBLOCK")
+    if any(not hasattr(os, name) for name in required):
+        raise TabulariumError("safe local file reads are unavailable")
+    descriptor = None
+    try:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+        )
+    except OSError as error:
+        raise TabulariumError("%s is unavailable" % label) from error
+    try:
+        try:
+            before = os.fstat(descriptor)
+        except OSError as error:
+            raise TabulariumError("%s metadata is unavailable" % label) from error
+        if not stat.S_ISREG(before.st_mode):
+            raise TabulariumError("%s is not a regular file" % label)
+        if before.st_size > limit:
+            raise TabulariumError("%s exceeds the byte limit" % label)
+        chunks = []
+        remaining = limit + 1
+        while remaining:
+            block = os.read(descriptor, min(65_536, remaining))
+            if not block:
+                break
+            chunks.append(block)
+            remaining -= len(block)
+        after = os.fstat(descriptor)
+        data = b"".join(chunks)
+        if (
+            len(data) > limit
+            or len(data) != before.st_size
+            or (before.st_dev, before.st_ino, before.st_size)
+            != (after.st_dev, after.st_ino, after.st_size)
+        ):
+            raise TabulariumError("%s changed while it was read" % label)
+        return data
+    finally:
+        os.close(descriptor)
 
 
 def decode_principal(word):
@@ -133,8 +205,8 @@ def _make_bytes(release_root):
     call_trace = responses["recent-call-trace"]["result"]
     opcode = responses["recent-opcode-trace"]["result"]
     prestate = responses["recent-prestate-trace"]["result"]
-    implementation_word = responses["recent-implementation-slot"]["result"]
-    implementation = "0x" + implementation_word[-40:].lower()
+    implementation_word = _word(responses["recent-implementation-slot"]["result"], "implementation slot")
+    implementation = "0x" + implementation_word[-40:]
 
     component_digests = {
         name: _source_digest(manifest, name)
@@ -160,7 +232,7 @@ def _make_bytes(release_root):
     for call_path, frame in _walk_calls(call_trace):
         if str(frame.get("to", "")).lower() != PROXY or "error" in frame:
             continue
-        input_data = frame.get("input")
+        input_data = _hex_data(frame.get("input"), "Comet call input")
         selector = input_data[:10] if isinstance(input_data, str) else ""
         if selector not in (SUPPLY_FROM, WITHDRAW_FROM):
             raise TabulariumError("successful Comet call uses an unsupported Phase 0 selector")
@@ -168,15 +240,15 @@ def _make_bytes(release_root):
         facts.append({
             "block_hash": block_hash,
             "call_path": list(call_path),
-            "call_type": frame.get("type", "CALL"),
-            "caller": str(frame.get("from", "")).lower(),
+            "call_type": frame.get("type"),
+            "caller": _address(frame.get("from"), "Comet caller"),
             "format": FACT_FORMAT,
             "implementation": implementation,
             "implementation_code_sha256": implementation_code_sha256,
             "input": input_data,
             "kind": "call",
             "ordinal": len(comet_calls) - 1,
-            "output": frame.get("output", "0x"),
+            "output": _hex_data(frame.get("output", "0x"), "Comet call output"),
             "selector": selector,
             "source": {
                 "component": "response-recent-call-trace",
@@ -190,6 +262,8 @@ def _make_bytes(release_root):
     if [path for path, _ in comet_calls] != [(0,), (1,)]:
         raise TabulariumError("Phase 0 witness does not contain the expected two ordered Comet calls")
     withdraw = comet_calls[1][1]
+    if any(frame.get("type") != "CALL" for _, frame in comet_calls):
+        raise TabulariumError("Phase 0 Comet calls are not CALL frames")
     if withdraw["input"][:10] != WITHDRAW_FROM:
         raise TabulariumError("Phase 0 second Comet call is not withdrawFrom")
     account = _address_word(withdraw["input"], 0, "withdrawFrom")
@@ -226,16 +300,18 @@ def _make_bytes(release_root):
                     raise TabulariumError("opcode trace has an extra Comet delegatecall")
                 active_call_path = list(comet_calls[next_call_index][0])
                 next_call_index += 1
-        if item.get("op") != "SSTORE" or item.get("depth") != 3:
+        if item.get("op") != "SSTORE":
             continue
-        if active_call_path is None:
-            raise TabulariumError("relevant storage write is not bound to a Comet call")
         stack = item.get("stack")
         if not isinstance(stack, list) or len(stack) < 2:
             raise TabulariumError("SSTORE stack is incomplete")
         slot = _word(stack[-1], "SSTORE slot")
         if slot not in current:
             continue
+        if item.get("depth") != 3 or active_call_path is None:
+            raise TabulariumError("relevant storage write is not bound to a Comet call")
+        if not isinstance(item.get("pc"), int) or isinstance(item.get("pc"), bool) or item["pc"] < 0:
+            raise TabulariumError("relevant storage write has an invalid program counter")
         written = _word(stack[-2], "SSTORE value")
         fact = {
             "block_hash": block_hash,
@@ -247,7 +323,7 @@ def _make_bytes(release_root):
             "kind": "storage-write",
             "opcode_index": index,
             "ordinal": len(storage_facts),
-            "pc": item.get("pc"),
+            "pc": item["pc"],
             "prior_word": current[slot],
             "slot": slot,
             "source": {
@@ -337,7 +413,10 @@ def build_compound_witness(release_root, facts_path, manifest_path):
     if any(existing):
         if not all(existing):
             raise TabulariumError("Compound witness output pair is incomplete")
-        if facts_path.read_bytes() != facts_bytes or manifest_path.read_bytes() != manifest_bytes:
+        if (
+            _bounded_file_bytes(facts_path, MAX_FACT_BYTES, "existing Compound facts") != facts_bytes
+            or _bounded_file_bytes(manifest_path, MAX_WITNESS_BYTES, "existing Compound manifest") != manifest_bytes
+        ):
             raise TabulariumError("Compound witness outputs already contain different bytes")
         return manifest
     write_bytes_atomic(facts_bytes, facts_path)
@@ -348,10 +427,8 @@ def build_compound_witness(release_root, facts_path, manifest_path):
 def verify_compound_witness(release_root, facts_path, manifest_path):
     facts_path = Path(facts_path)
     manifest_path = Path(manifest_path)
-    if facts_path.is_symlink() or manifest_path.is_symlink():
-        raise TabulariumError("Compound witness inputs must not be symlinks")
-    supplied_facts = facts_path.read_bytes()
-    supplied_manifest = manifest_path.read_bytes()
+    supplied_facts = _bounded_file_bytes(facts_path, MAX_FACT_BYTES, "Compound facts")
+    supplied_manifest = _bounded_file_bytes(manifest_path, MAX_WITNESS_BYTES, "Compound manifest")
     parsed = loads_json(supplied_manifest, "Compound witness manifest")
     facts_bytes, manifest_bytes, expected = _make_bytes(Path(release_root).resolve(strict=True))
     if supplied_facts != facts_bytes or supplied_manifest != manifest_bytes or parsed != expected:
