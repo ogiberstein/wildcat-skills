@@ -1,7 +1,7 @@
 # Release and supersession policy
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation from issue #57 remains unimplemented; Compound v3 adapter work is specified.
+> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
 <!-- marketplace-context:end -->
 
 A Tabularium release is immutable once published. Keep its `source.json`,
@@ -22,3 +22,8 @@ A correction can reuse source bytes only when their digest is unchanged. A new
 capture boundary or corrected raw record is new source evidence and must be
 published separately. Offline verification establishes internal consistency,
 not publisher identity, authenticity or an independent chain proof.
+
+Protocol generations and data-service versions are separate release fields.
+For example, the current Euler V2 protocol activity source is the Euler V3 API.
+Changing either field requires a new release; an API name alone does not prove
+that a new protocol generation exists.

@@ -23,7 +23,7 @@ build.
 | [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
 | [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches. |
 | [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
-| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Euler v1/v2 preservation from issue #57 remains unimplemented; Compound v3 adapter work is specified. |
+| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof. |
 
 ## Plugins
 
@@ -299,11 +299,12 @@ Probitas includes:
 another person can rebuild after the endpoint that served them is gone.
 
 The first release captures Goldfinch's borrower-side record: 34 borrow and 477
-repay entities from a hosted indexer, mapped into 511 canonical rows. Each row
-keeps the complete venue-native entity beside the common fields and names the
-source selector, adapter version and mapping rule that produced it. A
-Goldfinch repayment stays `goldfinch.repay`; it does not become a claim that
-the borrower's whole debt was settled.
+repay entities mapped into 511 canonical rows. Two Euler releases now add a
+real Euler v1 canonical-proxy borrow log and a fixed Euler V2 owner/second
+activity response from the Euler V3 API. Each row keeps the complete
+venue-native record and names the source selector, adapter version and mapping
+rule that produced it. Euler V2 protocol generation and Euler V3 source API
+remain separate fields.
 
 The release is four files doing separate jobs. `source.json` is the preserved
 response. `capture.json` records where and when it was taken. `events.jsonl` is
@@ -321,13 +322,18 @@ Tabularium includes:
 
 - the standard-library [`tabularium.py`](./plugins/tabularium/scripts/tabularium.py)
   builder and offline verifier;
-- versioned [event](./plugins/tabularium/schemas/canonical-event-v1.json) and
-  [coverage](./plugins/tabularium/schemas/coverage-manifest-v1.json) schemas;
+- versioned event schemas [v1](./plugins/tabularium/schemas/canonical-event-v1.json)
+  and [v2](./plugins/tabularium/schemas/canonical-event-v2.json), plus coverage
+  schemas [v1](./plugins/tabularium/schemas/coverage-manifest-v1.json) and
+  [v2](./plugins/tabularium/schemas/coverage-manifest-v2.json);
 - the complete [`goldfinch-v0`](./plugins/tabularium/examples/goldfinch-v0/README.md)
   release, its data dictionary and a fresh-directory rebuild demonstration;
+- source-bound [`euler-v1-v0`](./plugins/tabularium/examples/euler-v1-v0/README.md)
+  and [`euler-v2-v0`](./plugins/tabularium/examples/euler-v2-v0/README.md)
+  releases with their own dictionaries and rebuild demonstrations;
 - an [adapter guide](./plugins/tabularium/docs/adding-an-adapter.md) and an
   immutable [release policy](./plugins/tabularium/docs/release-policy.md); and
-- 92 tests and an audit log
+- 114 tests and an audit log
   ([`audit/AUDIT.md`](./plugins/tabularium/audit/AUDIT.md)) recording every
   review round and fix.
 
@@ -482,7 +488,7 @@ Use Lemma to chunk this Solidity standard input into JSONL.
 Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
 Use Pandects to check this credit protocol against the executable laws in the corpus.
 Use Probitas to build a dossier on this counterparty from the addresses they declared.
-Use Tabularium to build and verify a source-bound Goldfinch credit-event release.
+Use Tabularium to build and verify a source-bound Goldfinch, Euler v1 or Euler V2 credit-event release.
 ```
 
 Fiat remains explicit-only. Mentioning a similar delivery task does not start
@@ -552,11 +558,11 @@ Use $probitas to build a sourced dossier on "<entity>" from the addresses they d
 
 The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./plugins/probitas/skills/probitas/SKILL.md).
 
-Tabularium needs Python 3.9 or later and nothing else. Its shipped release and
+Tabularium needs Python 3.9 or later and nothing else. Its shipped releases and
 tests use no network. Ask:
 
 ```text
-Use $tabularium to rebuild the checked-in Goldfinch release and verify it offline.
+Use $tabularium to rebuild the checked-in Euler V2 release and verify it offline.
 ```
 
 The mapping, release rules and evidence boundary live in
@@ -685,7 +691,8 @@ of on-chain credit, shared laws for credit implementations, agents that can show
 their sources, a conformance suite for hooks and a way to replay chain state
 after the original infrastructure is gone. Carrying evidence with a release was
 the first of them, and `ariadne` above is the answer to it. Preserving the credit
-record was the next, and `tabularium` now has its first venue. `pandects` now
+record was the next, and `tabularium` now has Goldfinch and two Euler protocol
+generations. `pandects` now
 carries the shared credit laws. `lazarus` preserves and replays a finite slice
 of historical state. Another protocol, auditor, researcher or agent builder
 should be able to use each one without needing to use Wildcat. `alexandria`

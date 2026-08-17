@@ -39,3 +39,20 @@ class SchemaDocumentTests(unittest.TestCase):
             "the release is unsigned; offline verification proves internal consistency, not publisher identity or authenticity",
             gaps,
         )
+
+    def test_event_schema_v2_separates_protocol_and_source_api(self):
+        schema = self.load("canonical-event-v2.json")
+        self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
+        provenance = schema["properties"]["provenance"]
+        self.assertIn("protocol_generation", provenance["required"])
+        self.assertIn("source_api", provenance["required"])
+        self.assertIn("amounts", schema["required"])
+        self.assertIn("debt-transfer", schema["properties"]["event_family"]["enum"])
+        self.assertIn("interest-accrual", schema["properties"]["event_family"]["enum"])
+
+    def test_coverage_schema_v2_binds_capture_scope_and_versions(self):
+        schema = self.load("coverage-manifest-v2.json")
+        self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
+        self.assertIn("scope", schema["properties"]["source"]["required"])
+        self.assertIn("included_events", schema["properties"]["coverage"]["required"])
+        self.assertEqual(schema["properties"]["versions"]["properties"]["event_schema"]["const"], 2)

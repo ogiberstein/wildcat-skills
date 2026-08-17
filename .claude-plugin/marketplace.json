@@ -163,7 +163,7 @@
       "displayName": "Tabularium",
       "source": "./plugins/tabularium",
       "description": "Venue-qualified credit-event releases rebuilt from preserved source records.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Wildcat Labs",
         "url": "https://wildcat.finance"

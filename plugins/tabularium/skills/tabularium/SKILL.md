@@ -5,11 +5,11 @@ description: >
   with venue-native records, mapping provenance and explicit coverage. Use
   when the user names Tabularium, asks to preserve a credit-event record, or
   wants to rebuild or verify a Tabularium release offline. This version maps
-  preserved Goldfinch borrow and repayment entities. Do not use it to collect
+  preserved Goldfinch, Euler v1 and Euler V2 credit events. Do not use it to collect
   live data, infer who controls an address, rate a counterparty, authenticate a
   publisher or claim an independently proved chain boundary.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Tabularium
@@ -21,7 +21,7 @@ Tabularium maps preserved venue-native records into reproducible, venue-qualifie
 
 **Use another tool when.** Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay.
 
-**Current frontier.** Euler v1/v2 preservation from issue #57 remains unimplemented; Compound v3 adapter work is specified.
+**Current frontier.** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
 <!-- marketplace-context:end -->
 
 Tabularium turns preserved venue records into a common event ledger without
@@ -47,17 +47,25 @@ compared without pretending they have identical meanings. Every row keeps its
 venue-qualified action and complete native record, so the common family does
 not become a verdict about the borrower.
 
-## Start with the checked-in release
+## Start with the checked-in releases
 
 The built prototype ships
 [`goldfinch-v0`](../../examples/goldfinch-v0/README.md): unchanged source and
 capture bytes, 511 canonical rows, a coverage manifest, a data dictionary and
 a temporary rebuild demonstration.
 
+It also ships [`euler-v1-v0`](../../examples/euler-v1-v0/README.md), a
+one-block canonical-proxy release, and
+[`euler-v2-v0`](../../examples/euler-v2-v0/README.md), a fixed owner/second
+activity release from the Euler V3 API. `Euler V2` names the protocol
+generation; `Euler V3` names the hosted API. Keep those fields separate.
+
 From the repository root:
 
 ```bash
 python3 plugins/tabularium/examples/goldfinch-v0/rebuild.py
+python3 plugins/tabularium/examples/euler-v1-v0/rebuild.py
+python3 plugins/tabularium/examples/euler-v2-v0/rebuild.py
 ```
 
 The demonstration copies the inputs to a fresh temporary directory, builds
@@ -67,10 +75,12 @@ does not rewrite the example.
 
 ## Build and verify
 
-For another preserved Goldfinch capture, keep the four release files together:
+Keep the four files of any release together and select its adapter explicitly.
+Goldfinch remains the default for old commands:
 
 ```bash
 python3 scripts/tabularium.py build \
+  --adapter <goldfinch|euler-v1|euler-v2> \
   --source <release-dir>/source.json \
   --capture-manifest <release-dir>/capture.json \
   --out <release-dir>/events.jsonl \
@@ -80,16 +90,23 @@ python3 scripts/tabularium.py build \
 python3 scripts/tabularium.py verify <release-dir>/coverage.json
 ```
 
-`build` checks the capture's source digest, byte count, indexed block,
-timestamp, deployment and entity counts before it writes anything. It rejects
+`build` checks the capture's source digest, byte count, adapter and declared
+scope before it writes anything. Venue validation then checks the preserved
+source response. It rejects
 duplicate source identifiers, unsafe numeric values, paths outside the release
 directory and outputs that alias preserved input.
 
-The adapter maps `borrows` to `goldfinch.borrow` and `repays` to
+The Goldfinch adapter maps `borrows` to `goldfinch.borrow` and `repays` to
 `goldfinch.repay`. Each row carries the complete native entity, a stable source
 selector, the source contract, adapter version and mapping rule. The builder
 reports `_meta`, `callableLoans`, `creditLines` and `tranchedPools` as
 unsupported rather than treating silence as coverage.
+
+Euler v1 maps canonical proxy Borrow, Repay and Liquidation logs. Euler V2
+maps borrow, repay, liquidation, debt socialisation, debt transfer and interest
+accrual from the V3 API without flattening those actions. Owner and sub-account
+remain separate, liquidation amount legs remain separate, and every row keeps
+its complete source record.
 
 `verify` reads only local files and writes nothing. It checks the source,
 capture and canonical digests and byte counts; confines every declared path;
@@ -103,8 +120,9 @@ A Goldfinch repayment row means the source recorded a repayment amount. It
 does not by itself prove that every obligation was paid, the facility closed or
 the borrower's whole debt was settled.
 
-The capture boundary is the block a hosted indexer reported. Neither that
-boundary nor each event is independently proved against Ethereum here.
+The capture boundary is what the named hosted indexer or public RPC reported.
+Neither the boundary nor each event is independently proved against Ethereum
+here.
 
 The release is unsigned. A passing offline verification establishes internal
 consistency among the local files and the implemented mapping. It does not
@@ -122,6 +140,11 @@ Read the [release policy](../../docs/release-policy.md) before correcting a
 mapping. Published source, canonical and coverage bytes are immutable. A
 changed schema, adapter or mapping rule gets a new version and a new release
 directory that names what it supersedes.
+
+The [Euler preservation study](../../docs/euler-preservation-study.md) records
+the source and version boundary. Its
+[runbook](../../docs/euler-preservation-runbook.md) records the atomic delivery
+and verification gates.
 
 ## What this never does
 

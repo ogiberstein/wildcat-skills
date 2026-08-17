@@ -15,6 +15,12 @@ from .core import (
 )
 from .paths import relative_artifact_path
 from .release import make_manifest, validate_capture, validate_manifest
+from .release_v2 import (
+    adapter_module,
+    make_manifest as make_manifest_v2,
+    validate_capture as validate_capture_v2,
+    validate_manifest as validate_manifest_v2,
+)
 
 
 @dataclass(frozen=True)
@@ -51,7 +57,7 @@ def _refuse_aliases(inputs, outputs):
                     raise TabulariumError("build outputs alias each other")
 
 
-def build(source_path, capture_manifest_path, out_path, manifest_path, release):
+def build(source_path, capture_manifest_path, out_path, manifest_path, release, adapter="goldfinch"):
     _refuse_aliases(
         (source_path, capture_manifest_path),
         (out_path, manifest_path),
@@ -71,23 +77,46 @@ def build(source_path, capture_manifest_path, out_path, manifest_path, release):
     capture_bytes = Path(capture_manifest_path).read_bytes()
     source = loads_json(source_bytes, "source")
     capture = loads_json(capture_bytes, "capture manifest")
-    indexed_block = validate_capture(
-        capture, capture_bytes, source, source_bytes
-    )
-    mapped = map_snapshot(source)
+    if adapter == "goldfinch":
+        indexed_block = validate_capture(
+            capture, capture_bytes, source, source_bytes
+        )
+        mapped = map_snapshot(source)
+    else:
+        module = adapter_module(adapter)
+        _, mapped = validate_capture_v2(
+            capture, source, source_bytes, expected_adapter=adapter
+        )
+        if capture["release"] != release:
+            raise TabulariumError("capture release does not match requested release")
     data = jsonl_bytes(mapped.events)
-    manifest = make_manifest(
-        release,
-        source_relative,
-        source_bytes,
-        capture_relative,
-        capture_bytes,
-        canonical_relative,
-        data,
-        indexed_block,
-        mapped,
-    )
-    validate_manifest(manifest)
+    if adapter == "goldfinch":
+        manifest = make_manifest(
+            release,
+            source_relative,
+            source_bytes,
+            capture_relative,
+            capture_bytes,
+            canonical_relative,
+            data,
+            indexed_block,
+            mapped,
+        )
+        validate_manifest(manifest)
+    else:
+        manifest = make_manifest_v2(
+            release,
+            module.ADAPTER,
+            source_relative,
+            source_bytes,
+            capture_relative,
+            capture_bytes,
+            canonical_relative,
+            data,
+            capture,
+            mapped,
+        )
+        validate_manifest_v2(manifest)
     manifest_bytes = canonical_json(manifest) + b"\n"
     write_bytes_atomic(data, out_path)
     write_bytes_atomic(manifest_bytes, manifest_path)

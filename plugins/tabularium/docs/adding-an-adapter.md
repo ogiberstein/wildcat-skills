@@ -1,7 +1,7 @@
 # Adding a venue adapter
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation from issue #57 remains unimplemented; Compound v3 adapter work is specified.
+> **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Euler v1/v2 preservation now ships; Compound v3 remains specification-only, with no verified Alexandria raw witness from the Phase 0 trace and ordered-storage method proof.
 <!-- marketplace-context:end -->
 
 An adapter translates one venue's preserved records without promoting its
@@ -16,7 +16,8 @@ the native record attached to every mapped row.
    terms such as repayment, cure, default or write-down.
 3. **Record provenance.** Set the source kind and contract, entity collection,
    source identifier and selector, adapter name and version, and mapping-rule
-   version. One covered source entity must yield one traceable selector.
+   version. Record protocol generation separately from a hosted API's version.
+   One covered source entity must yield one traceable selector.
 4. **Declare coverage.** Count the collections mapped as events and every
    unsupported collection present in the source. Add evidence limits and known
    semantic gaps rather than dropping them silently.
@@ -25,6 +26,12 @@ the native record attached to every mapped row.
    deterministic repeat build and an offline rebuild from preserved bytes.
 6. **Publish a new release.** Add source, capture, canonical and coverage files
    under a new release directory. Do not alter an earlier interpretation.
+
+Goldfinch uses canonical event and coverage schema v1. Euler uses v2 because it
+needs block numbers and nullable hashes, multiple exact amount legs,
+owner/sub-account context and distinct debt-transfer and interest-accrual
+families. Add new schema versions rather than widening an old release's
+meaning in place.
 
 Review the venue's economic meaning as well as its JSON shape. If a common
 family would imply more than the native event establishes, narrow the action
