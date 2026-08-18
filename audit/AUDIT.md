@@ -1041,3 +1041,42 @@ inert data that no suite imports or executes.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Live-evidence run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+two committed spec documents. Root 24/24, horos 51/51. The step adds prose
+only; the review checked the committed copies match the receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Live-evidence run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+bundle. Horos 55/55, root 24/24. The review checked the risk register's
+rows: the bundle names its commit and tool version, the consistency test
+reads only the committed boundary and never re-scans or touches the network,
+and the quoted totals are asserted rather than trusted. The one derived
+number (80.3%) is recomputed by the test from the quoted operands.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Live-evidence run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+six changed surfaces. Root 24/24 (the evolution contract validates the
+v1.1.0 row's script-computed digest and the prose contract validates surface
+agreement and job uniqueness), horos 55/55. The review confirmed the refusal
+is recorded in both the skill text and the ledger with its reason, and that
+the in-place study corrections are named in the commit rather than silent.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
