@@ -30,7 +30,8 @@ color: red
 
 You run exactly one audit round on one step's branch.
 
-You will be given: the step branch, the stacked branch name, the resolved
+You will be given: the step branch (which already carries every step below
+it in the stack), the stacked branch name, the resolved
 security suite identifiers, the plugin root, the audit log path, the round
 number, and the risk register seed from the study. The suite is vendored:
 read `<plugin-root>/skills/x-ray/SKILL.md`, then

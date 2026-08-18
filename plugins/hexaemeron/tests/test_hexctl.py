@@ -3,6 +3,7 @@
 import json
 import hashlib
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,46 @@ class HexctlCase(unittest.TestCase):
 
     def init(self, topic="test topic"):
         self.run_ctl("init", "--topic", topic)
+
+    def state(self):
+        return json.loads(self.run_ctl("status", "--json").stdout)
+
+    def run_branch(self):
+        return self.state()["run_branch"]
+
+    def step_branch(self, n, state=None):
+        state = state or self.state()
+        title = state["steps"][n - 1]["title"]
+        tail = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:32].strip("-")
+        return f"{state['run_branch']}-step-{n}-{tail or 'untitled'}"
+
+    def step_base(self, n, state=None):
+        state = state or self.state()
+        if n == 1:
+            return state["run_branch"]
+        return self.step_branch(n - 1, state)
+
+    def strip_run_branch(self):
+        """Make the state look like a run started before stacked branches."""
+        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state.pop("run_branch", None)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+
+    def merge_stack(self):
+        for step in self.state()["steps"]:
+            self.run_ctl("done", "merge-step", "--step", str(step["n"]),
+                         "--merge-commit", f"m{step['n']}")
+
+    def integrate_run(self, closed_issue_url=None):
+        self.merge_stack()
+        args = ["done", "integrate", "--pr-url", "https://x/pr/run",
+                "--merge-commit", "runmerge"]
+        if closed_issue_url:
+            args += ["--closed-issue-url", closed_issue_url]
+        self.run_ctl(*args)
 
     def spawn_lock_holder(self, ready, release, command="cmd_record"):
         program = """
@@ -126,12 +167,12 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
 
     def to_audit(self):
         self.to_steps()
-        self.run_ctl("done", "implement", "--branch", "step-1-scaffold",
+        self.run_ctl("done", "implement", "--branch", self.step_branch(1),
                      "--commit", "abc123")
 
     def finish_step(self, step_no=1):
-        self.run_ctl("done", "implement", "--branch", f"step-{step_no}",
-                     "--commit", "abc123")
+        self.run_ctl("done", "implement", "--branch", self.step_branch(step_no),
+                     "--commit", f"abc{step_no}")
         self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
@@ -140,7 +181,7 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
             "done", "push",
             "--pr-url", f"https://x/pr/{step_no}",
             "--head-commit", f"head{step_no}",
-            "--merge-commit", f"merge{step_no}",
+            "--pr-base", self.step_base(step_no),
         )
 
 
@@ -302,7 +343,8 @@ class TestStepGates(HexctlCase):
         self.assertEqual(directive["do"], "implement")
         self.assertTrue(directive["legacy_issue_phase_skipped"])
         self.run_ctl(
-            "done", "implement", "--branch", "step-1", "--commit", "abc123"
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
         )
         self.assertEqual(self.next_json()["do"], "resolve-security-suite")
 
@@ -402,13 +444,94 @@ class TestProseAndPush(HexctlCase):
             "done", "push", "--pr-url", "https://x/pr/1",
             "--head-commit", "abc123", expect=2,
         )
+        self.assertIn("--pr-base", proc.stderr)
+        self.run_ctl(
+            "done", "push", "--pr-url", "https://x/pr/1",
+            "--head-commit", "abc123", "--pr-base", self.step_base(1),
+        )
+
+    def test_step_pull_request_may_not_target_the_repository_base(self):
+        self.to_prose()
+        self.run_ctl("done", "prose", "--files", "1",
+                     "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        proc = self.run_ctl(
+            "done", "push", "--pr-url", "https://x/pr/1",
+            "--head-commit", "abc123", "--pr-base", "main", expect=2,
+        )
+        self.assertIn("--pr-base must be", proc.stderr)
+        self.assertIn(self.run_branch(), proc.stderr)
+
+    def test_step_pull_request_is_not_merged_during_the_run(self):
+        self.to_prose()
+        self.run_ctl("done", "prose", "--files", "1",
+                     "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        proc = self.run_ctl(
+            "done", "push", "--pr-url", "https://x/pr/1",
+            "--head-commit", "abc123", "--pr-base", self.step_base(1),
+            "--merge-commit", "def456", expect=2,
+        )
+        self.assertIn("integrate", proc.stderr)
+
+    def test_second_step_stacks_on_the_first(self):
+        self.to_steps(("Scaffold", "Core"))
+        self.run_ctl("record", "security_suite", '"waived: prose-only repo"')
+        directive = self.next_json()
+        self.assertEqual(directive["branch"], self.step_branch(1))
+        self.assertEqual(directive["branch_from"], self.run_branch())
+        self.assertEqual(directive["pr_base"], self.run_branch())
+        self.assertFalse(directive["merge_now"])
+        self.finish_step(1)
+        directive = self.next_json()
+        self.assertEqual(directive["branch"], self.step_branch(2))
+        self.assertEqual(directive["branch_from"], self.step_branch(1))
+        self.assertEqual(directive["pr_base"], self.step_branch(1))
+
+    def test_run_branch_defaults_to_the_topic_slug_and_may_be_named(self):
+        self.init("Borrowing-base covenant hook for V2.5")
+        self.assertEqual(self.run_branch(), "fiat/borrowing-base-covenant-hook-for-v2-5")
+        self.assertNotEqual(self.run_branch(), self.state()["base"])
+        self.run_ctl("reset", expect=2)
+
+    def test_named_run_branch_is_honoured_and_checked(self):
+        proc = self.run_ctl("init", "--topic", "t", "--run-branch", "bad branch",
+                            expect=2)
+        self.assertIn("not a usable branch name", proc.stderr)
+        proc = self.run_ctl("init", "--topic", "t", "--run-branch", "main",
+                            "--base", "main", expect=2)
+        self.assertIn("must differ from --base", proc.stderr)
+        self.run_ctl("init", "--topic", "t", "--run-branch", "release/prep")
+        self.assertEqual(self.run_branch(), "release/prep")
+
+    def test_titleless_step_still_yields_a_usable_branch(self):
+        self.to_steps(("###",))
+        self.assertEqual(self.next_json()["branch"],
+                         f"{self.run_branch()}-step-1-untitled")
+
+    def test_step_branch_name_is_the_controller_s_to_give(self):
+        self.to_steps(("Scaffold",))
+        proc = self.run_ctl("done", "implement", "--branch", "step1",
+                            "--commit", "abc123", expect=2)
+        self.assertIn(self.step_branch(1), proc.stderr)
+
+    def test_pre_stack_run_keeps_the_old_per_step_merge_contract(self):
+        self.to_prose()
+        self.run_ctl("done", "prose", "--files", "1",
+                     "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        self.strip_run_branch()
+        proc = self.run_ctl(
+            "done", "push", "--pr-url", "https://x/pr/1",
+            "--head-commit", "abc123", expect=2,
+        )
         self.assertIn("--merge-commit", proc.stderr)
         self.run_ctl(
             "done", "push", "--pr-url", "https://x/pr/1",
             "--head-commit", "abc123", "--merge-commit", "def456",
         )
+        out = self.next_json()
+        self.assertEqual((out["do"], out["step"]), ("implement", 2))
+        self.assertNotIn("pr_base", out)
 
-    def test_recorded_task_issue_must_be_closed_before_push_receipt(self):
+    def test_recorded_task_issue_must_be_closed_before_the_run_completes(self):
         self.to_prose()
         self.run_ctl("record", "task_issue", '"https://x/issues/74"')
         self.run_ctl(
@@ -417,30 +540,81 @@ class TestProseAndPush(HexctlCase):
         )
         proc = self.run_ctl(
             "done", "push", "--pr-url", "https://x/pr/1",
-            "--head-commit", "abc123", "--merge-commit", "def456",
-            expect=2,
+            "--head-commit", "abc123", "--pr-base", self.step_base(1),
+            "--closed-issue-url", "https://x/issues/74", expect=2,
+        )
+        self.assertIn("integrate phase", proc.stderr)
+        self.run_ctl(
+            "done", "push", "--pr-url", "https://x/pr/1",
+            "--head-commit", "abc123", "--pr-base", self.step_base(1),
+        )
+        self.finish_step(2)
+        self.merge_stack()
+        self.assertIn(
+            "--closed-issue-url", self.next_json()["then"]
+        )
+        proc = self.run_ctl(
+            "done", "integrate", "--pr-url", "https://x/pr/run",
+            "--merge-commit", "runmerge", expect=2,
         )
         self.assertIn("--closed-issue-url", proc.stderr)
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
-            "--head-commit", "abc123", "--merge-commit", "def456",
+            "done", "integrate", "--pr-url", "https://x/pr/run",
+            "--merge-commit", "runmerge",
             "--closed-issue-url", "https://x/issues/75", expect=2,
         )
         self.assertIn("does not match", proc.stderr)
         self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
-            "--head-commit", "abc123", "--merge-commit", "def456",
+            "done", "integrate", "--pr-url", "https://x/pr/run",
+            "--merge-commit", "runmerge",
             "--closed-issue-url", "https://x/issues/74",
         )
+        self.assertEqual(self.next_json()["do"], "done")
 
-    def test_push_advances_steps_then_run_completes(self):
+    def test_push_advances_steps_then_the_stack_integrates(self):
         self.to_steps(("One", "Two"))
         self.run_ctl("record", "security_suite", '"suite"')
+        run_branch = self.run_branch()
+        first, second = self.step_branch(1), self.step_branch(2)
         self.finish_step(1)
         out = self.next_json()
         self.assertEqual((out["do"], out["step"]), ("implement", 2))
         self.finish_step(2)
+
+        out = self.next_json()
+        self.assertEqual((out["do"], out["step"]), ("merge-step", 1))
+        self.assertEqual((out["branch"], out["into"]), (first, run_branch))
+
+        proc = self.run_ctl("done", "merge-step", "--step", "2",
+                            "--merge-commit", "m2", expect=2)
+        self.assertIn("step order", proc.stderr)
+        proc = self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
+                            "--merge-commit", "runmerge", expect=2)
+        self.assertIn("still has to merge", proc.stderr)
+
+        self.run_ctl("done", "merge-step", "--step", "1", "--merge-commit", "m1")
+        out = self.next_json()
+        self.assertEqual((out["do"], out["step"]), ("merge-step", 2))
+        self.assertEqual((out["branch"], out["into"]), (second, run_branch))
+        self.run_ctl("done", "merge-step", "--step", "2", "--merge-commit", "m2")
+
+        out = self.next_json()
+        self.assertEqual(out["do"], "integrate")
+        self.assertEqual((out["run_branch"], out["base"]), (run_branch, "main"))
+        proc = self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
+                            expect=2)
+        self.assertIn("--merge-commit", proc.stderr)
+        self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
+                     "--merge-commit", "runmerge")
         self.assertEqual(self.next_json()["do"], "done")
+        self.run_ctl("verify")
+
+    def test_reset_refuses_a_run_whose_stack_has_not_landed(self):
+        self.to_steps(("One",))
+        self.run_ctl("record", "security_suite", '"suite"')
+        self.finish_step(1)
+        proc = self.run_ctl("reset", expect=2)
+        self.assertIn("integrate", proc.stderr)
 
 
 class TestControls(HexctlCase):
@@ -480,6 +654,7 @@ class TestControls(HexctlCase):
         self.to_steps(("One",))
         self.run_ctl("record", "security_suite", '"suite"')
         self.finish_step(1)
+        self.integrate_run()
         self.assertEqual(self.next_json()["do"], "done")
 
         self.run_ctl("reset")

@@ -7,10 +7,12 @@ append-only, hash-chained ledger (`.hexaemeron/ledger.jsonl`). Every mutating
 command appends a ledger entry, so `verify` can prove the run history was not
 edited after the fact.
 
-Phase order is fixed. Globally: study -> runbook -> steps -> done.
-Within each step: implement -> audit -> prose -> push. The push receipt is
-terminal only after the final head is pushed, its pull request is merged, and
-any recorded task issue is closed.
+Phase order is fixed. Globally: study -> runbook -> steps -> integrate -> done.
+Within each step: implement -> audit -> prose -> push. Step branches chain off
+one another and their pull requests stack; nothing merges while the steps run.
+The integrate phase merges the stack into the run branch in step order, then
+merges the run branch into the recorded base exactly once and closes any
+recorded task issue.
 
 Exit codes: 0 success, 2 validation/usage error, 1 unexpected failure.
 Stdout from `next` and `status --json` is a single JSON object; everything
@@ -35,7 +37,7 @@ LEDGER_FILE = "ledger.jsonl"
 # ``issue`` remains accepted only so runs created by older controllers can
 # advance directly into implementation without losing their ledger history.
 STEP_PHASES = ["issue", "implement", "audit", "prose", "push"]
-GLOBAL_PHASES = ["study", "runbook", "steps", "done"]
+GLOBAL_PHASES = ["study", "runbook", "steps", "integrate", "done"]
 
 # Decorative only: the day each phase maps to in the plugin's naming conceit.
 DAY = {
@@ -69,7 +71,7 @@ DEFAULT_CONFIG = {
     },
     "git": {
         "base": "main",
-        "step_base": "chain",
+        "run_branch_prefix": "fiat/",
         "draft_pr": False,
     },
     "solidity": "auto",
@@ -86,6 +88,72 @@ def die(msg: str, code: int = 2) -> None:
 
 def canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+
+# ------------------------------------------------------------------ branches
+
+SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+# Conservative subset of git's refname rules: no whitespace, no traversal, no
+# leading or trailing separator, nothing that needs quoting in a shell.
+BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*[A-Za-z0-9]$")
+
+
+def slug(text: str, limit: int = 48) -> str:
+    return SLUG_RE.sub("-", text.lower()).strip("-")[:limit].strip("-")
+
+
+def check_branch_name(name: str) -> None:
+    if not BRANCH_RE.match(name) or ".." in name or "//" in name:
+        die(f"'{name}' is not a usable branch name")
+    if name.endswith(".lock"):
+        die(f"'{name}' is not a usable branch name")
+
+
+def run_branch_of(state: dict):
+    """The run's integration branch, or None for a run started before 3.4."""
+    return state.get("run_branch")
+
+
+def step_branch_name(state: dict, step: dict) -> str:
+    """Descriptive chained step branch: run slug, step number, step title.
+
+    A sibling of the run branch rather than a child of it, because git cannot
+    hold `fiat/x` and `fiat/x/step-1-y` as refs at the same time.
+    """
+    tail = slug(step["title"], 32) or "untitled"
+    return f"{run_branch_of(state)}-step-{step['n']}-{tail}"
+
+
+def step_pr_base(state: dict, step: dict) -> str:
+    """A step stacks on the step below it; step 1 stacks on the run branch."""
+    if step["n"] <= 1:
+        return run_branch_of(state)
+    return step_branch_name(state, state["steps"][step["n"] - 2])
+
+
+def branch_plan(state: dict, step: dict) -> dict:
+    """Branch to cut and pull request base for a step, when the run has a run
+    branch. A pre-3.4 run gets nothing here and keeps its old freedom."""
+    if not run_branch_of(state):
+        return {}
+    parent = step_pr_base(state, step)
+    return {
+        "run_branch": run_branch_of(state),
+        "branch": step_branch_name(state, step),
+        "branch_from": parent,
+        "pr_base": parent,
+        "merge_now": False,
+    }
+
+
+def expected_task_issue(state: dict):
+    task_issue = state["receipts"].get("task_issue")
+    if isinstance(task_issue, str):
+        return task_issue
+    if isinstance(task_issue, dict):
+        return task_issue.get("url")
+    return None
 
 
 # ---------------------------------------------------------------- state io
@@ -343,11 +411,17 @@ def cmd_init(args) -> None:
     # .gitignore was not touched. Nested .gitignore with `*` covers it.
     with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
         fh.write("*\n")
+    prefix = DEFAULT_CONFIG["git"]["run_branch_prefix"]
+    run_branch = args.run_branch or f"{prefix}{slug(args.topic) or 'run'}"
+    check_branch_name(run_branch)
+    if run_branch == args.base:
+        die("--run-branch must differ from --base; the run needs its own branch")
     state = {
         "version": 1,
         "controller": "hexctl",
         "topic": args.topic,
         "base": args.base,
+        "run_branch": run_branch,
         "created_at": now(),
         "phase": "study",
         "current_step": None,
@@ -356,8 +430,16 @@ def cmd_init(args) -> None:
         "config": json.loads(json.dumps(DEFAULT_CONFIG)),
         "halted": None,
     }
-    commit(args.dir, state, "init", {"topic": args.topic, "base": args.base})
-    print(f"initialised {root} (topic: {args.topic})")
+    commit(
+        args.dir,
+        state,
+        "init",
+        {"topic": args.topic, "base": args.base, "run_branch": run_branch},
+    )
+    print(
+        f"initialised {root} (topic: {args.topic}); "
+        f"run branch {run_branch} off {args.base}"
+    )
 
 
 RESERVED_RECEIPTS = {"study", "runbook"}
@@ -473,6 +555,13 @@ def done_implement(args, state: dict) -> None:
     legacy_phase = step["phase"] == "issue"
     if not args.branch or not args.commit:
         die("--branch and --commit are required")
+    if run_branch_of(state):
+        expected = step_branch_name(state, step)
+        if args.branch != expected:
+            die(
+                f"--branch must be '{expected}', chained off "
+                f"'{step_pr_base(state, step)}'; got '{args.branch}'"
+            )
     step["receipts"]["implement"] = {
         "branch": args.branch,
         "commit": args.commit,
@@ -597,24 +686,44 @@ def done_push(args, state: dict) -> None:
         die("--pr-url is required")
     if not args.head_commit:
         die("--head-commit is required")
-    if not args.merge_commit:
-        die("--merge-commit is required; the pull request is not terminal until merged")
-    task_issue = state["receipts"].get("task_issue")
-    expected_issue = None
-    if isinstance(task_issue, str):
-        expected_issue = task_issue
-    elif isinstance(task_issue, dict):
-        expected_issue = task_issue.get("url")
-    if task_issue is not None and not args.closed_issue_url:
-        die("--closed-issue-url is required because a task_issue receipt exists")
-    if expected_issue and args.closed_issue_url != expected_issue:
-        die(
-            "--closed-issue-url does not match the recorded task_issue "
-            f"({expected_issue})"
-        )
+    stacked = run_branch_of(state) is not None
+    if stacked:
+        expected_base = step_pr_base(state, step)
+        if not args.pr_base:
+            die(
+                f"--pr-base is required; this step's pull request targets "
+                f"'{expected_base}', never the repository default branch"
+            )
+        if args.pr_base != expected_base:
+            die(f"--pr-base must be '{expected_base}'; got '{args.pr_base}'")
+        if args.merge_commit:
+            die(
+                "a step pull request does not merge during the run; the stack "
+                "merges in step order in the integrate phase"
+            )
+        if args.closed_issue_url:
+            die(
+                "a recorded task issue closes in the integrate phase, once the "
+                "run branch lands on the base"
+            )
+    else:
+        if not args.merge_commit:
+            die(
+                "--merge-commit is required; the pull request is not terminal "
+                "until merged"
+            )
+        expected_issue = expected_task_issue(state)
+        if state["receipts"].get("task_issue") is not None and not args.closed_issue_url:
+            die("--closed-issue-url is required because a task_issue receipt exists")
+        if expected_issue and args.closed_issue_url != expected_issue:
+            die(
+                "--closed-issue-url does not match the recorded task_issue "
+                f"({expected_issue})"
+            )
     step["receipts"]["push"] = {
         "pr_url": args.pr_url,
         "head_commit": args.head_commit,
+        "pr_base": args.pr_base,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
     }
@@ -629,15 +738,143 @@ def done_push(args, state: dict) -> None:
         tail = f"step {nxt['n']} -> implement"
     else:
         state["current_step"] = None
-        state["phase"] = "done"
-        tail = "all steps done"
+        if stacked:
+            state["phase"] = "integrate"
+            state["integrate"] = {"merged": [], "merges": {}}
+            tail = f"stack complete; merge it into {run_branch_of(state)}"
+        else:
+            state["phase"] = "done"
+            tail = "all steps done"
     commit(
         args.dir,
         state,
         "done:push",
         {"step": step["n"], **step["receipts"]["push"]},
     )
-    print(f"step {step['n']} published, merged, and receipted; {tail}")
+    if stacked:
+        print(
+            f"step {step['n']} pushed and stacked on '{args.pr_base}'; {tail}"
+        )
+    else:
+        print(f"step {step['n']} published, merged, and receipted; {tail}")
+
+
+def _integrate_directive(state: dict) -> dict:
+    """Merge the stack bottom up, then the run branch into the base once."""
+    run_branch = run_branch_of(state)
+    merged = state.get("integrate", {}).get("merged", [])
+    for step in state["steps"]:
+        if step["n"] in merged:
+            continue
+        return {
+            "do": "merge-step",
+            "step": step["n"],
+            "title": step["title"],
+            "branch": step_branch_name(state, step),
+            "pr_url": step["receipts"].get("push", {}).get("pr_url"),
+            "into": run_branch,
+            "then": (
+                f"hexctl done merge-step --step {step['n']} "
+                "--merge-commit <sha>"
+            ),
+        }
+    then = "hexctl done integrate --pr-url <url> --merge-commit <sha>"
+    if expected_task_issue(state):
+        then += " --closed-issue-url <url>"
+    return {
+        "do": "integrate",
+        "run_branch": run_branch,
+        "base": state["base"],
+        "steps": len(state["steps"]),
+        "then": then,
+    }
+
+
+def done_merge_step(args, state: dict) -> None:
+    if state["phase"] != "integrate":
+        die(
+            "merge-step is an integrate-phase receipt; the run is in phase "
+            f"'{state['phase']}'"
+        )
+    if state.get("halted"):
+        die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
+    if args.step is None:
+        die("--step is required")
+    if not args.merge_commit:
+        die("--merge-commit is required")
+    pending = _integrate_directive(state)
+    if pending["do"] != "merge-step":
+        die(f"every step already merged into '{run_branch_of(state)}'")
+    if args.step != pending["step"]:
+        die(
+            f"the stack merges in step order; step {pending['step']} "
+            f"('{pending['branch']}') is next, not step {args.step}"
+        )
+    integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
+    integrate.setdefault("merged", []).append(args.step)
+    integrate.setdefault("merges", {})[str(args.step)] = {
+        "branch": pending["branch"],
+        "into": pending["into"],
+        "merge_commit": args.merge_commit,
+    }
+    commit(
+        args.dir,
+        state,
+        "done:merge-step",
+        {
+            "step": args.step,
+            "branch": pending["branch"],
+            "into": pending["into"],
+            "merge_commit": args.merge_commit,
+        },
+    )
+    remaining = len(state["steps"]) - len(integrate["merged"])
+    tail = f"{remaining} step(s) left in the stack" if remaining else "stack merged"
+    print(f"step {args.step} merged into {pending['into']}; {tail}")
+
+
+def done_integrate(args, state: dict) -> None:
+    if state["phase"] != "integrate":
+        die(
+            "integrate is the terminal phase; the run is in phase "
+            f"'{state['phase']}'"
+        )
+    if state.get("halted"):
+        die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
+    pending = _integrate_directive(state)
+    if pending["do"] != "integrate":
+        die(
+            f"step {pending['step']} still has to merge into "
+            f"'{run_branch_of(state)}' first"
+        )
+    if not args.pr_url:
+        die("--pr-url is required")
+    if not args.merge_commit:
+        die(
+            "--merge-commit is required; the run is not complete until the run "
+            f"branch is merged into '{state['base']}'"
+        )
+    expected_issue = expected_task_issue(state)
+    if state["receipts"].get("task_issue") is not None and not args.closed_issue_url:
+        die("--closed-issue-url is required because a task_issue receipt exists")
+    if expected_issue and args.closed_issue_url != expected_issue:
+        die(
+            "--closed-issue-url does not match the recorded task_issue "
+            f"({expected_issue})"
+        )
+    state["receipts"]["integrate"] = {
+        "run_branch": run_branch_of(state),
+        "base": state["base"],
+        "pr_url": args.pr_url,
+        "merge_commit": args.merge_commit,
+        "closed_issue_url": args.closed_issue_url,
+    }
+    state["phase"] = "done"
+    commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
+    print(
+        f"{run_branch_of(state)} merged into {state['base']} "
+        f"({args.merge_commit}); run complete"
+    )
 
 
 DONE_HANDLERS = {
@@ -647,6 +884,8 @@ DONE_HANDLERS = {
     "audit": done_audit,
     "prose": done_prose,
     "push": done_push,
+    "merge-step": done_merge_step,
+    "integrate": done_integrate,
 }
 
 
@@ -679,6 +918,8 @@ def _next_directive(state: dict) -> dict:
             "do": "runbook",
             "then": "hexctl done runbook --artifact <path> --steps-file <path>",
         }
+    if phase == "integrate":
+        return _integrate_directive(state)
     if phase == "done":
         return {"do": "done", "steps": len(state["steps"])}
     step = current_step(state)
@@ -712,6 +953,8 @@ def _next_directive(state: dict) -> dict:
         }
     if step["phase"] == "issue":
         return {**base, "do": "implement", "legacy_issue_phase_skipped": True}
+    if step["phase"] in ("implement", "push"):
+        return {**base, "do": step["phase"], **branch_plan(state, step)}
     return {**base, "do": step["phase"]}
 
 
@@ -729,11 +972,19 @@ def cmd_status(args) -> None:
         return
     print(f"topic: {clean(state['topic'])}")
     print(f"base:  {state['base']}")
+    if state.get("run_branch"):
+        print(f"run:   {state['run_branch']} -> {state['base']}")
     if state.get("halted"):
         print(f"HALTED: {state['halted']['reason']}")
     phase = state["phase"]
     if phase in ("study", "runbook"):
         print(f"phase: {phase} (day {DAY[phase]})")
+    elif phase == "integrate":
+        merged = len(state.get("integrate", {}).get("merged", []))
+        print(
+            f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
+            f"into {state['run_branch']})"
+        )
     elif phase == "done":
         print(f"phase: done ({len(state['steps'])} steps shipped)")
     else:
@@ -807,6 +1058,14 @@ def verify_run(base_dir: str) -> int:
             "state file does not match the last ledger entry; "
             "state.json was edited outside hexctl", 1
         )
+    if state["phase"] == "integrate":
+        merged = state.get("integrate", {}).get("merged", [])
+        expected = [s["n"] for s in state["steps"][: len(merged)]]
+        if merged != expected:
+            die(
+                "integrate state is inconsistent: the stack must merge in step "
+                f"order, got {merged}", 1
+            )
     if state["phase"] == "steps":
         step = current_step(state)
         if step["status"] != "open" or step["phase"] not in STEP_PHASES:
@@ -864,6 +1123,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("init", help="start a run")
     sp.add_argument("--topic", required=True)
     sp.add_argument("--base", default="main")
+    sp.add_argument(
+        "--run-branch",
+        dest="run_branch",
+        help="integration branch for the whole run (default: slug of --topic)",
+    )
     sp.set_defaults(fn=cmd_init)
 
     sp = sub.add_parser("status", help="show run state")
@@ -898,6 +1162,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--log")
     sp.add_argument("--files", type=int)
     sp.add_argument("--pr-url", dest="pr_url")
+    sp.add_argument("--pr-base", dest="pr_base")
+    sp.add_argument("--step", type=int)
     sp.add_argument("--head-commit", dest="head_commit")
     sp.add_argument("--merge-commit", dest="merge_commit")
     sp.add_argument("--closed-issue-url", dest="closed_issue_url")

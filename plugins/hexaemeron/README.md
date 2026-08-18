@@ -17,7 +17,8 @@ Let there be light.
 One command that takes a topic from nothing to a working prototype:
 study, runbook, then for each runbook step the simplest implementation that
 satisfies it, a security loop that runs until clean or
-reasoned out, a prose pass in the house voice, and a merged PR. Every phase
+reasoned out, a prose pass in the house voice, and a reviewable pull request.
+The steps stack; the stack lands on the base in one merge. Every phase
 leaves a receipt in a hash-chained ledger, so the run survives context
 resets, crashes, and week-long pauses -- resume is the same command.
 
@@ -34,7 +35,14 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 3. Implement the least complicated construction that satisfies each runbook step.
 4. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
 5. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
-6. Push the PR and move to the next step.
+6. Push the step branch, open its pull request against the step below it, and move to the next step.
+7. Once every step is pushed, merge the stack into the run branch in order, then merge the run branch into the base once.
+
+A run works on one integration branch cut from the base (`fiat/<run slug>` by
+default) with a chain of descriptively named step branches on top of it. Each
+step's pull request targets the step below it, step 1 targets the run branch,
+and nothing merges until the whole stack is ready. The base sees exactly one
+merge per run.
 
 ## What it ships
 
@@ -65,7 +73,8 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 | 3-4 | `implement` | Build the step, least mental load that satisfies the runbook |
 | 5 | `audit` | The vendored Pashov suite in rounds until clean or reasoned out; non-Solidity rounds run the `phylax`, `ephoros` and `hypomnema` lints; fixes on a stacked branch |
 | 6 | `prose` | `hypomnema` decides what gets recorded, then the `imprimatur` lint and the `vulgate` mask, on every document and the PR text |
-| rest | `push` | Stage and commit the final diff, push, merge the PR, clean up the branch, and close the task issue |
+| rest | `push` | Stage and commit the final diff, push the step branch, and open its stacked pull request |
+| -- | `integrate` | Merge the stack into the run branch in step order, then the run branch into the base once, and close the task issue |
 
 Days 3 through the rest repeat per step. The sixth day makes the prose in
 a human image, which is roughly the joke the name is carrying.
@@ -121,9 +130,12 @@ The receipts are opinionated where the process is: the audit phase will not
 open without a resolved (or explicitly waived) security suite; it will not
 close with findings open unless a reasoned no-further-leads verdict is
 recorded; a prose receipt missing either configured skill is rejected; and a
-push receipt requires the final head, a merged PR, and closure of any recorded
-task issue. Fiat creates no GitHub issue unless the user or target repository
-requires one.
+push receipt requires the final head and a pull request aimed at the step below
+it in the stack, and refuses a merge commit outright. Merges are the integrate
+phase's business: the controller hands them out one step at a time, in order,
+and the run is not done until the run branch has landed on the base and any
+recorded task issue is closed. Fiat creates no GitHub issue unless the user or
+target repository requires one.
 
 ## Skill versions and the stopping rule
 
@@ -154,8 +166,8 @@ Per-run, via `hexctl config set <path> <value>`:
 | `audit.stacked_suffix` | `--audit` | Fix branch: `<step-branch>--audit` |
 | `audit.fold` | `false` | Merge the stacked branch into the step branch on close |
 | `audit.log_path` | `audit/AUDIT.md` | Where rounds append |
-| `git.base` | `main` | Starting ref |
-| `git.step_base` | `chain` | Steps branch from the prior step (`base` for independent) |
+| `git.base` | `main` | Starting ref, and the only branch a run merges into |
+| `git.run_branch_prefix` | `fiat/` | Run branch is this plus the topic slug, unless `init --run-branch` names one |
 
 The Pashov suite -- `x-ray`, `solidity-auditor`, and `fizz` -- is based on
 https://github.com/pashov/skills tag `v28062026` under the MIT licence. Each
