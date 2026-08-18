@@ -892,3 +892,11 @@ The Lemma prose diff has no open finding. Status: clean.
 The review compared 17 files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained the quotation, model and embedding fields, source-location rules, fatal validation conditions, baseline entry figures, frontier digest `2d4f0d7948208fefdca52f4380b3f4c83261917a282256571a2ee611c5d9d36c`, and protected licence passage.
 
 Root `22/22`, Markdown `126` assertions, Solidity `142` assertions with pinned solc `0.8.25`, two Agent Skills validations, 17 Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check` pass. Regeneration produced `49` chunks, `9/9` placed, `44` placed through `SUMMARY.md`, median `143`, and p99/max `589`. The security suite remains waived because only Markdown changed.
+
+## Repository-wide Brevitas pass, step 6, round 1 -- 2026-08-18
+
+The Ariadne prose and link-test diff has no open finding. Status: clean.
+
+The review compared 12 files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained digest matching, seven gate outcomes, exit codes `0/1/2`, external signature verification, replay consent, and frontier digest `0c0310a503de564b892e7206d6b8e88ec3acd4ad99a62d02f3f83cd16991bc20`. The link test permits only the normalized `plugins/hexaemeron/skills/VERSIONING.md` target outside Ariadne.
+
+Root `22/22`, Ariadne `310/310`, two Agent Skills validations, 12 Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check` pass. No signature identity, network activity, or replay execution was established. The security suite remains waived because only Markdown and one test changed.
