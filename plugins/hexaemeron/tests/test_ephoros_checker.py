@@ -1,0 +1,101 @@
+"""The Ephoros signal lint catches its three rules and leaves the rest alone.
+
+The neighbours matter as much as the specimens. This marketplace writes a
+hundred f-string `print` calls, which are command-line output rather than
+telemetry, and takes means of sentence lengths and layout positions, which are
+not durations.
+"""
+
+import importlib.util
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "skills" / "ephoros" / "scripts" / "ephoros.py"
+
+spec = importlib.util.spec_from_file_location("ephoros_lint", SCRIPT)
+ephoros = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ephoros)
+
+
+def codes(source):
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "sample.py"
+        path.write_text(source, encoding="utf-8")
+        return sorted(f.code for f in ephoros.check(path))
+
+
+class LogMessages(unittest.TestCase):
+    def test_it_flags_an_f_string_message(self):
+        self.assertIn("E001", codes(
+            "import logging\nn = 3\nlogging.info(f'harvested {n} blocks')\n"))
+
+    def test_it_flags_percent_formatting(self):
+        self.assertIn("E001", codes("log = get()\nlog.warning('failed %s' % name)\n"))
+
+    def test_it_flags_dot_format(self):
+        self.assertIn("E001", codes("logger = get()\nlogger.error('at {}'.format(x))\n"))
+
+    def test_it_allows_a_stable_name_with_fields(self):
+        self.assertEqual([], codes(
+            "logger = get()\nlogger.info('harvest_done', extra={'blocks': n})\n"))
+
+    def test_it_ignores_print_which_is_not_telemetry(self):
+        self.assertEqual([], codes("n = 3\nprint(f'harvested {n} blocks')\n"))
+
+    def test_it_ignores_an_unrelated_object_with_an_info_method(self):
+        self.assertEqual([], codes(
+            "class Report:\n    def info(self, text):\n        return text\n\n"
+            "Report().info(f'value {x}')\n"))
+
+
+class MetricLabels(unittest.TestCase):
+    def test_it_flags_an_address_label(self):
+        self.assertIn("E002", codes(
+            "h = Histogram('d', labels={'address': a, 'venue': v})\n"))
+
+    def test_it_flags_a_hash_label_in_a_list(self):
+        self.assertIn("E002", codes("c = Counter('c', labelnames=['tx_hash', 'chain'])\n"))
+
+    def test_it_flags_a_request_id_tag(self):
+        self.assertIn("E002", codes("m = metric('m', tags=['request_id'])\n"))
+
+    def test_it_allows_bounded_labels(self):
+        self.assertEqual([], codes(
+            "h = Histogram('d', labelnames=['route', 'status_class', 'venue'])\n"))
+
+
+class Durations(unittest.TestCase):
+    def test_it_flags_a_mean_duration(self):
+        self.assertIn("E003", codes("import statistics\nmean_latency = statistics.mean(samples)\n"))
+
+    def test_it_flags_the_sum_over_len_idiom_on_durations(self):
+        self.assertIn("E003", codes("avg = sum(durations) / len(durations)\n"))
+
+    def test_it_allows_a_mean_of_something_that_is_not_a_duration(self):
+        self.assertEqual([], codes("mean = sum(lengths) / len(lengths)\n"))
+
+    def test_it_allows_a_mean_of_layout_positions(self):
+        self.assertEqual([], codes("order = sum(positions) / len(positions)\n"))
+
+
+class Suppression(unittest.TestCase):
+    def test_a_stated_reason_suppresses(self):
+        self.assertEqual([], codes(
+            "log = get()\nlog.info(f'x {y}')  # ephoros: allow one-off migration script\n"))
+
+    def test_a_bare_pragma_does_not_suppress(self):
+        self.assertIn("E001", codes("log = get()\nlog.info(f'x {y}')  # ephoros: allow\n"))
+
+
+class OverTheMarketplace(unittest.TestCase):
+    def test_the_shipped_tree_is_clean(self):
+        findings = []
+        for path in ephoros.walk([str(ROOT.parent)]):
+            findings.extend(ephoros.check(path))
+        self.assertEqual([], [str(f) for f in findings])
+
+
+if __name__ == "__main__":
+    unittest.main()
