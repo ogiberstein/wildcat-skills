@@ -1220,3 +1220,63 @@ new held job is the maintainer's own words for the filetype census.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Census run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+two spec documents. Root 24/24, horos 92/92. Prose-only step; the committed
+copies match the receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Census run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+changed README. Horos 101/101, root 24/24. The review held the register's
+rows: one walk produces both artefacts (the tally rides the existing loops
+rather than a parallel implementation), the frozen boundary is reproduced
+byte for byte by test, rows sum to the totals with the boundary column
+bounded by its row, symlinks and skipped directories appear in neither
+walk, and the census writer is the boundary's own atomic writer refactored,
+not a copy.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: readable files are statted twice when the
+census is on (once inside classify_file, once for the tally); measured
+against Metron's rule it is noise on real trees and not worth plumbing size
+out of the classifier.
+
+## Census run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+104/104, root 24/24. One defect was caught by the bundle's own consistency
+test before the implement receipt and is recorded for the trail: the prose
+quoted the boundary walk's file count instead of the census's (which
+includes files inside aggregated directories), 1,041 against the true
+1,113. The review confirmed both documents carry the shipped schema, the
+rows sum to the totals, and the Solidity call is recorded as a candidate
+pending more censuses, in the maintainer's words.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings in the round itself. Leads not pursued: none.
+
+## Census run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24 (evolution digest and prose
+contracts), horos 104/104, demo census byte-identical. The review confirmed
+the held job carries the maintainer's own restraint: breadth first, no
+extractor from one tree, Solidity recorded as leading candidate rather than
+commitment, and the three prior ledger rows byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
