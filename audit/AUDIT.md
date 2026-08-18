@@ -1407,3 +1407,14 @@ ledger rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity shipped); lints phylax 0, ephoros 0, hypomnema 0.
+Horos 136/136, root 24/24. Prose-only step; the committed copies match the
+receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
