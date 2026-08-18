@@ -1206,3 +1206,17 @@ recorded limitation.
 Zero findings. Leads not pursued: the corpus is one repository's style
 (prettier, semicolon-free); a semicolon-heavy or decorator-heavy corpus
 would exercise different paths and can join the evidence when one matters.
+
+## Outline-extractor run, step 5, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24 (the evolution contract validates
+the v3.2.0 digest; the prose contract validates surface agreement and job
+uniqueness), horos 92/92. The review confirmed the refusal's revision is
+recorded as a revision, both prior ledger rows are byte-identical, and the
+new held job is the maintainer's own words for the filetype census.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

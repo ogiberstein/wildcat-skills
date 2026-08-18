@@ -10,7 +10,7 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Use another tool when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** Horos's map verb reads Python only; the maintainer-directed TypeScript outline extractor, internal to Horos with verbatim source slices and confessed unparsed regions, remains unbuilt.
+**Current frontier.** A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
 <!-- marketplace-context:end -->
 
 Read [the canonical Horos skill](../../../plugins/horos/skills/horos/SKILL.md)
