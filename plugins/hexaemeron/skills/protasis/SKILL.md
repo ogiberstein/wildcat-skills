@@ -10,7 +10,7 @@ description: >-
   the controller or write a receipt, which belong to fiat, and do not use it to
   record a decision after the fact, which belongs to hypomnema.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Protasis
@@ -35,12 +35,9 @@ Serves the `study` and `runbook` phases.
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
 
-This skill is written to be folded into Fiat. It supersedes the content of
-`skills/fiat/references/study.md` and `skills/fiat/references/runbook-format.md`,
-and the fold-in is the held job in its ledger. Until that lands, those two
-references remain authoritative for artefact paths and receipts, and this skill
-is authoritative for content. If they disagree about content, say so rather
-than picking one.
+Fiat's study and runbook phases run under this contract. Fiat keeps the
+artefact paths and receipt commands; this skill says what the artefacts must
+contain. Nothing else carries these rules.
 
 ## Refuse these four
 
