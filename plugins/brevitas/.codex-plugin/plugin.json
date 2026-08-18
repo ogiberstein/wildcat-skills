@@ -1,0 +1,29 @@
+{
+  "name": "brevitas",
+  "version": "0.1.0",
+  "description": "Evidence-preserving budgets for engineering prose.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/brevitas",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "audit",
+    "security-review",
+    "engineering-prose",
+    "lint",
+    "evidence",
+    "brevity"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Brevitas",
+    "shortDescription": "Evidence-preserving budgets for engineering prose.",
+    "longDescription": "Checks audit findings, security reviews, gas analysis, invariant discussion, diff review and protocol commentary against mechanical structure limits while preserving source evidence.",
+    "developerName": "Wildcat Labs",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Use $brevitas to compress this engineering review without losing evidence."
+  }
+}

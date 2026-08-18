@@ -221,6 +221,28 @@
         "preservation",
         "diligence"
       ]
+    },
+    {
+      "name": "brevitas",
+      "displayName": "Brevitas",
+      "source": "./plugins/brevitas",
+      "description": "Evidence-preserving budgets for engineering prose.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/brevitas",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Developer Tools",
+      "tags": [
+        "audit",
+        "security-review",
+        "engineering-prose",
+        "lint",
+        "evidence",
+        "brevity"
+      ]
     }
   ]
 }

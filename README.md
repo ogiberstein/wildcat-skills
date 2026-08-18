@@ -17,6 +17,7 @@ build.
 | --- | --- | --- | --- |
 | [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Tabularium for semantic event mapping; Probitas for a dossier. | Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented. |
 | [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | An external Sigstore or cosign verifier for signatures. | The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented. |
+| [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | Imprimatur for vocabulary; Vulgate for register; Sapheneia for AuDHD interaction shape. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
 | [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Pandects or the audit skills for broader behavioural and security work. | No complete, reproducible live Wildcat evidence bundle is published. |
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | A named bundled skill when the controller is unnecessary. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
 | [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | An embedding, index, retrieval or answering system for every later stage. | Callable-surface ABI validation does not independently check return types or state mutability. |
@@ -108,6 +109,39 @@ Ariadne includes:
 **Developers.** A release goes out, and six months later somebody asks which commit the deployed bytecode came from and whether the audit covered it. `capture` reads that out of the build you already ran, and the statement answers from its own contents rather than from a changelog nobody updated.
 
 **Security and audit.** An attestation arrives with a release. `verify` says which gates hold, which went unchecked and why, and states plainly that it checked no signature. `replay` re-runs the deterministic half and compares the artefacts, so the recorded digests are something you can test rather than something you accept.
+
+### Brevitas
+
+[Brevitas](./plugins/brevitas) is the final structural pass for audit findings,
+security reviews, gas analysis, invariant discussion, diff review and protocol
+commentary. It controls line count, finding shape, headings, tables, code fences
+and connective prose. Imprimatur still owns vocabulary, Vulgate owns register,
+and Sapheneia owns AuDHD interaction shape.
+
+Evidence outranks every budget. Addresses, transaction hashes, `file:line`
+references, numbers, counterexamples, reproduction steps and statements of what
+could not be established survive compression. The linter accepts a draft from a
+file or stdin, rejects mechanical breaches with line-numbered diagnostics, and
+can compare a compressed draft with its source. A marked evidence exception keeps
+an irreducible finding intact when the evidence itself needs more than five lines.
+
+Brevitas includes:
+
+- the standard-library [`brevitas.py`](./plugins/brevitas/skills/brevitas/scripts/brevitas.py) linter;
+- Make targets for written reports and source-preservation checks;
+- three audit-derived before/after cases with pinned fixture digests; and
+- tests for finding, heading, table, fence and banned-structure failures.
+
+#### Day to day
+
+**Developers.** A diff review has two defects buried under setup and a repeated
+summary. Brevitas keeps each defect to claim, location, mechanism, impact and fix,
+then rejects the draft if its structure drifts.
+
+**Security and audit.** A finding carries addresses, exact locations, numeric
+traces and reproduction steps. Brevitas cuts connective prose first, checks the
+machine-readable evidence against the source, and permits a marked exception when
+the protected evidence needs more than five lines.
 
 ### Hermes
 
@@ -408,14 +442,14 @@ economic meaning attached.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Alexandria | Ariadne | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 8 | 7 |
-| Security and audit | 8 | 9 | 7 | 8 | 4 | 8 | 9 | 5 | 7 | 7 |
-| Marketing | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 3 | 1 |
-| Business development | 6 | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 4 | 3 |
-| Finance | 8 | 1 | 3 | 4 | 1 | 2 | 2 | 7 | 4 | 7 |
-| Legal | 3 | 3 | 1 | 4 | 1 | 2 | 2 | 4 | 4 | 2 |
+| Role | Alexandria | Ariadne | Brevitas | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 8 | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 8 | 7 |
+| Security and audit | 8 | 9 | 10 | 7 | 8 | 4 | 8 | 9 | 5 | 7 | 7 |
+| Marketing | 1 | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 3 | 1 |
+| Business development | 6 | 2 | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 4 | 3 |
+| Finance | 8 | 1 | 2 | 3 | 4 | 1 | 2 | 2 | 7 | 4 | 7 |
+| Legal | 3 | 3 | 2 | 1 | 4 | 1 | 2 | 2 | 4 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -448,6 +482,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin marketplace add wildcat-finance/skills
 /plugin install alexandria@wildcat-labs
 /plugin install ariadne@wildcat-labs
+/plugin install brevitas@wildcat-labs
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
 /plugin install lemma@wildcat-labs
@@ -468,6 +503,12 @@ Ariadne is:
 
 ```text
 /ariadne:ariadne
+```
+
+Brevitas is:
+
+```text
+/brevitas:brevitas
 ```
 
 Hermes is:
@@ -522,7 +563,7 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the ten
+Agents that support the open Agent Skills convention can discover the eleven
 host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
@@ -539,6 +580,7 @@ Plain-text activation works alongside host syntax:
 ```text
 Use Alexandria to preserve this lending-data capture and query its source-bound credit view.
 Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
+Use Brevitas to enforce evidence-preserving structural budgets on this engineering review.
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
@@ -573,6 +615,15 @@ Use $ariadne to capture this release in an evidence statement, run its gates, an
 ```
 
 The gates, the predicate and the refusals live in [Ariadne's `SKILL.md`](./plugins/ariadne/skills/ariadne/SKILL.md).
+
+Brevitas needs Python 3 and no third-party package. Ask:
+
+```text
+Use $brevitas to compress this engineering review without dropping addresses, transaction hashes, file:line references, numbers, counterexamples or reproduction steps.
+```
+
+The budgets, evidence precedence and exception rule live in
+[Brevitas's `SKILL.md`](./plugins/brevitas/skills/brevitas/SKILL.md).
 
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
 
@@ -665,6 +716,13 @@ plugins/
 │   ├── tests/
 │   └── skills/
 │       └── ariadne/
+├── brevitas/
+│   ├── .claude-plugin/plugin.json
+│   ├── .codex-plugin/plugin.json
+│   ├── AGENTS.md
+│   ├── tests/
+│   └── skills/
+│       └── brevitas/
 ├── hermes/
 │   ├── .claude-plugin/plugin.json
 │   ├── .codex-plugin/plugin.json
