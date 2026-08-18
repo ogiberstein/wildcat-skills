@@ -37,12 +37,22 @@ def version_parts(label, skill):
 
 
 def history_rows(text):
-    pattern = re.compile(
-        r"(?m)^\| `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+    table = re.compile(
+        r"^\| `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
         r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
         r"\| (?P<evidence>.*?) \| (?P<change>.*?) \|$"
     )
-    return [m.groupdict() for m in pattern.finditer(text)]
+    compact = re.compile(
+        r"^- `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+        r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
+        r"\| (?P<evidence>.*?) \| (?P<change>.*?)$"
+    )
+    rows = []
+    for line in text.splitlines():
+        match = table.fullmatch(line) or compact.fullmatch(line)
+        if match is not None:
+            rows.append(match.groupdict())
+    return rows
 
 
 def governed_skills():
@@ -55,6 +65,26 @@ def governed_skills():
 
 
 class EvolutionContractTests(unittest.TestCase):
+    def test_history_rows_accept_compact_list(self):
+        digest = "a" * 64
+        rows = history_rows(
+            f"- `example-v0.1.0` | baseline | `held-job` | `{digest}` | "
+            "[evidence](README.md) | Versioning starts here."
+        )
+        self.assertEqual(
+            rows,
+            [
+                {
+                    "version": "example-v0.1.0",
+                    "axis": "baseline",
+                    "revision": "held-job",
+                    "digest": digest,
+                    "evidence": "[evidence](README.md)",
+                    "change": "Versioning starts here.",
+                }
+            ],
+        )
+
     def test_every_governed_skill_has_a_ledger(self):
         for skill, directory in governed_skills():
             with self.subTest(skill=skill):
