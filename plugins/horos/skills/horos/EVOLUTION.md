@@ -2,11 +2,11 @@
 
 Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VERSIONING.md)
 
-- Current version: `horos-v6.2.1`
-- Frontier status: `mature`
-- Frontier revision: `external-ingestion-complete`
-- Current frontier: The external-ingestion epoch is complete: map reads Python, TypeScript, Go and C++, each lexed extractor held against an independent parser over a live repository; no evidenced improvement remains.
-- Next Fiat job: `None -- mature`
+- Current version: `horos-v6.2.2`
+- Frontier status: `open`
+- Frontier revision: `solidity-extractor`
+- Current frontier: Reopened for three named jobs: the Solidity outline extractor, the budgeted two-tier classifier refinement the maintainer specified, and committed boundaries and censuses across the three home repositories.
+- Next Fiat job: Build the Solidity outline extractor in the languages registry, in the fixed extractor shape, with a dev-time differential corpus over the v2-protocol clone. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
 
 ## History
 
@@ -21,3 +21,4 @@ Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VE
 | `horos-v4.2.1` | epoch | `go-and-cpp-extractors` | `dd233b96fded20dffbde65cf290bcf1a29d916dbcfcd400daed9d3b7f8f0b9a3` | Maintainer requirement, 2026-08-18: Horos exists to speed the ingestion of external repositories, not only to census Wildcat's own, so census-breadth over Wildcat trees cannot evidence the decision it was holding; Go and C++ are the named expected external languages, with maturity expected after both ship | Reopens the held target at the maintainer's direction, superseding census-breadth. The held job becomes the Go outline extractor, C++ follows it, and the frontier is expected to close mature after both, absent further evidence. |
 | `horos-v5.2.1` | evolution | `cpp-extractor` | `15cd1ac5364fb34b4c50aa9fce096d78defeab569e9b4d44bacfbb38939f0572` | [go-ethereum differential bundle](../../docs/evidence/go-ethereum-outline.md) | The Go half of the epoch completed. map reads Go through languages/go: grouped declarations, receivers, generics and raw strings all sliced verbatim, held against tree-sitter-go over 1,421 go-ethereum files with 21,648 of 21,648 declarations matched, zero misses, zero extras, zero crashes. The C++ extractor is the remaining held job, with maturity expected at its close. |
 | `horos-v6.2.1` | evolution | `external-ingestion-complete` | `6642fb08c31dda94b9ad73061e893097606a6642b4cd06157ac889e548589766` | [solidity differential bundle](../../docs/evidence/solidity-outline.md) | The C++ half of the epoch completed and closes the frontier. map reads C++ through languages/cpp, held against tree-sitter-cpp over 842 solidity files: 7,013 of 7,013 declarations matched at declared altitudes, zero misses, zero extras, zero crashes, with the oracle's 170 parse-failed files compared for crash-freedom and declared. Both epoch languages ship; per the versioning contract no evidenced material improvement remains, so the status is mature. Reopening requires new external evidence recorded as an epoch entry. |
+| `horos-v6.2.2` | epoch | `solidity-extractor` | `7753df377099409e28fa5b8a297cb51eb0331ca950665454b080164e53985cef` | Maintainer reopening, 2026-08-18: Solidity outlining is required after all (the v2-protocol census already records .sol as 87.6% of readable weight), and the maintainer supplied a written classifier-refinement specification, committed verbatim at [docs/refinement/maintainer-spec.md](../../docs/refinement/maintainer-spec.md) | Reopens the mature frontier by epoch at the maintainer's direction, naming three jobs in order: the Solidity outline extractor, the budgeted two-tier classifier refinement, and committed boundaries and censuses across the three home repositories, after which the frontier is expected to close again. |

@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "6.2.1"
+  version: "6.2.2"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** The external-ingestion epoch is complete: map reads Python, TypeScript, Go and C++, each lexed extractor held against an independent parser over a live repository; no evidenced improvement remains.
+**Current frontier.** Reopened for three named jobs: the Solidity outline extractor, the budgeted two-tier classifier refinement the maintainer specified, and committed boundaries and censuses across the three home repositories.
 
 ## The verbs
 

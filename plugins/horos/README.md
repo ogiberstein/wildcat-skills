@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** The external-ingestion epoch is complete: map reads Python, TypeScript, Go and C++, each lexed extractor held against an independent parser over a live repository; no evidenced improvement remains.
+**Current frontier.** Reopened for three named jobs: the Solidity outline extractor, the budgeted two-tier classifier refinement the maintainer specified, and committed boundaries and censuses across the three home repositories.
 
-**Next Fiat job.** Use /hexaemeron:fiat to reopen this mature frontier only after new external evidence is recorded as an epoch entry on the ledger; the controller refuses a mature run otherwise. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Build the Solidity outline extractor in the languages registry, in the fixed extractor shape, with a dev-time differential corpus over the v2-protocol clone. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
