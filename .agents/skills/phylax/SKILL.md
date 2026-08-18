@@ -11,8 +11,8 @@ Phylax guards the off-chain surface in three shapes: the Python that harvests an
 
 On its own it is a boundary review plus a lint that settles four rules mechanically. Point it at a diff or a tree and it reports shell invocations, string commands, unpinned dependencies and credentials in the open.
 
-Inside Hexaemeron the boundaries it names feed the study's risk register, which is where the audit loop reads what to look hardest at. It is one of six practice skills that share a shape and hand work
-to each other, so reaching for the neighbour a rule names usually beats
+Inside Hexaemeron the boundaries it names feed the study's risk register, which is where the audit loop reads what to look hardest at. It is one of six skills bundled with Hexaemeron that share a shape
+and hand work to each other, so reaching for the neighbour a rule names usually beats
 stretching this one.
 
 Read [the canonical Phylax skill](../../../plugins/hexaemeron/skills/phylax/SKILL.md)
