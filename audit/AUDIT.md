@@ -1372,3 +1372,23 @@ correct.
 Zero findings in the round itself. Leads not pursued: preprocessor
 conditionals that unbalance braces mis-slice until the next recogniser, as
 the study prices; the step 3 corpus reports how often real code does it.
+
+## Cpp-extractor run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity shipped; the corpus is the Solidity compiler's
+C++); lints phylax 0, ephoros 0, hypomnema 0. Horos 136/136, root 24/24.
+The review held the register's rows: the venv and oracle stay outside every
+runtime and test path, the bundle declares its altitudes and exclusions
+including the 170 oracle-unparsed files, the acceptance numbers are
+asserted by test, and the five corpus-found outliner defects each landed
+with the corpus rerun after them. The step 2 lead (preprocessor
+conditionals unbalancing braces) produced zero confessed regions across 842
+files of heavily conditionalised code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the oracle-unparsed fifth of the corpus
+is compared for crash-freedom only; a stronger C++ oracle would widen the
+compared set and can join the evidence if one becomes available without a
+toolchain the ingested tree does not owe us.
