@@ -187,7 +187,24 @@ def classify_file(root, relpath):
     return {"path": relpath, "category": category, "bytes": size, "evidence": evidence}
 
 
-def directory_entry(root, relpath, category, evidence):
+def _suffix_of(name):
+    """The name's last suffix, lowercased; a leading dot is not a suffix."""
+    if "." in name[1:]:
+        return "." + name.rsplit(".", 1)[1].lower()
+    return "(no suffix)"
+
+
+def _census_add(tally, name, size, in_boundary):
+    if tally is None:
+        return
+    row = tally.setdefault(_suffix_of(name), {"files": 0, "bytes": 0, "boundary_bytes": 0})
+    row["files"] += 1
+    row["bytes"] += size
+    if in_boundary:
+        row["boundary_bytes"] += size
+
+
+def directory_entry(root, relpath, category, evidence, tally=None):
     """Aggregate a vendored or generated directory into one entry."""
     total = 0
     files = 0
@@ -200,10 +217,12 @@ def directory_entry(root, relpath, category, evidence):
             if os.path.islink(fullpath):
                 continue
             try:
-                total += os.stat(fullpath).st_size
+                size = os.stat(fullpath).st_size
             except OSError:
                 continue
+            total += size
             files += 1
+            _census_add(tally, filename, size, in_boundary=True)
     return {
         "path": relpath + "/",
         "category": category,
@@ -213,10 +232,15 @@ def directory_entry(root, relpath, category, evidence):
     }
 
 
-def scan_tree(root):
-    """Walk the tree and return entries plus the counts a quiet run reports."""
+def scan_tree(root, census=False):
+    """Walk the tree and return entries plus the counts a quiet run reports.
+
+    With census=True the same walk also tallies every file by suffix, so the
+    census can never describe a different tree than the boundary does; the
+    result gains a "census" key and nothing else changes."""
     root = os.path.abspath(root)
     rules = gitattributes_rules(root)
+    tally = {} if census else None
     entries = []
     walked = 0
     skipped_unreadable = 0
@@ -234,17 +258,23 @@ def scan_tree(root):
             relpath = relpath.replace(os.sep, "/")
             if dirname in VENDORED_DIR_NAMES:
                 entries.append(
-                    directory_entry(root, relpath, "vendored", f"directory name {dirname}")
+                    directory_entry(
+                        root, relpath, "vendored", f"directory name {dirname}", tally
+                    )
                 )
                 continue
             if dirname in GENERATED_DIR_NAMES:
                 entries.append(
-                    directory_entry(root, relpath, "generated", f"directory name {dirname}")
+                    directory_entry(
+                        root, relpath, "generated", f"directory name {dirname}", tally
+                    )
                 )
                 continue
             matched = match_gitattributes(rules, relpath + "/")
             if matched is not None:
-                entries.append(directory_entry(root, relpath, matched[0], matched[1]))
+                entries.append(
+                    directory_entry(root, relpath, matched[0], matched[1], tally)
+                )
                 continue
             keep.append(dirname)
         dirnames[:] = keep
@@ -271,6 +301,7 @@ def scan_tree(root):
                         "evidence": matched[1],
                     }
                 )
+                _census_add(tally, filename, size, in_boundary=True)
                 continue
             try:
                 entry = classify_file(root, relpath)
@@ -279,13 +310,24 @@ def scan_tree(root):
                 continue
             if entry is not None:
                 entries.append(entry)
+                _census_add(tally, filename, entry["bytes"], in_boundary=True)
+            elif tally is not None:
+                try:
+                    _census_add(
+                        tally, filename, os.stat(fullpath).st_size, in_boundary=False
+                    )
+                except OSError:
+                    skipped_unreadable += 1
 
     entries.sort(key=lambda entry: entry["path"])
     counts = {"files_walked": walked, "files_skipped_unreadable": skipped_unreadable}
     for entry in entries:
         key = "bytes_" + entry["category"]
         counts[key] = counts.get(key, 0) + entry["bytes"]
-    return {"entries": entries, "counts": counts}
+    result = {"entries": entries, "counts": counts}
+    if tally is not None:
+        result["census"] = tally
+    return result
 
 
 BOUNDARY_RELPATH = ".horos/boundary.json"
@@ -325,21 +367,48 @@ def render(document):
     return json.dumps(document, indent=2, sort_keys=True) + "\n"
 
 
-def write_boundary(root, document):
-    """Write atomically: a killed run leaves the old boundary or the new one."""
-    directory = os.path.join(root, os.path.dirname(BOUNDARY_RELPATH))
+def _write_atomic(root, relpath, text):
+    """Write atomically: a killed run leaves the old artefact or the new one."""
+    directory = os.path.join(root, os.path.dirname(relpath))
     os.makedirs(directory, exist_ok=True)
-    final = os.path.join(root, BOUNDARY_RELPATH)
+    final = os.path.join(root, relpath)
     # Per-process name: two concurrent scans must not unlink each other's
     # half-written temporary in the finally block below.
     temporary = f"{final}.{os.getpid()}.tmp"
     try:
         with open(temporary, "w", encoding="utf-8") as handle:
-            handle.write(render(document))
+            handle.write(text)
         os.replace(temporary, final)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def write_boundary(root, document):
+    _write_atomic(root, BOUNDARY_RELPATH, render(document))
+
+
+CENSUS_RELPATH = ".horos/census.json"
+CENSUS_SCHEMA = 1
+
+
+def census_document(result):
+    """The per-filetype breakdown: exact integers, sorted rows, no clocks."""
+    rows = [
+        {"suffix": suffix, **row} for suffix, row in result["census"].items()
+    ]
+    rows.sort(key=lambda row: (-row["bytes"], row["suffix"]))
+    return {
+        "schema": CENSUS_SCHEMA,
+        "tool": "horos",
+        "total_files": sum(row["files"] for row in rows),
+        "total_bytes": sum(row["bytes"] for row in rows),
+        "rows": rows,
+    }
+
+
+def write_census(root, document):
+    _write_atomic(root, CENSUS_RELPATH, render(document))
 
 
 def load_boundary(root):
@@ -417,6 +486,11 @@ def main(argv=None):
     scan.add_argument(
         "--write", action="store_true", help=f"write {BOUNDARY_RELPATH} atomically"
     )
+    scan.add_argument(
+        "--census",
+        action="store_true",
+        help=f"per-filetype breakdown; with --write it goes to {CENSUS_RELPATH}",
+    )
     checker = subparsers.add_parser("check", help="verify the committed boundary")
     checker.add_argument("root", help="directory to check")
     mapper = subparsers.add_parser("map", help="print a Python file's skeleton")
@@ -433,7 +507,26 @@ def main(argv=None):
     if args.command == "check":
         return check_tree(args.root)
 
-    document = boundary_document(scan_tree(args.root))
+    result = scan_tree(args.root, census=args.census)
+
+    if args.census:
+        document = census_document(result)
+        if args.write:
+            write_census(args.root, document)
+        if args.json:
+            sys.stdout.write(render(document))
+        else:
+            total = document["total_bytes"] or 1
+            for row in document["rows"]:
+                share = 100 * row["bytes"] / total
+                print(
+                    f"{row['suffix']}  files={row['files']}  bytes={row['bytes']}"
+                    f"  share={share:.1f}%  boundary_bytes={row['boundary_bytes']}"
+                )
+            print(f"total: {document['total_files']} files, {document['total_bytes']} bytes")
+        return 0
+
+    document = boundary_document(result)
     if args.write:
         write_boundary(args.root, document)
     if args.json:

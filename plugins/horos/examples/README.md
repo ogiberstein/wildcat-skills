@@ -39,6 +39,18 @@ failure fires in the other direction when a new sink appears that the
 committed boundary lacks, which is the control against a boundary edited to
 hide something.
 
+## The census
+
+```bash
+python3 plugins/horos/skills/horos/scripts/horos.py scan plugins/horos/examples/fixture --census
+```
+
+prints one row per filetype (files, bytes, share, and the bytes already
+inside the boundary), and with `--json` reproduces the committed
+`fixture/.horos/census.json` byte for byte. The census shares the scan's
+walk exactly, so it can never describe a different tree than the boundary
+does.
+
 ## The skeleton map
 
 ```bash
