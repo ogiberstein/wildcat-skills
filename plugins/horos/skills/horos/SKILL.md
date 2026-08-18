@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "5.2.1"
+  version: "6.2.1"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** The C++ half of the external-ingestion epoch remains: map does not read C++.
+**Current frontier.** The external-ingestion epoch is complete: map reads Python, TypeScript, Go and C++, each lexed extractor held against an independent parser over a live repository; no evidenced improvement remains.
 
 ## The verbs
 
@@ -69,11 +69,12 @@ whole. Extractors live one folder per language under
 [scripts/languages/](./scripts/languages/) and a suffix registry dispatches
 between them; an unregistered suffix is refused naming the supported list.
 Python (`.py`) parses through the standard library's own ast. TypeScript
-(`.ts`, `.tsx`) and Go (`.go`) are lexed, never parsed: declarations are
-quoted as verbatim source slices (grouped Go declarations one line per
-member, receivers and generics riding along), and every region the
-recognisers do not understand is confessed by count and line range instead
-of guessed at. No path imports or executes what it reads.
+(`.ts`, `.tsx`), Go (`.go`) and C++ (`.cpp`, `.h`, `.hpp`, `.cc`, `.cxx`)
+are lexed, never parsed: declarations are quoted as verbatim source slices
+(grouped Go declarations one line per member, C++ template prefixes and
+include and define heads riding along), and every region the recognisers do
+not understand is confessed by count and line range instead of guessed at.
+No path imports or executes what it reads.
 
 The TypeScript extractor exists by revision of a recorded refusal. Parsing
 TypeScript or taking a parser dependency was refused on 2026-08-18 and
@@ -88,6 +89,10 @@ The Go extractor was held against tree-sitter's Go grammar over all 1,421
 files of go-ethereum: 21,648 of 21,648 declarations matched, zero misses,
 zero extras, zero crashes, recorded at
 [../../docs/evidence/go-ethereum-outline.md](../../docs/evidence/go-ethereum-outline.md).
+The C++ extractor was held against tree-sitter's C++ grammar over all 842
+files of the Solidity compiler: 7,013 of 7,013 declarations matched at
+declared altitudes with zero crashes anywhere, recorded at
+[../../docs/evidence/solidity-outline.md](../../docs/evidence/solidity-outline.md).
 
 ## The discipline
 

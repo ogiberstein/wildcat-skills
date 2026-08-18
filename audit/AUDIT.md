@@ -1392,3 +1392,18 @@ Zero findings. Leads not pursued: the oracle-unparsed fifth of the corpus
 is compared for crash-freedom only; a stronger C++ oracle would widen the
 compared set and can join the evidence if one becomes available without a
 toolchain the ingested tree does not owe us.
+
+## Cpp-extractor run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24 (the evolution contract validates
+the mature row's digest; the prose contract validates surface agreement),
+horos 136/136, demo pinned. The review confirmed the maturity closure meets
+the study's stated condition (the differential closed clean at declared
+altitudes), the reopening path is named on every surface, and all prior
+ledger rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
