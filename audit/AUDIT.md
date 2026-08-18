@@ -1052,3 +1052,17 @@ only; the review checked the committed copies match the receipted artefacts.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Live-evidence run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+bundle. Horos 55/55, root 24/24. The review checked the risk register's
+rows: the bundle names its commit and tool version, the consistency test
+reads only the committed boundary and never re-scans or touches the network,
+and the quoted totals are asserted rather than trusted. The one derived
+number (80.3%) is recomputed by the test from the quoted operands.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
