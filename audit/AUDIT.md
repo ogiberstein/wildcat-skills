@@ -1292,3 +1292,20 @@ copies match the receipted artefacts.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Go-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 116/116, root
+24/24. The review walked the study's risk rows: raw strings keep
+backslashes as plain bytes and span lines, runes holding quotes are pinned,
+iota members emit without types, receivers ride inside function slices, and
+the statement walker advances monotonically (the guard the TypeScript
+extractor learned the hard way is present from the start).
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: an anonymous struct in a result type
+(func f() struct{ x int } {) would mis-slice at the struct's brace; the
+step 3 corpus over 1,421 real files will show whether the pattern occurs
+before any fix is designed.
