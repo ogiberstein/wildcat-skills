@@ -884,3 +884,11 @@ The Hermes prose diff has no open finding. Status: clean.
 The review compared six files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained Gates 1 through 6, exits `0`, `10`, `20`, `30`, `40`, `50`, and `60`, all storage-layout and unchecked-arithmetic refusals, and frontier digest `7d5489a979e01a2ac5f27ad9dbc70811375104a76482f218b72b559bf6298f40`. No live Wildcat gas result or candidate was established.
 
 Root `22/22`, Hermes `14/14`, two Agent Skills validations, six Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check` pass. The security suite remains waived because only Markdown changed.
+
+## Repository-wide Brevitas pass, step 5, round 1 -- 2026-08-18
+
+The Lemma prose diff has no open finding. Status: clean.
+
+The review compared 17 files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained the quotation, model and embedding fields, source-location rules, fatal validation conditions, baseline entry figures, frontier digest `2d4f0d7948208fefdca52f4380b3f4c83261917a282256571a2ee611c5d9d36c`, and protected licence passage.
+
+Root `22/22`, Markdown `126` assertions, Solidity `142` assertions with pinned solc `0.8.25`, two Agent Skills validations, 17 Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check` pass. Regeneration produced `49` chunks, `9/9` placed, `44` placed through `SUMMARY.md`, median `143`, and p99/max `589`. The security suite remains waived because only Markdown changed.
