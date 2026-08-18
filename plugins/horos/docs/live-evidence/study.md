@@ -42,9 +42,9 @@ lockfile name), the single-line legal-entity dataset (1,448,802 by blob
 geometry) and nine binary assets by null byte. The study criterion from the
 first run asked for at least 60%; the live tree gives 80.3%.
 
-What stayed readable and should not have, by a human's judgement: 98 SVG
-text assets (205,663 bytes) and the prisma migration SQL (298,878 bytes,
-machine-emitted, no marker). Both are fail-open misses by design, and both
+What stayed readable and should not have, by a human's judgement: 97 SVG
+text assets (204,371 bytes, verified against the clone) and 17 prisma
+migration SQL files (298,878 bytes, machine-emitted, no marker). Both are fail-open misses by design, and both
 become the next held job.
 
 ## 2. Prior art
@@ -114,7 +114,7 @@ someone else pushes to wildcat-app-v2 is not a gate.
 
 ## 8. Success criteria
 
-1. `python3 -m unittest discover -s tests -t .` passes, holding the new
+1. `python3 -m unittest discover -s tests` passes, holding the new
    ledger row's digest and every surface's frontier agreement.
 2. `python3 -m unittest discover -s plugins/horos/tests -t plugins/horos`
    passes, including the bundle-consistency test.
