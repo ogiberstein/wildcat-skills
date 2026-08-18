@@ -1597,3 +1597,21 @@ the stanza text in both product AGENTS.md files is the scanner's verbatim.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Marking run, step 4, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, imprimatur 100 on all reconciled
+surfaces. Root 24/24 (the evolution contract validates the mature row's
+digest), horos 168/168, check from the root clean, all verified before the
+receipt. Two self-catches in this step, both resolved before any receipt:
+check flagged the marking evidence copies as new sinks (they quote
+generation markers), so the boundary refreshed in the close commit; and
+the suite then flagged the bundle's stale skills count, reconciled in the
+follow-up commit. The review confirmed the mature closure names the open
+product pull requests rather than pretending merges, and all prior ledger
+rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
