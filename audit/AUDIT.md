@@ -1351,3 +1351,24 @@ metaphor) was fixed before the copies were committed.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Cpp-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 132/132, root
+24/24. Three defects were found and fixed during the step's own build,
+before the implement receipt, recorded for the trail: a broken template
+reattachment vestige replaced with the decorator pattern; a function body's
+close consuming the following statement (refresh, fromQuery and formatApr
+vanished from the fixture until the tail scan was cut back to the brace);
+and Allman-style bodies orphaned from their heads until a one-line peek
+joined them, with the orphan-brace branch defused from eating statements.
+The round's review walked the fixture against the source and found the
+slices verbatim, the raw-string containment exact and the confession
+correct.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings in the round itself. Leads not pursued: preprocessor
+conditionals that unbalance braces mis-slice until the next recogniser, as
+the study prices; the step 3 corpus reports how often real code does it.
