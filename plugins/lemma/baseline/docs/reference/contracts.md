@@ -6,11 +6,11 @@
 
 ## Registry
 
-The concrete deployment. Inherits everything on `RegistryBase`.
+Concrete deployment inheriting `RegistryBase`.
 
 ### create
 
-Creates an entry. Admin only. Reverts on a duplicate identifier or at capacity.
+Creates an entry. Admin only; reverts on duplicate identifiers or capacity.
 
 ### retire
 
@@ -18,15 +18,15 @@ Retires an entry. Owner only.
 
 ### setFee
 
-Sets the creation fee. Admin only. Takes effect from the next creation.
+Sets the creation fee. Admin only; applies to the next creation.
 
 ## RegistryBase
 
-Abstract. Holds storage and access control, and is not deployed on its own.
+Abstract storage and access control; never deployed alone.
 
 ### entry
 
-Returns the stored entry for an identifier, or a zeroed entry if none exists.
+Returns an identifier's entry, or a zeroed entry when none exists.
 
 ### total
 
