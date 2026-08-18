@@ -1566,3 +1566,19 @@ Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Marking run, step 2, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, hypomnema 0 over the changed
+AGENTS.md. Root 24/24 with the stanza in place, horos 165/165, check from
+the root clean, all verified before the receipt. The review read the
+committed boundary's 14 hard entries and spot-checked them against the
+tree: the fixture's own specimens, the shipped example artefacts and the
+evidence JSONs classify exactly as the rules say, and no hand-written
+plugin source appears in the hard set. The 35 candidates are advisory and
+say so.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
