@@ -16,6 +16,8 @@ RESULTS_3 = EVIDENCE / "wildcat-app-v2-outline.results.json"
 BUNDLE_4 = EVIDENCE / "wildcat-app-v2-census.md"
 CENSUS_APP = EVIDENCE / "wildcat-app-v2-census.json"
 CENSUS_PROTOCOL = EVIDENCE / "v2-protocol-census.json"
+BUNDLE_5 = EVIDENCE / "go-ethereum-outline.md"
+RESULTS_5 = EVIDENCE / "go-ethereum-outline.results.json"
 
 
 def capture_lines(bundle=BUNDLE, tag="evidence"):
@@ -147,6 +149,28 @@ class SecondCaptureTests(unittest.TestCase):
                     sum(row["bytes"] for row in document["rows"]),
                     document["total_bytes"],
                 )
+
+    def test_the_go_outline_bundle_matches_its_committed_results(self):
+        lines = capture_lines(BUNDLE_5, "gooutline")
+        totals = json.loads(RESULTS_5.read_text(encoding="utf-8"))["totals"]
+        for key in (
+            "files",
+            "crashes",
+            "oracle",
+            "matched",
+            "missed",
+            "missed_confessed",
+            "extra",
+            "files_with_regions",
+        ):
+            self.assertEqual(int(lines[key]), totals[key], key)
+
+    def test_the_go_outline_acceptance_holds(self):
+        totals = json.loads(RESULTS_5.read_text(encoding="utf-8"))["totals"]
+        self.assertEqual(totals["crashes"], 0)
+        self.assertEqual(totals["missed"], 0)
+        self.assertEqual(totals["extra"], 0)
+        self.assertEqual(totals["matched"], totals["oracle"])
 
     def test_the_second_share_exceeds_the_first(self):
         first = capture_lines()
