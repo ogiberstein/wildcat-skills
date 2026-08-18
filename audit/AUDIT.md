@@ -860,3 +860,11 @@ The round re-read the historical mechanism at `audit/AUDIT.md:20`, both compact-
 parsers, their fixtures, and the full protected-state proof. Root `22/22`, Hexaemeron
 `62/62`, Imprimatur, Brevitas `--source`, protected SHA verification, and
 `git diff --check` pass. No further lead was established.
+
+## Repository-wide Brevitas pass, step 2, round 1 -- 2026-08-18
+
+The Brevitas prose diff has no open finding. Status: clean.
+
+The review compared five changed files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`, checked the compact history parser, and recomputed frontier digest `dcff4f6b1397570468dedb18a1ebaa5f45377272bcd2f71cd69ad6818eeb0b62`. It also verified the three refusal digests: `08e534ff9fd8005778e2224f374bd1e42a4bb129c2504e8aa54549f8621f0494`, `2cdd9bb04532ec278184d2a3290a0b0b72c02be47ca634911428440ddbed6d58`, and `ed8fbcf14186a1c79f9db8f971796d192969ec729edeb2bba0fc78f30ff75e48`.
+
+Root `22/22`, Brevitas `13/13`, evals `3/3`, Agent Skills validation, Imprimatur, Brevitas `--source`, protected SHA verification, and `git diff --check` pass. The security suite remains waived because only Markdown changed.
