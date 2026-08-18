@@ -808,3 +808,34 @@ drift.
 
 Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
 asymmetry stated in step 3 round 6.
+
+## Withdrawal batch fee law, step 4, round 2 -- 2026-08-18
+
+Reviewed: the tree with round 1 applied, then every count and claim in browsing prose
+that the run had touched or should have. One it had not touched.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | medium | `README.md` | The repository README says how many of the corpus's laws carry no tolerance, and it still said eight. Nine of the ten are exact; only `accrual/path-independent/v1` carries a bound. Step 4 had corrected the same claim in the plugin's own README and missed this one, so the two documents disagreed with each other and one of them disagreed with the catalogue. | Fixed in this round: nine, taken from the catalogue's `bounds` field rather than counted by eye. |
+| S4-R2-02 | medium | `tests/test_marketplace_prose.py` | Nothing held either README's corpus counts to the catalogue. The rendered document derives both of its counts, the adapters are held to theirs by the plugin's suite, and these two were hand-written sentences that a frontier run adding a law simply has to remember. This run corrected five of them and missed the sixth, which is the whole argument. | Fixed in this round: `test_pandects_prose_counts_the_laws_the_catalogue_holds` derives the total, the exact count and the family count from the catalogue and requires both documents to state them. Each of the three anchored claims was made to fail on its own before the test was kept. |
+
+**The mirror, checked and clean.** `.agents/skills/pandects/SKILL.md` was compared with
+the canonical skill in case the version bump had left them disagreeing. It is a
+deliberately different document, a short routing entrypoint with its own description
+and no frontmatter version, and no other plugin's mirror carries a version either. The
+frontier sentence is the part they share and the prose gate already holds it.
+
+**The ledger, machine-checked rather than read.** `tests/test_evolution_contract.py`
+holds every governed ledger to the versioning contract, and it passes on this entry:
+the frontmatter version matches the ledger, the recorded SHA-256 matches the digest of
+the current status line, and the axis rules allow an evolution entry to move the
+frontier revision where a generation entry may not. The reading in round 1 was right
+and this is the part of it that did not depend on my reading.
+
+**What ran.** The repository's 21 tests, up from 20 by the count gate, 116 plugin
+tests, 79 Solidity tests under forge 1.7.1, and the demo path: ten laws printed, ten
+laws with every part present, no catalogue drift. No Solidity in this step, so the
+Pashov pair and `fizz` had nothing to read and did not run.
+
+Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
+asymmetry from step 3 round 6.

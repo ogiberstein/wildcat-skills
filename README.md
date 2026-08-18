@@ -242,7 +242,7 @@ contract it is proven to catch, a reduced counterexample, and a statement of
 the accounting model and observables it requires.
 
 The catalogue holds ten laws across conservation, accrual and withdrawal
-claims. Eight are exact. The path-independence law carries a bound derived from
+claims. Nine are exact. The path-independence law carries a bound derived from
 the rounding performed by linear accrual, and its tests assert the figures on
 both the sound reference and the compounding specimen.
 
