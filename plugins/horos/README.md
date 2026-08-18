@@ -49,5 +49,5 @@ orients the agent in a thousand-line module without opening it whole.
 
 Classification is fail-open. A file Horos cannot evidence stays readable, so
 Horos misses sinks a person would catch, and its report says what it skipped.
-The scanner reads at most a fixed prefix of any file, so a scan never costs a
-fraction of what it saves.
+The scanner reads at most a fixed prefix of any file, so a scan never costs
+more than a fraction of what it saves.

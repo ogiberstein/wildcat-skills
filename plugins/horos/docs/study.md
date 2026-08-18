@@ -87,8 +87,8 @@ string-literal traps any content-sniffing pass must not repeat.
   The asymmetry is deliberate: a wrongly excluded source file blinds the
   agent; a wrongly included sink merely wastes what it always wasted.
 - Bounded reads. The classifier stats every file but reads at most a fixed
-  prefix (4 KiB) of any of them. A scan must never cost a fraction of what it
-  saves.
+  prefix (4 KiB) of any of them. A scan must never cost more than a fraction of
+  what it saves.
 - Non-goals for the prototype: code transformation of any kind (Epitome's
   ground, already rejected), TS/JS skeletons, git-history signals, network
   fetches, automatic boundary regeneration, and any per-token accounting.
