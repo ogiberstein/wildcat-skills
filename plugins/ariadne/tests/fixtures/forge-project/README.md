@@ -1,11 +1,11 @@
 The Foundry fixture project
 
+- Two contract versions have committed build output; tests read it without
+  running `forge` or needing a Solidity toolchain.
+
 <!-- marketplace-context:start -->
 > **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
 <!-- marketplace-context:end -->
-
-Two versions of one contract have committed build output. Tests read it instead
-of running `forge`, so the suite needs no Solidity toolchain.
 
 Generated with `forge 1.7.1` and `solc 0.8.28`. Solc records the build directory
 in `basePath`, `allowPaths`, and `includePaths`; only those strings were changed

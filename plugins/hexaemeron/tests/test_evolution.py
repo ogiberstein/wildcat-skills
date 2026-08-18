@@ -8,7 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
-FIRST_PARTY = ("fiat", "imprimatur", "vulgate", "kronos")
+FIRST_PARTY = ("fiat", "imprimatur", "vulgate", "kronos", "protasis", "elenchus", "phylax", "ephoros", "metron", "hypomnema")
 PARENT_FRONTIER = (
     "The bundled Solidity audit suite has not yet been exercised in a "
     "published end-to-end Fiat delivery."

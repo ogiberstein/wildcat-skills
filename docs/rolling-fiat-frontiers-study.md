@@ -135,17 +135,23 @@ shadows stay absent instead of asserting byte equality.
 
 ## Glossary seeds
 
-- **Landing README:** `plugins/<name>/README.md`, the public plugin overview
+- `Landing README`: `plugins/<name>/README.md`, the public plugin overview
   containing `## In one line`.
-- **Current frontier:** a factual statement of the most important unshipped
+- `Current frontier`: a factual statement of the most important unshipped
   repair or implementation boundary.
-- **Rolling Fiat job:** the executable prompt that advances a plugin and refreshes
+- `Rolling Fiat job`: the executable prompt that advances a plugin and refreshes
   marketplace prose before the run finishes.
+```markdown
 - **Marketplace context:** the marked identity, handoff and frontier prose
   copied into first-party documents.
 - **Mutable first-party prose:** Wildcat-authored text excluding vendored,
   historical, legal and digest-bound material.
-- **Shadow skill README:** a browsing-only copy of a sibling `SKILL.md`; these
+```
+- `Marketplace context`: the marked identity, handoff and frontier prose
+  copied into first-party documents.
+- `Mutable first-party prose`: Wildcat-authored text excluding vendored,
+  historical, legal and digest-bound material.
+- `Shadow skill README`: a browsing-only copy of a sibling `SKILL.md`; these
   copies are removed in this delivery.
 
 ## Sources
