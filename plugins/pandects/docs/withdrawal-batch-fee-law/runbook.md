@@ -155,6 +155,16 @@ the runner to a second engine in this step; that is its own frontier.
 and `adapters/medusa/CorpusMedusa.sol` where the new property needs an entry
 point.
 
+`tests/test_documents.py` also gets the second half of a check step 2 started.
+`ShippedAdapterTests` holds `adapters/CorpusBase.sol` to the catalogue, because
+that file names its laws in Solidity with no view of the catalogue and a law added
+to one does not arrive in the other. `src/campaigns/Specimens.sol` has the same
+shape and the same hazard, and it is not checked yet: the check has to land in
+this step rather than in step 2, because until the harness carries the law the
+check would fail, and a check written after the change it was meant to force is a
+check written to pass. Extend `ShippedAdapterTests` to the campaign harness in the
+same commit that adds the property.
+
 **Tests.** `test/Corpus.t.sol` or `test/Adapters.t.sol` extended so the new
 entry point is exercised without an engine, the way the existing prefixed entry
 points already are. Engine runs are evidence, not tests, and are recorded as

@@ -361,3 +361,42 @@ difference is one interface, and a single parameterised fixture would serve both
 Left alone deliberately: the split is what makes the two tests say different
 things, and merging them would put a flag in a fixture whose whole job is to be
 obvious. The three carried from earlier rounds and from step 1 stand.
+
+## Withdrawal batch fee law, step 2, round 4 -- 2026-08-18
+
+Reviewed: what an integrator gets rather than what the corpus proves about
+itself. Earlier rounds read the evidence, the tooling and the edge cases. This one
+followed the law outwards, into the files somebody else's protocol actually
+inherits.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R4-01 | high | `adapters/CorpusBase.sol` | The adapter an integrator inherits names its laws one by one in Solidity and had nine of the ten. So the corpus documented ten laws, `pandects check` counted ten, and anybody pointing `CorpusObserver` at their own market ran nine, with no signal anywhere: the adapter compiles, `queueHolds` returns a verdict, `explainOneState` returns five reasons, and every test passes. The one law missing was the one this whole run exists to add. Called high because it is exactly what the corpus is built to refuse, a law that is never asked reported as a corpus that holds, reaching the surface an outsider inherits rather than a specimen written to be broken. | Fixed in this round: the adapter carries it, `queueHolds` judges it, `explainOneState` returns six reasons and says why its width is the catalogue's count, and `test/Adapters.t.sol` reads six. |
+| S2-R4-02 | medium | `tests/test_documents.py` | Nothing tied the adapter to the catalogue, which is why S2-R4-01 could happen quietly and would happen again on the eleventh law. The plugin already has this check twice over, for the rendered catalogue and for the integration notes, and the one surface where the omission reaches a third party had none. | Fixed in this round: `ShippedAdapterTests` holds every catalogued law to the adapter, with path independence excluded as an exact pinned set rather than a skip list, so a second exclusion has to be argued for in the file. Made to fail by removing the law from the adapter before being kept. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1, 111 Python tests, up from 109
+by the two checks added here, the repository's 20, and `pandects check` over ten
+laws. The adapter change is a contract change, so Slither 0.11.6 ran again over 50
+contracts with no new result, and Echidna 2.3.3 ran again against `SoundCampaign`:
+eight properties passing, seed 20260816. The campaign harness does not reach the
+new law, which is step 3, so that number is still evidence about eight laws.
+
+**Why this one is the important finding of the step.** The corpus's argument is
+that a passing campaign proves nothing without a specimen, because a law that
+cannot fail is invisible in a green result. A law absent from the shipped adapter
+is worse than one that cannot fail: it is one nobody asks, on the surface furthest
+from anybody who would notice. `specimens/FeeFromQueued.sol`,
+`test_pooled_claims_cover_open_batches_counterexample`, the catalogue entry and
+`invariant_pooled_claims_cover_open_batches` were all correct while
+`CorpusObserver`, the contract an integrator points at their own market, ran nine
+laws.
+
+**Carried into step 3 with a mechanism rather than a hope.**
+`src/campaigns/Specimens.sol` has the same shape and the same hazard and is still
+unchecked. The check cannot land here: until the harness carries the law it would
+fail, and a check added after the change it was meant to force is a check written
+to pass. The runbook's step 3 now requires `ShippedAdapterTests` to be extended to
+the campaign harness in the same commit that adds the property.
+
+Leads not pursued: the merged-fixture question from round 3, `pandects run`
+knowing one engine, and the two carried from step 1.

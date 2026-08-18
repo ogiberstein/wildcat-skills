@@ -10,6 +10,7 @@ import {ReservesBackedByClaims} from "../src/laws/ReservesBackedByClaims.sol";
 import {HeldAssetsPartitioned} from "../src/laws/HeldAssetsPartitioned.sol";
 import {QueueOrderPreserved} from "../src/laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../src/laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../src/laws/PooledClaimsCoverOpenBatches.sol";
 import {DebtFallsOnlyAgainstPayment} from "../src/laws/DebtFallsOnlyAgainstPayment.sol";
 import {NoAccrualAtRest} from "../src/laws/NoAccrualAtRest.sol";
 import {RecordedClaimNeverShrinks} from "../src/laws/RecordedClaimNeverShrinks.sol";
@@ -41,6 +42,7 @@ abstract contract CorpusBase {
     Law internal immutable partitioned = new HeldAssetsPartitioned();
     Law internal immutable ordered = new QueueOrderPreserved();
     Law internal immutable covered = new ReservesCoverPayableClaims();
+    Law internal immutable pooled = new PooledClaimsCoverOpenBatches();
 
     /// @notice The system under test, or an adapter over it.
     function target() public view virtual returns (ICreditObservables);
@@ -63,7 +65,7 @@ abstract contract CorpusBase {
     /// `IWithdrawalQueueObservables`. That is the documented limit and not a
     /// verdict: the state could not be observed.
     function queueHolds() public view returns (bool) {
-        return judge(ordered) && judge(covered);
+        return judge(ordered) && judge(covered) && judge(pooled);
     }
 
     /// @notice Why the three laws that need no queue decided as they did.
@@ -85,13 +87,19 @@ abstract contract CorpusBase {
     /// @dev Reverts against a target with no withdrawal queue. Use
     /// `explainCore` there; it is the same three answers this would have given
     /// before the queue reads took it down.
-    function explainOneState() public view returns (string[5] memory details) {
+    ///
+    /// The width of the returned array is the count of one-state laws in the
+    /// catalogue. `test/Adapters.t.sol` holds it to that count, because an
+    /// adapter silently one law short is an integrator running nine laws and
+    /// reading a document that says ten.
+    function explainOneState() public view returns (string[6] memory details) {
         // slither-disable-start unused-return
         (, details[0]) = conserved.check(target());
         (, details[1]) = backed.check(target());
         (, details[2]) = partitioned.check(target());
         (, details[3]) = ordered.check(target());
         (, details[4]) = covered.check(target());
+        (, details[5]) = pooled.check(target());
         // slither-disable-end unused-return
     }
 }

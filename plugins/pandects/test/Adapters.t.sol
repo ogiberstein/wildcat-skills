@@ -96,8 +96,8 @@ contract AdaptersTest {
         system.reserve(1);
         system.payClaim(1);
         CorpusObserver observer = new CorpusObserver(ICreditObservables(address(system)));
-        string[5] memory details = observer.explainOneState();
-        for (uint256 i = 0; i < 5; i++) {
+        string[6] memory details = observer.explainOneState();
+        for (uint256 i = 0; i < 6; i++) {
             require(bytes(details[i]).length > 0, "a verdict without a detail");
         }
         require(
@@ -108,7 +108,7 @@ contract AdaptersTest {
     }
 
     /// @notice A target with no queue still gets the reasons it can have.
-    /// @dev `explainOneState` reads all five and reverts here, which is the
+    /// @dev `explainOneState` reads all six and reverts here, which is the
     /// documented limit. `explainCore` is the three that had an answer, and the
     /// point is that they are reachable rather than taken down with the other
     /// two.

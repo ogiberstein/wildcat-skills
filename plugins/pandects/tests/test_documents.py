@@ -153,6 +153,51 @@ class RendererTests(unittest.TestCase):
         self.assertNotIn("Nothing-here", body)
 
 
+class ShippedAdapterTests(unittest.TestCase):
+    """Every law reaches the adapter an integrator actually inherits.
+
+    `adapters/CorpusBase.sol` names its laws one by one, in Solidity, with no
+    view of the catalogue. So a law added to the catalogue does not arrive there,
+    and nothing about a green suite says it did not: the adapter compiles, every
+    test passes, and an integrator runs one law fewer than the document they read
+    promises. This is the check that has to exist for the same reason the
+    integration-notes check does.
+    """
+
+    ADAPTER = os.path.join(PLUGIN_ROOT, "adapters", "CorpusBase.sol")
+
+    #: Compares two systems advanced over the same span by different routes, so
+    #: an adapter holding one target cannot offer it and does not pretend to.
+    #: `adapters/foundry/PathIndependenceProbe.sol` is where it lives instead.
+    #: Pinned as an exact set rather than a skip list, so a second exclusion has
+    #: to be argued for here rather than added quietly.
+    NOT_IN_ADAPTER = {"accrual/path-independent/v1"}
+
+    def setUp(self):
+        with open(SHIPPED, encoding="utf-8") as handle:
+            self.catalogue = catalogue_module.parse(json.load(handle))
+        with open(self.ADAPTER, encoding="utf-8") as handle:
+            self.adapter = handle.read()
+
+    def test_every_law_the_adapter_can_offer_is_in_it(self):
+        for law in self.catalogue.laws:
+            if law.id in self.NOT_IN_ADAPTER:
+                continue
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            with self.subTest(law=law.id):
+                self.assertIn(
+                    component,
+                    self.adapter,
+                    "%s is catalogued and the shipped adapter does not carry it"
+                    % law.id,
+                )
+
+    def test_the_excluded_law_is_still_catalogued(self):
+        """Otherwise the exclusion outlives the reason for it."""
+        catalogued = {law.id for law in self.catalogue.laws}
+        self.assertEqual(self.NOT_IN_ADAPTER - catalogued, set())
+
+
 class IntegrationNotesTests(unittest.TestCase):
     """Every law is spoken about where the corpus meets a real design.
 
