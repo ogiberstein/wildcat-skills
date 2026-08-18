@@ -1066,3 +1066,17 @@ number (80.3%) is recomputed by the test from the quoted operands.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Live-evidence run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+six changed surfaces. Root 24/24 (the evolution contract validates the
+v1.1.0 row's script-computed digest and the prose contract validates surface
+agreement and job uniqueness), horos 55/55. The review confirmed the refusal
+is recorded in both the skill text and the ledger with its reason, and that
+the in-place study corrections are named in the commit rather than silent.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

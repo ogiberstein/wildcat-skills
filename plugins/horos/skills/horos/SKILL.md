@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** TypeScript and JavaScript skeleton maps remain unimplemented, and no scan of a live external repository is recorded as evidence.
+**Current frontier.** Text assets and machine-emitted migration SQL evidenced in the wildcat-app-v2 bundle stay readable, and TypeScript skeleton maps are refused rather than built.
 
 ## The verbs
 
@@ -55,6 +55,16 @@ python3 scripts/horos.py map <file.py>
 prints the file's skeleton (signatures, class structure, first docstring
 lines) so a large Python file can be oriented in without being read whole.
 It parses; it never imports or executes what it reads.
+
+`map` reads Python only, by decision rather than omission. TypeScript
+skeletons were considered and refused on 2026-08-18: stdlib Python cannot
+parse TypeScript honestly, a regex sketch of a language is a guess this
+marketplace refuses, and no parser dependency or subprocess boundary is
+justified by a secondary verb. The refusal is on the ledger in
+[EVOLUTION.md](EVOLUTION.md). The measured win on TypeScript repositories
+comes from `scan`, which classified 80.3% of the live wildcat-app-v2 tree;
+the recorded capture lives at
+[../../docs/evidence/wildcat-app-v2.md](../../docs/evidence/wildcat-app-v2.md).
 
 ## The discipline
 
