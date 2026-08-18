@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
 ---
 
 # Fiat
@@ -99,7 +99,8 @@ the second.
    run the read-only preflight checks below, then `hexctl init --topic
    "<topic>" --base <ref>`, record the post-init receipts, and enter the loop.
    `--base` defaults to `main`; honour any branch, repo, or commit the user
-   named as the starting point.
+   named as the starting point, and carry that same ref through to the pull
+   request created in the push phase.
 
 ## Frontier maturity gate
 
