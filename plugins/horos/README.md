@@ -24,18 +24,20 @@ rewriting at up to 12 points of task completion. Not reading the sinks at all
 is the mechanism that wins, and Horos makes it checkable. The full argument
 is committed at [docs/study.md](./docs/study.md).
 
-## What the delivery builds
-
-The runbook at [docs/runbook.md](./docs/runbook.md) lands these in order,
-one reviewed step each:
+## What it ships
 
 - a standard-library scanner that classifies token sinks and quotes the
   evidence line that earned each entry;
 - a deterministic committed boundary at `.horos/boundary.json`, verified
   against the tree by `check`, which names every drifted path;
 - Python skeleton maps, so a large file can be oriented in without being
-  read; and
+  read;
+- a shipped example at [examples/](./examples/) whose committed boundary a
+  fresh scan reproduces byte for byte; and
 - one binding rule: no boundary applies during security review.
+
+The build trail is the runbook at [docs/runbook.md](./docs/runbook.md), one
+reviewed step per verb.
 
 ## Day to day
 
