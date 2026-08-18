@@ -140,3 +140,111 @@ published calibration and final reports replay without a byte difference.
 Leads not pursued: model authorship beyond the declared provenance rule,
 population-prevalence claims and tuning against the spent v1 holdout remain
 outside this frontier.
+
+## Withdrawal batch fee law, step 1, round 1 -- 2026-08-18
+
+The Pashov pair did not run and no campaign ran, because this step commits two
+markdown documents and touches no Solidity. Saying so is the point: the
+`security_suite` receipt names `x-ray`, `solidity-auditor` and `fizz`, none of
+them read this diff, and a zero count here would assert they had. The review
+instead read the committed spec against the risk register it declares, against
+the nine shipped laws, and against the two models it proposes to correct.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study asserted that all nine laws hold in the violating state, but only the five single-state laws had been executed. The four pair laws were reasoned about from what a fee does not touch. In a corpus whose whole argument is that a passing campaign proves nothing without a specimen, an argued verdict presented beside measured ones is the same defect one level up. | Fixed in this round: all four pair laws executed against the pair on both models, and the study now reports what was run. `accrual/path-independent/v1` returns held and the study says that verdict carries no weight, because the law compares two runs rather than one system's before and after. |
+| S1-R1-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study named a fee leak in `integrations/wildcat/WildcatMarketModel.sol` with figures, and never fixed the boundary to the deployed market contracts. The plugin's own applicability document warns that nothing in the model should be mistaken for them; a reader meeting the figures first could take the study as a claim about the protocol. | Fixed in this round: the study states that the finding is about the reduced model and the corpus's silence, and that it establishes nothing either way about the deployed contracts. |
+
+A third lead was checked and is not a finding. The study's chosen statement is
+false of `Sound` as shipped, and the study says so and builds on it. That is the
+method in `docs/writing-a-law.md` working rather than a defect in the spec.
+
+Leads not pursued: whether the two model corrections should ship as their own
+step ahead of the law, which the runbook argues against on the grounds that
+`pandects.py check` and the corpus diagonal leave no green intermediate state;
+and the seven property families deferred from the original delivery, which are
+outside this frontier.
+
+## Withdrawal batch fee law, step 1, round 2 -- 2026-08-18
+
+Again no Solidity in the diff and no campaign, for the same reason, stated again
+rather than counted as a clean suite run. This round read the round-1 fixes back,
+then checked the runbook's own numbers against the test files it points step 2 at.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | The runbook sized step 2's test work as the diagonal growing "from 9x9 to 10x10 over the single-state half". No such table exists. `test/Corpus.t.sol` runs its diagonal over the single-state laws alone, where `COUNT` is 5, and `test/Pairs.t.sol` runs over 3, with path independence handled separately. Nine and ten are corpus totals. Whoever implemented step 2 from the runbook would have gone looking for a table with the wrong shape. | Fixed in this round: the runbook names both dimensions and says that ten is a total rather than a dimension. |
+
+The round-1 fixes were re-read and hold. The four pair-law verdicts in the study
+match what was executed, the path-independence caveat is stated where the verdict
+appears, and the boundary sentence about the deployed contracts sits in the
+problem statement where a reader meets the figures.
+
+One check found nothing and is worth recording because it removes work from step
+2. `test_the_sound_reference_holds_every_law` charges its fee before it reserves,
+so the queue is empty when the cap applies and the tightened cap cannot change
+that test. The runbook now says so.
+
+Leads not pursued: the two carried from round 1, unchanged.
+
+## Withdrawal batch fee law, step 1, round 3 -- 2026-08-18
+
+No Solidity and no campaign again. This round read the runbook's file lists
+against what the repository actually generates and against what it treats as a
+record, which is the class of error the previous two rounds had not looked at.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 2 listed `docs/catalogue.md` as a file to write and step 4 listed it again as prose to reconcile. It is neither: `python3 scripts/pandects.py render` generates it and `tests/test_documents.py` checks it against the renderer. A hand-edit either fails that check, or passes it by reproducing what the renderer would have produced and thereby hides a real drift. An earlier round of the original delivery, S5-R2-01, fixed the renderer for exactly this reason. | Fixed in this round: step 2 regenerates it and says why, and step 4 drops it from the prose surfaces and names the command. |
+| S1-R3-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 4's reconciliation list left this run's own study and runbook out without saying so, and both of them claim Pandects ships nine laws. The omission reads as an oversight rather than a decision, so an implementer would either rewrite a spec into disagreement with the run it specifies, or leave a claim stale with nothing recording which was meant. | Fixed in this round: step 4 states that the two spec documents are records on the same footing as the audit log's historical rounds and are not reconciled, and why rewriting them would be worse. |
+
+The round-2 fix was re-read against the sources. `COUNT` is 5 in
+`test/Corpus.t.sol` and 3 in `test/Pairs.t.sol`, which is what the runbook now
+says.
+
+Leads not pursued: the two carried from round 1, unchanged.
+
+## Withdrawal batch fee law, step 1, round 4 -- 2026-08-18
+
+No Solidity and no campaign. This round read step 3's evidence requirement
+against the tooling that exists to satisfy it, and re-checked which documents in
+the plugin are generated, which the previous round had only established for one of
+them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 3 asked for "a search record for each run" and for "a run record beside the existing campaign evidence", without naming a mechanism. One exists and does not cover the case: `python3 scripts/pandects.py run` writes a search record and knows only the `foundry` engine. An implementer would either read the requirement as satisfied by that command for all three engines, which would silently drop the two fuzzers the step exists to run, or invent a record format for them. | Fixed in this round: step 3 names the command for the Foundry record, says it has no Echidna or Medusa support, and requires the two fuzzers to be recorded as audit prose the way the original delivery recorded them. It also says not to extend the runner here. |
+
+`docs/applicability.md` was checked and is not generated. `pandects render` writes
+`docs/catalogue.md` and nothing else, so step 4's remaining prose surfaces are
+hand-written and correctly listed.
+
+Leads not pursued: extending the search-record runner past `foundry`, now stated
+in the runbook as out of scope for this step and a candidate frontier of its own;
+and the two carried from round 1.
+
+## Withdrawal batch fee law, step 1, round 5 -- 2026-08-18
+
+No Solidity and no campaign, for the fifth time and for the same reason. This
+round re-read the four earlier fixes against their sources and then resolved every
+file path the two documents name, which is the check that catches a spec rotting
+against a repository that moved under it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+
+Thirty-nine distinct paths are named across the study and the runbook. Every one
+resolves, except the two the run exists to create,
+`src/laws/PooledClaimsCoverOpenBatches.sol` and `specimens/FeeFromQueued.sol`, and
+a glob in the sources list. The earlier fixes hold: the pair-law verdicts match
+what was executed, the deployed-contract boundary sits where the figures are, both
+diagonal dimensions match `COUNT` in their test files, `docs/catalogue.md` is
+regenerated rather than written, the two spec documents are declared records, and
+step 3 names the runner and its single engine.
+
+Leads not pursued: extending the search-record runner past `foundry`; whether the
+two model corrections should ship ahead of the law, which the runbook argues
+against on the grounds that no green intermediate state exists; and the seven
+property families deferred from the original delivery. Each is recorded in the
+round that raised it.
