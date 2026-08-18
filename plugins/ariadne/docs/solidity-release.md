@@ -7,83 +7,59 @@
 Type URI: `https://ariadne.wildcat.finance/solidity-release/v1`.
 Schema: [`schemas/solidity-release-v1.json`](../schemas/solidity-release-v1.json).
 
-The subject of a release statement is compiled bytecode. Every release subject's
-creation and runtime digests appear in the statement's `subject` array, so a
-reader holding the bytes can find the statement that covers them.
+Compiled bytecode is the release subject. Every creation and runtime digest is
+in `subject`, so a reader holding the bytes can find its statement.
 
-What the predicate adds to the core `claims` and `commands` is the part that
-makes a contract release checkable rather than merely signed.
+The predicate adds checkable release facts to core `claims` and `commands`.
 
 ## The fields
 
-**`source`** -- `repository`, `commit`, `tree_digest`. The commit says which
-revision, the tree digest says which bytes, and they are not the same claim: a
-commit can be rewritten and a tree digest cannot.
+**`source`** -- `repository`, `commit`, `tree_digest`. A commit identifies the
+revision; the tree digest identifies bytes.
 
-**`build`** -- `compiler`, `compiler_version`, `optimizer` with its `enabled`
-and `runs`, `evm_version`, `via_ir` where it applies, `dependency_lock_digest`
-and `command` as an argv. Gate 2 refuses anything less, because a version string
-on its own does not let anybody reproduce the bytes.
+**`build`** -- `compiler`, `compiler_version`, `optimizer.enabled`,
+`optimizer.runs`, `evm_version`, optional `via_ir`, `dependency_lock_digest`,
+and argv `command`. Gate 2 requires the full environment.
 
-**`release_subjects`** -- one per compiled contract: `name`, `source_path`,
-`creation_digest`, `runtime_digest`, and `abi_digest` where it helps. Each
-digest has to be a subject of the statement.
+**`release_subjects`** -- per-contract `name`, `source_path`, `creation_digest`,
+`runtime_digest`, and optional `abi_digest`. Every digest must be a subject.
 
-**`deltas`** -- the comparison against the previous release. Both sides carry a
-`name` and a `digest`. The sections are `abi`, `method_identifiers` and
-`storage`, and each entry inside them names both sides too. A first release
-carries `"baseline": null` with a `reason`.
+**`deltas`** -- previous-release comparison. Both sides and every `abi`,
+`method_identifiers`, and `storage` entry carry `name` and `digest`. A first
+release carries `"baseline": null` and `reason`.
 
-**`audits`** -- `report_digest`, `covered_revision`, `scope`. The covered
-revision is the field that matters: a report linked beside a release, with no
-revision, is exactly the gap this project starts from. It does not establish
-that the audit covered what shipped.
+**`audits`** -- `report_digest`, `covered_revision`, `scope`. Without
+`covered_revision`, the report does not establish coverage of what shipped.
 
-**`deployments`** -- `chain_id`, `address`, `creation_tx`, an `implementation`
-where a proxy is involved, and `confirmed_against_chain`. That last one is a
-boolean rather than an omission. This build reaches no network, so everything it
-writes records `false`, and an address printed with no note would read as
-confirmed.
+**`deployments`** -- `chain_id`, `address`, `creation_tx`, optional proxy
+`implementation`, and `confirmed_against_chain`. This offline build records
+`false` rather than implying confirmation.
 
 ## The two gates it owns
 
-**Gate 2, the environment is recoverable.** The build and source records above,
-in full. The message names what is missing rather than saying the record is
-incomplete.
+**Gate 2, the environment is recoverable.** Requires full build and source
+records and names missing fields.
 
-**Gate 5, deltas name both sides.** A comparison fails when either side cannot
-be identified by digest. It also fails when delta content sits beside a null
-baseline, since a list of added functions with nothing to have added them to is
-a comparison against something the statement will not name.
+**Gate 5, deltas name both sides.** Refuses unidentified sides and delta content
+beside a null baseline.
 
-Both run beside the five core gates, so a release statement prints seven gate
-lines and three further checks: the predicate's field shape, its audits and its
-deployments.
+With five core gates, a release prints seven gate lines and three checks for
+field shape, audits, and deployments.
 
 ## What the deltas measure
 
-Three comparisons, because three things break differently.
+An ABI removal breaks compile-time callers. A method identifier change under an
+unchanged signature breaks runtime calls. Storage movement breaks upgrades.
 
-An ABI entry disappearing breaks a caller at compile time. A method identifier
-changing under an unchanged signature breaks one at run time and silently, which
-is worse. A storage variable moving breaks an upgrade after the transaction has
-gone through.
-
-Storage is compared by variable rather than by slot. A variable that kept its
-slot and changed type is as dangerous as one that moved, and comparing by slot
-would have reported neither.
+Storage comparison follows variables, catching moved or retyped values.
 
 ## The schema and the validator
 
-Both ship, and they do different jobs. The schema is what another producer reads
-to build a statement this tool will accept. The validator is what this tool
-actually enforces, and it enforces more: absence rules, delta baselines and
-determinism classes are semantic, and a schema saying `counterexamples` is an
-array cannot say that an empty array beside an absent campaign record is a lie.
+The schema guides other producers. The validator also enforces semantic absence,
+baseline, and determinism rules: a schema can type `counterexamples` as an array
+but cannot reject an empty array beside an absent campaign.
 
-A test compares the schema's required-field lists against the module's own field
-tables. A field added to one and not the other fails the suite rather than
-shipping as a quiet disagreement.
+Tests compare schema requirements with module field tables; drift fails.
 
 ## Worked examples
 

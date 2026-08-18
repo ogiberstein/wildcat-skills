@@ -15,28 +15,24 @@ python3 scripts/ariadne.py capture solidity-release \
 python3 scripts/ariadne.py verify release.json
 ```
 
-What comes out passes `verify` without anybody editing it. That is the point:
-a statement somebody had to fix up by hand is a statement whose numbers came
-from somewhere other than the build.
+The output passes `verify` unedited. Hand-editing would detach its numbers from
+the build.
 
 ## What the project needs
 
-`build_info = true` in `foundry.toml`, and `extra_output = ["storageLayout"]`
-if you want the storage delta. Capture reads:
+Set `build_info = true` in `foundry.toml` and
+`extra_output = ["storageLayout"]` for storage deltas. Capture reads:
 
-- `out/build-info/*.json` for the compiler version, the optimiser settings, the
-  EVM target and the source list. Without it, capture refuses and says which
-  setting to turn on.
+- `out/build-info/*.json` for compiler version, optimiser settings, EVM target,
+  and sources. If absent, capture names the required setting.
 - `out/<file>.sol/<Name>.json` for the ABI, both bytecodes, the method
   identifiers and the storage layout.
 
-Nothing is recompiled. What the statement records is what the compiler wrote
-down.
+Nothing is recompiled; the statement records compiler output.
 
-Gate 2 wants a dependency lock digest. Capture uses `foundry.lock`,
+Gate 2 requires a dependency lock digest. Capture uses `foundry.lock`,
 `soldeer.lock`, `package-lock.json` or `yarn.lock` if one is there, and the
-source directory otherwise. Either way `build.dependency_lock_source` says which
-it was, because a digest whose subject is unnamed tells a reader nothing.
+source directory otherwise. `build.dependency_lock_source` names the choice.
 
 ## What capture will not do
 
@@ -47,42 +43,31 @@ stated disposition:
 --tests "passed" --fuzz "timed_out:budget of 30 minutes reached with 4 properties outstanding"
 ```
 
-Leave either out and the statement records `skipped` with a reason saying
-nothing was supplied. A capture tool that wrote `passed` for a run it never saw
-would be the thing this project exists to replace.
+Omission records `skipped` with a reason. Capture never invents `passed`.
 
 **It does not confirm a deployment.** `--deployment
-chain_id=1,address=0x...,creation_tx=0x...` records the deployment with
-`confirmed_against_chain: false`, because nothing here has spoken to a node. An
-address printed with no note reads as confirmed.
+chain_id=1,address=0x...,creation_tx=0x...` records
+`confirmed_against_chain: false` because no node was queried. An address without
+that note would read as confirmed.
 
-**It scrubs the build command, and only that.** A build command is the
-likeliest place for a credential to ride along, so URLs lose everything after
-the scheme,
-key-shaped tokens are replaced, and the value after `--rpc-url`,
-`--private-key`, `--etherscan-api-key` and the rest goes whatever it looks like.
-The count of redacted arguments is recorded beside the command, so the
-statement describes a command somebody could recognise rather than one that
-quietly lost an argument. A repository URL loses any `user:token@` in front of
-its host, since the URL itself has to survive for a reader to follow it.
+**It scrubs the build command, and only that.** URLs lose content after the
+scheme, key-shaped tokens are replaced, and values after `--rpc-url`,
+`--private-key`, `--etherscan-api-key`, and related flags are redacted. The
+redaction count stays with the command. Repository URLs lose `user:token@` but
+remain navigable.
 
-Reasons and scopes you pass in are recorded as written. Capture does not edit
-prose, so do not put a credential in one.
+Reasons and scopes are recorded verbatim; do not put credentials in them.
 
-**It does not read outside the project.** `--project` and `--previous` are
-resolved, and an `out` that resolves outside its own project, through a symlink
-or otherwise, is refused.
+**It does not read outside the project.** Resolved `--project`, `--previous`,
+and `out` paths may not escape their project, including through symlinks.
 
 ## The delta
 
-With `--previous`, capture compares the two builds contract by contract and
-writes the ABI, selector and storage deltas, each naming both sides. Without
-it, the statement carries `"baseline": null` and a reason, which passes gate 5
-because a first release has nothing to compare against and says so.
+With `--previous`, capture writes contract-by-contract ABI, selector, and
+storage deltas naming both sides. Without it, `"baseline": null` and a reason
+pass gate 5 for a declared first release.
 
-`--previous-name` is what the baseline is called in the statement. Without one,
-capture uses the directory name, which is rarely what you want in a published
-document.
+`--previous-name` labels the baseline; otherwise capture uses its directory.
 
 ## An audit
 
@@ -90,8 +75,8 @@ document.
 --audit report=audits/acme-2026.pdf,revision=<40-hex>,scope="src/Escrow.sol and its libraries"
 ```
 
-The revision is the field that matters. A report linked beside a release, with
-no revision, does not establish that the audit covered what shipped.
+Without the revision, a linked report does not establish coverage of what
+shipped.
 
 ## Worked example
 

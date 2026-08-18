@@ -4,15 +4,11 @@
 > **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
 <!-- marketplace-context:end -->
 
-One section per round. A round with no findings is still a round and still gets
-written down.
+Every round is recorded, including zero-finding rounds.
 
-The Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) is waived for this
-build and the waiver is on the run's ledger: ariadne ships Python, and the only
-Solidity in the repository will be a fixture contract compiled to produce test
-material. The waiver covers why those tools did not run. It does not cover
-skipping the look, so each round is a review of the step's diff against the
-risks listed in [`docs/design.md`](../docs/design.md).
+The run ledger waives `x-ray`, `solidity-auditor`, and `fizz`: Ariadne ships
+Python, with Solidity only as compiled fixture material. Each round still
+reviews its diff against [`docs/design.md`](../docs/design.md).
 
 ## Step 1, round 1 -- 2026-08-16
 
@@ -86,10 +82,11 @@ Reviewed: the tree with rounds 1 and 2 applied. The unknown-field refusals hold
 and round-trip a descriptor's other fields unchanged. This round looked at what
 happens when the filesystem refuses, which the first two passes did not.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R3-01 | medium | `scripts/ariadne_lib/digests.py` | `os.walk` drops directories it cannot read and reports nothing, so a tree digest over a partly unreadable tree succeeded while covering less than the caller believed. Silent absence, in the one place the whole project is about not having any | fixed in this round: an unreadable directory raises rather than being skipped |
-| S1-R3-02 | low | `scripts/ariadne_lib/digests.py` | `of_file` let an `OSError` escape, so a caller catching `DigestError` around a digest would not catch an unreadable file | fixed in this round |
+- `S1-R3-01` | medium | `scripts/ariadne_lib/digests.py` | `os.walk`
+  silently dropped unreadable directories, producing a partial tree digest. Fixed:
+  unreadable directories raise.
+- `S1-R3-02` | low | `scripts/ariadne_lib/digests.py` | `of_file` let an
+  `OSError` escape callers catching `DigestError`. Fixed in this round.
 
 Leads not pursued: none. The remaining open items are the two carried from
 round 1 and round 2, both belonging to step 2's untrusted-input bounds.
@@ -101,10 +98,11 @@ against the code. In a project whose subject is not overclaiming, a document
 describing a capability the code does not have is the same defect as a gate
 that does not fire.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R4-01 | low | `AGENTS.md` | The runtime contract said the tool writes only where `--out` points. No subcommand at this version writes anything, and no `--out` exists | fixed in this round: it says the tool writes nothing yet, and what will hold when a writing subcommand arrives |
-| S1-R4-02 | low | `skills/ariadne/SKILL.md` | The exit-code line offered 1 for a breached gate without saying that no subcommand here can return it, since the gates arrive with the verifier | fixed in this round |
+- `S1-R4-01` | low | `AGENTS.md` | The runtime contract named `--out` before
+  any subcommand wrote or exposed it. Fixed: it states the current no-write limit
+  and the future condition.
+- `S1-R4-02` | low | `skills/ariadne/SKILL.md` | Exit code 1 was documented
+  before a subcommand could breach a gate. Fixed in this round.
 
 Register items with nothing to review yet, named so the coverage is legible:
 gate bypass by omission (the gates land in step 2), replay as code execution
@@ -196,10 +194,11 @@ Leads not pursued: none new.
 Reviewed: the gates again, hunting for producer-chosen content the key scan
 does not reach, and the report's own wording.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R3-01 | medium | `scripts/ariadne_lib/gates.py` | Gates 4 and 7 scanned the predicate only. A subject's `annotations` are producer-chosen too, so a rating in `subject[0].annotations` passed both gates while sitting in the signed bytes | fixed in this round: the scan covers the predicate and every subject's descriptor fields |
-| S2-R3-02 | low | `scripts/ariadne_lib/verify.py` | A failure from a predicate's own check printed as "gate 0", a number no gate has | fixed in this round: it prints as a check rather than borrowing a gate number |
+- `S2-R3-01` | medium | `scripts/ariadne_lib/gates.py` | Gates 4 and 7
+  ignored producer-chosen `subject[0].annotations`. Fixed: scan the predicate and
+  every subject descriptor.
+- `S2-R3-02` | low | `scripts/ariadne_lib/verify.py` | Predicate-check failure
+  printed as nonexistent gate 0. Fixed: print it as a check.
 
 Checked and found sound in round 3:
 
@@ -285,9 +284,10 @@ Reviewed: gate 5 one level down, inside the sections rather than at their edges,
 and confirmed that dropping the duplicate absence report in round 2 left every
 required field still reported by the gate that owns it.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R3-01 | medium | `scripts/ariadne_lib/predicates/solidity_release.py` | Gate 5 held both sides of the comparison to a digest, and then let a `changed`, `moved` or `retyped` entry inside a section name one side or neither. A delta saying `transfer` changed, without saying from what to what, is the diff nobody can act on | fixed in this round: every entry in a both-sided section names both, and every list inside a section has to be a list |
+- `S3-R3-01` | medium | `scripts/ariadne_lib/predicates/solidity_release.py`
+  | Gate 5 allowed `changed`, `moved`, or `retyped` entries naming one side or
+  neither; `transfer` could change without from/to values. Fixed: every
+  both-sided entry names both; every section list is a list.
 
 Checked and found sound:
 
@@ -303,9 +303,9 @@ Reviewed: the two artefacts that describe this predicate against each other. The
 drift test compares required-field lists, which left the fields' own shapes free
 to disagree.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R4-01 | medium | `schemas/solidity-release-v1.json` | The published schema accepted any string for `source.commit` and `covered_revision`, while the validator refuses a branch name. A producer building to the schema would have got a refusal here for something their own tooling said was fine | fixed in this round: the schema carries the same pattern, and the drift test compares it against the validator's |
+- `S3-R4-01` | medium | `schemas/solidity-release-v1.json` | The schema
+  accepted any `source.commit` or `covered_revision` string while the validator
+  refused branches. Fixed: schema and drift test carry the validator pattern.
 
 Leads not pursued: none new.
 
@@ -372,10 +372,12 @@ Leads not pursued: none new.
 Reviewed: what capture writes when a project holds more than the fixture's one
 contract, which is the case the fixture cannot exercise on its own.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R3-01 | medium | `scripts/ariadne_lib/capture/foundry.py` | The delta's current side named the first release subject's runtime bytecode. With more than one contract that is an arbitrary pick, and the comparison covers all of them | fixed in this round: both sides name a digest over the whole build, and that bundle is a subject of the statement so gate 5 still holds |
-| S4-R3-02 | medium | `scripts/ariadne_lib/capture/foundry.py` | A contract present in the previous build and gone from this one produced nothing at all. An ABI diff cannot show it, because there is no ABI left to diff, so the removal disappeared | fixed in this round: `deltas.contracts` records what was added and removed, and the predicate and schema carry the section |
+- `S4-R3-01` | medium | `scripts/ariadne_lib/capture/foundry.py` | A
+  multi-contract delta named the first runtime subject. Fixed: both sides name a
+  whole-build subject digest, preserving gate 5.
+- `S4-R3-02` | medium | `scripts/ariadne_lib/capture/foundry.py` | Removed
+  contracts disappeared because no ABI remained. Fixed: `deltas.contracts`
+  records additions and removals in predicate and schema.
 
 Leads not pursued: none new.
 
@@ -429,10 +431,12 @@ Leads not pursued:
 Reviewed: the shipped examples rather than the code that reads them, on the
 grounds that an example is a document making claims like any other.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S5-R2-01 | medium | `examples/` | The examples quote digests taken from the committed fixture. Rebuild the fixture, forget the examples, and they go on describing bytecode that no longer exists, while still verifying | fixed in this round: a test re-captures from the fixture and compares the release subjects, so drift fails the suite |
-| S5-R2-02 | medium | `examples/README.md` | The examples record that tests and a fuzz campaign passed. Nobody ran either against a nine-line escrow contract; capture takes those dispositions from its caller and they were supplied by hand | fixed in this round: the README says which parts came from the compiler and which were written for illustration |
+- `S5-R2-01` | medium | `examples/` | Rebuilt fixtures could leave examples
+  quoting obsolete bytecode while still verifying. Fixed: re-capture and compare
+  release subjects in tests.
+- `S5-R2-02` | medium | `examples/README.md` | Hand-supplied tests and fuzz
+  dispositions looked measured against the nine-line escrow. Fixed: the README
+  separates compiler output from illustrative dispositions.
 
 Checked and found sound:
 
@@ -456,4 +460,3 @@ No findings.
 
 Leads not pursued: sandboxing, carried from round 1 and stated in
 `replay.py`'s own docstring.
-
