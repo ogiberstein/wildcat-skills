@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** Text assets and machine-emitted migration SQL evidenced in the wildcat-app-v2 bundle stay readable, and TypeScript skeleton maps are refused rather than built.
+**Current frontier.** Horos's map verb reads Python only; the maintainer-directed TypeScript outline extractor, internal to Horos with verbatim source slices and confessed unparsed regions, remains unbuilt.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Add evidence-bearing rule classes for text assets and machine-emitted migration SQL, holding zero false exclusions against the recorded wildcat-app-v2 bundle. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Build the TypeScript outline extractor inside Horos's map verb: verbatim declaration slices, confessed unparsed regions, stdlib-only shipping, a dev-time differential corpus. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
