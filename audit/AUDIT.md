@@ -1434,3 +1434,19 @@ destructors.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 3, round 1 -- 2026-08-18
+
+Suite waived (Python reading Solidity, none shipped); lints phylax 0,
+ephoros 0, hypomnema 0. Horos 152/152, root 24/24. The review held the
+register's rows: the venv and oracle stay outside every runtime and test
+path, the bundle declares its altitudes and exclusions, the acceptance
+numbers are asserted by test, and the one corpus defect (the multiline
+inheritance swallow, exactly the silent-consumption class this loop exists
+to catch) landed with a pinned regression and a structural fix rather than
+a heuristic patch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

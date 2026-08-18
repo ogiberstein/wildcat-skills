@@ -87,6 +87,16 @@ class SolOutlineTests(unittest.TestCase):
         _, output = run("contract C is A, B(1) {\n\tuint256 x;\n}\n")
         self.assertIn("contract C is A, B(1)", output.splitlines())
 
+    def test_a_multiline_inheritance_list_keeps_the_body(self):
+        code, output = run(
+            "contract C is\n\tA,\n\tB\n{\n\tfunction f() external {}\n}\n"
+        )
+        self.assertEqual(code, 0)
+        lines = output.splitlines()
+        self.assertIn("contract C is", lines)
+        self.assertIn("    function f() external", lines)
+        self.assertIn("unparsed: none", output)
+
     def test_a_multiline_head_with_override_list_slices_whole(self):
         code, output = run(
             "contract C is A {\n\tfunction f(\n\t\tuint256 x\n\t) public virtual"
