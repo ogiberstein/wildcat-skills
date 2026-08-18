@@ -1280,3 +1280,15 @@ commitment, and the three prior ledger rows byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Go-extractor run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+104/104, root 24/24. Prose-only step; one imprimatur defect (a bold-lead
+bullet) was fixed before the copies were committed, and the committed
+copies match the receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
