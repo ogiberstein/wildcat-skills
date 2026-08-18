@@ -578,46 +578,46 @@ truthfulness and query provenance.
 
 ## Glossary seeds
 
-- **Alexandria:** the raw-object archive, release catalogue and query boundary
+- `Alexandria`: the raw-object archive, release catalogue and query boundary
   described here; also the name of its operator plugin.
-- **Raw object:** unchanged bytes received from a chain reader, indexer,
+- `Raw object`: unchanged bytes received from a chain reader, indexer,
   provider export or other declared source.
-- **Object digest:** `sha256:<hex>` over the exact raw object bytes.
-- **Component descriptor:** a manifest entry naming a component's role, media
+- `Object digest`: `sha256:<hex>` over the exact raw object bytes.
+- `Component descriptor`: a manifest entry naming a component's role, media
   type, byte count, digest and safe local path or publication locations.
-- **Release manifest:** the canonical document that binds components to
+- `Release manifest`: the canonical document that binds components to
   capture scope, coverage, mapping versions and supersession history.
-- **Release ID:** SHA-256 of the canonical manifest body, excluding the ID
+- `Release ID`: SHA-256 of the canonical manifest body, excluding the ID
   field itself.
-- **Capture scope:** the network, deployment or subject set, interval,
+- `Capture scope`: the network, deployment or subject set, interval,
   selectors, source capability and evidence boundary a harvest attempted.
-- **Coverage:** the machine-readable result of that attempt, including counts,
+- `Coverage`: the machine-readable result of that attempt, including counts,
   omissions, failures and unsupported parts.
-- **Coverage status:** `complete`, `partial`, `failed` or `unsupported` within
+- `Coverage status`: `complete`, `partial`, `failed` or `unsupported` within
   the declared capture scope.
-- **Negative space:** the distinction among a checked empty result, an
+- `Negative space`: the distinction among a checked empty result, an
   uncovered venue, a failed capture and an unsupported record family.
-- **Credit event:** a venue-qualified occurrence such as borrowing, repayment
+- `Credit event`: a venue-qualified occurrence such as borrowing, repayment
   or liquidation, backed by a raw record.
-- **Position observation:** a value established for a credit position at a
+- `Position observation`: a value established for a credit position at a
   named capture boundary, such as principal outstanding or maturity.
-- **Amount leg:** one exact asset quantity with a role; a liquidation may have
+- `Amount leg`: one exact asset quantity with a role; a liquidation may have
   separate debt-repaid and collateral-seized legs.
-- **Subject account:** the chain-qualified address whose conduct or position a
+- `Subject account`: the chain-qualified address whose conduct or position a
   derived row describes.
-- **Source selector:** a deterministic pointer from a derived row to one record
+- `Source selector`: a deterministic pointer from a derived row to one record
   inside a raw object.
-- **Mapping rule:** a versioned Tabularium identifier for the economic and
+- `Mapping rule`: a versioned Tabularium identifier for the economic and
   structural transformation from a source record to a derived row.
-- **Evidence class:** the declared support for a boundary or value, such as
+- `Evidence class`: the declared support for a boundary or value, such as
   provider-reported, recorded RPC, header-bound or proof-backed.
-- **Address index:** a disposable SQLite projection rebuilt from verified
+- `Address index`: a disposable SQLite projection rebuilt from verified
   manifests and derived rows.
-- **Publication location:** one place from which component bytes may be
+- `Publication location`: one place from which component bytes may be
   obtained; it is not the component identity or a promise of availability.
-- **Supersession:** a new immutable release that names an earlier release it
+- `Supersession`: a new immutable release that names an earlier release it
   corrects or extends.
-- **Retention receipt:** later evidence that an operator undertook to keep a
+- `Retention receipt`: later evidence that an operator undertook to keep a
   copy for a named period; not implemented in the prototype.
 
 ## Sources

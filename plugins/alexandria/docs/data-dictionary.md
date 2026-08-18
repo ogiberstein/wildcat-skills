@@ -10,15 +10,16 @@ coordinates remain decimal strings where their schemas require exact values.
 
 ## Raw release
 
-| Field | Meaning |
-| --- | --- |
-| `release_id` | SHA-256 identity of the canonical manifest with this field omitted |
-| `components[].sha256` | SHA-256 of the unchanged object bytes |
-| `components[].object_path` | Confined digest-derived path inside the release |
-| `captures[].source` | Non-secret source kind, locator class and reference |
-| `captures[].scope` | Venue, chain, deployment, subjects and snapshot or block interval |
-| `captures[].coverage` | Counted collections, status, gaps and unsupported collections |
-| `supersedes` | Earlier release corrected by this release; it does not mutate the earlier bytes |
+- `release_id`: SHA-256 identity of the canonical manifest with this field
+  omitted.
+- `components[].sha256`: SHA-256 of the unchanged object bytes.
+- `components[].object_path`: confined digest-derived release path.
+- `captures[].source`: non-secret source kind, locator class and reference.
+- `captures[].scope`: venue, chain, deployment, subjects and snapshot or
+  block interval.
+- `captures[].coverage`: counted collections, status, gaps and unsupported
+  collections.
+- `supersedes`: earlier release corrected without mutating its bytes.
 
 `complete` applies only to the declared scope and collections. A digest match
 does not establish publisher identity, provider completeness or canonical-chain
@@ -26,17 +27,21 @@ finality.
 
 ## Derived release
 
-| Field | Meaning |
-| --- | --- |
-| `derivation.source_release_id` | Verified raw release used by every mapping |
-| `derivation.mappings[]` | Venue, adapter version, mapping revision and reconciliation counts |
-| `credit-events.jsonl` | Canonical, deterministically ordered venue-qualified credit events |
-| `credit-observations.jsonl` | Canonical position readings at named observation boundaries |
-| `id` | Hash of stable native identity, row kind and mapping rule; exposed as `row_id` by queries |
-| `provenance.component_sha256` | Raw object containing the selected source record |
-| `provenance.source_selector` | Exact native record selector |
-| `provenance.context_selectors` | Other native records needed to interpret the row |
-| `provenance.mapping_rule` | Registered rule which assigned the row meaning |
+- `derivation.source_release_id`: verified raw release used by every mapping.
+- `derivation.mappings[]`: venue, adapter version, mapping revision and
+  reconciliation counts.
+- `credit-events.jsonl`: canonical, deterministically ordered,
+  venue-qualified credit events.
+- `credit-observations.jsonl`: canonical position readings at named
+  observation boundaries.
+- `id`: hash of stable native identity, row kind and mapping rule; queries
+  expose it as `row_id`.
+- `provenance.component_sha256`: raw object containing the selected source
+  record.
+- `provenance.source_selector`: exact native record selector.
+- `provenance.context_selectors`: other native records needed to interpret
+  the row.
+- `provenance.mapping_rule`: registered rule which assigned the row meaning.
 
 Events do not imply a current balance, default or complete repayment.
 Observations apply only at their recorded boundary.

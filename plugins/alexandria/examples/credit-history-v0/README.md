@@ -1,16 +1,18 @@
-# `credit-history-v0`
+`credit-history-v0`
 
 <!-- marketplace-context:start -->
 > **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
-This demonstration runs the complete Alexandria prototype without reaching
-the network. It reads the existing Goldfinch source at
-`plugins/tabularium/examples/goldfinch-v0/source.json` and the existing
-Clearpool source stored with this example at
-`plugins/alexandria/examples/credit-history-v0/sources/clearpool.json`. The
-plan pins both SHA-256 values and materializes them only in the temporary demo
-output.
+This offline demonstration reads:
+
+- Goldfinch source
+  `plugins/tabularium/examples/goldfinch-v0/source.json`; and
+- Clearpool source
+  `plugins/alexandria/examples/credit-history-v0/sources/clearpool.json`.
+
+The plan pins both SHA-256 values and materializes them only in the temporary
+demo output.
 
 From the repository root:
 

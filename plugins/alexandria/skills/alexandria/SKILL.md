@@ -68,6 +68,17 @@ boundary and counted coverage or a stated gap. Then ingest it:
 ```bash
 python3 "$SKILL_DIR/../../scripts/alexandria.py" ingest \
   --plan capture-plan.json --output release
+python3 "$SKILL_DIR/../../scripts/alexandria.py" verify release
+python3 "$SKILL_DIR/../../scripts/alexandria.py" derive raw-release \
+  --output derived-release
+python3 "$SKILL_DIR/../../scripts/alexandria.py" verify derived-release
+python3 "$SKILL_DIR/../../scripts/alexandria.py" index derived-release \
+  --output alexandria.sqlite
+python3 "$SKILL_DIR/../../scripts/alexandria.py" query \
+  --index alexandria.sqlite --address 0x...
+output="$(mktemp -d)/credit-history-v0"
+python3 plugins/alexandria/examples/credit-history-v0/demo.py build --output "$output"
+python3 plugins/alexandria/examples/credit-history-v0/demo.py verify "$output"
 ```
 
 Ingest reads only the plan and its confined local source files. It copies raw
@@ -76,11 +87,7 @@ directory and installs the release atomically. It refuses absolute paths,
 traversal, symlinks and replacement of a different release. Record the
 `sha256:...` release ID printed on success.
 
-Verify before using or moving a release:
-
-```bash
-python3 "$SKILL_DIR/../../scripts/alexandria.py" verify release
-```
+Verify before using or moving a release.
 
 Verification is offline and read-only. It checks canonical manifest bytes,
 release identity, object paths, byte counts, digests, component access and
@@ -89,13 +96,7 @@ collection counts, declared gaps, correction links and exact release-tree
 membership. It does not establish publisher identity, source completeness or
 chain finality.
 
-Derive the narrow Tabularium view into a new release:
-
-```bash
-python3 "$SKILL_DIR/../../scripts/alexandria.py" derive raw-release \
-  --output derived-release
-python3 "$SKILL_DIR/../../scripts/alexandria.py" verify derived-release
-```
+Derive the narrow Tabularium view into a new release.
 
 Derivation first verifies the input and never changes it. Registered
 Goldfinch and Clearpool mappings emit deterministic credit events and, where
@@ -107,14 +108,7 @@ renames do not change row IDs, and repayment legs remain neutral source
 amounts unless the native record supplies a principal and interest split.
 Derivation stops above 100,000 rows or 64 MiB for either JSONL file.
 
-Rebuild the disposable address index and query it:
-
-```bash
-python3 "$SKILL_DIR/../../scripts/alexandria.py" index derived-release \
-  --output alexandria.sqlite
-python3 "$SKILL_DIR/../../scripts/alexandria.py" query \
-  --index alexandria.sqlite --address 0x...
-```
+Rebuild the disposable address index and query it.
 
 Indexing verifies every derived release, refuses to write inside one and
 retains the derived release, raw release, component, capture and row
@@ -133,14 +127,8 @@ evidence class, combines per-chain coverage conservatively and keeps registry
 venues absent from the archive visible as gaps. It does not infer people,
 defaults, full repayment or a current balance.
 
-To exercise the whole path without a network, run the fixed demonstration from
-the repository root:
-
-```bash
-output="$(mktemp -d)/credit-history-v0"
-python3 plugins/alexandria/examples/credit-history-v0/demo.py build --output "$output"
-python3 plugins/alexandria/examples/credit-history-v0/demo.py verify "$output"
-```
+The last three commands exercise the fixed demonstration without a network
+from the repository root.
 
 The plan pins existing Goldfinch and Clearpool files by digest. The result is a
 reproducibility fixture, not a production corpus. Its Goldfinch source remains
