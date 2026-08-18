@@ -1,6 +1,8 @@
 """Horos: classify a repository's token sinks and emit the reading boundary.
 
-scan <root>   walk a tree, classify every file it can evidence, print JSON
+scan <root>    classify the tree; --json prints the boundary document,
+               --write commits it to .horos/boundary.json atomically
+check <root>   re-derive the boundary and name every drifted path
 
 Classification is fail-open: a file the rules cannot evidence stays readable
 and earns no entry. The scanner stats every file but reads at most
@@ -270,19 +272,114 @@ def scan_tree(root):
     return {"entries": entries, "counts": counts}
 
 
+BOUNDARY_RELPATH = ".horos/boundary.json"
+BOUNDARY_SCHEMA = 1
+
+
+def boundary_document(result):
+    """The committed artefact: schema-tagged, no timestamps, no absolute paths."""
+    return {
+        "schema": BOUNDARY_SCHEMA,
+        "tool": "horos",
+        "entries": result["entries"],
+        "counts": result["counts"],
+    }
+
+
+def render(document):
+    """One canonical byte form, so equal documents are equal files."""
+    return json.dumps(document, indent=2, sort_keys=True) + "\n"
+
+
+def write_boundary(root, document):
+    """Write atomically: a killed run leaves the old boundary or the new one."""
+    directory = os.path.join(root, os.path.dirname(BOUNDARY_RELPATH))
+    os.makedirs(directory, exist_ok=True)
+    final = os.path.join(root, BOUNDARY_RELPATH)
+    temporary = final + ".tmp"
+    try:
+        with open(temporary, "w", encoding="utf-8") as handle:
+            handle.write(render(document))
+        os.replace(temporary, final)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def load_boundary(root):
+    with open(os.path.join(root, BOUNDARY_RELPATH), encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def diff_documents(committed, fresh):
+    """Name every drifted path; a symmetric compare, so a committed entry the
+    tree no longer evidences drifts exactly like a new sink the boundary lacks.
+    """
+    old = {entry["path"]: entry for entry in committed.get("entries", [])}
+    new = {entry["path"]: entry for entry in fresh.get("entries", [])}
+    drifted = []
+    for path in sorted(set(old) | set(new)):
+        if path not in new:
+            drifted.append((path, "in the boundary but no longer evidenced by the tree"))
+        elif path not in old:
+            drifted.append((path, "evidenced by the tree but missing from the boundary"))
+        elif old[path] != new[path]:
+            drifted.append((path, "entry changed: %s -> %s" % (old[path], new[path])))
+    return drifted
+
+
+def check_tree(root, out=None):
+    out = out if out is not None else sys.stdout
+    try:
+        committed = load_boundary(root)
+    except FileNotFoundError:
+        print(f"horos: no boundary at {BOUNDARY_RELPATH}; run scan --write", file=out)
+        return 2
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"horos: unreadable boundary: {error}", file=out)
+        return 2
+    fresh = boundary_document(scan_tree(root))
+    drifted = diff_documents(committed, fresh)
+    if not drifted:
+        print("boundary matches the tree", file=out)
+        return 0
+    for path, reason in drifted:
+        print(f"drift: {path}: {reason}", file=out)
+    print(f"{len(drifted)} path(s) drifted", file=out)
+    return 1
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="horos", description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    scan = subparsers.add_parser("scan", help="classify a tree and print JSON")
+    scan = subparsers.add_parser("scan", help="classify a tree")
     scan.add_argument("root", help="directory to scan")
+    scan.add_argument(
+        "--json", action="store_true", help="print the boundary document"
+    )
+    scan.add_argument(
+        "--write", action="store_true", help=f"write {BOUNDARY_RELPATH} atomically"
+    )
+    checker = subparsers.add_parser("check", help="verify the committed boundary")
+    checker.add_argument("root", help="directory to check")
     args = parser.parse_args(argv)
 
     if not os.path.isdir(args.root):
         print(f"horos: not a directory: {args.root}", file=sys.stderr)
         return 2
-    result = scan_tree(args.root)
-    json.dump(result, sys.stdout, indent=2, sort_keys=True)
-    print()
+
+    if args.command == "check":
+        return check_tree(args.root)
+
+    document = boundary_document(scan_tree(args.root))
+    if args.write:
+        write_boundary(args.root, document)
+    if args.json:
+        sys.stdout.write(render(document))
+    else:
+        for key, value in sorted(document["counts"].items()):
+            print(f"{key}: {value}")
+        print(f"entries: {len(document['entries'])}")
     return 0
 
 
