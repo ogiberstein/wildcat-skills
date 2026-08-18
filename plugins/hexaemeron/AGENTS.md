@@ -22,12 +22,23 @@ do not start `fiat` merely because another skill matches.
 - `vulgate`, `skills/vulgate/SKILL.md`: change register without changing content.
 - `kronos`, `skills/kronos/SKILL.md`: rank eligible frontiers and send the
   best held job through Fiat repeatedly.
+- `protasis`, `skills/protasis/SKILL.md`: decide whether a study or runbook is
+  buildable before implementation.
+- `elenchus`, `skills/elenchus/SKILL.md`: find a failure's cause and guard it
+  with a test.
+- `phylax`, `skills/phylax/SKILL.md`: harden off-chain inputs, subprocesses,
+  fetched hosts, secrets, dependencies, and model output.
+- `ephoros`, `skills/ephoros/SKILL.md`: choose diagnostic events, metrics,
+  traces, and alerts.
+- `metron`, `skills/metron/SKILL.md`: baseline slow work, change one thing,
+  remeasure, and keep or revert on the numbers.
+- `hypomnema`, `skills/hypomnema/SKILL.md`: record decisions where readers
+  will find them.
 
-The first-party `fiat`, `imprimatur`, `vulgate`, and `kronos` directories each
-carry an `EVOLUTION.md` ledger governed by `skills/VERSIONING.md`. Read the
-selected skill's ledger before proposing a frontier run. A `mature` frontier
-is a hard stop unless a maintainer has recorded an evidenced epoch reopening.
-Kronos is terminal by design and excludes itself from its candidate set.
+Each first-party directory named above carries an `EVOLUTION.md` ledger governed
+by `skills/VERSIONING.md`. Read the selected skill's ledger before proposing a
+frontier run. A `mature` frontier is a hard stop unless a maintainer recorded an
+evidenced epoch reopening. Kronos is terminal and excludes itself from selection.
 
 ## Translate tool names by capability
 
@@ -68,7 +79,7 @@ preserve.
 - `{SUITE_DIR}` and `{META_DIR}` are relative to `{PROJECT_ROOT}` unless the
   user supplied absolute paths.
 - Names such as `hexaemeron:fizz` and `/hexaemeron:fiat` are logical skill
-  aliases. Load the local canonical path from the table above.
+  aliases. Load the local canonical path from the list above.
 - Fiat's controller path is relative to the exact active Fiat instruction
   file, never to `{PROJECT_ROOT}` or a GitHub URL.
 

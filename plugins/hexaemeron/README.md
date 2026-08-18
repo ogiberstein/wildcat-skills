@@ -134,6 +134,18 @@ https://www.pashov.com/. Preflight records the bundled ids in the
 so a stale config cannot fake a suite. Prose-free or Solidity-free runs record
 a waiver instead.
 
+## The practice skills
+
+Six skills carry the standards each phase is held to, and each runs on its own
+outside the loop. `protasis` says what a study and a runbook must answer.
+`elenchus` works an observed failure down to its cause and guards it.
+`phylax` holds the off-chain surface: input, subprocesses, fetched hosts,
+secrets, dependencies and model output. `ephoros` chooses what a step emits
+once it runs unattended. `metron` refuses a performance change without a
+recorded before and after. `hypomnema` decides which decisions earn a written
+reason and where each record lives. Each carries its own `EVOLUTION.md`, so
+Kronos ranks their frontiers alongside the rest.
+
 ## The prose masks
 
 Everything the loop needs ships in the plugin; it stands alone. The two

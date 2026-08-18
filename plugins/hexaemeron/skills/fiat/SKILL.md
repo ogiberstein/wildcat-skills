@@ -46,7 +46,8 @@ python3 "$FIAT_SKILL_DIR/scripts/hexctl.py" --dir "$PROJECT_ROOT" <cmd>
 ```
 
 Fail closed if `FIAT_SKILL_DIR/scripts/hexctl.py` is not a file. Sibling
-skills live at `PLUGIN_ROOT/skills/<name>/`.
+skills live at `PLUGIN_ROOT/skills/<name>/`, which is where `protasis`,
+`elenchus`, `phylax`, `ephoros`, `metron` and `hypomnema` resolve from.
 
 Alias it as `hexctl` mentally; every command below means that invocation.
 State lives in `.hexaemeron/` beside a hash-chained ledger. The directory
@@ -189,14 +190,20 @@ selected installs finish; resume in a new chat when the host requires one.
 
 ## Phase notes
 
+**Study and runbook.** `protasis` states what those two documents must answer
+before a step is built from them.
+
 **Implementation.** Pick the construction that takes the least effort to
-comprehend, then stop. The runbook step is the yardstick: reread it before
+comprehend, then stop. Consult `phylax` for the boundaries the step introduces,
+`ephoros` for what it must emit once it runs unattended, and `metron` before
+any change made in the name of speed. The runbook step is the yardstick: reread it before
 declaring the step complete, and do not add anything it does not ask for.
 Branch as `step-<n>-<slug>` from the base named by `config git.step_base`
 (`chain` means branch from the previous step's branch; `base` means branch
 from `config git.base`).
 
-**Audit.** The longest phase by design. One round is the full suite: `x-ray`
+**Audit.** `elenchus` works any failure a round surfaces down to its cause.
+The longest phase by design. One round is the full suite: `x-ray`
 first, then `solidity-auditor`; when the step ships Solidity under Foundry or
 Hardhat, `fizz` builds or refreshes the invariant fuzz suite and its campaign
 results count as part of the round. Read each skill's SKILL.md from
@@ -206,7 +213,9 @@ Zero findings closes the loop; a genuine judgement that the remaining leads
 are not worth another round closes it with `--no-further-leads --reason`.
 Never report a round that did not run.
 
-**Prose.** Every prose artefact in scope plus the PR title and body, through
+**Prose.** `hypomnema` decides what this step needs recorded and where it
+goes, before the masks run. Every prose artefact in scope plus the PR title and
+body, through
 the `imprimatur` lint first and the `vulgate` mask second, content held
 constant. Both are bundled: run the lint script by path, read the mask's
 SKILL.md by path and apply it. The receipt refuses a skills list missing
