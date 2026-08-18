@@ -72,19 +72,20 @@ def read_prefix(path):
         return handle.read(PREFIX_BYTES)
 
 
-def gitattributes_rules(root):
-    """Parse linguist-vendored and linguist-generated patterns, fail-open.
+# Git attributes are directory-scoped; each file is read up to this cap,
+# per the maintainer's refinement specification.
+ATTRIBUTES_CAP = 65536
 
-    Only the repository-root .gitattributes is consulted, and only patterns
-    whose attribute is an unnegated linguist-vendored or linguist-generated.
-    Anything unparseable is skipped rather than guessed at.
-    """
+
+def parse_attribute_file(path):
+    """Parse one .gitattributes file for unnegated linguist-vendored and
+    linguist-generated patterns, fail-open on anything unparseable."""
     rules = []
-    path = os.path.join(root, ".gitattributes")
     if not os.path.isfile(path) or os.path.islink(path):
         return rules
     try:
-        text = read_prefix(path).decode("utf-8", errors="replace")
+        with open(path, "rb") as handle:
+            text = handle.read(ATTRIBUTES_CAP).decode("utf-8", errors="replace")
     except OSError:
         return rules
     for line in text.splitlines():
@@ -100,16 +101,69 @@ def gitattributes_rules(root):
     return rules
 
 
+def gitattributes_rules(root):
+    """The repository root's rules; nested files join during the walk."""
+    return parse_attribute_file(os.path.join(root, ".gitattributes"))
+
+
+def _ancestors_innermost_first(relpath):
+    """The directory chain that scopes a path, innermost first, root last."""
+    parts = PurePosixPath(relpath).parts[:-1]
+    chain = []
+    for i in range(len(parts), -1, -1):
+        chain.append("/".join(parts[:i]) or ".")
+    return chain
+
+
+def match_attribute_scopes(scopes, relpath):
+    """Match a path against every .gitattributes scope covering it,
+    innermost scope first, so a deeper file overrides nothing outside its
+    own directory but speaks first inside it."""
+    for scope in _ancestors_innermost_first(relpath):
+        rules = scopes.get(scope)
+        if not rules:
+            continue
+        local = relpath if scope == "." else relpath[len(scope) + 1 :]
+        for pattern, category, attribute in rules:
+            candidates = [pattern]
+            if pattern.endswith("/**"):
+                candidates.append(pattern[: -len("/**")] + "/*")
+            for candidate in candidates:
+                if fnmatch.fnmatch(local, candidate) or fnmatch.fnmatch(
+                    PurePosixPath(local).name, candidate
+                ):
+                    where = ".gitattributes" if scope == "." else f"{scope}/.gitattributes"
+                    return category, f"{attribute} for {pattern!r} in {where}"
+    return None
+
+
 def match_gitattributes(rules, relpath):
-    for pattern, category, attribute in rules:
-        candidates = [pattern]
-        if pattern.endswith("/**"):
-            candidates.append(pattern[: -len("/**")] + "/*")
-        for candidate in candidates:
-            if fnmatch.fnmatch(relpath, candidate) or fnmatch.fnmatch(
-                PurePosixPath(relpath).name, candidate
-            ):
-                return category, f"{attribute} for {pattern!r} in .gitattributes"
+    """Root-scope matching kept for callers holding a flat rule list."""
+    return match_attribute_scopes({".": rules}, relpath)
+
+
+# Leading bytes that name a binary format outright; more reliable than a
+# null byte happening to appear inside the prefix.
+FILE_SIGNATURES = (
+    (b"\x89PNG\r\n\x1a\n", "png"),
+    (b"\xff\xd8\xff", "jpeg"),
+    (b"GIF87a", "gif"),
+    (b"GIF89a", "gif"),
+    (b"PK\x03\x04", "zip"),
+    (b"%PDF", "pdf"),
+    (b"\x00asm", "webassembly"),
+    (b"wOFF", "woff"),
+    (b"wOF2", "woff2"),
+    (b"\x1f\x8b", "gzip"),
+    (b"\x7fELF", "elf"),
+    (b"OTTO", "opentype"),
+)
+
+
+def match_signature(prefix):
+    for magic, name in FILE_SIGNATURES:
+        if prefix.startswith(magic):
+            return name
     return None
 
 
@@ -119,6 +173,10 @@ def classify_content(name, size, prefix):
     Returns (category, evidence) or None. Order matters: a null byte makes
     every later text heuristic meaningless, so binary wins outright.
     """
+    signature = match_signature(prefix)
+    if signature is not None:
+        return "binary", f"file signature {signature}"
+
     if b"\x00" in prefix:
         return "binary", "null byte in the first %d bytes" % PREFIX_BYTES
 
@@ -239,7 +297,7 @@ def scan_tree(root, census=False):
     census can never describe a different tree than the boundary does; the
     result gains a "census" key and nothing else changes."""
     root = os.path.abspath(root)
-    rules = gitattributes_rules(root)
+    scopes = {}
     tally = {} if census else None
     entries = []
     walked = 0
@@ -247,6 +305,11 @@ def scan_tree(root, census=False):
 
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         relative_dir = os.path.relpath(dirpath, root)
+        if ".gitattributes" in filenames:
+            scope_key = "." if relative_dir == "." else relative_dir.replace(os.sep, "/")
+            rules = parse_attribute_file(os.path.join(dirpath, ".gitattributes"))
+            if rules:
+                scopes[scope_key] = rules
         keep = []
         for dirname in sorted(dirnames):
             if dirname in SKIPPED_DIR_NAMES:
@@ -270,7 +333,7 @@ def scan_tree(root, census=False):
                     )
                 )
                 continue
-            matched = match_gitattributes(rules, relpath + "/")
+            matched = match_attribute_scopes(scopes, relpath + "/")
             if matched is not None:
                 entries.append(
                     directory_entry(root, relpath, matched[0], matched[1], tally)
@@ -286,7 +349,7 @@ def scan_tree(root, census=False):
             relpath = filename if relative_dir == "." else f"{relative_dir}/{filename}"
             relpath = relpath.replace(os.sep, "/")
             walked += 1
-            matched = match_gitattributes(rules, relpath)
+            matched = match_attribute_scopes(scopes, relpath)
             if matched is not None:
                 try:
                     size = os.stat(fullpath).st_size
