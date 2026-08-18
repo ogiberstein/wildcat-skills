@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
+**Current frontier.** Two trees are censused; whether Solidity or anything else earns the next extractor stays undecided until more protocol and UI repositories are on the record.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Add a filetype census to scan: per-filetype bytes and share of the tree, recorded under .horos, so walk-worthiness and the next extractor are decided from a recorded breakdown. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Census several more live Wildcat repositories, protocol and UI alike, recording each as evidence, then decide the next extractor from the accumulated breakdowns. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
@@ -30,6 +30,9 @@ is committed at [docs/study.md](./docs/study.md).
   evidence line that earned each entry;
 - a deterministic committed boundary at `.horos/boundary.json`, verified
   against the tree by `check`, which names every drifted path;
+- a filetype census at `.horos/census.json` from the same walk, so
+  walk-worthiness and the next extractor are decided from a recorded
+  breakdown;
 - skeleton maps for Python and TypeScript through a per-language extractor
   folder, so a large file can be oriented in without being read; the
   TypeScript outliner quotes declarations verbatim, confesses what it did
