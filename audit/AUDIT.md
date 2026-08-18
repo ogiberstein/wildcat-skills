@@ -1266,3 +1266,17 @@ pending more censuses, in the maintainer's words.
 | --- | --- | --- | --- | --- |
 
 Zero findings in the round itself. Leads not pursued: none.
+
+## Census run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24 (evolution digest and prose
+contracts), horos 104/104, demo census byte-identical. The review confirmed
+the held job carries the maintainer's own restraint: breadth first, no
+extractor from one tree, Solidity recorded as leading candidate rather than
+commitment, and the three prior ledger rows byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
