@@ -15,7 +15,7 @@ FIXTURES = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "fixtures", "forge-project"
 )
 V2 = os.path.join(FIXTURES, "v2")
-SECRET = "9f4b2c8e1a7d3f6b0c5e8a2d4f7b1c3e"
+SECRET = "9f4b2c8e1a7d3f6b0c5e8a2d4f7b1c3e"  # phylax: allow scrubbing fixture, not a live credential
 # Shaped like a credential without imitating any provider's prefix: a
 # scanner that flags test data is a scanner people learn to bypass.
 KEY = "ariadne_TESTONLY_A1b2C3d4E5f6G7h8I9j0K1"
