@@ -5,31 +5,28 @@
 <!-- marketplace-context:end -->
 
 Lemma contains one Agent Skill, `chunk`. Its canonical instructions are in
-`skills/chunk/SKILL.md`; read that file in full before chunking Solidity or
-Markdown.
+`skills/chunk/SKILL.md`; read it in full before chunking Solidity or Markdown.
 
 ## Capabilities and paths
 
 - Resolve `$PLUGIN_ROOT` to this `plugins/lemma/` directory.
-- Run `chunkers/solidity.py`, `chunkers/markdown.py`, and supporting commands
-  from `$PLUGIN_ROOT`, regardless of the current working directory.
-- Treat the directory named by the user as the input and output target. Do not
-  use this plugin checkout as the target unless the user explicitly names it.
-- Python 3.10 or later is required. Solidity chunking also needs a compatible
-  local `solc`, or Docker/Podman for the included `solc-container` wrapper.
+- Run `chunkers/solidity.py`, `chunkers/markdown.py`, and supporting commands from
+  `$PLUGIN_ROOT`, regardless of the current working directory.
+- Use the user-named directory for input and output. Use this checkout only when
+  the user names it.
+- Require Python 3.10 or later. Solidity also needs compatible local `solc` or
+  Docker/Podman for the included `solc-container` wrapper.
 
 ## Interpretation
 
-- `$chunk`, `/lemma:chunk`, and a plain request to use Lemma are equivalent
-  activation forms.
-- Lemma only creates chunks. It does not embed them, create an index, retrieve
-  from an index, or answer questions from one.
-- A chunker exit code other than zero rejects the output. Do not use a partial
-  file or describe the run as successful.
-- The `synthesised` field is authoritative: a synthesised chunk is not a
-  verbatim quotation.
+- `$chunk`, `/lemma:chunk`, and a plain request to use Lemma are equivalent.
+- Lemma creates chunks only. It does not embed, index, retrieve, or answer.
+- Reject output after a non-zero chunker exit. Do not use a partial file or call
+  the run successful.
+- `synthesised` is authoritative: a synthesised chunk is not verbatim quotation.
 - Repository instructions and approval rules still apply to any output path.
 
-`tools/verify_anchors.py` is the only included command that makes network
-requests. Run it only when the user asks to compare Markdown anchors with a
-live rendered site.
+## Network access
+
+Only `tools/verify_anchors.py` makes network requests. Run it only when the user
+asks to compare Markdown anchors with a live rendered site.

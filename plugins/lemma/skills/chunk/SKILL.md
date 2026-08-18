@@ -9,10 +9,9 @@ metadata:
 
 ## Frontier
 
-Chunk owns its own chunking and validation frontier, not Hexaemeron's delivery or
-Solidity frontier. Its version, held target, next job, and maturity
-state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
-another frontier pass after that ledger becomes mature.
+Chunk owns its chunking and validation frontier, not Hexaemeron's delivery or
+Solidity frontier. [EVOLUTION.md](EVOLUTION.md) holds its version, target, next
+job, and maturity. Do not run or recommend another pass once it is mature.
 
 <!-- marketplace-context:start -->
 ## Where this sits
@@ -24,27 +23,24 @@ Lemma turns Solidity compiler input or Markdown trees into validated, source-lin
 **Current frontier.** Callable-surface ABI validation does not independently check return types or state mutability.
 <!-- marketplace-context:end -->
 
-Use Lemma to create chunks. Stop at the JSONL output unless the user separately
-asks for another system to consume it.
+Create chunks and stop at JSONL unless the user separately asks another system
+to consume it.
 
-`$SKILL_DIR` is the directory containing this file. Resolve `$PLUGIN_ROOT` as
-`$SKILL_DIR/../..` and run the bundled commands from there.
+Set `$PLUGIN_ROOT` to `$SKILL_DIR/../..` and run bundled commands there.
 
 ## Choose the chunker
 
 - Use `chunkers/solidity.py` for one or more solc standard JSON input files.
 - Use `chunkers/markdown.py` for a directory of Markdown documents.
-- If the request is only to inspect or validate an existing JSONL file, read
-  `schema.py` and apply its `Chunk` and `validate()` contract. Do not rerun a
-  chunker without its source input.
+- To inspect or validate existing JSONL, read `schema.py` and apply `Chunk` and
+  `validate()`. Do not rerun a chunker without source input.
 
-Read the target repository's instructions before writing output. Keep generated
-JSONL outside the plugin directory unless the plugin repository itself is the
-named target.
+Read target-repository instructions before writing. Keep generated JSONL outside
+the plugin unless that repository is the named target.
 
 ## Chunk Solidity
 
-Prefer the included pinned compiler wrapper when Docker or Podman is available:
+With Docker or Podman, prefer the pinned compiler wrapper:
 
 ```bash
 cd "$PLUGIN_ROOT"
@@ -55,14 +51,11 @@ python3 chunkers/solidity.py \
   --out /absolute/path/to/chunks.jsonl
 ```
 
-Repeat `--input` to merge compilation units and repeat `--include` for more
-source patterns. Use `--expect-solc VERSION` when the requested corpus pins a
-compiler version. Use `--solc solc` only when the user asks for a local compiler
-or the container runtime is unavailable and the local compiler version is
-acceptable.
+Repeat `--input` for compilation units and `--include` for source patterns. Use
+`--expect-solc VERSION` for a pinned corpus. Use `--solc solc` only by request,
+or when no container runtime exists and the local version is acceptable.
 
-The first container run may fetch the pinned image. The compiler process itself
-runs without network access.
+The first container run may fetch the image; the compiler itself has no network.
 
 ## Chunk Markdown
 
@@ -77,27 +70,24 @@ python3 chunkers/markdown.py \
   --out /absolute/path/to/chunks.jsonl
 ```
 
-Pass `--summary ''` when the tree has no GitBook navigation. Add an `--exclude`
-for every instruction file, generated directory, or unrelated subtree that
-must not enter the corpus. When a compatible manifest already declares the
-exclusions, pass it with `--manifest` and select its source with `--source`.
+Pass `--summary ''` without GitBook navigation. Add `--exclude` for every
+instruction file, generated directory, or unrelated subtree outside the corpus.
+For compatible manifest exclusions, pass `--manifest` and choose `--source`.
 
-Markdown anchors follow GitBook behavior. Do not claim that they match another
-renderer without checking that renderer separately.
+Markdown anchors follow GitBook. Check another renderer before claiming parity.
 
 ## Accept the result
 
-Both chunkers validate before writing. Accept the JSONL only when the command
-exits zero and reports that it wrote the requested file. On failure, report the
-named error and do not use an earlier or partial output.
+Both chunkers validate before writing. Accept JSONL only after exit zero and a
+report that the requested file was written. Otherwise report the named error;
+do not use earlier or partial output.
 
 Preserve these distinctions downstream:
 
 - `display_text` holds source text used for quotation;
 - `model_text` holds text prepared for model context;
 - `embed_text` holds text prepared for embedding; and
-- `synthesised: true` means the chunk is assembled and is not a verbatim quote.
+- `synthesised: true` marks assembled, non-verbatim text.
 
-Read [`INVARIANTS.md`](../../INVARIANTS.md) when changing the chunkers, judging a
-guarantee, or investigating unexpected output. Run the two bundled test files
-after any code change.
+Read [`INVARIANTS.md`](../../INVARIANTS.md) before changing chunkers, judging a
+guarantee, or investigating output. Run both test files after code changes.
