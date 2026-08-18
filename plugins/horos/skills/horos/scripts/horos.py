@@ -296,7 +296,9 @@ def write_boundary(root, document):
     directory = os.path.join(root, os.path.dirname(BOUNDARY_RELPATH))
     os.makedirs(directory, exist_ok=True)
     final = os.path.join(root, BOUNDARY_RELPATH)
-    temporary = final + ".tmp"
+    # Per-process name: two concurrent scans must not unlink each other's
+    # half-written temporary in the finally block below.
+    temporary = f"{final}.{os.getpid()}.tmp"
     try:
         with open(temporary, "w", encoding="utf-8") as handle:
             handle.write(render(document))
