@@ -14,10 +14,9 @@ metadata:
 
 ## Frontier
 
-Lazarus owns its own state-fixture preservation frontier, not Hexaemeron's delivery or
-Solidity frontier. Its version, held target, next job, and maturity
-state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
-another frontier pass after that ledger becomes mature.
+Lazarus owns the state-fixture preservation frontier, not Hexaemeron's delivery
+or Solidity frontier. [EVOLUTION.md](EVOLUTION.md) holds its version, target,
+next job, and maturity. Do not run another frontier pass once it is mature.
 
 <!-- marketplace-context:start -->
 ## Where this sits
@@ -30,32 +29,18 @@ Lazarus captures the finite fixed-block Ethereum state and RPC evidence an appli
 <!-- marketplace-context:end -->
 
 Lazarus turns a finite historical Ethereum capture plan into a deterministic
-fixture and calls its exact JSON-RPC answers back into a local test after the
-original provider is gone.
+fixture whose exact JSON-RPC answers survive the original provider.
 
-`$SKILL_DIR` is the directory holding this file. The command lives at
-`$SKILL_DIR/../../scripts/lazarus.py`; resolve it from where you loaded this
-skill. This build implements finite capture plus the offline format, manifest
-and proof-verification layer, with exact verified replay over loopback.
-
-## Day to day
-
-**Protocol engineering.** A fork test depends on a paid archive endpoint and
-one old block. Its declared reads become a reviewable fixture, and an
-unexpected read becomes a visible miss instead of a hidden provider call.
-
-**Research.** A closed venue's state needs to remain inspectable after its
-front end and hosted data disappear. The fixture keeps the block, finite
-coverage and evidence classes together.
-
-**Security.** An incident test needs stable historical inputs. Account and
-storage values are checked against the captured state root, while calls,
-receipts, logs and client traces remain labelled as recorded evidence.
+`$SKILL_DIR` is this file's directory. Resolve the command at
+`$SKILL_DIR/../../scripts/lazarus.py`. It implements finite capture, offline
+formats, manifests, proof verification, and exact verified loopback replay.
 
 ## Available offline commands
 
-The current build validates versioned documents and binds their bytes in a
-manifest:
+Declared fork-test reads become a reviewable fixture; unexpected reads become
+visible misses. The fixture keeps a closed venue's block, finite coverage, and
+evidence classes together. Incident tests get stable historical inputs while
+calls, receipts, logs, and traces remain recorded evidence.
 
 ```bash
 python3 scripts/lazarus.py capture \
@@ -69,47 +54,43 @@ python3 scripts/lazarus.py verify <fixture-directory>
 python3 scripts/lazarus.py replay <fixture-directory>
 ```
 
-`verify` checks schema versions, safe paths, canonical manifest bytes and every
-declared component length and SHA-256 digest. It then recomputes the
-fork-appropriate header hash; verifies EIP-1186 account and storage inclusion
-or absence against the header state root; checks response fields against the
-decoded leaves; and hashes captured code against the proved `codeHash`. It
-reports separate proof-backed, header-bound and recorded-RPC evidence counts.
-Read the checked-in
-[study](../../docs/study.md) for the selected design and the
-[runbook](../../docs/runbook.md) for implementation status.
+`verify` checks schema versions, safe paths, canonical manifest bytes, and every
+component length and SHA-256 digest. It recomputes the fork-appropriate header
+hash; verifies EIP-1186 account and storage inclusion or absence against the
+state root; compares response fields with decoded leaves; hashes code against
+the proved `codeHash`; and reports proof-backed, header-bound, and recorded-RPC
+counts. The [study](../../docs/study.md) explains the design; the
+[runbook](../../docs/runbook.md) records implementation.
 
-`capture` resolves and brackets the plan's fixed number and expected hash. It
-prefers EIP-1898 hash selectors for proofs and code, safely falls back to the
-fixed number, checks the closing header, verifies the complete fixture and
-only then atomically finalises the output directory. Required request or proof
-failures leave no fixture. Optional provider failures retain only a stable
-sanitised error. URL credentials, query values, bearer tokens, cookies and raw
-provider errors are not fixture material.
+`capture` brackets the plan's fixed number and expected hash, prefers EIP-1898
+hash selectors, safely falls back to the fixed number, checks the closing
+header, verifies the fixture, then atomically finalises it. Required request or
+proof failures leave no fixture. Optional failures retain only a stable
+sanitised error. URL credentials, query values, bearer tokens, cookies, and raw
+provider errors never enter the fixture.
 
-`replay` verifies the fixture in the same process before binding to
-`127.0.0.1`. It answers only exact method-and-parameter matches, preserves the
-caller's identifier, handles single requests, batches and notifications, and
-returns error `-32070` with a capture-plan fragment on a miss. It rejects
-write and unsupported methods and has no provider client or fallback setting.
+`replay` verifies before binding `127.0.0.1`. It answers exact method-and-
+parameter matches, preserves caller identifiers, handles single requests,
+batches, and notifications, and returns `-32070` with a capture-plan fragment
+on a miss. It rejects write and unsupported methods and has no provider client
+or fallback.
 
 ## Fixture boundary
 
-A fixture separates three classes rather than lending one class the strength
-of another:
+A fixture keeps three evidence classes separate:
 
-1. **Proof-backed state.** Account and storage values verify through EIP-1186
+1. Proof-backed state. Account and storage values verify through EIP-1186
    against the captured header's `stateRoot`; code verifies against the proved
    `codeHash`.
-2. **Header-bound data.** The header hash and fields are checked internally.
+2. Header-bound data. The header hash and fields are checked internally.
    An external chain anchor is still required to call that header canonical.
-3. **Recorded RPC evidence.** Exact method, parameters and result or sanitised
+3. Recorded RPC evidence. Exact method, parameters and result or sanitised
    error bytes are preserved for calls, receipts, logs and traces without a
    trie-proof claim.
 
-Replay is exact request replay, not arbitrary EVM execution from a partial
-world state. Object member order is canonicalised for a request key; values,
-array order, omitted fields, quantities and block selectors remain exact.
+Replay is exact-request replay, not arbitrary EVM execution from partial state.
+Request keys canonicalise object member order only; values, array order,
+omissions, quantities, and block selectors remain exact.
 
 ## What capture must require
 
@@ -121,7 +102,7 @@ array order, omitted fields, quantities and block selectors remain exact.
 - Limits for requests, components, time and bytes.
 - A second matching header read when number-based provider fallback is used.
 
-Provider credentials are runtime inputs. They never enter output, diagnostics
+Provider credentials are runtime inputs and never enter output, diagnostics,
 or digest material.
 
 ## What verify must establish
@@ -133,16 +114,15 @@ or digest material.
   root, response values against decoded leaves and code against `codeHash`.
 - Separate counts for proof-backed, header-bound and recorded evidence.
 
-A self-consistent header is not proof that it belongs to Ethereum's canonical
-chain. Report the expected hash and its external provenance without upgrading
+A self-consistent header does not establish Ethereum canonical-chain
+membership. Report the expected hash and external provenance without upgrading
 the local check.
 
 ## What replay must guarantee
 
-Replay verifies the fixture in the same process before binding to loopback. It
-has no capture URL and no fallback provider. A request absent from the fixture
-returns the stable Lazarus miss error and a capture-plan fragment. It never
-invents a zero value or leaves loopback to answer a miss.
+Replay verifies in-process before binding loopback. It has no capture URL or
+fallback provider. An absent request returns the stable Lazarus miss and a
+capture-plan fragment; replay never invents zero or leaves loopback.
 
 ## What this never does
 
