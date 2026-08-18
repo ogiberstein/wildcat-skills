@@ -8,9 +8,11 @@ absent here is refused by map, never guessed at.
 from .cpp import cpp
 from .go import go
 from .python import python
+from .solidity import solidity
 from .typescript import typescript
 
 EXTRACTORS = {
+    ".sol": solidity.outline,
     ".cc": cpp.outline,
     ".cpp": cpp.outline,
     ".cxx": cpp.outline,

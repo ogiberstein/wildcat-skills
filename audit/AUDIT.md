@@ -1407,3 +1407,59 @@ ledger rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity shipped); lints phylax 0, ephoros 0, hypomnema 0.
+Horos 136/136, root 24/24. Prose-only step; the committed copies match the
+receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (the run ships Python that reads Solidity, none of its own);
+lints phylax 0, ephoros 0. Horos 149/149, root 24/24. The review walked the
+study's risk rows: hex and unicode strings lex through the ordinary quote
+scanner with prefixes staying in code harmlessly, attribute chains and
+override lists ride in verbatim heads, the walker inherits the monotonic
+advance and Allman peeks its three predecessors learned, and constructors
+are outlined but excluded from the differential's compared set like C++
+destructors.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 3, round 1 -- 2026-08-18
+
+Suite waived (Python reading Solidity, none shipped); lints phylax 0,
+ephoros 0, hypomnema 0. Horos 152/152, root 24/24. The review held the
+register's rows: the venv and oracle stay outside every runtime and test
+path, the bundle declares its altitudes and exclusions, the acceptance
+numbers are asserted by test, and the one corpus defect (the multiline
+inheritance swallow, exactly the silent-consumption class this loop exists
+to catch) landed with a pinned regression and a structural fix rather than
+a heuristic patch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 4, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, imprimatur 100 on all four
+reconciled surfaces. Root 24/24, horos 152/152, demo pinned. The review
+confirmed the evolution row's numbers equal the committed bundle's, the
+held job quotes the maintainer's specification by its committed path, and
+all prior rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

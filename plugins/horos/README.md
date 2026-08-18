@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** Reopened for three named jobs: the Solidity outline extractor, the budgeted two-tier classifier refinement the maintainer specified, and committed boundaries and censuses across the three home repositories.
+**Current frontier.** The classifier refinement the maintainer specified and the three-repository boundary marking remain from the reopened scope; map now reads Solidity.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Build the Solidity outline extractor in the languages registry, in the fixed extractor shape, with a dev-time differential corpus over the v2-protocol clone. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Implement the maintainer's budgeted two-tier classifier specification: nested gitattributes, corroborated directory exclusions, a selective second sampling pass, file signatures, hard and candidate evidence grades, and a tracked-files default. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
@@ -33,13 +33,14 @@ is committed at [docs/study.md](./docs/study.md).
 - a filetype census at `.horos/census.json` from the same walk, so
   walk-worthiness and the next extractor are decided from a recorded
   breakdown;
-- skeleton maps for Python, TypeScript, Go and C++ through a per-language
-  extractor folder, so a large file can be oriented in without being read;
-  the outliners quote declarations verbatim, confess what they did not
-  understand, and are held against independent parsers over live
+- skeleton maps for Python, TypeScript, Go, C++ and Solidity through a
+  per-language extractor folder, so a large file can be oriented in without
+  being read; the outliners quote declarations verbatim, confess what they
+  did not understand, and are held against independent parsers over live
   repositories (2,237 of 2,239 TypeScript declarations over 866 files;
   21,648 of 21,648 Go declarations over 1,421 files; 7,013 of 7,013 C++
-  declarations at declared altitudes over 842 files);
+  declarations at declared altitudes over 842 files; 2,329 of 2,329
+  Solidity declarations over the 151 files of v2-protocol itself);
 - a shipped example at [examples/](./examples/) whose committed boundary a
   fresh scan reproduces byte for byte; and
 - one binding rule: no boundary applies during security review.
