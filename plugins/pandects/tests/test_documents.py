@@ -99,12 +99,37 @@ class RendererTests(unittest.TestCase):
         the same way. This is the check that has to come from outside.
         """
         body = render_module.render(self.catalogue)
-        self.assertIn("Nine laws in three families", body)
+
+        # Spelled out here rather than imported, because a test that borrowed the
+        # renderer's own word list would agree with it however wrong it was.
+        # Written once and reused for both counts, since the document states the
+        # law count twice and an earlier fix corrected only one of them.
+        words = [
+            "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
+            "Eight", "Nine", "Ten", "Eleven", "Twelve",
+        ]
+        laws = len(self.catalogue.laws)
+        families = {law.get("family") for law in self.catalogue.laws}
+        plural = "law" if laws == 1 else "laws"
+        self.assertIn(
+            "%s %s in %s %s"
+            % (
+                words[laws],
+                plural,
+                words[len(families)].lower(),
+                "family" if len(families) == 1 else "families",
+            ),
+            body,
+        )
+        self.assertIn(
+            "The corpus holds %s %s;" % (words[laws].lower(), plural), body
+        )
 
         raw = json.loads(json.dumps(self.catalogue.raw))
         raw["laws"] = raw["laws"][:1]
         smaller = render_module.render(catalogue_module.parse(raw))
         self.assertIn("One law in one family", smaller)
+        self.assertIn("The corpus holds one law;", smaller)
 
     def test_a_law_in_an_unfamiliar_family_is_still_rendered(self):
         """A renderer must not drop what it was not told about.

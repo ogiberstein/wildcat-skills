@@ -210,6 +210,29 @@
         ]
       },
       "bounds": "exact"
+    },
+    {
+      "id": "claims/pooled-claims-cover-open-batches/v1",
+      "family": "claims",
+      "statement": "Pooled lender claims cover everything still owed on open withdrawal batches.",
+      "component": "src/laws/PooledClaimsCoverOpenBatches.sol",
+      "specimen": "specimens/FeeFromQueued.sol",
+      "counterexample": "test/counterexamples/Claims.t.sol",
+      "applicability": {
+        "accounting_model": "a pooled lender claim denominated in one asset, with withdrawals recorded as an ordered queue of individual claims that keep their position once made",
+        "assumes": [
+          "an amount recorded against a withdrawal is already owed by the pool, so nothing may reduce the pool beneath it",
+          "a fee is capped against the pooled claim the open batches are not already owed, rather than against what has been set aside; an earmark cannot exceed what is held, so the two part company exactly when the system is illiquid",
+          "a claim is never paid more than it is owed; no law in the corpus covers that yet",
+          "the queue is short enough to read in one call; a law that runs out of gas traversing it reverts, and a revert is no verdict"
+        ],
+        "requires": [
+          "totalLenderClaims",
+          "withdrawalQueue.claimCount",
+          "withdrawalQueue.claimAt"
+        ]
+      },
+      "bounds": "exact"
     }
   ]
 }

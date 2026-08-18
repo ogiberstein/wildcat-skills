@@ -9,16 +9,17 @@ the shape the corpus has to survive -- withdrawals pooled into batches, a
 reserve the borrower may not touch, delinquency, and a penalty rate on top of
 the base one -- and nothing in it should be mistaken for the market contracts.
 
-Nine laws. Six apply without qualification. Three do not, and those three are
-why this integration exists: until now, applicability described what a law
-needs, and here it has to describe what a design does and does not promise.
+Ten laws. Seven apply without qualification, and one of those seven did not
+until this model was corrected. Three do not, and those three are why this
+integration exists: until now, applicability described what a law needs, and
+here it has to describe what a design does and does not promise.
 
 One of the three was found by Echidna rather than by reading, against the
 shipped adapter, after this document had already claimed the law held. That is
 worth saying plainly, because it is the whole argument for pointing a corpus at
 a real design instead of at contracts written to break it.
 
-## The six
+## The seven
 
 | Law | Holds | Because |
 | --- | --- | --- |
@@ -28,6 +29,39 @@ a real design instead of at contracts written to break it.
 | `claims/reserves-cover-payable/v1` | yes | Payability is derived from what has actually been set aside, so a delinquent market declares fewer batches payable rather than lying about them |
 | `accrual/debt-falls-only-against-payment/v1` | yes | Debt falls only in `repay`, against assets arriving |
 | `accrual/no-accrual-at-rest/v1` | yes | Interest accrues in `advance` and nowhere else, and borrowing removes from held assets what it adds to debt |
+| `claims/pooled-claims-cover-open-batches/v1` | yes, once corrected | The fee is capped against what the open batches are owed; it was capped against the earmark, and that let it reach value already promised. See below |
+
+## The fee cap, and the law that found it
+
+`claims/pooled-claims-cover-open-batches/v1` holds, and it did not hold when the
+law arrived. This section is here because the correction is the interesting part,
+not the verdict.
+
+The model capped a protocol fee against `reserved()`, the assets set aside
+against the queue. That reads as careful and is not, because an earmark cannot
+exceed what the market holds. A solvent market earmarks its whole queue and the
+two figures agree; a market short of liquidity earmarks what it has, the figures
+part company, and the gap between them is fee the market may take out of value
+already promised to lenders waiting in a batch. `delinquent` says as much in its
+own comment: those two quantities differ exactly when the market is in trouble.
+Nobody had joined that observation to the fee cap.
+
+A market holding 200 against one batch owed 1000 permitted a fee of 800. Every
+one of the other nine laws held on the state that left behind: the books balance,
+because the value moved from claims to fees; reserves stay within claims; the
+partition holds; payability is still derived from the reserves, so the market
+never declared more payable than it had; debt never moved, so neither accrual law
+had anything to say; and each batch kept its own recorded amount, so nothing was
+written down. Only the pool behind those amounts had shrunk.
+
+The cap now measures against what the open batches are owed. On the same market
+the permitted fee is nothing, because nothing is unrequested. That is the law
+working, and it is worth being plain that the law was written after the state was
+found rather than the other way round.
+
+This is a correction to a reduced model. What the deployed market contracts do
+about fees while a batch is outstanding is not read here and is not established
+either way by this document.
 
 ## Batch granularity, and what the ordering law means here
 

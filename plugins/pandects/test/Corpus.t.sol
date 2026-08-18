@@ -8,6 +8,7 @@ import {ReservesBackedByClaims} from "../src/laws/ReservesBackedByClaims.sol";
 import {HeldAssetsPartitioned} from "../src/laws/HeldAssetsPartitioned.sol";
 import {QueueOrderPreserved} from "../src/laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../src/laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../src/laws/PooledClaimsCoverOpenBatches.sol";
 import {Sound} from "../specimens/Sound.sol";
 import {MintedClaims} from "../specimens/MintedClaims.sol";
 import {OverReserved} from "../specimens/OverReserved.sol";
@@ -18,6 +19,7 @@ import {CompoundsPerStep} from "../specimens/CompoundsPerStep.sol";
 import {ClaimHaircut} from "../specimens/ClaimHaircut.sol";
 import {QueueJumped} from "../specimens/QueueJumped.sol";
 import {PayableBeyondReserves} from "../specimens/PayableBeyondReserves.sol";
+import {FeeFromQueued} from "../specimens/FeeFromQueued.sol";
 
 /// A state at the arithmetic limit. Not a catalogue specimen: it exists to
 /// prove a law reports rather than reverts where the numbers are furthest
@@ -75,13 +77,15 @@ contract CorpusTest {
     HeldAssetsPartitioned internal partitioned;
     QueueOrderPreserved internal ordered;
     ReservesCoverPayableClaims internal covered;
+    PooledClaimsCoverOpenBatches internal pooled;
 
     uint256 internal constant CONSERVED = 0;
     uint256 internal constant BACKED = 1;
     uint256 internal constant PARTITIONED = 2;
     uint256 internal constant ORDERED = 3;
     uint256 internal constant COVERED = 4;
-    uint256 internal constant COUNT = 5;
+    uint256 internal constant POOLED = 5;
+    uint256 internal constant COUNT = 6;
 
     /// No one-state law is expected to catch this specimen.
     uint256 internal constant NOTHING = type(uint256).max;
@@ -92,6 +96,7 @@ contract CorpusTest {
         partitioned = new HeldAssetsPartitioned();
         ordered = new QueueOrderPreserved();
         covered = new ReservesCoverPayableClaims();
+        pooled = new PooledClaimsCoverOpenBatches();
     }
 
     function laws() internal view returns (Law[COUNT] memory) {
@@ -100,7 +105,8 @@ contract CorpusTest {
             Law(backed),
             Law(partitioned),
             Law(ordered),
-            Law(covered)
+            Law(covered),
+            Law(pooled)
         ];
     }
 
@@ -180,10 +186,25 @@ contract CorpusTest {
 
     function test_payable_beyond_reserves_breaks_the_cover_alone() external {
         PayableBeyondReserves target = new PayableBeyondReserves();
-        target.deposit(1);
+        target.deposit(2);
+        target.borrow(1);
         target.reserve(1);
         target.reserve(1);
         assertDiagonal(target, COVERED);
+    }
+
+    /// `deposit(100)`, `borrow(50)`, `reserve(100)`, `reserve(100)`,
+    /// `accrueFee(...)`. The borrow leaves the system holding half what it owes,
+    /// so its earmark stops short of the queue, and the fee takes the shortfall
+    /// out of value two lenders were already promised.
+    function test_fee_from_queued_breaks_the_pooled_cover_alone() external {
+        FeeFromQueued target = new FeeFromQueued();
+        target.deposit(100);
+        target.borrow(50);
+        target.reserve(100);
+        target.reserve(100);
+        target.accrueFee(type(uint256).max);
+        assertDiagonal(target, POOLED);
     }
 
     // -- the specimens no one-state law can see -----------------------------

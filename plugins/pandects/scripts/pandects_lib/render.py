@@ -49,7 +49,7 @@ PREAMBLE = """# The catalogue
 
 Pandects supplies executable laws for credit contracts, each paired with a
 deliberately broken specimen and a reduced counterexample. Use Fizz to generate
-a protocol-specific harness. Nine laws ship here; broader families remain in
+a protocol-specific harness. The corpus holds %s; broader families remain in
 the planning specification.
 
 %s in %s, rendered for a reader. The catalogue itself is
@@ -94,7 +94,11 @@ def families_in(catalogue):
 def render(catalogue):
     """The whole document, as a string ending in one newline."""
     families = families_in(catalogue)
+    # Both counts are derived. An earlier round fixed the second and left the
+    # first, which is how a document ends up disagreeing with itself three lines
+    # apart while every test passes.
     preamble = PREAMBLE % (
+        counted(len(catalogue.laws), "law", "laws"),
         counted(len(catalogue.laws), "law", "laws", capitalised=True),
         counted(len(families), "family", "families"),
     )
