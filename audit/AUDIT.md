@@ -1495,3 +1495,15 @@ exactly this.
 | S2-R1-01 | high | .hexaemeron ledger | implement receipt asserted a green suite over a red one | corrected in 1d33f7f and recorded here |
 
 Leads not pursued: none.
+
+## Refinement run, step 2, round 2 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 155/155, root
+24/24, against the fixed tree. The round re-walked the two corrected tests
+against the scanner's actual semantics and the scope table's registration
+order, and re-verified the frozen fixture boundary is byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
