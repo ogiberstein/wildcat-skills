@@ -1008,3 +1008,19 @@ review found nothing further.
 
 Zero findings. Leads not pursued: none beyond round 1's accepted parse-memory
 lead.
+
+## Step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+45/45, root 24/24. The review checked the map verb against the never rules:
+it parses and never imports or executes the target, hostile nesting is capped
+by the tokenizer's indentation limit and lands in the caught SyntaxError
+path, and undecodable bytes are replaced before parsing.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: map reads the named file whole, unlike the
+bounded scanner; that is the verb's purpose (one tool read instead of the
+agent reading the file), and the file is user-named rather than
+tree-discovered.
