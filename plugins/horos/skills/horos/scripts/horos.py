@@ -29,6 +29,15 @@ PREFIX_BYTES = 4096
 BLOB_MIN_BYTES = 16384
 MINIFIED_MEAN_LINE_LENGTH = 400
 
+# The maintainer's budgeted second pass: files above this size that the
+# prefix leaves unclassified get two extra windows, middle and end.
+LARGE_FILE_BYTES = 65536
+WINDOW_BYTES = 2048
+
+# Corroborating a candidate directory samples this many files, prefix-only,
+# and needs three quarters of them to look minified, binary or generated.
+DIR_SAMPLE_FILES = 8
+
 LOCKFILE_NAMES = frozenset(
     {
         "bun.lockb",
@@ -157,6 +166,7 @@ FILE_SIGNATURES = (
     (b"\x1f\x8b", "gzip"),
     (b"\x7fELF", "elf"),
     (b"OTTO", "opentype"),
+    (b"RIFF", "riff"),
 )
 
 
@@ -175,35 +185,86 @@ def classify_content(name, size, prefix):
     """
     signature = match_signature(prefix)
     if signature is not None:
-        return "binary", f"file signature {signature}"
+        return "binary", f"file signature {signature}", "hard"
 
     if b"\x00" in prefix:
-        return "binary", "null byte in the first %d bytes" % PREFIX_BYTES
+        return "binary", "null byte in the first %d bytes" % PREFIX_BYTES, "candidate"
 
     text = prefix.decode("utf-8", errors="replace")
     lowered = text.lower()
     # SVG before the marker scan: a tool-stamped SVG is still an asset, and
     # asset is the more specific truth about it.
     if name.endswith(".svg") and "<svg" in lowered:
-        return "asset", f"svg root element in the first {PREFIX_BYTES} bytes"
+        return (
+            "asset",
+            f"svg root element in the first {PREFIX_BYTES} bytes",
+            "candidate",
+        )
 
     for marker in GENERATED_MARKERS:
         if marker in lowered:
-            return "generated", f"marker {marker!r} in the first {PREFIX_BYTES} bytes"
+            return (
+                "generated",
+                f"marker {marker!r} in the first {PREFIX_BYTES} bytes",
+                "hard",
+            )
 
     if name.endswith(".map") and '"mappings"' in text:
-        return "generated", 'sourcemap: name ends .map and prefix carries "mappings"'
+        return (
+            "generated",
+            'sourcemap: name ends .map and prefix carries "mappings"',
+            "hard",
+        )
 
     if size >= BLOB_MIN_BYTES:
         newlines = prefix.count(b"\n")
         if newlines == 0:
-            return "blob", f"no newline in the first {PREFIX_BYTES} bytes of {size} bytes"
+            return (
+                "blob",
+                f"no newline in the first {PREFIX_BYTES} bytes of {size} bytes",
+                "candidate",
+            )
         if len(prefix) // (newlines + 1) > MINIFIED_MEAN_LINE_LENGTH:
             return (
                 "blob",
                 "mean line length above %d in the first %d bytes"
                 % (MINIFIED_MEAN_LINE_LENGTH, PREFIX_BYTES),
+                "candidate",
             )
+    return None
+
+
+def classify_windows(fullpath, name, size):
+    """The selective second pass: two extra windows for a large file the
+    prefix left unclassified. A marker found here is hard; geometry stays a
+    candidate wherever it is found."""
+    offsets = (size // 2, max(0, size - WINDOW_BYTES))
+    with open(fullpath, "rb") as handle:
+        for offset in offsets:
+            handle.seek(offset)
+            window = handle.read(WINDOW_BYTES)
+            lowered = window.decode("utf-8", errors="replace").lower()
+            for marker in GENERATED_MARKERS:
+                if marker in lowered:
+                    return (
+                        "generated",
+                        f"marker {marker!r} in a {WINDOW_BYTES}-byte window at offset {offset}",
+                        "hard",
+                    )
+            newlines = window.count(b"\n")
+            if newlines == 0:
+                return (
+                    "blob",
+                    f"no newline in a {WINDOW_BYTES}-byte window at offset {offset} of {size} bytes",
+                    "candidate",
+                )
+            if len(window) // (newlines + 1) > MINIFIED_MEAN_LINE_LENGTH:
+                return (
+                    "blob",
+                    "mean line length above %d in a window at offset %d"
+                    % (MINIFIED_MEAN_LINE_LENGTH, offset),
+                    "candidate",
+                )
     return None
 
 
@@ -227,6 +288,7 @@ def classify_file(root, relpath):
             "category": "lockfile",
             "bytes": size,
             "evidence": f"lockfile name {name}",
+            "grade": "hard",
         }
 
     if name.endswith(".sql") and "migrations" in PurePosixPath(relpath).parts[:-1]:
@@ -235,14 +297,23 @@ def classify_file(root, relpath):
             "category": "generated",
             "bytes": size,
             "evidence": "sql file under a migrations directory segment",
+            "grade": "candidate",
         }
 
     prefix = read_prefix(fullpath)
     verdict = classify_content(name, size, prefix)
+    if verdict is None and size > LARGE_FILE_BYTES:
+        verdict = classify_windows(fullpath, name, size)
     if verdict is None:
         return None
-    category, evidence = verdict
-    return {"path": relpath, "category": category, "bytes": size, "evidence": evidence}
+    category, evidence, grade = verdict
+    return {
+        "path": relpath,
+        "category": category,
+        "bytes": size,
+        "evidence": evidence,
+        "grade": grade,
+    }
 
 
 def _suffix_of(name):
@@ -262,7 +333,56 @@ def _census_add(tally, name, size, in_boundary):
         row["boundary_bytes"] += size
 
 
-def directory_entry(root, relpath, category, evidence, tally=None):
+PACKAGE_MANAGER_DIRS = frozenset({"bower_components", "node_modules"})
+
+
+def corroborate_directory(fulldir, dirname):
+    """The second signal a candidate directory name needs before it excludes
+    as hard: a known package-manager structure, or a deterministic sample of
+    its first files looking overwhelmingly minified, binary or generated.
+    Returns the corroborating evidence, or None."""
+    if dirname in PACKAGE_MANAGER_DIRS:
+        try:
+            children = sorted(os.listdir(fulldir))
+        except OSError:
+            children = []
+        for child in children:
+            manifest = os.path.join(fulldir, child, "package.json")
+            if os.path.isfile(manifest) and not os.path.islink(manifest):
+                return f"package-manager structure ({child}/package.json)"
+
+    sampled = []
+    for dirpath, dirnames, filenames in os.walk(fulldir, followlinks=False):
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIPPED_DIR_NAMES)
+        for filename in sorted(filenames):
+            fullpath = os.path.join(dirpath, filename)
+            if os.path.islink(fullpath):
+                continue
+            sampled.append(fullpath)
+            if len(sampled) >= DIR_SAMPLE_FILES:
+                break
+        if len(sampled) >= DIR_SAMPLE_FILES:
+            break
+    if not sampled:
+        return None
+    hits = 0
+    for fullpath in sampled:
+        try:
+            size = os.stat(fullpath).st_size
+            prefix = read_prefix(fullpath)
+        except OSError:
+            continue
+        name = os.path.basename(fullpath)
+        verdict = classify_content(name, max(size, BLOB_MIN_BYTES), prefix)
+        if verdict is not None:
+            hits += 1
+    needed = max(1, (3 * len(sampled) + 3) // 4)
+    if hits >= needed:
+        return f"sample: {hits} of {len(sampled)} files minified, binary or generated"
+    return None
+
+
+def directory_entry(root, relpath, category, evidence, tally=None, grade="hard"):
     """Aggregate a vendored or generated directory into one entry."""
     total = 0
     files = 0
@@ -287,6 +407,7 @@ def directory_entry(root, relpath, category, evidence, tally=None):
         "bytes": total,
         "files": files,
         "evidence": evidence,
+        "grade": grade,
     }
 
 
@@ -300,6 +421,7 @@ def scan_tree(root, census=False):
     scopes = {}
     tally = {} if census else None
     entries = []
+    candidates = []
     walked = 0
     skipped_unreadable = 0
 
@@ -319,19 +441,37 @@ def scan_tree(root, census=False):
                 continue
             relpath = dirname if relative_dir == "." else f"{relative_dir}/{dirname}"
             relpath = relpath.replace(os.sep, "/")
+            named_category = None
             if dirname in VENDORED_DIR_NAMES:
-                entries.append(
+                named_category = "vendored"
+            elif dirname in GENERATED_DIR_NAMES:
+                named_category = "generated"
+            if named_category is not None:
+                corroboration = corroborate_directory(child, dirname)
+                if corroboration is not None:
+                    entries.append(
+                        directory_entry(
+                            root,
+                            relpath,
+                            named_category,
+                            f"directory name {dirname} corroborated by {corroboration}",
+                            tally,
+                        )
+                    )
+                    continue
+                # Name alone is a candidate signal; the subtree is walked
+                # file by file instead of being excluded.
+                candidates.append(
                     directory_entry(
-                        root, relpath, "vendored", f"directory name {dirname}", tally
+                        root,
+                        relpath,
+                        named_category,
+                        f"directory name {dirname} alone, uncorroborated",
+                        None,
+                        grade="candidate",
                     )
                 )
-                continue
-            if dirname in GENERATED_DIR_NAMES:
-                entries.append(
-                    directory_entry(
-                        root, relpath, "generated", f"directory name {dirname}", tally
-                    )
-                )
+                keep.append(dirname)
                 continue
             matched = match_attribute_scopes(scopes, relpath + "/")
             if matched is not None:
@@ -362,6 +502,7 @@ def scan_tree(root, census=False):
                         "category": matched[0],
                         "bytes": size,
                         "evidence": matched[1],
+                        "grade": "hard",
                     }
                 )
                 _census_add(tally, filename, size, in_boundary=True)
@@ -371,9 +512,12 @@ def scan_tree(root, census=False):
             except OSError:
                 skipped_unreadable += 1
                 continue
-            if entry is not None:
+            if entry is not None and entry["grade"] == "hard":
                 entries.append(entry)
                 _census_add(tally, filename, entry["bytes"], in_boundary=True)
+            elif entry is not None:
+                candidates.append(entry)
+                _census_add(tally, filename, entry["bytes"], in_boundary=False)
             elif tally is not None:
                 try:
                     _census_add(
@@ -383,18 +527,20 @@ def scan_tree(root, census=False):
                     skipped_unreadable += 1
 
     entries.sort(key=lambda entry: entry["path"])
+    candidates.sort(key=lambda entry: entry["path"])
     counts = {"files_walked": walked, "files_skipped_unreadable": skipped_unreadable}
     for entry in entries:
         key = "bytes_" + entry["category"]
         counts[key] = counts.get(key, 0) + entry["bytes"]
-    result = {"entries": entries, "counts": counts}
+    result = {"entries": entries, "candidates": candidates, "counts": counts}
     if tally is not None:
         result["census"] = tally
     return result
 
 
 BOUNDARY_RELPATH = ".horos/boundary.json"
-BOUNDARY_SCHEMA = 1
+BOUNDARY_SCHEMA = 2
+CANDIDATES_RELPATH = ".horos/candidates.json"
 
 # Printed after a boundary write, for the adopting repository's AGENTS.md or
 # CLAUDE.md. This is the whole bridge to agents that have never heard of
@@ -449,6 +595,25 @@ def _write_atomic(root, relpath, text):
 
 def write_boundary(root, document):
     _write_atomic(root, BOUNDARY_RELPATH, render(document))
+
+
+def candidates_document(result):
+    """The advisory report: candidate findings a maintainer can promote to a
+    repository-specific rule. Candidates never bind an agent."""
+    counts = {}
+    for entry in result["candidates"]:
+        key = "bytes_" + entry["category"]
+        counts[key] = counts.get(key, 0) + entry["bytes"]
+    return {
+        "schema": BOUNDARY_SCHEMA,
+        "tool": "horos",
+        "entries": result["candidates"],
+        "counts": counts,
+    }
+
+
+def write_candidates(root, document):
+    _write_atomic(root, CANDIDATES_RELPATH, render(document))
 
 
 CENSUS_RELPATH = ".horos/census.json"
@@ -506,8 +671,21 @@ def check_tree(root, out=None):
     except (OSError, json.JSONDecodeError) as error:
         print(f"horos: unreadable boundary: {error}", file=out)
         return 2
-    fresh = boundary_document(scan_tree(root))
+    result = scan_tree(root)
+    fresh = boundary_document(result)
     drifted = diff_documents(committed, fresh)
+    candidate_drift = []
+    try:
+        with open(os.path.join(root, CANDIDATES_RELPATH), encoding="utf-8") as handle:
+            committed_candidates = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        committed_candidates = None
+    if committed_candidates is not None:
+        candidate_drift = diff_documents(
+            committed_candidates, candidates_document(result)
+        )
+    for path, reason in candidate_drift:
+        print(f"candidate drift: {path}: {reason}", file=out)
     if not drifted:
         print("boundary matches the tree", file=out)
         return 0
@@ -590,14 +768,17 @@ def main(argv=None):
         return 0
 
     document = boundary_document(result)
+    advisory = candidates_document(result)
     if args.write:
         write_boundary(args.root, document)
+        write_candidates(args.root, advisory)
     if args.json:
         sys.stdout.write(render(document))
     else:
         for key, value in sorted(document["counts"].items()):
             print(f"{key}: {value}")
         print(f"entries: {len(document['entries'])}")
+        print(f"candidates: {len(advisory['entries'])}")
         if args.write:
             print()
             print(ADOPTION_STANZA, end="")

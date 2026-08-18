@@ -1507,3 +1507,24 @@ order, and re-verified the frozen fixture boundary is byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Refinement run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+changed README. Horos 159/159, root 24/24, both verified before the
+implement receipt this time. The review walked the specification against
+the landed pipeline clause by clause: the hard list is exactly the
+specification's five plus corroborated directories, geometry stays
+candidate wherever found including the windows, the sample is
+deterministic (first eight sorted, 4 KiB each), the byte budget holds (at
+most 8 KiB for large unresolved files), candidates never bind and check
+never fails on them, and the safety rule the specification preserves
+(security reviews ignore the boundary) is untouched in the skill text.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the specification's closing note names
+nested .gitattributes and corroborated exclusions as the largest gains;
+both landed, and the recapture evidence for real trees belongs to the
+third job.

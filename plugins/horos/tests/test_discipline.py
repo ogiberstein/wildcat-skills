@@ -49,27 +49,52 @@ class DisciplineTests(unittest.TestCase):
             )
 
     def test_the_fixture_covers_every_shipped_rule_class(self):
-        entries = horos.scan_tree(str(FIXTURE))["entries"]
-        categories = {entry["category"] for entry in entries}
+        result = horos.scan_tree(str(FIXTURE))
+        hard = result["entries"]
+        candidates = result["candidates"]
         self.assertEqual(
-            categories, {"binary", "lockfile", "generated", "vendored", "blob", "asset"}
+            {entry["category"] for entry in hard},
+            {"binary", "lockfile", "generated", "vendored"},
         )
-        evidence = " | ".join(entry["evidence"] for entry in entries)
+        self.assertEqual(
+            {entry["category"] for entry in candidates},
+            {"binary", "generated", "blob", "asset"},
+        )
+        self.assertTrue(all(entry["grade"] == "hard" for entry in hard))
+        self.assertTrue(all(entry["grade"] == "candidate" for entry in candidates))
+        hard_evidence = " | ".join(entry["evidence"] for entry in hard)
         for family in (
             "marker",
-            "directory name",
+            "corroborated by sample",
+            "package-manager structure",
             "sourcemap",
             ".gitattributes",
+            "file signature",
+            "lockfile name",
+        ):
+            self.assertIn(family, hard_evidence)
+        candidate_evidence = " | ".join(entry["evidence"] for entry in candidates)
+        for family in (
+            "null byte",
+            "uncorroborated",
             "no newline",
             "mean line length",
             "svg root element",
             "migrations directory segment",
         ):
-            self.assertIn(family, evidence)
+            self.assertIn(family, candidate_evidence)
 
-    def test_the_readable_file_stays_readable(self):
-        paths = [entry["path"] for entry in horos.scan_tree(str(FIXTURE))["entries"]]
-        self.assertNotIn("src/app.py", paths)
+    def test_the_readable_files_stay_readable(self):
+        result = horos.scan_tree(str(FIXTURE))
+        listed = [entry["path"] for entry in result["entries"]]
+        listed += [entry["path"] for entry in result["candidates"]]
+        self.assertNotIn("src/app.py", listed)
+        self.assertNotIn("build/util.py", listed)
+
+    def test_the_committed_candidates_match_a_fresh_scan_byte_for_byte(self):
+        committed = (FIXTURE / horos.CANDIDATES_RELPATH).read_text(encoding="utf-8")
+        fresh = horos.render(horos.candidates_document(horos.scan_tree(str(FIXTURE))))
+        self.assertEqual(committed, fresh)
 
 
 if __name__ == "__main__":

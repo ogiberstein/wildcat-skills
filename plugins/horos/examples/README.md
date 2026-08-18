@@ -1,11 +1,14 @@
 # The Horos example
 
 `fixture/` is a miniature repository holding one file per classifier rule
-class: a binary asset, a lockfile, a marker-generated file, a generated
-directory, a vendored directory, a sourcemap, a single-line blob, a minified
-bundle, a directory vendored through `.gitattributes`, an SVG text asset,
-and a migration SQL file under a `migrations` segment. One hand-written
-file, `src/app.py`, stays readable. Its committed boundary lives at
+class across both evidence grades. Hard entries (they bind agents): a
+signature-named font, a lockfile, a marker-generated file, a
+sample-corroborated `dist/`, a package-manager-corroborated
+`node_modules/`, a `.gitattributes`-vendored `lib/`, and a sourcemap.
+Candidates (advisory, in `candidates.json`): a null-byte binary, an
+uncorroborated `build/` walked file-by-file, a single-line blob, a minified
+bundle, an SVG text asset, and a migration SQL file. Two hand-written
+files, `src/app.py` and `build/util.py`, stay readable. Its committed boundary lives at
 `fixture/.horos/boundary.json`.
 
 Run everything from the repository root.
