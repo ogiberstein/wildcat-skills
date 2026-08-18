@@ -30,18 +30,45 @@ def version_parts(label, skill):
 
 
 def history_rows(text):
-    rows = []
-    pattern = re.compile(
-        r"(?m)^\| `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+    table = re.compile(
+        r"^\| `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
         r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
         r"\| (?P<evidence>.*?) \| (?P<change>.*?) \|$"
     )
-    for match in pattern.finditer(text):
-        rows.append(match.groupdict())
+    compact = re.compile(
+        r"^- `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+        r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
+        r"\| (?P<evidence>.*?) \| (?P<change>.*?)$"
+    )
+    rows = []
+    for line in text.splitlines():
+        match = table.fullmatch(line) or compact.fullmatch(line)
+        if match is not None:
+            rows.append(match.groupdict())
     return rows
 
 
 class EvolutionContractTests(unittest.TestCase):
+    def test_history_rows_accept_compact_list(self):
+        digest = "a" * 64
+        rows = history_rows(
+            f"- `example-v0.1.0` | baseline | `held-job` | `{digest}` | "
+            "[evidence](README.md) | Versioning starts here."
+        )
+        self.assertEqual(
+            rows,
+            [
+                {
+                    "version": "example-v0.1.0",
+                    "axis": "baseline",
+                    "revision": "held-job",
+                    "digest": digest,
+                    "evidence": "[evidence](README.md)",
+                    "change": "Versioning starts here.",
+                }
+            ],
+        )
+
     def test_first_party_skills_have_governed_ledgers(self):
         for skill in FIRST_PARTY:
             directory = SKILLS / skill

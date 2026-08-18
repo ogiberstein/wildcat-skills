@@ -2,9 +2,7 @@
 
 ## Step 1, round 1 -- 2026-08-17
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The committed non-Solidity diff has no open finding. | clean |
+The committed non-Solidity diff has no open finding. Status: clean.
 
 The review checked the nine landing-page commands, frontier agreement across
 marketplace copies, the scope of skill-level README deletions, stale live
@@ -19,7 +17,7 @@ Leads not pursued: none.
 | id | severity | file | finding | status |
 | --- | --- | --- | --- | --- |
 | S1-R1-01 | high | `plugins/alexandria/scripts/alexandria_lib/compound_registry.py` | Offline validation checked the registry's shape and pin labels but did not bind all 28 generated entries to the reviewed registry bytes; Git replace objects could also affect source reads. | fixed in this round |
-| S1-R1-02 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | Rebound malformed RPC results could raise uncontrolled type errors, an error response could also carry a result, and a nested trace-filter frame was not tied to the selected transaction. | fixed in this round |
+| S1-R1-02 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | Rebound malformed RPC results exposed uncontrolled type errors; an error response could also carry a result, and a nested trace-filter frame was not tied to the selected transaction. | fixed in this round |
 | S1-R1-03 | high | `plugins/tabularium/scripts/tabularium_lib/compound_witness.py` | A relevant slot-0 or `userBasic` write at an unexpected depth was silently skipped when a later write restored the expected poststate, leaving an unexplained write out of the witness. | fixed in this round |
 | S1-R1-04 | medium | `plugins/tabularium/scripts/tabularium_lib/compound_witness.py` | Witness verification used unbounded path reads and did not verify that the imported Alexandria module came from the sibling plugin. | fixed in this round |
 
@@ -35,9 +33,7 @@ Leads not pursued: none.
 
 ## Compound v3 Phase 0, step 1, round 2 -- 2026-08-17
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R2-01 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | Round 1's top-level type checks did not cover malformed struct-log elements, nested prestate maps or non-hexadecimal proxy runtime code, so some rebound evidence could still fail outside the controlled refusal path. | fixed in this round |
+- S1-R2-01 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | Round 1's top-level type checks did not cover malformed struct-log elements, nested prestate maps or non-hexadecimal proxy runtime code, so some rebound evidence could still fail outside the controlled refusal path. | fixed in this round
 
 The hardening review also checked the registry generator against the pinned
 Comet Git objects with replacement refs disabled. Its bytes match the
@@ -48,10 +44,8 @@ Leads not pursued: none.
 
 ## Compound v3 Phase 0, step 1, round 3 -- 2026-08-17
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R3-01 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | The capture bounded each response but not aggregate bytes, so a permitted 48-request run could exhaust disk well before a component crossed its individual ceiling. | fixed in this round |
-| S1-R3-02 | medium | `plugins/tabularium/scripts/tabularium_lib/compound_witness.py` | The principal fact pointed at the entire opcode list and only the poststate slot; it did not bind the prestate map that establishes an absent slot as zero or each exact principal-writing struct log. | fixed in this round |
+- S1-R3-01 | medium | `plugins/alexandria/scripts/alexandria_lib/compound_phase0.py` | The capture bounded each response but not aggregate bytes, so a permitted 48-request run could exhaust disk well before a component crossed its individual ceiling. | fixed in this round
+- S1-R3-02 | medium | `plugins/tabularium/scripts/tabularium_lib/compound_witness.py` | The principal fact pointed at the entire opcode list and only the poststate slot; it did not bind the prestate map that establishes an absent slot as zero or each exact principal-writing struct log. | fixed in this round
 
 The aggregate capture cap is 128 MiB and fails before installation. The
 principal fact now selects the prestate storage map, exact poststate slot and
@@ -63,9 +57,7 @@ Leads not pursued: none.
 
 ## Compound v3 Phase 0, step 1, round 4 -- 2026-08-17
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+The fixed non-Solidity tree has no open finding. Status: clean.
 
 The clean review repeated the registry, capture, JSON-RPC, trace alignment,
 storage attribution, source-selector, safe-read, schema and immutable-byte
@@ -81,9 +73,7 @@ The Solidity suite was waived because this step changes only Markdown
 evidence and governed skill metadata. The review covered every changed line
 against the runbook risk register.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R1-01 | low | `plugins/hexaemeron/docs/fiat-installed-path-and-maturity-proof/proof.md` | The proof reported 14 non-blocking Imprimatur signals, but the reproducible per-file total is 15. | Fixed on the stacked audit branch before round 2. |
+- S1-R1-01 | low | `plugins/hexaemeron/docs/fiat-installed-path-and-maturity-proof/proof.md` | The proof reported 14 non-blocking Imprimatur signals, but the reproducible per-file total is 15. | Fixed on the stacked audit branch before round 2.
 
 Leads not pursued: publisher authentication, cache signing, native Windows
 support, and general release attestation are outside this frontier and are
@@ -91,9 +81,7 @@ not claimed by the proof.
 
 ## Fiat installed-path proof, step 1, round 2 -- 2026-08-17
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The corrected non-Solidity tree has no open finding. | clean |
+The corrected non-Solidity tree has no open finding. Status: clean.
 
 The clean review repeated the controller-path, target-root, receipt-order,
 source-hash, frontier-version, digest, maturity, test-result, and prose-count
@@ -113,9 +101,7 @@ split isolation, duplicate checks, one-to-one span pairing, metric
 denominators, candidate freezing, the spent holdout and the open-frontier
 decision.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R1-01 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/evaluate_labelled_corpus.py` | The evaluator parsed the published schemas but did not apply them to fixture rows, and it did not verify the annotation-seal or candidate-freeze digests before scoring. A changed row or schema could therefore be evaluated under the same published evidence claims. | Fixed in this round: the standard-library evaluator now enforces the schema subset, checks both digest manifests, and rejects identical annotator ids; mutation regressions cover row and schema changes. |
+- S1-R1-01 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/evaluate_labelled_corpus.py` | The evaluator parsed the published schemas but did not apply them to fixture rows, and it did not verify the annotation-seal or candidate-freeze digests before scoring. A changed row or schema could therefore be evaluated under the same published evidence claims. | Fixed in this round: the standard-library evaluator now enforces the schema subset, checks both digest manifests, and rejects identical annotator ids; mutation regressions cover row and schema changes.
 
 The focused evaluator has 15 passing checks after the fix. The 55 Imprimatur
 tests, 61 Hexaemeron tests and 14 repository tests also pass. Replaying
@@ -127,9 +113,7 @@ outside this frontier and are explicitly disclaimed by the fixture.
 
 ## Imprimatur labelled prose, step 1, round 2 -- 2026-08-18
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+The fixed non-Solidity tree has no open finding. Status: clean.
 
 The clean review repeated the fixture-row schema checks, annotation and
 candidate digest checks, distinct-annotator check, UTF-8 span validation,
@@ -150,10 +134,8 @@ them read this diff, and a zero count here would assert they had. The review
 instead read the committed spec against the risk register it declares, against
 the nine shipped laws, and against the two models it proposes to correct.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R1-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study asserted that all nine laws hold in the violating state, but only the five single-state laws had been executed. The four pair laws were reasoned about from what a fee does not touch. In a corpus whose whole argument is that a passing campaign proves nothing without a specimen, an argued verdict presented beside measured ones is the same defect one level up. | Fixed in this round: all four pair laws executed against the pair on both models, and the study now reports what was run. `accrual/path-independent/v1` returns held and the study says that verdict carries no weight, because the law compares two runs rather than one system's before and after. |
-| S1-R1-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study named a fee leak in `integrations/wildcat/WildcatMarketModel.sol` with figures, and never fixed the boundary to the deployed market contracts. The plugin's own applicability document warns that nothing in the model should be mistaken for them; a reader meeting the figures first could take the study as a claim about the protocol. | Fixed in this round: the study states that the finding is about the reduced model and the corpus's silence, and that it establishes nothing either way about the deployed contracts. |
+- S1-R1-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study asserted that all nine laws hold in the violating state, but only the five single-state laws had been executed. The four pair laws were reasoned about from what a fee does not touch. In a corpus whose whole argument is that a passing campaign proves nothing without a specimen, an argued verdict presented beside measured ones is the same defect one level up. | Fixed in this round: all four pair laws executed against the pair on both models, and the study now reports what was run. `accrual/path-independent/v1` returns held and the study says that verdict carries no weight, because the law compares two runs rather than one system's before and after.
+- S1-R1-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study named a fee leak in `integrations/wildcat/WildcatMarketModel.sol` with figures, and never fixed the boundary to the deployed market contracts. The plugin's own applicability document warns that nothing in the model should be mistaken for them; a reader meeting the figures first could take the study as a claim about the protocol. | Fixed in this round: the study states that the finding is about the reduced model and the corpus's silence, and that it establishes nothing either way about the deployed contracts.
 
 A third lead was checked and is not a finding. The study's chosen statement is
 false of `Sound` as shipped, and the study says so and builds on it. That is the
@@ -171,9 +153,7 @@ Again no Solidity in the diff and no campaign, for the same reason, stated again
 rather than counted as a clean suite run. This round read the round-1 fixes back,
 then checked the runbook's own numbers against the test files it points step 2 at.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R2-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | The runbook sized step 2's test work as the diagonal growing "from 9x9 to 10x10 over the single-state half". No such table exists. `test/Corpus.t.sol` runs its diagonal over the single-state laws alone, where `COUNT` is 5, and `test/Pairs.t.sol` runs over 3, with path independence handled separately. Nine and ten are corpus totals. Whoever implemented step 2 from the runbook would have gone looking for a table with the wrong shape. | Fixed in this round: the runbook names both dimensions and says that ten is a total rather than a dimension. |
+- S1-R2-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | The runbook sized step 2's test work as the diagonal growing "from 9x9 to 10x10 over the single-state half". No such table exists. `test/Corpus.t.sol` runs its diagonal over the single-state laws alone, where `COUNT` is 5, and `test/Pairs.t.sol` runs over 3, with path independence handled separately. Nine and ten are corpus totals. Whoever implemented step 2 from the runbook would have gone looking for a table with the wrong shape. | Fixed in this round: the runbook names both dimensions and says that ten is a total rather than a dimension.
 
 The round-1 fixes were re-read and hold. The four pair-law verdicts in the study
 match what was executed, the path-independence caveat is stated where the verdict
@@ -193,10 +173,8 @@ No Solidity and no campaign again. This round read the runbook's file lists
 against what the repository actually generates and against what it treats as a
 record, which is the class of error the previous two rounds had not looked at.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R3-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 2 listed `docs/catalogue.md` as a file to write and step 4 listed it again as prose to reconcile. It is neither: `python3 scripts/pandects.py render` generates it and `tests/test_documents.py` checks it against the renderer. A hand-edit either fails that check, or passes it by reproducing what the renderer would have produced and thereby hides a real drift. An earlier round of the original delivery, S5-R2-01, fixed the renderer for exactly this reason. | Fixed in this round: step 2 regenerates it and says why, and step 4 drops it from the prose surfaces and names the command. |
-| S1-R3-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 4's reconciliation list left this run's own study and runbook out without saying so, and both of them claim Pandects ships nine laws. The omission reads as an oversight rather than a decision, so an implementer would either rewrite a spec into disagreement with the run it specifies, or leave a claim stale with nothing recording which was meant. | Fixed in this round: step 4 states that the two spec documents are records on the same footing as the audit log's historical rounds and are not reconciled, and why rewriting them would be worse. |
+- S1-R3-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 2 listed `docs/catalogue.md` as a file to write and step 4 listed it again as prose to reconcile. It is neither: `python3 scripts/pandects.py render` generates it and `tests/test_documents.py` checks it against the renderer. A hand-edit either fails that check, or passes it by reproducing what the renderer would have produced and thereby hides a real drift. An earlier round of the original delivery, S5-R2-01, fixed the renderer for exactly this reason. | Fixed in this round: step 2 regenerates it and says why, and step 4 drops it from the prose surfaces and names the command.
+- S1-R3-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 4's reconciliation list left this run's own study and runbook out without saying so, and both of them claim Pandects ships nine laws. The omission reads as an oversight rather than a decision, so an implementer would either rewrite a spec into disagreement with the run it specifies, or leave a claim stale with nothing recording which was meant. | Fixed in this round: step 4 states that the two spec documents are records on the same footing as the audit log's historical rounds and are not reconciled, and why rewriting them would be worse.
 
 The round-2 fix was re-read against the sources. `COUNT` is 5 in
 `test/Corpus.t.sol` and 3 in `test/Pairs.t.sol`, which is what the runbook now
@@ -211,9 +189,7 @@ against the tooling that exists to satisfy it, and re-checked which documents in
 the plugin are generated, which the previous round had only established for one of
 them.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R4-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 3 asked for "a search record for each run" and for "a run record beside the existing campaign evidence", without naming a mechanism. One exists and does not cover the case: `python3 scripts/pandects.py run` writes a search record and knows only the `foundry` engine. An implementer would either read the requirement as satisfied by that command for all three engines, which would silently drop the two fuzzers the step exists to run, or invent a record format for them. | Fixed in this round: step 3 names the command for the Foundry record, says it has no Echidna or Medusa support, and requires the two fuzzers to be recorded as audit prose the way the original delivery recorded them. It also says not to extend the runner here. |
+- S1-R4-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 3 asked for "a search record for each run" and for "a run record beside the existing campaign evidence", without naming a mechanism. One exists and does not cover the case: `python3 scripts/pandects.py run` writes a search record and knows only the `foundry` engine. An implementer would either read the requirement as satisfied by that command for all three engines, which would silently drop the two fuzzers the step exists to run, or invent a record format for them. | Fixed in this round: step 3 names the command for the Foundry record, says it has no Echidna or Medusa support, and requires the two fuzzers to be recorded as audit prose the way the original delivery recorded them. It also says not to extend the runner here.
 
 `docs/applicability.md` was checked and is not generated. `pandects render` writes
 `docs/catalogue.md` and nothing else, so step 4's remaining prose surfaces are
@@ -230,9 +206,7 @@ round re-read the four earlier fixes against their sources and then resolved eve
 file path the two documents name, which is the check that catches a spec rotting
 against a repository that moved under it.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+The fixed non-Solidity tree has no open finding. Status: clean.
 
 Thirty-nine distinct paths are named across the study and the runbook. Every one
 resolves, except the two the run exists to create,
@@ -310,10 +284,8 @@ Leads not pursued:
 
 Reviewed: the tree with round 1 applied, and what round 1's own commit did to it.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R2-01 | medium | `.gitignore` | Round 1's commit tracked three engine artefacts: `crytic-export/combined_solc.json`, `.medusa-artifact-hash` and `slither_results.json`. The ignore rules for all three existed and did not match, because they were written as `plugins/*/` and an engine writes beside wherever it was invoked from. The Medusa run went through a config under `adapters/medusa/`, so the artefacts landed two levels below the plugin root and walked straight past a one-level pattern. This is the lead the original delivery carried from its own step 5 round 2 about `slither_results.json` being tracked, arriving again by the same mechanism. | Fixed in this round: the three files are untracked, the patterns are depth-independent, and a fresh Medusa run confirmed all three are ignored where they are actually written rather than where the old patterns expected them. |
-| S2-R2-02 | low | `.gitignore` | `plugins/*/search-record.json` sat in the fuzzing-output section while the file it names is tracked, shipped as evidence, and as of round 1 held to the catalogue by three tests. The two statements cannot both be right. Left alone, a fresh clone that regenerated the record would show no diff, and deleting it would draw no complaint from git. | Fixed in this round: the entry is removed and the reason it is not output is written where the entry used to be. |
+- S2-R2-01 | medium | `.gitignore` | Round 1's commit tracked three engine artefacts: `crytic-export/combined_solc.json`, `.medusa-artifact-hash` and `slither_results.json`. The ignore rules for all three existed and did not match, because they were written as `plugins/*/` and an engine writes beside wherever it was invoked from. The Medusa run went through a config under `adapters/medusa/`, so the artefacts landed two levels below the plugin root and walked straight past a one-level pattern. This is the lead the original delivery carried from its own step 5 round 2 about `slither_results.json` being tracked, arriving again by the same mechanism. | Fixed in this round: the three files are untracked, the patterns are depth-independent, and a fresh Medusa run confirmed all three are ignored where they are actually written rather than where the old patterns expected them.
+- S2-R2-02 | low | `.gitignore` | `plugins/*/search-record.json` sat in the fuzzing-output section while the file it names is tracked, shipped as evidence, and as of round 1 held to the catalogue by three tests. The two statements cannot both be right. Left alone, a fresh clone that regenerated the record would show no diff, and deleting it would draw no complaint from git. | Fixed in this round: the entry is removed and the reason it is not output is written where the entry used to be.
 
 **What ran.** The full suite again on the fixed tree: 75 Solidity tests under
 forge 1.7.1, 109 Python tests, the repository's 20, `pandects check` over ten
@@ -338,10 +310,8 @@ against its specimen. The first two rounds looked at evidence and at tooling.
 This one asked which of the assertions the other nine laws face were never
 extended to the tenth.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R3-01 | medium | `test/Corpus.t.sol` | `test_a_queue_law_over_a_target_with_no_queue_reverts` walked a hardcoded `Law[2]` of the two queue laws that existed when it was written. The new law is a third and was not in it, so nothing asserted that it reverts rather than returning a verdict against a target with no queue. The test's own comment names the failure it exists to prevent: a law returning true there reports that a system with no queue keeps its queue in order. | Fixed in this round: the array is a `Law[3]` and the new law is asserted with the other two. |
-| S2-R3-02 | medium | `test/Corpus.t.sol` | The new law sums unchecked and reports the overflow as a violation, and no test could reach that branch. `test_a_sum_that_overflows_is_reported_as_a_violation` uses `Extreme`, which implements no queue, so a queue law reverts on the read long before its own addition is asked to hold the answer. The branch that exists precisely so the law does not fall silent where the numbers are worst was itself unexercised, which is the corpus's own argument about untested properties turned on one of its laws. | Fixed in this round: `ExtremeQueue` reports two claims each owed everything there is, and `test_a_queue_law_reports_its_own_overflow` asserts the law returns rather than reverts, returns violated, and gives the overflow as its reason. |
+- S2-R3-01 | medium | `test/Corpus.t.sol` | `test_a_queue_law_over_a_target_with_no_queue_reverts` walked a hardcoded `Law[2]` of the two queue laws that existed when it was written. The new law is a third and was not in it, so nothing asserted that it reverts rather than returning a verdict against a target with no queue. The test's own comment names the failure it exists to prevent: a law returning true there reports that a system with no queue keeps its queue in order. | Fixed in this round: the array is a `Law[3]` and the new law is asserted with the other two.
+- S2-R3-02 | medium | `test/Corpus.t.sol` | The new law sums unchecked and reports the overflow as a violation, and no test could reach that branch. `test_a_sum_that_overflows_is_reported_as_a_violation` uses `Extreme`, which implements no queue, so a queue law reverts on the read long before its own addition is asked to hold the answer. The branch that exists precisely so the law does not fall silent where the numbers are worst was itself unexercised, which is the corpus's own argument about untested properties turned on one of its laws. | Fixed in this round: `ExtremeQueue` reports two claims each owed everything there is, and `test_a_queue_law_reports_its_own_overflow` asserts the law returns rather than reverts, returns violated, and gives the overflow as its reason.
 
 **What ran.** 76 Solidity tests under forge 1.7.1, up from 75 by the assertion
 added here. 109 Python tests, the repository's 20, `pandects check` over ten laws.
@@ -369,10 +339,8 @@ itself. Earlier rounds read the evidence, the tooling and the edge cases. This o
 followed the law outwards, into the files somebody else's protocol actually
 inherits.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R4-01 | high | `adapters/CorpusBase.sol` | The adapter an integrator inherits names its laws one by one in Solidity and had nine of the ten. So the corpus documented ten laws, `pandects check` counted ten, and anybody pointing `CorpusObserver` at their own market ran nine, with no signal anywhere: the adapter compiles, `queueHolds` returns a verdict, `explainOneState` returns five reasons, and every test passes. The one law missing was the one this whole run exists to add. Called high because it is exactly what the corpus is built to refuse, a law that is never asked reported as a corpus that holds, reaching the surface an outsider inherits rather than a specimen written to be broken. | Fixed in this round: the adapter carries it, `queueHolds` judges it, `explainOneState` returns six reasons and says why its width is the catalogue's count, and `test/Adapters.t.sol` reads six. |
-| S2-R4-02 | medium | `tests/test_documents.py` | Nothing tied the adapter to the catalogue, which is why S2-R4-01 could happen quietly and would happen again on the eleventh law. The plugin already has this check twice over, for the rendered catalogue and for the integration notes, and the one surface where the omission reaches a third party had none. | Fixed in this round: `ShippedAdapterTests` holds every catalogued law to the adapter, with path independence excluded as an exact pinned set rather than a skip list, so a second exclusion has to be argued for in the file. Made to fail by removing the law from the adapter before being kept. |
+- S2-R4-01 | high | `adapters/CorpusBase.sol` | The adapter an integrator inherits names its laws one by one in Solidity and had nine of the ten. So the corpus documented ten laws, `pandects check` counted ten, and anybody pointing `CorpusObserver` at their own market ran nine, with no signal anywhere: the adapter compiles, `queueHolds` returns a verdict, `explainOneState` returns five reasons, and every test passes. The one law missing was the one this whole run exists to add. Called high because it is exactly what the corpus is built to refuse, a law that is never asked reported as a corpus that holds, reaching the surface an outsider inherits rather than a specimen written to be broken. | Fixed in this round: the adapter carries it, `queueHolds` judges it, `explainOneState` returns six reasons and says why its width is the catalogue's count, and `test/Adapters.t.sol` reads six.
+- S2-R4-02 | medium | `tests/test_documents.py` | Nothing tied the adapter to the catalogue, which is why S2-R4-01 could happen quietly and would happen again on the eleventh law. The plugin already has this check twice over, for the rendered catalogue and for the integration notes, and the one surface where the omission reaches a third party had none. | Fixed in this round: `ShippedAdapterTests` holds every catalogued law to the adapter, with path independence excluded as an exact pinned set rather than a skip list, so a second exclusion has to be argued for in the file. Made to fail by removing the law from the adapter before being kept.
 
 **What ran.** 76 Solidity tests under forge 1.7.1, 111 Python tests, up from 109
 by the two checks added here, the repository's 20, and `pandects check` over ten
@@ -406,10 +374,8 @@ knowing one engine, and the two carried from step 1.
 Reviewed: round 4's own fix, on the suspicion that gating one file and calling the
 class closed was too quick. It was.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R5-01 | high | `adapters/foundry/CorpusInvariants.sol` | The same defect as S2-R4-01, one file along and untouched by its fix. `CorpusBase` carries the law objects; this file decides which of them a Foundry run asserts, and it declared eight invariants for nine laws. After round 4 the adapter carried the tenth law and no Foundry invariant asked it, so an integrator extending `CorpusOneStateTest` still ran nine. Carrying a law and never asserting it is the same silence as not carrying it. | Fixed in this round: `invariant_pooled_claims_cover_open_batches` added, standing down with the other queue laws when `hasWithdrawalQueue` is false, and the two comments that counted the queue laws as two now say three. |
-| S2-R5-02 | medium | `tests/test_documents.py` | Round 4's check read one path and asserted the law's component name appeared in it. That is why it did not see S2-R5-01: the component name did appear, in the file that binds it, and the check had no opinion about the file that asserts it. A check aimed at one of two surfaces is not a check on the class. | Fixed in this round: the check takes a list of shipped adapters. It maps the variable names `CorpusBase` binds components to, classifies each law's shape by reading whether its component extends `Law` or `PairLaw` rather than from a hand-kept list, and asserts every one-state law's variable is asserted in the Foundry adapter. Made to fail by deleting the invariant while leaving the law bound, which is the exact shape S2-R5-01 had. |
+- S2-R5-01 | high | `adapters/foundry/CorpusInvariants.sol` | The same defect as S2-R4-01, one file along and untouched by its fix. `CorpusBase` carries the law objects; this file decides which of them a Foundry run asserts, and it declared eight invariants for nine laws. After round 4 the adapter carried the tenth law and no Foundry invariant asked it, so an integrator extending `CorpusOneStateTest` still ran nine. Carrying a law and never asserting it is the same silence as not carrying it. | Fixed in this round: `invariant_pooled_claims_cover_open_batches` added, standing down with the other queue laws when `hasWithdrawalQueue` is false, and the two comments that counted the queue laws as two now say three.
+- S2-R5-02 | medium | `tests/test_documents.py` | Round 4's check read one path and asserted the law's component name appeared in it. That is why it did not see S2-R5-01: the component name did appear, in the file that binds it, and the check had no opinion about the file that asserts it. A check aimed at one of two surfaces is not a check on the class. | Fixed in this round: the check takes a list of shipped adapters. It maps the variable names `CorpusBase` binds components to, classifies each law's shape by reading whether its component extends `Law` or `PairLaw` rather than from a hand-kept list, and asserts every one-state law's variable is asserted in the Foundry adapter. Made to fail by deleting the invariant while leaving the law bound, which is the exact shape S2-R5-01 had.
 
 **What ran.** 76 Solidity tests under forge 1.7.1 and 111 Python tests, up from
 109 in round 4 by one net: round 4's second check was replaced rather than added
@@ -438,10 +404,8 @@ Reviewed: the rest of the class rounds 4 and 5 opened. Two rounds had each found
 the same defect in one more file, so this round enumerated every shipped file that
 names laws before looking at any of them.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R6-01 | high | `adapters/echidna/CorpusEchidna.sol`, `adapters/medusa/CorpusMedusa.sol` | The third and fourth occurrence, in the two adapters an integrator extends to run the corpus under a fuzzer. Each declared five one-state properties and the tenth law was not among them, so anyone pointing Echidna or Medusa at their own system through the shipped adapter searched nine laws. The runbook had scheduled both files into step 3. Rounds 4 and 5 are the argument against that: a law missing from a surface an outsider inherits is a defect in the step that adds the law, and scheduling is how it survived twice. | Fixed in this round: both adapters carry the property, standing down with the other queue laws when `hasWithdrawalQueue` is false. |
-| S2-R6-02 | medium | `tests/test_documents.py` | Round 5's check took a list of two paths, which was the right shape aimed at the wrong set. It knew about `CorpusBase` and the Foundry adapter and had no opinion about the two engine adapters, so it could not have caught S2-R6-01 either. Three rounds running, the check was narrower than the class. | Fixed in this round: the binding file and the asking files are separated, and the asking set is all three adapters that decide which bound law a run asks. Each was made to fail on its own by deleting one property at a time, which caught a fourth thing: the probe used for the Foundry file in the first attempt matched nothing, so a clean result there was the probe failing rather than the check passing. The exact-string version failed as it should. |
+- S2-R6-01 | high | `adapters/echidna/CorpusEchidna.sol`, `adapters/medusa/CorpusMedusa.sol` | The third and fourth occurrence, in the two adapters an integrator extends to run the corpus under a fuzzer. Each declared five one-state properties and the tenth law was not among them, so anyone pointing Echidna or Medusa at their own system through the shipped adapter searched nine laws. The runbook had scheduled both files into step 3. Rounds 4 and 5 are the argument against that: a law missing from a surface an outsider inherits is a defect in the step that adds the law, and scheduling is how it survived twice. | Fixed in this round: both adapters carry the property, standing down with the other queue laws when `hasWithdrawalQueue` is false.
+- S2-R6-02 | medium | `tests/test_documents.py` | Round 5's check took a list of two paths, which was the right shape aimed at the wrong set. It knew about `CorpusBase` and the Foundry adapter and had no opinion about the two engine adapters, so it could not have caught S2-R6-01 either. Three rounds running, the check was narrower than the class. | Fixed in this round: the binding file and the asking files are separated, and the asking set is all three adapters that decide which bound law a run asks. Each was made to fail on its own by deleting one property at a time, which caught a fourth thing: the probe used for the Foundry file in the first attempt matched nothing, so a clean result there was the probe failing rather than the check passing. The exact-string version failed as it should.
 
 **What ran.** 76 Solidity tests under forge 1.7.1, 111 Python tests, the
 repository's 20, `pandects check` over ten laws, Slither 0.11.6 over 50 contracts
@@ -481,9 +445,7 @@ defect one file further along and inspection had picked the files in the wrong
 order each time. Ten Solidity files import two or more laws and three documents
 name three or more. One of the ten had not been looked at.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R7-01 | medium | `test/Wildcat.t.sol` | Step 2 added a row to the integration's applicability table saying the model holds the new law once corrected, with figures, and added no assertion behind it. `test_the_model_holds_every_one_state_law_it_claims` asserted five laws and the document claimed six. That document's own idiom is the opposite: it says of two other claims that they are watched happening rather than described, and the check requiring every catalogued law to appear in it exists because a claim nobody tests is the thing this plugin refuses. The claim was mine and it shipped bare. | Fixed in this round: the law joins the law-by-law assertion, and `test_a_delinquent_market_can_take_no_fee_from_a_queued_batch` drives the market into the state the notes describe and asserts the figures they quote -- 200 held, a batch owed 1000 unpaid, and a fee of nothing where the earmark cap permitted 800. Reverting the model's cap to `reserved()` makes it fail with "a fee was taken out of a queued batch". |
+- S2-R7-01 | medium | `test/Wildcat.t.sol` | Step 2 added a row to the integration's applicability table saying the model holds the new law once corrected, with figures, and added no assertion behind it. `test_the_model_holds_every_one_state_law_it_claims` asserted five laws and the document claimed six. That document's own idiom is the opposite: it says of two other claims that they are watched happening rather than described, and the check requiring every catalogued law to appear in it exists because a claim nobody tests is the thing this plugin refuses. The claim was mine and it shipped bare. | Fixed in this round: the law joins the law-by-law assertion, and `test_a_delinquent_market_can_take_no_fee_from_a_queued_batch` drives the market into the state the notes describe and asserts the figures they quote -- 200 held, a batch owed 1000 unpaid, and a fee of nothing where the earmark cap permitted 800. Reverting the model's cap to `reserved()` makes it fail with "a fee was taken out of a queued batch".
 
 **What ran.** 77 Solidity tests under forge 1.7.1, up from 76 by the assertion
 added here, 111 Python tests, the repository's 20, and `pandects check` over ten
@@ -503,7 +465,8 @@ names six law ids and is a record rather than a surface, which step 4 states.
 Leads not pursued:
 
 - **A gate on the applicability table itself.** Every law the table says holds
-  could be required to appear in an assertion in `test/Wildcat.t.sol`. It would
+  could be required in an assertion in `test/Wildcat.t.sol`.
+  It would
   have caught S2-R7-01 the way the adapter gates caught rounds 4 to 6. It needs a
   parser for a prose table with three laws that legitimately do not hold and one
   that holds under a condition, and a fragile parser guarding a document is a
@@ -518,9 +481,7 @@ Reviewed: the comments this step's own rounds wrote, on the principle that a rou
 which has spent six findings on untested claims should read its own. One of them
 promised a guarantee that did not exist.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R8-01 | medium | `adapters/CorpusBase.sol` | Round 4 widened `explainOneState` to six and wrote above it that the width is the count of one-state laws in the catalogue and that `test/Adapters.t.sol` holds it to that count. The second half was false. That test reads `string[6]` because the adapter returns `string[6]`; the two are one number written twice and a test taking it from the file it checks would be wrong the same way. So an eleventh one-state law would leave the width at six and nothing would say so, which is the argument the renderer's own drift test makes, and the comment claiming otherwise was written in the round that found the same defect elsewhere. | Fixed in this round: `test_the_explanation_is_as_wide_as_the_one_state_laws` reads the signature out of the source, counts the one-state laws in the catalogue by the shape their components declare, asserts the two agree, and asserts each of those laws is the subject of one of the assignments. Narrowing the width and hollowing the last entry each make it fail for their own reason. The comment now names the test that exists. |
+- S2-R8-01 | medium | `adapters/CorpusBase.sol` | Round 4 widened `explainOneState` to six and wrote above it that the width is the count of one-state laws in the catalogue and that `test/Adapters.t.sol` holds it to that count. The second half was false. That test reads `string[6]` because the adapter returns `string[6]`; the two are one number written twice and a test taking it from the file it checks would be wrong the same way. So an eleventh one-state law would leave the width at six and nothing would say so, which is the argument the renderer's own drift test makes, and the comment claiming otherwise was written in the round that found the same defect elsewhere. | Fixed in this round: `test_the_explanation_is_as_wide_as_the_one_state_laws` reads the signature out of the source, counts the one-state laws in the catalogue by the shape their components declare, asserts the two agree, and asserts each of those laws is the subject of one of the assignments. Narrowing the width and hollowing the last entry each make it fail for their own reason. The comment now names the test that exists.
 
 **What ran.** 77 Solidity tests under forge 1.7.1, 112 Python tests, up from 111
 by the check added here, the repository's 20, `pandects check` over ten laws, and
@@ -561,10 +522,8 @@ Reviewed: the whole of the step's diff, and first of all the check it added, sin
 step 2 spent six findings on checks narrower than the class they were written for.
 It was narrower than the class it was written for.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R1-01 | medium | `tests/test_documents.py` | The campaign-harness check skipped every pair law. It classified each law by shape and returned early on anything that was not one-state, so the three pair properties the harness declares through `judgePair` were held to nothing, and a fourth pair law would arrive in the catalogue and not in the harness with a green suite either way. The check was written in the commit that closed this class for the one-state family and left the other half open. | Fixed in this round: pair-law bindings are read alongside the one-state ones and the property pattern accepts `judge` or `judgePair`, so both families are held under both prefixes. Deleting `echidna_recorded_claim_never_shrinks` now names that law. |
-| S3-R1-02 | medium | `tests/test_documents.py` | Nothing tied a catalogued specimen to a campaign. Every one has a campaign today, and `FeeFromQueuedCampaign` exists because this step added it by hand, so the eleventh specimen would have rested on somebody remembering. A specimen with a property to fail and no harness to fail it under is caught by the deterministic suite and by no search, and a campaign report says nothing about which specimens were in it. | Fixed in this round: every catalogued specimen must have a `<Specimen>Campaign` in the harness. Renaming `FeeFromQueuedCampaign` now names the law whose specimen went undriven. |
+- S3-R1-01 | medium | `tests/test_documents.py` | The campaign-harness check skipped every pair law. It classified each law by shape and returned early on anything that was not one-state, so the three pair properties the harness declares through `judgePair` were held to nothing, and a fourth pair law would arrive in the catalogue and not in the harness with a green suite either way. The check was written in the commit that closed this class for the one-state family and left the other half open. | Fixed in this round: pair-law bindings are read alongside the one-state ones and the property pattern accepts `judge` or `judgePair`, so both families are held under both prefixes. Deleting `echidna_recorded_claim_never_shrinks` now names that law.
+- S3-R1-02 | medium | `tests/test_documents.py` | Nothing tied a catalogued specimen to a campaign. Every one has a campaign today, and `FeeFromQueuedCampaign` exists because this step added it by hand, so the eleventh specimen would have rested on somebody remembering. A specimen with a property to fail and no harness to fail it under is caught by the deterministic suite and by no search, and a campaign report says nothing about which specimens were in it. | Fixed in this round: every catalogued specimen must have a `<Specimen>Campaign` in the harness. Renaming `FeeFromQueuedCampaign` now names the law whose specimen went undriven.
 
 **What ran.** 77 Solidity tests under forge 1.7.1, 114 Python tests, up from 113 by
 the specimen check, the repository's 20, and `pandects check` over ten laws. No
@@ -575,10 +534,8 @@ recorded below.
 **The engines, on the harness this step built.** Both reach the specimen and neither
 reaches anything else.
 
-| engine | `pooled_claims_cover_open_batches` | the other eight | detail |
-| --- | --- | --- | --- |
-| Echidna 2.3.3, seed 20260816 | falsified, shrunk to four calls | passing | `deposit`, `borrow(1)`, `reserve`, `accrueFee(1)` |
-| Medusa 1.5.1, twenty thousand | failed | passing | "pooled claims are below what the open batches are owed" |
+- engine: Echidna 2.3.3, seed 20260816; `pooled_claims_cover_open_batches`: falsified, shrunk to four calls; the other eight: passing; detail: `deposit`, `borrow(1)`, `reserve`, `accrueFee(1)`
+- engine: Medusa 1.5.1, twenty thousand; `pooled_claims_cover_open_batches`: failed; the other eight: passing; detail: "pooled claims are below what the open batches are owed"
 
 **A defect in the check, caught by the check.** The first version of the pair-law
 pattern read `judgePair?`, which is `judgePai` followed by an optional `r` rather
@@ -597,10 +554,8 @@ Reviewed: the tree with round 1 applied, then the harness's own reporting path,
 which no round had opened. The properties were right and the thing that tells you
 why one failed was not.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R2-01 | medium | `src/campaigns/Specimens.sol` | `explain` returned eight reasons for the nine laws the harness now carries, and the missing one was the new law's. That function exists so a reader replaying a falsified sequence gets the law's own words with the numbers in them rather than reconstructing them from a call trace, and for the one law this run added it returned nothing. Both engines had already falsified that property, so the failure was reachable and its reason was not. This is the same defect as `explainOneState` in step 2, which is the third place in the plugin where a law count is written twice. | Fixed in this round: `explain` returns nine, the new law's reason sits with the one-state group, and the three pair-law positions moved by one. `test_the_campaign_explanation_is_as_wide_as_the_laws_it_carries` holds the width and the contents to the catalogue; narrowing it back and hollowing the entry each fail for their own reason. |
-| S3-R2-02 | low | `src/campaigns/Specimens.sol` | The comment on `FeeFromQueuedCampaign` said reaching the property needs three things and listed a deposit, a borrow and a fee. It needs four. The withdrawal request is the one it left out and the one that matters: with no recorded claim nothing is owed, and with a claim no larger than what is held the earmark covers it and the cap does not leak. Echidna's own shrink is four calls. | Fixed in this round: the comment names four, says which one the earlier draft dropped and why the property cannot be reached without it. |
+- S3-R2-01 | medium | `src/campaigns/Specimens.sol` | `explain` returned eight reasons for the nine laws the harness now carries, and the missing one was the new law's. That function exists so a reader replaying a falsified sequence gets the law's own words with the numbers in them rather than reconstructing them from a call trace, and for the one law this run added it returned nothing. Both engines had already falsified that property, so the failure was reachable and its reason was not. This is the same defect as `explainOneState` in step 2, which is the third place in the plugin where a law count is written twice. | Fixed in this round: `explain` returns nine, the new law's reason sits with the one-state group, and the three pair-law positions moved by one. `test_the_campaign_explanation_is_as_wide_as_the_laws_it_carries` holds the width and the contents to the catalogue; narrowing it back and hollowing the entry each fail for their own reason.
+- S3-R2-02 | low | `src/campaigns/Specimens.sol` | The comment on `FeeFromQueuedCampaign` said reaching the property needs three things and listed a deposit, a borrow and a fee. It needs four. The withdrawal request is the one it left out and the one that matters: with no recorded claim nothing is owed, and with a claim no larger than what is held the earmark covers it and the cap does not leak. Echidna's own shrink is four calls. | Fixed in this round: the comment names four, says which one the earlier draft dropped and why the property cannot be reached without it.
 
 **What the index shift caught on the way.** `test/Explain.t.sol` read positions as
 numerals, so inserting a one-state law in the middle of that group moved every
@@ -621,18 +576,14 @@ Leads not pursued: the four accepted at the close of step 2. None is touched her
 Reviewed: the harness header, which is the last thing in this step's files stating a
 number nothing checked, and the two claims that number rests on.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R3-01 | low | `src/campaigns/Specimens.sol` | The header reads "Nine of these eleven are expected to fail one property". Both numbers are written by hand, both move when a specimen is added, and this run has already found four counts written twice with nothing holding them. The figures were right; nothing said they would stay right. | Fixed in this round: a test counts the campaigns the file declares and the ones whose specimen breaks a law the harness asks, spells both out, and requires the header to match. Reverting the header to the pre-step counts names the two it should have read. |
+- S3-R3-01 | low | `src/campaigns/Specimens.sol` | The header reads "Nine of these eleven are expected to fail one property". Both numbers are written by hand, both move when a specimen is added, and this run has already found four counts written twice with nothing holding them. The figures were right; nothing said they would stay right. | Fixed in this round: a test counts the campaigns the file declares and the ones whose specimen breaks a law the harness asks, spells both out, and requires the header to match. Reverting the header to the pre-step counts names the two it should have read.
 
 **The two exceptions, verified rather than reasoned.** The claim is that nine of
 eleven campaigns fail a property, so two do not, and the two are worth an engine run
 each because they are the exceptions the count depends on.
 
-| campaign | result | calls |
-| --- | --- | --- |
-| `SoundCampaign` | nine properties passing | 20,140 |
-| `CompoundsPerStepCampaign` | nine properties passing | 20,140 |
+- campaign: `SoundCampaign`; result: nine properties passing; calls: 20,140
+- campaign: `CompoundsPerStepCampaign`; result: nine properties passing; calls: 20,140
 
 `CompoundsPerStepCampaign` is the interesting one. Its specimen compounds, which
 breaks `accrual/path-independent/v1`, and no campaign can search that law because a
@@ -659,10 +610,8 @@ Reviewed: the step against its own exit conditions, then the diagonal against th
 engines rather than against hand-derived states. Two conditions the runbook set for
 this step had not been met.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R4-01 | medium | `test/Adapters.t.sol` | The step's exit asks for the new entry point to be exercised without an engine, the way `test_the_echidna_entry_points_answer` already does for an older law, and nothing called either of the new prefixed wrappers. They are two separate functions delegating to the same internal judgement, so one can be wired to the wrong law while the other is right, and only a campaign under that one engine would notice: the deterministic suite would pass and the other engine would agree with it. | Fixed in this round: `test_both_prefixes_answer_for_the_new_law` calls both before and after the four-call sequence, and asserts two unrelated laws stay held. Rewiring `property_pooled_claims_cover_open_batches` to a different law fails it by name. |
-| S3-R4-02 | low | `audit/AUDIT.md` | The step's exit asks that a Medusa record state the seed as unavailable rather than invent one. Round 1 recorded the Medusa run with its engine, version and call limit and said nothing about a seed at all, which is the absence this plugin's own discipline is about: silence reads as a run whose seed nobody wrote down rather than a run that has none to write. | Fixed in this round: recorded below, and the earlier table stands with this note against it. |
+- S3-R4-01 | medium | `test/Adapters.t.sol` | The step's exit asks for the new entry point to be exercised without an engine, the way `test_the_echidna_entry_points_answer` already does for an older law, and nothing called either of the new prefixed wrappers. They are two separate functions delegating to the same internal judgement, so one can be wired to the wrong law while the other is right, and only a campaign under that one engine would notice: the deterministic suite would pass and the other engine would agree with it. | Fixed in this round: `test_both_prefixes_answer_for_the_new_law` calls both before and after the four-call sequence, and asserts two unrelated laws stay held. Rewiring `property_pooled_claims_cover_open_batches` to a different law fails it by name.
+- S3-R4-02 | low | `audit/AUDIT.md` | The step's exit asks that a Medusa record state the seed as unavailable rather than invent one. Round 1 recorded the Medusa run with its engine, version and call limit and said nothing about a seed at all, which is the absence this plugin's own discipline is about: silence reads as a run whose seed nobody wrote down rather than a run that has none to write. | Fixed in this round: recorded below, and the earlier table stands with this note against it.
 
 **Medusa exposes no seed.** Medusa 1.5.1 takes no seed argument and reports none, so
 the runs in rounds 1 to 4 carry the engine, its version, the configuration digest,
@@ -707,10 +656,8 @@ Reviewed: what these rounds have said about the suite, rather than the tree. Bot
 findings are about this log rather than the code, and both are the kind the honesty
 rule at the top of Fiat's audit loop exists for.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R5-01 | medium | `audit/AUDIT.md` | Round 2 changed a function in `src/campaigns/Specimens.sol`, which is a contract, and recorded "No engine re-run: `explain` is not a property and no property changed." That was true of the engines and said nothing about Slither, which had not run against this step's contracts at all. Rounds 3 and 4 carried the same omission forward. A round that changes Solidity and reports the suite without one of its members has reported a suite that did not run. | Fixed in this round: Slither 0.11.6 run against the step's tree. 52 contracts, 23 results across the same three benign classes the original delivery documented, and nothing naming the new campaign or the new law. The rounds above stand with this note against them. |
-| S3-R5-02 | medium | `audit/AUDIT.md` | The `security_suite` receipt names `hexaemeron:x-ray`, `hexaemeron:solidity-auditor` and `hexaemeron:fizz`, and no round in either step has said what became of the third. Silence about a named member of the suite is the failure this log is supposed to make impossible, and it is worse here than a waiver would have been, because a reader counting three names against the rounds would assume all three ran. | Fixed in this round: stated below, plainly, with what was done instead and why. |
+- S3-R5-01 | medium | `audit/AUDIT.md` | Round 2 changed a function in `src/campaigns/Specimens.sol`, which is a contract, and recorded "No engine re-run: `explain` is not a property and no property changed." That was true of the engines and said nothing about Slither, which had not run against this step's contracts at all. Rounds 3 and 4 carried the same omission forward. A round that changes Solidity and reports the suite without one of its members has reported a suite that did not run. | Fixed in this round: Slither 0.11.6 run against the step's tree. 52 contracts, 23 results across the same three benign classes the original delivery documented, and nothing naming the new campaign or the new law. The rounds above stand with this note against them.
+- S3-R5-02 | medium | `audit/AUDIT.md` | The `security_suite` receipt names `hexaemeron:x-ray`, `hexaemeron:solidity-auditor` and `hexaemeron:fizz`, and no round in either step has said what became of the third. Silence about a named member of the suite is the failure this log is supposed to make impossible, and it is worse here than a waiver would have been, because a reader counting three names against the rounds would assume all three ran. | Fixed in this round: stated below, plainly, with what was done instead and why.
 
 **Fizz, and why the generator did not run.** `fizz` generates a stateful Solidity
 fuzz suite under `test/fizz/` with its runtime metadata beside it. This plugin
@@ -739,9 +686,7 @@ Leads not pursued: the four accepted at the close of step 2, none touched here.
 Reviewed: the fixed tree, and each check the five earlier rounds added, by breaking
 the thing it guards and confirming it says so.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The fixed tree has no open finding. | clean |
+The fixed tree has no open finding. Status: clean.
 
 **The checks, re-proved rather than re-read.** Removing a pair-law property fails the
 prefix check. Renaming a specimen's campaign fails two checks at once, the
@@ -774,10 +719,8 @@ contract, and the branch the step was built on. This step ships prose and a ledg
 entry, so `x-ray`, `solidity-auditor` and `fizz` had no Solidity to read and none of
 them ran. Saying so rather than recording a zero, for the reason step 3 round 5 gave.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R1-01 | medium | `plugins/pandects/audit/AUDIT.md` | The plugin's own audit log records this run's whole subject as a lead not pursued, closing with "No law covers it. It is a real gap and a new law rather than a fix to this one." A law covers it now, and nothing in that log said so. Its historical rounds stay as written, which is right, but that left a reader of the plugin's own record meeting an open gap that had been closed in another file. The same log also carries the `slither_results.json` lead, which this run closed in step 2 round 2. | Fixed in this round: a "Leads closed since" section says what became of both, names the law, the specimen, the reduced counterexample and where the run is recorded, and states which leads remain untouched. No historical round was edited. |
-| S4-R1-02 | medium | this log | The step was branched from a stale `origin/loop/2026-08-18-kronos`, taken before step 3's pull request merged, so the tree it was verified against did not contain step 3. The demo path caught it: `forge test` reported 77 where step 3 had closed at 79. Merging would not have reverted step 3, because the merge base was below it, but every number in the step's receipt would have described a tree that was never going to ship. | Fixed before the step was committed: the branch was reset to the current tip and the twelve-file change reapplied, which it did cleanly because step 3 and step 4 share no file. Re-verified after replanting: 79 Solidity tests, ten laws, no catalogue drift. Recorded here rather than left in the reflog, because the receipt would have carried the wrong evidence and only a count nobody was checking on purpose revealed it. |
+- S4-R1-01 | medium | `plugins/pandects/audit/AUDIT.md` | The plugin's own audit log records this run's whole subject as a lead not pursued, closing with "No law covers it. It is a real gap and a new law rather than a fix to this one." A law covers it now, and nothing in that log said so. Its historical rounds stay as written, which is right, but that left a reader of the plugin's own record meeting an open gap that had been closed in another file. The same log also carries the `slither_results.json` lead, which this run closed in step 2 round 2. | Fixed in this round: a "Leads closed since" section says what became of both, names the law, the specimen, the reduced counterexample and where the run is recorded, and states which leads remain untouched. No historical round was edited.
+- S4-R1-02 | medium | this log | The step was branched from a stale `origin/loop/2026-08-18-kronos`, taken before step 3's pull request merged, so the tree it was verified against did not contain step 3. The demo path caught it: `forge test` reported 77 where step 3 had closed at 79. Merging would not have reverted step 3, because the merge base was below it, but every number in the step's receipt would have described a tree that was never going to ship. | Fixed before the step was committed: the branch was reset to the current tip and the twelve-file change reapplied, which it did cleanly because step 3 and step 4 share no file. Re-verified after replanting: 79 Solidity tests, ten laws, no catalogue drift. Recorded here rather than left in the reflog, because the receipt would have carried the wrong evidence and only a count nobody was checking on purpose revealed it.
 
 **The ledger, against the contract.** `pandects-v0.1.0` becomes `pandects-v1.1.0`:
 the evolution counter moves once for a completed frontier job, generation and epoch
@@ -814,10 +757,8 @@ asymmetry stated in step 3 round 6.
 Reviewed: the tree with round 1 applied, then every count and claim in browsing prose
 that the run had touched or should have. One it had not touched.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R2-01 | medium | `README.md` | The repository README says how many of the corpus's laws carry no tolerance, and it still said eight. Nine of the ten are exact; only `accrual/path-independent/v1` carries a bound. Step 4 had corrected the same claim in the plugin's own README and missed this one, so the two documents disagreed with each other and one of them disagreed with the catalogue. | Fixed in this round: nine, taken from the catalogue's `bounds` field rather than counted by eye. |
-| S4-R2-02 | medium | `tests/test_marketplace_prose.py` | Nothing held either README's corpus counts to the catalogue. The rendered document derives both of its counts, the adapters are held to theirs by the plugin's suite, and these two were hand-written sentences that a frontier run adding a law simply has to remember. This run corrected five of them and missed the sixth, which is the whole argument. | Fixed in this round: `test_pandects_prose_counts_the_laws_the_catalogue_holds` derives the total, the exact count and the family count from the catalogue and requires both documents to state them. Each of the three anchored claims was made to fail on its own before the test was kept. |
+- S4-R2-01 | medium | `README.md` | The repository README says how many of the corpus's laws carry no tolerance, and it still said eight. Nine of the ten are exact; only `accrual/path-independent/v1` carries a bound. Step 4 had corrected the same claim in the plugin's own README and missed this one, so the two documents disagreed with each other and one of them disagreed with the catalogue. | Fixed in this round: nine, taken from the catalogue's `bounds` field rather than counted by eye.
+- S4-R2-02 | medium | `tests/test_marketplace_prose.py` | Nothing held either README's corpus counts to the catalogue. The rendered document derives both of its counts, the adapters are held to theirs by the plugin's suite, and these two were hand-written sentences that a frontier run adding a law simply has to remember. This run corrected five of them and missed the sixth, which is the whole argument. | Fixed in this round: `test_pandects_prose_counts_the_laws_the_catalogue_holds` derives the total, the exact count and the family count from the catalogue and requires both documents to state them. Each of the three anchored claims was made to fail on its own before the test was kept.
 
 **The mirror, checked and clean.** `.agents/skills/pandects/SKILL.md` was compared with
 the canonical skill in case the version bump had left them disagreeing. It is a
@@ -846,10 +787,8 @@ Reviewed: whether the frontier this step declares is visible where a reader woul
 it. The ledger names a gap in the search-record runner. Two documents describe that
 runner and neither said the gap existed.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R3-01 | medium | `plugins/pandects/README.md` | "Saying how it was searched" opens with "A campaign result without its settings is an anecdote" and then hands the reader `pandects run`, without saying that the command emits the Foundry campaign and nothing else. A reader who has just run Echidna or Medusa, which this plugin ships adapters and a configuration for, would look for a record the tool cannot produce. The section names `foundry.toml` and so is not false; it is silent exactly where the corpus's own held frontier says the gap is. | Fixed in this round: the section says `run` knows one engine, that an engine which did not run is absent rather than empty, that a campaign under either fuzzer is not recorded by the command, and that widening it is the held frontier. |
-| S4-R3-02 | medium | `plugins/pandects/adapters/medusa/README.md` | The adapter document says "A Medusa record therefore carries the engine, the configuration, the sequence length and the corpus digest", which describes such records as things this plugin produces. Nothing produces them. It is the document somebody reads to learn how to run Medusa here, so it is the worst place for that to be implied. | Fixed in this round: the record is described as written by hand, with `pandects run` named as emitting Foundry and no other engine, and the widening named as the frontier. |
+- S4-R3-01 | medium | `plugins/pandects/README.md` | "Saying how it was searched" opens with "A campaign result without its settings is an anecdote" and then hands the reader `pandects run`, without saying that the command emits the Foundry campaign and nothing else. A reader who has just run Echidna or Medusa, which this plugin ships adapters and a configuration for, would look for a record the tool cannot produce. The section names `foundry.toml` and so is not false; it is silent exactly where the corpus's own held frontier says the gap is. | Fixed in this round: the section says `run` knows one engine, that an engine which did not run is absent rather than empty, that a campaign under either fuzzer is not recorded by the command, and that widening it is the held frontier.
+- S4-R3-02 | medium | `plugins/pandects/adapters/medusa/README.md` | The adapter document says "A Medusa record therefore carries the engine, the configuration, the sequence length and the corpus digest", which describes such records as things this plugin produces. Nothing produces them. It is the document somebody reads to learn how to run Medusa here, so it is the worst place for that to be implied. | Fixed in this round: the record is described as written by hand, with `pandects run` named as emitting Foundry and no other engine, and the widening named as the frontier.
 
 **Why these count as reconciliation rather than new work.** The held job asks for a
 cold read of mutable first-party marketplace prose, and the step had read it for law
@@ -871,9 +810,7 @@ asymmetry from step 3 round 6.
 Reviewed: the fixed tree, the gates the earlier rounds added, and one last read for
 anything still describing the closed frontier as open.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| None | - | - | The fixed tree has no open finding. | clean |
+The fixed tree has no open finding. Status: clean.
 
 **Nothing still calls the gap open.** No document or contract outside the audit logs
 and this run's own spec describes a fee reducing pooled claims below what open batches
@@ -900,3 +837,26 @@ and none of them ran; the reading passes are these four rounds.
 
 Leads not pursued: the four accepted at the close of step 2, unchanged and none of them
 touched by this step, and the Medusa coverage asymmetry stated in step 3 round 6.
+
+## Repository-wide Brevitas pass, step 1, round 1 -- 2026-08-18
+
+- Low: A historical finding changed during the structural audit-log rewrite.
+- Location: `audit/AUDIT.md:20` at entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`.
+- Mechanism: `could raise uncontrolled type errors` became `permitted uncontrolled type errors`.
+- Impact: the rewrite altered the recorded failure mechanism without new audit evidence.
+- Fix: used `exposed` for the first mechanism and retained the separate qualified error-response claim.
+
+The manual round also checked both parser implementations, their compact-list fixtures,
+the 159-file source inventory, 43 excluded files, 29 protected passages, four digest
+refusals, and the committed study and runbook. No other open finding was established.
+The Solidity security suite remains waived because the step changes Markdown and Python
+test parsers only.
+
+## Repository-wide Brevitas pass, step 1, round 2 -- 2026-08-18
+
+The fixed non-Solidity tree has no open finding. Status: clean.
+
+The round re-read the historical mechanism at `audit/AUDIT.md:20`, both compact-list
+parsers, their fixtures, and the full protected-state proof. Root `22/22`, Hexaemeron
+`62/62`, Imprimatur, Brevitas `--source`, protected SHA verification, and
+`git diff --check` pass. No further lead was established.
