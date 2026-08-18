@@ -5,35 +5,27 @@ deliberately broken specimen and a reduced counterexample. Use Fizz to generate
 a protocol-specific harness. The corpus holds ten laws; broader families remain in
 the planning specification.
 
-Ten laws in three families, rendered for a reader. The catalogue itself is
-`catalogue/pandects.json`, and a test fails if this document and that file stop
-naming the same laws, so this is a rendering rather than a second source.
+Ten laws in three families, rendered from `catalogue/pandects.json`. Regenerate it with
+`python3 scripts/pandects.py render`; a byte comparison rejects hand edits.
 
-Regenerate it with `python3 scripts/pandects.py render`. Editing it by hand is
-how a rendering becomes a second source.
-
-Every law here has six parts. It executes, it catches a contract written to
-break it, that failure has been reduced to a replay with no fuzzer in it, it
-says where it applies, its bounds are justified, and it judges rather than
-reverting. `python3 scripts/pandects.py check` refuses anything with fewer.
+Every law executes, catches a broken specimen, has a reduced replay, states its
+applicability, justifies its bounds and judges without reverting.
+`python3 scripts/pandects.py check` refuses anything with fewer than six parts.
 
 ## Conservation
 
-What the system holds, owes and has promised, held against each other.
-Every one of these is a fact about a single state: the sums agree or they do
-not, and no history is needed to say which.
+What the system holds, owes and has promised in one state. The sums agree
+or they do not; no history is needed.
 
 ### `conservation/value-conserved/v1`
 
 > Assets held plus debt owed equals lender claims plus accrued fees.
 
-| | |
-| --- | --- |
-| Component | `src/laws/ValueConserved.sol` |
-| Specimen | `specimens/MintedClaims.sol` |
-| Counterexample | `test/counterexamples/Conservation.t.sol` |
-| Bounds | exact |
-| Reads | `totalAssets`, `totalDebt`, `totalLenderClaims`, `accruedFees` |
+- Component: `src/laws/ValueConserved.sol`
+- Specimen: `specimens/MintedClaims.sol`
+- Counterexample: `test/counterexamples/Conservation.t.sol`
+- Bounds: exact
+- Reads: `totalAssets`, `totalDebt`, `totalLenderClaims`, `accruedFees`
 
 Applies to a pooled lender claim denominated in one asset, where borrowers owe that same asset and fees accrue out of lender yield. Assuming:
 
@@ -45,13 +37,11 @@ Applies to a pooled lender claim denominated in one asset, where borrowers owe t
 
 > Assets reserved never exceed the lender claims recorded.
 
-| | |
-| --- | --- |
-| Component | `src/laws/ReservesBackedByClaims.sol` |
-| Specimen | `specimens/OverReserved.sol` |
-| Counterexample | `test/counterexamples/Conservation.t.sol` |
-| Bounds | exact |
-| Reads | `reservedAssets`, `totalLenderClaims` |
+- Component: `src/laws/ReservesBackedByClaims.sol`
+- Specimen: `specimens/OverReserved.sol`
+- Counterexample: `test/counterexamples/Conservation.t.sol`
+- Bounds: exact
+- Reads: `reservedAssets`, `totalLenderClaims`
 
 Applies to a system that earmarks held assets against recorded withdrawal claims. Assuming:
 
@@ -62,13 +52,11 @@ Applies to a system that earmarks held assets against recorded withdrawal claims
 
 > Reserved assets plus borrowable assets never exceed assets held.
 
-| | |
-| --- | --- |
-| Component | `src/laws/HeldAssetsPartitioned.sol` |
-| Specimen | `specimens/OverPromised.sol` |
-| Counterexample | `test/counterexamples/Conservation.t.sol` |
-| Bounds | exact |
-| Reads | `reservedAssets`, `borrowableAssets`, `totalAssets` |
+- Component: `src/laws/HeldAssetsPartitioned.sol`
+- Specimen: `specimens/OverPromised.sol`
+- Counterexample: `test/counterexamples/Conservation.t.sol`
+- Bounds: exact
+- Reads: `reservedAssets`, `borrowableAssets`, `totalAssets`
 
 Applies to a system where borrower liquidity and withdrawal reservations are drawn from the same held assets. Assuming:
 
@@ -77,21 +65,18 @@ Applies to a system where borrower liquidity and withdrawal reservations are dra
 
 ## Accrual
 
-How debt and claims move with time. None of these can be violated by any
-single state, however wrong that state is, because the violation is in the
-transition.
+How debt and claims move with time. The violation is in a transition, not
+one state.
 
 ### `accrual/debt-falls-only-against-payment/v1`
 
 > Debt falls only against held assets rising by at least the fall.
 
-| | |
-| --- | --- |
-| Component | `src/laws/DebtFallsOnlyAgainstPayment.sol` |
-| Specimen | `specimens/DebtForgiven.sol` |
-| Counterexample | `test/counterexamples/Accrual.t.sol` |
-| Bounds | exact |
-| Reads | `totalDebt`, `totalAssets` |
+- Component: `src/laws/DebtFallsOnlyAgainstPayment.sol`
+- Specimen: `specimens/DebtForgiven.sol`
+- Counterexample: `test/counterexamples/Accrual.t.sol`
+- Bounds: exact
+- Reads: `totalDebt`, `totalAssets`
 
 Applies to a pooled lender claim denominated in one asset, where borrowers owe that same asset and fees accrue out of lender yield. Assuming:
 
@@ -104,13 +89,11 @@ Applies to a pooled lender claim denominated in one asset, where borrowers owe t
 
 > At equal observation times, debt rises only against held assets leaving.
 
-| | |
-| --- | --- |
-| Component | `src/laws/NoAccrualAtRest.sol` |
-| Specimen | `specimens/AccruesAtRest.sol` |
-| Counterexample | `test/counterexamples/Accrual.t.sol` |
-| Bounds | exact |
-| Reads | `totalDebt`, `totalAssets`, `observedAt` |
+- Component: `src/laws/NoAccrualAtRest.sol`
+- Specimen: `specimens/AccruesAtRest.sol`
+- Counterexample: `test/counterexamples/Accrual.t.sol`
+- Bounds: exact
+- Reads: `totalDebt`, `totalAssets`, `observedAt`
 
 Applies to a pooled lender claim denominated in one asset, where borrowers owe that same asset and fees accrue out of lender yield. Assuming:
 
@@ -123,13 +106,11 @@ Applies to a pooled lender claim denominated in one asset, where borrowers owe t
 
 > One long step and the same span in equal small steps agree on debt, within one unit per step less one.
 
-| | |
-| --- | --- |
-| Component | `src/laws/AccrualPathIndependent.sol` |
-| Specimen | `specimens/CompoundsPerStep.sol` |
-| Counterexample | `test/counterexamples/Accrual.t.sol` |
-| Bounds | one unit of the asset per subdivision, less one (linear accrual on principal truncates once per step: the subdivided run accrues n*floor(x) where the single run accrues floor(n*x), and those differ by at most n-1) |
-| Reads | `totalDebt`, `observedAt` |
+- Component: `src/laws/AccrualPathIndependent.sol`
+- Specimen: `specimens/CompoundsPerStep.sol`
+- Counterexample: `test/counterexamples/Accrual.t.sol`
+- Bounds: one unit of the asset per subdivision, less one (linear accrual on principal truncates once per step: the subdivided run accrues n*floor(x) where the single run accrues floor(n*x), and those differ by at most n-1)
+- Reads: `totalDebt`, `observedAt`
 
 Applies to a pooled lender claim denominated in one asset, where borrowers owe that same asset and fees accrue out of lender yield, accruing linearly on principal rather than compounding. Assuming:
 
@@ -141,21 +122,18 @@ Applies to a pooled lender claim denominated in one asset, where borrowers owe t
 
 ## Claims
 
-What a recorded withdrawal claim is owed, and in what order. These need the
-withdrawal-queue extension, and a target without one reverts on the read
-rather than being reported as orderly.
+What a recorded withdrawal claim is owed and in what order. These laws need
+the withdrawal-queue extension; a target without one reverts on the read.
 
 ### `claims/recorded-claim-never-shrinks/v1`
 
 > A recorded claim keeps its owed amount and never loses payment already made.
 
-| | |
-| --- | --- |
-| Component | `src/laws/RecordedClaimNeverShrinks.sol` |
-| Specimen | `specimens/ClaimHaircut.sol` |
-| Counterexample | `test/counterexamples/Claims.t.sol` |
-| Bounds | exact |
-| Reads | `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt` |
+- Component: `src/laws/RecordedClaimNeverShrinks.sol`
+- Specimen: `specimens/ClaimHaircut.sol`
+- Counterexample: `test/counterexamples/Claims.t.sol`
+- Bounds: exact
+- Reads: `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt`
 
 Applies to a pooled lender claim denominated in one asset, with withdrawals recorded as an ordered queue of individual claims that keep their position once made. Assuming:
 
@@ -169,13 +147,11 @@ Applies to a pooled lender claim denominated in one asset, with withdrawals reco
 
 > No withdrawal claim is paid while an older claim is still owed something.
 
-| | |
-| --- | --- |
-| Component | `src/laws/QueueOrderPreserved.sol` |
-| Specimen | `specimens/QueueJumped.sol` |
-| Counterexample | `test/counterexamples/Claims.t.sol` |
-| Bounds | exact |
-| Reads | `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt` |
+- Component: `src/laws/QueueOrderPreserved.sol`
+- Specimen: `specimens/QueueJumped.sol`
+- Counterexample: `test/counterexamples/Claims.t.sol`
+- Bounds: exact
+- Reads: `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt`
 
 Applies to a pooled lender claim denominated in one asset, with withdrawals recorded as an ordered queue of individual claims that keep their position once made. Assuming:
 
@@ -188,13 +164,11 @@ Applies to a pooled lender claim denominated in one asset, with withdrawals reco
 
 > Reserved assets cover everything still owed on the claims declared payable.
 
-| | |
-| --- | --- |
-| Component | `src/laws/ReservesCoverPayableClaims.sol` |
-| Specimen | `specimens/PayableBeyondReserves.sol` |
-| Counterexample | `test/counterexamples/Claims.t.sol` |
-| Bounds | exact |
-| Reads | `reservedAssets`, `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt`, `withdrawalQueue.payableThrough` |
+- Component: `src/laws/ReservesCoverPayableClaims.sol`
+- Specimen: `specimens/PayableBeyondReserves.sol`
+- Counterexample: `test/counterexamples/Claims.t.sol`
+- Bounds: exact
+- Reads: `reservedAssets`, `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt`, `withdrawalQueue.payableThrough`
 
 Applies to a pooled lender claim denominated in one asset, with withdrawals recorded as an ordered queue of individual claims that keep their position once made. Assuming:
 
@@ -207,13 +181,11 @@ Applies to a pooled lender claim denominated in one asset, with withdrawals reco
 
 > Pooled lender claims cover everything still owed on open withdrawal batches.
 
-| | |
-| --- | --- |
-| Component | `src/laws/PooledClaimsCoverOpenBatches.sol` |
-| Specimen | `specimens/FeeFromQueued.sol` |
-| Counterexample | `test/counterexamples/Claims.t.sol` |
-| Bounds | exact |
-| Reads | `totalLenderClaims`, `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt` |
+- Component: `src/laws/PooledClaimsCoverOpenBatches.sol`
+- Specimen: `specimens/FeeFromQueued.sol`
+- Counterexample: `test/counterexamples/Claims.t.sol`
+- Bounds: exact
+- Reads: `totalLenderClaims`, `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt`
 
 Applies to a pooled lender claim denominated in one asset, with withdrawals recorded as an ordered queue of individual claims that keep their position once made. Assuming:
 

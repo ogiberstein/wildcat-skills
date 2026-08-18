@@ -13,19 +13,16 @@ then a one-line fix rather than a transcription exercise.
 
 FAMILY_BLURB = {
     "conservation": (
-        "What the system holds, owes and has promised, held against each other.\n"
-        "Every one of these is a fact about a single state: the sums agree or they do\n"
-        "not, and no history is needed to say which."
+        "What the system holds, owes and has promised in one state. The sums agree\n"
+        "or they do not; no history is needed."
     ),
     "accrual": (
-        "How debt and claims move with time. None of these can be violated by any\n"
-        "single state, however wrong that state is, because the violation is in the\n"
-        "transition."
+        "How debt and claims move with time. The violation is in a transition, not\n"
+        "one state."
     ),
     "claims": (
-        "What a recorded withdrawal claim is owed, and in what order. These need the\n"
-        "withdrawal-queue extension, and a target without one reverts on the read\n"
-        "rather than being reported as orderly."
+        "What a recorded withdrawal claim is owed and in what order. These laws need\n"
+        "the withdrawal-queue extension; a target without one reverts on the read."
     ),
 }
 
@@ -52,17 +49,12 @@ deliberately broken specimen and a reduced counterexample. Use Fizz to generate
 a protocol-specific harness. The corpus holds %s; broader families remain in
 the planning specification.
 
-%s in %s, rendered for a reader. The catalogue itself is
-`catalogue/pandects.json`, and a test fails if this document and that file stop
-naming the same laws, so this is a rendering rather than a second source.
+%s in %s, rendered from `catalogue/pandects.json`. Regenerate it with
+`python3 scripts/pandects.py render`; a byte comparison rejects hand edits.
 
-Regenerate it with `python3 scripts/pandects.py render`. Editing it by hand is
-how a rendering becomes a second source.
-
-Every law here has six parts. It executes, it catches a contract written to
-break it, that failure has been reduced to a replay with no fuzzer in it, it
-says where it applies, its bounds are justified, and it judges rather than
-reverting. `python3 scripts/pandects.py check` refuses anything with fewer.
+Every law executes, catches a broken specimen, has a reduced replay, states its
+applicability, justifies its bounds and judges without reverting.
+`python3 scripts/pandects.py check` refuses anything with fewer than six parts.
 """
 
 
@@ -113,13 +105,12 @@ def render(catalogue):
         for law in laws:
             applicability = law.get("applicability") or {}
             lines += ["### `%s`" % law.id, "", "> %s" % law.get("statement"), ""]
-            lines += ["| | |", "| --- | --- |"]
-            lines += ["| Component | `%s` |" % law.get("component")]
-            lines += ["| Specimen | `%s` |" % law.get("specimen")]
-            lines += ["| Counterexample | `%s` |" % law.get("counterexample")]
-            lines += ["| Bounds | %s |" % bounds_text(law.get("bounds"))]
+            lines += ["- Component: `%s`" % law.get("component")]
+            lines += ["- Specimen: `%s`" % law.get("specimen")]
+            lines += ["- Counterexample: `%s`" % law.get("counterexample")]
+            lines += ["- Bounds: %s" % bounds_text(law.get("bounds"))]
             lines += [
-                "| Reads | %s |"
+                "- Reads: %s"
                 % ", ".join("`%s`" % name for name in applicability.get("requires", []))
             ]
             lines += [

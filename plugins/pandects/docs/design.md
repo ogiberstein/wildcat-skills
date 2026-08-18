@@ -4,9 +4,8 @@
 > **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
-The specification is `specs/pandects.md` in the repository this was built in. This study fixes the
-reading the runbook builds from, records the experiments that decided the
-architecture, and says where the spec left a choice open.
+The source specification is `specs/pandects.md`. This document records the
+architecture experiments and resolves choices the specification left open.
 
 ## Problem statement
 

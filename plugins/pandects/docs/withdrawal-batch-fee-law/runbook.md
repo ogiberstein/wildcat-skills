@@ -3,16 +3,15 @@
 Built from `.hexaemeron/study.md`. Base `loop/2026-08-18-kronos` at `9ad3c59`;
 every step branches in the chain and every pull request targets that branch.
 
-Four steps. The second is large and the study says why: `pandects.py check`
+Four steps. Step 2 stays whole because `pandects.py check`
 refuses a law missing any of its six parts, and `test/Corpus.t.sol` requires the
 reference to hold every law, so the law, the two model corrections, the specimen,
 the counterexample and the catalogue entry cannot be separated without handing
-the next step a red tree. Splitting them would buy a smaller diff and pay for it
-with a step that is green at neither end.
+the next step a red tree.
 
-The documents land as `plugins/pandects/docs/withdrawal-batch-fee-law/`, matching
-the frontier revision and the subdirectory convention a second frontier run on an
-existing plugin already uses in this repository.
+The documents live under
+`plugins/pandects/docs/withdrawal-batch-fee-law/`, matching the frontier
+revision and second-frontier-run convention.
 
 ## Step 1: Land the spec documents
 
@@ -24,13 +23,10 @@ passed, plugin catalogue suite 106 passed, repository suite 20 passed,
 `pandects.py check` nine laws.
 
 **Exit.** Both documents committed under
-`plugins/pandects/docs/withdrawal-batch-fee-law/`, carrying no
-marketplace-context block. That follows the closest precedent in this
-repository: a first frontier run puts its study at the top of `docs/` and
-carries the block, and the one earlier second run puts its study in a named
-subdirectory and does not. The prose gate skips a document without the block, so
-`python3 -m unittest discover -s tests` stays green and step 4 has two fewer
-surfaces to reconcile.
+`plugins/pandects/docs/withdrawal-batch-fee-law/`, without a marketplace-context
+block. First frontier studies at the top of `docs/` carry it; the earlier
+second run in a named subdirectory does not. The prose gate therefore leaves
+these records unchanged, and `python3 -m unittest discover -s tests` stays green.
 
 **Files.** `plugins/pandects/docs/withdrawal-batch-fee-law/study.md`,
 `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md`.
@@ -100,8 +96,7 @@ reach it.
 
 ### Amended during step 2
 
-Four things this step turned out to need, recorded here because the runbook was
-wrong about where they belonged rather than because the plan changed.
+Step 2 required four placement corrections.
 
 **`claims/reserves-cover-payable/v1` loses its evidence.** Its specimen and
 counterexample ran `deposit(1)`, `reserve(1)`, `reserve(1)`, which records two
@@ -141,7 +136,6 @@ engines found.
 **Exit.** Echidna and Medusa both drive the new specimen and both report the
 violation, and the harness exposes it under `echidna_` and `property_`.
 
-Two mechanisms carry the evidence and they are not interchangeable.
 `python3 scripts/pandects.py run` writes a machine search record, and it knows one
 engine: `foundry`. It has no Echidna or Medusa support, and an engine that did not
 run is absent from a record rather than present and empty, which is the runner's
@@ -210,7 +204,7 @@ marketplace-context block only, `skills/pandects/SKILL.md`,
 **Tests.** No new tests. The repository prose suite and `pandects.py check` are
 the gates.
 
-**Watch.** Three things, each a way to leave the record wrong.
+**Watch.** Three record boundaries.
 
 The Wildcat applicability document was updated in step 2, because a test requires
 every catalogued law to appear in it. Nothing is left to do there. It reads "Ten

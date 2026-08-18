@@ -4,28 +4,21 @@
 > **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
-Pandects contains one Agent Skill. Select from this table, then read the chosen
-`SKILL.md` in full.
-
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `pandects` | `skills/pandects/SKILL.md` | Check a credit protocol against executable laws, or write a new law for the corpus |
+Pandects contains one Agent Skill: read `skills/pandects/SKILL.md` in full to
+check a credit protocol against executable laws or write a corpus law.
 
 `skills/pandects/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
 
 ## Translate tool names by capability
 
-The canonical skill was written for hosts that name their tools. A local agent
-must map those names to equivalent capabilities:
+Map the canonical skill's tool names to these capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+- `Read`: read the named file completely or at the stated range.
+- `Write` or `Edit`: create or patch the named file.
+- `Bash`: execute the command and inspect its exit status.
+- `Glob`, `Grep`, or `find`: enumerate or search the stated pattern.
+- `AskUserQuestion`: ask through structured UI or concise text.
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent local

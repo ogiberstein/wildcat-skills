@@ -4,8 +4,7 @@
 > **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
-The rules a law obeys, stated once here rather than nine times in nine
-docstrings.
+These rules apply to every law.
 
 ## What a law may read
 
@@ -14,11 +13,9 @@ debt, total lender claims, reserved and borrowable assets, accrued fees, and
 the time the observation describes. A target implements it, or a thin adapter
 does, and that adapter is the only place a protocol's own names appear.
 
-`IWithdrawalQueueObservables` adds the claim count, each claim's owed and paid
-amounts, and the bound through which the system declares claims payable. It is
-separate because a system with no queue would implement three members and mean
-none of them, and an observable that means nothing is worse than an absent one:
-it reports zero, and zero reads like an answer.
+`IWithdrawalQueueObservables` adds the claim count, owed and paid amounts, and
+the payable bound. It stays separate because a system without a queue would
+implement three meaningless members; zero would then look like an answer.
 
 A law that named a protocol's own functions would be a law about one codebase.
 The corpus exists because the same economic facts hold across codebases that
@@ -28,9 +25,8 @@ share nothing else.
 
 A `Law` judges one observed state. A `PairLaw` judges two observations.
 
-Nothing else. The shape follows from the fact: if a single state can violate
-it, it is a `Law`, and if the violation lives in a transition, it is a
-`PairLaw`.
+If one state can violate the fact, use `Law`; if the violation lives in a
+transition, use `PairLaw`.
 
 Three pair laws compare a system with its own past. One compares two systems
 advanced over the same span by different routes. A law says which in its
@@ -38,8 +34,6 @@ applicability, because reading one the wrong way round is the mistake available
 to everyone.
 
 ## A pair a law cannot judge
-
-Ask whose mistake the pair is.
 
 A pair that spans real time, or that shows a system somewhere the law says
 nothing about, is a state of the world. Hold, and say why.
@@ -67,24 +61,18 @@ counts a revert. What an unobservable state means is the adapter's decision.
 
 Exact, or a tolerance naming the arithmetic that produces it.
 
-The distinction is not pedantry. An epsilon chosen because it made a test pass
-will absorb the next real defect that lands under it, and nobody will be able
-to say whether it should have.
+An epsilon chosen because it made a test pass can absorb the next defect
+without any arithmetic saying it should.
 
 ## Applicability is a contract in two directions
 
-A law's applicability says what a design must provide for the law to mean
-anything. That is the direction it is usually read.
-
-The other direction is what `integrations/wildcat/` is for. Pointed at a real
-design, the same contract has to say which laws that design supports and under
-what conditions, and two of the answers there are not yes or no.
+A law's applicability says what a design must provide. Against a real design,
+as in `integrations/wildcat/`, it also says which laws hold and under what
+conditions; two Wildcat answers are not yes or no.
 
 `claims/queue-order-preserved/v1` is true of a Wildcat market at batch
-granularity and says nothing per lender, because a batch is paid pro rata and
-no lender in one is ahead of another. The law is right; the unit is the whole
-finding, and a corpus that let the two readings blur would be quietly wrong
-about somebody's protocol.
+granularity and says nothing per lender because a batch pays pro rata. The unit
+is part of the finding; blurring it misstates the protocol.
 
 `accrual/path-independent/v1` holds for a solvent market and stops holding once
 penalty accrual is running, because the grace timer advances when the market is

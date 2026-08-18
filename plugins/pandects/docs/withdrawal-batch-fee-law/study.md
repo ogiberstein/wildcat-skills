@@ -8,13 +8,12 @@ Topic: `Pandects: withdrawal-batch-fee law`. Base: `loop/2026-08-18-kronos` at
 Pandects ships nine laws. None of them notices when a fee takes value that has
 already been promised to a lender who asked to leave.
 
-That is not a reading of the code. It is a state, reached in five calls against
-the plugin's own Wildcat model:
+Five calls against the plugin's Wildcat model reach this state:
 
-| | claims | owed on open batches | reserved | held | fees |
-| --- | --- | --- | --- | --- | --- |
-| deposit 1000, borrow 1000, request 1000 | 1000 | 1000 | 200 | 200 | 0 |
-| then `accrueFee` | **200** | **1000** | 200 | 200 | 800 |
+- After `deposit 1000`, `borrow 1000`, `request 1000`: claims 1000; owed on
+  open batches 1000; reserved 200; held 200; fees 0.
+- After `accrueFee`: claims **200**; owed on open batches **1000**; reserved
+  200; held 200; fees 800.
 
 The market is delinquent, holds 200 because the borrow left the twenty per cent
 required reserve, and owes 1000 on one open batch. The fee takes 800 of it. The

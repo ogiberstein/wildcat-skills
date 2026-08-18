@@ -140,7 +140,7 @@
       "displayName": "Pandects",
       "source": "./plugins/pandects",
       "description": "Executable credit laws with broken specimens and reduced counterexamples.",
-      "version": "0.1.0",
+      "version": "1.2.0",
       "author": {
         "name": "Wildcat Labs",
         "url": "https://wildcat.finance"

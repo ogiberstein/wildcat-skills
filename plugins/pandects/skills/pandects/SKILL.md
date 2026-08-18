@@ -9,7 +9,7 @@ description: >
   generate a harness for one repository; that is fizz. Never report a campaign
   under an engine that did not run.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Pandects
@@ -20,6 +20,7 @@ Pandects owns its own executable-law frontier, not Hexaemeron's delivery or
 Solidity frontier. Its version, held target, next job, and maturity
 state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
 another frontier pass after that ledger becomes mature.
+This prose generation moved from 1.1.0 to 1.2.0; the frontier did not move.
 
 <!-- marketplace-context:start -->
 ## Where this sits
@@ -101,18 +102,15 @@ python3 scripts/pandects.py laws
 python3 scripts/pandects.py check
 python3 scripts/pandects.py run --out search-record.json
 python3 scripts/pandects.py render
+forge test
 ```
 
 `laws` lists the catalogue with each law's applicability. `check` refuses a law
 missing any of its six parts, naming the part rather than the file. `run`
-searches and writes down how it searched. `render` writes `docs/catalogue.md`
-out of the catalogue, which is the only thing that should ever write it.
+searches and writes down how it searched. `render` alone writes
+`docs/catalogue.md`. `forge test` runs the corpus.
 
 Exit codes: 0 success, 1 a check failed, 2 usage or validation error.
-
-```bash
-forge test
-```
 
 runs every law against every specimen and asserts the diagonal: each law fails
 the specimen written for it and holds against the others. The corpus takes no
