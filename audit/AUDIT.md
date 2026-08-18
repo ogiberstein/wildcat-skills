@@ -1528,3 +1528,18 @@ Zero findings. Leads not pursued: the specification's closing note names
 nested .gitattributes and corroborated exclusions as the largest gains;
 both landed, and the recapture evidence for real trees belongs to the
 third job.
+
+## Refinement run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0 (the git subprocess carries its
+allow comment naming fixed argv, no shell, pinned cwd), ephoros 0. Horos
+165/165, root 24/24, verified before the receipt. The review held the
+register's rows: ignored files never enter any universe, the widened mode
+still excludes them, aggregation counts only universe members, check
+reproduces the committed universe, and the fixture's tracked label is safe
+because running the suite presupposes a git clone.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
