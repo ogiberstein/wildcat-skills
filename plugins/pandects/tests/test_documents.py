@@ -387,6 +387,51 @@ class ShippedAdapterTests(unittest.TestCase):
                     % (specimen, law.id),
                 )
 
+    def test_the_campaign_explanation_is_as_wide_as_the_laws_it_carries(self):
+        """`explain` gives one reason per law the harness carries.
+
+        The third place in this plugin where a law count is written twice, after
+        the rendered catalogue and the adapter's `explainOneState`. A campaign that
+        falsifies a property and then returns a reason short sends the reader back
+        to the call trace, which is what `explain` exists to avoid.
+        """
+        source = self.sources[self.CAMPAIGN]
+        signature = re.search(
+            r"function explain\(\)\s*external\s*view\s*returns \(string\[(\d+)\] memory",
+            source,
+        )
+        self.assertIsNotNone(signature, "explain is not declared as expected")
+        width = int(signature.group(1))
+        carried = [
+            law for law in self.catalogue.laws if law.id not in self.NOT_IN_CAMPAIGN
+        ]
+        self.assertEqual(
+            width,
+            len(carried),
+            "explain returns %d reasons for %d laws in the harness"
+            % (width, len(carried)),
+        )
+
+        body = source[source.index("function explain()") :]
+        body = body[: body.index("\n    }")]
+        bound = dict(
+            re.findall(r"Law internal immutable (\w+) = new (\w+)\(\)", source)
+        )
+        bound.update(
+            re.findall(r"PairLaw internal immutable (\w+) = new (\w+)\(\)", source)
+        )
+        explained = set(re.findall(r"details\[\d+\]\) = (\w+)\.check", body))
+        for law in carried:
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            variable = next(n for n, made in bound.items() if made == component)
+            with self.subTest(law=law.id):
+                self.assertIn(
+                    variable,
+                    explained,
+                    "%s is carried by the harness and explain gives no reason for it"
+                    % law.id,
+                )
+
     def _is_one_state(self, component):
         """A one-state law extends `Law`; a pair law extends `PairLaw`.
 

@@ -590,3 +590,28 @@ which is the behaviour a check guarding against silence should have.
 
 Leads not pursued: the four accepted at the close of step 2 stand, and none of them
 is touched by this step.
+
+## Withdrawal batch fee law, step 3, round 2 -- 2026-08-18
+
+Reviewed: the tree with round 1 applied, then the harness's own reporting path,
+which no round had opened. The properties were right and the thing that tells you
+why one failed was not.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | medium | `src/campaigns/Specimens.sol` | `explain` returned eight reasons for the nine laws the harness now carries, and the missing one was the new law's. That function exists so a reader replaying a falsified sequence gets the law's own words with the numbers in them rather than reconstructing them from a call trace, and for the one law this run added it returned nothing. Both engines had already falsified that property, so the failure was reachable and its reason was not. This is the same defect as `explainOneState` in step 2, which is the third place in the plugin where a law count is written twice. | Fixed in this round: `explain` returns nine, the new law's reason sits with the one-state group, and the three pair-law positions moved by one. `test_the_campaign_explanation_is_as_wide_as_the_laws_it_carries` holds the width and the contents to the catalogue; narrowing it back and hollowing the entry each fail for their own reason. |
+| S3-R2-02 | low | `src/campaigns/Specimens.sol` | The comment on `FeeFromQueuedCampaign` said reaching the property needs three things and listed a deposit, a borrow and a fee. It needs four. The withdrawal request is the one it left out and the one that matters: with no recorded claim nothing is owed, and with a claim no larger than what is held the earmark covers it and the cap does not leak. Echidna's own shrink is four calls. | Fixed in this round: the comment names four, says which one the earlier draft dropped and why it is the load-bearing one. |
+
+**What the index shift caught on the way.** `test/Explain.t.sol` read positions as
+numerals, so inserting a one-state law in the middle of that group moved every
+pair-law index by one and the compiler only objected to the width. A test asserting
+`details[6]` carried a pair law's reason would have gone on passing against a
+different law's reason had the widths happened to agree. The positions are named
+constants now, with the reason written where they are declared.
+
+**What ran.** 78 Solidity tests under forge 1.7.1, up from 77 by the reason
+assertion for the new law, 115 Python tests, up from 114 by the width check, the
+repository's 20, and `pandects check` over ten laws. No engine re-run: `explain` is
+not a property and no property changed.
+
+Leads not pursued: the four accepted at the close of step 2. None is touched here.
