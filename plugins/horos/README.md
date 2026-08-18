@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** Two trees are censused; whether Solidity or anything else earns the next extractor stays undecided until more protocol and UI repositories are on the record.
+**Current frontier.** Ingested external repositories are expected to carry Go and C++, and map reads neither.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Census several more live Wildcat repositories, protocol and UI alike, recording each as evidence, then decide the next extractor from the accumulated breakdowns. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Build the Go outline extractor in the languages registry: verbatim declaration slices, confessed unparsed regions, a dev-time differential corpus over a live external repository. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
