@@ -177,7 +177,13 @@ python3 scripts/pandects.py run --out search-record.json
 
 The record names the engine, the argv, the determinism class, the
 configuration read out of `foundry.toml` rather than restated, the sequence
-length, and a digest of the corpus that was searched. It is shaped as an
+length, and a digest of the corpus that was searched.
+
+`run` knows one engine, and it is Foundry. It emits no entry for Echidna or
+Medusa, and an engine that did not run is absent from a record rather than
+present and empty, so a campaign under either of those is not recorded by this
+command at all. Write it down where the run is reported. That gap is the corpus's
+held frontier, stated at the top of this file. It is shaped as an
 `ariadne` command entry, so a result drops into a release statement without
 translation -- shaped as, not built by: the two plugins share no code and a
 test pins the shape from this side.

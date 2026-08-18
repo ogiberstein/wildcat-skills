@@ -766,3 +766,137 @@ searched them.
 Leads not pursued: the four accepted at the close of step 2, none of them touched by
 this step, and the Medusa coverage asymmetry above, which is a stated limit rather
 than a defect.
+
+## Withdrawal batch fee law, step 4, round 1 -- 2026-08-18
+
+Reviewed: every document the step touched, the ledger against the versioning
+contract, and the branch the step was built on. This step ships prose and a ledger
+entry, so `x-ray`, `solidity-auditor` and `fizz` had no Solidity to read and none of
+them ran. Saying so rather than recording a zero, for the reason step 3 round 5 gave.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/pandects/audit/AUDIT.md` | The plugin's own audit log records this run's whole subject as a lead not pursued, closing with "No law covers it. It is a real gap and a new law rather than a fix to this one." A law covers it now, and nothing in that log said so. Its historical rounds stay as written, which is right, but that left a reader of the plugin's own record meeting an open gap that had been closed in another file. The same log also carries the `slither_results.json` lead, which this run closed in step 2 round 2. | Fixed in this round: a "Leads closed since" section says what became of both, names the law, the specimen, the reduced counterexample and where the run is recorded, and states which leads remain untouched. No historical round was edited. |
+| S4-R1-02 | medium | this log | The step was branched from a stale `origin/loop/2026-08-18-kronos`, taken before step 3's pull request merged, so the tree it was verified against did not contain step 3. The demo path caught it: `forge test` reported 77 where step 3 had closed at 79. Merging would not have reverted step 3, because the merge base was below it, but every number in the step's receipt would have described a tree that was never going to ship. | Fixed before the step was committed: the branch was reset to the current tip and the twelve-file change reapplied, which it did cleanly because step 3 and step 4 share no file. Re-verified after replanting: 79 Solidity tests, ten laws, no catalogue drift. Recorded here rather than left in the reflog, because the receipt would have carried the wrong evidence and only a count nobody was checking on purpose revealed it. |
+
+**The ledger, against the contract.** `pandects-v0.1.0` becomes `pandects-v1.1.0`:
+the evolution counter moves once for a completed frontier job, generation and epoch
+are retained, and `SKILL.md` frontmatter matches the ledger. The frontier revision
+moves from `withdrawal-batch-fee-law` to `search-record-engine-coverage`, which an
+evolution entry is allowed to do and a generation entry is not. The recorded SHA-256
+was recomputed from the four ledger fields as written, including the trailing
+newline, and matches the digest in the history row.
+
+**The new frontier, and why it is not mature.** The contract asks whether another
+pass has a concrete evidenced chance of material improvement. It does, and the
+evidence is this run's own log: rounds in steps 2 and 3 recorded Echidna and Medusa
+results as prose because `pandects run` emits one engine, `foundry`, and nothing
+else. A corpus whose argument is that a campaign result means nothing without its
+search record can machine-record one of the three engines it uses. That is a gap
+this run demonstrated rather than one chosen from a list.
+
+**What was reconciled.** Twelve documents carried the old frontier sentence and all
+twelve carry the new one. Five prose law counts said nine and say ten. Two others say
+nine and are right: one counts the laws other than this one, and one is about a
+lexicon. `docs/catalogue.md` was regenerated rather than edited and produced no
+diff, because it already counted ten from the catalogue.
+
+**What ran.** The repository's 20 tests including the marketplace prose gate, 116
+plugin tests, 79 Solidity tests under forge 1.7.1, `pandects laws` printing ten with
+their applicability, `pandects check` over ten laws, and `pandects render` with no
+drift.
+
+Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
+asymmetry stated in step 3 round 6.
+
+## Withdrawal batch fee law, step 4, round 2 -- 2026-08-18
+
+Reviewed: the tree with round 1 applied, then every count and claim in browsing prose
+that the run had touched or should have. One it had not touched.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | medium | `README.md` | The repository README says how many of the corpus's laws carry no tolerance, and it still said eight. Nine of the ten are exact; only `accrual/path-independent/v1` carries a bound. Step 4 had corrected the same claim in the plugin's own README and missed this one, so the two documents disagreed with each other and one of them disagreed with the catalogue. | Fixed in this round: nine, taken from the catalogue's `bounds` field rather than counted by eye. |
+| S4-R2-02 | medium | `tests/test_marketplace_prose.py` | Nothing held either README's corpus counts to the catalogue. The rendered document derives both of its counts, the adapters are held to theirs by the plugin's suite, and these two were hand-written sentences that a frontier run adding a law simply has to remember. This run corrected five of them and missed the sixth, which is the whole argument. | Fixed in this round: `test_pandects_prose_counts_the_laws_the_catalogue_holds` derives the total, the exact count and the family count from the catalogue and requires both documents to state them. Each of the three anchored claims was made to fail on its own before the test was kept. |
+
+**The mirror, checked and clean.** `.agents/skills/pandects/SKILL.md` was compared with
+the canonical skill in case the version bump had left them disagreeing. It is a
+deliberately different document, a short routing entrypoint with its own description
+and no frontmatter version, and no other plugin's mirror carries a version either. The
+frontier sentence is the part they share and the prose gate already holds it.
+
+**The ledger, machine-checked rather than read.** `tests/test_evolution_contract.py`
+holds every governed ledger to the versioning contract, and it passes on this entry:
+the frontmatter version matches the ledger, the recorded SHA-256 matches the digest of
+the current status line, and the axis rules allow an evolution entry to move the
+frontier revision where a generation entry may not. The reading in round 1 was right
+and this is the part of it that did not depend on my reading.
+
+**What ran.** The repository's 21 tests, up from 20 by the count gate, 116 plugin
+tests, 79 Solidity tests under forge 1.7.1, and the demo path: ten laws printed, ten
+laws with every part present, no catalogue drift. No Solidity in this step, so the
+Pashov pair and `fizz` had nothing to read and did not run.
+
+Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
+asymmetry from step 3 round 6.
+
+## Withdrawal batch fee law, step 4, round 3 -- 2026-08-18
+
+Reviewed: whether the frontier this step declares is visible where a reader would meet
+it. The ledger names a gap in the search-record runner. Two documents describe that
+runner and neither said the gap existed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R3-01 | medium | `plugins/pandects/README.md` | "Saying how it was searched" opens with "A campaign result without its settings is an anecdote" and then hands the reader `pandects run`, without saying that the command emits the Foundry campaign and nothing else. A reader who has just run Echidna or Medusa, which this plugin ships adapters and a configuration for, would look for a record the tool cannot produce. The section names `foundry.toml` and so is not false; it is silent exactly where the corpus's own held frontier says the gap is. | Fixed in this round: the section says `run` knows one engine, that an engine which did not run is absent rather than empty, that a campaign under either fuzzer is not recorded by the command, and that widening it is the held frontier. |
+| S4-R3-02 | medium | `plugins/pandects/adapters/medusa/README.md` | The adapter document says "A Medusa record therefore carries the engine, the configuration, the sequence length and the corpus digest", which describes such records as things this plugin produces. Nothing produces them. It is the document somebody reads to learn how to run Medusa here, so it is the worst place for that to be implied. | Fixed in this round: the record is described as written by hand, with `pandects run` named as emitting Foundry and no other engine, and the widening named as the frontier. |
+
+**Why these count as reconciliation rather than new work.** The held job asks for a
+cold read of mutable first-party marketplace prose, and the step had read it for law
+counts and the frontier sentence. It had not read it against the frontier it was
+about to declare. A ledger that names a gap while the two documents describing that
+tool imply it is filled is a record disagreeing with itself, which is the same defect
+class as a count written twice.
+
+**What ran.** The repository's 21 tests, 116 plugin tests, 79 Solidity tests under
+forge 1.7.1, and the demo path: ten laws printed, ten laws with every part present, no
+catalogue drift. No Solidity in the diff, so the Pashov pair and `fizz` had nothing to
+read and did not run.
+
+Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
+asymmetry from step 3 round 6.
+
+## Withdrawal batch fee law, step 4, round 4 -- 2026-08-18
+
+Reviewed: the fixed tree, the gates the earlier rounds added, and one last read for
+anything still describing the closed frontier as open.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed tree has no open finding. | clean |
+
+**Nothing still calls the gap open.** No document or contract outside the audit logs
+and this run's own spec describes a fee reducing pooled claims below what open batches
+are owed as uncovered. `src/laws/ReservesCoverPayableClaims.sol` still says no law
+covers a claim paid beyond what it was owed, which remains true and is a different
+defect. `docs/applicability.md` names two laws as examples of qualified applicability,
+and both readings still hold.
+
+**The frontier agrees everywhere.** The new sentence appears once per surface across
+all twelve documents that carry a marketplace-context block, and matches the row in the
+repository README's selection table. The other nine plugins' frontiers are untouched.
+
+**The gates, re-proved.** Setting the repository README's exact count back to eight
+fails the count gate. Desyncing the ledger label from the frontmatter fails two
+evolution-contract checks at once, which is the right answer: the label and the digest
+are separate claims.
+
+**What ran.** The repository's 21 tests, 116 plugin tests, 79 Solidity tests across ten
+suites under forge 1.7.1 and solc 0.8.28, and the demo path from the study's problem
+statement: `pandects laws` printing ten with their applicability, `pandects check` over
+ten laws with every part present, and `pandects render` producing no drift. No Solidity
+in this step at any round, so `x-ray`, `solidity-auditor` and `fizz` had nothing to read
+and none of them ran; the reading passes are these four rounds.
+
+Leads not pursued: the four accepted at the close of step 2, unchanged and none of them
+touched by this step, and the Medusa coverage asymmetry stated in step 3 round 6.
