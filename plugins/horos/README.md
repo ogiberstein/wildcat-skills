@@ -47,6 +47,17 @@ file on one line. The committed boundary sends the reading budget to `src/`
 instead, `check` catches the day the boundary goes stale, and a skeleton map
 orients the agent in a thousand-line module without opening it whole.
 
+## Adopting a boundary in any repository
+
+The boundary binds agents that carry this skill; everyone else's agents
+learn it from the adopting repository's own instructions file. `scan
+--write` prints a short stanza for that repository's AGENTS.md or CLAUDE.md:
+consult `.horos/boundary.json` before reading broadly, leave listed paths
+unread unless the task demands one, and never apply the boundary during
+security review. Harnesses load those files at session start, so one paste
+makes the boundary effective for any instruction-following agent, with no
+install.
+
 ## Where it is honest about limits
 
 Classification is fail-open. A file Horos cannot evidence stays readable, so

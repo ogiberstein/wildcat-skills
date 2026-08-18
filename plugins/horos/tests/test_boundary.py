@@ -122,6 +122,21 @@ class BoundaryTests(unittest.TestCase):
         paths = [entry["path"] for entry in self.document()["entries"]]
         self.assertNotIn(horos.BOUNDARY_RELPATH, paths)
 
+    def test_a_write_prints_the_adoption_stanza(self):
+        with mock.patch.object(sys, "stdout", new=io.StringIO()) as stdout:
+            code = horos.main(["scan", self.root, "--write"])
+        self.assertEqual(code, 0)
+        output = stdout.getvalue()
+        self.assertIn("## Reading boundary", output)
+        self.assertIn("never\napplies during security review", output)
+        self.assertIn("AGENTS.md or CLAUDE.md", output)
+
+    def test_json_output_stays_pure_even_with_write(self):
+        with mock.patch.object(sys, "stdout", new=io.StringIO()) as stdout:
+            code = horos.main(["scan", self.root, "--json", "--write"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), horos.render(self.document()))
+
     def test_the_cli_json_output_is_the_rendered_document(self):
         with mock.patch.object(sys, "stdout", new=io.StringIO()) as stdout:
             code = horos.main(["scan", self.root, "--json"])

@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Horos
@@ -82,6 +82,11 @@ recorded capture at
    enough.
 4. Classification is fail-open, so the boundary understates the sinks. What
    it lists is evidenced; what it omits is merely unproven.
+5. When writing a boundary into a repository other agents will work in, add
+   the adoption stanza that `scan --write` prints to that repository's
+   AGENTS.md or CLAUDE.md. Agent harnesses load those files at session
+   start, so the discipline travels with the repository; without the
+   stanza, the boundary binds only agents carrying this skill.
 
 ## The one rule that outranks the rest
 

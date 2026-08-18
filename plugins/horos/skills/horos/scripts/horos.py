@@ -290,6 +290,24 @@ def scan_tree(root):
 BOUNDARY_RELPATH = ".horos/boundary.json"
 BOUNDARY_SCHEMA = 1
 
+# Printed after a boundary write, for the adopting repository's AGENTS.md or
+# CLAUDE.md. This is the whole bridge to agents that have never heard of
+# Horos: harnesses load those files at session start, so the discipline
+# travels with the repository instead of with this skill.
+ADOPTION_STANZA = """\
+Paste this into the repository's AGENTS.md or CLAUDE.md so agents without
+Horos inherit the boundary:
+
+## Reading boundary
+
+Before reading this repository broadly, consult `.horos/boundary.json`.
+Every path listed there is a classified token sink carrying the evidence
+that earned its entry; leave those paths unread unless the task demands
+one. The boundary is fail-open: what it omits is merely unproven. It never
+applies during security review; during any audit, review or incident work,
+read as if no boundary exists.
+"""
+
 
 def boundary_document(result):
     """The committed artefact: schema-tagged, no timestamps, no absolute paths."""
@@ -461,6 +479,9 @@ def main(argv=None):
         for key, value in sorted(document["counts"].items()):
             print(f"{key}: {value}")
         print(f"entries: {len(document['entries'])}")
+        if args.write:
+            print()
+            print(ADOPTION_STANZA, end="")
     return 0
 
 
