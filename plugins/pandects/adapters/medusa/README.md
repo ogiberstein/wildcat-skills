@@ -8,11 +8,30 @@
 the target is the only part that is yours: the contract extending
 `CorpusMedusa` or `DrivenCorpusMedusa` and naming your system.
 
-Fill it in, or pass it on the command line and skip the file:
+Fill it in. Copy the file, name your harness in `targetContracts`, and point
+Medusa at the copy:
+
+```bash
+medusa fuzz --compilation-target . --config your-medusa.json
+```
+
+There is a shorter route and it does not run these settings:
 
 ```bash
 medusa fuzz --compilation-target . --target-contracts YourHarness --test-limit 20000
 ```
+
+That works, and it works under Medusa's own defaults, because naming a target on
+the command line means not passing `--config` at all. Assertion testing is on by
+default and off in this file, so the run is a different search from the one this
+file describes. A record calling it the shipped configuration would be wrong
+about the configuration.
+
+Passing both is worse than either. With `--config` given, the file's empty
+`targetContracts` wins over `--target-contracts`, Medusa finds no tests, and it
+exits with `no assertion, property, optimization, or custom tests were found to
+fuzz` before searching anything. That is the failure this file warns about at the
+bottom, arriving from the command line instead of from the artefacts.
 
 The settings match `adapters/echidna/echidna.yaml` wherever the two engines
 have the same knob: twenty thousand transactions, sequences up to sixty-four

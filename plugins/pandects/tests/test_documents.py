@@ -153,6 +153,168 @@ class RendererTests(unittest.TestCase):
         self.assertNotIn("Nothing-here", body)
 
 
+class ShippedAdapterTests(unittest.TestCase):
+    """Every law reaches the adapter an integrator actually inherits.
+
+    `adapters/CorpusBase.sol` names its laws one by one, in Solidity, with no
+    view of the catalogue. So a law added to the catalogue does not arrive there,
+    and nothing about a green suite says it did not: the adapter compiles, every
+    test passes, and an integrator runs one law fewer than the document they read
+    promises. This is the check that has to exist for the same reason the
+    integration-notes check does.
+    """
+
+    #: Every shipped file that names laws for somebody else to inherit. Round 4
+    #: of this step gated the first and missed the second, which is the argument
+    #: for a list rather than a path: `CorpusBase` holds the law objects and
+    #: `CorpusInvariants` decides which of them a Foundry run actually asserts,
+    #: so a law in the first and not the second is still a law nobody asks.
+    BASE = os.path.join(PLUGIN_ROOT, "adapters", "CorpusBase.sol")
+
+    #: The shipped files that decide which of the bound laws a run actually asks,
+    #: one per engine an integrator might reach for. Rounds 4 and 5 of this step
+    #: each gated one file and each missed the next, so this is a list of every
+    #: such surface rather than the one that happened to be in hand.
+    ASSERTING = (
+        os.path.join(PLUGIN_ROOT, "adapters", "foundry", "CorpusInvariants.sol"),
+        os.path.join(PLUGIN_ROOT, "adapters", "echidna", "CorpusEchidna.sol"),
+        os.path.join(PLUGIN_ROOT, "adapters", "medusa", "CorpusMedusa.sol"),
+    )
+    ADAPTERS = (BASE,) + ASSERTING
+
+    #: Compares two systems advanced over the same span by different routes, so
+    #: an adapter holding one target cannot offer it and does not pretend to.
+    #: `adapters/foundry/PathIndependenceProbe.sol` is where it lives instead.
+    #: Pinned as an exact set rather than a skip list, so a second exclusion has
+    #: to be argued for here rather than added quietly.
+    NOT_IN_ADAPTER = {"accrual/path-independent/v1"}
+
+    def setUp(self):
+        with open(SHIPPED, encoding="utf-8") as handle:
+            self.catalogue = catalogue_module.parse(json.load(handle))
+        self.sources = {}
+        for path in self.ADAPTERS:
+            with open(path, encoding="utf-8") as handle:
+                self.sources[path] = handle.read()
+
+    def test_every_law_the_adapter_can_offer_is_in_it(self):
+        """`CorpusBase` names the law objects an integrator inherits."""
+        source = self.sources[self.BASE]
+        for law in self.catalogue.laws:
+            if law.id in self.NOT_IN_ADAPTER:
+                continue
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            with self.subTest(law=law.id):
+                self.assertIn(
+                    component,
+                    source,
+                    "%s is catalogued and the shipped adapter does not carry it"
+                    % law.id,
+                )
+
+    def test_every_one_state_law_is_asserted_by_every_engine_adapter(self):
+        """And each engine adapter decides which of them a run asks.
+
+        Carrying a law object and never asserting it is the same silence as not
+        carrying it, arriving one file later. So this maps the variable names
+        `CorpusBase` binds its components to, then checks that every shipped
+        adapter which asserts laws asserts the one-state ones.
+        """
+        bound = dict(
+            re.findall(
+                r"Law internal immutable (\w+) = new (\w+)\(\)",
+                self.sources[self.BASE],
+            )
+        )
+        for law in self.catalogue.laws:
+            if law.id in self.NOT_IN_ADAPTER:
+                continue
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            variables = [name for name, made in bound.items() if made == component]
+            with self.subTest(law=law.id):
+                self.assertEqual(
+                    len(variables),
+                    1,
+                    "%s is not bound exactly once in %s"
+                    % (law.id, os.path.basename(self.BASE)),
+                )
+            if not self._is_one_state(component):
+                continue
+            for path in self.ASSERTING:
+                asserted = set(
+                    re.findall(r"judge\((\w+)\)", self.sources[path])
+                ) | set(
+                    re.findall(r"(\w+)\.check\(target\(\)\)", self.sources[path])
+                )
+                with self.subTest(law=law.id, adapter=os.path.basename(path)):
+                    self.assertIn(
+                        variables[0],
+                        asserted,
+                        "%s is carried by the adapter and asked by nothing in %s"
+                        % (law.id, os.path.basename(path)),
+                    )
+
+    def test_the_explanation_is_as_wide_as_the_one_state_laws(self):
+        """`explainOneState` returns one reason per one-state law.
+
+        The width is a second copy of a number the catalogue already holds, so it
+        needs checking from outside the file that states it. An adapter one entry
+        short returns an integrator fewer reasons than the document promises, and
+        the entry it drops is the one added last.
+        """
+        source = self.sources[self.BASE]
+        signature = re.search(
+            r"function explainOneState\(\)\s*public\s*view\s*"
+            r"returns \(string\[(\d+)\] memory",
+            source,
+        )
+        self.assertIsNotNone(signature, "explainOneState is not declared as expected")
+        width = int(signature.group(1))
+
+        one_state = [
+            law
+            for law in self.catalogue.laws
+            if law.id not in self.NOT_IN_ADAPTER
+            and self._is_one_state(os.path.basename(law["component"]).replace(".sol", ""))
+        ]
+        self.assertEqual(
+            width,
+            len(one_state),
+            "explainOneState returns %d reasons for %d one-state laws"
+            % (width, len(one_state)),
+        )
+
+        body = source[source.index("function explainOneState()") :]
+        body = body[: body.index("\n    }")]
+        bound = dict(
+            re.findall(
+                r"Law internal immutable (\w+) = new (\w+)\(\)", source
+            )
+        )
+        explained = set(re.findall(r"details\[\d+\]\) = (\w+)\.check", body))
+        for law in one_state:
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            variable = next(n for n, made in bound.items() if made == component)
+            with self.subTest(law=law.id):
+                self.assertIn(
+                    variable,
+                    explained,
+                    "%s is one-state and explainOneState gives no reason for it"
+                    % law.id,
+                )
+
+    def _is_one_state(self, component):
+        """A one-state law extends `Law`; a pair law extends `PairLaw`.
+
+        Read from the component rather than from a list here, so a law filed
+        under a shape nobody wrote down still gets classified.
+        """
+        path = os.path.join(PLUGIN_ROOT, "src", "laws", "%s.sol" % component)
+        with open(path, encoding="utf-8") as handle:
+            source = handle.read()
+        return re.search(r"contract\s+%s\s+is\s+Law\b" % component, source) is not None
+
+
 class IntegrationNotesTests(unittest.TestCase):
     """Every law is spoken about where the corpus meets a real design.
 

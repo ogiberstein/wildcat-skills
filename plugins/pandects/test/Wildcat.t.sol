@@ -12,6 +12,7 @@ import {ReservesBackedByClaims} from "../src/laws/ReservesBackedByClaims.sol";
 import {HeldAssetsPartitioned} from "../src/laws/HeldAssetsPartitioned.sol";
 import {QueueOrderPreserved} from "../src/laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../src/laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../src/laws/PooledClaimsCoverOpenBatches.sol";
 import {DebtFallsOnlyAgainstPayment} from "../src/laws/DebtFallsOnlyAgainstPayment.sol";
 import {NoAccrualAtRest} from "../src/laws/NoAccrualAtRest.sol";
 import {RecordedClaimNeverShrinks} from "../src/laws/RecordedClaimNeverShrinks.sol";
@@ -35,6 +36,7 @@ contract WildcatTest {
     Law internal partitioned;
     Law internal ordered;
     Law internal covered;
+    Law internal pooled;
     PairLaw internal falls;
     PairLaw internal atRest;
     PairLaw internal shrinks;
@@ -48,6 +50,7 @@ contract WildcatTest {
         partitioned = new HeldAssetsPartitioned();
         ordered = new QueueOrderPreserved();
         covered = new ReservesCoverPayableClaims();
+        pooled = new PooledClaimsCoverOpenBatches();
         falls = new DebtFallsOnlyAgainstPayment();
         atRest = new NoAccrualAtRest();
         shrinks = new RecordedClaimNeverShrinks();
@@ -80,6 +83,7 @@ contract WildcatTest {
         require(holds(partitioned, model), "the model promised the same asset twice");
         require(holds(ordered, model), "the model paid a batch out of turn");
         require(holds(covered, model), "the model declared more payable than it holds");
+        require(holds(pooled, model), "the model owed its batches more than its pool");
     }
 
     /// @notice The succession laws, across every operation the design has.
@@ -353,5 +357,34 @@ contract WildcatTest {
         require(!model.penalised(), "the penalty started inside the grace period");
         model.advance(30 days);
         require(model.penalised(), "the penalty never started");
+    }
+
+    /// @notice The fee cap, in the state where it used to leak.
+    /// @dev The applicability notes state this with figures, so the figures are
+    /// asserted here rather than described. A market holding a fifth of what one
+    /// open batch is owed permitted a fee of four fifths of it while the cap was
+    /// taken against the earmark, because an earmark cannot exceed what is held.
+    /// Taken against the batches instead, the permitted fee is nothing: every
+    /// unit of the pool is already spoken for.
+    function test_a_delinquent_market_can_take_no_fee_from_a_queued_batch() external {
+        WildcatMarketModel model = new WildcatMarketModel();
+        model.deposit(1_000);
+        model.borrow(1_000);
+        model.requestWithdrawal(1_000);
+
+        require(model.delinquent(), "the market that cannot pay was not delinquent");
+        require(model.totalAssets() == 200, "the market did not keep the reserve");
+        require(model.totalLenderClaims() == 1_000, "the pool is not owed 1000");
+        (uint256 owed, uint256 paid) = model.claimAt(0);
+        require(owed == 1_000 && paid == 0, "the batch is not owed 1000 unpaid");
+        require(holds(pooled, model), "the pool started below its own batch");
+
+        model.accrueFee(type(uint256).max);
+
+        require(model.accruedFees() == 0, "a fee was taken out of a queued batch");
+        require(model.totalLenderClaims() == 1_000, "the pool shrank");
+        require(holds(pooled, model), "the fee put the pool below its own batch");
+        require(holds(conserved, model), "the fee stopped conserving value");
+        require(holds(backed, model), "the fee left reserves beyond claims");
     }
 }

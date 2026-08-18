@@ -6,10 +6,17 @@ __pycache__/
 plugins/*/out/
 plugins/*/cache/
 
-# Fuzzing and audit output
-plugins/*/crytic-export/
-plugins/*/corpus/
-plugins/*/search-record.json
-plugins/*/.medusa-artifact-hash
-plugins/*/slither.err
-plugins/*/slither_results.json
+# Fuzzing and audit output. Depth-independent, because an engine writes these
+# beside wherever it was invoked from rather than at the plugin root: a Medusa
+# run against an adapter drops crytic-export/, .medusa-artifact-hash and
+# slither_results.json into the adapter's own directory, and a one-level pattern
+# does not see them.
+**/crytic-export/
+**/corpus/
+**/.medusa-artifact-hash
+**/slither.err
+**/slither_results.json
+
+# search-record.json is not output. It is shipped evidence, it is tracked, and
+# tests/test_search_record.py holds it against the catalogue's law count and
+# digest. Ignoring it would let a fresh clone regenerate it and see no diff.
