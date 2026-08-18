@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "2.3.1"
+  version: "3.3.1"
 ---
 
 # Fiat
@@ -20,7 +20,9 @@ skills. Its version, held frontier, next job, and maturity state live in
 resuming work intended to advance Fiat itself.
 
 **Use another tool when.** Run `imprimatur` or `vulgate` directly for prose,
-and the bundled Pashov skills directly for standalone Solidity review.
+the bundled Pashov skills directly for standalone Solidity review, and any
+phase skill on its own when the question is its and the controller is not
+wanted.
 
 **Current frontier.** The ledger above is authoritative. Never substitute
 Hexaemeron's plugin-wide Solidity frontier for Fiat's own held target.

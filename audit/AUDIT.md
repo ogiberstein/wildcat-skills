@@ -918,3 +918,15 @@ prose tests hold. Root 24/24, hexaemeron 124/124.
 Leads not pursued: the root README's one-line Hexaemeron entry says nothing
 about the phase skills. It also says nothing false, and the status table's
 "Use it for" cell already names them, so no change.
+
+## Step 4, round 1 -- 2026-08-18
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The lint battery is clean, the ledger axes hold under both
+suites, the evolution row's digest matches the recomputed header, and the
+cold read's one defect, a hand-off line predating the phase skills, was fixed
+in the step commit. Root 24/24, hexaemeron 124/124.
+
+Leads not pursued: none.
