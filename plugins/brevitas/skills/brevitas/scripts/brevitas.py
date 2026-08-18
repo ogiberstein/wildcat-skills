@@ -122,9 +122,9 @@ def _code_fences(lines: Sequence[str]) -> tuple[list[tuple[int, int, int]], set[
             if re.match(rf"^\s*{re.escape(marker[0])}{{{len(marker)},}}\s*$", line):
                 content_length = index - opener[0] - 1
                 fences.append((opener[0], index, content_length))
-                if content_length > 15:
+                if content_length > 40:
                     issues.append(
-                        Issue(opener[0], "B006", f"code fence has {content_length} lines; maximum is 15")
+                        Issue(opener[0], "B006", f"code fence has {content_length} lines; maximum is 40")
                     )
                 opener = None
     if opener is not None:
@@ -308,21 +308,6 @@ def _point_for_line(
     return max(candidates, default=(0, "document"), key=lambda item: item[0])[1]
 
 
-def _fence_count_issues(
-    lines: Sequence[str], fences: Sequence[tuple[int, int, int]], findings: Sequence[Finding]
-) -> list[Issue]:
-    headings = [index for index, line in enumerate(lines, start=1) if HEADING_RE.match(line)]
-    list_points = [index for index, line in enumerate(lines, start=1) if TOP_LIST_RE.match(line)]
-    owners: dict[str, list[int]] = defaultdict(list)
-    for start, _, _ in fences:
-        owners[_point_for_line(start, findings, headings, list_points)].append(start)
-    return [
-        Issue(starts[1], "B008", "point contains more than one code fence")
-        for starts in owners.values()
-        if len(starts) > 1
-    ]
-
-
 def _structural_move_issues(lines: Sequence[str], code_lines: set[int]) -> list[Issue]:
     issues: list[Issue] = []
     nonblank = [index for index, line in enumerate(lines, start=1) if line.strip()]
@@ -413,7 +398,6 @@ def lint_text(
     issues.extend(section_issues)
     issues.extend(_finding_issues(lines, findings, code_lines))
     issues.extend(_table_issues(lines, code_lines))
-    issues.extend(_fence_count_issues(lines, fences, findings))
     issues.extend(_structural_move_issues(lines, code_lines))
     issues.extend(_direct_answer_issues(lines, code_lines, mode, findings, sections))
     if source_text is not None:

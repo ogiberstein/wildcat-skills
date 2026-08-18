@@ -57,8 +57,16 @@ class BrevitasTests(unittest.TestCase):
         self.assertIn("B005", self.codes(text))
 
     def test_code_fence_limit(self) -> None:
-        text = "```solidity\n" + "\n".join("x" for _ in range(16)) + "\n```\n"
+        text = "```solidity\n" + "\n".join("x" for _ in range(41)) + "\n```\n"
         self.assertIn("B006", self.codes(text))
+
+    def test_a_forty_line_fence_passes(self) -> None:
+        text = "```text\n" + "\n".join("x" for _ in range(40)) + "\n```\n"
+        self.assertNotIn("B006", self.codes(text))
+
+    def test_two_fences_under_one_point_pass(self) -> None:
+        text = "## Install\n\n```bash\na\n```\n\nthen\n\n```bash\nb\n```\n"
+        self.assertEqual([c for c in self.codes(text) if c.startswith("B00")], [])
 
     def test_small_table(self) -> None:
         text = "| a | b | c |\n|---|---|---|\n| 1 | 2 | 3 |\n"
