@@ -1,0 +1,259 @@
+{
+  "counts": {
+    "bytes_asset": 138,
+    "bytes_binary": 11,
+    "bytes_blob": 16956767,
+    "bytes_generated": 98
+  },
+  "entries": [
+    {
+      "bytes": 59394,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 59394 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/capture-plan.json"
+    },
+    {
+      "bytes": 28233,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 28233 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/registry.json"
+    },
+    {
+      "bytes": 18567,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 18567 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/finalized-block.json"
+    },
+    {
+      "bytes": 37485,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 37485 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/old-implementation-code.json"
+    },
+    {
+      "bytes": 1100695,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 1100695 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/old-opcode-trace.json"
+    },
+    {
+      "bytes": 17874,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 17874 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/recent-block.json"
+    },
+    {
+      "bytes": 21905,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 21905 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/recent-flat-trace.json"
+    },
+    {
+      "bytes": 37237,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 37237 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/recent-implementation-code.json"
+    },
+    {
+      "bytes": 6452358,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 6452358 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/recent-opcode-trace.json"
+    },
+    {
+      "bytes": 36681,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 36681 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/input/responses/recent-prestate-trace.json"
+    },
+    {
+      "bytes": 76773,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 76773 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/manifest.json"
+    },
+    {
+      "bytes": 36681,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 36681 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/16/161c368768c75d84de8d61e8d1e4d6665ae26420e361dbd997f15ed4b7947b55"
+    },
+    {
+      "bytes": 37485,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 37485 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/1d/1dc095c08f94cd276881f7e205c970ef3f736da7564a30acf793fa8c62393d5a"
+    },
+    {
+      "bytes": 18567,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 18567 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/2f/2f4ece5352ee5d130142e9e1d6bc145f32b283779222fcd5c36844bf7dbaec17"
+    },
+    {
+      "bytes": 28233,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 28233 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/3e/3eff07d0c032d8ab1b614d5ee7691b77e198daa31fa824c739ee7056340b848e"
+    },
+    {
+      "bytes": 1100695,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 1100695 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/6f/6fe9baa091cfe659e7f3901cab27621926d4e3167fdccac95263b3536da56646"
+    },
+    {
+      "bytes": 21905,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 21905 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/89/893f3645e1e1b11be0d08888af64229dda8046322d8146f58d700d02747a50c9"
+    },
+    {
+      "bytes": 6452358,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 6452358 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/96/9658c3ec9a9befdfa3c05b1c835fb01b932363a1a7818ee69f49e9341f6e44c4"
+    },
+    {
+      "bytes": 17874,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 17874 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c3/c3925c14f3ca31d7fed79b75a841401ae1241fea9236c62edf6616f0b0a59d94"
+    },
+    {
+      "bytes": 37237,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 37237 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/fb/fb7ba74282e1d0b353322515c8378b437b8ac28cb7a839cf56998c4085e6695a"
+    },
+    {
+      "bytes": 28233,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 28233 bytes",
+      "grade": "candidate",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/source/registry.json"
+    },
+    {
+      "bytes": 38122,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/hexaemeron/skills/imprimatur/evals/labelled-prose-v1/adjudication.jsonl"
+    },
+    {
+      "bytes": 42094,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/hexaemeron/skills/imprimatur/evals/labelled-prose-v1/labels.jsonl"
+    },
+    {
+      "bytes": 27878,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/hexaemeron/skills/imprimatur/evals/labelled-prose-v1/raw-label-a.jsonl"
+    },
+    {
+      "bytes": 100603,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/hexaemeron/skills/imprimatur/evals/labelled-prose-v1/samples.jsonl"
+    },
+    {
+      "bytes": 11,
+      "category": "binary",
+      "evidence": "null byte in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/horos/examples/fixture/assets/logo.bin"
+    },
+    {
+      "bytes": 27,
+      "category": "generated",
+      "evidence": "directory name build alone, uncorroborated",
+      "files": 1,
+      "grade": "candidate",
+      "path": "plugins/horos/examples/fixture/build/"
+    },
+    {
+      "bytes": 18091,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 18091 bytes",
+      "grade": "candidate",
+      "path": "plugins/horos/examples/fixture/data/blob.json"
+    },
+    {
+      "bytes": 32184,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/horos/examples/fixture/data/min.js"
+    },
+    {
+      "bytes": 138,
+      "category": "asset",
+      "evidence": "svg root element in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/horos/examples/fixture/icons/logo.svg"
+    },
+    {
+      "bytes": 71,
+      "category": "generated",
+      "evidence": "sql file under a migrations directory segment",
+      "grade": "candidate",
+      "path": "plugins/horos/examples/fixture/prisma/migrations/0001_init/migration.sql"
+    },
+    {
+      "bytes": 17204,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 17204 bytes",
+      "grade": "candidate",
+      "path": "plugins/lazarus/examples/goldfinch-v0/header.json"
+    },
+    {
+      "bytes": 78175,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/lazarus/examples/goldfinch-v0/rpc.jsonl"
+    },
+    {
+      "bytes": 732267,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/tabularium/examples/goldfinch-v0/events.jsonl"
+    },
+    {
+      "bytes": 203679,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 203679 bytes",
+      "grade": "candidate",
+      "path": "plugins/tabularium/examples/goldfinch-v0/source.json"
+    }
+  ],
+  "schema": 2,
+  "tool": "horos",
+  "universe": "tracked"
+}

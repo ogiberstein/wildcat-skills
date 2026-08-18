@@ -1556,3 +1556,62 @@ prior ledger rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Marking run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+165/165, root 24/24, verified before the receipt. Prose-only step.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Marking run, step 2, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, hypomnema 0 over the changed
+AGENTS.md. Root 24/24 with the stanza in place, horos 165/165, check from
+the root clean, all verified before the receipt. The review read the
+committed boundary's 14 hard entries and spot-checked them against the
+tree: the fixture's own specimens, the shipped example artefacts and the
+evidence JSONs classify exactly as the rules say, and no hand-written
+plugin source appears in the hard set. The 35 candidates are advisory and
+say so.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Marking run, step 3, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, hypomnema 0. Horos 168/168, root
+24/24, verified before the receipt. The review held the register's rows:
+one branch and one pull request per product repository and nothing merged
+past their gates; the gitattributes promotions ride inside the reviewable
+diffs exactly as the specification intends candidates to be promoted; the
+bundle's numbers are asserted against the committed boundary copies; and
+the stanza text in both product AGENTS.md files is the scanner's verbatim.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Marking run, step 4, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, imprimatur 100 on all reconciled
+surfaces. Root 24/24 (the evolution contract validates the mature row's
+digest), horos 168/168, check from the root clean, all verified before the
+receipt. Two self-catches in this step, both resolved before any receipt:
+check flagged the marking evidence copies as new sinks (they quote
+generation markers), so the boundary refreshed in the close commit; and
+the suite then flagged the bundle's stale skills count, reconciled in the
+follow-up commit. The review confirmed the mature closure names the open
+product pull requests rather than pretending merges, and all prior ledger
+rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

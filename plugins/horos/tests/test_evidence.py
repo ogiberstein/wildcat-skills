@@ -22,6 +22,10 @@ BUNDLE_6 = EVIDENCE / "solidity-outline.md"
 RESULTS_6 = EVIDENCE / "solidity-outline.results.json"
 BUNDLE_7 = EVIDENCE / "v2-protocol-outline.md"
 RESULTS_7 = EVIDENCE / "v2-protocol-outline.results.json"
+BUNDLE_8 = EVIDENCE / "three-repository-marking.md"
+MARKING_V2P = EVIDENCE / "v2-protocol.boundary.json"
+MARKING_APP = EVIDENCE / "wildcat-app-v2.boundary.v2.json"
+MARKING_SKILLS = PLUGIN.parents[1] / ".horos" / "boundary.json"
 
 
 def capture_lines(bundle=BUNDLE, tag="evidence"):
@@ -220,6 +224,28 @@ class SecondCaptureTests(unittest.TestCase):
         self.assertEqual(totals["extra"], 0)
         self.assertEqual(totals["oracle_unparsed"], 0)
         self.assertEqual(totals["matched"], totals["oracle"])
+
+    def test_the_marking_bundle_matches_the_committed_boundaries(self):
+        lines = capture_lines(BUNDLE_8, "marking")
+        for prefix, path in (
+            ("skills", MARKING_SKILLS),
+            ("v2p", MARKING_V2P),
+            ("app", MARKING_APP),
+        ):
+            document = json.loads(path.read_text(encoding="utf-8"))
+            with self.subTest(repository=prefix):
+                self.assertEqual(document["schema"], 2)
+                self.assertEqual(document["universe"], "tracked")
+                self.assertEqual(
+                    int(lines[f"{prefix}_entries"]), len(document["entries"])
+                )
+                self.assertEqual(
+                    int(lines[f"{prefix}_hard_bytes"]),
+                    sum(entry["bytes"] for entry in document["entries"]),
+                )
+                self.assertTrue(
+                    all(entry["grade"] == "hard" for entry in document["entries"])
+                )
 
     def test_the_second_share_exceeds_the_first(self):
         first = capture_lines()
