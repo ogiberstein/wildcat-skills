@@ -733,3 +733,36 @@ repository's 20, `pandects check` over ten laws, and Slither 0.11.6 over 52
 contracts. No engine re-run in this round: nothing in it touches a contract.
 
 Leads not pursued: the four accepted at the close of step 2, none touched here.
+
+## Withdrawal batch fee law, step 3, round 6 -- 2026-08-18
+
+Reviewed: the fixed tree, and each check the five earlier rounds added, by breaking
+the thing it guards and confirming it says so.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed tree has no open finding. | clean |
+
+**The checks, re-proved rather than re-read.** Removing a pair-law property fails the
+prefix check. Renaming a specimen's campaign fails two checks at once, the
+specimen-has-a-campaign one and the header count, which is the right answer and shows
+they are independent. Narrowing `explain` back to eight fails the width check.
+Changing "Nine of these eleven" to ten fails the header check. All four then pass
+again with the file restored.
+
+**What ran.** 79 Solidity tests across ten suites under forge 1.7.1 and solc 0.8.28,
+116 catalogue, checker, search-record and document tests on Python 3.14, the
+repository's 20, `pandects check` over ten laws, Slither 0.11.6 over 52 contracts at
+23 results, and Echidna 2.3.3 over every campaign in the harness at roughly twenty
+thousand calls each with seed 20260816.
+
+**One asymmetry, stated rather than left to be noticed.** Echidna drove all eleven
+campaigns. Medusa drove two: `SoundCampaign`, which holds everything, and
+`FeeFromQueuedCampaign`, which is the specimen this step exists for. The step's exit
+asks that both engines drive the new specimen and both do. The other nine campaigns
+have Echidna's verdict and not Medusa's, and no claim here rests on Medusa having
+searched them.
+
+Leads not pursued: the four accepted at the close of step 2, none of them touched by
+this step, and the Medusa coverage asymmetry above, which is a stated limit rather
+than a defect.
