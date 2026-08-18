@@ -27,13 +27,11 @@ of the value of the document.
 So every venue in the registry gets a row in every dossier, whether an adapter
 exists or not, and the row says which of five things happened:
 
-| Status | Meaning |
-| --- | --- |
-| `checked` | The adapter ran and returned what it found |
-| `empty` | The adapter ran and this counterparty has no history here |
-| `error` | The adapter ran and failed. This is not a clean record |
-| `unimplemented` | No adapter exists yet |
-| `unconfigured` | An adapter exists but no credential was supplied |
+- `checked`: the adapter ran and returned what it found.
+- `empty`: the adapter ran and found no history for this counterparty.
+- `error`: the adapter ran and failed; this is not a clean record.
+- `unimplemented`: no adapter exists.
+- `unconfigured`: an adapter exists, but no credential was supplied.
 
 `empty` is a finding. The last three are gaps, and they appear in the dossier's
 negative space section ahead of anything that reads like a conclusion. A run
@@ -88,20 +86,14 @@ query($user: EvmAddress!, $chains: [ChainId!]!) {
     types: [BORROW, REPAY, LIQUIDATED]
     pageSize: TEN
   }) {
-    items {
-      __typename
+    items { __typename
       ... on BorrowActivity {
-        timestamp
-        txHash
-        borrowed {
-          amount { onChainValue decimals }
-          token { info { symbol } }
-        }
+        timestamp txHash
+        borrowed { amount { onChainValue decimals } token { info { symbol } } }
       }
     }
     pageInfo { next }
-  }
-}
+  } }
 ```
 
 Two details that cost an hour of guessing, so they are written down here. `user`
@@ -116,8 +108,8 @@ venue the way it is on Wildcat.
 
 **Morpho's other three surfaces.** The shipped adapter covers borrowing on Blue
 markets. MetaMorpho vaults and Vaults V2 are separate surfaces on the same
-keyless API, where a counterparty may appear as a curator rather than a
-borrower, and a curator who allocated into a market that took bad debt made a
+keyless API, where a counterparty can appear as a curator, not a borrower. A
+curator who allocated into a market that took bad debt made a
 call that cost depositors money. Morpho Midnight is a fourth surface again:
 fixed-rate, fixed-maturity lending on its own keyless REST API at
 `api.morpho.org/v0/midnight`, on Base. Midnight is the most valuable of the
@@ -320,16 +312,13 @@ python3 scripts/probitas.py collect --entity "Acme Trading Ltd" \
 
 python3 scripts/probitas.py render evidence.json --out dossier.md
 python3 scripts/probitas.py verify dossier.md evidence.json
+python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
 ```
 
 Five gate lines, exit 0. Drop `--fixtures` to run against the live venues.
 [`example-dossier.md`](example-dossier.md) is that command's real output.
 
-Tests, from the repository root:
-
-```bash
-python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
-```
+The final command runs tests from the repository root.
 
 Python 3.9 or later, standard library only. No install step and no dependency
 tree, because someone deciding whether to trust a counterparty should not first

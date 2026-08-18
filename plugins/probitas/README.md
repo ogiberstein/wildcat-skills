@@ -45,27 +45,24 @@ python3 scripts/probitas.py collect --entity "Acme Trading Ltd" \
   --fixtures tests/fixtures/demo --run-id demo --out evidence.json
 
 python3 scripts/probitas.py render evidence.json --out dossier.md
-
 python3 scripts/probitas.py verify dossier.md evidence.json
+python3 scripts/probitas.py collect --entity "Acme Trading Ltd" \
+  --address 0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1 \
+  --alexandria-index alexandria.sqlite --out evidence.json
 ```
 
 Five gate lines and exit 0. `verify` exits 1 and names the gate when a dossier
 breaches one, which is the only exit code worth wiring into anything.
 
-That sequence produces [`docs/example-dossier.md`](docs/example-dossier.md)
+The first four commands produce [`docs/example-dossier.md`](docs/example-dossier.md)
 exactly. The test suite regenerates it and compares, so the committed example
 can't drift from what the tool actually does.
 
 Drop `--fixtures` to run against the live venues instead of a synthetic
 borrower.
 
-To use a verified Alexandria address index instead of live or fixture adapters:
-
-```bash
-python3 scripts/probitas.py collect --entity "Acme Trading Ltd" \
-  --address 0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1 \
-  --alexandria-index alexandria.sqlite --out evidence.json
-```
+The final command uses a verified Alexandria address index instead of live or
+fixture adapters.
 
 This route keeps the original Goldfinch or Clearpool venue and the Alexandria
 release, capture, component and row identities on every record. Every registry
@@ -74,16 +71,16 @@ routes do not change unless this option is passed.
 
 ### Options
 
-| Flag | What it does |
-| --- | --- |
-| `--entity` | The counterparty's name. Required |
-| `--address` | An address they declared. Repeatable, required |
-| `--inferred` | An address suspected but neither declared nor provably linked. Kept in its own section, and gate 1 fails the dossier if a finding against one appears anywhere else |
-| `--fixtures` | Read venue responses from a directory instead of the network |
-| `--alexandria-index` | Read verified archive-backed evidence instead of live or fixture adapters |
-| `--run-id` | A label for the run, printed in the dossier |
-| `--timeout` | Seconds per request, default 30 |
-| `--out` | Where to write, or `-` for stdout |
+- `--entity`: required counterparty name.
+- `--address`: required, repeatable declared address.
+- `--inferred`: suspected address, kept in its own section; gate 1 fails if a
+  finding against it appears elsewhere.
+- `--fixtures`: read venue responses from a directory, not the network.
+- `--alexandria-index`: read verified archive evidence, not live or fixture
+  adapters.
+- `--run-id`: run label printed in the dossier.
+- `--timeout`: seconds per request; default 30.
+- `--out`: output path, or `-` for stdout.
 
 ### The fixtures
 
@@ -161,19 +158,19 @@ Fifteen in the registry, four with adapters. The other eleven appear in every
 coverage table saying nobody checked, which is gate 2 working rather than an
 omission.
 
-| Venue | Status |
-| --- | --- |
-| Wildcat | Shipped. Public Goldsky subgraph, no key |
-| Morpho Blue | Shipped. Borrowing on Blue markets, keyless public API |
-| Euler v1 | Shipped. Canonical proxy event log through a keyless archival RPC |
-| Euler v2 | Shipped. Keyless V3 event ledger and liquidation API; Goldsky is not used for history |
-| Centrifuge | Keyless GraphQL, introspects cleanly. The most build-ready of the gaps |
-| Aave v3, Aave v4 | Keyless first-party API. v4 went live on mainnet in March 2026 |
-| MetaMorpho vaults, Morpho Vaults V2, Morpho Midnight | Three further Morpho surfaces, all keyless, none collected |
-| Maple Finance | Answers, but disables introspection and publishes no schema |
-| Compound v3, Goldfinch | Need a paid Graph gateway key |
-| Clearpool | Live, behind a bot challenge. An agreement is the way in, not a workaround |
-| TrueFi | Restructured through a token migration; no public endpoint answered |
+- Wildcat: shipped; public Goldsky subgraph, no key.
+- Morpho Blue: shipped; Blue-market borrowing, keyless public API.
+- Euler v1: shipped; canonical proxy event log through a keyless archival RPC.
+- Euler v2: shipped; keyless V3 event ledger and liquidation API; Goldsky is
+  not the history source.
+- Centrifuge: keyless GraphQL with clean introspection; the most build-ready gap.
+- Aave v3 and Aave v4: keyless first-party API; v4 reached mainnet in March 2026.
+- MetaMorpho vaults, Morpho Vaults V2 and Morpho Midnight: three keyless,
+  uncollected Morpho surfaces.
+- Maple Finance: answers, but disables introspection and publishes no schema.
+- Compound v3 and Goldfinch: need a paid Graph gateway key.
+- Clearpool: live behind a bot challenge; access needs an agreement, not a workaround.
+- TrueFi: restructured through a token migration; no public endpoint answered.
 
 Six of the eleven gaps need only an adapter and nothing from anyone: Centrifuge,
 both Aave versions, and Morpho's three other surfaces. The rest wait on a key,

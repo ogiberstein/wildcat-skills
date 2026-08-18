@@ -36,13 +36,11 @@ would be worse than the gap it is already declaring.
 
 The five statuses mean different things and the difference matters:
 
-| Status | Meaning |
-| --- | --- |
-| `checked` | The adapter ran and returned what it found |
-| `empty` | The adapter ran and this counterparty has no history at this venue |
-| `error` | The adapter ran and failed. This is not a clean record |
-| `unimplemented` | No adapter exists yet |
-| `unconfigured` | An adapter exists but the operator supplied no credential |
+- `checked`: the adapter ran and returned what it found.
+- `empty`: the adapter ran and found no history for this counterparty.
+- `error`: the adapter ran and failed; this is not a clean record.
+- `unimplemented`: no adapter exists.
+- `unconfigured`: an adapter exists, but the operator supplied no credential.
 
 `empty` is a finding. The other three are gaps and become entries in the
 negative space section.

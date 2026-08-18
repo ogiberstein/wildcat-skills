@@ -9,7 +9,7 @@ description: >
   for questions about a single market's own numbers, and never to work out
   which individual controls an address.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Probitas
@@ -20,6 +20,7 @@ Probitas owns its own counterparty-diligence frontier, not Hexaemeron's delivery
 Solidity frontier. Its version, held target, next job, and maturity
 state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
 another frontier pass after that ledger becomes mature.
+This prose generation moved from 0.1.0 to 0.2.0; the frontier did not move.
 
 <!-- marketplace-context:start -->
 ## Where this sits
@@ -61,7 +62,8 @@ arithmetic rather than by your reading it closely.
 
 ## The sequence
 
-Four commands, in this order. Do not skip the fourth.
+Run the first four commands in order; the final collect form is the Alexandria
+alternative. Do not skip verify.
 
 ```bash
 python3 scripts/probitas.py venues
@@ -69,24 +71,19 @@ python3 scripts/probitas.py venues
 python3 scripts/probitas.py collect \
   --entity "<name>" --address 0x... [--address 0x...] \
   [--inferred 0x...] --out evidence.json
-
 python3 scripts/probitas.py render evidence.json --out dossier.md
-
 python3 scripts/probitas.py verify dossier.md evidence.json
+python3 scripts/probitas.py collect \
+  --entity "<name>" --address 0x... \
+  --alexandria-index alexandria.sqlite --out evidence.json
 ```
 
 `collect` runs every venue adapter over the declared addresses and writes the
 evidence file. A record cannot enter that file without a transaction hash, a
 URL or a document reference, because the schema will not represent one.
 
-To use verified Alexandria releases instead of live or fixture adapters, pass
-an explicit disposable index:
-
-```bash
-python3 scripts/probitas.py collect \
-  --entity "<name>" --address 0x... \
-  --alexandria-index alexandria.sqlite --out evidence.json
-```
+The final form uses verified Alexandria releases through an explicit disposable
+index instead of live or fixture adapters.
 
 This path keeps Goldfinch and Clearpool as venue IDs and records Alexandria's
 release, component, capture, row and evidence identities. It combines
