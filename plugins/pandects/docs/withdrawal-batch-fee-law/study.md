@@ -31,9 +31,9 @@ over the same span by different routes, so a single system's before and after is
 not the comparison it describes.
 
 This is a finding about the reduced model in `integrations/wildcat/`, and about
-the corpus being silent on the state it reaches. It is not a claim about the
-deployed Wildcat market contracts, which are not read here and whose fee
-accounting this study does not establish either way.
+the corpus being silent on the state it reaches. Nothing here is a claim about the
+deployed Wildcat market contracts. They are not read, and this study establishes
+nothing either way about how they account for fees.
 
 The sound reference does the same thing on a shorter path: `deposit(100)`,
 `borrow(50)`, `reserve(100)`, `reserve(100)`, `accrueFee` lands on claims 50
@@ -65,8 +65,8 @@ locally.
 
 ## Why nine laws miss it
 
-Each of the three that come closest misses for a different reason, and the reasons
-are worth separating because two of them constrain the design.
+Three come close. Each misses for a different reason, and separating them matters,
+because two of those reasons constrain the design.
 
 `conservation/value-conserved/v1` cannot see it by construction. A fee moves value
 from claims to fees, both on the right-hand side of the equality, so the sums agree
@@ -150,8 +150,9 @@ withdrawal batches.** `totalLenderClaims() >= sum over recorded claims of
 (owed - paid)`, exact, needing the queue extension. **Chosen.** A single state is
 enough to see the violation -- claims 200 against 1000 owed is already evidence, and
 no history is needed to say so -- which is the corpus's own test for which shape a
-law takes. It is the cheapest of the four to comprehend: a sum and a comparison,
-the same shape as `reserves-cover-payable` with the two quantities changed.
+law takes. Of the four it is also the cheapest to comprehend: a sum and a
+comparison, the same shape as `reserves-cover-payable` with two quantities
+changed.
 
 **B. A `PairLaw` over the fall in pooled claims.** Bound the fall by payments
 recorded against the queue plus whatever was unqueued at the earlier observation.
