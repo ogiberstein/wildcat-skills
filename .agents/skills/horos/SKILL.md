@@ -10,7 +10,7 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Use another tool when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** The external-ingestion epoch is complete: map reads Python, TypeScript, Go and C++, each lexed extractor held against an independent parser over a live repository; no evidenced improvement remains.
+**Current frontier.** Reopened for three named jobs: the Solidity outline extractor, the budgeted two-tier classifier refinement the maintainer specified, and committed boundaries and censuses across the three home repositories.
 <!-- marketplace-context:end -->
 
 Read [the canonical Horos skill](../../../plugins/horos/skills/horos/SKILL.md)
