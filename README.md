@@ -563,8 +563,6 @@ the controller unless the user names Hexaemeron or Fiat and asks to run it.
 
 ## Use
 
-### Alexandria
-
 Alexandria needs Python 3 and nothing else. Its checked-in demonstration and
 all verification paths run offline. Ask:
 
@@ -575,8 +573,6 @@ Use $alexandria to preserve this lending-data capture, derive its reviewed credi
 The release contracts, mapping boundary and refusal rules live in
 [Alexandria's `SKILL.md`](./plugins/alexandria/skills/alexandria/SKILL.md).
 
-### Ariadne
-
 Ariadne needs Python 3 and nothing else. Capturing from a Foundry project needs
 that project's build output, which `forge build` already wrote. Ask:
 
@@ -585,8 +581,6 @@ Use $ariadne to capture this release in an evidence statement, run its gates, an
 ```
 
 The gates, the predicate and the refusals live in [Ariadne's `SKILL.md`](./plugins/ariadne/skills/ariadne/SKILL.md).
-
-### Brevitas
 
 Brevitas needs Python 3 and no third-party package. Ask:
 
@@ -597,8 +591,6 @@ Use $brevitas to compress this engineering review without dropping addresses, tr
 The budgets, evidence precedence and exception rule live in
 [Brevitas's `SKILL.md`](./plugins/brevitas/skills/brevitas/SKILL.md).
 
-### Hermes
-
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
 
 ```text
@@ -606,8 +598,6 @@ Use $hermes to optimise gas in this repository. Work one optimisation class at a
 ```
 
 The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes/skills/hermes/SKILL.md).
-
-### Hexaemeron
 
 Hexaemeron needs Python 3, Git and `gh` in the target repository (plus [Foundry](https://getfoundry.sh/) when the run ships Solidity). Ask:
 
@@ -617,8 +607,6 @@ Use $hexaemeron to take "<topic>" from study to a merged delivery, one receipted
 
 The loop, the receipt contract and the controller reference live in [Hexaemeron's `SKILL.md`](./plugins/hexaemeron/skills/fiat/SKILL.md).
 
-### Lemma
-
 Lemma needs Python 3.10 or later. Solidity input also needs `solc`, Docker, or
 Podman. Ask:
 
@@ -627,8 +615,6 @@ Use $chunk to turn this Solidity standard input into validated JSONL chunks.
 ```
 
 The command selection and output rules live in [Lemma's `chunk` skill](./plugins/lemma/skills/chunk/SKILL.md).
-
-### Lazarus
 
 Lazarus needs Python 3.11 or later and the packages pinned in its lock file.
 Capture is the only command that needs an archive RPC; verification, replay and
@@ -640,7 +626,15 @@ Use $lazarus to capture this finite historical fixture, verify its proof-backed 
 
 The evidence boundary, refusal rules and commands live in [Lazarus's `SKILL.md`](./plugins/lazarus/skills/lazarus/SKILL.md).
 
-### Probitas
+Pandects needs Python 3, and [Foundry](https://getfoundry.sh/) for the campaign
+its runner knows. Ask:
+
+```text
+Use $pandects to check this credit protocol against the executable laws in the corpus.
+```
+
+The laws, their broken specimens and the engine boundary live in
+[Pandects's `SKILL.md`](./plugins/pandects/skills/pandects/SKILL.md).
 
 Probitas needs Python 3 and nothing else. Neither shipped venue asks for a key, and `--fixtures` runs it with no network at all. Ask:
 
@@ -650,8 +644,6 @@ Use $probitas to build a sourced dossier on "<entity>" from the addresses they d
 
 The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./plugins/probitas/skills/probitas/SKILL.md).
 
-### Sapheneia
-
 Sapheneia needs no runtime dependency. Ask:
 
 ```text
@@ -660,8 +652,6 @@ Use $sapheneia to shape your replies for an AuDHD reader throughout this task.
 
 The activation contract and ten ranked rules live in
 [Sapheneia's `SKILL.md`](./plugins/sapheneia/skills/sapheneia/SKILL.md).
-
-### Tabularium
 
 Tabularium needs Python 3.9 or later and nothing else. Its shipped releases and
 tests use no network. Ask:
