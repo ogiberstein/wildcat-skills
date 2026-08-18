@@ -164,7 +164,15 @@ class ShippedAdapterTests(unittest.TestCase):
     integration-notes check does.
     """
 
-    ADAPTER = os.path.join(PLUGIN_ROOT, "adapters", "CorpusBase.sol")
+    #: Every shipped file that names laws for somebody else to inherit. Round 4
+    #: of this step gated the first and missed the second, which is the argument
+    #: for a list rather than a path: `CorpusBase` holds the law objects and
+    #: `CorpusInvariants` decides which of them a Foundry run actually asserts,
+    #: so a law in the first and not the second is still a law nobody asks.
+    ADAPTERS = (
+        os.path.join(PLUGIN_ROOT, "adapters", "CorpusBase.sol"),
+        os.path.join(PLUGIN_ROOT, "adapters", "foundry", "CorpusInvariants.sol"),
+    )
 
     #: Compares two systems advanced over the same span by different routes, so
     #: an adapter holding one target cannot offer it and does not pretend to.
@@ -176,10 +184,14 @@ class ShippedAdapterTests(unittest.TestCase):
     def setUp(self):
         with open(SHIPPED, encoding="utf-8") as handle:
             self.catalogue = catalogue_module.parse(json.load(handle))
-        with open(self.ADAPTER, encoding="utf-8") as handle:
-            self.adapter = handle.read()
+        self.sources = {}
+        for path in self.ADAPTERS:
+            with open(path, encoding="utf-8") as handle:
+                self.sources[path] = handle.read()
 
     def test_every_law_the_adapter_can_offer_is_in_it(self):
+        """`CorpusBase` names the law objects an integrator inherits."""
+        source = self.sources[self.ADAPTERS[0]]
         for law in self.catalogue.laws:
             if law.id in self.NOT_IN_ADAPTER:
                 continue
@@ -187,15 +199,59 @@ class ShippedAdapterTests(unittest.TestCase):
             with self.subTest(law=law.id):
                 self.assertIn(
                     component,
-                    self.adapter,
+                    source,
                     "%s is catalogued and the shipped adapter does not carry it"
                     % law.id,
                 )
 
-    def test_the_excluded_law_is_still_catalogued(self):
-        """Otherwise the exclusion outlives the reason for it."""
-        catalogued = {law.id for law in self.catalogue.laws}
-        self.assertEqual(self.NOT_IN_ADAPTER - catalogued, set())
+    def test_every_one_state_law_is_asserted_as_a_foundry_invariant(self):
+        """And `CorpusInvariants` decides which of them a run asserts.
+
+        Carrying a law object and never asserting it is the same silence as not
+        carrying it, arriving one file later. So this maps the variable names
+        `CorpusBase` binds its components to, then checks that the Foundry
+        adapter asserts the ones belonging to one-state laws.
+        """
+        bound = dict(
+            re.findall(
+                r"Law internal immutable (\w+) = new (\w+)\(\)",
+                self.sources[self.ADAPTERS[0]],
+            )
+        )
+        asserted = set(
+            re.findall(r"(\w+)\.check\(target\(\)\)", self.sources[self.ADAPTERS[1]])
+        )
+        for law in self.catalogue.laws:
+            if law.id in self.NOT_IN_ADAPTER:
+                continue
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            variables = [name for name, made in bound.items() if made == component]
+            with self.subTest(law=law.id):
+                self.assertEqual(
+                    len(variables),
+                    1,
+                    "%s is not bound exactly once in %s"
+                    % (law.id, os.path.basename(self.ADAPTERS[0])),
+                )
+                if not self._is_one_state(component):
+                    continue
+                self.assertIn(
+                    variables[0],
+                    asserted,
+                    "%s is carried by the adapter and asserted by no Foundry "
+                    "invariant" % law.id,
+                )
+
+    def _is_one_state(self, component):
+        """A one-state law extends `Law`; a pair law extends `PairLaw`.
+
+        Read from the component rather than from a list here, so a law filed
+        under a shape nobody wrote down still gets classified.
+        """
+        path = os.path.join(PLUGIN_ROOT, "src", "laws", "%s.sol" % component)
+        with open(path, encoding="utf-8") as handle:
+            source = handle.read()
+        return re.search(r"contract\s+%s\s+is\s+Law\b" % component, source) is not None
 
 
 class IntegrationNotesTests(unittest.TestCase):

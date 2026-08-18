@@ -400,3 +400,34 @@ the campaign harness in the same commit that adds the property.
 
 Leads not pursued: the merged-fixture question from round 3, `pandects run`
 knowing one engine, and the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 5 -- 2026-08-18
+
+Reviewed: round 4's own fix, on the suspicion that gating one file and calling the
+class closed was too quick. It was.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R5-01 | high | `adapters/foundry/CorpusInvariants.sol` | The same defect as S2-R4-01, one file along and untouched by its fix. `CorpusBase` carries the law objects; this file decides which of them a Foundry run asserts, and it declared eight invariants for nine laws. After round 4 the adapter carried the tenth law and no Foundry invariant asked it, so an integrator extending `CorpusOneStateTest` still ran nine. Carrying a law and never asserting it is the same silence as not carrying it. | Fixed in this round: `invariant_pooled_claims_cover_open_batches` added, standing down with the other queue laws when `hasWithdrawalQueue` is false, and the two comments that counted the queue laws as two now say three. |
+| S2-R5-02 | medium | `tests/test_documents.py` | Round 4's check read one path and asserted the law's component name appeared in it. That is why it did not see S2-R5-01: the component name did appear, in the file that binds it, and the check had no opinion about the file that asserts it. A check aimed at one of two surfaces is not a check on the class. | Fixed in this round: the check takes a list of shipped adapters. It maps the variable names `CorpusBase` binds components to, classifies each law's shape by reading whether its component extends `Law` or `PairLaw` rather than from a hand-kept list, and asserts every one-state law's variable is asserted in the Foundry adapter. Made to fail by deleting the invariant while leaving the law bound, which is the exact shape S2-R5-01 had. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1 and 111 Python tests, up from
+109 in round 4 by one net: round 4's second check was replaced rather than added
+to, because the version it shipped counted braces and carried a dead local. The
+repository's 20 and `pandects check` over ten laws.
+
+**On round 4's second check.** It passed, it was green, and it could not have
+caught what round 5 found. It also contained a statement with no effect and a
+subtest that asserted a string appeared somewhere in a file. Recorded plainly
+because the step's own findings are about tests that cannot fail, and writing one
+in the round that argues against them is worth writing down rather than quietly
+replacing.
+
+**The class, now that it has been walked properly.** Six shipped surfaces name
+laws: the catalogue, the rendered document, the integration notes, `CorpusBase`,
+`CorpusInvariants` and the campaign harness. Five are now held to the catalogue by
+a test. The sixth is the campaign harness, still step 3's, still scheduled in the
+runbook with the reason it cannot be gated earlier.
+
+Leads not pursued: the merged-fixture question from round 3, `pandects run`
+knowing one engine, and the two carried from step 1.
