@@ -95,7 +95,7 @@ class PortableSkillTests(unittest.TestCase):
         hexa_root = ROOT / "plugins" / "hexaemeron"
         contract = (hexa_root / "AGENTS.md").read_text(encoding="utf-8")
         paths = re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract)
-        self.assertEqual(len(paths), 9)
+        self.assertEqual(len(paths), 15)
         for relative in paths:
             self.assertTrue((hexa_root / relative).is_file(), relative)
 
