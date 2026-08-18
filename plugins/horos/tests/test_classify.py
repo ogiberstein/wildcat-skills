@@ -141,9 +141,11 @@ class ClassifyTests(unittest.TestCase):
         self.assertNotIn("prisma/migrations/README.md", self.entries())
 
     def test_a_nested_gitattributes_classifies_its_own_subtree(self):
+        # A directory pattern aggregates the subtree into one entry, with
+        # the nested attributes file named as the evidence.
         write(self.root, "packages/sdk/.gitattributes", "abi/** linguist-generated\n")
         write(self.root, "packages/sdk/abi/Market.json", '{"abi": []}\n')
-        entry = self.entries()["packages/sdk/abi/Market.json"]
+        entry = self.entries()["packages/sdk/abi/"]
         self.assertEqual(entry["category"], "generated")
         self.assertIn("packages/sdk/.gitattributes", entry["evidence"])
 
@@ -156,7 +158,8 @@ class ClassifyTests(unittest.TestCase):
         self.assertNotIn("b/data.json", entries)
 
     def test_the_innermost_scope_speaks_first(self):
-        write(self.root, ".gitattributes", "deep/** linguist-vendored\n")
+        # Both scopes match the file; the deeper attributes file wins.
+        write(self.root, ".gitattributes", "*.json linguist-vendored\n")
         write(self.root, "deep/.gitattributes", "*.json linguist-generated\n")
         write(self.root, "deep/data.json", '{"x": 1}\n')
         entry = self.entries()["deep/data.json"]
