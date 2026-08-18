@@ -948,3 +948,42 @@ The first-party Hexaemeron prose diff has no open finding. Status: clean.
 The review compared 32 Markdown files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained Fiat `v2.3.0`, mature revision `installed-path-and-maturity-proof`, digest `17c94c70b434ea1cbc9c3cd6ff5f3054972af08f8e027b7ea9850f5e06695f77`; Imprimatur `v2.1.0`, open revision `labelled-prose-v2`, digest `092addc4bcae8cd93d34df41146b3a3bbd3fd24a529cd84b1d16e0399d7affb4`; Kronos `v0.1.0`, mature revision `terminal-goal-loop`, digest `ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1`; and Vulgate `v1.1.0`, open revision `content-parity-evaluation`, digest `3cc0e1a07e5bf3fbc443fa65825ecfcaf12bb9d7087eeb8387341a1df2505b29`. All Next Fiat jobs, controller commands, receipt formats, and stop conditions remain unchanged.
 
 Root `22/22`, Hexaemeron `62/62`, Imprimatur `55/55`, five Agent Skills validations, 32 Imprimatur and Brevitas `--source` checks, 23 local-link checks, protected SHA verification, and `git diff --check` pass. The 42 vendored Markdown files, Imprimatur `NOTICE.md`, and every LICENSE or NOTICE path remain byte-identical; README pass-note additions are zero. No live controller receipt, Pashov or Solidity run, publisher authentication, cache signing, build provenance, native Windows proof, push, PR, or merge was established.
+
+## Repository-wide Brevitas pass, step 13, round 1 -- 2026-08-18
+
+- Medium: Root README retained stale suite, fixture and registry counts. (`S13-R1-01`)
+- Location: `README.md:88`, `README.md:123`, `README.md:161`.
+- Mechanism: Entry values `61`, `9/13/234` and `134` survived after the suites and registry became `124/55`, `11/15/276` and `135`.
+- Impact: The repository summary disagreed with the commands and tree it directs readers to run.
+- Fix: Updated the three clauses while retaining every superseded value in this audit record.
+
+The round also found Alexandria's derived Probitas expectation stale after the
+renderer change. The evidence digest, five gate lines and counts were unchanged;
+only the expected dossier digest moved to
+`sha256:5a831c8742e0acdafd45d1209d165dc67c0beee0ecfe9f77b0ad07ec7e4c0fb1`.
+
+Root `22/22`, Hexaemeron `124/124`, Probitas `276/276`, Tabularium `135/135`,
+README links `56/56`, Imprimatur, direct Brevitas lint, protected SHA verification,
+and `git diff --check` pass. README is 246 lines and contains no repository-pass
+narration. The immutable Step 13 source check now reports only the superseded tokens
+`61`, `234` and `134`; the ignored proof receipt binds those corrections to this
+finding. Concurrent stability of the pinned amd64 solc Docker runner was not
+established; its final isolated solc `0.8.25` run passed.
+
+## Repository-wide Brevitas pass, step 13, round 2 -- 2026-08-18
+
+The fixed non-Solidity tree has no open finding. Status: clean.
+
+The round rechecked the corrected README clauses, Alexandria's derived Probitas
+digest, every changed root and global document, the 12 concurrent Hexaemeron skill
+documents, and the absence of repository-pass narration from every tracked README.
+The direct Brevitas lint covers 169 mutable files; source comparison covers 168
+unchanged files plus the three audited README corrections. Four evidence fixtures
+remain byte-identical.
+
+Root `22/22`, Hexaemeron `124/124`, Probitas `276/276`, Tabularium `135/135`,
+README links `56/56`, Imprimatur, protected SHA verification and
+`git diff --check` pass again. The completed matrix remains 1,468 Python or unit
+tests plus 79 Forge tests, seven Agent Skills validations, 255 local links, and
+proof of 173 sources, 43 exclusions, 29 protected passages and four refusals.
+The Pashov suite remains waived because the step changes no Solidity.
