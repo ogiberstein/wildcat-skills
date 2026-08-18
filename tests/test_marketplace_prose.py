@@ -14,6 +14,7 @@ PLUGINS = (
     "brevitas",
     "hermes",
     "hexaemeron",
+    "horos",
     "lemma",
     "lazarus",
     "pandects",
@@ -27,6 +28,7 @@ CANONICAL_SKILLS = {
     "brevitas": ROOT / "plugins" / "brevitas" / "skills" / "brevitas" / "SKILL.md",
     "hermes": ROOT / "plugins" / "hermes" / "skills" / "hermes" / "SKILL.md",
     "hexaemeron": ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md",
+    "horos": ROOT / "plugins" / "horos" / "skills" / "horos" / "SKILL.md",
     "lemma": ROOT / "plugins" / "lemma" / "skills" / "chunk" / "SKILL.md",
     "lazarus": ROOT / "plugins" / "lazarus" / "skills" / "lazarus" / "SKILL.md",
     "pandects": ROOT / "plugins" / "pandects" / "skills" / "pandects" / "SKILL.md",
@@ -127,7 +129,7 @@ class MarketplaceProseTests(unittest.TestCase):
     def test_plugin_landing_readmes_publish_unique_rolling_fiat_jobs(self):
         landings = plugin_landing_readmes()
         self.assertEqual(set(landings), set(PLUGINS))
-        self.assertEqual(len(landings), 11)
+        self.assertEqual(len(landings), 12)
 
         topics = {}
         for name, path in landings.items():

@@ -1,0 +1,72 @@
+{
+  "counts": {
+    "bytes_binary": 11,
+    "bytes_blob": 50275,
+    "bytes_generated": 147,
+    "bytes_lockfile": 54,
+    "bytes_vendored": 53,
+    "files_skipped_unreadable": 0,
+    "files_walked": 8
+  },
+  "entries": [
+    {
+      "bytes": 53,
+      "category": "generated",
+      "evidence": "sourcemap: name ends .map and prefix carries \"mappings\"",
+      "path": "app.js.map"
+    },
+    {
+      "bytes": 11,
+      "category": "binary",
+      "evidence": "null byte in the first 4096 bytes",
+      "path": "assets/logo.bin"
+    },
+    {
+      "bytes": 18091,
+      "category": "blob",
+      "evidence": "no newline in the first 4096 bytes of 18091 bytes",
+      "path": "data/blob.json"
+    },
+    {
+      "bytes": 32184,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "path": "data/min.js"
+    },
+    {
+      "bytes": 31,
+      "category": "generated",
+      "evidence": "directory name dist",
+      "files": 1,
+      "path": "dist/"
+    },
+    {
+      "bytes": 63,
+      "category": "generated",
+      "evidence": "marker 'do not edit' in the first 4096 bytes",
+      "path": "gen/api.py"
+    },
+    {
+      "bytes": 10,
+      "category": "vendored",
+      "evidence": "linguist-vendored for 'lib/**' in .gitattributes",
+      "files": 1,
+      "path": "lib/"
+    },
+    {
+      "bytes": 43,
+      "category": "vendored",
+      "evidence": "directory name node_modules",
+      "files": 1,
+      "path": "node_modules/"
+    },
+    {
+      "bytes": 54,
+      "category": "lockfile",
+      "evidence": "lockfile name yarn.lock",
+      "path": "yarn.lock"
+    }
+  ],
+  "schema": 1,
+  "tool": "horos"
+}

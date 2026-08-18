@@ -85,6 +85,7 @@ python3 -m unittest discover -s plugins/brevitas/tests -t plugins/brevitas
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
 python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
+python3 -m unittest discover -s plugins/horos/tests -t plugins/horos
 python3 plugins/lemma/tests/test_markdown.py
 python3 plugins/lemma/tests/test_solidity.py
 python3 -m unittest discover -s plugins/lazarus/tests -t plugins/lazarus

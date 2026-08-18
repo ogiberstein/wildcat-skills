@@ -930,3 +930,114 @@ cold read's one defect, a hand-off line predating the phase skills, was fixed
 in the step commit. Root 24/24, hexaemeron 124/124.
 
 Leads not pursued: none.
+
+## Step 1, round 1 -- 2026-08-18
+
+Run: Horos, the reading-boundary skill. Step 1 scaffolds and registers the
+plugin. Suite waived (no Solidity); the round ran the three bundled lints and
+a diff review against the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | plugins/horos/README.md | "What it ships" claimed the scanner, boundary and maps in the present tense while this step ships only the scaffold | fixed: section reframed as what the runbook lands, in order |
+| S1-R1-02 | low | plugins/horos/docs/runbook.md | the committed runbook copy pointed at the gitignored .hexaemeron path as the spec | fixed: points at the committed study beside it |
+| S1-R1-03 | low | README.md | the role matrix omits a Horos column, and a Developers score at or above five demands a worked example the landing README lacked | fixed: column added (Developers 8, Security 2, all other desks 1) and a Day-to-day example added |
+
+Lints: phylax 0, ephoros 0, hypomnema 0 over plugins tests and the changed
+documents. Leads not pursued: none.
+
+## Step 1, round 2 -- 2026-08-18
+
+The round re-ran against the tree with round 1's fixes applied. Lints: phylax
+0, ephoros 0, hypomnema 0. Root 24/24, horos 4/4. The review of the fix diff
+found nothing further.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); the round ran the three bundled lints, all clean,
+then reviewed the classifier against the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/horos/skills/horos/scripts/horos.py | classify_file swallowed OSError and returned None, so an unreadable file was reported as readable instead of counted in files_skipped_unreadable, understating what the scan skipped | fixed: the function raises and the walker counts, with a chmod-0 regression test |
+| S2-R1-02 | low | plugins/horos/skills/horos/scripts/horos.py | classify_file is public but did not itself refuse symlinks; only the walker guarded them, so a direct caller could make the scanner read outside root | fixed: the function refuses links as well |
+
+Leads not pursued: a stat-then-open race (a file swapped for a symlink between
+the check and the read) is accepted for the prototype; exploiting it requires
+an attacker writing to the tree during the scan, at which point the tree is
+already theirs.
+
+## Step 2, round 2 -- 2026-08-18
+
+Re-ran against the fixed tree. Lints: phylax 0, ephoros 0, hypomnema 0.
+Horos 26/26, root 24/24. The fix diff review found nothing further: the one
+public caller of classify_file already counts the raised OSError as skipped.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none beyond the accepted race recorded in
+round 1.
+
+## Step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Review focused on the
+risk register's partial-write and determinism rows.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | plugins/horos/skills/horos/scripts/horos.py | the temporary boundary file used one fixed name, so two concurrent scans of the same tree could unlink each other's half-written temporary and fail one run's atomic replace | fixed: the temporary name carries the writing process id; the existing cleanup tests pin that no temporary survives either path |
+
+Leads not pursued: a giant hand-crafted boundary.json can make check spend
+memory parsing it; accepted for the prototype, the file is repository-local
+and the parse failure path already exits 2.
+
+## Step 3, round 2 -- 2026-08-18
+
+Re-ran against the fixed tree. Lints: phylax 0, ephoros 0, hypomnema 0.
+Horos 39/39, root 24/24. The fix diff is one line plus its comment; the
+review found nothing further.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none beyond round 1's accepted parse-memory
+lead.
+
+## Step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+45/45, root 24/24. The review checked the map verb against the never rules:
+it parses and never imports or executes the target, hostile nesting is capped
+by the tokenizer's indentation limit and lands in the caught SyntaxError
+path, and undecodable bytes are replaced before parsing.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: map reads the named file whole, unlike the
+bounded scanner; that is the verb's purpose (one tool read instead of the
+agent reading the file), and the file is user-named rather than
+tree-discovered.
+
+## Step 5, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+51/51, root 24/24, and the study's four repeatable success criteria pass as
+written from the repository root. The review checked the shipped example
+against the risk register: the fixture's committed boundary is reproduced
+byte for byte by a fresh scan on every supported interpreter path (the
+document is sorted-key JSON of ints and posix strings), the documented
+mutation fails by name in both drift directions, relative links in the final
+SKILL.md resolve, and the example's vendored and lockfile specimens are
+inert data that no suite imports or executes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
