@@ -25,6 +25,37 @@ Named for the six days of ordered creation from a void to finished work,
 then rest. The entry skill is `fiat`, so the invocation is
 `/hexaemeron:fiat` and a fresh run's first words are the line above.
 
+## How it works
+
+Let there be light. A deterministic controller (`hexctl`) decides what comes next and refuses to advance without a receipt; state and a hash-chained ledger survive context resets, so resume is the same command.
+
+1. Study the topic and write a linted study file.
+2. Derive a runbook of discrete, self-contained steps.
+3. Implement the least complicated construction that satisfies each runbook step.
+4. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
+5. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
+6. Push the PR and move to the next step.
+
+## What it ships
+
+- the executable [`hexctl.py`](./skills/fiat/scripts/hexctl.py) controller with a tamper-evident ledger (`verify` proves both chain and state);
+- the [`imprimatur`](./skills/imprimatur) three-tier prose lint and the [`vulgate`](./skills/vulgate) voice mask, invokable on their own;
+- [`kronos`](./skills/kronos), which ranks eligible held frontier jobs and loops complete Fiat runs until none remain;
+- six more skills holding each phase to a standard, four of them with an executable check: [`protasis`](./skills/protasis) on what a study and runbook must answer, [`elenchus`](./skills/elenchus) on the root cause of a failure that already happened, [`phylax`](./skills/phylax) on the off-chain surface, [`ephoros`](./skills/ephoros) on what a step emits once it runs unattended, [`metron`](./skills/metron) on every measurement except gas, and [`hypomnema`](./skills/hypomnema) on what gets recorded and where;
+- the Pashov Audit Group suite vendored verbatim (MIT; `LICENSE` and `NOTICE.md` in each skill directory);
+- Codex metadata for explicit or automatic invocation; and
+- 124 controller, contract and practice-check tests, 55 lint tests, and a fuzz-audit log ([`audit/AUDIT.md`](./audit/AUDIT.md)) covering the controller's own surfaces.
+
+## Day to day
+
+**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one pull request per step, with the audit suite run against each before it is pushed.
+
+**Security and audit.** You want the Pashov suite over a contract and nothing else. `x-ray`, `solidity-auditor` and `fizz` are vendored whole and run on their own, without taking on the loop around them.
+
+**Marketing.** A launch post reads like a machine wrote it. `imprimatur` says what is wrong with it across three tiers and `vulgate` rewrites it in house voice. Neither needs the controller, and neither needs installing separately.
+
+**Business development.** An integration document has to be accurate about what the protocol does and readable by someone who is not an engineer. The study phase produces the first and the prose masks produce the second.
+
 ## The shape of a run
 
 | Day | Phase | What happens |

@@ -12,6 +12,33 @@ Brevitas puts mechanical volume and structure limits on engineering review prose
 **Next Fiat job.** Use /hexaemeron:fiat to Forward-test Brevitas across held x-ray, Solidity-auditor, gas, `invariant` and diff-review outputs, then add every confirmed structural bypass to the corpus without weakening evidence precedence. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
+## How it works
+
+Evidence outranks every budget. Addresses, transaction hashes, `file:line`
+references, numbers, counterexamples, reproduction steps and statements of what
+could not be established survive compression. The linter accepts a draft from a
+file or stdin, rejects mechanical breaches with line-numbered diagnostics, and
+can compare a compressed draft with its source. A marked evidence exception keeps
+an irreducible finding intact when the evidence itself needs more than five lines.
+
+## What it ships
+
+- the standard-library [`brevitas.py`](./skills/brevitas/scripts/brevitas.py) linter;
+- Make targets for written reports and source-preservation checks;
+- three audit-derived before/after cases with pinned fixture digests; and
+- tests for finding, heading, table, fence and banned-structure failures.
+
+## Day to day
+
+**Developers.** A diff review has two defects buried under setup and a repeated
+summary. Brevitas keeps each defect to claim, location, mechanism, impact and fix,
+then rejects the draft if its structure drifts.
+
+**Security and audit.** A finding carries addresses, exact locations, numeric
+traces and reproduction steps. Brevitas cuts connective prose first, checks the
+machine-readable evidence against the source, and permits a marked exception when
+the protected evidence needs more than five lines.
+
 ## Contract
 
 Brevitas is the last structural pass for audit findings, security reviews, gas

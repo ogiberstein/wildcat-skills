@@ -19,6 +19,51 @@ each capture to explicit scope and coverage, derives a narrow Tabularium credit
 view and supplies that view to Probitas through a disposable index. Alexandria
 is an archive and data source, not a lending venue or underwriting system.
 
+## How it works
+
+Raw GraphQL responses and archive logs do not need one payload schema. Each
+release stores the original bytes under their SHA-256, names the source, chain,
+scope, finality class and counted coverage, and verifies offline. Goldfinch and
+Clearpool releases can then produce a narrow Tabularium view without turning
+the archive itself into an interpretation layer.
+
+The Compound v3 Phase 0 release pins 28 production Comet deployments at one
+upstream commit and preserves a bounded old-and-recent Ethereum USDC RPC
+corpus. Its offline checker binds archive access, nested calls,
+transaction-start state, proxy implementation code, ordered storage writes and
+a provider-reported finalized boundary. It is a one-provider method proof, not
+an interval history or independent chain proof.
+
+The SQLite address index is disposable. Every query rechecks its schema,
+logical digest and exact release-backed contents before returning rows. The
+explicit Probitas route keeps both venue and archive provenance and leaves all
+unharvested registry venues visible as gaps.
+
+## What it ships
+
+- the standard-library [`alexandria.py`](./scripts/alexandria.py)
+  ingest, verify, derive, index and query command;
+- raw-release, coverage, credit-row, query and demonstration schemas;
+- registered Goldfinch and Clearpool mappings with exact source and context
+  selectors;
+- the offline [`credit-history-v0`](./examples/credit-history-v0/README.md)
+  path through Probitas's five gates; and
+- a checked-in [Compound v3 Phase 0 raw release](./examples/compound-v3-phase0-v0/README.md),
+  separate explicit network capture command and pinned
+  [production harvest specification](./docs/compound-v3-harvest.md).
+
+## Day to day
+
+**Developers.** Preserve a protocol response now, with its gaps and usage
+restrictions, then rebuild the same release after the endpoint is gone.
+
+**Security and audit.** Check that every derived row resolves to the raw object
+and mapping rule that assigned its meaning. An unknown implementation or
+selector stays unsupported.
+
+**Finance.** Query a counterparty address across the archived venues without
+letting an unharvested venue read as clean history.
+
 ## Complete prototype
 
 Alexandria can ingest raw releases, derive verified credit views, rebuild an

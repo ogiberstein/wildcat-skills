@@ -24,6 +24,40 @@ writes canonical JSON and JSONL, confines fixture paths, derives exact request
 keys, verifies component digests, recomputes the header hash, traverses
 EIP-1186 proofs, checks captured code and serves exact requests over loopback.
 
+## How it works
+
+Capture fixes a block, records exact JSON-RPC requests and responses, and binds
+the fixture to a deterministic manifest. Account and storage claims must pass
+EIP-1186 trie-proof checks against the captured header; contract code must match
+the proved code hash. Receipts, log queries, calls and traces remain labelled as
+recorded RPC evidence. They are not promoted into state proofs.
+
+Replay verifies the fixture before opening a loopback server. An uncaptured
+request returns a stable `-32070` error describing the missing plan entry, and
+there is no provider fallback. The checked-in Goldfinch example exercises
+proof-backed code and storage, a receipt, a log query, a deliberate miss, proof
+mutation rejection and byte-for-byte manifest rebuilding without a network.
+
+## What it ships
+
+- finite, bounded capture from one fixed historical block;
+- canonical JSON and JSONL formats with versioned, digest-pinned schemas;
+- offline header, account, storage, code and manifest verification;
+- exact-request JSON-RPC replay over loopback, including batches and
+  notifications; and
+- 144 tests plus a proof-checked Goldfinch demonstration.
+
+## Day to day
+
+**Developers.** An old integration test depends on an archive endpoint that is
+slow, costly or gone. Capture the exact historical state and responses the test
+uses, commit the fixture, and run the same requests locally with a visible miss
+for anything the plan omitted.
+
+**Security and audit.** A historical fixture claims an account balance, code
+hash or storage value. Run `verify` to check the trie path against the named
+header and keep ordinary RPC evidence outside that proof boundary.
+
 ## Evidence boundary
 
 - **Proof-backed state** is checked through an EIP-1186 proof against the
