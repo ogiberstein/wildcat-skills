@@ -13,6 +13,9 @@ BUNDLE_2 = EVIDENCE / "wildcat-app-v2-rules.md"
 BOUNDARY_2 = EVIDENCE / "wildcat-app-v2-rules.boundary.json"
 BUNDLE_3 = EVIDENCE / "wildcat-app-v2-outline.md"
 RESULTS_3 = EVIDENCE / "wildcat-app-v2-outline.results.json"
+BUNDLE_4 = EVIDENCE / "wildcat-app-v2-census.md"
+CENSUS_APP = EVIDENCE / "wildcat-app-v2-census.json"
+CENSUS_PROTOCOL = EVIDENCE / "v2-protocol-census.json"
 
 
 def capture_lines(bundle=BUNDLE, tag="evidence"):
@@ -111,6 +114,39 @@ class SecondCaptureTests(unittest.TestCase):
         self.assertEqual(totals["crashes"], 0)
         self.assertEqual(totals["missed"], 0)
         self.assertEqual(totals["extra"], 0)
+
+    def test_the_census_bundle_matches_both_committed_documents(self):
+        lines = capture_lines(BUNDLE_4, "census1")
+        app = json.loads(CENSUS_APP.read_text(encoding="utf-8"))
+        self.assertEqual(int(lines["total_files"]), app["total_files"])
+        self.assertEqual(int(lines["total_bytes"]), app["total_bytes"])
+        tsx = next(row for row in app["rows"] if row["suffix"] == ".tsx")
+        self.assertEqual(int(lines["tsx_bytes"]), tsx["bytes"])
+        self.assertEqual(int(lines["tsx_boundary_bytes"]), tsx["boundary_bytes"])
+
+        lines = capture_lines(BUNDLE_4, "census2")
+        protocol = json.loads(CENSUS_PROTOCOL.read_text(encoding="utf-8"))
+        self.assertEqual(int(lines["total_files"]), protocol["total_files"])
+        self.assertEqual(int(lines["total_bytes"]), protocol["total_bytes"])
+        sol = next(row for row in protocol["rows"] if row["suffix"] == ".sol")
+        self.assertEqual(int(lines["sol_bytes"]), sol["bytes"])
+        self.assertEqual(int(lines["sol_boundary_bytes"]), sol["boundary_bytes"])
+
+    def test_the_app_census_names_the_same_commit_as_the_captures(self):
+        self.assertEqual(
+            capture_lines()["commit"], capture_lines(BUNDLE_4, "census1")["commit"]
+        )
+
+    def test_both_census_documents_carry_the_shipped_schema(self):
+        for path in (CENSUS_APP, CENSUS_PROTOCOL):
+            document = json.loads(path.read_text(encoding="utf-8"))
+            with self.subTest(document=path.name):
+                self.assertEqual(document["schema"], 1)
+                self.assertEqual(document["tool"], "horos")
+                self.assertEqual(
+                    sum(row["bytes"] for row in document["rows"]),
+                    document["total_bytes"],
+                )
 
     def test_the_second_share_exceeds_the_first(self):
         first = capture_lines()
