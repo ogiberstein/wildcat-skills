@@ -908,3 +908,11 @@ The Lazarus prose diff has no open finding. Status: clean.
 The review compared seven mutable files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained proof-backed, header-bound and recorded-RPC evidence classes, exact-request miss behaviour `-32070`, offline verification, and frontier digest `94c0f87fc8dd14562e948fb5b523c9248ffa6fd21849cc433d4a5bc47966daf5`. The manifest-bound Goldfinch README remains byte-identical at `b8a0441746fdd8feb6657bcc78f13ff199c94b081a6462981e8e8a233ae0c09b`.
 
 The fresh `requirements.lock` environment passed root `22/22`, Lazarus `144/144`, two Agent Skills validations, seven Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check`. No live capture, external RPC, canonical-chain provenance, or publisher identity was established. The security suite remains waived because only Markdown changed.
+
+## Repository-wide Brevitas pass, step 8, round 1 -- 2026-08-18
+
+The Alexandria prose diff has no open finding. Status: clean.
+
+The review compared 13 changed files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained the `522/31/11/11` fixture counts, 28 Compound v3 deployments, two Ethereum USDC transactions, 100,000-row and 64 MiB limits, and frontier digest `d5afa30db4e5769dccded9f28be061dc623e119b328dbbcd87b729567b7eaeff`.
+
+Root `22/22`, Alexandria `255/255`, two Agent Skills validations, 16 Imprimatur and Brevitas `--source` checks, 24 local-link checks, protected SHA verification, and `git diff --check` pass. No publisher identity, provider completeness, canonical finality, interval history, address identity, default, repayment, or current balance was established. The security suite remains waived because only Markdown changed.
