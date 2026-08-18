@@ -53,6 +53,7 @@ class CensusTests(unittest.TestCase):
         self.assertEqual(rows["(no suffix)"]["files"], 2)
 
     def test_a_vendored_file_lands_in_its_suffix_row_as_boundary_bytes(self):
+        write(self.root, "node_modules/dep/package.json", '{"name": "dep"}\n')
         write(self.root, "node_modules/dep/index.js", "module.exports = 1\n")
         write(self.root, "src/app.js", "const a = 1\n")
         rows = self.rows()
