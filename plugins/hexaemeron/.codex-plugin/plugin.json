@@ -1,6 +1,6 @@
 {
   "name": "hexaemeron",
-  "version": "1.0.0+codex.20260816145806",
+  "version": "1.1.0",
   "description": "Receipted delivery through merge and closure, with ranked frontier, audit, fuzzing and prose tools.",
   "author": {
     "name": "Wildcat Labs",
