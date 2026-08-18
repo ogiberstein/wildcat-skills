@@ -305,3 +305,28 @@ Leads not pursued:
   in this log as prose. That is the arrangement step 3 was told to keep and it is
   a candidate frontier of its own, recorded in the runbook.
 - **The two carried from step 1**, unchanged.
+
+## Withdrawal batch fee law, step 2, round 2 -- 2026-08-18
+
+Reviewed: the tree with round 1 applied, and what round 1's own commit did to it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | medium | `.gitignore` | Round 1's commit tracked three engine artefacts: `crytic-export/combined_solc.json`, `.medusa-artifact-hash` and `slither_results.json`. The ignore rules for all three existed and did not match, because they were written as `plugins/*/` and an engine writes beside wherever it was invoked from. The Medusa run went through a config under `adapters/medusa/`, so the artefacts landed two levels below the plugin root and walked straight past a one-level pattern. This is the lead the original delivery carried from its own step 5 round 2 about `slither_results.json` being tracked, arriving again by the same mechanism. | Fixed in this round: the three files are untracked, the patterns are depth-independent, and a fresh Medusa run confirmed all three are ignored where they are actually written rather than where the old patterns expected them. |
+| S2-R2-02 | low | `.gitignore` | `plugins/*/search-record.json` sat in the fuzzing-output section while the file it names is tracked, shipped as evidence, and as of round 1 held to the catalogue by three tests. The two statements cannot both be right. Left alone, a fresh clone that regenerated the record would show no diff, and deleting it would draw no complaint from git. | Fixed in this round: the entry is removed and the reason it is not output is written where the entry used to be. |
+
+**What ran.** The full suite again on the fixed tree: 75 Solidity tests under
+forge 1.7.1, 109 Python tests, the repository's 20, `pandects check` over ten
+laws. Medusa 1.5.1 twice more, once to reproduce the artefact paths and once to
+confirm they are ignored. No engine re-run was needed for the findings themselves,
+because neither touches a contract.
+
+**What round 1's fixes look like on re-reading.** The three search-record gates
+were re-checked against a perturbed record and each still fails for its own
+reason. `invariant_pooled_claims_cover_open_batches` still passes at 64 runs and
+4096 calls. The Medusa README's file route was exercised in this round, which is
+how the artefact paths in S2-R2-01 were found: following one's own corrected
+instructions is what surfaced the defect the instructions caused.
+
+Leads not pursued: the two carried from step 1, and `pandects run` knowing one
+engine, carried from round 1.
