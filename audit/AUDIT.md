@@ -1091,3 +1091,19 @@ copies match the receipted artefacts.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Rule-classes run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0 over plugins tests,
+hypomnema 0 over the changed README. Horos 61/61, root 24/24. The review
+checked the register's false-exclusion row: both rules are gated on name
+plus content or name plus path, each carries two near-miss tests, and the
+example's readable file stays readable. The SVG rule runs before the marker
+scan by decision, recorded as a comment at the check itself.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: .svgz and other compressed asset variants
+stay readable; they are binary when deflated on disk and out of the held
+job's evidence either way.
