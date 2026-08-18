@@ -1,8 +1,7 @@
 # Prose pass
 
-Everything a human will read ships in one plain voice, with the AI tells
-stripped. Code stays untouched; this phase is words only. Both masks are
-bundled in this plugin, so no external install is involved.
+Ship human-readable text in one plain voice with AI tells stripped. Code stays
+untouched, and both bundled masks need no external install.
 
 ## Scope
 

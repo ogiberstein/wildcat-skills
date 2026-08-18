@@ -1,10 +1,8 @@
 # Audit loop
 
-Budget accordingly: this phase is expected to take longer than the
-implementation it audits. The loop runs the security suite against the
-step's branch, logs everything, fixes on a stacked branch, and repeats
-until a round comes back clean or the remaining leads are judged not worth
-another pass.
+This phase is expected to outlast its implementation. Run the security suite
+against the step branch, log it, fix on a stacked branch, and repeat until a
+round is clean or the remaining leads are not worth another pass.
 
 ## One round
 

@@ -1,9 +1,9 @@
 # Push discipline
 
-The pushed branch, merged pull request, and closed task issue are the delivery
-trail. Fiat does not create an issue unless the user or a higher-priority
-target-repository rule requires one. If one exists, record it as
-`task_issue` and close it before the terminal receipt.
+The pushed branch, merged pull request, and closed task issue form the delivery
+trail. Create no issue unless the user or a higher-priority target-repository
+rule requires one. If one exists, record it as `task_issue` and close it before
+the terminal receipt.
 
 ## Branches and commits
 

@@ -14,16 +14,14 @@ Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzin
 
 Let there be light.
 
-One command that takes a topic from nothing to a working prototype:
-study, runbook, then for each runbook step the simplest implementation that
-satisfies it, a security loop that runs until clean or
-reasoned out, a prose pass in the house voice, and a merged PR. Every phase
-leaves a receipt in a hash-chained ledger, so the run survives context
-resets, crashes, and week-long pauses -- resume is the same command.
+One command takes a topic through study, runbook, the simplest implementation
+for each step, security rounds until clean or reasoned out, a house-voice prose
+pass, and a merged PR. Each phase leaves a hash-chained receipt, so the same
+command resumes after context resets, crashes, or week-long pauses.
 
-Named for the six days of ordered creation from a void to finished work,
-then rest. The entry skill is `fiat`, so the invocation is
-`/hexaemeron:fiat` and a fresh run's first words are the line above.
+Six days of ordered creation from void to finished work, then rest, give the
+plugin its name. The entry skill is `fiat`, invoked as `/hexaemeron:fiat`; a
+fresh run starts with the line above.
 
 ## The shape of a run
 

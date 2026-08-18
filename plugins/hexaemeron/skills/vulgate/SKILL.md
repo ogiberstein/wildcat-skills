@@ -14,9 +14,8 @@ Solidity frontier. Its version, held parity target, next job, and maturity
 state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run another
 frontier pass after that ledger becomes mature.
 
-A voice mask: it renders machine-register text into the common tongue. The
-output should read as though a busy, competent person wrote it -- someone who
-says the thing and stops.
+A voice mask renders machine-register text into the common tongue. The output
+should read as though a busy, competent person wrote it and stopped.
 
 ## Prime directive: this is a mask, not an editor
 

@@ -1,8 +1,7 @@
 # Runbook format
 
-Turn the study into an ordered list of steps that ends at a working
-prototype. Write it to `.hexaemeron/runbook.md`, emit
-`.hexaemeron/steps.json`, and receipt both.
+Turn the study into ordered steps ending at a working prototype. Write
+`.hexaemeron/runbook.md`, emit `.hexaemeron/steps.json`, and receipt both.
 
 ## What makes a step a step
 

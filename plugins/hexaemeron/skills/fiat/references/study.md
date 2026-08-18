@@ -1,9 +1,8 @@
 # Study
 
-Produce one markdown study that someone competent could build from without
-access to this conversation. Write it to `.hexaemeron/study.md` (the state
-directory is self-gitignored; a repo copy gets committed later, in step 1 of
-the runbook, after the prose pass).
+Produce one Markdown study that someone competent can build without this
+conversation. Write `.hexaemeron/study.md`; the directory is self-gitignored,
+so step 1 commits a repository copy after the prose pass.
 
 ## Required content
 

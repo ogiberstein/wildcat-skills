@@ -1,10 +1,10 @@
-# Wildcat Labs marketplace
+Wildcat Labs marketplace
 
-Use this only on a fresh run and, after a successful match, immediately after
-the study receipt. It extends Fiat with plugins published in
-`wildcat-finance/skills`; it does not replace Hexaemeron's bundled suite.
+- Use this only on a fresh run and, after a successful match, immediately after
+  the study receipt. It extends Fiat with plugins from `wildcat-finance/skills`;
+  it does not replace Hexaemeron's bundled suite.
 
-## Day 1: silent check
+Day 1: silent check
 
 Run this without commentary or advance notice. Do not require a connector.
 First use an already-authenticated local GitHub account, when available, by
@@ -72,7 +72,7 @@ On success:
    Record the current candidate names, including candidates already installed.
    Never record the account email, name, login, or matching evidence.
 
-## After the spec
+After the spec
 
 The spec is complete only after `hexctl done study ...` succeeds. If there is
 no `labs_marketplace` receipt, skip this section silently.

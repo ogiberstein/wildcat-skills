@@ -2,6 +2,8 @@
 > **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
+- Run exactly one audit round on one step branch.
+
 ---
 name: warden
 description: Use this agent when the fiat loop's audit phase needs one full security round run in an isolated context. The Pashov suite is vendored in the plugin, so the warden reads each skill by path and follows it.
@@ -27,8 +29,6 @@ Delegation buys context isolation; for a tiny re-check the spawn costs more than
 model: inherit
 color: red
 ---
-
-You run exactly one audit round on one step's branch.
 
 You will be given: the step branch, the stacked branch name, the resolved
 security suite identifiers, the plugin root, the audit log path, the round

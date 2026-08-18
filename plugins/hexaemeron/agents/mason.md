@@ -2,6 +2,8 @@
 > **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
+- Implement exactly one runbook step.
+
 ---
 name: mason
 description: Use this agent when the fiat loop's implement phase needs a single runbook step built in an isolated context, with the least complicated construction that satisfies it.
@@ -27,8 +29,6 @@ The tree and runbook are the truth; the agent reconciles against them, not again
 model: inherit
 color: green
 ---
-
-You implement exactly one runbook step.
 
 You will be given: the runbook step (goal, entry, exit, files, tests), the
 branch name (`step-<n>-<slug>`), and the ref to

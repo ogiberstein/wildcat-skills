@@ -1,10 +1,10 @@
-# Imprimatur labelled-corpus calibration runbook
+Imprimatur labelled-corpus calibration runbook
 
-This run has one step. Corpus selection, blind labels, calibration, the sealed
-holdout run and the frontier decision share one acceptance boundary so the
-holdout cannot become a second tuning set.
+- One step holds corpus selection, blind labels, calibration, the sealed
+  holdout run and the frontier decision in one acceptance boundary, preventing
+  the holdout from becoming a second tuning set.
 
-## Step 1: Build and run the labelled prose evaluation
+Step 1: Build and run the labelled prose evaluation
 
 **Goal.** Measure Imprimatur by tier on a provenance-bound human and
 model-assisted corpus, fix only calibration-proven errors, and record the

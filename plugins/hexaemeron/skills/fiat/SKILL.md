@@ -35,23 +35,18 @@ Resolve paths from the exact `SKILL.md` file that activated Fiat. Do not
 resolve them from the target repository, the shell's current directory, the
 GitHub URL, or a guessed plugin-cache version.
 
-Before the first controller call:
+Before the first controller call, resolve the four paths and controller command:
 
 ```text
 FIAT_SKILL_FILE=<exact path of the active fiat/SKILL.md>
 FIAT_SKILL_DIR=<real parent directory of FIAT_SKILL_FILE>
 PLUGIN_ROOT=<real directory two levels above FIAT_SKILL_DIR>
 PROJECT_ROOT=<real root of the user's target repository>
+python3 "$FIAT_SKILL_DIR/scripts/hexctl.py" --dir "$PROJECT_ROOT" <cmd>
 ```
 
 Fail closed if `FIAT_SKILL_DIR/scripts/hexctl.py` is not a file. Sibling
 skills live at `PLUGIN_ROOT/skills/<name>/`.
-
-Controller:
-
-```text
-python3 "$FIAT_SKILL_DIR/scripts/hexctl.py" --dir "$PROJECT_ROOT" <cmd>
-```
 
 Alias it as `hexctl` mentally; every command below means that invocation.
 State lives in `.hexaemeron/` beside a hash-chained ledger. The directory
