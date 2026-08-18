@@ -166,7 +166,11 @@ abstract contract Campaign {
     /// This is where it goes instead. Replay a failing sequence, call this,
     /// and the reason arrives with the numbers in it rather than having to be
     /// worked out again from the call trace.
-    function explain() external view returns (string[8] memory details) {
+    /// The width is the count of laws this harness carries, one-state first and
+    /// then pair, and `ShippedAdapterTests` holds it to the catalogue. A reason
+    /// missing here is the one thing this function exists to prevent, arriving in
+    /// the function itself.
+    function explain() external view returns (string[9] memory details) {
         Observation memory now_ = Observe.takeWithQueue(target());
         // slither-disable-start unused-return
         (, details[0]) = conserved.check(target());
@@ -174,10 +178,11 @@ abstract contract Campaign {
         (, details[2]) = partitioned.check(target());
         (, details[3]) = ordered.check(target());
         (, details[4]) = covered.check(target());
+        (, details[5]) = pooled.check(target());
         if (previous.queueObserved) {
-            (, details[5]) = falls.check(previous, now_);
-            (, details[6]) = atRest.check(previous, now_);
-            (, details[7]) = shrinks.check(previous, now_);
+            (, details[6]) = falls.check(previous, now_);
+            (, details[7]) = atRest.check(previous, now_);
+            (, details[8]) = shrinks.check(previous, now_);
         }
         // slither-disable-end unused-return
     }
@@ -372,10 +377,12 @@ contract PayableBeyondReservesCampaign is Campaign {
 /// `pooled_claims_cover_open_batches` is expected to fail once the market is
 /// illiquid and a fee has been charged. The others are expected to hold.
 ///
-/// Reaching it needs three things in one sequence: a deposit, a borrow that
-/// leaves the system holding less than its queue will be owed, and a fee. The
-/// fee cap is the defect, so the search has to get the system into the state
-/// where the cap and the queue disagree before the fee means anything.
+/// Reaching it needs four calls in one sequence: a deposit, a borrow, a
+/// withdrawal request for more than what is left held, and a fee. The request is
+/// the one an earlier draft of this comment left out, and the property cannot be
+/// reached without it: without a recorded claim nothing is owed, and without a claim larger
+/// than what is held the earmark covers it and the cap does not leak. Echidna
+/// shrinks its own sequence to those four.
 contract FeeFromQueuedCampaign is Campaign {
     FeeFromQueued internal immutable system = new FeeFromQueued();
 
