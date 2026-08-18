@@ -334,12 +334,13 @@ class ShippedAdapterTests(unittest.TestCase):
         bound = dict(
             re.findall(r"Law internal immutable (\w+) = new (\w+)\(\)", source)
         )
+        bound.update(
+            re.findall(r"PairLaw internal immutable (\w+) = new (\w+)\(\)", source)
+        )
         for law in self.catalogue.laws:
             if law.id in self.NOT_IN_CAMPAIGN:
                 continue
             component = os.path.basename(law["component"]).replace(".sol", "")
-            if not self._is_one_state(component):
-                continue
             variables = [name for name, made in bound.items() if made == component]
             with self.subTest(law=law.id):
                 self.assertEqual(
@@ -348,12 +349,14 @@ class ShippedAdapterTests(unittest.TestCase):
                     "%s is not bound exactly once in the campaign harness" % law.id,
                 )
             for prefix in self.PREFIXES:
-                declared = set(
-                    re.findall(
-                        r"function %s(\w+)\(\) external view returns \(bool\) \{\n"
-                        r"\s*return judge\((\w+)\);" % prefix,
-                        source,
-                    )
+                # `judge` for a one-state law and `judgePair` for a pair law. Both,
+                # because the harness declares both and a check reading one of them
+                # would leave the other family exactly as unheld as this check was
+                # written to stop.
+                declared = re.findall(
+                    r"function %s(\w+)\(\) external view returns \(bool\) \{\n"
+                    r"\s*return judge(?:Pair)?\((\w+)\);" % prefix,
+                    source,
                 )
                 asked = {variable for _, variable in declared}
                 with self.subTest(law=law.id, prefix=prefix):
@@ -363,6 +366,26 @@ class ShippedAdapterTests(unittest.TestCase):
                         "%s has no %s property, so one engine never searches it"
                         % (law.id, prefix),
                     )
+
+    def test_every_specimen_has_a_campaign_driving_it(self):
+        """A specimen no engine drives is a law proven by hand only.
+
+        The corpus's claim about a law rests on its specimen being caught. A
+        specimen with a property to fail and no harness to fail it under is caught
+        by the deterministic suite and by no search, and nothing about a green
+        campaign run says which specimens were in it.
+        """
+        source = self.sources[self.CAMPAIGN]
+        campaigns = set(re.findall(r"(?m)^contract (\w+)Campaign is Campaign", source))
+        for law in self.catalogue.laws:
+            specimen = os.path.basename(law["specimen"]).replace(".sol", "")
+            with self.subTest(law=law.id, specimen=specimen):
+                self.assertIn(
+                    specimen,
+                    campaigns,
+                    "%s is the specimen for %s and no campaign drives it"
+                    % (specimen, law.id),
+                )
 
     def _is_one_state(self, component):
         """A one-state law extends `Law`; a pair law extends `PairLaw`.

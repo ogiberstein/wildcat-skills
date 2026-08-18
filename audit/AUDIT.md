@@ -554,3 +554,39 @@ because the rounds ran out.
 step 3's first line of work with the check required in the same commit as the
 property. Recorded here as well as in the runbook, because it is the only thing
 this step knowingly leaves for the next one.
+
+## Withdrawal batch fee law, step 3, round 1 -- 2026-08-18
+
+Reviewed: the whole of the step's diff, and first of all the check it added, since
+step 2 spent six findings on checks narrower than the class they were written for.
+It was narrower than the class it was written for.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `tests/test_documents.py` | The campaign-harness check skipped every pair law. It classified each law by shape and returned early on anything that was not one-state, so the three pair properties the harness declares through `judgePair` were held to nothing, and a fourth pair law would arrive in the catalogue and not in the harness with a green suite either way. The check was written in the commit that closed this class for the one-state family and left the other half open. | Fixed in this round: pair-law bindings are read alongside the one-state ones and the property pattern accepts `judge` or `judgePair`, so both families are held under both prefixes. Deleting `echidna_recorded_claim_never_shrinks` now names that law. |
+| S3-R1-02 | medium | `tests/test_documents.py` | Nothing tied a catalogued specimen to a campaign. Every one has a campaign today, and `FeeFromQueuedCampaign` exists because this step added it by hand, so the eleventh specimen would have rested on somebody remembering. A specimen with a property to fail and no harness to fail it under is caught by the deterministic suite and by no search, and a campaign report says nothing about which specimens were in it. | Fixed in this round: every catalogued specimen must have a `<Specimen>Campaign` in the harness. Renaming `FeeFromQueuedCampaign` now names the law whose specimen went undriven. |
+
+**What ran.** 77 Solidity tests under forge 1.7.1, 114 Python tests, up from 113 by
+the specimen check, the repository's 20, and `pandects check` over ten laws. No
+engine re-run for the findings themselves: both are tests over an unchanged harness,
+and the engine evidence this step exists for was taken in the implement phase and is
+recorded below.
+
+**The engines, on the harness this step built.** Both reach the specimen and neither
+reaches anything else.
+
+| engine | `pooled_claims_cover_open_batches` | the other eight | detail |
+| --- | --- | --- | --- |
+| Echidna 2.3.3, seed 20260816 | falsified, shrunk to four calls | passing | `deposit`, `borrow(1)`, `reserve`, `accrueFee(1)` |
+| Medusa 1.5.1, twenty thousand | failed | passing | "pooled claims are below what the open batches are owed" |
+
+**A defect in the check, caught by the check.** The first version of the pair-law
+pattern read `judgePair?`, which is `judgePai` followed by an optional `r` rather
+than `judge` followed by an optional `Pair`. It matched the pair laws and missed
+every one-state law, so twelve subtests failed at once and named the laws they could
+not find. Worth recording because the failure was loud: a pattern that matches
+nothing leaves `asked` empty and every law unfound, rather than passing quietly,
+which is the behaviour a check guarding against silence should have.
+
+Leads not pursued: the four accepted at the close of step 2 stand, and none of them
+is touched by this step.
