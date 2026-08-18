@@ -10,7 +10,7 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Use another tool when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** One job remains from the reopened scope: committed boundaries and censuses across the three home repositories, using the refined classifier.
+**Current frontier.** The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains.
 <!-- marketplace-context:end -->
 
 Read [the canonical Horos skill](../../../plugins/horos/skills/horos/SKILL.md)
