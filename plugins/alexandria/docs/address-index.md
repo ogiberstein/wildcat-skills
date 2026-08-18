@@ -7,6 +7,8 @@
 Alexandria rebuilds a disposable SQLite index from one or more verified
 derived releases:
 
+## Index boundary
+
 ```bash
 python3 plugins/alexandria/scripts/alexandria.py index derived-release \
   --output alexandria.sqlite
@@ -21,10 +23,10 @@ release IDs, component digests, capture IDs and evidence classes. It is an
 index of release truth, not release truth itself, and can be deleted and
 rebuilt at any time.
 
-The builder verifies every input before writing through a temporary sibling
-file and refuses an output path inside any input release. The reader opens
-SQLite read-only, runs its integrity check and
-re-verifies every release at its recorded path. It reconstructs and compares
+The builder verifies every input, writes through a temporary sibling file, and
+refuses an output path inside an input release. The reader opens SQLite
+read-only, runs its integrity check, and re-verifies every release at its
+recorded path. It reconstructs and compares
 one release partition at a time, so a multi-release catalogue does not retain
 every parsed JSONL row in memory together. This check binds the rows and the
 active correction set to release content instead of trusting a digest stored

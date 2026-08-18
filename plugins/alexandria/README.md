@@ -14,10 +14,10 @@ Alexandria preserves heterogeneous lending data as digest-bound releases, then d
 
 An offline tool for digest-bound lending-data releases.
 
-Alexandria keeps heterogeneous lending-protocol captures unchanged. It binds
-each capture to explicit scope and coverage, derives a narrow Tabularium credit
-view and supplies that view to Probitas through a disposable index. Alexandria
-is an archive and data source, not a lending venue or underwriting system.
+Alexandria keeps heterogeneous lending-protocol captures unchanged, binds each
+to explicit scope and coverage, derives a narrow Tabularium credit view, and
+supplies it to Probitas through a disposable index. It is an archive and data
+source, not a lending venue or underwriting system.
 
 ## Complete prototype
 
@@ -32,6 +32,9 @@ python3 scripts/alexandria.py derive release --output derived-release
 python3 scripts/alexandria.py verify derived-release
 python3 scripts/alexandria.py index derived-release --output alexandria.sqlite
 python3 scripts/alexandria.py query --index alexandria.sqlite --address 0x...
+output="$(mktemp -d)/credit-history-v0"
+python3 examples/credit-history-v0/demo.py build --output "$output"
+python3 examples/credit-history-v0/demo.py verify "$output"
 ```
 
 Ingest copies the declared raw bytes into SHA-256-derived paths and writes one
@@ -58,14 +61,8 @@ observation and per-venue coverage JSON. Probitas opts into the archive with
 `--alexandria-index`; its normal fixture and live adapter route is unchanged.
 
 The checked-in [`credit-history-v0`](examples/credit-history-v0/README.md)
-demonstration runs that complete path from the existing Goldfinch and Clearpool
-source files through Probitas's five gates without network access:
-
-```bash
-output="$(mktemp -d)/credit-history-v0"
-python3 examples/credit-history-v0/demo.py build --output "$output"
-python3 examples/credit-history-v0/demo.py verify "$output"
-```
+demonstration runs that path from the existing Goldfinch and Clearpool sources
+through Probitas's five gates without network access.
 
 Its expected receipts bind 522 derived events, 31 observations, an 11-event
 Clearpool address query and 11 Probitas records. Goldfinch remains partial for
@@ -90,17 +87,13 @@ python3 scripts/compound_v3_phase0.py registry \
 python3 scripts/compound_v3_phase0.py build \
   --input <captured-input> --output <release>
 python3 scripts/compound_v3_phase0.py check <release>
-```
-
-Live capture is a separate, explicit network boundary. It reads the endpoint
-only from `ALEXANDRIA_COMPOUND_RPC_URL` and does not preserve that URL or its
-headers:
-
-```bash
 python3 scripts/compound_v3_phase0.py capture \
   --registry registry.json --corpus corpus.json \
   --comet-repository <comet-checkout> --output <captured-input>
 ```
+
+Live capture is a separate network boundary. It reads the endpoint only from
+`ALEXANDRIA_COMPOUND_RPC_URL` and preserves neither the URL nor its headers.
 
 This is a fixed method proof from one RPC provider, not an interval harvester,
 independent finality evidence or a canonical Compound event release.

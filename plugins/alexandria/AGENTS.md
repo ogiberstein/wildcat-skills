@@ -4,25 +4,22 @@
 > **Marketplace context: Alexandria.** Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend. Use Tabularium when the job is semantic event mapping, Probitas when the deliverable is a counterparty dossier, and Lazarus when a test needs finite historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
-Alexandria contains one Agent Skill. Select it from this table, then read the
-chosen `SKILL.md` in full.
+Alexandria contains one Agent Skill:
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `alexandria` | `skills/alexandria/SKILL.md` | Build or verify a digest-bound lending-data release, or inspect the archive contract |
+- `alexandria`: read `skills/alexandria/SKILL.md` in full when building or
+  verifying a digest-bound lending-data release or inspecting the archive
+  contract.
 
 `skills/alexandria/SKILL.md` is the only canonical instruction document. Do
 not add a sibling browsing README.
 
 ## Translate tool names by capability
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+- `Read`: read the named file completely or at the stated range.
+- `Write` or `Edit`: create or patch the named file.
+- `Bash`: execute the command and inspect its exit status.
+- `Glob`, `Grep`, or `find`: enumerate or search the stated pattern.
+- `AskUserQuestion`: ask through structured UI or concise text.
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent

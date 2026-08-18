@@ -8,6 +8,8 @@ Alexandria derives a narrow credit view from a verified raw release. The raw
 release stays unchanged. Derivation writes a new release containing the same
 digest-keyed objects, two deterministic JSONL files and a new manifest.
 
+## Release contract
+
 ```bash
 python3 plugins/alexandria/scripts/alexandria.py derive raw-release \
   --output derived-release
