@@ -2,7 +2,7 @@
 name: brevitas
 description: Enforce evidence-preserving structural output budgets on engineering prose. Apply automatically to chat answers and written drafts containing audit findings, security or diff review, gas analysis, `invariant` discussion, protocol analysis, or specification commentary, and on explicit $brevitas invocation. Govern volume, structure, and connective prose only. Do not apply to code comments, commit messages, or completeness-oriented specification documents.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Brevitas
@@ -45,7 +45,7 @@ irreducible over-budget finding with the evidence exception below.
 2. Apply these physical-line budgets:
    - Direct answer: at most 6 nonblank lines before the first list or code fence.
    - Finding: at most 5 prose lines: claim, location, mechanism, impact, fix.
-   - Code: at most one fence per point and 15 content lines per fence.
+   - Code: at most 40 content lines per fence.
 3. Give each finding this checkable shape:
 
    ```text
