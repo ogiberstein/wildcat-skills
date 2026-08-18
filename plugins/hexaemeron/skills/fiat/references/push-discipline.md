@@ -21,7 +21,11 @@ target-repository rule requires one. If one exists, record it as
 ## Pull request and closure
 
 Push the branch, then open a pull request using the title and body prepared in
-the prose phase. The body states what changed, why, where the audit record
+the prose phase. Target the base recorded at `init`, passing it explicitly as
+`gh pr create --base <recorded base>`. Never let the pull request fall back to
+the repository default branch: when the run was started from a named branch,
+that branch is where the work belongs, and a silent retarget to the default
+branch merges work the user meant to hold back. The body states what changed, why, where the audit record
 lives, and how to run the proof. Do not invent an issue reference. Include one
 only when the user independently supplied a relevant issue.
 
