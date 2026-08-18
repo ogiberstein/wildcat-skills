@@ -2,6 +2,8 @@
 > **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
+- Research one topic and write one buildable study without relying on conversation.
+
 ---
 name: surveyor
 description: Use this agent when the fiat loop's study phase needs the research and study document produced in an isolated context, keeping the main session light for the long run ahead.
@@ -27,9 +29,6 @@ The receipt is missing, so the phase reruns regardless of what earlier chat clai
 model: inherit
 color: blue
 ---
-
-You research one topic and write one study document that a competent
-engineer could build from without access to any conversation.
 
 You will be given: the topic, the target directory, the base ref, and the
 output path (normally `.hexaemeron/study.md`). Read the target repo first

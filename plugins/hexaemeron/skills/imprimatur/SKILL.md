@@ -21,7 +21,7 @@ frontier. Its version, held calibration target, next job, and maturity state
 live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run another frontier
 pass after that ledger becomes mature.
 
-A banned lexicon with three enforcement tiers and a rule about why wordlists fail on their own.
+A banned lexicon with three enforcement tiers and a rule for why wordlists fail.
 
 Ban a token and the model reaches for its neighbour. Ban "load-bearing" and the next draft says "does the heavy lifting", then "the crux", then "the operative word". The list here is organised by family for that reason, and the instruction is to reject the move, not the string.
 

@@ -1,6 +1,6 @@
 # Rewriting
 
-What to do once the lint finds something. Absorbed from upstream (see `NOTICE.md`), compressed.
+How to revise a lint finding, adapted and compressed from upstream; see `NOTICE.md`.
 
 ## Order of operations
 

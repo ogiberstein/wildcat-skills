@@ -120,20 +120,17 @@ artefact, but they must not guide a v1 change. Any replacement corpus or lint
 tuning belongs to `labelled-prose-v2` and must not tune against the v1
 holdout.
 
-The source and evidence checks run without invoking the lint:
+Source validation and calibration replay use one command block:
 
 ```bash
 python3 ../../scripts/evaluate_labelled_corpus.py \
   --fixture . --validate-only --verify-sources
-```
-
-The published calibration report can be reproduced without reading the
-holdout:
-
-```bash
 python3 ../../scripts/evaluate_labelled_corpus.py \
   --fixture . --split calibration --expect baseline.json
 ```
+
+The published calibration report is reproduced by the second command without
+holdout access.
 
 ## Files
 

@@ -64,12 +64,10 @@ The live state is in phase `study` and records three pre-study receipts:
 
 The installed and checkout copies of these files are byte-identical:
 
-| File | SHA-256 |
-| --- | --- |
-| `skills/fiat/scripts/hexctl.py` | `5934bca666ca019c3837aa597cb8b2f9e861e41c11f500d37f3cfdfdeceefc9d` |
-| `skills/fiat/SKILL.md` | `3b9da7eb0657b3a075d93661b9b5e72b313ff4d98ede83436e5575af79c971f9` |
-| `skills/fiat/EVOLUTION.md` | `3494f39b58b488bf16241cae2fa42a0a68f6b7eaeff178dd738f9980deea8d43` |
-| `tests/test_hexctl.py` | `bf196207af51016c1cb48f810dddd801094e01f664eba65248250bd2fb3a852f` |
+- `skills/fiat/scripts/hexctl.py`: `5934bca666ca019c3837aa597cb8b2f9e861e41c11f500d37f3cfdfdeceefc9d`
+- `skills/fiat/SKILL.md`: `3b9da7eb0657b3a075d93661b9b5e72b313ff4d98ede83436e5575af79c971f9`
+- `skills/fiat/EVOLUTION.md`: `3494f39b58b488bf16241cae2fa42a0a68f6b7eaeff178dd738f9980deea8d43`
+- `tests/test_hexctl.py`: `bf196207af51016c1cb48f810dddd801094e01f664eba65248250bd2fb3a852f`
 
 The installed suite was run directly from
 `.../hexaemeron/1.0.0+codex.20260816145806/tests/run_tests.py` with Python's
@@ -256,28 +254,28 @@ carry the SHA-256 of the new four-field frontier line defined by
 
 ## Glossary seeds
 
-- **Active skill file:** The exact installed `fiat/SKILL.md` whose instructions
+- `Active skill file`: The exact installed `fiat/SKILL.md` whose instructions
   started this run.
-- **Controller path:** The absolute path to the `hexctl.py` beside the active
+- `Controller path`: The absolute path to the `hexctl.py` beside the active
   skill file.
-- **Project root:** The target checkout passed through the controller's
+- `Project root`: The target checkout passed through the controller's
   `--dir` argument.
-- **Installed plugin:** The Hexaemeron directory under the Codex plugin cache,
+- `Installed plugin`: The Hexaemeron directory under the Codex plugin cache,
   with its own manifest, skills, scripts, agents, and tests.
-- **Receipt:** Structured evidence written into controller state and its next
+- `Receipt`: Structured evidence written into controller state and its next
   hash-chained ledger entry.
-- **Ledger:** `.hexaemeron/ledger.jsonl`, an append-only sequence whose entry
+- `Ledger`: `.hexaemeron/ledger.jsonl`, an append-only sequence whose entry
   hashes bind each event to the prior entry and current state fingerprint.
-- **Frontier:** A skill's current evidenced limit and its held next job.
-- **Evolution:** The first skill-version counter, incremented once when a
+- `Frontier`: A skill's current evidenced limit and its held next job.
+- `Evolution`: The first skill-version counter, incremented once when a
   completed frontier job changes the held next job or closes it.
-- **Generation:** The second skill-version counter, used for behavior changes
+- `Generation`: The second skill-version counter, used for behavior changes
   that do not advance the held frontier.
-- **Epoch:** The third skill-version counter, used only for a provenance or
+- `Epoch`: The third skill-version counter, used only for a provenance or
   compatibility boundary, including an evidenced mature-frontier reopening.
-- **Mature:** Terminal frontier state with no held next job; further frontier
+- `Mature`: Terminal frontier state with no held next job; further frontier
   Fiat runs are refused until external evidence reopens an epoch.
-- **Tracked proof:** The repository document that preserves the installed-run
+- `Tracked proof`: The repository document that preserves the installed-run
   facts after ignored controller state is no longer locally available.
 
 ## Sources

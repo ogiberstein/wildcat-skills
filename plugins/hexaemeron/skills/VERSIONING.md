@@ -1,9 +1,22 @@
-# Skill evolution contract
+Skill evolution contract
 
 Governed first-party marketplace skills use labels of the form
 `{skill}-v{evolution}.{generation}.{epoch}`. These labels are not SemVer and
 do not rename the skill: a label is built from the skill's own name, not its
 plugin's, so Lemma's skill is governed as `chunk`.
+
+- **Evolution** is the first number. Increment it exactly once after a
+  completed frontier Fiat job changes that skill's `Next Fiat job`, including
+  a frontier-closing job that records `None -- mature`.
+- **Generation** is the second number. Increment it for a meaningful change
+  to scripts, checks, ordering, decisions, or other behaviour that is not a
+  completed frontier advance. Prose-only edits do not count.
+- **Epoch** is the third number. Increment it only when a skill crosses a
+  compatibility or provenance boundary that makes its earlier lineage an
+  unsafe guide: a replacement is absorbed, the execution contract is
+  deliberately broken, ownership moves, or the history must be rebuilt from
+  incomplete evidence. Do not use it as a patch number. The other counters do
+  not reset.
 
 This contract governs a skill, not a plugin. A plugin whose skills each hold
 their own frontier keeps one ledger per skill. Vendored or third-party skills
@@ -19,19 +32,6 @@ nine top-level plugin skills adopted at whatever version their `SKILL.md`
 already declared, so their baselines are not uniform and no baseline value
 may be assumed.
 
-- **Evolution** is the first number. Increment it exactly once after a
-  completed frontier Fiat job changes that skill's `Next Fiat job`, including
-  a frontier-closing job that records `None -- mature`.
-- **Generation** is the second number. Increment it for a meaningful change
-  to scripts, checks, ordering, decisions, or other behaviour that is not a
-  completed frontier advance. Prose-only edits do not count.
-- **Epoch** is the third number. Increment it only when a skill crosses a
-  compatibility or provenance boundary that makes its earlier lineage an
-  unsafe guide: a replacement is absorbed, the execution contract is
-  deliberately broken, ownership moves, or the history must be rebuilt from
-  incomplete evidence. Do not use it as a patch number. The other counters do
-  not reset.
-
 Each governed skill keeps `EVOLUTION.md` beside its `SKILL.md`. That ledger
 is the authority for the current label, frontier status, frontier revision,
 next job, and history. The numeric version in `SKILL.md` frontmatter must
@@ -42,7 +42,7 @@ including its final newline:
 {status}|{frontier revision}|{current frontier}|{next Fiat job}
 ```
 
-## Frontier discipline
+Frontier discipline
 
 `Next Fiat job` is a held target, not a rolling writing prompt.
 

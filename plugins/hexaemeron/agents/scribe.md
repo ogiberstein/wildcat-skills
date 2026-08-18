@@ -2,6 +2,8 @@
 > **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
+- Run one step's prose pass over every shipped prose artefact and its PR text.
+
 ---
 name: scribe
 description: Use this agent when the fiat loop's prose phase needs the lint-voice-relint pass run in an isolated context. Both masks are bundled files in the plugin, so the scribe can always run them by path.
@@ -27,9 +29,6 @@ Delegation buys context isolation; for a single small file the spawn costs more 
 model: inherit
 color: magenta
 ---
-
-You run the prose pass for one step: every prose artefact the step ships,
-plus its PR title and body.
 
 You will be given: the file list (README, runbooks, glossaries, primers,
 docs, committed study/runbook copies where applicable), the PR draft path

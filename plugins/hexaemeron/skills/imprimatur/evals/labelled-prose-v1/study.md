@@ -47,8 +47,8 @@ It must exit 0, reproduce checked-in metrics byte for byte apart from an
 explicit timestamp field, and leave the normal 55-test suite green. The
 repository checks required by `AGENTS.md` must also pass.
 
-The held job says "shipped human and model-assisted prose." The selected
-reading is public prose that reached the default branch of a Wildcat GitHub
+The held job's "shipped human and model-assisted prose" means public prose
+that reached the default branch of a Wildcat GitHub
 repository, or a merged PR or issue in `wildcat-finance/skills`. The user has
 supplied an authoritative origin rule: prose shipped before 2025-08-01 may be
 labelled human. Model-assisted rows need an affirmative agent marker. Unmarked
@@ -67,10 +67,8 @@ and are outside this run.
 The installed and checkout copies of the current lint and tests are
 byte-identical:
 
-| File | SHA-256 |
-| --- | --- |
-| `scripts/imprimatur.py` | `8132f705ad2ce98ca42855b5ca191f4d7725d1260e2cc2d411187e198f1529f1` |
-| `tests/run_tests.py` | `56e474e71bc93e6cf6e02e1344aa3fa9fcdd0c5f3cf9c0fd1fe3d519272f7251` |
+- `scripts/imprimatur.py`: `8132f705ad2ce98ca42855b5ca191f4d7725d1260e2cc2d411187e198f1529f1`
+- `tests/run_tests.py`: `56e474e71bc93e6cf6e02e1344aa3fa9fcdd0c5f3cf9c0fd1fe3d519272f7251`
 
 The installed Imprimatur suite passed 55 of 55 tests during this study. The
 lint implementation is 454 lines of Python and depends only on the standard
@@ -407,36 +405,36 @@ the epoch rule in `VERSIONING.md`.
 
 ## Glossary seeds
 
-- **Sample:** One immutable paragraph of shipped prose plus source and origin
+- `Sample`: One immutable paragraph of shipped prose plus source and origin
   metadata.
-- **Source group:** All samples introduced by the same PR, commit series, or
+- `Source group`: All samples introduced by the same PR, commit series, or
   copied text family; groups never cross the split.
-- **Origin evidence:** For `human`, a pre-1-August-2025 public default-branch source
+- `Origin evidence`: For `human`, a pre-1-August-2025 public default-branch source
   under the user's rule or a separate attestation; for `model_assisted`, an
   affirmative agent marker. Later unmarked work is `unknown`.
-- **Gold span:** An adjudicated byte range with tier, family, decision,
+- `Gold span`: An adjudicated byte range with tier, family, decision,
   severity, and reason.
-- **Actionable:** A labelled use the lint should report as a defect.
-- **Licensed:** A gated term whose local evidence makes it legitimate.
-- **Signal-only:** An advisory structural or cadence observation excluded from
+- `Actionable`: A labelled use the lint should report as a defect.
+- `Licensed`: A gated term whose local evidence makes it legitimate.
+- `Signal-only`: An advisory structural or cadence observation excluded from
   defect precision and recall.
-- **Calibration split:** The only labelled half available while changing lint
+- `Calibration split`: The only labelled half available while changing lint
   code or lexicons.
-- **Holdout split:** Source-isolated labels revealed once after the candidate
+- `Holdout split`: Source-isolated labels revealed once after the candidate
   implementation is frozen.
-- **Leakage:** Shared text, source groups, annotations, or outputs that allow
+- `Leakage`: Shared text, source groups, annotations, or outputs that allow
   holdout knowledge to influence selection or tuning.
-- **Precision:** Matched actionable predictions divided by all actionable
+- `Precision`: Matched actionable predictions divided by all actionable
   predictions.
-- **Recall:** Matched actionable predictions divided by all gold actionable
+- `Recall`: Matched actionable predictions divided by all gold actionable
   spans.
-- **Specificity:** Correct negative samples divided by all gold negative
+- `Specificity`: Correct negative samples divided by all gold negative
   samples for a tier.
-- **Alert yield:** Advisory signals judged useful divided by all advisory
+- `Alert yield`: Advisory signals judged useful divided by all advisory
   signals emitted.
-- **Enriched fixture:** A deliberately balanced test set with enough positives
+- `Enriched fixture`: A deliberately balanced test set with enough positives
   and negatives to measure each tier, without claiming production frequency.
-- **Mature:** No evidenced follow-on job remains after the pre-registered
+- `Mature`: No evidenced follow-on job remains after the pre-registered
   validity and metric gates hold.
 
 ## Sources

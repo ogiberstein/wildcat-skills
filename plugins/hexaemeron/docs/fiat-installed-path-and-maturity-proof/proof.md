@@ -7,16 +7,11 @@ remains authoritative for phase order and terminal state.
 
 ## Path and target separation
 
-The active controller is the installed plugin copy:
+The active controller and target are separate:
 
 ```text
-/Users/c0rtexzer0/.codex/plugins/cache/wildcat-labs/hexaemeron/1.0.0+codex.20260816145806/skills/fiat/scripts/hexctl.py
-```
-
-Every invocation passes this repository separately as the controller target:
-
-```text
-/Users/c0rtexzer0/Documents/ChatGPT/Wildcat Skills
+controller: /Users/c0rtexzer0/.codex/plugins/cache/wildcat-labs/hexaemeron/1.0.0+codex.20260816145806/skills/fiat/scripts/hexctl.py
+target: /Users/c0rtexzer0/Documents/ChatGPT/Wildcat Skills
 ```
 
 The target began from clean `main` at
@@ -61,12 +56,10 @@ ledger before the run can report `done`.
 At study time, before the checkout metadata and ledger changed, the installed
 and checkout copies had these SHA-256 values:
 
-| File | SHA-256 |
-| --- | --- |
-| `skills/fiat/scripts/hexctl.py` | `5934bca666ca019c3837aa597cb8b2f9e861e41c11f500d37f3cfdfdeceefc9d` |
-| `skills/fiat/SKILL.md` | `3b9da7eb0657b3a075d93661b9b5e72b313ff4d98ede83436e5575af79c971f9` |
-| `skills/fiat/EVOLUTION.md` | `3494f39b58b488bf16241cae2fa42a0a68f6b7eaeff178dd738f9980deea8d43` |
-| `tests/test_hexctl.py` | `bf196207af51016c1cb48f810dddd801094e01f664eba65248250bd2fb3a852f` |
+- `skills/fiat/scripts/hexctl.py`: `5934bca666ca019c3837aa597cb8b2f9e861e41c11f500d37f3cfdfdeceefc9d`
+- `skills/fiat/SKILL.md`: `3b9da7eb0657b3a075d93661b9b5e72b313ff4d98ede83436e5575af79c971f9`
+- `skills/fiat/EVOLUTION.md`: `3494f39b58b488bf16241cae2fa42a0a68f6b7eaeff178dd738f9980deea8d43`
+- `tests/test_hexctl.py`: `bf196207af51016c1cb48f810dddd801094e01f664eba65248250bd2fb3a852f`
 
 The checkout's `SKILL.md` and `EVOLUTION.md` necessarily diverge from those
 study-time hashes when this step advances Fiat to `fiat-v2.2.0`. No
@@ -79,16 +72,11 @@ advances only the evolution counter from `fiat-v1.2.0` to `fiat-v2.2.0`,
 sets the frontier status to `mature`, and records `None -- mature` as the next
 Fiat job.
 
-The canonical newline-terminated frontier record is:
+The canonical newline-terminated frontier record and its SHA-256 are:
 
 ```text
 mature|installed-path-and-maturity-proof|Fiat's receipt-backed controller is unit-tested, and this delivery exercises its installed-path resolution and terminal maturity rule together from a packaged plugin.|None -- mature
-```
-
-Its SHA-256 digest is:
-
-```text
-17c94c70b434ea1cbc9c3cd6ff5f3054972af08f8e027b7ea9850f5e06695f77
+SHA-256: 17c94c70b434ea1cbc9c3cd6ff5f3054972af08f8e027b7ea9850f5e06695f77
 ```
 
 The installed cache path and SHA-256 chain show which controller was used and

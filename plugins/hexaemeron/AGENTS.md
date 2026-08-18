@@ -4,21 +4,24 @@
 > **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
-Hexaemeron contains several Agent Skills. Select from this table, then read the
-chosen `SKILL.md` in full. Do not start `fiat` merely because another
-Hexaemeron skill matches a task.
+Hexaemeron contains these Agent Skills. Read the selected `SKILL.md` in full;
+do not start `fiat` merely because another skill matches.
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `fiat` | `skills/fiat/SKILL.md` | The user explicitly asks to start, resume, or report a Hexaemeron delivery run |
-| `fizz` | `skills/fizz/SKILL.md` | Generate a stateful Solidity fuzz suite |
-| `fizz-convert` | `skills/fizz/skills/fizz-convert/SKILL.md` | Turn pending `PROPERTIES.md` entries into Solidity assertions |
-| `fizz-sync` | `skills/fizz/skills/fizz-sync/SKILL.md` | Reconcile an existing Fizz harness with changed source |
-| `x-ray` | `skills/x-ray/SKILL.md` | Prepare a Solidity protocol for audit |
-| `solidity-auditor` | `skills/solidity-auditor/SKILL.md` | Audit Solidity source for security findings |
-| `imprimatur` | `skills/imprimatur/SKILL.md` | Lint shipped prose against the banned lexicon |
-| `vulgate` | `skills/vulgate/SKILL.md` | Rewrite prose in a plain human register without changing its content |
-| `kronos` | `skills/kronos/SKILL.md` | Repeatedly rank eligible skill frontiers and send the best held job through Fiat |
+- `fiat`, `skills/fiat/SKILL.md`: explicit requests to start, resume, or report
+  a Hexaemeron delivery run.
+- `fizz`, `skills/fizz/SKILL.md`: stateful Solidity fuzz suites.
+- `fizz-convert`, `skills/fizz/skills/fizz-convert/SKILL.md`: pending
+  `PROPERTIES.md` entries to Solidity assertions.
+- `fizz-sync`, `skills/fizz/skills/fizz-sync/SKILL.md`: reconcile an existing
+  Fizz harness with changed source.
+- `x-ray`, `skills/x-ray/SKILL.md`: prepare a Solidity protocol for audit.
+- `solidity-auditor`, `skills/solidity-auditor/SKILL.md`: audit Solidity source
+  for security findings.
+- `imprimatur`, `skills/imprimatur/SKILL.md`: lint shipped prose against the
+  banned lexicon.
+- `vulgate`, `skills/vulgate/SKILL.md`: change register without changing content.
+- `kronos`, `skills/kronos/SKILL.md`: rank eligible frontiers and send the
+  best held job through Fiat repeatedly.
 
 The first-party `fiat`, `imprimatur`, `vulgate`, and `kronos` directories each
 carry an `EVOLUTION.md` ledger governed by `skills/VERSIONING.md`. Read the
@@ -28,20 +31,18 @@ Kronos is terminal by design and excludes itself from its candidate set.
 
 ## Translate tool names by capability
 
-Some canonical skills were written for hosts that name their tools. A local
-agent must map those names to equivalent capabilities:
+Map named host tools to these capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `ToolSearch` | Inspect the runtime's available tools before choosing one |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
-| `TodoWrite` | Maintain a durable plan with the same states and transitions |
-| `Agent` or `Task` | Run the supplied role prompt in an isolated agent context |
-| background or parallel calls | Start independent work concurrently and wait at the named barrier |
+- `Read`: read the named file completely or at the stated range.
+- `Write` or `Edit`: create or patch the named file.
+- `Bash`: execute the command and inspect its exit status.
+- `Glob`, `Grep`, or `find`: enumerate or search the stated pattern.
+- `ToolSearch`: inspect available tools before choosing one.
+- `AskUserQuestion`: ask through structured UI or concise text.
+- `TodoWrite`: maintain a durable plan with the same states and transitions.
+- `Agent` or `Task`: run the role prompt in an isolated agent context.
+- Background or parallel calls: start independent work concurrently and wait
+  at the named barrier.
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, wait barriers, output files, and stop conditions when

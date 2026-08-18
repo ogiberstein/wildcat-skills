@@ -1,19 +1,18 @@
-# Audit log: the plugin itself
+Audit log: the plugin itself
 
 <!-- marketplace-context:start -->
 > **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
-Day-5 treatment applied to hexaemeron's own executable surfaces before
-shipping: `hexctl.py` (the controller), `imprimatur.py` (the vendored
-lint), and `hook_gate.py` (the optional write hook). The vendored Pashov
-suite targets Solidity and was not in this environment when round 1 ran;
-the tool that did run is a purpose-built fuzz harness (four generators:
-controller grammar sequences, ledger/state tamper soundness, adversarial
-lint inputs, adversarial hook payloads) plus a manual read of every code
-path. What ran is exactly what is claimed here, nothing else.
+- The Day-5 review covered controller `hexctl.py`, vendored lint `imprimatur.py`,
+  and optional write hook `hook_gate.py` before shipping.
+- Round 1 used a purpose-built fuzz harness with four generators: controller
+  grammar sequences, ledger/state tamper soundness, adversarial lint inputs,
+  and adversarial hook payloads, plus a manual read of every code path.
+- The Pashov suite targets Solidity and was unavailable in round 1; no claim
+  below extends beyond the work that ran.
 
-## Step 0 (the plugin), round 1 -- 15 August 2026
+Step 0 (the plugin), round 1 -- 15 August 2026
 
 Coverage: 300 random command sequences, 120 single-byte ledger flips, 5
 hand-edits of `state.json`, 150 adversarial lint inputs (binary, invalid
@@ -51,14 +50,12 @@ worth a round); timing of concurrent hexctl invocations against one state
 dir (the loop is single-driver by design); ANSI passthrough via
 `status --json` (JSON output is machine-facing by contract).
 
-## Step 0 (the plugin), round 2 -- 15 August 2026
+Step 0 (the plugin), round 2 -- 15 August 2026
 
 Same four harnesses plus the regression suite against the fixed tree, after
 the Pashov suite was vendored and the entry skill renamed.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| -- | -- | -- | none | -- |
+No findings.
 
 All five state-edit probes and all ledger flips detected; no tracebacks on
 any surface; hook exits confined to 0/2; controller suite 32/32; vendored

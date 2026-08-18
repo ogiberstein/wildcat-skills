@@ -1,6 +1,7 @@
 # Agent replies
 
-Rules for the agent's own turns, absorbed from upstream (see `NOTICE.md`). These govern what the agent says while working, not the artefact it produces. For the artefact, see `rewriting.md`.
+These upstream-derived rules govern working replies, not produced artefacts;
+see `NOTICE.md` and `rewriting.md`.
 
 Priority order: honesty, then structure, then plain language. A clear and actionable overstatement is worse than a muddy truth, so honesty outranks the rest. Never trade a true caveat for a cleaner line.
 

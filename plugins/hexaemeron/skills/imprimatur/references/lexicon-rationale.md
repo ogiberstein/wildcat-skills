@@ -24,7 +24,14 @@ Model-specific conversational habits. These are the highest-frequency tells in a
 
 ### hedge_pivot
 
-Filler that announces a turn rather than taking it. "It's worth noting that X" is longer than "X" and adds only the claim that X is worth noting, which the act of writing X already asserted. "That said" announces a contrast the next sentence would have carried anyway.
+Filler that announces a turn rather than taking it:
+
+```text
+It's worth noting that X.
+```
+
+This is longer than `X` and adds only a claim already made by writing X.
+`That said` announces a contrast the next sentence would have carried anyway.
 
 The test is deletion. Cut the phrase and read the sentence. If nothing was lost, it was filler.
 
