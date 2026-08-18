@@ -916,3 +916,11 @@ The Alexandria prose diff has no open finding. Status: clean.
 The review compared 13 changed files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained the `522/31/11/11` fixture counts, 28 Compound v3 deployments, two Ethereum USDC transactions, 100,000-row and 64 MiB limits, and frontier digest `d5afa30db4e5769dccded9f28be061dc623e119b328dbbcd87b729567b7eaeff`.
 
 Root `22/22`, Alexandria `255/255`, two Agent Skills validations, 16 Imprimatur and Brevitas `--source` checks, 24 local-link checks, protected SHA verification, and `git diff --check` pass. No publisher identity, provider completeness, canonical finality, interval history, address identity, default, repayment, or current balance was established. The security suite remains waived because only Markdown changed.
+
+## Repository-wide Brevitas pass, step 9, round 1 -- 2026-08-18
+
+The Probitas prose, renderer and version diff has no open finding. Status: clean.
+
+The review compared 12 Markdown files and seven renderer or version surfaces with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. Generation moved from `probitas-v0.1.0` to `probitas-v0.2.0`; frontier revision `morpho-midnight-coverage`, its Next Fiat job, and SHA-256 `5f66077a0c39a9ee647bd34233504b3891493f864fe4a16a9eb0c0337b3ee688` remain unchanged. It retained 15 venues, four adapters, 11 gaps, six adapter-only gaps, five gate outcomes, and the distinction between `empty`, `error`, `unimplemented`, and `unconfigured`.
+
+Root `22/22`, Probitas `276/276`, two Agent Skills validations, 12 Imprimatur and Brevitas `--source` checks, 21 local-link checks, protected SHA verification, and `git diff --check` pass. The fixture renderer produced nine records across four of 15 venues, named 11 gaps, passed gates 1 through 5, and matched the committed dossier byte-for-byte. No live venue call, chain-state claim, personal data, address attribution, or counterparty score was established. The security suite remains waived because no Solidity changed.
