@@ -180,7 +180,20 @@ class ShippedAdapterTests(unittest.TestCase):
         os.path.join(PLUGIN_ROOT, "adapters", "echidna", "CorpusEchidna.sol"),
         os.path.join(PLUGIN_ROOT, "adapters", "medusa", "CorpusMedusa.sol"),
     )
-    ADAPTERS = (BASE,) + ASSERTING
+
+    #: The plugin's own campaign harness. Not something a third party extends, so
+    #: it is not in `ASSERTING`, but it has the same shape and the same hazard:
+    #: it binds its own law objects and declares one property per law under each
+    #: engine's prefix, so a law added to the catalogue does not arrive in it and
+    #: nothing about a green campaign says which laws were searched.
+    CAMPAIGN = os.path.join(PLUGIN_ROOT, "src", "campaigns", "Specimens.sol")
+
+    #: The prefixes the two engines read, which is why every property is declared
+    #: twice. A harness carrying one of them searches under one engine and is
+    #: silent under the other.
+    PREFIXES = ("echidna_", "property_")
+
+    ADAPTERS = (BASE,) + ASSERTING + (CAMPAIGN,)
 
     #: Compares two systems advanced over the same span by different routes, so
     #: an adapter holding one target cannot offer it and does not pretend to.
@@ -188,6 +201,13 @@ class ShippedAdapterTests(unittest.TestCase):
     #: Pinned as an exact set rather than a skip list, so a second exclusion has
     #: to be argued for here rather than added quietly.
     NOT_IN_ADAPTER = {"accrual/path-independent/v1"}
+
+    #: The campaign harness leaves it out for a different reason from the
+    #: adapters', and the reason is worth keeping separate. An adapter cannot
+    #: offer it because it holds one target; a campaign cannot search it because a
+    #: campaign drives one system along one route. It is covered deterministically
+    #: in `test/Pairs.t.sol` and reduced in `test/counterexamples/Accrual.t.sol`.
+    NOT_IN_CAMPAIGN = {"accrual/path-independent/v1"}
 
     def setUp(self):
         with open(SHIPPED, encoding="utf-8") as handle:
@@ -302,6 +322,47 @@ class ShippedAdapterTests(unittest.TestCase):
                     "%s is one-state and explainOneState gives no reason for it"
                     % law.id,
                 )
+
+    def test_every_one_state_law_is_a_campaign_property_under_both_prefixes(self):
+        """The harness the engines actually drive, under both engines.
+
+        A law bound here and given no property is a law no campaign searches, and
+        a property declared under one prefix only is a law one engine searches and
+        the other does not. Both read as a clean campaign.
+        """
+        source = self.sources[self.CAMPAIGN]
+        bound = dict(
+            re.findall(r"Law internal immutable (\w+) = new (\w+)\(\)", source)
+        )
+        for law in self.catalogue.laws:
+            if law.id in self.NOT_IN_CAMPAIGN:
+                continue
+            component = os.path.basename(law["component"]).replace(".sol", "")
+            if not self._is_one_state(component):
+                continue
+            variables = [name for name, made in bound.items() if made == component]
+            with self.subTest(law=law.id):
+                self.assertEqual(
+                    len(variables),
+                    1,
+                    "%s is not bound exactly once in the campaign harness" % law.id,
+                )
+            for prefix in self.PREFIXES:
+                declared = set(
+                    re.findall(
+                        r"function %s(\w+)\(\) external view returns \(bool\) \{\n"
+                        r"\s*return judge\((\w+)\);" % prefix,
+                        source,
+                    )
+                )
+                asked = {variable for _, variable in declared}
+                with self.subTest(law=law.id, prefix=prefix):
+                    self.assertIn(
+                        variables[0],
+                        asked,
+                        "%s has no %s property, so one engine never searches it"
+                        % (law.id, prefix),
+                    )
 
     def _is_one_state(self, component):
         """A one-state law extends `Law`; a pair law extends `PairLaw`.

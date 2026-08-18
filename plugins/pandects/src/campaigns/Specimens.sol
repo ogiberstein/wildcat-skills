@@ -9,6 +9,7 @@ import {ReservesBackedByClaims} from "../laws/ReservesBackedByClaims.sol";
 import {HeldAssetsPartitioned} from "../laws/HeldAssetsPartitioned.sol";
 import {QueueOrderPreserved} from "../laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../laws/PooledClaimsCoverOpenBatches.sol";
 import {DebtFallsOnlyAgainstPayment} from "../laws/DebtFallsOnlyAgainstPayment.sol";
 import {NoAccrualAtRest} from "../laws/NoAccrualAtRest.sol";
 import {RecordedClaimNeverShrinks} from "../laws/RecordedClaimNeverShrinks.sol";
@@ -22,6 +23,7 @@ import {CompoundsPerStep} from "../../specimens/CompoundsPerStep.sol";
 import {ClaimHaircut} from "../../specimens/ClaimHaircut.sol";
 import {QueueJumped} from "../../specimens/QueueJumped.sol";
 import {PayableBeyondReserves} from "../../specimens/PayableBeyondReserves.sol";
+import {FeeFromQueued} from "../../specimens/FeeFromQueued.sol";
 
 /// @title Campaign entry points, for the engines that are not Foundry.
 /// @dev Under `src/` rather than `test/` because crytic-compile skips `test/`
@@ -36,7 +38,7 @@ import {PayableBeyondReserves} from "../../specimens/PayableBeyondReserves.sol";
 /// delegates to the same internal function, so the two engines are asked the
 /// same question.
 ///
-/// Eight of these ten are expected to fail one property, and the expectation is
+/// Nine of these eleven are expected to fail one property, and the expectation is
 /// the point: a campaign that reports every property holding against a contract
 /// built to break one has not searched hard enough, and the failure is the
 /// evidence that the law is a law. `audit/AUDIT.md` records what each engine
@@ -59,6 +61,7 @@ abstract contract Campaign {
     Law internal immutable partitioned = new HeldAssetsPartitioned();
     Law internal immutable ordered = new QueueOrderPreserved();
     Law internal immutable covered = new ReservesCoverPayableClaims();
+    Law internal immutable pooled = new PooledClaimsCoverOpenBatches();
 
     PairLaw internal immutable falls = new DebtFallsOnlyAgainstPayment();
     PairLaw internal immutable atRest = new NoAccrualAtRest();
@@ -199,6 +202,10 @@ abstract contract Campaign {
         return judge(covered);
     }
 
+    function echidna_pooled_claims_cover_open_batches() external view returns (bool) {
+        return judge(pooled);
+    }
+
     function echidna_debt_falls_only_against_payment() external view returns (bool) {
         return judgePair(falls);
     }
@@ -233,6 +240,10 @@ abstract contract Campaign {
 
     function property_reserves_cover_payable() external view returns (bool) {
         return judge(covered);
+    }
+
+    function property_pooled_claims_cover_open_batches() external view returns (bool) {
+        return judge(pooled);
     }
 
     function property_debt_falls_only_against_payment() external view returns (bool) {
@@ -352,6 +363,21 @@ contract QueueJumpedCampaign is Campaign {
 /// `reserves_cover_payable` is expected to fail. The others are expected to hold.
 contract PayableBeyondReservesCampaign is Campaign {
     PayableBeyondReserves internal immutable system = new PayableBeyondReserves();
+
+    function target() internal view override returns (Sound) {
+        return system;
+    }
+}
+
+/// `pooled_claims_cover_open_batches` is expected to fail once the market is
+/// illiquid and a fee has been charged. The others are expected to hold.
+///
+/// Reaching it needs three things in one sequence: a deposit, a borrow that
+/// leaves the system holding less than its queue will be owed, and a fee. The
+/// fee cap is the defect, so the search has to get the system into the state
+/// where the cap and the queue disagree before the fee means anything.
+contract FeeFromQueuedCampaign is Campaign {
+    FeeFromQueued internal immutable system = new FeeFromQueued();
 
     function target() internal view override returns (Sound) {
         return system;
