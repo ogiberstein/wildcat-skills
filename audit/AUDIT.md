@@ -1582,3 +1582,18 @@ say so.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Marking run, step 3, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, hypomnema 0. Horos 168/168, root
+24/24, verified before the receipt. The review held the register's rows:
+one branch and one pull request per product repository and nothing merged
+past their gates; the gitattributes promotions ride inside the reviewable
+diffs exactly as the specification intends candidates to be promoted; the
+bundle's numbers are asserted against the committed boundary copies; and
+the stanza text in both product AGENTS.md files is the scanner's verbatim.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
