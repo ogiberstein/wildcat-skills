@@ -431,3 +431,44 @@ runbook with the reason it cannot be gated earlier.
 
 Leads not pursued: the merged-fixture question from round 3, `pandects run`
 knowing one engine, and the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 6 -- 2026-08-18
+
+Reviewed: the rest of the class rounds 4 and 5 opened. Two rounds had each found
+the same defect in one more file, so this round enumerated every shipped file that
+names laws before looking at any of them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R6-01 | high | `adapters/echidna/CorpusEchidna.sol`, `adapters/medusa/CorpusMedusa.sol` | The third and fourth occurrence, in the two adapters an integrator extends to run the corpus under a fuzzer. Each declared five one-state properties and the tenth law was not among them, so anyone pointing Echidna or Medusa at their own system through the shipped adapter searched nine laws. The runbook had scheduled both files into step 3. Rounds 4 and 5 are the argument against that: a law missing from a surface an outsider inherits is a defect in the step that adds the law, and scheduling is how it survived twice. | Fixed in this round: both adapters carry the property, standing down with the other queue laws when `hasWithdrawalQueue` is false. |
+| S2-R6-02 | medium | `tests/test_documents.py` | Round 5's check took a list of two paths, which was the right shape aimed at the wrong set. It knew about `CorpusBase` and the Foundry adapter and had no opinion about the two engine adapters, so it could not have caught S2-R6-01 either. Three rounds running, the check was narrower than the class. | Fixed in this round: the binding file and the asking files are separated, and the asking set is all three adapters that decide which bound law a run asks. Each was made to fail on its own by deleting one property at a time, which caught a fourth thing: the probe used for the Foundry file in the first attempt matched nothing, so a clean result there was the probe failing rather than the check passing. The exact-string version failed as it should. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1, 111 Python tests, the
+repository's 20, `pandects check` over ten laws, Slither 0.11.6 over 50 contracts
+at 23 results with nothing new, and Echidna 2.3.3 against four campaigns with the
+shipped configuration and seed 20260816.
+
+**The evidence this round bought.** Every campaign that extends the shipped
+adapters picked the new law up as a consequence of S2-R6-01's fix, so the engines
+reached it in step 2 rather than step 3:
+
+| campaign | the new law | its own expected failure | calls |
+| --- | --- | --- | --- |
+| `SoundCampaign` | not carried | none | 20,140 |
+| `ObservedQueueJumpedEchidna` | passing | `queue_order_preserved` | 20,205 |
+| `DrivenClaimHaircutEchidna` | passing | `recorded_claim_never_shrinks` | 20,176 |
+| `WildcatMarketCampaign` | passing | `recorded_claim_never_shrinks` | 20,123 |
+
+The last row is the one worth reading twice. Echidna searched 20,123 calls against
+the corrected Wildcat model and did not reach a state where pooled claims sit below
+what the open batches are owed. Before the correction, five calls written by hand
+got there and took four fifths of a departing lender's money on the way. Each
+campaign still fails exactly the property it was built to fail and no other, so the
+new law did not arrive broad.
+
+`SoundCampaign` extends `Campaign` in `src/campaigns/Specimens.sol` rather than the
+shipped adapter, which is why it is the one campaign the new law does not reach.
+That harness is step 3's remaining content and the last surface without a check.
+
+Leads not pursued: the merged-fixture question from round 3, `pandects run`
+knowing one engine, and the two carried from step 1.

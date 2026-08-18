@@ -151,19 +151,24 @@ naming the engine, the configuration, the sequence and what failed, with Echidna
 seed given and Medusa's stated as unavailable rather than invented. Do not extend
 the runner to a second engine in this step; that is its own frontier.
 
-**Files.** `src/campaigns/Specimens.sol`, extended. `adapters/echidna/CorpusEchidna.sol`
-and `adapters/medusa/CorpusMedusa.sol` where the new property needs an entry
-point.
+**Files.** `src/campaigns/Specimens.sol`, extended. That is all that is left of
+this step's contracts. `adapters/echidna/CorpusEchidna.sol` and
+`adapters/medusa/CorpusMedusa.sol` were named here originally and were done in
+step 2 instead, because rounds 4 and 5 of that step established that a law missing
+from a surface an outsider inherits is a defect in the step that adds the law
+rather than work to schedule. The campaign harness stays here: it drives this
+plugin's own specimens rather than anything a third party extends, and it is the
+surface the engines need.
 
-`tests/test_documents.py` also gets the second half of a check step 2 started.
-`ShippedAdapterTests` holds `adapters/CorpusBase.sol` to the catalogue, because
-that file names its laws in Solidity with no view of the catalogue and a law added
-to one does not arrive in the other. `src/campaigns/Specimens.sol` has the same
-shape and the same hazard, and it is not checked yet: the check has to land in
-this step rather than in step 2, because until the harness carries the law the
-check would fail, and a check written after the change it was meant to force is a
-check written to pass. Extend `ShippedAdapterTests` to the campaign harness in the
-same commit that adds the property.
+`tests/test_documents.py` also gets the last part of a check step 2 built.
+`ShippedAdapterTests` holds the catalogue against `adapters/CorpusBase.sol`, which
+binds the law objects, and against the three adapters that decide which of them a
+run asks. `src/campaigns/Specimens.sol` has the same shape and the same hazard and
+is the one surface still unchecked. The check has to land in this step rather than
+earlier, because until the harness carries the law it would fail, and a check
+written after the change it was meant to force is a check written to pass. Extend
+`ShippedAdapterTests` to the campaign harness in the same commit that adds the
+property.
 
 **Tests.** `test/Corpus.t.sol` or `test/Adapters.t.sol` extended so the new
 entry point is exercised without an engine, the way the existing prefixed entry

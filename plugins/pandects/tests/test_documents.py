@@ -169,10 +169,18 @@ class ShippedAdapterTests(unittest.TestCase):
     #: for a list rather than a path: `CorpusBase` holds the law objects and
     #: `CorpusInvariants` decides which of them a Foundry run actually asserts,
     #: so a law in the first and not the second is still a law nobody asks.
-    ADAPTERS = (
-        os.path.join(PLUGIN_ROOT, "adapters", "CorpusBase.sol"),
+    BASE = os.path.join(PLUGIN_ROOT, "adapters", "CorpusBase.sol")
+
+    #: The shipped files that decide which of the bound laws a run actually asks,
+    #: one per engine an integrator might reach for. Rounds 4 and 5 of this step
+    #: each gated one file and each missed the next, so this is a list of every
+    #: such surface rather than the one that happened to be in hand.
+    ASSERTING = (
         os.path.join(PLUGIN_ROOT, "adapters", "foundry", "CorpusInvariants.sol"),
+        os.path.join(PLUGIN_ROOT, "adapters", "echidna", "CorpusEchidna.sol"),
+        os.path.join(PLUGIN_ROOT, "adapters", "medusa", "CorpusMedusa.sol"),
     )
+    ADAPTERS = (BASE,) + ASSERTING
 
     #: Compares two systems advanced over the same span by different routes, so
     #: an adapter holding one target cannot offer it and does not pretend to.
@@ -191,7 +199,7 @@ class ShippedAdapterTests(unittest.TestCase):
 
     def test_every_law_the_adapter_can_offer_is_in_it(self):
         """`CorpusBase` names the law objects an integrator inherits."""
-        source = self.sources[self.ADAPTERS[0]]
+        source = self.sources[self.BASE]
         for law in self.catalogue.laws:
             if law.id in self.NOT_IN_ADAPTER:
                 continue
@@ -204,22 +212,19 @@ class ShippedAdapterTests(unittest.TestCase):
                     % law.id,
                 )
 
-    def test_every_one_state_law_is_asserted_as_a_foundry_invariant(self):
-        """And `CorpusInvariants` decides which of them a run asserts.
+    def test_every_one_state_law_is_asserted_by_every_engine_adapter(self):
+        """And each engine adapter decides which of them a run asks.
 
         Carrying a law object and never asserting it is the same silence as not
         carrying it, arriving one file later. So this maps the variable names
-        `CorpusBase` binds its components to, then checks that the Foundry
-        adapter asserts the ones belonging to one-state laws.
+        `CorpusBase` binds its components to, then checks that every shipped
+        adapter which asserts laws asserts the one-state ones.
         """
         bound = dict(
             re.findall(
                 r"Law internal immutable (\w+) = new (\w+)\(\)",
-                self.sources[self.ADAPTERS[0]],
+                self.sources[self.BASE],
             )
-        )
-        asserted = set(
-            re.findall(r"(\w+)\.check\(target\(\)\)", self.sources[self.ADAPTERS[1]])
         )
         for law in self.catalogue.laws:
             if law.id in self.NOT_IN_ADAPTER:
@@ -231,16 +236,23 @@ class ShippedAdapterTests(unittest.TestCase):
                     len(variables),
                     1,
                     "%s is not bound exactly once in %s"
-                    % (law.id, os.path.basename(self.ADAPTERS[0])),
+                    % (law.id, os.path.basename(self.BASE)),
                 )
-                if not self._is_one_state(component):
-                    continue
-                self.assertIn(
-                    variables[0],
-                    asserted,
-                    "%s is carried by the adapter and asserted by no Foundry "
-                    "invariant" % law.id,
+            if not self._is_one_state(component):
+                continue
+            for path in self.ASSERTING:
+                asserted = set(
+                    re.findall(r"judge\((\w+)\)", self.sources[path])
+                ) | set(
+                    re.findall(r"(\w+)\.check\(target\(\)\)", self.sources[path])
                 )
+                with self.subTest(law=law.id, adapter=os.path.basename(path)):
+                    self.assertIn(
+                        variables[0],
+                        asserted,
+                        "%s is carried by the adapter and asked by nothing in %s"
+                        % (law.id, os.path.basename(path)),
+                    )
 
     def _is_one_state(self, component):
         """A one-state law extends `Law`; a pair law extends `PairLaw`.
