@@ -89,9 +89,10 @@ abstract contract CorpusBase {
     /// before the queue reads took it down.
     ///
     /// The width of the returned array is the count of one-state laws in the
-    /// catalogue. `test/Adapters.t.sol` holds it to that count, because an
-    /// adapter silently one law short is an integrator running nine laws and
-    /// reading a document that says ten.
+    /// catalogue, and `ShippedAdapterTests` in `tests/test_documents.py` reads
+    /// this signature and holds it to that count. Nothing in Solidity can: the
+    /// width and the catalogue are two copies of one number, and a test written
+    /// against either alone would be wrong the same way the file it checks is.
     function explainOneState() public view returns (string[6] memory details) {
         // slither-disable-start unused-return
         (, details[0]) = conserved.check(target());

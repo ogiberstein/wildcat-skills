@@ -511,3 +511,46 @@ Leads not pursued:
   candidate frontier.
 - The merged-fixture question from round 3, `pandects run` knowing one engine, and
   the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 8 -- 2026-08-18
+
+Reviewed: the comments this step's own rounds wrote, on the principle that a round
+which has spent six findings on untested claims should read its own. One of them
+promised a guarantee that did not exist.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R8-01 | medium | `adapters/CorpusBase.sol` | Round 4 widened `explainOneState` to six and wrote above it that the width is the count of one-state laws in the catalogue and that `test/Adapters.t.sol` holds it to that count. The second half was false. That test reads `string[6]` because the adapter returns `string[6]`; the two are one number written twice and a test taking it from the file it checks would be wrong the same way. So an eleventh one-state law would leave the width at six and nothing would say so, which is the argument the renderer's own drift test makes, and the comment claiming otherwise was written in the round that found the same defect elsewhere. | Fixed in this round: `test_the_explanation_is_as_wide_as_the_one_state_laws` reads the signature out of the source, counts the one-state laws in the catalogue by the shape their components declare, asserts the two agree, and asserts each of those laws is the subject of one of the assignments. Narrowing the width and hollowing the last entry each make it fail for their own reason. The comment now names the test that exists. |
+
+**What ran.** 77 Solidity tests under forge 1.7.1, 112 Python tests, up from 111
+by the check added here, the repository's 20, `pandects check` over ten laws, and
+Slither 0.11.6 over 50 contracts at 23 results, unchanged. No engine re-run: this
+round touched one comment and one test.
+
+**Accepted, and why.** This is the eighth round, which is the configured ceiling,
+so the tree has a fix in it that no later round has audited. That is the honest
+shape of the close rather than a clean sweep: round 8 found one defect, fixed it,
+and proved the fix fails when it should, and no ninth round exists to read the
+proof back. The four leads below are accepted for the reasons given, none of them
+because the rounds ran out.
+
+- **A gate on the applicability table**, from round 7. It would catch the class
+  S2-R7-01 belongs to, and it needs a parser for a prose table carrying three laws
+  that do not hold and one that holds conditionally. A fragile parser guarding a
+  document is a worse trade than the check is worth. A candidate frontier.
+- **`pandects run` knows one engine**, from round 1. The shipped record carries the
+  Foundry campaign, and the Echidna and Medusa results are written into the
+  rounds above as prose rather than emitted as records.
+  That is the arrangement the runbook fixes for step 3, and widening the runner is
+  its own piece of work.
+- **`Extreme` and `ExtremeQueue` differ by one interface**, from round 3. Merging
+  them would put a flag inside a fixture whose job is to be obvious.
+- Two more come from step 1 and stand unchanged. Whether the model corrections
+  should have shipped as their own step, which the runbook argues against because
+  no green intermediate state exists between them and the law. And the seven
+  property families the original delivery deferred.
+
+**The one surface still without a check.** `src/campaigns/Specimens.sol`, and it is
+step 3's first line of work with the check required in the same commit as the
+property. Recorded here as well as in the runbook, because it is the only thing
+this step knowingly leaves for the next one.
