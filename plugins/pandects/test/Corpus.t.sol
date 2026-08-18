@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {ICreditObservables} from "../src/ICreditObservables.sol";
+import {IWithdrawalQueueObservables} from "../src/IWithdrawalQueueObservables.sol";
 import {Law} from "../src/Law.sol";
 import {ValueConserved} from "../src/laws/ValueConserved.sol";
 import {ReservesBackedByClaims} from "../src/laws/ReservesBackedByClaims.sol";
@@ -53,6 +54,57 @@ contract Extreme is ICreditObservables {
 
     function observedAt() external view returns (uint256) {
         return block.timestamp;
+    }
+}
+
+/// A queue at the arithmetic limit. Not a catalogue specimen either: `Extreme`
+/// implements no queue, so it can reach the summing branch of a conservation law
+/// and cannot reach the summing branch of a queue law. This one can.
+contract ExtremeQueue is ICreditObservables, IWithdrawalQueueObservables {
+    address public asset;
+
+    function totalAssets() external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function totalDebt() external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalLenderClaims() external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function accruedFees() external pure returns (uint256) {
+        return 0;
+    }
+
+    function reservedAssets() external pure returns (uint256) {
+        return 0;
+    }
+
+    function borrowableAssets() external pure returns (uint256) {
+        return 0;
+    }
+
+    function observedAt() external view returns (uint256) {
+        return block.timestamp;
+    }
+
+    /// @dev Two claims, each owed everything there is. Their unpaid amounts sum
+    /// past the word, which is the only way to ask a queue law what it does when
+    /// its own addition cannot hold the answer.
+    function claimCount() external pure returns (uint256) {
+        return 2;
+    }
+
+    function claimAt(uint256) external pure returns (uint256 owed, uint256 paid) {
+        return (type(uint256).max, 0);
+    }
+
+    /// @dev Nothing declared payable, so this fixture asks one question only.
+    function payableThrough() external pure returns (uint256) {
+        return 0;
     }
 }
 
@@ -262,15 +314,15 @@ contract CorpusTest {
 
     /// @notice A law asked about a state it cannot observe reverts, and says
     /// nothing.
-    /// @dev Worth asserting rather than assuming. The two queue laws reach
+    /// @dev Worth asserting rather than assuming. The three queue laws reach
     /// past the core observables, and the corpus's answer to a target that
     /// cannot answer is a revert -- neither a violation nor a pass. A law that
     /// returned `true` here would be reporting that a system with no queue
     /// keeps its queue in order.
     function test_a_queue_law_over_a_target_with_no_queue_reverts() external {
         Extreme target = new Extreme();
-        Law[2] memory queueLaws = [Law(ordered), Law(covered)];
-        for (uint256 i = 0; i < 2; i++) {
+        Law[3] memory queueLaws = [Law(ordered), Law(covered), Law(pooled)];
+        for (uint256 i = 0; i < 3; i++) {
             (bool ok, ) = address(queueLaws[i]).staticcall(
                 abi.encodeWithSelector(Law.check.selector, address(target))
             );
@@ -292,6 +344,28 @@ contract CorpusTest {
         require(!conservedHeld, "an overflowing sum was not reported");
         require(!partitionedHeld, "an overflowing sum was not reported");
         require(backedHeld, "a comparison that holds was reported as violated");
+    }
+
+    /// @notice A queue law's own addition overflowing is a verdict too.
+    /// @dev Separate from the test above because `Extreme` has no queue, so it
+    /// can never reach this branch. Two claims each owed everything there is sum
+    /// past the word, and the law reports that rather than reverting on it --
+    /// which is the whole argument for summing unchecked: in 0.8 the addition
+    /// would revert, and a revert under fail_on_revert = false is silence
+    /// exactly where the numbers have gone furthest wrong.
+    function test_a_queue_law_reports_its_own_overflow() external {
+        ExtremeQueue target = new ExtremeQueue();
+        (bool ok, bytes memory returned) = address(pooled).staticcall(
+            abi.encodeWithSelector(Law.check.selector, address(target))
+        );
+        require(ok, "the law reverted instead of reporting the overflow");
+        (bool held, string memory detail) = abi.decode(returned, (bool, string));
+        require(!held, "an overflowing queue sum was not reported");
+        require(
+            keccak256(bytes(detail))
+                == keccak256(bytes("the open batches sum to more than can be counted")),
+            "the overflow was reported with the wrong reason"
+        );
     }
 
     function test_every_law_returns_a_detail_whichever_way_it_decides() external {

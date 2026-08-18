@@ -330,3 +330,34 @@ instructions is what surfaced the defect the instructions caused.
 
 Leads not pursued: the two carried from step 1, and `pandects run` knowing one
 engine, carried from round 1.
+
+## Withdrawal batch fee law, step 2, round 3 -- 2026-08-18
+
+Reviewed: the new law against the corpus's own edge-case tests rather than
+against its specimen. The first two rounds looked at evidence and at tooling.
+This one asked which of the assertions the other nine laws face were never
+extended to the tenth.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R3-01 | medium | `test/Corpus.t.sol` | `test_a_queue_law_over_a_target_with_no_queue_reverts` walked a hardcoded `Law[2]` of the two queue laws that existed when it was written. The new law is a third and was not in it, so nothing asserted that it reverts rather than returning a verdict against a target with no queue. The test's own comment names the failure it exists to prevent: a law returning true there reports that a system with no queue keeps its queue in order. | Fixed in this round: the array is a `Law[3]` and the new law is asserted with the other two. |
+| S2-R3-02 | medium | `test/Corpus.t.sol` | The new law sums unchecked and reports the overflow as a violation, and no test could reach that branch. `test_a_sum_that_overflows_is_reported_as_a_violation` uses `Extreme`, which implements no queue, so a queue law reverts on the read long before its own addition is asked to hold the answer. The branch that exists precisely so the law does not fall silent where the numbers are worst was itself unexercised, which is the corpus's own argument about untested properties turned on one of its laws. | Fixed in this round: `ExtremeQueue` reports two claims each owed everything there is, and `test_a_queue_law_reports_its_own_overflow` asserts the law returns rather than reverts, returns violated, and gives the overflow as its reason. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1, up from 75 by the assertion
+added here. 109 Python tests, the repository's 20, `pandects check` over ten laws.
+No engine re-run: both findings are test coverage over an unchanged law, and
+neither alters a contract the engines drive.
+
+**Why the second one is worth a fixture.** The overflow branch is not decoration.
+In 0.8 the addition reverts, a revert under `fail_on_revert = false` carries no
+verdict, and the law would go quiet exactly where a system's numbers had gone
+furthest wrong. The corpus argues that about every other summing law and tests it
+for two of them. Asserting the detail string as well as the verdict is what makes
+the test evidence that this branch ran rather than evidence that some branch
+returned false.
+
+Leads not pursued: `Extreme` and `ExtremeQueue` are two fixtures where the
+difference is one interface, and a single parameterised fixture would serve both.
+Left alone deliberately: the split is what makes the two tests say different
+things, and merging them would put a flag in a fixture whose whole job is to be
+obvious. The three carried from earlier rounds and from step 1 stand.
