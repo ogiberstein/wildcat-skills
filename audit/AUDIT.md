@@ -1220,3 +1220,14 @@ new held job is the maintainer's own words for the filetype census.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Census run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+two spec documents. Root 24/24, horos 92/92. Prose-only step; the committed
+copies match the receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
