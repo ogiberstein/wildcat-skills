@@ -91,11 +91,12 @@ class MapTests(unittest.TestCase):
         self.assertIn("syntax error", output)
         self.assertIn("line 1", output)
 
-    def test_a_non_python_path_is_refused(self):
+    def test_an_unregistered_suffix_is_refused_naming_the_supported_list(self):
         path = write(self.root, "notes.txt", "words\n")
         code, output = self.map(path)
         self.assertEqual(code, 2)
-        self.assertIn("Python only", output)
+        self.assertIn("map supports", output)
+        self.assertIn(".py", output)
 
     def test_a_missing_file_is_a_plain_message(self):
         code, output = self.map(str(Path(self.root) / "absent.py"))
