@@ -51,9 +51,20 @@ class DisciplineTests(unittest.TestCase):
     def test_the_fixture_covers_every_shipped_rule_class(self):
         entries = horos.scan_tree(str(FIXTURE))["entries"]
         categories = {entry["category"] for entry in entries}
-        self.assertEqual(categories, {"binary", "lockfile", "generated", "vendored", "blob"})
+        self.assertEqual(
+            categories, {"binary", "lockfile", "generated", "vendored", "blob", "asset"}
+        )
         evidence = " | ".join(entry["evidence"] for entry in entries)
-        for family in ("marker", "directory name", "sourcemap", ".gitattributes", "no newline", "mean line length"):
+        for family in (
+            "marker",
+            "directory name",
+            "sourcemap",
+            ".gitattributes",
+            "no newline",
+            "mean line length",
+            "svg root element",
+            "migrations directory segment",
+        ):
             self.assertIn(family, evidence)
 
     def test_the_readable_file_stays_readable(self):

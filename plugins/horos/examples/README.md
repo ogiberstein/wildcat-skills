@@ -3,7 +3,8 @@
 `fixture/` is a miniature repository holding one file per classifier rule
 class: a binary asset, a lockfile, a marker-generated file, a generated
 directory, a vendored directory, a sourcemap, a single-line blob, a minified
-bundle, and a directory vendored through `.gitattributes`. One hand-written
+bundle, a directory vendored through `.gitattributes`, an SVG text asset,
+and a migration SQL file under a `migrations` segment. One hand-written
 file, `src/app.py`, stays readable. Its committed boundary lives at
 `fixture/.horos/boundary.json`.
 
