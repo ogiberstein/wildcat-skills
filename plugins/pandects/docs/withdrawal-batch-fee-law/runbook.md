@@ -75,7 +75,11 @@ the intermediate quantities.
   makes a real drift invisible by matching it.
 - `test/counterexamples/Claims.t.sol`, extended.
 - `test/Corpus.t.sol`, the new law and specimen added to the corpus tables the
-  diagonal walks.
+  diagonal walks, and `PayableBeyondReserves` rerouted as described below.
+- `scripts/pandects_lib/render.py` and `tests/test_documents.py`, for the two
+  places the law count is stated and the test that froze it.
+- `integrations/wildcat/APPLICABILITY.md`, moved here from step 4 because a test
+  requires every catalogued law to appear in it.
 
 **Tests.** One counterexample asserting `claims`, the queue total, `reserved` and
 `held` at the violating state, not only the verdict. The diagonal in
@@ -93,6 +97,39 @@ trusting a green suite. One is already known safe:
 `test_the_sound_reference_holds_every_law` charges its fee before it reserves
 anything, so the queue is empty when the cap applies and the tightening cannot
 reach it.
+
+### Amended during step 2
+
+Four things this step turned out to need, recorded here because the runbook was
+wrong about where they belonged rather than because the plan changed.
+
+**`claims/reserves-cover-payable/v1` loses its evidence.** Its specimen and
+counterexample ran `deposit(1)`, `reserve(1)`, `reserve(1)`, which records two
+units owed against one unit deposited. That is the over-recording the new law
+forbids, so tightening `reserve` leaves one claim recorded and
+`PayableBeyondReserves` never reaches the state its law was written to catch.
+Both call sites move to `deposit(2)`, `borrow(1)`, `reserve(1)`, `reserve(1)`,
+which reaches the same lie in an illiquid market: pooled claims 2 against 2 owed,
+so the new law holds, and reserves of 1 against two batches declared payable, so
+the cover law still fires. This is a better counterexample than the one it
+replaces, because declaring more payable than you hold costs somebody money only
+when the market cannot pay.
+
+**The renderer states the law count twice.** `S5-R2-01` in the original delivery
+fixed the derived count and left "Nine laws ship here" hardcoded three lines
+above it. Both are derived now, and the sentence is reworded so it stays
+grammatical at one law.
+
+**A test froze the count.** `test_the_preamble_counts_what_was_rendered` asserted
+"Nine laws in three families" while calling itself the check that has to come from
+outside. It builds the expected phrase from the catalogue now, with its own word
+list rather than the renderer's, so it still checks from outside without blocking
+every law added after it.
+
+**The Wildcat notes move from step 4 to here.**
+`test_every_law_appears_in_the_wildcat_notes` requires every catalogued law to
+appear in `integrations/wildcat/APPLICABILITY.md`, so the step cannot be green at
+both ends without it. Step 4 no longer carries it.
 
 ## Step 3: Reach the specimen from both engines
 
@@ -114,9 +151,24 @@ naming the engine, the configuration, the sequence and what failed, with Echidna
 seed given and Medusa's stated as unavailable rather than invented. Do not extend
 the runner to a second engine in this step; that is its own frontier.
 
-**Files.** `src/campaigns/Specimens.sol`, extended. `adapters/echidna/CorpusEchidna.sol`
-and `adapters/medusa/CorpusMedusa.sol` where the new property needs an entry
-point.
+**Files.** `src/campaigns/Specimens.sol`, extended. That is all that is left of
+this step's contracts. `adapters/echidna/CorpusEchidna.sol` and
+`adapters/medusa/CorpusMedusa.sol` were named here originally and were done in
+step 2 instead, because rounds 4 and 5 of that step established that a law missing
+from a surface an outsider inherits is a defect in the step that adds the law
+rather than work to schedule. The campaign harness stays here: it drives this
+plugin's own specimens rather than anything a third party extends, and it is the
+surface the engines need.
+
+`tests/test_documents.py` also gets the last part of a check step 2 built.
+`ShippedAdapterTests` holds the catalogue against `adapters/CorpusBase.sol`, which
+binds the law objects, and against the three adapters that decide which of them a
+run asks. `src/campaigns/Specimens.sol` has the same shape and the same hazard and
+is the one surface still unchecked. The check has to land in this step rather than
+earlier, because until the harness carries the law it would fail, and a check
+written after the change it was meant to force is a check written to pass. Extend
+`ShippedAdapterTests` to the campaign harness in the same commit that adds the
+property.
 
 **Tests.** `test/Corpus.t.sol` or `test/Adapters.t.sol` extended so the new
 entry point is exercised without an engine, the way the existing prefixed entry
@@ -151,7 +203,7 @@ marketplace-context blocks; the ledger advanced exactly once under
 **Files.** `README.md` at the repository root, and inside the plugin
 `README.md`, `AGENTS.md`, `docs/applicability.md`, `docs/design.md`,
 `docs/writing-a-law.md`, `adapters/medusa/README.md`,
-`integrations/wildcat/APPLICABILITY.md`, `audit/AUDIT.md` for its
+`audit/AUDIT.md` for its
 marketplace-context block only, `skills/pandects/SKILL.md`,
 `skills/pandects/EVOLUTION.md`, and the `.agents/skills/pandects/SKILL.md` mirror.
 
@@ -160,10 +212,11 @@ the gates.
 
 **Watch.** Three things, each a way to leave the record wrong.
 
-The Wildcat applicability document opens on "Nine laws. Six apply without
-qualification. Three do not." The new law belongs with neither group as written:
-the model holds it only because `accrueFee` was corrected in step 2. Say that,
-rather than counting it among the laws that always held.
+The Wildcat applicability document was updated in step 2, because a test requires
+every catalogued law to appear in it. Nothing is left to do there. It reads "Ten
+laws. Seven apply without qualification, and one of those seven did not until this
+model was corrected", which is the distinction that mattered: the model holds the
+new law because `accrueFee` was corrected, not because it always did.
 
 `audit/AUDIT.md` records past audit rounds. Those are history and stay as
 written, including their nine-law counts. Only its marketplace-context block is

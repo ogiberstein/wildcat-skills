@@ -248,3 +248,309 @@ two model corrections should ship ahead of the law, which the runbook argues
 against on the grounds that no green intermediate state exists; and the seven
 property families deferred from the original delivery. Each is recorded in the
 round that raised it.
+
+## Withdrawal batch fee law, step 2, round 1 -- 2026-08-18
+
+Reviewed: the whole of the step's diff. The new law, both model corrections, the
+specimen, the counterexample, the catalogue entry, the renderer, the test that
+counted for it, and the Wildcat notes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `search-record.json` | The record shipped at the plugin root stated nine laws and a corpus digest taken over nine, and the corpus now holds ten. Nothing compared it with the catalogue, in CI or in the suite, so it had gone stale silently and would have gone stale again on the eleventh law. A stale search record is worse than an absent one: it carries a count and a digest with the authority of something a script produced, and nothing about reading it says when. | Fixed in this round: regenerated, and three tests now hold the shipped record against the catalogue's law count, its recomputed digest and its version. Each was made to fail against a perturbed record before being kept. |
+| S2-R1-02 | medium | `test/SoundInvariant.t.sol` | The harness asserted the five old single-state laws over the reference under fuzzing and did not assert the sixth. So the one law whose correctness rests on two caps that were just rewritten was the one law no search checked against the reference; the diagonal tested it at a single hand-derived state. A cap is exactly the thing a single state cannot vouch for. | Fixed in this round: `invariant_pooled_claims_cover_open_batches` added. It passes at 64 runs and 4096 calls with no reverts. |
+| S2-R1-03 | medium | `adapters/medusa/README.md` | The document offered the command line as an alternative to the config file and then claimed, two paragraphs later, that the settings match `adapters/echidna/echidna.yaml`. Both cannot be true. Naming a target on the command line means not passing `--config`, so the run happens under Medusa's defaults, with assertion testing on where the file turns it off. Anyone following the documented command and recording the shipped configuration would be recording a different search from the one they ran. Passing both is worse: the file's empty `targetContracts` beats `--target-contracts`, and Medusa exits with no tests found before searching anything, which is the silent non-run this same file warns about at the bottom. | Fixed in this round: the file route is now the documented one, the command-line route is named as a run under Medusa's defaults, and the both-flags case is written down with the exact message it exits on. |
+
+**What ran.** 75 Solidity tests across ten suites under forge 1.7.1 and solc
+0.8.28, up from 74 by the invariant added here. 109 catalogue, checker,
+search-record and document tests on Python 3.14, up from 106 by the three gates
+added here. The repository's 20. `pandects check` over ten laws, every part
+present. Slither 0.11.6 over 50 contracts. Echidna 2.3.3 against `SoundCampaign`
+and `WildcatMarketCampaign` with the shipped configuration and seed 20260816.
+Medusa 1.5.1 against `SoundCampaign` at twenty thousand, run through a copy of
+the shipped config with `targetContracts` filled in, for the reason S2-R1-03
+gives.
+
+**The engines on the corrected models.** `SoundCampaign` failed nothing under
+either engine: eight properties passing over 20,116 calls under Echidna, eight
+passing under Medusa. `WildcatMarketCampaign` failed
+`recorded_claim_never_shrinks` and nothing else, which is the documented
+expectation for a design whose batches accumulate while open, and it is unchanged
+by the fee correction. So neither correction cost the corpus a property, and
+neither introduced one.
+
+**What the engines did not test.** The new law. `src/campaigns/Specimens.sol`
+carries one property per law and the new one is not among them, which is step 3's
+whole content. Foundry's invariant runner reaches it after S2-R1-02 and the two
+fuzzers do not reach it yet. Saying so is the point: eight properties passing is
+evidence about eight laws.
+
+**Slither.** Twenty-three results across three classes, all of them the same
+benign set the original delivery documented: cached array length in four queue
+traversals, costly operations inside a loop that returns after one iteration, and
+one unused constant inherited by a specimen. Nothing names the new law or the new
+specimen.
+
+**The independence argument, and its limit.** `FeeFromQueued` can only lower
+`claims` further than the reference would, so the laws it could break are the
+ones bounded below by `claims`. The old cap stopped exactly at `reserved`, which
+is why `reserves-backed-by-claims` survives it, and the remaining eight read
+quantities a fee does not move. That is an argument rather than a search, the
+diagonal checks one state, and step 3 is where an engine gets to disagree.
+
+Leads not pursued:
+
+- **`pandects run` knows one engine.** The shipped record carries the Foundry
+  campaign and nothing else, so the Echidna and Medusa evidence in this run lives
+  in this log as prose. That is the arrangement step 3 was told to keep and it is
+  a candidate frontier of its own, recorded in the runbook.
+- **The two carried from step 1**, unchanged.
+
+## Withdrawal batch fee law, step 2, round 2 -- 2026-08-18
+
+Reviewed: the tree with round 1 applied, and what round 1's own commit did to it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | medium | `.gitignore` | Round 1's commit tracked three engine artefacts: `crytic-export/combined_solc.json`, `.medusa-artifact-hash` and `slither_results.json`. The ignore rules for all three existed and did not match, because they were written as `plugins/*/` and an engine writes beside wherever it was invoked from. The Medusa run went through a config under `adapters/medusa/`, so the artefacts landed two levels below the plugin root and walked straight past a one-level pattern. This is the lead the original delivery carried from its own step 5 round 2 about `slither_results.json` being tracked, arriving again by the same mechanism. | Fixed in this round: the three files are untracked, the patterns are depth-independent, and a fresh Medusa run confirmed all three are ignored where they are actually written rather than where the old patterns expected them. |
+| S2-R2-02 | low | `.gitignore` | `plugins/*/search-record.json` sat in the fuzzing-output section while the file it names is tracked, shipped as evidence, and as of round 1 held to the catalogue by three tests. The two statements cannot both be right. Left alone, a fresh clone that regenerated the record would show no diff, and deleting it would draw no complaint from git. | Fixed in this round: the entry is removed and the reason it is not output is written where the entry used to be. |
+
+**What ran.** The full suite again on the fixed tree: 75 Solidity tests under
+forge 1.7.1, 109 Python tests, the repository's 20, `pandects check` over ten
+laws. Medusa 1.5.1 twice more, once to reproduce the artefact paths and once to
+confirm they are ignored. No engine re-run was needed for the findings themselves,
+because neither touches a contract.
+
+**What round 1's fixes look like on re-reading.** The three search-record gates
+were re-checked against a perturbed record and each still fails for its own
+reason. `invariant_pooled_claims_cover_open_batches` still passes at 64 runs and
+4096 calls. The Medusa README's file route was exercised in this round, which is
+how the artefact paths in S2-R2-01 were found: following one's own corrected
+instructions is what surfaced the defect the instructions caused.
+
+Leads not pursued: the two carried from step 1, and `pandects run` knowing one
+engine, carried from round 1.
+
+## Withdrawal batch fee law, step 2, round 3 -- 2026-08-18
+
+Reviewed: the new law against the corpus's own edge-case tests rather than
+against its specimen. The first two rounds looked at evidence and at tooling.
+This one asked which of the assertions the other nine laws face were never
+extended to the tenth.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R3-01 | medium | `test/Corpus.t.sol` | `test_a_queue_law_over_a_target_with_no_queue_reverts` walked a hardcoded `Law[2]` of the two queue laws that existed when it was written. The new law is a third and was not in it, so nothing asserted that it reverts rather than returning a verdict against a target with no queue. The test's own comment names the failure it exists to prevent: a law returning true there reports that a system with no queue keeps its queue in order. | Fixed in this round: the array is a `Law[3]` and the new law is asserted with the other two. |
+| S2-R3-02 | medium | `test/Corpus.t.sol` | The new law sums unchecked and reports the overflow as a violation, and no test could reach that branch. `test_a_sum_that_overflows_is_reported_as_a_violation` uses `Extreme`, which implements no queue, so a queue law reverts on the read long before its own addition is asked to hold the answer. The branch that exists precisely so the law does not fall silent where the numbers are worst was itself unexercised, which is the corpus's own argument about untested properties turned on one of its laws. | Fixed in this round: `ExtremeQueue` reports two claims each owed everything there is, and `test_a_queue_law_reports_its_own_overflow` asserts the law returns rather than reverts, returns violated, and gives the overflow as its reason. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1, up from 75 by the assertion
+added here. 109 Python tests, the repository's 20, `pandects check` over ten laws.
+No engine re-run: both findings are test coverage over an unchanged law, and
+neither alters a contract the engines drive.
+
+**Why the second one is worth a fixture.** The overflow branch is not decoration.
+In 0.8 the addition reverts, a revert under `fail_on_revert = false` carries no
+verdict, and the law would go quiet exactly where a system's numbers had gone
+furthest wrong. The corpus argues that about every other summing law and tests it
+for two of them. Asserting the detail string as well as the verdict is what makes
+the test evidence that this branch ran rather than evidence that some branch
+returned false.
+
+Leads not pursued: `Extreme` and `ExtremeQueue` are two fixtures where the
+difference is one interface, and a single parameterised fixture would serve both.
+Left alone deliberately: the split is what makes the two tests say different
+things, and merging them would put a flag in a fixture whose whole job is to be
+obvious. The three carried from earlier rounds and from step 1 stand.
+
+## Withdrawal batch fee law, step 2, round 4 -- 2026-08-18
+
+Reviewed: what an integrator gets rather than what the corpus proves about
+itself. Earlier rounds read the evidence, the tooling and the edge cases. This one
+followed the law outwards, into the files somebody else's protocol actually
+inherits.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R4-01 | high | `adapters/CorpusBase.sol` | The adapter an integrator inherits names its laws one by one in Solidity and had nine of the ten. So the corpus documented ten laws, `pandects check` counted ten, and anybody pointing `CorpusObserver` at their own market ran nine, with no signal anywhere: the adapter compiles, `queueHolds` returns a verdict, `explainOneState` returns five reasons, and every test passes. The one law missing was the one this whole run exists to add. Called high because it is exactly what the corpus is built to refuse, a law that is never asked reported as a corpus that holds, reaching the surface an outsider inherits rather than a specimen written to be broken. | Fixed in this round: the adapter carries it, `queueHolds` judges it, `explainOneState` returns six reasons and says why its width is the catalogue's count, and `test/Adapters.t.sol` reads six. |
+| S2-R4-02 | medium | `tests/test_documents.py` | Nothing tied the adapter to the catalogue, which is why S2-R4-01 could happen quietly and would happen again on the eleventh law. The plugin already has this check twice over, for the rendered catalogue and for the integration notes, and the one surface where the omission reaches a third party had none. | Fixed in this round: `ShippedAdapterTests` holds every catalogued law to the adapter, with path independence excluded as an exact pinned set rather than a skip list, so a second exclusion has to be argued for in the file. Made to fail by removing the law from the adapter before being kept. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1, 111 Python tests, up from 109
+by the two checks added here, the repository's 20, and `pandects check` over ten
+laws. The adapter change is a contract change, so Slither 0.11.6 ran again over 50
+contracts with no new result, and Echidna 2.3.3 ran again against `SoundCampaign`:
+eight properties passing, seed 20260816. The campaign harness does not reach the
+new law, which is step 3, so that number is still evidence about eight laws.
+
+**Why this one is the important finding of the step.** The corpus's argument is
+that a passing campaign proves nothing without a specimen, because a law that
+cannot fail is invisible in a green result. A law absent from the shipped adapter
+is worse than one that cannot fail: it is one nobody asks, on the surface furthest
+from anybody who would notice. `specimens/FeeFromQueued.sol`,
+`test_pooled_claims_cover_open_batches_counterexample`, the catalogue entry and
+`invariant_pooled_claims_cover_open_batches` were all correct while
+`CorpusObserver`, the contract an integrator points at their own market, ran nine
+laws.
+
+**Carried into step 3 with a mechanism rather than a hope.**
+`src/campaigns/Specimens.sol` has the same shape and the same hazard and is still
+unchecked. The check cannot land here: until the harness carries the law it would
+fail, and a check added after the change it was meant to force is a check written
+to pass. The runbook's step 3 now requires `ShippedAdapterTests` to be extended to
+the campaign harness in the same commit that adds the property.
+
+Leads not pursued: the merged-fixture question from round 3, `pandects run`
+knowing one engine, and the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 5 -- 2026-08-18
+
+Reviewed: round 4's own fix, on the suspicion that gating one file and calling the
+class closed was too quick. It was.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R5-01 | high | `adapters/foundry/CorpusInvariants.sol` | The same defect as S2-R4-01, one file along and untouched by its fix. `CorpusBase` carries the law objects; this file decides which of them a Foundry run asserts, and it declared eight invariants for nine laws. After round 4 the adapter carried the tenth law and no Foundry invariant asked it, so an integrator extending `CorpusOneStateTest` still ran nine. Carrying a law and never asserting it is the same silence as not carrying it. | Fixed in this round: `invariant_pooled_claims_cover_open_batches` added, standing down with the other queue laws when `hasWithdrawalQueue` is false, and the two comments that counted the queue laws as two now say three. |
+| S2-R5-02 | medium | `tests/test_documents.py` | Round 4's check read one path and asserted the law's component name appeared in it. That is why it did not see S2-R5-01: the component name did appear, in the file that binds it, and the check had no opinion about the file that asserts it. A check aimed at one of two surfaces is not a check on the class. | Fixed in this round: the check takes a list of shipped adapters. It maps the variable names `CorpusBase` binds components to, classifies each law's shape by reading whether its component extends `Law` or `PairLaw` rather than from a hand-kept list, and asserts every one-state law's variable is asserted in the Foundry adapter. Made to fail by deleting the invariant while leaving the law bound, which is the exact shape S2-R5-01 had. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1 and 111 Python tests, up from
+109 in round 4 by one net: round 4's second check was replaced rather than added
+to, because the version it shipped counted braces and carried a dead local. The
+repository's 20 and `pandects check` over ten laws.
+
+**On round 4's second check.** It passed, it was green, and it could not have
+caught what round 5 found. It also contained a statement with no effect and a
+subtest that asserted a string appeared somewhere in a file. Recorded plainly
+because the step's own findings are about tests that cannot fail, and writing one
+in the round that argues against them is worth writing down rather than quietly
+replacing.
+
+**The class, now that it has been walked properly.** Six shipped surfaces name
+laws: the catalogue, the rendered document, the integration notes, `CorpusBase`,
+`CorpusInvariants` and the campaign harness. Five are now held to the catalogue by
+a test. The sixth is the campaign harness, still step 3's, still scheduled in the
+runbook with the reason it cannot be gated earlier.
+
+Leads not pursued: the merged-fixture question from round 3, `pandects run`
+knowing one engine, and the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 6 -- 2026-08-18
+
+Reviewed: the rest of the class rounds 4 and 5 opened. Two rounds had each found
+the same defect in one more file, so this round enumerated every shipped file that
+names laws before looking at any of them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R6-01 | high | `adapters/echidna/CorpusEchidna.sol`, `adapters/medusa/CorpusMedusa.sol` | The third and fourth occurrence, in the two adapters an integrator extends to run the corpus under a fuzzer. Each declared five one-state properties and the tenth law was not among them, so anyone pointing Echidna or Medusa at their own system through the shipped adapter searched nine laws. The runbook had scheduled both files into step 3. Rounds 4 and 5 are the argument against that: a law missing from a surface an outsider inherits is a defect in the step that adds the law, and scheduling is how it survived twice. | Fixed in this round: both adapters carry the property, standing down with the other queue laws when `hasWithdrawalQueue` is false. |
+| S2-R6-02 | medium | `tests/test_documents.py` | Round 5's check took a list of two paths, which was the right shape aimed at the wrong set. It knew about `CorpusBase` and the Foundry adapter and had no opinion about the two engine adapters, so it could not have caught S2-R6-01 either. Three rounds running, the check was narrower than the class. | Fixed in this round: the binding file and the asking files are separated, and the asking set is all three adapters that decide which bound law a run asks. Each was made to fail on its own by deleting one property at a time, which caught a fourth thing: the probe used for the Foundry file in the first attempt matched nothing, so a clean result there was the probe failing rather than the check passing. The exact-string version failed as it should. |
+
+**What ran.** 76 Solidity tests under forge 1.7.1, 111 Python tests, the
+repository's 20, `pandects check` over ten laws, Slither 0.11.6 over 50 contracts
+at 23 results with nothing new, and Echidna 2.3.3 against four campaigns with the
+shipped configuration and seed 20260816.
+
+**The evidence this round bought.** Every campaign that extends the shipped
+adapters picked the new law up as a consequence of S2-R6-01's fix, so the engines
+reached it in step 2 rather than step 3:
+
+| campaign | the new law | its own expected failure | calls |
+| --- | --- | --- | --- |
+| `SoundCampaign` | not carried | none | 20,140 |
+| `ObservedQueueJumpedEchidna` | passing | `queue_order_preserved` | 20,205 |
+| `DrivenClaimHaircutEchidna` | passing | `recorded_claim_never_shrinks` | 20,176 |
+| `WildcatMarketCampaign` | passing | `recorded_claim_never_shrinks` | 20,123 |
+
+The last row is the one worth reading twice. Echidna searched 20,123 calls against
+the corrected Wildcat model and did not reach a state where pooled claims sit below
+what the open batches are owed. Before the correction, five calls written by hand
+got there and took four fifths of a departing lender's money on the way. Each
+campaign still fails exactly the property it was built to fail and no other, so the
+new law did not arrive broad.
+
+`SoundCampaign` extends `Campaign` in `src/campaigns/Specimens.sol` rather than the
+shipped adapter, which is why it is the one campaign the new law does not reach.
+That harness is step 3's remaining content and the last surface without a check.
+
+Leads not pursued: the merged-fixture question from round 3, `pandects run`
+knowing one engine, and the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 7 -- 2026-08-18
+
+Reviewed: every file in the plugin that names laws, enumerated mechanically
+before any of them was opened, because three rounds running had found the same
+defect one file further along and inspection had picked the files in the wrong
+order each time. Ten Solidity files import two or more laws and three documents
+name three or more. One of the ten had not been looked at.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R7-01 | medium | `test/Wildcat.t.sol` | Step 2 added a row to the integration's applicability table saying the model holds the new law once corrected, with figures, and added no assertion behind it. `test_the_model_holds_every_one_state_law_it_claims` asserted five laws and the document claimed six. That document's own idiom is the opposite: it says of two other claims that they are watched happening rather than described, and the check requiring every catalogued law to appear in it exists because a claim nobody tests is the thing this plugin refuses. The claim was mine and it shipped bare. | Fixed in this round: the law joins the law-by-law assertion, and `test_a_delinquent_market_can_take_no_fee_from_a_queued_batch` drives the market into the state the notes describe and asserts the figures they quote -- 200 held, a batch owed 1000 unpaid, and a fee of nothing where the earmark cap permitted 800. Reverting the model's cap to `reserved()` makes it fail with "a fee was taken out of a queued batch". |
+
+**What ran.** 77 Solidity tests under forge 1.7.1, up from 76 by the assertion
+added here, 111 Python tests, the repository's 20, and `pandects check` over ten
+laws. No engine or Slither re-run: the only contract touched is a test.
+
+**The enumeration, and what it settles.** Every shipped surface that names laws is
+now either held to the catalogue by a test or scheduled with the reason it cannot
+be. `adapters/CorpusBase.sol` binds them and is gated; the Foundry, Echidna and
+Medusa adapters decide which are asked and are gated; `docs/catalogue.md` is
+generated and drift-checked; `integrations/wildcat/APPLICABILITY.md` is gated for
+mention and, after this round, asserted for the claim it makes; `test/Corpus.t.sol`
+walks a diagonal of six; `test/SoundInvariant.t.sol` searches all six.
+`src/campaigns/Specimens.sol` is the one surface left and it is step 3's, with its
+check required in the same commit as its property. `docs/withdrawal-batch-fee-law/study.md`
+names six law ids and is a record rather than a surface, which step 4 states.
+
+Leads not pursued:
+
+- **A gate on the applicability table itself.** Every law the table says holds
+  could be required to appear in an assertion in `test/Wildcat.t.sol`. It would
+  have caught S2-R7-01 the way the adapter gates caught rounds 4 to 6. It needs a
+  parser for a prose table with three laws that legitimately do not hold and one
+  that holds under a condition, and a fragile parser guarding a document is a
+  worse trade than the check is worth. Recorded rather than built, and it is a
+  candidate frontier.
+- The merged-fixture question from round 3, `pandects run` knowing one engine, and
+  the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 8 -- 2026-08-18
+
+Reviewed: the comments this step's own rounds wrote, on the principle that a round
+which has spent six findings on untested claims should read its own. One of them
+promised a guarantee that did not exist.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R8-01 | medium | `adapters/CorpusBase.sol` | Round 4 widened `explainOneState` to six and wrote above it that the width is the count of one-state laws in the catalogue and that `test/Adapters.t.sol` holds it to that count. The second half was false. That test reads `string[6]` because the adapter returns `string[6]`; the two are one number written twice and a test taking it from the file it checks would be wrong the same way. So an eleventh one-state law would leave the width at six and nothing would say so, which is the argument the renderer's own drift test makes, and the comment claiming otherwise was written in the round that found the same defect elsewhere. | Fixed in this round: `test_the_explanation_is_as_wide_as_the_one_state_laws` reads the signature out of the source, counts the one-state laws in the catalogue by the shape their components declare, asserts the two agree, and asserts each of those laws is the subject of one of the assignments. Narrowing the width and hollowing the last entry each make it fail for their own reason. The comment now names the test that exists. |
+
+**What ran.** 77 Solidity tests under forge 1.7.1, 112 Python tests, up from 111
+by the check added here, the repository's 20, `pandects check` over ten laws, and
+Slither 0.11.6 over 50 contracts at 23 results, unchanged. No engine re-run: this
+round touched one comment and one test.
+
+**Accepted, and why.** This is the eighth round, which is the configured ceiling,
+so the tree has a fix in it that no later round has audited. That is the honest
+shape of the close rather than a clean sweep: round 8 found one defect, fixed it,
+and proved the fix fails when it should, and no ninth round exists to read the
+proof back. The four leads below are accepted for the reasons given, none of them
+because the rounds ran out.
+
+- **A gate on the applicability table**, from round 7. It would catch the class
+  S2-R7-01 belongs to, and it needs a parser for a prose table carrying three laws
+  that do not hold and one that holds conditionally. A fragile parser guarding a
+  document is a worse trade than the check is worth. A candidate frontier.
+- **`pandects run` knows one engine**, from round 1. The shipped record carries the
+  Foundry campaign, and the Echidna and Medusa results are written into the
+  rounds above as prose rather than emitted as records.
+  That is the arrangement the runbook fixes for step 3, and widening the runner is
+  its own piece of work.
+- **`Extreme` and `ExtremeQueue` differ by one interface**, from round 3. Merging
+  them would put a flag inside a fixture whose job is to be obvious.
+- Two more come from step 1 and stand unchanged. Whether the model corrections
+  should have shipped as their own step, which the runbook argues against because
+  no green intermediate state exists between them and the law. And the seven
+  property families the original delivery deferred.
+
+**The one surface still without a check.** `src/campaigns/Specimens.sol`, and it is
+step 3's first line of work with the check required in the same commit as the
+property. Recorded here as well as in the runbook, because it is the only thing
+this step knowingly leaves for the next one.

@@ -5,15 +5,17 @@ import {Observation, Observe} from "../../src/Observation.sol";
 import {RecordedClaimNeverShrinks} from "../../src/laws/RecordedClaimNeverShrinks.sol";
 import {QueueOrderPreserved} from "../../src/laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../../src/laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../../src/laws/PooledClaimsCoverOpenBatches.sol";
 import {ClaimHaircut} from "../../specimens/ClaimHaircut.sol";
 import {QueueJumped} from "../../specimens/QueueJumped.sol";
 import {PayableBeyondReserves} from "../../specimens/PayableBeyondReserves.sol";
+import {FeeFromQueued} from "../../specimens/FeeFromQueued.sol";
 
 /// @title The counterexamples for the withdrawal-claim family.
 /// @notice One reduced sequence per law, replayable with no fuzzer, no seed
 /// and no engine.
 ///
-/// All three run at a scale of one or two units. That is not a stylistic
+/// All four run at a scale of one or two units. That is not a stylistic
 /// preference: a queue defect is about which entry moves rather than how much,
 /// so the smallest amounts that keep the entries distinct are the ones that
 /// show it, and a counterexample moving a hundred units would be hiding its
@@ -85,7 +87,8 @@ contract ClaimsCounterexamples {
     /// it.
     function test_reserves_cover_payable_counterexample() external {
         PayableBeyondReserves target = new PayableBeyondReserves();
-        target.deposit(1);
+        target.deposit(2);
+        target.borrow(1);
         target.reserve(1);
         target.reserve(1);
 
@@ -94,6 +97,42 @@ contract ClaimsCounterexamples {
         require(target.payableThrough() == 2, "the system did not declare both payable");
 
         ReservesCoverPayableClaims law = new ReservesCoverPayableClaims();
+        (bool held, ) = law.check(target);
+        require(!held, "the counterexample no longer reproduces");
+    }
+
+    /// `FeeFromQueued.deposit(2)`, `borrow(1)`, `reserve(1)`, `reserve(1)`,
+    /// `accrueFee(1)`. Five calls, and five is the floor: the leak only exists
+    /// where the earmark falls short of the queue, that needs the borrow, and
+    /// the borrow needs something to have been deposited first.
+    ///
+    /// Two lenders are each recorded as owed one unit. The system holds one,
+    /// so it can earmark only one, and the fee measures itself against that
+    /// earmark rather than against the two it owes. One unit moves into fees.
+    /// Both lenders still have their number, the books still balance, reserves
+    /// are still within claims, and the pool behind those two numbers is now
+    /// one unit.
+    function test_pooled_claims_cover_open_batches_counterexample() external {
+        FeeFromQueued target = new FeeFromQueued();
+        target.deposit(2);
+        target.borrow(1);
+        target.reserve(1);
+        target.reserve(1);
+
+        require(target.claimCount() == 2, "two claims were not recorded");
+        require(target.totalLenderClaims() == 2, "the pool is not owed 2");
+        require(target.reservedAssets() == 1, "more than one unit was set aside");
+
+        target.accrueFee(1);
+
+        require(target.totalLenderClaims() == 1, "the fee did not take a unit");
+        require(target.accruedFees() == 1, "the unit did not land in fees");
+        (uint256 firstOwed, uint256 firstPaid) = target.claimAt(0);
+        (uint256 secondOwed, uint256 secondPaid) = target.claimAt(1);
+        require(firstOwed == 1 && firstPaid == 0, "the first claim moved");
+        require(secondOwed == 1 && secondPaid == 0, "the second claim moved");
+
+        PooledClaimsCoverOpenBatches law = new PooledClaimsCoverOpenBatches();
         (bool held, ) = law.check(target);
         require(!held, "the counterexample no longer reproduces");
     }

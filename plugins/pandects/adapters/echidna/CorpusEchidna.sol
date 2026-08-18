@@ -35,6 +35,10 @@ abstract contract CorpusEchidna is CorpusBase {
     function echidna_reserves_cover_payable() external view returns (bool) {
         return !hasWithdrawalQueue() || judge(covered);
     }
+
+    function echidna_pooled_claims_cover_open_batches() external view returns (bool) {
+        return !hasWithdrawalQueue() || judge(pooled);
+    }
 }
 
 /// @title The same, plus the succession laws, for a target you front.

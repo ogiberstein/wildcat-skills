@@ -27,6 +27,46 @@ ARIADNE_COMMAND_FIELDS = {"name", "argv", "determinism", "output_digest", "detai
 ARIADNE_DETERMINISM = ("exact", "nondeterministic")
 
 
+class ShippedRecordTests(unittest.TestCase):
+    """The record committed at the plugin root, against the catalogue now.
+
+    A search record is evidence, and a stale one is worse than an absent one: it
+    states a law count and a corpus digest with the authority of something a
+    script produced, and nothing about reading it says when. The record shipped
+    with nine laws in it for as long as there were nine, and there was no check
+    that would notice a tenth.
+    """
+
+    SHIPPED_RECORD = os.path.join(PLUGIN_ROOT, "search-record.json")
+
+    def setUp(self):
+        with open(self.SHIPPED_RECORD, encoding="utf-8") as handle:
+            self.record = json.load(handle)
+        self.catalogue = catalogue_module.parse(
+            json.load(open(SHIPPED, encoding="utf-8"))
+        )
+
+    def test_the_shipped_record_counts_the_laws_the_catalogue_holds(self):
+        self.assertEqual(
+            self.record["corpus"]["laws"],
+            len(self.catalogue.laws),
+            "regenerate with: python3 scripts/pandects.py run --out search-record.json",
+        )
+
+    def test_the_shipped_record_digests_the_corpus_as_it_is(self):
+        """The digest is the part a reader cannot check by eye."""
+        self.assertEqual(
+            self.record["corpus"]["digest"],
+            run_module.corpus_digest(PLUGIN_ROOT, self.catalogue),
+            "regenerate with: python3 scripts/pandects.py run --out search-record.json",
+        )
+
+    def test_the_shipped_record_names_its_corpus_version(self):
+        self.assertEqual(
+            self.record["corpus"]["version"], self.catalogue.raw["version"]
+        )
+
+
 class CommandShapeTests(unittest.TestCase):
     def test_a_command_carries_only_the_fields_ariadne_allows(self):
         entry = run_module.command(
