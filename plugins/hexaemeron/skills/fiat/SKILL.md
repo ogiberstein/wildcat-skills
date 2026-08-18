@@ -205,9 +205,12 @@ skills that ran to the receipt. Repo copies are committed later, in step 1 of
 the runbook, after the prose pass.
 
 **Implementation.** Pick the construction that takes the least effort to
-comprehend, then stop. Consult `phylax` for the boundaries the step introduces,
-`ephoros` for what it must emit once it runs unattended, and `metron` before
-any change made in the name of speed. The runbook step is the yardstick: reread it before
+comprehend, then stop. The step runs under the phase skills: `phylax` names
+the boundaries the step introduces and the control each needs, `ephoros` names
+what it must emit once it runs unattended, `metron` refuses any change made in
+the name of speed without a recorded before and after, and a failure worked
+mid-step follows `elenchus` rather than a guess. Their lints run in every
+audit round, so meeting them here is cheaper than meeting them there. The runbook step is the yardstick: reread it before
 declaring the step complete, and do not add anything it does not ask for.
 Branch as `step-<n>-<slug>` from the base named by `config git.step_base`
 (`chain` means branch from the previous step's branch; `base` means branch
