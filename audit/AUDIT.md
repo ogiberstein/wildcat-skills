@@ -996,3 +996,15 @@ risk register's partial-write and determinism rows.
 Leads not pursued: a giant hand-crafted boundary.json can make check spend
 memory parsing it; accepted for the prototype, the file is repository-local
 and the parse failure path already exits 2.
+
+## Step 3, round 2 -- 2026-08-18
+
+Re-ran against the fixed tree. Lints: phylax 0, ephoros 0, hypomnema 0.
+Horos 39/39, root 24/24. The fix diff is one line plus its comment; the
+review found nothing further.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none beyond round 1's accepted parse-memory
+lead.
