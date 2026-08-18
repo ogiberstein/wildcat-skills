@@ -971,3 +971,15 @@ Leads not pursued: a stat-then-open race (a file swapped for a symlink between
 the check and the read) is accepted for the prototype; exploiting it requires
 an attacker writing to the tree during the scan, at which point the tree is
 already theirs.
+
+## Step 2, round 2 -- 2026-08-18
+
+Re-ran against the fixed tree. Lints: phylax 0, ephoros 0, hypomnema 0.
+Horos 26/26, root 24/24. The fix diff review found nothing further: the one
+public caller of classify_file already counts the raised OSError as skipped.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none beyond the accepted race recorded in
+round 1.
