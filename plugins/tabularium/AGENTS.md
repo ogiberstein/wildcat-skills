@@ -4,28 +4,21 @@
 > **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
 
-Tabularium contains one Agent Skill. Select from this table, then read the
-chosen `SKILL.md` in full.
-
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `tabularium` | `skills/tabularium/SKILL.md` | Build or verify a preserved, sourced ledger of on-chain credit events |
+Tabularium contains one Agent Skill: read `skills/tabularium/SKILL.md` in full
+to build or verify a preserved, sourced ledger of on-chain credit events.
 
 `skills/tabularium/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
 
 ## Translate tool names by capability
 
-The canonical skill may name host tools. A local agent must map them to
-equivalent capabilities:
+Map host tool names to these capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+- `Read`: read the named file completely or at the stated range.
+- `Write` or `Edit`: create or patch the named file.
+- `Bash`: execute the command and inspect its exit status.
+- `Glob`, `Grep`, or `find`: enumerate or search the stated pattern.
+- `AskUserQuestion`: ask through structured UI or concise text.
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent

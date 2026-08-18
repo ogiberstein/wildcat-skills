@@ -33,11 +33,7 @@ connection:
 ```bash
 python3 plugins/tabularium/scripts/tabularium.py verify \
   plugins/tabularium/examples/goldfinch-v0/coverage.json
-```
 
-Run the complete demonstration with:
-
-```bash
 python3 plugins/tabularium/examples/goldfinch-v0/rebuild.py
 ```
 

@@ -32,8 +32,8 @@ Tabularium maps preserved venue-native records into reproducible, venue-qualifie
 **Current frontier.** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
 
-Tabularium turns preserved venue records into a common event ledger without
-discarding what the venue said or the rule used to interpret it.
+Tabularium maps preserved venue records into a common event ledger while
+retaining the venue statement and interpretation rule.
 
 `$SKILL_DIR` is the directory holding this file. The tool lives at
 `$SKILL_DIR/../../scripts/tabularium.py`; resolve it from where you loaded this

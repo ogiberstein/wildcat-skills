@@ -5,9 +5,8 @@
 <!-- marketplace-context:end -->
 
 Status: Phase 0 method proof shipped, 2026-08-17. The checked-in witness is
-non-canonical and transaction-scoped. This document defines the remaining
-canonical release work; it does not claim that a Compound III event release or
-interval history exists.
+non-canonical and transaction-scoped. This defines the remaining canonical
+release work; no Compound III event release or interval history is established.
 
 ## Decision
 

@@ -19,9 +19,7 @@ producing or verifying a release. JSON manifests parse, Python sources compile,
 `git diff --check` reports no errors, the 10 root tests pass and the 6
 Tabularium tests pass.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| -- | -- | -- | No findings. | clean |
+No findings.
 
 Leads not pursued: none.
 
@@ -53,9 +51,13 @@ capture contracts against the preserved response bytes, repeated the offline
 rebuilds and tamper cases, compiled the Python sources, and ran 14 root and 118
 Tabularium tests.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| E1-R2-01 | medium | `examples/euler-v1-v0/capture.json`, `scripts/tabularium_lib/release_v2.py` | The preserved JSON-RPC response carried request ID `1`, but the capture's request descriptor omitted that ID. The purported exact request was therefore incomplete. | fixed in `ea8bcead3a2e2dcad6f652485ed0aac41c2c98fe` |
+FINDING
+[Medium] E1-R2-01: The exact-request descriptor omitted request ID `1`.
+Location: `examples/euler-v1-v0/capture.json`, `scripts/tabularium_lib/release_v2.py`
+Mechanism: The preserved JSON-RPC response carried the ID but the capture did not.
+Impact: The purported exact request was incomplete.
+Fix: fixed in `ea8bcead3a2e2dcad6f652485ed0aac41c2c98fe`.
+END
 
 The fix binds request ID `1`, rotates only the new Euler v1 capture and
 coverage digests, and adds a rebound-tamper test. The source and canonical
@@ -70,10 +72,21 @@ multi-row consistency and empty-result behaviour, then repeated the release
 rebuilds, source tampering, Python compilation, 14 root tests and 121
 Tabularium tests.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| E1-R3-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | An empty response could claim complete coverage over a reversed indexed block interval without being refused. | fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a` |
-| E1-R3-02 | medium | `scripts/tabularium_lib/adapters/euler_v1.py`, `scripts/tabularium_lib/adapters/euler_v2.py` | Rows sharing a block or transaction identity could disagree about its hash, block number, transaction index or timestamp. | fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a` |
+FINDING
+[Medium] E1-R3-01: Empty responses accepted reversed coverage.
+Location: `scripts/tabularium_lib/adapters/euler_v2.py`
+Mechanism: A reversed indexed block interval could still claim complete coverage.
+Impact: An invalid empty boundary could verify.
+Fix: fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a`.
+END
+
+FINDING
+[Medium] E1-R3-02: Shared block or transaction identities could conflict.
+Location: `scripts/tabularium_lib/adapters/euler_v1.py`, `scripts/tabularium_lib/adapters/euler_v2.py`
+Mechanism: Rows could disagree on hash, block number, transaction index or timestamp.
+Impact: One identity could produce contradictory canonical metadata.
+Fix: fixed in `2feeb85de056bef62a55d975a8fe98022daa5a8a`.
+END
 
 The fixes reject reversed coverage and reconcile shared block and transaction
 metadata before ordering or serialising events. Both release rebuilds remain
@@ -88,9 +101,13 @@ amount mapping with the checked-in API response and Probitas' independently
 validated event shapes, then ran 14 root and 123 Tabularium tests and rebuilt
 both releases.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| E1-R4-01 | medium | `scripts/tabularium_lib/adapters/euler_v2.py` | The mapper accepted arbitrary amount-leg names, and a liquidation could pass with a borrow-shaped single `assets` leg. An API shape change could therefore acquire an old canonical meaning. | fixed in `e1e3fb71fb779aa2dc5d4295c69c66943a2f570c` |
+FINDING
+[Medium] E1-R4-01: Arbitrary amount-leg names inherited canonical meaning.
+Location: `scripts/tabularium_lib/adapters/euler_v2.py`
+Mechanism: A liquidation could pass with one borrow-shaped `assets` leg.
+Impact: An API shape change could acquire an old mapping.
+Fix: fixed in `e1e3fb71fb779aa2dc5d4295c69c66943a2f570c`.
+END
 
 The fix requires exactly one `assets` leg for non-liquidation events and both
 `assets` and addressed `collateral` legs for liquidations. Regression tests
@@ -111,9 +128,7 @@ The 14 root and 123 Tabularium tests passed. Each Euler release rebuilt twice
 to its committed bytes. The four Goldfinch artifacts retained their fixed
 digests.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| -- | -- | -- | No findings. | clean |
+No findings.
 
 Leads not pursued: none.
 
@@ -127,9 +142,13 @@ coverage schemas, CLI failure behaviour and all tests. Reproduced the 511-row
 build twice at SHA-256
 `751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1`.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R1-01 | medium | `scripts/tabularium_lib/core.py`, `scripts/tabularium_lib/builder.py` | The builder checked whether output aliased the source and then wrote with `Path.write_bytes`. A symlink introduced between those operations would be followed, so the output write could replace the preserved source despite the alias gate. | fixed in `f6131579cba199cea111f1e65de6d6e28c64b244` |
+FINDING
+[Medium] S2-R1-01: A post-check symlink could replace preserved source.
+Location: `scripts/tabularium_lib/core.py`, `scripts/tabularium_lib/builder.py`
+Mechanism: The builder checked aliasing, then `Path.write_bytes` followed a symlink introduced before the write.
+Impact: Output could overwrite source despite the alias gate.
+Fix: fixed in `f6131579cba199cea111f1e65de6d6e28c64b244` with atomic replacement.
+END
 
 The fix writes to a same-directory temporary file, flushes and fsyncs it, then
 uses atomic replacement. A regression test inserts a source-pointing symlink
@@ -150,9 +169,7 @@ tests. Both outputs have SHA-256
 The raw capture remains
 `644b706804b6e28d69b1028b87937e0e36c882f703419d0e2bf568b056892bc9`.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| -- | -- | -- | No findings. | clean |
+No findings.
 
 Leads not pursued: none.
 
@@ -167,9 +184,13 @@ tamper cases, offline operation and read-only verification. Rebuilt the real
 coverage bytes. The canonical SHA-256 remains
 `751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1`.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R1-01 | low | `scripts/tabularium_lib/core.py` | An extremely long JSON integer or a recursive encoder failure could escape as `ValueError` or `RecursionError` instead of the documented `TabulariumError`, exposing an uncontrolled CLI traceback for malformed input. | fixed in `dbcaf19c443493606a1eef807fc7982cd9607cb7` |
+FINDING
+[Low] S3-R1-01: Malformed JSON could escape the controlled error path.
+Location: `scripts/tabularium_lib/core.py`
+Mechanism: An extremely long integer or recursive encoder failure raised `ValueError` or `RecursionError`, not `TabulariumError`.
+Impact: Malformed input exposed an uncontrolled CLI traceback.
+Fix: fixed in `dbcaf19c443493606a1eef807fc7982cd9607cb7`.
+END
 
 The fix keeps parser and encoder failures on the controlled error path and
 uses an iterative numeric-validation walk for deeply nested values. Regression
@@ -188,10 +209,21 @@ coverage SHA-256 values remained
 `751754a2f913691cf95f3e9f859b156f9ccd7963b1d72d4fc3379348924469b1` and
 `58184a75d8eca6ae8d9b44653c36ce8c482549c5d3cecd1a2a991b0936561f6d`.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R2-01 | low | `scripts/tabularium_lib/paths.py` | A manifest artefact path containing a NUL character reached `Path.resolve` and raised an uncontrolled `ValueError` instead of a verification failure. | fixed in `307fa255a354b220aa5ab725de5a9c0e392f1e32` |
-| S3-R2-02 | low | `scripts/tabularium_lib/verifier.py` | Verification read the entry coverage manifest before confirming it was a regular file, so a FIFO at that path could block indefinitely. | fixed in `307fa255a354b220aa5ab725de5a9c0e392f1e32` |
+FINDING
+[Low] S3-R2-01: NUL-bearing artefact paths escaped verification failure.
+Location: `scripts/tabularium_lib/paths.py`
+Mechanism: `Path.resolve` raised an uncontrolled `ValueError`.
+Impact: A malformed manifest path produced a traceback.
+Fix: fixed in `307fa255a354b220aa5ab725de5a9c0e392f1e32`.
+END
+
+FINDING
+[Low] S3-R2-02: A FIFO coverage manifest could block verification.
+Location: `scripts/tabularium_lib/verifier.py`
+Mechanism: Verification opened the entry manifest before checking it was regular.
+Impact: The read could block indefinitely.
+Fix: fixed in `307fa255a354b220aa5ab725de5a9c0e392f1e32`.
+END
 
 The fix rejects NUL-bearing artefact paths and refuses non-regular entry
 manifests before opening them. Regression tests cover both cases.
@@ -212,9 +244,7 @@ byte-identical, with canonical SHA-256
 coverage SHA-256
 `58184a75d8eca6ae8d9b44653c36ce8c482549c5d3cecd1a2a991b0936561f6d`.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| -- | -- | -- | No findings. | clean |
+No findings.
 
 Leads not pursued: none.
 
@@ -228,9 +258,13 @@ status changes, data dictionary, adapter guide, supersession policy and tests.
 Reproduced all four release hashes and 511 unique rows, then exercised rebound
 capture and canonical tampering, path escapes, symlinks and demo mismatches.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R1-01 | medium | `scripts/tabularium_lib/release.py` | Capture validation reconciled the indexed block number with source metadata but did not reconcile the indexed block timestamp or deployment identifier. An altered capture with a rebound coverage digest could contradict either source field and still verify. | fixed in `87cb45b2cc32728eaf4aafcdc23c26df1f7a4c9f` |
+FINDING
+[Medium] S4-R1-01: Capture validation left two source fields unbound.
+Location: `scripts/tabularium_lib/release.py`
+Mechanism: It reconciled block number, not indexed timestamp or deployment identifier.
+Impact: A rebound coverage digest could verify a contradictory capture.
+Fix: fixed in `87cb45b2cc32728eaf4aafcdc23c26df1f7a4c9f`.
+END
 
 The fix binds both capture fields to `source._meta` and adds regression tests
 for timestamp and deployment drift. The root, Ariadne, Probitas and Tabularium
@@ -255,8 +289,6 @@ The root, Ariadne, Probitas and Tabularium suites passed 10, 310, 422 and 90
 tests. Probitas emitted one pre-existing unclosed-file `ResourceWarning` in
 `test_abi.py`; it did not fail the suite and is outside this step's diff.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| -- | -- | -- | No findings. | clean |
+No findings.
 
 Leads not pursued: none.

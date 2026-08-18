@@ -12,6 +12,17 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
 COMMAND = PLUGIN_ROOT / "scripts" / "tabularium.py"
 SKILL = PLUGIN_ROOT / "skills" / "tabularium" / "SKILL.md"
+SHARED_VERSIONING = (
+    REPO_ROOT / "plugins" / "hexaemeron" / "skills" / "VERSIONING.md"
+).resolve()
+
+
+def public_document_target(path, link):
+    return (path.parent / link.split("#", 1)[0]).resolve()
+
+
+def permitted_public_document_target(target):
+    return target == SHARED_VERSIONING or PLUGIN_ROOT in target.parents
 
 
 def run(*args):
@@ -77,10 +88,20 @@ class TabulariumPackagingTests(unittest.TestCase):
             for link in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
                 if link.startswith(("#", "https://", "http://", "mailto:")):
                     continue
-                target = (path.parent / link.split("#", 1)[0]).resolve()
+                target = public_document_target(path, link)
                 with self.subTest(document=path.relative_to(PLUGIN_ROOT), link=link):
-                    self.assertIn(PLUGIN_ROOT, target.parents)
+                    self.assertTrue(permitted_public_document_target(target))
                     self.assertTrue(target.exists())
+
+    def test_only_the_shared_versioning_file_is_allowed_outside_the_plugin(self):
+        self.assertTrue(permitted_public_document_target(SHARED_VERSIONING))
+        for target in (
+            REPO_ROOT / "AGENTS.md",
+            REPO_ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md",
+            SHARED_VERSIONING.parent,
+        ):
+            with self.subTest(target=target.relative_to(REPO_ROOT)):
+                self.assertFalse(permitted_public_document_target(target.resolve()))
 
     def test_marketplace_entries_use_the_local_plugin_path(self):
         claude = json.loads(
