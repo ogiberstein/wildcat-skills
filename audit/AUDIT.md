@@ -983,3 +983,28 @@ public caller of classify_file already counts the raised OSError as skipped.
 
 Zero findings. Leads not pursued: none beyond the accepted race recorded in
 round 1.
+
+## Step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Review focused on the
+risk register's partial-write and determinism rows.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | plugins/horos/skills/horos/scripts/horos.py | the temporary boundary file used one fixed name, so two concurrent scans of the same tree could unlink each other's half-written temporary and fail one run's atomic replace | fixed: the temporary name carries the writing process id; the existing cleanup tests pin that no temporary survives either path |
+
+Leads not pursued: a giant hand-crafted boundary.json can make check spend
+memory parsing it; accepted for the prototype, the file is repository-local
+and the parse failure path already exits 2.
+
+## Step 3, round 2 -- 2026-08-18
+
+Re-ran against the fixed tree. Lints: phylax 0, ephoros 0, hypomnema 0.
+Horos 39/39, root 24/24. The fix diff is one line plus its comment; the
+review found nothing further.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none beyond round 1's accepted parse-memory
+lead.
