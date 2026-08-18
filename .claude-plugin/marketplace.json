@@ -50,6 +50,28 @@
       ]
     },
     {
+      "name": "horos",
+      "displayName": "Horos",
+      "source": "./plugins/horos",
+      "description": "Classify a repository's token sinks with evidence and emit the reading boundary agents respect.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/horos",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Developer Tools",
+      "tags": [
+        "reading-boundary",
+        "token-budget",
+        "generated-code",
+        "vendored-code",
+        "skeleton-map",
+        "agent-context"
+      ]
+    },
+    {
       "name": "sapheneia",
       "displayName": "Sapheneia",
       "source": "./plugins/sapheneia",

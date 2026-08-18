@@ -1,0 +1,42 @@
+# Horos
+
+<!-- marketplace-context:start -->
+## In one line
+
+Horos classifies a repository's token sinks with evidence and emits the reading boundary agents respect.
+
+**Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
+
+**Current frontier.** TypeScript and JavaScript skeleton maps remain unimplemented, and no scan of a live external repository is recorded as evidence.
+
+**Next Fiat job.** Use /hexaemeron:fiat to Record a live-repository scan of wildcat-app-v2 as an evidence bundle and decide the TypeScript skeleton parser question. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+<!-- marketplace-context:end -->
+
+## Why it exists
+
+An agent working in a repository spends most of its reading budget on files
+that return nothing: build output committed to the tree, vendored
+dependencies, lockfiles, minified bundles, data blobs on a single line.
+Measured against two Wildcat repositories, those files were 66% and 87% of
+readable bytes. Rewriting code to save tokens was studied first and rejected;
+the licensed saving was about 3% and published evidence prices aggressive
+rewriting at up to 12 points of task completion. Not reading the sinks at all
+is the mechanism that wins, and Horos makes it checkable. The full argument
+is committed at [docs/study.md](./docs/study.md).
+
+## What it ships
+
+- a standard-library scanner that classifies token sinks and quotes the
+  evidence line that earned each entry;
+- a deterministic committed boundary at `.horos/boundary.json`, verified
+  against the tree by `check`, which names every drifted path;
+- Python skeleton maps, so a large file can be oriented in without being
+  read; and
+- one binding rule: no boundary applies during security review.
+
+## Where it is honest about limits
+
+Classification is fail-open. A file Horos cannot evidence stays readable, so
+Horos misses sinks a person would catch, and its report says what it skipped.
+The scanner reads at most a fixed prefix of any file, so a scan never costs a
+fraction of what it saves.

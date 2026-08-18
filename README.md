@@ -39,6 +39,13 @@ and Sapheneia owns AuDHD interaction shape.
 [Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working prototype through one receipted loop.
 
 
+### Horos
+
+[Horos](./plugins/horos) decides what an agent does not read. It classifies a
+repository's token sinks with evidence and emits the boundary agents consult
+before reading, so the budget goes to the code that matters.
+
+
 ### Lemma
 
 [Lemma](./plugins/lemma) turns Solidity compiler inputs and Markdown documents
@@ -108,6 +115,7 @@ The short map of what each plugin does and what is honestly left to build.
 | [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
 | [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | No complete, reproducible live Wildcat evidence bundle is published. |
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
+| [Horos](./plugins/horos) | Classifying a repository's token sinks with evidence and emitting the reading boundary agents respect. | TypeScript and JavaScript skeleton maps remain unimplemented, and no scan of a live external repository is recorded as evidence. |
 | [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | Callable-surface ABI validation does not independently check return types or state mutability. |
 | [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
 | [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records. |

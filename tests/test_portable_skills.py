@@ -35,6 +35,7 @@ class PortableSkillTests(unittest.TestCase):
             "brevitas",
             "hermes",
             "hexaemeron",
+            "horos",
             "lazarus",
             "lemma",
             "pandects",
