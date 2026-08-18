@@ -15,24 +15,18 @@ metadata:
 
 # Phylax
 
-From *phylax*, the guard posted at a boundary. The guard's job is not to trust
-the traveller more carefully. It is to check papers at the line, every time.
-
 ## Where this sits
 
-Phylax owns the off-chain surface in all three shapes it takes here. Python
-tooling: harvesters, indexers, release builders, replay servers, the controller
-and the agent skills. A TypeScript application: Next.js routes, Prisma against
-Postgres, rendered markdown, sessions and wallet connection. A long-running
-service that holds a signer and submits transactions.
+Phylax owns three off-chain surfaces: Python tooling; a TypeScript application
+with Next.js, Prisma, Postgres, rendered markdown, sessions and wallets; and a
+long-running service that holds a signer and submits transactions.
 
 **Use another tool when.** `solidity-auditor` and `x-ray` review contract
 source. `fizz` builds the invariant harness that covers the on-chain half.
 `elenchus` works a failure that has already happened. `ephoros` decides what
 telemetry stays.
 
-Serves the `implement` phase. Fiat has no counterpart for this work today, so
-nothing is superseded.
+Serves `implement`; Fiat has no counterpart, so nothing is superseded.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).

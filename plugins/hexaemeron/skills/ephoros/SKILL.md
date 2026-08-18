@@ -15,10 +15,6 @@ metadata:
 
 # Ephoros
 
-From *ephoros*, the overseer whose office was to watch and report. Watching is
-the whole job. It does not make the system faster or safer, and without it the
-first incident becomes archaeology.
-
 ## Where this sits
 
 Ephoros owns the telemetry that stays: what a step emits, in what shape, and
@@ -29,8 +25,7 @@ it out again. `metron` measures something slow in order to change it. `hermes`
 measures gas. `phylax` decides what must never appear in output at all, and
 this skill obeys that rule rather than restating it.
 
-Serves the `implement` phase. Fiat has no counterpart for this work today, so
-nothing is superseded.
+Serves `implement`; Fiat has no counterpart, so nothing is superseded.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).

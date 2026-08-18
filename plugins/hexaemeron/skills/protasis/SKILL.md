@@ -15,14 +15,10 @@ metadata:
 
 # Protasis
 
-From *protasis*, the proposition laid down before the argument runs. Nothing is
-built from a topic; things are built from a proposition about a topic.
-
 ## Where this sits
 
-Protasis owns the content contract for the `study` and `runbook` phases: what
-those two documents must answer before implementation is allowed to start. It
-owns no state, writes no receipt and gates nothing itself.
+Protasis owns what `study` and `runbook` must answer before implementation. It
+owns no state, receipt or gate.
 
 **Use another tool when.** Fiat owns the controller, the artefact paths, the
 receipts and the phase gate. `hypomnema` records a decision once it has been

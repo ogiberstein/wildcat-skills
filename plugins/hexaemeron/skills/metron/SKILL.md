@@ -13,9 +13,6 @@ metadata:
 
 # Metron
 
-From *metron*, the measure. The name is the rule: nothing here happens without
-a number, and the number comes first.
-
 ## Where this sits
 
 Metron owns every measurement except gas: the page, the route, the query, the
@@ -26,8 +23,7 @@ fail-closed Foundry loop, and this skill applies the same discipline everywhere
 else. `ephoros` decides which signals get emitted; metron reads them to make a
 decision. `elenchus` works something broken rather than something slow.
 
-Serves the `implement` phase. Fiat has no counterpart for this work today, so
-nothing is superseded.
+Serves `implement`; Fiat has no counterpart, so nothing is superseded.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).

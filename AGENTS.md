@@ -85,14 +85,10 @@ python3 -m unittest discover -s plugins/pandects/tests -t plugins/pandects
 python3 -m unittest discover -s plugins/probitas/tests -t plugins/probitas
 python3 -m unittest discover -s plugins/sapheneia/tests -t plugins/sapheneia
 python3 -m unittest discover -s plugins/tabularium/tests -t plugins/tabularium
+(cd plugins/pandects && forge build && forge test)
 ```
 
-Pandects also carries Solidity. From `plugins/pandects/`:
-
-```bash
-forge build
-forge test
-```
+The final command covers Pandects Solidity.
 
 Validate every changed skill directory against the Agent Skills frontmatter
 rules. Keep `SKILL.md` names equal to their parent directory names and keep

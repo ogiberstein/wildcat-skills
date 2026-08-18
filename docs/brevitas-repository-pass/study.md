@@ -2,9 +2,10 @@
 
 ## Problem statement
 
-The repository has 202 tracked Markdown files. The agreed exclusions leave 159
-files at the starting ref. The committed study and runbook will raise the final
-in-scope corpus to 161. Baseline Brevitas lint leaves 40 files clean and rejects
+The starting ref has 202 tracked Markdown files. The agreed exclusions leave 159
+files there. The study and runbook made the planned corpus 161; concurrent PR
+#103 adds 12 first-party Hexaemeron files, raising the final in-scope corpus to
+173. Baseline Brevitas lint leaves 40 files clean and rejects
 119 files with 375 diagnostics. `README.md` is 847 lines and `audit/AUDIT.md` is
 902 lines.
 
@@ -14,8 +15,9 @@ Imprimatur and Vulgate have dealt with vocabulary and register. It must preserve
 every claim, command, link, anchor, normative requirement and evidence token that
 the shorter document still needs to carry.
 
-A working delivery has 13 sequential pull requests merged into `main`, with each
-task branch deleted and receipted by Fiat. The final proof checks 161 files, leaves
+A working delivery has steps 1 and 2 merged into `main`, with steps 3 through 13
+chained into `chore/brevity-compress`; each task branch is deleted and receipted
+by Fiat. The final proof checks 173 files, leaves
 all exclusions and protected passages byte-identical, reports every allowed
 evidence refusal, keeps `README.md` at 300 lines or fewer, and leaves `hexctl
 status` and `hexctl verify` at `done`.
@@ -94,8 +96,8 @@ Corpus rules:
   overlaps three of them. Four notice files exist, so the unique exclusion set is
   43 files and the entry corpus is 159.
 - “Every piece of Markdown” means the 159 entry-ref files plus the committed
-  `docs/brevitas-repository-pass/study.md` and `runbook.md`. No extra Markdown is
-  needed for this delivery.
+  `docs/brevitas-repository-pass/study.md` and `runbook.md`, plus the 12 files
+  added by concurrent PR #103.
 - “Legal text” means the bytes of an operative licence, copyright, attribution,
   legal-terms, warranty or liability passage. A technical sentence that merely
   uses a word such as “attribution” is not frozen. This reading protects legal
@@ -182,16 +184,18 @@ Non-goals:
 
 ### One repository-wide pull request
 
-Rewrite all 161 final files at once and prove the tree only at the end. This has
+Rewrite all 173 final files at once and prove the tree only at the end. This has
 the fewest Git operations, but a reviewer cannot isolate a lost claim from an
 unrelated plugin rewrite. Generated documents, version ledgers and the root README
 would share one large failure surface.
 
-### Thirteen sequential pull requests
+### Thirteen chained pull requests
 
 Use the existing Fiat controller and divide the corpus by plugin and shared
 contracts. Save entry sources and protected digests outside Git, run one audit and
-the relevant tests per step, then merge before starting the next branch. This costs
+the relevant tests per step, then merge steps 3 through 13 into
+`chore/brevity-compress` before starting the next branch. Steps 1 and 2 already
+merged into `main`. This costs
 more CI and merge time, but each review has one document family, one evidence
 comparison and a small set of affected parsers or renderers.
 
@@ -255,7 +259,7 @@ cost is higher than the time saved.
   or working-directory assumptions. Mitigation: compare every backticked command
   with its source and exercise documented proof paths where the plugin suite does
   not already do so.
-- Arithmetic boundary: the pass depends on counts of 159, 161, 43, 300, 15, 13 and
+- Arithmetic boundary: the pass depends on counts of 159, 173, 43, 300, 15, 13 and
   the 3-by-3 table threshold. Mitigation: derive corpus and line counts from Git and
   the filesystem; do not maintain them by hand in a separate tracked manifest.
 - GitHub boundary: fetch, push, checks, labels and merges are external calls. A

@@ -15,9 +15,6 @@ metadata:
 
 # Hypomnema
 
-From *hypomnema*, the note written so the reason survives the person who had
-it. Code records what was built. This records why, and what was turned down.
-
 ## Where this sits
 
 Hypomnema owns what gets recorded and where it goes.
@@ -28,8 +25,7 @@ their register, both after this skill has decided there is something to write.
 survives after it. `ephoros` chooses the signals, and this says where the
 runbook behind an alert lives.
 
-Serves the `prose` phase. Fiat's prose pass owns the mask order, the PR text
-and the receipt, and none of that moves here.
+Serves `prose`; Fiat retains the mask order, PR text and receipt.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
