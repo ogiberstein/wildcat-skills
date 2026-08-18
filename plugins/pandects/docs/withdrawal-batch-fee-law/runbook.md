@@ -75,16 +75,21 @@ the intermediate quantities.
   diagonal walks.
 
 **Tests.** One counterexample asserting `claims`, the queue total, `reserved` and
-`held` at the violating state, not only the verdict. The diagonal grows from 9x9
-to 10x10 over the single-state half. Expect the plugin catalogue suite to rise
-above 106 by the entries the new law adds, and `forge test` to rise above 72.
+`held` at the violating state, not only the verdict. The diagonal in
+`test/Corpus.t.sol` runs over the single-state laws alone, where `COUNT` is 5, and
+becomes 6; `test/Pairs.t.sol` runs over 3 and does not move. Ten is the corpus
+total and not a table dimension. Expect the plugin catalogue suite to rise above
+106 by the entries the new law adds, and `forge test` to rise above 72.
 
 **Watch.** The study's first risk. Around twenty existing call sites drive
 `reserve` and `accrueFee`, including repeated `reserve(1); reserve(1)` pairs in
 `test/Corpus.t.sol`, `test/Adapters.t.sol` and the counterexamples. A tighter cap
 can turn one of those into a no-op and leave a passing test asserting a state it
 no longer reaches. Read every one of them against the new caps rather than
-trusting a green suite.
+trusting a green suite. One is already known safe:
+`test_the_sound_reference_holds_every_law` charges its fee before it reserves
+anything, so the queue is empty when the cap applies and the tightening cannot
+reach it.
 
 ## Step 3: Reach the specimen from both engines
 

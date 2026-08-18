@@ -164,3 +164,25 @@ step ahead of the law, which the runbook argues against on the grounds that
 `pandects.py check` and the corpus diagonal leave no green intermediate state;
 and the seven property families deferred from the original delivery, which are
 outside this frontier.
+
+## Withdrawal batch fee law, step 1, round 2 -- 2026-08-18
+
+Again no Solidity in the diff and no campaign, for the same reason, stated again
+rather than counted as a clean suite run. This round read the round-1 fixes back,
+then checked the runbook's own numbers against the test files it points step 2 at.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | The runbook sized step 2's test work as the diagonal growing "from 9x9 to 10x10 over the single-state half". No such table exists. `test/Corpus.t.sol` runs its diagonal over the single-state laws alone, where `COUNT` is 5, and `test/Pairs.t.sol` runs over 3, with path independence handled separately. Nine and ten are corpus totals. Whoever implemented step 2 from the runbook would have gone looking for a table with the wrong shape. | Fixed in this round: the runbook names both dimensions and says that ten is a total rather than a dimension. |
+
+The round-1 fixes were re-read and hold. The four pair-law verdicts in the study
+match what was executed, the path-independence caveat is stated where the verdict
+appears, and the boundary sentence about the deployed contracts sits in the
+problem statement where a reader meets the figures.
+
+One check found nothing and is worth recording because it removes work from step
+2. `test_the_sound_reference_holds_every_law` charges its fee before it reserves,
+so the queue is empty when the cap applies and the tightened cap cannot change
+that test. The runbook now says so.
+
+Leads not pursued: the two carried from round 1, unchanged.
