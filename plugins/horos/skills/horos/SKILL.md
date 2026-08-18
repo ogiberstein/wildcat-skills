@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "3.2.0"
+  version: "4.2.0"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
+**Current frontier.** Two trees are censused; whether Solidity or anything else earns the next extractor stays undecided until more protocol and UI repositories are on the record.
 
 ## The verbs
 
@@ -47,6 +47,18 @@ re-derives the classification and compares it with the committed boundary.
 Exit 0 means the boundary matches the tree. Drift names every path, in both
 directions: a new sink the boundary lacks, and a committed entry the tree no
 longer evidences.
+
+```bash
+python3 scripts/horos.py scan <root> --census [--write]
+```
+
+prints one row per filetype: files, bytes, share of the tree, and the bytes
+already inside the boundary, from exactly the walk the boundary uses. With
+`--write` it commits `.horos/census.json` beside the boundary. The census
+is how walk-worthiness and the next extractor get decided from a record
+rather than a guess: a tree whose readable weight sits in mapped languages
+needs nothing new, and one whose weight sits in an unmapped filetype names
+the candidate.
 
 ```bash
 python3 scripts/horos.py map <file>

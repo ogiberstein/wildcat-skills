@@ -10,7 +10,7 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Use another tool when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
+**Current frontier.** Two trees are censused; whether Solidity or anything else earns the next extractor stays undecided until more protocol and UI repositories are on the record.
 <!-- marketplace-context:end -->
 
 Read [the canonical Horos skill](../../../plugins/horos/skills/horos/SKILL.md)
