@@ -1327,3 +1327,16 @@ named in the bundle; the shipped outliner needed no fix at all.
 Zero findings. Leads not pursued: the corpus is gofmt-regular by
 construction; hand-mangled Go would exercise the confession paths harder,
 and can join the evidence when such a tree matters.
+
+## Go-extractor run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24, horos 118/118, demo pinned. The
+review confirmed the evolution row's numbers equal the committed bundle's,
+the C++ job carries the maturity expectation in the maintainer's words, and
+all prior rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

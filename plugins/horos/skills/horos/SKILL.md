@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "4.2.1"
+  version: "5.2.1"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** Ingested external repositories are expected to carry Go and C++, and map reads neither.
+**Current frontier.** The C++ half of the external-ingestion epoch remains: map does not read C++.
 
 ## The verbs
 
@@ -69,10 +69,11 @@ whole. Extractors live one folder per language under
 [scripts/languages/](./scripts/languages/) and a suffix registry dispatches
 between them; an unregistered suffix is refused naming the supported list.
 Python (`.py`) parses through the standard library's own ast. TypeScript
-(`.ts`, `.tsx`) is lexed, never parsed: declarations are quoted as verbatim
-source slices, and every region the recognisers do not understand is
-confessed by count and line range instead of guessed at. Neither path
-imports or executes what it reads.
+(`.ts`, `.tsx`) and Go (`.go`) are lexed, never parsed: declarations are
+quoted as verbatim source slices (grouped Go declarations one line per
+member, receivers and generics riding along), and every region the
+recognisers do not understand is confessed by count and line range instead
+of guessed at. No path imports or executes what it reads.
 
 The TypeScript extractor exists by revision of a recorded refusal. Parsing
 TypeScript or taking a parser dependency was refused on 2026-08-18 and
@@ -83,6 +84,10 @@ compiler-visible declarations matched, with zero misses outside the
 outliner's own confessions, zero extras and zero crashes. The recorded run
 lives at
 [../../docs/evidence/wildcat-app-v2-outline.md](../../docs/evidence/wildcat-app-v2-outline.md).
+The Go extractor was held against tree-sitter's Go grammar over all 1,421
+files of go-ethereum: 21,648 of 21,648 declarations matched, zero misses,
+zero extras, zero crashes, recorded at
+[../../docs/evidence/go-ethereum-outline.md](../../docs/evidence/go-ethereum-outline.md).
 
 ## The discipline
 

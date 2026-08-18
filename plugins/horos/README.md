@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** Ingested external repositories are expected to carry Go and C++, and map reads neither.
+**Current frontier.** The C++ half of the external-ingestion epoch remains: map does not read C++.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Build the Go outline extractor in the languages registry: verbatim declaration slices, confessed unparsed regions, a dev-time differential corpus over a live external repository. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Build the C++ outline extractor in the languages registry: verbatim declaration slices, confessed unparsed regions, a dev-time differential corpus over a live external repository, with maturity expected at its close. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
@@ -33,11 +33,12 @@ is committed at [docs/study.md](./docs/study.md).
 - a filetype census at `.horos/census.json` from the same walk, so
   walk-worthiness and the next extractor are decided from a recorded
   breakdown;
-- skeleton maps for Python and TypeScript through a per-language extractor
-  folder, so a large file can be oriented in without being read; the
-  TypeScript outliner quotes declarations verbatim, confesses what it did
-  not understand, and matched 2,237 of 2,239 compiler-visible declarations
-  over a live 866-file repository;
+- skeleton maps for Python, TypeScript and Go through a per-language
+  extractor folder, so a large file can be oriented in without being read;
+  the outliners quote declarations verbatim, confess what they did not
+  understand, and are held against independent parsers over live
+  repositories (2,237 of 2,239 TypeScript declarations over 866 files;
+  21,648 of 21,648 Go declarations over 1,421 files);
 - a shipped example at [examples/](./examples/) whose committed boundary a
   fresh scan reproduces byte for byte; and
 - one binding rule: no boundary applies during security review.
