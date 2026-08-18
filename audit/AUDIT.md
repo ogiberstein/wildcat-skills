@@ -945,3 +945,14 @@ a diff review against the study's risk register.
 
 Lints: phylax 0, ephoros 0, hypomnema 0 over plugins tests and the changed
 documents. Leads not pursued: none.
+
+## Step 1, round 2 -- 2026-08-18
+
+The round re-ran against the tree with round 1's fixes applied. Lints: phylax
+0, ephoros 0, hypomnema 0. Root 24/24, horos 4/4. The review of the fix diff
+found nothing further.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
