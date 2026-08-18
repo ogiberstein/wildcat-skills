@@ -24,7 +24,10 @@ rewriting at up to 12 points of task completion. Not reading the sinks at all
 is the mechanism that wins, and Horos makes it checkable. The full argument
 is committed at [docs/study.md](./docs/study.md).
 
-## What it ships
+## What the delivery builds
+
+The runbook at [docs/runbook.md](./docs/runbook.md) lands these in order,
+one reviewed step each:
 
 - a standard-library scanner that classifies token sinks and quotes the
   evidence line that earned each entry;
@@ -33,6 +36,14 @@ is committed at [docs/study.md](./docs/study.md).
 - Python skeleton maps, so a large file can be oriented in without being
   read; and
 - one binding rule: no boundary applies during security review.
+
+## Day to day
+
+**Developers.** An agent is pointed at a frontend repository where two thirds
+of the readable bytes are a checked-in Storybook build, a lockfile and a data
+file on one line. The committed boundary sends the reading budget to `src/`
+instead, `check` catches the day the boundary goes stale, and a skeleton map
+orients the agent in a thousand-line module without opening it whole.
 
 ## Where it is honest about limits
 
