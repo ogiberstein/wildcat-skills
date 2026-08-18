@@ -865,3 +865,38 @@ read and did not run.
 
 Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
 asymmetry from step 3 round 6.
+
+## Withdrawal batch fee law, step 4, round 4 -- 2026-08-18
+
+Reviewed: the fixed tree, the gates the earlier rounds added, and one last read for
+anything still describing the closed frontier as open.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed tree has no open finding. | clean |
+
+**Nothing still calls the gap open.** No document or contract outside the audit logs
+and this run's own spec describes a fee reducing pooled claims below what open batches
+are owed as uncovered. `src/laws/ReservesCoverPayableClaims.sol` still says no law
+covers a claim paid beyond what it was owed, which remains true and is a different
+defect. `docs/applicability.md` names two laws as examples of qualified applicability,
+and both readings still hold.
+
+**The frontier agrees everywhere.** The new sentence appears once per surface across
+all twelve documents that carry a marketplace-context block, and matches the row in the
+repository README's selection table. The other nine plugins' frontiers are untouched.
+
+**The gates, re-proved.** Setting the repository README's exact count back to eight
+fails the count gate. Desyncing the ledger label from the frontmatter fails two
+evolution-contract checks at once, which is the right answer: the label and the digest
+are separate claims.
+
+**What ran.** The repository's 21 tests, 116 plugin tests, 79 Solidity tests across ten
+suites under forge 1.7.1 and solc 0.8.28, and the demo path from the study's problem
+statement: `pandects laws` printing ten with their applicability, `pandects check` over
+ten laws with every part present, and `pandects render` producing no drift. No Solidity
+in this step at any round, so `x-ray`, `solidity-auditor` and `fizz` had nothing to read
+and none of them ran; the reading passes are these four rounds.
+
+Leads not pursued: the four accepted at the close of step 2, unchanged and none of them
+touched by this step, and the Medusa coverage asymmetry stated in step 3 round 6.
