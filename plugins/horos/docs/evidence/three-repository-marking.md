@@ -11,8 +11,11 @@ universe with the refined classifier, on 2026-08-18.
 - Marked in place on this run's own branch; the boundary lives at
   [.horos/boundary.json](../../../../.horos/boundary.json) and the stanza
   in `AGENTS.md`
-- 14 hard entries binding 111,414 bytes, 35 candidates; `check .` verifies
-  clean from the root
+- 15 hard entries binding 114,151 bytes, 35 candidates; `check .`
+  verifies clean from the root. The count includes this bundle's own
+  marking copies, which quote generation markers and therefore classify as
+  sinks themselves; check caught that drift during the close, exactly as
+  designed.
 
 ## wildcat-finance/v2-protocol
 
@@ -47,8 +50,8 @@ merged.
 The consistency test parses these against the committed boundary copies
 and the repository's own boundary.
 
-<!-- marking:skills_entries 14 -->
-<!-- marking:skills_hard_bytes 111414 -->
+<!-- marking:skills_entries 15 -->
+<!-- marking:skills_hard_bytes 114151 -->
 <!-- marking:v2p_commit c7be4039f8f383a9dda4e45f63331c17d63f9ed9 -->
 <!-- marking:v2p_entries 2 -->
 <!-- marking:v2p_hard_bytes 9885998 -->
