@@ -1,9 +1,9 @@
 # Horos, the runbook
 
 Five steps, dependency order, one pull request each. Every step assumes the
-exit state of the one before it and nothing else. The study at
-`.hexaemeron/study.md` is the spec; repo copies of both documents land in
-step 1.
+exit state of the one before it and nothing else. The study committed beside
+this runbook at [study.md](./study.md) is the spec; both documents landed
+here in step 1.
 
 Module trace: scaffold, classify, boundary, skeleton, discipline. One
 capability, so no decomposition table; the modules are the steps.

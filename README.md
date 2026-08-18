@@ -93,14 +93,14 @@ another person can rebuild after the endpoint that served them is gone.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Alexandria | Ariadne | Brevitas | Hermes | Hexaemeron | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 8 | 8 | 9 | 9 | 6 | 8 | 8 | 4 | 8 | 7 |
-| Security and audit | 8 | 9 | 10 | 7 | 8 | 4 | 8 | 9 | 5 | 7 | 7 |
-| Marketing | 1 | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 3 | 1 |
-| Business development | 6 | 2 | 2 | 2 | 5 | 1 | 2 | 2 | 9 | 4 | 3 |
-| Finance | 8 | 1 | 2 | 3 | 4 | 1 | 2 | 2 | 7 | 4 | 7 |
-| Legal | 3 | 3 | 2 | 1 | 4 | 1 | 2 | 2 | 4 | 4 | 2 |
+| Role | Alexandria | Ariadne | Brevitas | Hermes | Hexaemeron | Horos | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 8 | 8 | 9 | 9 | 8 | 6 | 8 | 8 | 4 | 8 | 7 |
+| Security and audit | 8 | 9 | 10 | 7 | 8 | 2 | 4 | 8 | 9 | 5 | 7 | 7 |
+| Marketing | 1 | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 | 3 | 1 |
+| Business development | 6 | 2 | 2 | 2 | 5 | 1 | 1 | 2 | 2 | 9 | 4 | 3 |
+| Finance | 8 | 1 | 2 | 3 | 4 | 1 | 1 | 2 | 2 | 7 | 4 | 7 |
+| Legal | 3 | 3 | 2 | 1 | 4 | 1 | 1 | 2 | 2 | 4 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 

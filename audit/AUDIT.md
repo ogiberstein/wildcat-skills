@@ -930,3 +930,29 @@ cold read's one defect, a hand-off line predating the phase skills, was fixed
 in the step commit. Root 24/24, hexaemeron 124/124.
 
 Leads not pursued: none.
+
+## Step 1, round 1 -- 2026-08-18
+
+Run: Horos, the reading-boundary skill. Step 1 scaffolds and registers the
+plugin. Suite waived (no Solidity); the round ran the three bundled lints and
+a diff review against the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | plugins/horos/README.md | "What it ships" claimed the scanner, boundary and maps in the present tense while this step ships only the scaffold | fixed: section reframed as what the runbook lands, in order |
+| S1-R1-02 | low | plugins/horos/docs/runbook.md | the committed runbook copy pointed at the gitignored .hexaemeron path as the spec | fixed: points at the committed study beside it |
+| S1-R1-03 | low | README.md | the role matrix omits a Horos column, and a Developers score at or above five demands a worked example the landing README lacked | fixed: column added (Developers 8, Security 2, all other desks 1) and a Day-to-day example added |
+
+Lints: phylax 0, ephoros 0, hypomnema 0 over plugins tests and the changed
+documents. Leads not pursued: none.
+
+## Step 1, round 2 -- 2026-08-18
+
+The round re-ran against the tree with round 1's fixes applied. Lints: phylax
+0, ephoros 0, hypomnema 0. Root 24/24, horos 4/4. The review of the fix diff
+found nothing further.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
