@@ -700,3 +700,36 @@ assertion, 116 Python tests, the repository's 20, `pandects check` over ten laws
 Echidna 2.3.3 against eight campaigns in this round.
 
 Leads not pursued: the four accepted at the close of step 2, none touched here.
+
+## Withdrawal batch fee law, step 3, round 5 -- 2026-08-18
+
+Reviewed: what these rounds have said about the suite, rather than the tree. Both
+findings are about this log rather than the code, and both are the kind the honesty
+rule at the top of Fiat's audit loop exists for.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R5-01 | medium | `audit/AUDIT.md` | Round 2 changed a function in `src/campaigns/Specimens.sol`, which is a contract, and recorded "No engine re-run: `explain` is not a property and no property changed." That was true of the engines and said nothing about Slither, which had not run against this step's contracts at all. Rounds 3 and 4 carried the same omission forward. A round that changes Solidity and reports the suite without one of its members has reported a suite that did not run. | Fixed in this round: Slither 0.11.6 run against the step's tree. 52 contracts, 23 results across the same three benign classes the original delivery documented, and nothing naming the new campaign or the new law. The rounds above stand with this note against them. |
+| S3-R5-02 | medium | `audit/AUDIT.md` | The `security_suite` receipt names `hexaemeron:x-ray`, `hexaemeron:solidity-auditor` and `hexaemeron:fizz`, and no round in either step has said what became of the third. Silence about a named member of the suite is the failure this log is supposed to make impossible, and it is worse here than a waiver would have been, because a reader counting three names against the rounds would assume all three ran. | Fixed in this round: stated below, plainly, with what was done instead and why. |
+
+**Fizz, and why the generator did not run.** `fizz` generates a stateful Solidity
+fuzz suite under `test/fizz/` with its runtime metadata beside it. This plugin
+already has that suite: `src/campaigns/Specimens.sol` is a hand-written harness with
+one campaign per specimen and one property per law, and building or refreshing it is
+the whole content of this step rather than something a round does to it. It sits
+under `src/` on purpose, and the file says why: crytic-compile skips `test/` when it
+builds a Foundry project, so a harness generated into `test/fizz/` is a harness
+neither engine can see.
+
+So the function `fizz` performs was performed, by hand, as the step's deliverable,
+and the generator was not run because running it would produce a second harness in
+the one directory this plugin documents as unreachable. That is a judgement, not a
+waiver, and it is recorded here rather than left as an absence. `x-ray` and
+`solidity-auditor` are the reading passes and the rounds above are what they
+produced.
+
+**What ran.** 79 Solidity tests under forge 1.7.1, 116 Python tests, the
+repository's 20, `pandects check` over ten laws, and Slither 0.11.6 over 52
+contracts. No engine re-run in this round: nothing in it touches a contract.
+
+Leads not pursued: the four accepted at the close of step 2, none touched here.
