@@ -170,9 +170,9 @@ Act on the single directive it prints, then receipt it. The directory:
 
 | `do` | Action | Reference | Receipt |
 | --- | --- | --- | --- |
-| `study` | Research the topic; write the study | [study.md](references/study.md) | `done study --artifact <path> --skills <csv>` |
-| `runbook` | Derive discrete steps from the study | [runbook-format.md](references/runbook-format.md) | `done runbook --artifact <path> --steps-file <path>` |
-| `implement` | Build the step, simplest construction that satisfies the runbook | [runbook-format.md](references/runbook-format.md) | `done implement --branch <name> --commit <sha> [--tests <summary>]` |
+| `study` | Research the topic; write the study | [protasis](../protasis/SKILL.md) | `done study --artifact <path> --skills <csv>` |
+| `runbook` | Derive discrete steps from the study | [protasis](../protasis/SKILL.md) | `done runbook --artifact <path> --steps-file <path>` |
+| `implement` | Build the step, simplest construction that satisfies the runbook | [protasis](../protasis/SKILL.md) | `done implement --branch <name> --commit <sha> [--tests <summary>]` |
 | `audit-round` | One security round: run the suite, log, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> [--log <path>] [--fixes-commit <sha>]` |
 | `close-audit` | Last round was clean; close the phase | [audit-loop.md](references/audit-loop.md) | `done audit [--fixes-ref <ref>]` |
 | `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 4 | `record security_suite ...` |
@@ -195,8 +195,14 @@ selected installs finish; resume in a new chat when the host requires one.
 
 ## Phase notes
 
-**Study and runbook.** `protasis` states what those two documents must answer
-before a step is built from them.
+**Study and runbook.** `protasis` is the content authority: what a study must
+answer, what a runbook step must contain, and when one topic needs decomposing
+first. Fiat keeps the mechanics. The study goes to `.hexaemeron/study.md` and
+the runbook to `.hexaemeron/runbook.md` beside `.hexaemeron/steps.json`, a JSON
+list with one entry per step in order, as strings or `{"title": ...}` objects.
+Run the `imprimatur` lint on each artefact before receipting it, and pass the
+skills that ran to the receipt. Repo copies are committed later, in step 1 of
+the runbook, after the prose pass.
 
 **Implementation.** Pick the construction that takes the least effort to
 comprehend, then stop. Consult `phylax` for the boundaries the step introduces,
