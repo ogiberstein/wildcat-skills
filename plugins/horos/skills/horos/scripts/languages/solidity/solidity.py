@@ -261,8 +261,12 @@ class _Outline:
                 word = inner
 
         if word in CONTAINER_KEYWORDS:
-            stmt_stop = _statement_end(mask, i, end)
-            brace = _body_brace(mask, i, stmt_stop, end)
+            # A container always owns a brace, and its inheritance list may
+            # break lines after `is`, so the brace is found structurally:
+            # the first depth-zero brace before any depth-zero semicolon.
+            semi = _find_at_depth(mask, i, end, ";")
+            brace = _find_at_depth(mask, i, semi if semi != -1 else end, "{")
+            stmt_stop = _statement_end(mask, i, end) if brace == -1 else brace
             if brace == -1:
                 self.emit(_head_line(self.source, i, stmt_stop), depth)
                 self.declarations += 1
@@ -315,6 +319,10 @@ class _Outline:
 
     def _generic(self, i, end, depth):
         mask = self.mask
+        if mask[i] == "{":
+            # An orphan brace block names nothing and owns nothing beyond
+            # its own close; stepping over it keeps a mis-slice bounded.
+            return _matching_brace(mask, i, end) + 1
         stmt_stop = _statement_end(mask, i, end)
         equals = _find_at_depth(mask, i, stmt_stop, "=")
         head_stop = equals if equals != -1 else stmt_stop
