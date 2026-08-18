@@ -1250,3 +1250,19 @@ Zero findings. Leads not pursued: readable files are statted twice when the
 census is on (once inside classify_file, once for the tally); measured
 against Metron's rule it is noise on real trees and not worth plumbing size
 out of the classifier.
+
+## Census run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+104/104, root 24/24. One defect was caught by the bundle's own consistency
+test before the implement receipt and is recorded for the trail: the prose
+quoted the boundary walk's file count instead of the census's (which
+includes files inside aggregated directories), 1,041 against the true
+1,113. The review confirmed both documents carry the shipped schema, the
+rows sum to the totals, and the Solidity call is recorded as a candidate
+pending more censuses, in the maintainer's words.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings in the round itself. Leads not pursued: none.
