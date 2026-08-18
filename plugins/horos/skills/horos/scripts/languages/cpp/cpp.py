@@ -312,6 +312,25 @@ def _skip_template_prefix(mask, i, end):
     return j
 
 
+def _ctor_body_brace(mask, candidate, end):
+    """From the first depth-zero brace after an initialiser colon, walk
+    brace groups until one is not followed by a comma or a further
+    initialiser; that one is the constructor body."""
+    while candidate != -1:
+        close = _matching_brace(mask, candidate, end)
+        j = close + 1
+        while j < end and mask[j] in " \t":
+            j += 1
+        if j < end and (mask[j] == "," or mask[j] in WORD_CHARS):
+            after_stop = _statement_end(mask, j, end)
+            candidate = _find_at_depth(mask, j, after_stop, "{")
+            if candidate == -1:
+                candidate = _body_brace(mask, j, after_stop, end)
+            continue
+        return candidate
+    return -1
+
+
 def _body_brace(mask, i, stmt_stop, end):
     """The declaration's body brace: inside the statement, or an
     Allman-style brace alone on the following line."""
@@ -401,9 +420,14 @@ class _Outline:
 
         if word == "template":
             # The prefix emits as its own line, the way TypeScript emits
-            # decorators; the declaration it introduces follows.
+            # decorators; the declaration it introduces follows, and the
+            # recursion must land on its first token, not on the newline.
             after = _skip_template_prefix(mask, word_at, end)
             self.emit(self.source[slice_start:after].strip(), depth)
+            while after < end and mask[after].isspace():
+                after += 1
+            if after >= end:
+                return end
             return self._statement(after, end, depth, in_class)
 
         if word == "namespace":
@@ -472,12 +496,26 @@ class _Outline:
         paren = _find_at_depth(mask, i, stmt_stop, "(")
         equals = _find_at_depth(mask, i, stmt_stop, "=")
         brace = _find_at_depth(mask, i, stmt_stop, "{")
+        if paren == equals == brace == -1:
+            # An Allman-style parameter list opens on the following line;
+            # the declaration continues through it.
+            j = stmt_stop
+            while j < end and mask[j].isspace():
+                j += 1
+            if j < end and mask[j] == "(":
+                stmt_stop = _statement_end(mask, _matching_brace(mask, j, end) + 1, end)
+                paren = j
         first = min(x for x in (paren, equals, brace, stmt_stop) if x != -1)
 
         if first == paren:
             after = _matching_brace(mask, paren, end) + 1
             rest_stop = _statement_end(mask, after, end)
             body = _body_brace(mask, after, rest_stop, end)
+            if body != -1 and _find_at_depth(mask, after, body, ":") != -1:
+                # A constructor initialiser list: brace-initialised members
+                # look like bodies. The body is the brace group whose close
+                # is not followed by a comma or another initialiser.
+                body = _ctor_body_brace(mask, body, end)
             head_stop = body if body != -1 else rest_stop
             self.emit(
                 self.source[i:head_stop].rstrip().rstrip(";").rstrip(), depth
@@ -499,8 +537,10 @@ class _Outline:
             self.declarations += 1
             return _statement_end(mask, close + 1, end)
         head_stop = equals if first == equals else stmt_stop
-        self.emit(_head_line(self.source, i, head_stop), depth)
-        self.declarations += 1
+        head = _head_line(self.source, i, head_stop)
+        if head.strip():
+            self.emit(head, depth)
+            self.declarations += 1
         return stmt_stop
 
 
