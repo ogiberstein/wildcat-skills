@@ -1024,3 +1024,20 @@ Zero findings. Leads not pursued: map reads the named file whole, unlike the
 bounded scanner; that is the verb's purpose (one tool read instead of the
 agent reading the file), and the file is user-named rather than
 tree-discovered.
+
+## Step 5, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+51/51, root 24/24, and the study's four repeatable success criteria pass as
+written from the repository root. The review checked the shipped example
+against the risk register: the fixture's committed boundary is reproduced
+byte for byte by a fresh scan on every supported interpreter path (the
+document is sorted-key JSON of ints and posix strings), the documented
+mutation fails by name in both drift directions, relative links in the final
+SKILL.md resolve, and the example's vendored and lockfile specimens are
+inert data that no suite imports or executes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

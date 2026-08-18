@@ -24,17 +24,61 @@ study this plugin ships at `docs/study.md`.
 
 **Current frontier.** TypeScript and JavaScript skeleton maps remain unimplemented, and no scan of a live external repository is recorded as evidence.
 
-## Status of this scaffold
+## The verbs
 
-This step ships the plugin's registration surface: manifests, ledger, tests
-and the committed study and runbook at [docs/](../../docs/). The `scan`,
-`check` and `map` verbs land in the later steps of the same delivery, in the
-order the runbook fixes. Until they land, the study is the contract and this
-file names it.
+All three live in one standard-library script,
+[scripts/horos.py](./scripts/horos.py):
 
-## The one rule that is already binding
+```bash
+python3 scripts/horos.py scan <root> --write
+```
+
+walks the tree and commits `.horos/boundary.json`: every file it can
+evidence as a token sink, with its category, size and the exact evidence
+line that earned the entry. The write is atomic; a killed run leaves the old
+boundary or the new one, never half. `--json` prints the same canonical
+bytes instead of writing them.
+
+```bash
+python3 scripts/horos.py check <root>
+```
+
+re-derives the classification and compares it with the committed boundary.
+Exit 0 means the boundary matches the tree. Drift names every path, in both
+directions: a new sink the boundary lacks, and a committed entry the tree no
+longer evidences.
+
+```bash
+python3 scripts/horos.py map <file.py>
+```
+
+prints the file's skeleton (signatures, class structure, first docstring
+lines) so a large Python file can be oriented in without being read whole.
+It parses; it never imports or executes what it reads.
+
+## The discipline
+
+1. Entering a repository, look for `.horos/boundary.json`. If it exists, run
+   `check` before trusting it; a stale or forged boundary fails by name. If
+   it does not exist and the repository is large, offer a scan.
+2. Treat every path inside a checked boundary as unread-by-default. The entry
+   itself carries what a reader needs: category, size, evidence.
+3. Before opening a Python file over a few hundred lines, run `map` and read
+   the skeleton first. Open the file whole only when the skeleton was not
+   enough.
+4. Classification is fail-open, so the boundary understates the sinks. What
+   it lists is evidenced; what it omits is merely unproven.
+
+## The one rule that outranks the rest
 
 No reading boundary applies during security review. A committed boundary in a
 hostile repository could list source files as sinks precisely so a reviewing
 agent never opens them. During any audit, review or incident work, read as if
-no boundary exists.
+no boundary exists. `check` re-derives everything it asserts for the same
+reason.
+
+## The shipped example
+
+[../../examples/fixture/](../../examples/fixture/) holds one file per rule
+class and its committed boundary; [../../examples/README.md](../../examples/README.md)
+shows the demo commands and the mutation that makes `check` fail.
