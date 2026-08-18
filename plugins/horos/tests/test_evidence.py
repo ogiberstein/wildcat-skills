@@ -11,6 +11,8 @@ BUNDLE = EVIDENCE / "wildcat-app-v2.md"
 BOUNDARY = EVIDENCE / "wildcat-app-v2.boundary.json"
 BUNDLE_2 = EVIDENCE / "wildcat-app-v2-rules.md"
 BOUNDARY_2 = EVIDENCE / "wildcat-app-v2-rules.boundary.json"
+BUNDLE_3 = EVIDENCE / "wildcat-app-v2-outline.md"
+RESULTS_3 = EVIDENCE / "wildcat-app-v2-outline.results.json"
 
 
 def capture_lines(bundle=BUNDLE, tag="evidence"):
@@ -83,6 +85,32 @@ class SecondCaptureTests(unittest.TestCase):
                 or (path.endswith(".sql") and "migrations" in path.split("/")),
                 path,
             )
+
+    def test_the_outline_bundle_matches_its_committed_results(self):
+        lines = capture_lines(BUNDLE_3, "outline")
+        totals = json.loads(RESULTS_3.read_text(encoding="utf-8"))["totals"]
+        for key in (
+            "files",
+            "crashes",
+            "oracle",
+            "matched",
+            "missed",
+            "missed_confessed",
+            "extra",
+            "files_with_regions",
+        ):
+            self.assertEqual(int(lines[key]), totals[key], key)
+
+    def test_the_outline_run_names_the_same_commit_as_the_captures(self):
+        self.assertEqual(
+            capture_lines()["commit"], capture_lines(BUNDLE_3, "outline")["commit"]
+        )
+
+    def test_the_outline_acceptance_holds(self):
+        totals = json.loads(RESULTS_3.read_text(encoding="utf-8"))["totals"]
+        self.assertEqual(totals["crashes"], 0)
+        self.assertEqual(totals["missed"], 0)
+        self.assertEqual(totals["extra"], 0)
 
     def test_the_second_share_exceeds_the_first(self):
         first = capture_lines()
