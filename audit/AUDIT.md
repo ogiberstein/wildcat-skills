@@ -839,3 +839,29 @@ Pashov pair and `fizz` had nothing to read and did not run.
 
 Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
 asymmetry from step 3 round 6.
+
+## Withdrawal batch fee law, step 4, round 3 -- 2026-08-18
+
+Reviewed: whether the frontier this step declares is visible where a reader would meet
+it. The ledger names a gap in the search-record runner. Two documents describe that
+runner and neither said the gap existed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R3-01 | medium | `plugins/pandects/README.md` | "Saying how it was searched" opens with "A campaign result without its settings is an anecdote" and then hands the reader `pandects run`, without saying that the command emits the Foundry campaign and nothing else. A reader who has just run Echidna or Medusa, which this plugin ships adapters and a configuration for, would look for a record the tool cannot produce. The section names `foundry.toml` and so is not false; it is silent exactly where the corpus's own held frontier says the gap is. | Fixed in this round: the section says `run` knows one engine, that an engine which did not run is absent rather than empty, that a campaign under either fuzzer is not recorded by the command, and that widening it is the held frontier. |
+| S4-R3-02 | medium | `plugins/pandects/adapters/medusa/README.md` | The adapter document says "A Medusa record therefore carries the engine, the configuration, the sequence length and the corpus digest", which describes such records as things this plugin produces. Nothing produces them. It is the document somebody reads to learn how to run Medusa here, so it is the worst place for that to be implied. | Fixed in this round: the record is described as written by hand, with `pandects run` named as emitting Foundry and no other engine, and the widening named as the frontier. |
+
+**Why these count as reconciliation rather than new work.** The held job asks for a
+cold read of mutable first-party marketplace prose, and the step had read it for law
+counts and the frontier sentence. It had not read it against the frontier it was
+about to declare. A ledger that names a gap while the two documents describing that
+tool imply it is filled is a record disagreeing with itself, which is the same defect
+class as a count written twice.
+
+**What ran.** The repository's 21 tests, 116 plugin tests, 79 Solidity tests under
+forge 1.7.1, and the demo path: ten laws printed, ten laws with every part present, no
+catalogue drift. No Solidity in the diff, so the Pashov pair and `fizz` had nothing to
+read and did not run.
+
+Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
+asymmetry from step 3 round 6.
