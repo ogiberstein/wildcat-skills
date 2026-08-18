@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "2.2.0"
+  version: "3.2.0"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** Horos's map verb reads Python only; the maintainer-directed TypeScript outline extractor, internal to Horos with verbatim source slices and confessed unparsed regions, remains unbuilt.
+**Current frontier.** A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
 
 ## The verbs
 
@@ -49,26 +49,28 @@ directions: a new sink the boundary lacks, and a committed entry the tree no
 longer evidences.
 
 ```bash
-python3 scripts/horos.py map <file.py>
+python3 scripts/horos.py map <file>
 ```
 
-prints the file's skeleton (signatures, class structure, first docstring
-lines) so a large Python file can be oriented in without being read whole.
-It parses; it never imports or executes what it reads.
+prints the file's skeleton so it can be oriented in without being read
+whole. Extractors live one folder per language under
+[scripts/languages/](./scripts/languages/) and a suffix registry dispatches
+between them; an unregistered suffix is refused naming the supported list.
+Python (`.py`) parses through the standard library's own ast. TypeScript
+(`.ts`, `.tsx`) is lexed, never parsed: declarations are quoted as verbatim
+source slices, and every region the recognisers do not understand is
+confessed by count and line range instead of guessed at. Neither path
+imports or executes what it reads.
 
-`map` reads Python only, by decision rather than omission. TypeScript
-skeletons were refused on 2026-08-18: stdlib Python cannot parse TypeScript
-honestly, a regex sketch of a language is a guess this marketplace refuses,
-and no parser dependency or subprocess boundary is justified by a secondary
-verb. Later the same day the maintainer directed a superseding design that
-keeps every one of those grounds: an outline extractor internal to Horos
-that lexes rather than parses, quotes declaration slices verbatim, and
-confesses unparsed regions by count and location instead of guessing. It is
-the ledger's held job in [EVOLUTION.md](EVOLUTION.md), specified and not yet
-built. The measured win on TypeScript repositories meanwhile comes from
-`scan`: 83.3% of the live wildcat-app-v2 tree classified in the second
-recorded capture at
-[../../docs/evidence/wildcat-app-v2-rules.md](../../docs/evidence/wildcat-app-v2-rules.md).
+The TypeScript extractor exists by revision of a recorded refusal. Parsing
+TypeScript or taking a parser dependency was refused on 2026-08-18 and
+stays refused; the maintainer directed the design that needs neither, and
+it was held against the real compiler before shipping: across all 866
+hand-written TypeScript files of a live repository, 2,237 of 2,239
+compiler-visible declarations matched, with zero misses outside the
+outliner's own confessions, zero extras and zero crashes. The recorded run
+lives at
+[../../docs/evidence/wildcat-app-v2-outline.md](../../docs/evidence/wildcat-app-v2-outline.md).
 
 ## The discipline
 
@@ -77,9 +79,10 @@ recorded capture at
    it does not exist and the repository is large, offer a scan.
 2. Treat every path inside a checked boundary as unread-by-default. The entry
    itself carries what a reader needs: category, size, evidence.
-3. Before opening a Python file over a few hundred lines, run `map` and read
-   the skeleton first. Open the file whole only when the skeleton was not
-   enough.
+3. Before opening a file over a few hundred lines in a language the
+   registry supports, run `map` and read the skeleton first. Open the file
+   whole only when the skeleton was not enough, and mind the confession
+   line: a large unparsed region means the skeleton understates the file.
 4. Classification is fail-open, so the boundary understates the sinks. What
    it lists is evidenced; what it omits is merely unproven.
 5. When writing a boundary into a repository other agents will work in, add

@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** Horos's map verb reads Python only; the maintainer-directed TypeScript outline extractor, internal to Horos with verbatim source slices and confessed unparsed regions, remains unbuilt.
+**Current frontier.** A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Build the TypeScript outline extractor inside Horos's map verb: verbatim declaration slices, confessed unparsed regions, stdlib-only shipping, a dev-time differential corpus. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Add a filetype census to scan: per-filetype bytes and share of the tree, recorded under .horos, so walk-worthiness and the next extractor are decided from a recorded breakdown. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
@@ -30,8 +30,11 @@ is committed at [docs/study.md](./docs/study.md).
   evidence line that earned each entry;
 - a deterministic committed boundary at `.horos/boundary.json`, verified
   against the tree by `check`, which names every drifted path;
-- Python skeleton maps, so a large file can be oriented in without being
-  read;
+- skeleton maps for Python and TypeScript through a per-language extractor
+  folder, so a large file can be oriented in without being read; the
+  TypeScript outliner quotes declarations verbatim, confesses what it did
+  not understand, and matched 2,237 of 2,239 compiler-visible declarations
+  over a live 866-file repository;
 - a shipped example at [examples/](./examples/) whose committed boundary a
   fresh scan reproduces byte for byte; and
 - one binding rule: no boundary applies during security review.
