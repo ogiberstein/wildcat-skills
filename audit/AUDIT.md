@@ -222,3 +222,29 @@ hand-written and correctly listed.
 Leads not pursued: extending the search-record runner past `foundry`, now stated
 in the runbook as out of scope for this step and a candidate frontier of its own;
 and the two carried from round 1.
+
+## Withdrawal batch fee law, step 1, round 5 -- 2026-08-18
+
+No Solidity and no campaign, for the fifth time and for the same reason. This
+round re-read the four earlier fixes against their sources and then resolved every
+file path the two documents name, which is the check that catches a spec rotting
+against a repository that moved under it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed non-Solidity tree has no open finding. | clean |
+
+Thirty-nine distinct paths are named across the study and the runbook. Every one
+resolves, except the two the run exists to create,
+`src/laws/PooledClaimsCoverOpenBatches.sol` and `specimens/FeeFromQueued.sol`, and
+a glob in the sources list. The earlier fixes hold: the pair-law verdicts match
+what was executed, the deployed-contract boundary sits where the figures are, both
+diagonal dimensions match `COUNT` in their test files, `docs/catalogue.md` is
+regenerated rather than written, the two spec documents are declared records, and
+step 3 names the runner and its single engine.
+
+Leads not pursued: extending the search-record runner past `foundry`; whether the
+two model corrections should ship ahead of the law, which the runbook argues
+against on the grounds that no green intermediate state exists; and the seven
+property families deferred from the original delivery. Each is recorded in the
+round that raised it.
