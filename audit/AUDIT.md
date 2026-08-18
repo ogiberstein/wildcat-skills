@@ -1474,3 +1474,24 @@ receipted artefacts and sit beside the maintainer's verbatim specification.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Refinement run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Root 24/24. One
+finding, and it is a process finding against this run's own record: the
+implement receipt recorded "horos 157/157" while the plugin suite was in
+fact red with two test errors, because a chained shell command swallowed
+the suite's exit status. The errors were wrong expectations in the two new
+nested-attributes tests (asserting file-level entries where directory
+aggregation correctly forecloses them), fixed in 1d33f7f with the semantics
+documented in the tests themselves. The true counts: 155 tests before the
+fix with 2 errors; 155/155 after. The receipt's count also overstated the
+total by two. The correction stands here rather than in a rewritten
+receipt, because the ledger is append-only and the round exists to catch
+exactly this.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | .hexaemeron ledger | implement receipt asserted a green suite over a red one | corrected in 1d33f7f and recorded here |
+
+Leads not pursued: none.
