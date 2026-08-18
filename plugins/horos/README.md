@@ -7,9 +7,9 @@ Horos classifies a repository's token sinks with evidence and emits the reading 
 
 **Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
 
-**Current frontier.** The classifier refinement the maintainer specified and the three-repository boundary marking remain from the reopened scope; map now reads Solidity.
+**Current frontier.** One job remains from the reopened scope: committed boundaries and censuses across the three home repositories, using the refined classifier.
 
-**Next Fiat job.** Use /hexaemeron:fiat to Implement the maintainer's budgeted two-tier classifier specification: nested gitattributes, corroborated directory exclusions, a selective second sampling pass, file signatures, hard and candidate evidence grades, and a tracked-files default. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to Run Horos over v2-protocol, wildcat-app-v2 and the skills repository itself: commit graded boundaries, candidates, censuses and adoption stanzas, record the recaptures as evidence, and close the frontier mature. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Why it exists
@@ -28,8 +28,11 @@ is committed at [docs/study.md](./docs/study.md).
 
 - a standard-library scanner that classifies token sinks and quotes the
   evidence line that earned each entry;
-- a deterministic committed boundary at `.horos/boundary.json`, verified
-  against the tree by `check`, which names every drifted path;
+- a deterministic committed boundary at `.horos/boundary.json` holding
+  hard evidence only (schema 2, git-tracked universe by default), verified
+  against the tree by `check`, which fails on hard drift and reports
+  candidate drift; advisory findings live beside it in
+  `.horos/candidates.json`;
 - a filetype census at `.horos/census.json` from the same walk, so
   walk-worthiness and the next extractor are decided from a recorded
   breakdown;
