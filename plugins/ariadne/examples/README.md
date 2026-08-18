@@ -4,31 +4,28 @@
 > **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
 <!-- marketplace-context:end -->
 
-Two statements over the fixture project in `../tests/fixtures/forge-project`,
-produced by `ariadne capture` and committed as they came out.
+## The records
 
-The build records, digests and deltas in them came from the compiler. The test
-and fuzz dispositions did not: capture takes those from whoever runs it, and
-here they were supplied by hand to illustrate the two shapes. Nobody ran a fuzz
-campaign against a nine-line escrow contract. A test asserts the examples still
-describe the committed fixture, so a rebuild cannot leave them quoting bytecode
-that no longer exists.
+Two `ariadne capture` statements over `../tests/fixtures/forge-project` are
+committed as produced.
 
-| File | What it shows |
-| --- | --- |
-| `escrow-v1.1.0.json` | A clean release: tests and fuzz passed, an audit covering the released commit, a deployment |
-| `escrow-v1.1.0-with-gaps.json` | The same release with a fuzz campaign that timed out and an audit covering an earlier revision |
+Build records, digests, and deltas came from the compiler. Test and fuzz
+dispositions were supplied by hand; nobody fuzzed the nine-line escrow. A test
+binds both examples to the committed fixture.
 
-The second one is why both are here. A format whose only examples are clean
-releases teaches producers to make their releases look clean. Both verify, and
-the second says out loud that a campaign ran out of budget with four properties
-outstanding and that its audit covered a commit two behind the release.
+- `escrow-v1.1.0.json`: tests and fuzz passed; its audit covers the released
+  commit and it records a deployment.
+- `escrow-v1.1.0-with-gaps.json`: fuzzing timed out and its audit covers an
+  earlier revision.
+
+Both verify. The second records four outstanding properties and an audit two
+commits behind the release.
 
 ```bash
 python3 ../scripts/ariadne.py verify escrow-v1.1.0-with-gaps.json
 ```
 
-Seven gate lines and three checks, exit 0, with the audit line reading `1
+It exits 0 after seven gate lines and three checks; the audit line reads `1
 covering a revision other than the released commit`.
 
 ## The tampered copies
@@ -36,14 +33,12 @@ covering a revision other than the released commit`.
 `tampered/` holds a copy of each with one thing changed, and the suite asserts
 that `verify` exits 1 on each and names the gate.
 
-| File | Change | Gate |
-| --- | --- | --- |
-| `escrow-v1.1.0-claim-repointed.json` | A claim points at bytes the statement does not cover | 1 |
-| `escrow-v1.1.0-with-gaps-reason-removed.json` | The timed-out campaign keeps its disposition and loses its reason | 3 |
+- `escrow-v1.1.0-claim-repointed.json`: a claim points outside the statement;
+  gate 1 fails.
+- `escrow-v1.1.0-with-gaps-reason-removed.json`: timed-out work lacks a reason;
+  gate 3 fails.
 
 ## What tampering the gates do not catch
-
-Worth knowing before anybody reads a clean run as more than it is.
 
 A producer editing their own unsigned statement can delete a gap and record a
 pass instead. Nothing in the gates can tell that apart from a run that really
@@ -56,6 +51,5 @@ signing puts the producer's name on the claim. Gate 7 keeps that boundary
 visible: Ariadne labels an unsigned statement unsigned and never supplies an
 author from a signature it did not check.
 
-The gates refuse the shapes that let a careless statement read as a careful
-one. They do not, and cannot, refuse a producer willing to lie in a document
-they signed.
+The gates refuse misleading shapes. They cannot establish that a producer told
+the truth before signing.

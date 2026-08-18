@@ -4,28 +4,19 @@
 > **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
 <!-- marketplace-context:end -->
 
-Why ariadne is shaped the way it is, and what was considered and rejected on
-the way.
+Why Ariadne has this shape and which alternatives were rejected.
 
 ## The problem
 
-A release publishes a claim. The evidence behind it sits somewhere else, joined
-by a URL and a promise: the compiler that produced the bytecode, the test run,
-the fuzz campaign, the audit and its scope, the deployment.
+Release links do not establish audit revision, bytecode provenance, or fuzz
+settings. Assembly strips evidence identity and leaves recipients to reconstruct
+claims.
 
-The links do not establish that the audit covered the released commit, that the
-build produced the deployed bytecode, or that the fuzz run used the settings the
-report describes. The evidence exists. Its identity and provenance fall away
-when the release is assembled, and what a recipient gets is a row of claims each
-of them would have to reconstruct by hand. Most do not, and a green badge stands
-in for the work rather than proving it happened.
-
-Ariadne writes the join down as a statement whose subject is a digest, so a
-reader can check the binding without trusting whoever assembled it.
+Ariadne records the join under a digest subject.
 
 ## Prior art, and where this starts
 
-The envelope and the statement are borrowed. Neither is forked.
+The envelope and statement are borrowed, not forked.
 
 - **in-toto Statement v1.** `_type` is the literal
   `https://in-toto.io/Statement/v1`, `subject` is an array of
@@ -41,46 +32,35 @@ The envelope and the statement are borrowed. Neither is forked.
   where `LEN` is decimal ASCII with no leading zeros.
 - **Sigstore.** `cosign attest` and `cosign verify-attestation` produce and
   check exactly this envelope. Signing is a solved problem and gets delegated.
-- **SLSA provenance v1** covers how a build ran. It does not cover Solidity
-  interfaces, storage layout, fuzz corpora, audit scope or deployment identity,
-  which is where this work starts.
+- **SLSA provenance v1** covers build execution, not Solidity interfaces,
+  storage, fuzz corpora, audit scope, or deployment identity.
 - **Sourcify and solc's CBOR metadata** bind deployed bytecode to source. That
   is a check ariadne records the result of, not one it reimplements.
 
-The existing in-toto predicates nearest this problem are `test-result`,
-`release` and `link`. None of them carries a bytecode digest or a
-storage-layout delta.
+The nearest in-toto predicates, `test-result`, `release`, and `link`, carry no
+bytecode digest or storage-layout delta.
 
 ## The shape
 
-Two layers, and the split is the design.
+**The core is artefact-neutral.** Any compiled artefact, dataset, fixture, or
+corpus is a digest subject. Absence stays visible, results remain results, claims
+name exact subjects, and replay distinguishes exact from nondeterministic work.
 
-**The core is artefact-neutral.** Its subject is a digest, of anything: a
-compiled artefact, a content-addressed dataset, a fixture bundle, a corpus. What
-it adds to a bare statement is the discipline a bare statement does not carry:
-absence stays visible, a result is not upgraded into a conclusion, every claim
-names the exact subject it covers, and replay separates what must match byte for
-byte from what cannot.
+**A predicate shapes one artefact kind.** Dataset and contract statements share
+a verifier and envelope without sharing a schema.
 
-**A predicate is the shape for one kind of artefact.** It declares which fields
-a statement of that kind carries and how a verifier checks them. The core holds
-predicates apart so a dataset statement and a contract statement share a
-verifier and one envelope format without sharing a schema.
-
-| Module | Holds |
-| --- | --- |
-| `digests.py` | Digest sets, file and tree digests, and the rule for when two agree |
-| `statement.py` | Statement v1 construction and parsing, subject handling |
-| `envelope.py` | DSSE read and write, PAE, both base64 alphabets |
-| `safejson.py` | Size, depth and duplicate-key bounds for documents from elsewhere |
-| `core_predicate.py` | The `claims` and `commands` block every predicate carries |
-| `gates.py` | The five core gates, run for any predicate |
-| `verify.py` | The report: gates, signature state, and what went unchecked |
-| `registry.py` | Type URI to predicate module |
-| `predicates/solidity_release.py` | The Solidity release predicate |
-| `capture/foundry.py` | A Foundry build read into that predicate |
-| `deltas.py` | ABI, method identifier and storage comparisons |
-| `replay.py` | Re-running the commands a statement marks deterministic |
+- `digests.py`: digest sets, file and tree digests, agreement.
+- `statement.py`: Statement v1 and subjects.
+- `envelope.py`: DSSE, PAE, and both base64 alphabets.
+- `safejson.py`: size, depth, and duplicate-key bounds.
+- `core_predicate.py`: shared `claims` and `commands`.
+- `gates.py`: five core gates.
+- `verify.py`: gates, signature state, and unchecked work.
+- `registry.py`: type URI to predicate module.
+- `predicates/solidity_release.py`: Solidity release predicate.
+- `capture/foundry.py`: Foundry capture.
+- `deltas.py`: ABI, method identifier, and storage comparisons.
+- `replay.py`: deterministic command replay.
 
 ## The gates
 
@@ -99,34 +79,23 @@ predicate fills in.
 
 ## Choices, and what they cost
 
-**One Solidity release tool with the gates baked in** would be the shortest way
-to a signed release statement. It was rejected because the specification's claim
-is that one core serves four artefacts, and a tool built that way forks at the
-second predicate.
+**One Solidity tool with embedded gates** would be shorter but would fork at the
+second predicate instead of serving four artefacts.
 
-**Predicates as JSON Schema documents, validated generically,** was rejected as
-the enforcement path. The standard library has no JSON Schema validator, and the
-gates are not expressible as schema anyway. Absence, delta baselines and
-determinism classes are semantic checks. A schema that says `counterexamples` is
-an array cannot say that an empty array beside an absent campaign record is a
-lie.
+**Generic JSON Schema validation** cannot express absence, delta baselines, or
+determinism. It can type `counterexamples` as an array but cannot reject an empty
+array beside an absent campaign. The standard library has no JSON Schema validator.
 
-What ships instead is a hand-written structural validator with the schema
-published beside it as the interoperability artefact, and a test comparing the
-schema's required-field lists and its revision pattern against the module's own
-field tables, so the two cannot drift.
+A handwritten validator ships beside the interoperability schema. Tests compare
+required fields and revision patterns to prevent drift.
 
-**Signing in process** was rejected twice over. It needs a dependency, and it
-would put key custody inside a tool whose job is to be checkable by someone who
-does not trust it. Gate 7 already makes the unsigned statement a supported state
-rather than a degraded one.
+**Signing in process** adds a dependency and key custody. Gate 7 instead treats
+unsigned statements as supported.
 
 ## Constraints
 
-Standard library only, on Python 3.9 through 3.13. That rules out both a JSON
-Schema library and an in-process signing library, and decides the two choices
-above. Tests touch no network and require no `forge`: the Foundry output they
-read is committed.
+Standard library only on Python 3.9 through 3.13. Tests use committed Foundry
+output, touch no network, and require no `forge`.
 
 ## Where the risk is
 

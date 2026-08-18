@@ -16,6 +16,9 @@ from ariadne_lib import core_predicate, gates, registry  # noqa: E402
 from ariadne_lib.predicates import solidity_release as release  # noqa: E402
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SHARED_VERSIONING = os.path.normpath(
+    os.path.join(PLUGIN, "..", "hexaemeron", "skills", "VERSIONING.md")
+)
 
 SKILL = os.path.join(PLUGIN, "skills", "ariadne", "SKILL.md")
 README = os.path.join(PLUGIN, "README.md")
@@ -147,7 +150,8 @@ class ContractTests(unittest.TestCase):
                     target = os.path.normpath(os.path.join(directory, link))
                     with self.subTest(document=os.path.relpath(path, PLUGIN)):
                         self.assertTrue(
-                            os.path.commonpath([PLUGIN, target]) == PLUGIN,
+                            os.path.commonpath([PLUGIN, target]) == PLUGIN
+                            or target == SHARED_VERSIONING,
                             "%s links to %s, outside the plugin" % (path, link),
                         )
                         self.assertTrue(

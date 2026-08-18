@@ -6,7 +6,7 @@ description: Route release-evidence work to Ariadne. Use it to bind an artefact 
 # Ariadne portable entrypoint
 
 <!-- marketplace-context:start -->
-## Where this sits
+## Scope
 
 Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
 
@@ -15,19 +15,17 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 **Current frontier.** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
 <!-- marketplace-context:end -->
 
-Read [the Ariadne runtime contract](../../../plugins/ariadne/AGENTS.md). Use its
-selection table to choose the skill, then read that canonical `SKILL.md` in full
-and follow it.
+## Authority
 
-Invocation prefixes are aliases:
+Read [the runtime contract](../../../plugins/ariadne/AGENTS.md), then read and
+follow its canonical `SKILL.md` in full. Those files win if this entry disagrees.
 
-- `/ariadne:ariadne`, `$ariadne`, and a plain request to read or write an
-  attestation all select `ariadne`.
+## Invocation
+
+- `/ariadne:ariadne`, `$ariadne`, and a plain attestation request select
+  `ariadne`.
 
 The tool holds no signing key and reaches no network of its own. Signing and
 signature verification belong to `cosign`, and this tool never reports a
 signature as checked. Its `replay` subcommand runs commands a statement
 recorded, and only when the user asks for it.
-
-The canonical skill and the runtime contract are authoritative if this
-entrypoint disagrees with them.

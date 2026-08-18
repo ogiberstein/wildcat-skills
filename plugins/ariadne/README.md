@@ -12,59 +12,39 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 **Next Fiat job.** Use /hexaemeron:fiat to implement the dataset predicate with its schema, gates, conformance fixtures and capture path while keeping signing and signature verification external. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
-Release evidence another person can check.
+Release evidence another person can check. Ariadne binds a digest subject to
+its compiler, tests, fuzzing, audit scope, and deployment record.
 
-A release publishes a claim. The evidence behind it sits somewhere else, joined
-by a URL and a promise: the compiler that produced the bytecode, the test run,
-the fuzz campaign, the audit and its scope, the deployment. Ariadne writes the
-join down as a statement whose subject is a digest, so a reader can check the
-binding without trusting whoever assembled it.
+The statement is [in-toto's](https://github.com/in-toto/attestation); the
+envelope is [DSSE's](https://github.com/secure-systems-lab/dsse). Ariadne adds
+digest-bound claims, visible skipped or failed work, non-verdict results,
+identified comparison baselines, and deterministic replay classes.
 
-The statement is [in-toto's](https://github.com/in-toto/attestation) and the
-envelope is [DSSE's](https://github.com/secure-systems-lab/dsse). Neither is
-forked. What Ariadne adds is the part a bare statement does not carry: every
-claim names the exact digest it covers, skipped and failed work stays in the
-statement record, a result is never upgraded into a verdict, a comparison fails
-when either baseline cannot be identified, and replay separates what must match
-byte for byte from what cannot.
-
-The core is artefact-neutral. A contract release is the first and sharpest case
-rather than the only one, and a dataset, a chain-state fixture and a
-grounded-agent release each get a predicate beside it rather than a tool of
-their own.
+The core is artefact-neutral. Contract releases are first; datasets, chain-state
+fixtures, and grounded-agent releases belong in separate predicates.
 
 ## What is in it
 
-**The core.** Digest sets and their matching rules, in-toto Statement v1, the
-DSSE envelope with its pre-authentication encoding, the predicate registry, and
-bounds on any document that arrived from somebody else.
+- The core holds digest matching, in-toto Statement v1, DSSE
+  pre-authentication encoding, the predicate registry, and input bounds.
 
-**The gates.** Five run for any predicate, including a type this build does not
-know. Two more come from the predicate, and a type without them is reported as
-unchecked rather than clean.
+- Five gates run for every predicate. Two belong to known predicates; unknown
+  types report those gates unchecked.
 
-**The Solidity release predicate.** The source and build that produced the
-bytecode, the ABI, selector and storage deltas against the previous release, the
-audits with the revision each covered, and the deployments with whether anything
-confirmed them against a chain. Its published schema sits in
-[`schemas/`](./schemas), and a test ties the schema to the validator so the two
-cannot drift.
+- The Solidity predicate records source, build, bytecode, ABI, selector and
+  storage deltas, audit revisions, deployments, and chain-confirmation state.
+  [`schemas/`](./schemas) is tested against the validator.
 
-**Capture.** A Foundry project's build output read into a release statement that
-verifies unedited. It does not decide whether your tests passed, does not
-confirm a deployment against a chain, and scrubs a build command before
-recording it.
+- Capture turns Foundry output into a statement that verifies unedited. It
+  accepts stated test results, confirms nothing on-chain, and scrubs the build
+  command.
 
-**Replay.** The commands a statement marks `exact`, re-run and compared against
-the recorded artefact digest. Never through a shell, never without being asked,
-and everything marked `nondeterministic` listed as deliberately not run.
+- Replay runs requested `exact` commands without a shell and only when asked; it compares their
+  artefact digest. It lists `nondeterministic` commands without running them.
 
-**Fixtures and examples.** `tests/fixtures/conformance/` holds a passing
-statement and, for each core gate, one that breaches it, for another
-implementation to check itself against. [`examples/`](./examples) holds two
-attestations over a real build: a clean release, and one carrying a fuzz
-campaign that timed out and an audit covering an earlier revision. Both verify.
-A tampered copy of each ships beside them and does not.
+- `tests/fixtures/conformance/` holds passing and gate-breaching statements.
+  [`examples/`](./examples) has clean and gap-bearing attestations plus tampered
+  copies. Both originals verify; the copies do not.
 
 ## The path, end to end
 
@@ -81,23 +61,17 @@ python3 scripts/ariadne.py capture solidity-release \
 
 python3 scripts/ariadne.py verify release.json
 python3 scripts/ariadne.py verify examples/tampered/escrow-v1.1.0-claim-repointed.json
-```
 
-Seven gate lines, three checks and exit 0 for the first. Exit 1 for the second,
-with gate 1 naming the claim that points at bytes the statement does not cover.
-
-Then see what a replay would do, and do it:
-
-```bash
 python3 scripts/ariadne.py replay release.json
 python3 scripts/ariadne.py replay release.json \
   --allow-execution --project tests/fixtures/forge-project/v2
 ```
 
-The first prints the plan and runs nothing, which is the default because the
-commands in a statement are somebody else's data. The second re-runs the build
-and compares the artefacts against the recorded digest. It rebuilds inside the
-fixture, so work on a copy if you want the fixture left alone.
+Capture and verify print seven gate lines, three checks, and exit 0. The
+tampered example exits 1; gate 1 names the claim outside the subject bytes.
+
+The preview runs nothing. The second rebuilds inside the fixture and compares
+the artefact digest; use a copy if the fixture must remain untouched.
 
 ## The subcommands
 
@@ -110,33 +84,25 @@ python3 scripts/ariadne.py capture solidity-release --project <dir> \
 python3 scripts/ariadne.py replay <statement.json>
 ```
 
-`inspect` takes either a bare statement or a DSSE envelope wrapping one and
-reports what it covers. `verify` runs the gates and prints a line for each,
-exiting 1 when one breaks. Exit codes are 0 for success, 1 for a breached gate,
-2 for bad input.
+`inspect` reports what a bare statement or DSSE envelope covers. `verify` prints
+each gate. Exit codes: 0 success, 1 breached gate, 2 bad input.
 
 [`docs/`](./docs) has the design and its rejected alternatives, the predicate
 field by field, the conformance set, and the capture flags.
 
 ## Where it stops
 
-The registry holds one predicate. The dataset, chain-state fixture and
-grounded-agent predicates are specified and not implemented here, so a statement
-of one of those types verifies its core gates and is told which gates went
-unchecked.
+The registry holds one predicate. Dataset, chain-state fixture, and
+grounded-agent types run only core gates and report the rest unchecked.
 
-Nothing confirms a deployment against a chain, nothing signs, and nothing runs
-as a GitHub Action. Each is a deliberate boundary: the first needs a node, the
-second needs key custody this tool declines, and the third needs a workflow that
-owns neither.
+Nothing confirms a deployment against a chain, signs, or runs as a GitHub
+Action. Those jobs need a node, key custody, or an owning workflow.
 
 ## Keys
 
-Ariadne holds none. `cosign attest` signs the envelope and
-`cosign verify-attestation` checks the signature. Ariadne reads and writes the
-envelope, reports whether signatures are present, and states every time that it
-did not check them. An unsigned statement is a supported state and gets labelled
-unsigned rather than treated as broken.
+Ariadne holds no keys. `cosign attest` signs; `cosign verify-attestation`
+checks. Ariadne reads and writes envelopes, reports signature presence, and
+says it did not check them. Unsigned is a supported, labelled state.
 
 ## Tests
 
