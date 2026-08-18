@@ -1,4 +1,4 @@
-# Brevitas evolution ledger
+Brevitas evolution ledger
 
 Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VERSIONING.md)
 
@@ -6,10 +6,6 @@ Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VE
 - Frontier status: `open`
 - Frontier revision: `held-engineering-corpus`
 - Current frontier: The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked.
-- Next Fiat job: Forward-test Brevitas across held x-ray, Solidity-auditor, gas, invariant and diff-review outputs, then add every confirmed structural bypass to the corpus without weakening evidence precedence. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+- Next Fiat job: `Forward-test Brevitas across held x-ray, Solidity-auditor, gas, invariant and diff-review outputs, then add every confirmed structural bypass to the corpus without weakening evidence precedence. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.`
 
-## History
-
-| Version | Axis | Frontier revision | Frontier SHA-256 | Evidence | Change |
-| --- | --- | --- | --- | --- | --- |
-| `brevitas-v0.1.0` | baseline | `held-engineering-corpus` | `dcff4f6b1397570468dedb18a1ebaa5f45377272bcd2f71cd69ad6818eeb0b62` | [README marketplace-context](../../README.md) | Versioning starts with the executable linter and three audit-derived corpus cases. |
+- `brevitas-v0.1.0` | baseline | `held-engineering-corpus` | `dcff4f6b1397570468dedb18a1ebaa5f45377272bcd2f71cd69ad6818eeb0b62` | [README marketplace-context](../../README.md) | Versioning starts with the executable linter and three audit-derived corpus cases.
