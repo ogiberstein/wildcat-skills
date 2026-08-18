@@ -1231,3 +1231,22 @@ copies match the receipted artefacts.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Census run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+changed README. Horos 101/101, root 24/24. The review held the register's
+rows: one walk produces both artefacts (the tally rides the existing loops
+rather than a parallel implementation), the frozen boundary is reproduced
+byte for byte by test, rows sum to the totals with the boundary column
+bounded by its row, symlinks and skipped directories appear in neither
+walk, and the census writer is the boundary's own atomic writer refactored,
+not a copy.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: readable files are statted twice when the
+census is on (once inside classify_file, once for the tally); measured
+against Metron's rule it is noise on real trees and not worth plumbing size
+out of the classifier.
