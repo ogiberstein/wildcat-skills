@@ -1,6 +1,6 @@
 ---
 name: hexaemeron
-description: Route explicit Hexaemeron delivery runs, Kronos frontier loops, and named bundled fuzzing, audit or prose work to their canonical skills. Do not start Fiat or Kronos unless the user asks for it.
+description: Route explicit Hexaemeron delivery runs, Kronos frontier loops, and named bundled fuzzing, audit, prose or practice work to their canonical skills. The practice skills are protasis, elenchus, phylax, ephoros, metron and hypomnema. Do not start Fiat or Kronos unless the user asks for it.
 ---
 
 # Hexaemeron portable entrypoint
@@ -8,7 +8,7 @@ description: Route explicit Hexaemeron delivery runs, Kronos frontier loops, and
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own.
+Hexaemeron runs an explicit, receipted delivery loop, and also exposes on their own the fuzzing, audit-readiness, security-review and prose skills it uses, plus six practice skills covering specification, debugging, hardening, telemetry, measurement and what gets recorded.
 
 **Use another tool when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
 

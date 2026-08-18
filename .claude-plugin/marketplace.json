@@ -31,7 +31,7 @@
       "name": "hexaemeron",
       "displayName": "Hexaemeron",
       "source": "./plugins/hexaemeron",
-      "description": "Receipted delivery through merge and closure, with ranked frontier, audit, fuzzing and prose tools.",
+      "description": "Receipted delivery through merge and closure, with ranked frontier, audit, fuzzing, prose and practice skills.",
       "version": "1.1.0",
       "author": {
         "name": "Wildcat Labs",

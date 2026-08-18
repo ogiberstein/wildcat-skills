@@ -3,7 +3,7 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Hexaemeron runs an explicit, receipted delivery loop and also exposes its fuzzing, audit-readiness, security-review and prose skills on their own.
+Hexaemeron runs an explicit, receipted delivery loop, and also exposes on their own the fuzzing, audit-readiness, security-review and prose skills it uses, plus six practice skills covering specification, debugging, hardening, telemetry, measurement and what gets recorded.
 
 **Try something else when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
 

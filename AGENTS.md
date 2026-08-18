@@ -13,7 +13,8 @@ venue records; Probitas assembles a counterparty dossier. Lazarus preserves the
 finite historical Ethereum state and exact RPC traffic a test needs, while
 Ariadne binds a released artefact digest to its evidence. Pandects supplies
 reviewed credit laws, Hermes measures a single gas-optimisation class,
-Hexaemeron controls a receipted delivery loop and Lemma stops after producing
+Hexaemeron controls a receipted delivery loop and holds each of its phases to a
+practice skill, while Lemma stops after producing
 source-linked chunks. Sapheneia shapes the agent's own replies for AuDHD
 readers without changing another skill's facts or gates. Brevitas controls the
 volume and structure of engineering prose after vocabulary and register passes.
@@ -51,7 +52,11 @@ rather than broadening the selected skill.
 - `.claude-plugin/` and `.codex-plugin/` files install the same canonical skill
   directories on their named hosts. They do not change the meaning of a skill.
 - `.agents/skills/` contains host-neutral entrypoints for agents that implement
-  the Agent Skills discovery convention.
+  the Agent Skills discovery convention. Each plugin has one. Hexaemeron's six
+  practice skills also have one each, because they are useful on their own and a
+  host that only reads this folder would otherwise never learn they exist. Every
+  such entry says what the skill does alone and what it does as part of the
+  suite, and hands off to the canonical `SKILL.md`.
 
 ## Loading rules
 

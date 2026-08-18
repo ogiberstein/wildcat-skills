@@ -50,6 +50,31 @@ class PortableSkillTests(unittest.TestCase):
             self.assertEqual(match.group(1).strip(), name)
             self.assertRegex(text, r"(?m)^description:\s*\S")
 
+    def test_every_portable_entrypoint_matches_its_directory(self):
+        """Covers skill-level entries too, which the plugin list above does not."""
+        entries = sorted((ROOT / ".agents" / "skills").glob("*/SKILL.md"))
+        self.assertTrue(entries)
+        for path in entries:
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(entry=path.parent.name):
+                self.assertTrue(text.startswith("---\n"))
+                match = re.search(r"^name:\s*([^\n]+)$", text, re.MULTILINE)
+                self.assertIsNotNone(match)
+                self.assertEqual(match.group(1).strip(), path.parent.name)
+                self.assertRegex(text, r"(?m)^description:\s*\S")
+
+    def test_skill_level_entrypoints_reach_a_canonical_skill(self):
+        """An entry that is not a plugin must name a skill that exists."""
+        plugins = {p.name for p in (ROOT / "plugins").iterdir() if p.is_dir()}
+        for path in sorted((ROOT / ".agents" / "skills").glob("*/SKILL.md")):
+            name = path.parent.name
+            if name in plugins:
+                continue
+            canonical = sorted((ROOT / "plugins").glob(f"*/skills/{name}/SKILL.md"))
+            with self.subTest(entry=name):
+                self.assertEqual(len(canonical), 1, f"{name} has no single canonical skill")
+                self.assertIn(f"skills/{name}/SKILL.md", path.read_text(encoding="utf-8"))
+
     def test_portable_entrypoint_links_resolve(self):
         for path in (ROOT / ".agents" / "skills").glob("*/SKILL.md"):
             text = path.read_text(encoding="utf-8")
