@@ -113,7 +113,7 @@ Ariadne includes:
 ### Brevitas
 
 [Brevitas](./plugins/brevitas) is the final structural pass for audit findings,
-security reviews, gas analysis, invariant discussion, diff review and protocol
+security reviews, gas analysis, `invariant` discussion, diff review and protocol
 commentary. It controls line count, finding shape, headings, tables, code fences
 and connective prose. Imprimatur still owns vocabulary, Vulgate owns register,
 and Sapheneia owns AuDHD interaction shape.
@@ -524,6 +524,17 @@ Hexaemeron's entry skill is:
 /hexaemeron:fiat "<topic>"
 ```
 
+Its practice skills answer on their own, without the controller:
+
+```text
+/hexaemeron:protasis
+/hexaemeron:elenchus
+/hexaemeron:phylax
+/hexaemeron:ephoros
+/hexaemeron:metron
+/hexaemeron:hypomnema
+```
+
 Lemma is available as:
 
 ```text
@@ -585,6 +596,7 @@ Use Brevitas to enforce evidence-preserving structural budgets on this engineeri
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
+Use Hexaemeron Phylax to harden the off-chain surface of this change, or name Protasis, Elenchus, Ephoros, Metron or Hypomnema for the other practice skills.
 Use Lemma to chunk this Solidity standard input into JSONL.
 Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
 Use Pandects to check this credit protocol against the executable laws in the corpus.
