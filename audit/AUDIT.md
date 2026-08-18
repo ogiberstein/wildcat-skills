@@ -248,3 +248,60 @@ two model corrections should ship ahead of the law, which the runbook argues
 against on the grounds that no green intermediate state exists; and the seven
 property families deferred from the original delivery. Each is recorded in the
 round that raised it.
+
+## Withdrawal batch fee law, step 2, round 1 -- 2026-08-18
+
+Reviewed: the whole of the step's diff. The new law, both model corrections, the
+specimen, the counterexample, the catalogue entry, the renderer, the test that
+counted for it, and the Wildcat notes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `search-record.json` | The record shipped at the plugin root stated nine laws and a corpus digest taken over nine, and the corpus now holds ten. Nothing compared it with the catalogue, in CI or in the suite, so it had gone stale silently and would have gone stale again on the eleventh law. A stale search record is worse than an absent one: it carries a count and a digest with the authority of something a script produced, and nothing about reading it says when. | Fixed in this round: regenerated, and three tests now hold the shipped record against the catalogue's law count, its recomputed digest and its version. Each was made to fail against a perturbed record before being kept. |
+| S2-R1-02 | medium | `test/SoundInvariant.t.sol` | The harness asserted the five old single-state laws over the reference under fuzzing and did not assert the sixth. So the one law whose correctness rests on two caps that were just rewritten was the one law no search checked against the reference; the diagonal tested it at a single hand-derived state. A cap is exactly the thing a single state cannot vouch for. | Fixed in this round: `invariant_pooled_claims_cover_open_batches` added. It passes at 64 runs and 4096 calls with no reverts. |
+| S2-R1-03 | medium | `adapters/medusa/README.md` | The document offered the command line as an alternative to the config file and then claimed, two paragraphs later, that the settings match `adapters/echidna/echidna.yaml`. Both cannot be true. Naming a target on the command line means not passing `--config`, so the run happens under Medusa's defaults, with assertion testing on where the file turns it off. Anyone following the documented command and recording the shipped configuration would be recording a different search from the one they ran. Passing both is worse: the file's empty `targetContracts` beats `--target-contracts`, and Medusa exits with no tests found before searching anything, which is the silent non-run this same file warns about at the bottom. | Fixed in this round: the file route is now the documented one, the command-line route is named as a run under Medusa's defaults, and the both-flags case is written down with the exact message it exits on. |
+
+**What ran.** 75 Solidity tests across ten suites under forge 1.7.1 and solc
+0.8.28, up from 74 by the invariant added here. 109 catalogue, checker,
+search-record and document tests on Python 3.14, up from 106 by the three gates
+added here. The repository's 20. `pandects check` over ten laws, every part
+present. Slither 0.11.6 over 50 contracts. Echidna 2.3.3 against `SoundCampaign`
+and `WildcatMarketCampaign` with the shipped configuration and seed 20260816.
+Medusa 1.5.1 against `SoundCampaign` at twenty thousand, run through a copy of
+the shipped config with `targetContracts` filled in, for the reason S2-R1-03
+gives.
+
+**The engines on the corrected models.** `SoundCampaign` failed nothing under
+either engine: eight properties passing over 20,116 calls under Echidna, eight
+passing under Medusa. `WildcatMarketCampaign` failed
+`recorded_claim_never_shrinks` and nothing else, which is the documented
+expectation for a design whose batches accumulate while open, and it is unchanged
+by the fee correction. So neither correction cost the corpus a property, and
+neither introduced one.
+
+**What the engines did not test.** The new law. `src/campaigns/Specimens.sol`
+carries one property per law and the new one is not among them, which is step 3's
+whole content. Foundry's invariant runner reaches it after S2-R1-02 and the two
+fuzzers do not reach it yet. Saying so is the point: eight properties passing is
+evidence about eight laws.
+
+**Slither.** Twenty-three results across three classes, all of them the same
+benign set the original delivery documented: cached array length in four queue
+traversals, costly operations inside a loop that returns after one iteration, and
+one unused constant inherited by a specimen. Nothing names the new law or the new
+specimen.
+
+**The independence argument, and its limit.** `FeeFromQueued` can only lower
+`claims` further than the reference would, so the laws it could break are the
+ones bounded below by `claims`. The old cap stopped exactly at `reserved`, which
+is why `reserves-backed-by-claims` survives it, and the remaining eight read
+quantities a fee does not move. That is an argument rather than a search, the
+diagonal checks one state, and step 3 is where an engine gets to disagree.
+
+Leads not pursued:
+
+- **`pandects run` knows one engine.** The shipped record carries the Foundry
+  campaign and nothing else, so the Echidna and Medusa evidence in this run lives
+  in this log as prose. That is the arrangement step 3 was told to keep and it is
+  a candidate frontier of its own, recorded in the runbook.
+- **The two carried from step 1**, unchanged.

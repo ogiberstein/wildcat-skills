@@ -1,9 +1,9 @@
 {
   "corpus": {
     "version": "0.1.0",
-    "laws": 9,
+    "laws": 10,
     "digest": {
-      "sha256": "197a01e6dbf1feea13b2845e332ddc9d89b78bb0bb20936c9203f245b0b60efd"
+      "sha256": "89b4703ab78cb18db933e8faf5c38d964993648542c0e068827f6525fb333da0"
     }
   },
   "commands": [
@@ -24,9 +24,9 @@
         },
         "sequence_length": "64",
         "corpus_digest": {
-          "sha256": "197a01e6dbf1feea13b2845e332ddc9d89b78bb0bb20936c9203f245b0b60efd"
+          "sha256": "89b4703ab78cb18db933e8faf5c38d964993648542c0e068827f6525fb333da0"
         },
-        "laws_searched": 9,
+        "laws_searched": 10,
         "outcome": "passed",
         "engine_version": "forge Version: 1.7.1"
       }
