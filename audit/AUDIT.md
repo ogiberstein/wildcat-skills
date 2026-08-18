@@ -1135,3 +1135,16 @@ them, and that both prior ledger rows are byte-identical to before.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Outline-extractor run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+67/67, root 24/24. The review checked the move: the Python extractor's
+output is pinned by the untouched fixture test, the registry refuses
+unregistered suffixes naming its supported list, and the refusal-message
+test moved with the message as the runbook records.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
