@@ -472,3 +472,42 @@ That harness is step 3's remaining content and the last surface without a check.
 
 Leads not pursued: the merged-fixture question from round 3, `pandects run`
 knowing one engine, and the two carried from step 1.
+
+## Withdrawal batch fee law, step 2, round 7 -- 2026-08-18
+
+Reviewed: every file in the plugin that names laws, enumerated mechanically
+before any of them was opened, because three rounds running had found the same
+defect one file further along and inspection had picked the files in the wrong
+order each time. Ten Solidity files import two or more laws and three documents
+name three or more. One of the ten had not been looked at.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R7-01 | medium | `test/Wildcat.t.sol` | Step 2 added a row to the integration's applicability table saying the model holds the new law once corrected, with figures, and added no assertion behind it. `test_the_model_holds_every_one_state_law_it_claims` asserted five laws and the document claimed six. That document's own idiom is the opposite: it says of two other claims that they are watched happening rather than described, and the check requiring every catalogued law to appear in it exists because a claim nobody tests is the thing this plugin refuses. The claim was mine and it shipped bare. | Fixed in this round: the law joins the law-by-law assertion, and `test_a_delinquent_market_can_take_no_fee_from_a_queued_batch` drives the market into the state the notes describe and asserts the figures they quote -- 200 held, a batch owed 1000 unpaid, and a fee of nothing where the earmark cap permitted 800. Reverting the model's cap to `reserved()` makes it fail with "a fee was taken out of a queued batch". |
+
+**What ran.** 77 Solidity tests under forge 1.7.1, up from 76 by the assertion
+added here, 111 Python tests, the repository's 20, and `pandects check` over ten
+laws. No engine or Slither re-run: the only contract touched is a test.
+
+**The enumeration, and what it settles.** Every shipped surface that names laws is
+now either held to the catalogue by a test or scheduled with the reason it cannot
+be. `adapters/CorpusBase.sol` binds them and is gated; the Foundry, Echidna and
+Medusa adapters decide which are asked and are gated; `docs/catalogue.md` is
+generated and drift-checked; `integrations/wildcat/APPLICABILITY.md` is gated for
+mention and, after this round, asserted for the claim it makes; `test/Corpus.t.sol`
+walks a diagonal of six; `test/SoundInvariant.t.sol` searches all six.
+`src/campaigns/Specimens.sol` is the one surface left and it is step 3's, with its
+check required in the same commit as its property. `docs/withdrawal-batch-fee-law/study.md`
+names six law ids and is a record rather than a surface, which step 4 states.
+
+Leads not pursued:
+
+- **A gate on the applicability table itself.** Every law the table says holds
+  could be required to appear in an assertion in `test/Wildcat.t.sol`. It would
+  have caught S2-R7-01 the way the adapter gates caught rounds 4 to 6. It needs a
+  parser for a prose table with three laws that legitimately do not hold and one
+  that holds under a condition, and a fragile parser guarding a document is a
+  worse trade than the check is worth. Recorded rather than built, and it is a
+  candidate frontier.
+- The merged-fixture question from round 3, `pandects run` knowing one engine, and
+  the two carried from step 1.
