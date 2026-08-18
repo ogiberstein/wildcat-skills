@@ -1107,3 +1107,17 @@ scan by decision, recorded as a comment at the check itself.
 Zero findings. Leads not pursued: .svgz and other compressed asset variants
 stay readable; they are binary when deflated on disk and out of the held
 job's evidence either way.
+
+## Rule-classes run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+new bundle. Horos 65/65, root 24/24. The review held the register's rows:
+the first capture's files are untouched (git shows additions only), the
+delta test proves the added entries are exactly the two families with
+nothing removed, both bundles name the same commit, and the consistency
+tests read only committed files.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
