@@ -1186,3 +1186,23 @@ slices verbatim and the confession exact.
 Zero findings in the round itself. Leads not pursued: multiline arrow-
 function signatures quote only their first line; the differential in step 4
 measures whether that loses names in practice.
+
+## Outline-extractor run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+92/92, root 24/24. The review held the register's rows: the oracle tool is
+committed but nothing in the runtime or test path imports or invokes it
+(the consistency tests read only the committed results JSON); the bundle
+names its commit, oracle version and altitudes; the acceptance numbers
+(missed 0, extra 0, crashes 0) are asserted by test rather than quoted; and
+the three corpus-found fixes each landed with the corpus rerun after them.
+The step 2 lead (a regex with braces inside a template expression) did not
+occur in 866 real files: no file crashed or misparsed on it, so it stays a
+recorded limitation.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the corpus is one repository's style
+(prettier, semicolon-free); a semicolon-heavy or decorator-heavy corpus
+would exercise different paths and can join the evidence when one matters.

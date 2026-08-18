@@ -281,8 +281,10 @@ HEADED = frozenset({"function", "class", "interface", "enum", "namespace", "modu
 SIMPLE = frozenset({"import", "type", "const", "let", "var"})
 
 # Statement-final characters that suppress the newline statement end: a line
-# ending in one of these still owes the next line something.
-CONTINUERS = frozenset(",=&|+-*/<>?:.([{")
+# ending in one of these still owes the next line something. A bare `>` is
+# not here: it ends a generic or a JSX tag. The arrow survives as the
+# two-character token the scanner folds it into.
+CONTINUERS = frozenset(",=&|+-*/?:.([{") | {"=>"}
 
 
 def _line_of(source, offset):
@@ -291,14 +293,22 @@ def _line_of(source, offset):
 
 def _masked(source, spans):
     """The source with every non-code span blanked, newlines kept, so
-    structure tracking cannot be derailed by braces inside literals."""
+    structure tracking cannot be derailed by braces inside literals.
+
+    A string, template or regex is a value, so its first character becomes a
+    sentinel: without one, a semicolon-free line like `const K = "v"` ends
+    on a stale `=` and swallows the statements after it. Comments stay
+    fully blank; they are not values and must not end anything."""
     parts = []
     for kind, start, end in spans:
         segment = source[start:end]
         if kind == "code":
             parts.append(segment)
-        else:
-            parts.append("".join(ch if ch == "\n" else " " for ch in segment))
+            continue
+        blank = "".join(ch if ch == "\n" else " " for ch in segment)
+        if kind in ("string", "template", "regex") and blank[:1] == " ":
+            blank = "#" + blank[1:]
+        parts.append(blank)
     return "".join(parts)
 
 
@@ -311,6 +321,7 @@ def _statement_end(mask, i, end):
         c = mask[i]
         if c in OPENERS:
             depth += 1
+            last = c
         elif c in CLOSERS:
             depth -= 1
             if depth < 0:
@@ -322,7 +333,7 @@ def _statement_end(mask, i, end):
             if last and last not in CONTINUERS:
                 return i + 1
         elif not c.isspace():
-            last = c
+            last = "=>" if c == ">" and last == "=" else c
         i += 1
     return end
 
