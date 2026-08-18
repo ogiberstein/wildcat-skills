@@ -1041,3 +1041,14 @@ inert data that no suite imports or executes.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Live-evidence run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+two committed spec documents. Root 24/24, horos 51/51. The step adds prose
+only; the review checked the committed copies match the receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
