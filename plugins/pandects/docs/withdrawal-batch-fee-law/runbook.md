@@ -69,22 +69,30 @@ the intermediate quantities.
 - `catalogue/pandects.json`, one entry: family `claims`, bounds `exact`,
   applicability naming the accounting model, the assumptions that would make the
   law false, and the four observables it requires.
-- `docs/catalogue.md`, the rendering for that entry.
+- `docs/catalogue.md`, regenerated with `python3 scripts/pandects.py render`
+  rather than edited. It is a rendering of the catalogue, `tests/test_documents.py`
+  checks it against the renderer, and a hand-edit either fails that check or
+  makes a real drift invisible by matching it.
 - `test/counterexamples/Claims.t.sol`, extended.
 - `test/Corpus.t.sol`, the new law and specimen added to the corpus tables the
   diagonal walks.
 
 **Tests.** One counterexample asserting `claims`, the queue total, `reserved` and
-`held` at the violating state, not only the verdict. The diagonal grows from 9x9
-to 10x10 over the single-state half. Expect the plugin catalogue suite to rise
-above 106 by the entries the new law adds, and `forge test` to rise above 72.
+`held` at the violating state, not only the verdict. The diagonal in
+`test/Corpus.t.sol` runs over the single-state laws alone, where `COUNT` is 5, and
+becomes 6; `test/Pairs.t.sol` runs over 3 and does not move. Ten is the corpus
+total and not a table dimension. Expect the plugin catalogue suite to rise above
+106 by the entries the new law adds, and `forge test` to rise above 72.
 
 **Watch.** The study's first risk. Around twenty existing call sites drive
 `reserve` and `accrueFee`, including repeated `reserve(1); reserve(1)` pairs in
 `test/Corpus.t.sol`, `test/Adapters.t.sol` and the counterexamples. A tighter cap
 can turn one of those into a no-op and leave a passing test asserting a state it
 no longer reaches. Read every one of them against the new caps rather than
-trusting a green suite.
+trusting a green suite. One is already known safe:
+`test_the_sound_reference_holds_every_law` charges its fee before it reserves
+anything, so the queue is empty when the cap applies and the tightening cannot
+reach it.
 
 ## Step 3: Reach the specimen from both engines
 
@@ -94,14 +102,21 @@ engines found.
 **Entry.** Step 2's exit state.
 
 **Exit.** Echidna and Medusa both drive the new specimen and both report the
-violation; the harness exposes it under `echidna_` and `property_`; a search
-record for each run states engine, configuration digest, sequence length and
-corpus digest, with Echidna's seed recorded and Medusa's stated as unavailable
-rather than invented.
+violation, and the harness exposes it under `echidna_` and `property_`.
+
+Two mechanisms carry the evidence and they are not interchangeable.
+`python3 scripts/pandects.py run` writes a machine search record, and it knows one
+engine: `foundry`. It has no Echidna or Medusa support, and an engine that did not
+run is absent from a record rather than present and empty, which is the runner's
+own rule. So the Foundry record comes from that command, and the two fuzzers are
+recorded the way the original delivery recorded them, as prose in the audit round
+naming the engine, the configuration, the sequence and what failed, with Echidna's
+seed given and Medusa's stated as unavailable rather than invented. Do not extend
+the runner to a second engine in this step; that is its own frontier.
 
 **Files.** `src/campaigns/Specimens.sol`, extended. `adapters/echidna/CorpusEchidna.sol`
 and `adapters/medusa/CorpusMedusa.sol` where the new property needs an entry
-point. A run record beside the existing campaign evidence.
+point.
 
 **Tests.** `test/Corpus.t.sol` or `test/Adapters.t.sol` extended so the new
 entry point is exercised without an engine, the way the existing prefixed entry
@@ -128,13 +143,14 @@ python3 scripts/pandects.py check
 ```
 
 Every claim of "nine laws" reconciled; the twelve documents carrying the frontier
-sentence updated; `python3 -m unittest discover -s tests` green, which is the gate
-on the marketplace-context blocks; the ledger advanced exactly once under
+sentence updated; `docs/catalogue.md` regenerated rather than edited;
+`python3 -m unittest discover -s tests` green, which is the gate on the
+marketplace-context blocks; the ledger advanced exactly once under
 `plugins/hexaemeron/skills/VERSIONING.md`.
 
 **Files.** `README.md` at the repository root, and inside the plugin
 `README.md`, `AGENTS.md`, `docs/applicability.md`, `docs/design.md`,
-`docs/writing-a-law.md`, `docs/catalogue.md`, `adapters/medusa/README.md`,
+`docs/writing-a-law.md`, `adapters/medusa/README.md`,
 `integrations/wildcat/APPLICABILITY.md`, `audit/AUDIT.md` for its
 marketplace-context block only, `skills/pandects/SKILL.md`,
 `skills/pandects/EVOLUTION.md`, and the `.agents/skills/pandects/SKILL.md` mirror.
@@ -152,6 +168,11 @@ rather than counting it among the laws that always held.
 `audit/AUDIT.md` records past audit rounds. Those are history and stay as
 written, including their nine-law counts. Only its marketplace-context block is
 mutable.
+
+This run's own study and runbook are records on the same footing, and they are
+not reconciled either. Both say Pandects ships nine laws, which is what was true
+when the spec was written and is the whole reason the run exists. Rewriting them
+to say ten would leave a spec describing work nobody needed to do.
 
 The ledger advances once: evolution increments, generation and epoch stay, and
 either one evidenced next job is recorded or the frontier is set to `mature` with
