@@ -876,3 +876,11 @@ The Sapheneia prose diff has no open finding. Status: clean.
 The review compared all five files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It checked ten ranked rules, four stop phrases, five exceptions, the activation lifetime, other-skill precedence, and frontier digest `06034ab3a9291b328ab65bef2436652833ac137dcb5726dee911a08fa632df87`.
 
 Root `22/22`, Sapheneia `4/4`, two Agent Skills validations, five Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check` pass. The security suite remains waived because only Markdown changed.
+
+## Repository-wide Brevitas pass, step 4, round 1 -- 2026-08-18
+
+The Hermes prose diff has no open finding. Status: clean.
+
+The review compared six files with entry ref `a7d001009e7e2a7e63343e206ef10ecabc2cab42`. It retained Gates 1 through 6, exits `0`, `10`, `20`, `30`, `40`, `50`, and `60`, all storage-layout and unchecked-arithmetic refusals, and frontier digest `7d5489a979e01a2ac5f27ad9dbc70811375104a76482f218b72b559bf6298f40`. No live Wildcat gas result or candidate was established.
+
+Root `22/22`, Hermes `14/14`, two Agent Skills validations, six Imprimatur and Brevitas `--source` checks, protected SHA verification, and `git diff --check` pass. The security suite remains waived because only Markdown changed.

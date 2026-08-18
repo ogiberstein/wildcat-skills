@@ -4,7 +4,7 @@
 > **Marketplace context: Hermes.** Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate. Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review. **Current frontier:** No complete, reproducible live Wildcat evidence bundle is published.
 <!-- marketplace-context:end -->
 
-Use this list to nominate one Gate 2 class. Search for candidates, make a prediction, then let Hermes measure it. A plausible compiler story does not count as a result.
+Nominate one Gate 2 class, predict its effect, then measure it. A plausible compiler story is not a result.
 
 | Hermes class | Candidate idea | Usual risk | Checks before trying it |
 | --- | --- | --- | --- |
@@ -23,7 +23,7 @@ Use this list to nominate one Gate 2 class. Search for candidates, make a predic
 
 ## Quick source searches
 
-Run searches from the Foundry root and adapt names to the repository:
+Search from the Foundry root, adapting names to the repository:
 
 ```bash
 rg -n 'for\s*\(|while\s*\(' src
@@ -33,20 +33,20 @@ rg -n 'memory' src
 rg -n 'require\([^,]+,\s*"|revert\("' src
 ```
 
-Repeated reads deserve a manual pass because source search cannot tell an `SLOAD` from a cached local. Trace the function and mark every external call or write between reads before hoisting anything.
+Source search cannot distinguish an `SLOAD` from a cached local. Trace repeated reads and mark each intervening external call or write before hoisting.
 
 ## Pick in this order
 
-Start with repeated storage reads, calldata copies, and custom errors. Move to loop mechanics or duplicate external calls once the easy measurements are exhausted. Leave storage packing, unchecked arithmetic, and assembly until the saving is worth their proof cost.
+Start with repeated storage reads, calldata copies and custom errors. Then try loop mechanics or duplicate external calls. Leave storage packing, unchecked arithmetic and assembly until the saving merits their proof cost.
 
-Check stateless libraries early. They cannot break an inherited storage layout, though their callers, arithmetic, ABI, and tests still go through every Hermes gate.
+Check stateless libraries early. They cannot break inherited storage layout, but their callers, arithmetic, ABI and tests still face every gate.
 
 ## Keep compiler settings separate
 
-Treat a Solidity version change, `optimizer_runs`, `via_ir`, or EVM-version change as its own experiment from a clean baseline. It reprices too much code to share attribution with a source-level class. Run the gas diff, full tests, layout and method checks, and record deployed bytecode size with `forge build --sizes`.
+Treat a Solidity version, `optimizer_runs`, `via_ir` or EVM-version change as a separate experiment from a clean baseline. It reprices too much code to share attribution with a source-level class. Run the gas diff, full tests, layout and method checks; record deployed bytecode size with `forge build --sizes`.
 
 ## Noise and target selection
 
-Pin the fuzz seed for comparable gas runs, then use the unpinned Gate 4 run to catch seed overfitting. Deterministic unit-test deltas may be small and still real. Gas deltas from `test/Fuzz.t.sol` or a named invariant test need another measurement when they move across repeated seeds.
+Pin the fuzz seed for comparable runs, then use the unpinned Gate 4 run to catch seed overfitting. Small deterministic unit-test deltas can be real. Remeasure `test/Fuzz.t.sol` or named-invariant deltas that move across seeds.
 
-Declare target expressions before the candidate is measured. An unexpected saving means the prediction was wrong; inspect it before acceptance. Hermes rejects every regression, including rows outside the declared target set.
+Declare target expressions before measurement. Inspect an unexpected saving before acceptance. Hermes rejects every regression, including rows outside the target set.

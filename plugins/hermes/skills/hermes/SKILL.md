@@ -5,49 +5,38 @@ metadata:
   version: "0.1.0"
 ---
 
-# hermes gas optimiser
+# Hermes gas optimiser
 
 ## Frontier
 
-Hermes owns its own gas-optimisation evidence frontier, not Hexaemeron's delivery or
-Solidity frontier. Its version, held target, next job, and maturity
-state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run
-another frontier pass after that ledger becomes mature.
+Hermes owns the gas-optimisation evidence frontier, not Hexaemeron's delivery or Solidity frontier. [EVOLUTION.md](EVOLUTION.md) holds its version, target, next job and maturity. Do not recommend or run another frontier pass once the ledger is mature.
 
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate.
+Hermes measures one Solidity gas optimisation class at a time and rejects the candidate unless its Foundry evidence clears every gate.
 
-**Use another tool when.** Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review.
+**Use another tool when.** Use Pandects for credit-specific laws or Hexaemeron's audit skills for a broader security review.
 
 **Current frontier.** No complete, reproducible live Wildcat evidence bundle is published.
 <!-- marketplace-context:end -->
 
-The ideas are cheap. The evidence is the job.
-
-Use `scripts/hermes.py` for every run. It owns the order, seals the baseline, writes the evidence, and exits non-zero at the first bad gate. Use [references/optimisation-catalogue.md](references/optimisation-catalogue.md) to pick a candidate class.
-
-## Day to day
-
-**Developers.** A gas change shaves a few hundred units off a hot path and nobody can say whether behaviour moved with it. Run Hermes on that one optimisation class and the review arrives with the snapshot diff, both fuzz passes, the storage layout comparison and a `result.json`, rather than a number and an assurance.
-
-**Security and audit.** A gas change arrives from outside the team. Instead of reading it for intent, put it through Gate 5 to see whether any protected contract's storage layout or method identifiers moved, and Gate 6 for unchecked arithmetic that reaches persistent state.
+Use `scripts/hermes.py` for every run. It orders the gates, seals the baseline, writes the evidence and exits non-zero at the first failure. Pick one candidate class from [references/optimisation-catalogue.md](references/optimisation-catalogue.md).
 
 ## Before touching source
 
-1. Work from the Foundry root. If the repository keeps `foundry.toml` under `build/`, pass `build/` as `--repo`.
+1. Work from the Foundry root. If `foundry.toml` is under `build/`, pass `build/` as `--repo`.
 2. Read the repository instructions and satisfy its issue or branch rules before writing.
-3. Start from a clean Git tree. Finish unrelated work first.
-4. Pin one fuzz seed for the run. Keep any fork-test exclusions identical through Gates 1 to 4.
-5. Re-derive the layout set. Search for proxies, `delegatecall`, clones, factories, hooks, role providers, and contracts called by them. Treat doubt as frozen layout.
-6. Name the intended gas measurements before editing. Each `--gas-target` is a regular expression and must contain a measured saving.
+3. Start from a clean Git tree; finish unrelated work first.
+4. Pin one fuzz seed. Keep fork-test exclusions identical through Gates 1 to 4.
+5. Re-derive the layout set by searching for proxies, `delegatecall`, clones, factories, hooks, role providers and contracts they call. Treat doubt as frozen layout.
+6. Name gas measurements before editing. Each `--gas-target` is a regular expression and must contain a measured saving.
 
-Set `HERMES_PY` to this skill's `scripts/hermes.py` path. Keep the run directory printed by Gate 1; every later command uses it.
+Set `HERMES_PY` to this skill's `scripts/hermes.py`. Keep the Gate 1 run directory for every later command.
 
 ## Gate 1: seal a green baseline
 
-List every hook, role provider, proxied implementation, facet, factory-sensitive contract, and other frozen layout with `--protected-contract`. Use a qualified `path:Contract` identifier when names collide.
+List every hook, role provider, proxied implementation, facet, factory-sensitive contract and other frozen layout with `--protected-contract`. Qualify collisions as `path:Contract`.
 
 ```bash
 python3 "$HERMES_PY" baseline \
@@ -58,7 +47,9 @@ python3 "$HERMES_PY" baseline \
   --protected-contract "Hooks=src/Hooks.sol:Hooks"
 ```
 
-Repeat `--no-match-path` and `--protected-contract` as needed. Omit exclusions that the repository does not need.
+Repeat `--no-match-path` and `--protected-contract` as needed. Omit unnecessary exclusions.
+
+### When no contract is frozen
 
 If no frozen contract is in scope, say so explicitly:
 
@@ -69,21 +60,21 @@ python3 "$HERMES_PY" baseline \
   --assert-no-protected-contracts
 ```
 
-Add `--layout-contract "Label=path:Contract"` for a non-frozen contract whose layout still needs recording. This is useful for a deliberate packing change.
+Add `--layout-contract "Label=path:Contract"` when a non-frozen contract's layout still needs recording, such as for deliberate packing.
 
-Gate 1 runs `forge snapshot` and then `forge test`, in that order. It records the snapshot, green test result, Forge version, canonical Foundry config, Git revision, Solidity sources, storage layouts, and method identifiers. A dirty tree, red suite, missing snapshot, failed inspect, or invalid JSON ends the run.
+Gate 1 runs `forge snapshot` then `forge test`. It records the snapshot, green test result, Forge version, canonical Foundry config, Git revision, Solidity sources, storage layouts and method identifiers. A dirty tree, red suite, missing snapshot, failed inspect or invalid JSON ends the run.
 
 ## Gate 2: make one class of change
 
-Choose one value from the catalogue and make only that kind of source change. Do not mix cleanup, compiler settings, test edits, or a second gas idea into the candidate.
+Choose one catalogue value and make only that source change. Do not mix cleanup, compiler settings, test edits or another gas idea into the candidate.
 
-Review `candidate.solidity.diff` before attesting. The harness rejects Solidity file additions or removals, test-source edits, an empty candidate, added `unchecked` outside `unchecked-arithmetic`, and added assembly outside `assembly`. The attestation remains a judgement: read the diff and confirm that every hunk belongs to the declared class.
+Read `candidate.solidity.diff` before attesting that every hunk belongs to the declared class. The harness rejects Solidity file additions or removals, test-source edits, an empty candidate, `unchecked` added outside `unchecked-arithmetic`, and assembly added outside `assembly`.
 
-If the required property test is absent, add it in a preparatory change, get green, and take a fresh baseline. The optimisation candidate uses the existing fuzz suite rather than changing its own oracle.
+If the property test is absent, add it in a preparatory change, get green and take a fresh baseline. The candidate must use the existing fuzz suite, not change its oracle.
 
-## Gates 3 to 6: verify the candidate
+## Verify an ordinary candidate
 
-For an ordinary candidate:
+Run Gates 3 to 6:
 
 ```bash
 python3 "$HERMES_PY" verify \
@@ -95,14 +86,18 @@ python3 "$HERMES_PY" verify \
   --no-sensitive-unchecked
 ```
 
-For unchecked arithmetic outside state-sensitive code, add a real explanation:
+## Explain non-sensitive unchecked arithmetic
+
+For unchecked arithmetic outside state-sensitive code, add a concrete explanation:
 
 ```bash
   --no-sensitive-unchecked \
   --non-sensitive-rationale "The loop counter is bounded by the in-memory array length and cannot affect persistent state, asset balances, external call parameters, or rounding."
 ```
 
-For unchecked arithmetic that can affect persistent state, asset accounting, external calls, permissions, or rounding, run the existing targeted differential or property test:
+## Verify state-sensitive unchecked arithmetic
+
+If unchecked arithmetic can affect persistent state, asset accounting, external calls, permissions or rounding, run the existing targeted differential or property test:
 
 ```bash
 python3 "$HERMES_PY" verify \
@@ -116,53 +111,43 @@ python3 "$HERMES_PY" verify \
   --property-proof "Compare the checked reference and candidate across the complete reachable input domain; assert equal state transitions and equal overflow reverts at the arithmetic boundaries."
 ```
 
-### Gate 3: quantify the gas change
+## Gate requirements
 
-Run `forge snapshot --diff <baseline>` and capture a candidate snapshot. Reject a positive deterministic delta anywhere, a changed measurement set, a target with no match, or a target with no saving. Then run `forge test --gas-report`.
-
-Historical Foundry snapshots also contain fuzz statistics whose sampled inputs can change when the compiled bytecode changes. Hermes records their baseline and candidate means and medians, but does not call those aggregates a gas regression or saving. It still rejects a changed fuzz-test set or run count. Foundry `invariant_callSummary()` rows are stricter: their test set, run count, call count, and revert count must stay identical.
-
-### Gate 4: prove behaviour is unchanged
-
-Run the full `forge test` suite with the pinned seed, followed by a full unpinned run. Any failure rejects the candidate.
-
-### Gate 5: preserve layouts and selectors
-
-Re-run `forge inspect <C> storageLayout --json --force` and `methodIdentifiers` for every recorded contract. The layout comparison canonicalises solc's compilation-local AST IDs, while retaining raw inspector output in evidence; it hard-aborts on any structural protected-layout difference or method-selector difference. A declared layout change is allowed only for an unprotected contract under the rules below.
-
-### Gate 6: prove state-sensitive unchecked arithmetic
-
-When `--sensitive-unchecked` applies, run the named targeted differential or property test and record its oracle. Otherwise, record why the candidate does not introduce or rely on state-sensitive unchecked arithmetic.
+- Gate 3 runs `forge snapshot --diff <baseline>`, captures a candidate snapshot, then runs `forge test --gas-report`. Reject any positive deterministic delta, changed measurement set, unmatched target or target without a saving.
+- Gate 3 records baseline and candidate means and medians for fuzz statistics whose sampled inputs can change with compiled bytecode, without calling them a regression or saving. Reject a changed fuzz-test set or run count; `invariant_callSummary()` must retain the same test set, run count, call count and revert count.
+- Gate 4 runs the full `forge test` suite with the pinned seed, then a full unpinned run. Any failure rejects the candidate.
+- Gate 5 re-runs `forge inspect <C> storageLayout --json --force` and `methodIdentifiers` for every recorded contract. Canonicalise solc's compilation-local AST IDs, retain raw output, abort on structural protected-layout or method-selector differences, and allow a declared layout change only for an unprotected contract under the rules below.
+- Gate 6 runs the named targeted differential or property test with `--sensitive-unchecked` and records its oracle. Otherwise, record why the candidate neither introduces nor relies on state-sensitive unchecked arithmetic.
 
 ## Deliberate layout change outside the frozen set
 
-Only `storage-packing` and `constants-immutables` may declare one. The contract must have been listed with `--layout-contract`, never `--protected-contract`.
+Only `storage-packing` and `constants-immutables` may declare a change. The contract must be listed with `--layout-contract`, never `--protected-contract`.
 
 ```bash
   --allow-unprotected-layout-change \
   --layout-change-rationale "No proxy, hook, role provider, delegate call, deployed factory instance, storage-reading test, or indexer consumes this layout."
 ```
 
-Hermes records the diff. It rejects an undeclared difference, a declared difference that never occurred, or any difference on the frozen set.
+Hermes records the diff and rejects an undeclared difference, an absent declared difference or any difference on the frozen set.
 
 ## State-sensitive arithmetic property standard
 
 Before accepting the Gate 6 result, inspect the named test and confirm all of the following:
 
-- Exercise the changed unchecked operation rather than a neighbouring helper.
+- Exercise the changed unchecked operation, not a neighbouring helper.
 - Compare against the original checked implementation or enforce an equivalent property oracle.
 - Preserve checked overflow and underflow behaviour; a wrapped result cannot stand in for a reference revert.
-- Cover applicable `0`, `1`, maxima, time deltas, input bounds, balance bounds, rounding boundaries, plus the exact safe and unsafe arithmetic edges.
+- Cover applicable `0`, `1`, maxima, time deltas, input bounds, balance bounds, rounding boundaries and the exact safe and unsafe arithmetic edges.
 - Avoid a `bound()` or assumption that removes the dangerous region.
-- Keep the existing fuzz or invariant configuration from the named test path, such as `test/Fuzz.t.sol`, with the baseline seed recorded in the command.
+- Keep the named path's fuzz or invariant configuration, such as `test/Fuzz.t.sol`, and record the baseline seed in the command.
 
-A comment explaining why arithmetic looks safe is useful review context. It is not Gate 6 evidence.
+A comment that arithmetic looks safe is context, not Gate 6 evidence.
 
 ## Accept, reject, repeat
 
-Exit `0` plus `result.json` status `accepted` is the acceptance signal. Exit codes identify the rejected gate: `10`, `20`, `30`, `40`, `50`, or `60`. `result.json`, the command logs, gas comparison, source diff, layouts, and method maps stay together in the run directory.
+Exit `0` with `result.json` status `accepted` signals acceptance. Rejected gates exit `10`, `20`, `30`, `40`, `50` or `60`. Keep `result.json`, command logs, gas comparison, source diff, layouts and method maps together in the run directory.
 
-Stop after any rejection. Do not tweak tolerances, alter the target set after seeing the result, weaken a test, or add another optimisation to cover the loss. Remove only the candidate changes, return to the last green state, and begin again at Gate 1.
+Stop after a rejection. Do not tweak tolerances, alter the target set after seeing the result, weaken a test or add another optimisation to hide the loss. Remove only the candidate, return to the last green state and restart at Gate 1.
 
 After acceptance, promote the candidate snapshot deliberately:
 
@@ -170,7 +155,7 @@ After acceptance, promote the candidate snapshot deliberately:
 python3 "$HERMES_PY" promote --run-dir "<run-dir>"
 ```
 
-That accepted state becomes the baseline for the next class. Never run two classes through one Hermes record.
+The accepted state becomes the next class's baseline. Never run two classes through one Hermes record.
 
 ## Refuse shortcuts
 
