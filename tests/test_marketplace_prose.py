@@ -207,6 +207,47 @@ class MarketplaceProseTests(unittest.TestCase):
                     "canonical skills must not carry shadow README.md mirrors",
                 )
 
+    def test_pandects_prose_counts_the_laws_the_catalogue_holds(self):
+        """Two documents state the corpus size in prose and neither derives it.
+
+        The rendered catalogue derives both of its counts and the adapters are held
+        to theirs by the plugin's own suite. These two are hand-written sentences in
+        browsing prose, and a frontier run that adds a law has to remember them. The
+        withdrawal-batch-fee run corrected five such counts and missed a sixth, which
+        is the argument for anchoring them here.
+        """
+        words = [
+            "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
+            "Eight", "Nine", "Ten", "Eleven", "Twelve",
+        ]
+        catalogue = json.loads(
+            (ROOT / "plugins" / "pandects" / "catalogue" / "pandects.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        laws = catalogue["laws"]
+        total = words[len(laws)].lower()
+        exact = words[len([law for law in laws if law["bounds"] == "exact"])]
+        families = words[len({law["family"] for law in laws})].lower()
+
+        landing = (ROOT / "plugins" / "pandects" / "README.md").read_text(encoding="utf-8")
+        for claim in (
+            "%s laws in %s families." % (words[len(laws)], families),
+            "%s of the %s laws are exact." % (exact, total),
+            "`laws` prints %s laws with their applicability." % total,
+        ):
+            with self.subTest(document="plugins/pandects/README.md", claim=claim):
+                self.assertIn(claim, landing)
+
+        root = (ROOT / "README.md").read_text(encoding="utf-8")
+        for claim in (
+            "The catalogue holds %s laws across conservation, accrual and withdrawal"
+            % total,
+            "%s are exact." % exact,
+        ):
+            with self.subTest(document="README.md", claim=claim):
+                self.assertIn(claim, root)
+
     def test_lazarus_release_readme_remains_digest_bound(self):
         manifest = json.loads(
             (ROOT / "plugins" / "lazarus" / "examples" / "goldfinch-v0" / "manifest.json").read_text(encoding="utf-8")

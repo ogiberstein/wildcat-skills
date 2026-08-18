@@ -7,6 +7,7 @@ import {ReservesBackedByClaims} from "../src/laws/ReservesBackedByClaims.sol";
 import {HeldAssetsPartitioned} from "../src/laws/HeldAssetsPartitioned.sol";
 import {QueueOrderPreserved} from "../src/laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../src/laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../src/laws/PooledClaimsCoverOpenBatches.sol";
 import {Sound} from "../specimens/Sound.sol";
 
 /// @title The sound reference, under search.
@@ -38,6 +39,7 @@ contract SoundInvariantTest {
     Law internal partitioned;
     Law internal ordered;
     Law internal covered;
+    Law internal pooled;
 
     constructor() {
         conserved = new ValueConserved();
@@ -45,6 +47,7 @@ contract SoundInvariantTest {
         partitioned = new HeldAssetsPartitioned();
         ordered = new QueueOrderPreserved();
         covered = new ReservesCoverPayableClaims();
+        pooled = new PooledClaimsCoverOpenBatches();
     }
 
     function setUp() public {
@@ -74,5 +77,14 @@ contract SoundInvariantTest {
     function invariant_reserves_cover_what_is_payable() public view {
         (bool held, ) = covered.check(target);
         require(held, "the sound reference declared more payable than it held");
+    }
+
+    /// The one this harness matters most for. Both of the reference's fee and
+    /// reservation caps were corrected so this holds, and a hand-derived state
+    /// is a poor way to check a cap: what has to be true is that no sequence
+    /// reaches a pool below what the queue is owed.
+    function invariant_pooled_claims_cover_open_batches() public view {
+        (bool held, ) = pooled.check(target);
+        require(held, "the sound reference owed its queue more than its pool");
     }
 }

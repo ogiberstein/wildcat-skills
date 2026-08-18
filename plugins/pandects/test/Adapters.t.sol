@@ -5,6 +5,7 @@ import {CorpusObserver} from "../adapters/CorpusBase.sol";
 import {PathIndependenceProbe} from "../adapters/foundry/PathIndependenceProbe.sol";
 import {ICreditObservables} from "../src/ICreditObservables.sol";
 import {DrivenClaimHaircutEchidna, ObservedQueueJumpedEchidna} from "../src/campaigns/Adapters.sol";
+import {FeeFromQueuedCampaign} from "../src/campaigns/Specimens.sol";
 import {Sound} from "../specimens/Sound.sol";
 import {CompoundsPerStep} from "../specimens/CompoundsPerStep.sol";
 import {QueueJumped} from "../specimens/QueueJumped.sol";
@@ -96,8 +97,8 @@ contract AdaptersTest {
         system.reserve(1);
         system.payClaim(1);
         CorpusObserver observer = new CorpusObserver(ICreditObservables(address(system)));
-        string[5] memory details = observer.explainOneState();
-        for (uint256 i = 0; i < 5; i++) {
+        string[6] memory details = observer.explainOneState();
+        for (uint256 i = 0; i < 6; i++) {
             require(bytes(details[i]).length > 0, "a verdict without a detail");
         }
         require(
@@ -108,7 +109,7 @@ contract AdaptersTest {
     }
 
     /// @notice A target with no queue still gets the reasons it can have.
-    /// @dev `explainOneState` reads all five and reverts here, which is the
+    /// @dev `explainOneState` reads all six and reverts here, which is the
     /// documented limit. `explainCore` is the three that had an answer, and the
     /// point is that they are reachable rather than taken down with the other
     /// two.
@@ -152,6 +153,46 @@ contract AdaptersTest {
     }
 
     /// @notice The engine prefix is present, and answers.
+    /// @notice Both prefixes, for the law the harness was last extended for.
+    /// @dev The two wrappers are separate functions delegating to the same
+    /// internal judgement, so one of them can be wired to the wrong law and only
+    /// a campaign under that one engine would notice. Asserting both here means a
+    /// mistake in either shows up in the deterministic suite, where the
+    /// counterexample already is.
+    function test_both_prefixes_answer_for_the_new_law() external {
+        FeeFromQueuedCampaign campaign = new FeeFromQueuedCampaign();
+        require(
+            campaign.echidna_pooled_claims_cover_open_batches(),
+            "a sound state was reported as violated"
+        );
+        require(
+            campaign.property_pooled_claims_cover_open_batches(),
+            "a sound state was reported as violated"
+        );
+
+        campaign.deposit(2);
+        campaign.borrow(1);
+        campaign.reserve(2);
+        campaign.accrueFee(1);
+
+        require(
+            !campaign.echidna_pooled_claims_cover_open_batches(),
+            "the campaign missed the fee taken from a queued batch"
+        );
+        require(
+            !campaign.property_pooled_claims_cover_open_batches(),
+            "the campaign missed it under the other prefix"
+        );
+        require(
+            campaign.echidna_value_conserved(),
+            "an unrelated law was dragged down"
+        );
+        require(
+            campaign.echidna_reserves_backed(),
+            "an unrelated law was dragged down"
+        );
+    }
+
     function test_the_echidna_entry_points_answer() external {
         ObservedQueueJumpedEchidna observed = new ObservedQueueJumpedEchidna();
         require(observed.echidna_value_conserved(), "a sound state was reported as violated");

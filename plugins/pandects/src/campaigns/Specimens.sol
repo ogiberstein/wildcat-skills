@@ -9,6 +9,7 @@ import {ReservesBackedByClaims} from "../laws/ReservesBackedByClaims.sol";
 import {HeldAssetsPartitioned} from "../laws/HeldAssetsPartitioned.sol";
 import {QueueOrderPreserved} from "../laws/QueueOrderPreserved.sol";
 import {ReservesCoverPayableClaims} from "../laws/ReservesCoverPayableClaims.sol";
+import {PooledClaimsCoverOpenBatches} from "../laws/PooledClaimsCoverOpenBatches.sol";
 import {DebtFallsOnlyAgainstPayment} from "../laws/DebtFallsOnlyAgainstPayment.sol";
 import {NoAccrualAtRest} from "../laws/NoAccrualAtRest.sol";
 import {RecordedClaimNeverShrinks} from "../laws/RecordedClaimNeverShrinks.sol";
@@ -22,6 +23,7 @@ import {CompoundsPerStep} from "../../specimens/CompoundsPerStep.sol";
 import {ClaimHaircut} from "../../specimens/ClaimHaircut.sol";
 import {QueueJumped} from "../../specimens/QueueJumped.sol";
 import {PayableBeyondReserves} from "../../specimens/PayableBeyondReserves.sol";
+import {FeeFromQueued} from "../../specimens/FeeFromQueued.sol";
 
 /// @title Campaign entry points, for the engines that are not Foundry.
 /// @dev Under `src/` rather than `test/` because crytic-compile skips `test/`
@@ -36,7 +38,7 @@ import {PayableBeyondReserves} from "../../specimens/PayableBeyondReserves.sol";
 /// delegates to the same internal function, so the two engines are asked the
 /// same question.
 ///
-/// Eight of these ten are expected to fail one property, and the expectation is
+/// Nine of these eleven are expected to fail one property, and the expectation is
 /// the point: a campaign that reports every property holding against a contract
 /// built to break one has not searched hard enough, and the failure is the
 /// evidence that the law is a law. `audit/AUDIT.md` records what each engine
@@ -59,6 +61,7 @@ abstract contract Campaign {
     Law internal immutable partitioned = new HeldAssetsPartitioned();
     Law internal immutable ordered = new QueueOrderPreserved();
     Law internal immutable covered = new ReservesCoverPayableClaims();
+    Law internal immutable pooled = new PooledClaimsCoverOpenBatches();
 
     PairLaw internal immutable falls = new DebtFallsOnlyAgainstPayment();
     PairLaw internal immutable atRest = new NoAccrualAtRest();
@@ -163,7 +166,11 @@ abstract contract Campaign {
     /// This is where it goes instead. Replay a failing sequence, call this,
     /// and the reason arrives with the numbers in it rather than having to be
     /// worked out again from the call trace.
-    function explain() external view returns (string[8] memory details) {
+    /// The width is the count of laws this harness carries, one-state first and
+    /// then pair, and `ShippedAdapterTests` holds it to the catalogue. A reason
+    /// missing here is the one thing this function exists to prevent, arriving in
+    /// the function itself.
+    function explain() external view returns (string[9] memory details) {
         Observation memory now_ = Observe.takeWithQueue(target());
         // slither-disable-start unused-return
         (, details[0]) = conserved.check(target());
@@ -171,10 +178,11 @@ abstract contract Campaign {
         (, details[2]) = partitioned.check(target());
         (, details[3]) = ordered.check(target());
         (, details[4]) = covered.check(target());
+        (, details[5]) = pooled.check(target());
         if (previous.queueObserved) {
-            (, details[5]) = falls.check(previous, now_);
-            (, details[6]) = atRest.check(previous, now_);
-            (, details[7]) = shrinks.check(previous, now_);
+            (, details[6]) = falls.check(previous, now_);
+            (, details[7]) = atRest.check(previous, now_);
+            (, details[8]) = shrinks.check(previous, now_);
         }
         // slither-disable-end unused-return
     }
@@ -197,6 +205,10 @@ abstract contract Campaign {
 
     function echidna_reserves_cover_payable() external view returns (bool) {
         return judge(covered);
+    }
+
+    function echidna_pooled_claims_cover_open_batches() external view returns (bool) {
+        return judge(pooled);
     }
 
     function echidna_debt_falls_only_against_payment() external view returns (bool) {
@@ -233,6 +245,10 @@ abstract contract Campaign {
 
     function property_reserves_cover_payable() external view returns (bool) {
         return judge(covered);
+    }
+
+    function property_pooled_claims_cover_open_batches() external view returns (bool) {
+        return judge(pooled);
     }
 
     function property_debt_falls_only_against_payment() external view returns (bool) {
@@ -352,6 +368,23 @@ contract QueueJumpedCampaign is Campaign {
 /// `reserves_cover_payable` is expected to fail. The others are expected to hold.
 contract PayableBeyondReservesCampaign is Campaign {
     PayableBeyondReserves internal immutable system = new PayableBeyondReserves();
+
+    function target() internal view override returns (Sound) {
+        return system;
+    }
+}
+
+/// `pooled_claims_cover_open_batches` is expected to fail once the market is
+/// illiquid and a fee has been charged. The others are expected to hold.
+///
+/// Reaching it needs four calls in one sequence: a deposit, a borrow, a
+/// withdrawal request for more than what is left held, and a fee. The request is
+/// the one an earlier draft of this comment left out, and the property cannot be
+/// reached without it: without a recorded claim nothing is owed, and without a claim larger
+/// than what is held the earmark covers it and the cap does not leak. Echidna
+/// shrinks its own sequence to those four.
+contract FeeFromQueuedCampaign is Campaign {
+    FeeFromQueued internal immutable system = new FeeFromQueued();
 
     function target() internal view override returns (Sound) {
         return system;

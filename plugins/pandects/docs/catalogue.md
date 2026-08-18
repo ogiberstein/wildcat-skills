@@ -2,10 +2,10 @@
 
 Pandects supplies executable laws for credit contracts, each paired with a
 deliberately broken specimen and a reduced counterexample. Use Fizz to generate
-a protocol-specific harness. Nine laws ship here; broader families remain in
+a protocol-specific harness. The corpus holds ten laws; broader families remain in
 the planning specification.
 
-Nine laws in three families, rendered for a reader. The catalogue itself is
+Ten laws in three families, rendered for a reader. The catalogue itself is
 `catalogue/pandects.json`, and a test fails if this document and that file stop
 naming the same laws, so this is a rendering rather than a second source.
 
@@ -200,5 +200,24 @@ Applies to a pooled lender claim denominated in one asset, with withdrawals reco
 
 - payableThrough is what the system declares, not something derived from the reserves
 - reserved assets are held against the queue and against nothing else
+- a claim is never paid more than it is owed; no law in the corpus covers that yet
+- the queue is short enough to read in one call; a law that runs out of gas traversing it reverts, and a revert is no verdict
+
+### `claims/pooled-claims-cover-open-batches/v1`
+
+> Pooled lender claims cover everything still owed on open withdrawal batches.
+
+| | |
+| --- | --- |
+| Component | `src/laws/PooledClaimsCoverOpenBatches.sol` |
+| Specimen | `specimens/FeeFromQueued.sol` |
+| Counterexample | `test/counterexamples/Claims.t.sol` |
+| Bounds | exact |
+| Reads | `totalLenderClaims`, `withdrawalQueue.claimCount`, `withdrawalQueue.claimAt` |
+
+Applies to a pooled lender claim denominated in one asset, with withdrawals recorded as an ordered queue of individual claims that keep their position once made. Assuming:
+
+- an amount recorded against a withdrawal is already owed by the pool, so nothing may reduce the pool beneath it
+- a fee is capped against the pooled claim the open batches are not already owed, rather than against what has been set aside; an earmark cannot exceed what is held, so the two part company exactly when the system is illiquid
 - a claim is never paid more than it is owed; no law in the corpus covers that yet
 - the queue is short enough to read in one call; a law that runs out of gas traversing it reverts, and a revert is no verdict

@@ -7,14 +7,14 @@ import {CorpusBase, CorpusDriver} from "../CorpusBase.sol";
 /// @notice Written once and inherited by both adapters below, so the two differ
 /// in what they can reach rather than in which laws they ask about.
 ///
-/// The three laws that need no withdrawal queue are separate from the two that
+/// The three laws that need no withdrawal queue are separate from the three that
 /// do, because a target without one reverts on the read and a revert is no
 /// verdict. An integrator with no queue wants three answers, not three reverts,
-/// so `hasWithdrawalQueue` stands the other two down.
+/// so `hasWithdrawalQueue` stands the others down.
 abstract contract OneStateInvariants is CorpusBase {
     /// @notice Whether the target implements `IWithdrawalQueueObservables`.
     /// @dev True by default. A corpus that assumed the smaller interface would
-    /// quietly skip two laws for every system that does have a queue, and
+    /// quietly skip three laws for every system that does have a queue, and
     /// quietly skipping is the failure this corpus is about.
     function hasWithdrawalQueue() public view virtual returns (bool) {
         return true;
@@ -48,6 +48,14 @@ abstract contract OneStateInvariants is CorpusBase {
             return;
         }
         (bool held, string memory why) = covered.check(target());
+        require(held, why);
+    }
+
+    function invariant_pooled_claims_cover_open_batches() public view {
+        if (!hasWithdrawalQueue()) {
+            return;
+        }
+        (bool held, string memory why) = pooled.check(target());
         require(held, why);
     }
 }

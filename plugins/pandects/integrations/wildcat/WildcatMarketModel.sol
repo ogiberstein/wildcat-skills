@@ -255,8 +255,15 @@ contract WildcatMarketModel is ICreditObservables, IWithdrawalQueueObservables {
         }
     }
 
+    /// @notice Take a protocol fee out of what lenders are owed.
+    /// @dev Capped against what the open batches are owed, not against what has
+    /// been set aside. Those two differ exactly when the market is in trouble,
+    /// as `delinquent` says, and a cap taken against the earmark lets the fee
+    /// reach value already promised to lenders waiting in a batch. On a market
+    /// holding 200 against a batch owed 1000, the earmark cap permitted a fee of
+    /// 800; this one permits nothing, because nothing is unrequested.
     function accrueFee(uint256 amount) external {
-        uint256 spoken = reserved();
+        uint256 spoken = unpaidBatches();
         uint256 available = claims > spoken ? claims - spoken : 0;
         uint256 value = bounded(amount);
         if (value > available) {

@@ -7,9 +7,9 @@ Pandects supplies executable laws for credit contracts, each paired with a delib
 
 **Try something else when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
 
-**Current frontier.** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
+**Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 
-**Next Fiat job.** Use /hexaemeron:fiat to add and prove the missing law that fees cannot reduce pooled lender claims below amounts owed on open withdrawal batches, including its specimen, reduced counterexample and applicability. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to widen the search-record runner to the Echidna and Medusa campaigns, so every engine result ships as a record carrying its engine, configuration, sequence length and corpus digest, with a seed where the engine exposes one and a stated absence where it does not. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 Executable laws for credit contracts.
@@ -52,7 +52,7 @@ setting a revert carries no verdict, so a law using `require` to mean
 
 ## What is in the catalogue
 
-Nine laws in three families. Each says what it means, where it means it, and
+Ten laws in three families. Each says what it means, where it means it, and
 which contract it is proven to catch.
 
 | Law | Statement | Caught in |
@@ -93,7 +93,7 @@ have meant is a mistake by whoever built it, so refuse and say why.
 
 ## The one tolerance
 
-Eight of the nine laws are exact. `path-independent` is not, and its bound is
+Nine of the ten laws are exact. `path-independent` is not, and its bound is
 derived rather than chosen: linear accrual on principal truncates once per
 step, so `n` small steps and one long step over the same span differ by at most
 `n - 1` units.
@@ -177,7 +177,13 @@ python3 scripts/pandects.py run --out search-record.json
 
 The record names the engine, the argv, the determinism class, the
 configuration read out of `foundry.toml` rather than restated, the sequence
-length, and a digest of the corpus that was searched. It is shaped as an
+length, and a digest of the corpus that was searched.
+
+`run` knows one engine, and it is Foundry. It emits no entry for Echidna or
+Medusa, and an engine that did not run is absent from a record rather than
+present and empty, so a campaign under either of those is not recorded by this
+command at all. Write it down where the run is reported. That gap is the corpus's
+held frontier, stated at the top of this file. It is shaped as an
 `ariadne` command entry, so a result drops into a release statement without
 translation -- shaped as, not built by: the two plugins share no code and a
 test pins the shape from this side.
@@ -253,7 +259,7 @@ forge test
 python3 scripts/pandects.py run --out search-record.json
 ```
 
-`laws` prints nine laws with their applicability. `check` reports every part
+`laws` prints ten laws with their applicability. `check` reports every part
 present. `forge test` runs both diagonals, the counterexamples, the adapters and
 the Wildcat model. `run` searches and writes the record.
 
