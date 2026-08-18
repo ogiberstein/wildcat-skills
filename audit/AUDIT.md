@@ -1148,3 +1148,21 @@ test moved with the message as the runbook records.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Outline-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 79/79, root
+24/24. The review walked the risk register's lexer rows: escapes consume
+line continuations, character classes protect a slash inside a regex, the
+newline guard bounds a wrong regex guess to one line, operator folding
+keeps arrow and equality tokens whole, and every unterminated construct
+confesses the remainder.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: inside a template expression the scanner
+treats a slash literally, so a regex literal containing a brace or backtick
+inside `${...}` can mis-span the template. Bounded to that template, and
+deferred to the step 4 corpus run, which will show whether real code does
+this before any fix is designed.
