@@ -9,7 +9,7 @@ description: >
   generate a harness for one repository; that is fizz. Never report a campaign
   under an engine that did not run.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Pandects
@@ -28,7 +28,7 @@ Pandects supplies executable laws for credit contracts, each paired with a delib
 
 **Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
 
-**Current frontier.** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
+**Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
 A fuzzer searches a state space. It cannot decide which economic facts must
@@ -119,7 +119,7 @@ the specimen written for it and holds against the others. The corpus takes no
 external Solidity dependency: there is no `lib/`, no submodule and nothing to
 fetch.
 
-The catalogue holds nine laws in three families. Conservation: value is
+The catalogue holds ten laws in three families. Conservation: value is
 conserved across held assets, debt, claims and fees; assets reserved never
 exceed the claims recorded; and reserved plus borrowable never exceed what is
 held. Accrual: debt falls only against assets arriving, rises at rest only

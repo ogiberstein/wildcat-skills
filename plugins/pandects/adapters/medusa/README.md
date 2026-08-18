@@ -1,7 +1,7 @@
 # Medusa, over an adapter you wrote
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
+> **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
 `medusa.json` carries the settings and leaves `targetContracts` empty, because
@@ -42,10 +42,15 @@ than a name somebody preferred.
 Two things differ, and both reach the search record.
 
 **Medusa exposes no seed.** Echidna takes one and reports the one it used, so a
-campaign under it can be reproduced call for call. A Medusa record therefore
-carries the engine, the configuration, the sequence length and the corpus
-digest, and says nothing about a seed -- rather than carrying a null, which
-would read as a run that had no seed instead of one nobody can read.
+campaign under it can be reproduced call for call. A record of a Medusa run
+therefore carries the engine, the configuration, the sequence length and the
+corpus digest, and says nothing about a seed -- rather than carrying a null,
+which would read as a run that had no seed instead of one nobody can read.
+
+That record is written by hand today. `pandects run` emits the Foundry campaign
+and no other engine, so nothing here produces a Medusa entry, and a Medusa
+result belongs wherever the run is reported until that changes. Widening the
+runner is the corpus's held frontier.
 
 **Medusa reports the sequence it found; Echidna shrinks it first.** Turning a
 Medusa failure into a deterministic replay is work that turning an Echidna one
