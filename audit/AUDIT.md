@@ -652,3 +652,51 @@ the count gate, the repository's 20, `pandects check` over ten laws, and Echidna
 20260816.
 
 Leads not pursued: the four accepted at the close of step 2, none touched here.
+
+## Withdrawal batch fee law, step 3, round 4 -- 2026-08-18
+
+Reviewed: the step against its own exit conditions, then the diagonal against the
+engines rather than against hand-derived states. Two conditions the runbook set for
+this step had not been met.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | medium | `test/Adapters.t.sol` | The step's exit asks for the new entry point to be exercised without an engine, the way `test_the_echidna_entry_points_answer` already does for an older law, and nothing called either of the new prefixed wrappers. They are two separate functions delegating to the same internal judgement, so one can be wired to the wrong law while the other is right, and only a campaign under that one engine would notice: the deterministic suite would pass and the other engine would agree with it. | Fixed in this round: `test_both_prefixes_answer_for_the_new_law` calls both before and after the four-call sequence, and asserts two unrelated laws stay held. Rewiring `property_pooled_claims_cover_open_batches` to a different law fails it by name. |
+| S3-R4-02 | low | `audit/AUDIT.md` | The step's exit asks that a Medusa record state the seed as unavailable rather than invent one. Round 1 recorded the Medusa run with its engine, version and call limit and said nothing about a seed at all, which is the absence this plugin's own discipline is about: silence reads as a run whose seed nobody wrote down rather than a run that has none to write. | Fixed in this round: recorded below, and the earlier table stands with this note against it. |
+
+**Medusa exposes no seed.** Medusa 1.5.1 takes no seed argument and reports none, so
+the runs in rounds 1 to 4 carry the engine, its version, the configuration digest,
+the call limit of twenty thousand and the corpus digest, and no seed. Echidna's runs
+all carry seed 20260816 from `adapters/echidna/echidna.yaml`. A Medusa campaign here
+is reproducible to the configuration and not to the sequence.
+
+**The diagonal, under search.** The deterministic diagonal asserts each specimen
+breaks its own law at one state. This is the same claim put to an engine, every
+campaign in the harness, each at roughly twenty thousand calls with seed 20260816.
+
+| campaign | the law it fails | the new law |
+| --- | --- | --- |
+| `SoundCampaign` | none | passing |
+| `MintedClaimsCampaign` | `value_conserved` | passing |
+| `OverReservedCampaign` | `reserves_backed` | passing |
+| `OverPromisedCampaign` | `held_partitioned` | passing |
+| `DebtForgivenCampaign` | `debt_falls_only_against_payment` | passing |
+| `AccruesAtRestCampaign` | `no_accrual_at_rest` | passing |
+| `CompoundsPerStepCampaign` | none searchable | passing |
+| `ClaimHaircutCampaign` | `recorded_claim_never_shrinks` | passing |
+| `QueueJumpedCampaign` | `queue_order_preserved` | passing |
+| `PayableBeyondReservesCampaign` | `reserves_cover_payable` | passing |
+| `FeeFromQueuedCampaign` | **the new law** | falsified, four calls |
+
+Every campaign fails exactly one property and it is the one its specimen was built to
+break. The new law fires on one specimen out of eleven and on none of the other ten
+under search, which is the study's second risk answered by an engine rather than by
+the argument the step opened with. Three adapter-based campaigns were run earlier in
+step 2 and agree: `ObservedQueueJumpedEchidna`, `DrivenClaimHaircutEchidna` and
+`WildcatMarketCampaign` each hold the new law and fail only their own.
+
+**What ran.** 79 Solidity tests under forge 1.7.1, up from 78 by the entry-point
+assertion, 116 Python tests, the repository's 20, `pandects check` over ten laws, and
+Echidna 2.3.3 against eight campaigns in this round.
+
+Leads not pursued: the four accepted at the close of step 2, none touched here.
