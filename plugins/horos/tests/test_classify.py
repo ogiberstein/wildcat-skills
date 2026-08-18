@@ -140,6 +140,49 @@ class ClassifyTests(unittest.TestCase):
         write(self.root, "prisma/migrations/README.md", "how we migrate\n")
         self.assertNotIn("prisma/migrations/README.md", self.entries())
 
+    def test_a_nested_gitattributes_classifies_its_own_subtree(self):
+        write(self.root, "packages/sdk/.gitattributes", "abi/** linguist-generated\n")
+        write(self.root, "packages/sdk/abi/Market.json", '{"abi": []}\n')
+        entry = self.entries()["packages/sdk/abi/Market.json"]
+        self.assertEqual(entry["category"], "generated")
+        self.assertIn("packages/sdk/.gitattributes", entry["evidence"])
+
+    def test_a_nested_gitattributes_does_not_reach_a_sibling(self):
+        write(self.root, "a/.gitattributes", "*.json linguist-generated\n")
+        write(self.root, "a/data.json", '{"x": 1}\n')
+        write(self.root, "b/data.json", '{"x": 1}\n')
+        entries = self.entries()
+        self.assertIn("a/data.json", entries)
+        self.assertNotIn("b/data.json", entries)
+
+    def test_the_innermost_scope_speaks_first(self):
+        write(self.root, ".gitattributes", "deep/** linguist-vendored\n")
+        write(self.root, "deep/.gitattributes", "*.json linguist-generated\n")
+        write(self.root, "deep/data.json", '{"x": 1}\n')
+        entry = self.entries()["deep/data.json"]
+        self.assertEqual(entry["category"], "generated")
+        self.assertIn("deep/.gitattributes", entry["evidence"])
+
+    def test_file_signatures_classify_binary_by_name(self):
+        cases = {
+            "img.png": b"\x89PNG\r\n\x1a\n" + b"x" * 8,
+            "archive.zip": b"PK\x03\x04" + b"x" * 8,
+            "doc.pdf": b"%PDF-1.7\n" + b"x" * 8,
+            "mod.wasm": b"\x00asm\x01\x00\x00\x00",
+            "font.woff2": b"wOF2" + b"x" * 8,
+        }
+        for name, content in cases.items():
+            write(self.root, name, content)
+        entries = self.entries()
+        for name in cases:
+            with self.subTest(file=name):
+                self.assertEqual(entries[name]["category"], "binary")
+                self.assertIn("file signature", entries[name]["evidence"])
+
+    def test_a_text_file_matches_no_signature(self):
+        write(self.root, "notes.txt", "PDF is mentioned but this is text\n")
+        self.assertNotIn("notes.txt", self.entries())
+
     def test_a_symlink_out_of_the_root_is_never_followed(self):
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)
