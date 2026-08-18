@@ -43,6 +43,71 @@ Three rules hold the release together:
    maps the preserved source again and requires the bytes, order and source
    selectors to agree.
 
+## How it works
+
+The first release captures Goldfinch's borrower-side record: 34 borrow and 477
+repay entities mapped into 511 canonical rows. Two Euler releases now add a
+real Euler v1 canonical-proxy borrow log and a fixed Euler V2 owner/second
+activity response from the Euler V3 API. Each row keeps the complete
+venue-native record and names the source selector, adapter version and mapping
+rule that produced it. Euler V2 protocol generation and Euler V3 source API
+remain separate fields.
+
+A separate Compound v3 Phase 0 path consumes Alexandria's verified raw release
+and rebuilds non-canonical ordered calls, relevant proxy-storage writes and one
+signed-principal transition. It establishes the recorded interpretation method
+for one transaction; the canonical Compound event adapter and interval
+specimen remain Phase 1 work.
+
+The release is four files doing separate jobs. `source.json` is the preserved
+response. `capture.json` records where and when it was taken. `events.jsonl` is
+the interpretation. `coverage.json` binds all three by digest, counts what was
+mapped and what was not, and states the evidence gaps.
+
+Verification does not stop at those digests. It checks the capture against the
+source, confines every path to the release directory, requires one ordered
+source selector per event and rebuilds the canonical bytes from the preserved
+input. The worked release is unsigned and its block boundary is what the hosted
+indexer reported, so a clean run establishes internal consistency rather than
+publisher authenticity or an independent chain proof.
+
+## What it ships
+
+- the standard-library [`tabularium.py`](./scripts/tabularium.py)
+  builder and offline verifier;
+- versioned event schemas [v1](./schemas/canonical-event-v1.json)
+  and [v2](./schemas/canonical-event-v2.json), plus coverage
+  schemas [v1](./schemas/coverage-manifest-v1.json) and
+  [v2](./schemas/coverage-manifest-v2.json);
+- the complete [`goldfinch-v0`](./examples/goldfinch-v0/README.md)
+  release, its data dictionary and a fresh-directory rebuild demonstration;
+- source-bound [`euler-v1-v0`](./examples/euler-v1-v0/README.md)
+  and [`euler-v2-v0`](./examples/euler-v2-v0/README.md)
+  releases with their own dictionaries and rebuild demonstrations;
+- a non-canonical [Compound v3 Phase 0 witness](./examples/compound-v3-phase0-v0/README.md)
+  rebuilt from Alexandria's verified release;
+- an [adapter guide](./docs/adding-an-adapter.md) and an
+  immutable [release policy](./docs/release-policy.md); and
+- 134 tests and an audit log
+  ([`audit/AUDIT.md`](./audit/AUDIT.md)) recording every
+  review round and fix.
+
+## Day to day
+
+**Developers.** A hosted indexer is still answering for a venue whose front end
+has gone. Preserve the response and its capture boundary, then publish a
+release whose mapping and bytes somebody else can reproduce without that
+endpoint.
+
+**Security and audit.** A dataset arrives with a digest and a claim that it was
+built from a named source. Run `verify`: it rebuilds the event bytes and checks
+the one-to-one source trace rather than trusting the release's own row count.
+
+**Finance.** A repayment record needs to be compared with another venue's
+record without erasing the difference between them. The common family makes
+the rows searchable; the venue-qualified action and native record keep the
+economic meaning attached.
+
 ## Run it
 
 From this directory, `plugins/tabularium`:

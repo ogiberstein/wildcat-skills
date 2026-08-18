@@ -33,6 +33,39 @@ not to be. So this runs on the lender's own machine, against a borrower they're
 considering, and they reach their own conclusion. We hand over the instrument
 and not the verdict.
 
+## How it works
+
+Undercollateralised lending is the reason to want one: nothing stands between a lender and a total loss except a judgement about the borrower, and that judgement usually gets assembled by hand from whatever the person asking happens to remember. The tool is not limited to that case. Most on-chain borrowing is collateralised and it still tells you plenty, because a liquidation says a price moved, a bad debt says somebody was not made whole, and a missed maturity says what it says anywhere.
+
+Two halves, doing different jobs. A deterministic collector queries venue adapters and writes an evidence file in which a record cannot exist without a transaction hash, a URL or a document reference. The model writes the narrative from that file, and a gate checker reads the document and the evidence together before either ships.
+
+Five gates decide whether a dossier is honest enough to hand to a lender:
+
+1. Declared, provably linked and inferred addresses stay in separate sections.
+2. Every venue in the registry gets a coverage row, and a venue that was queried says over what block range. Silence about a venue would read as a clean record.
+3. Every assertion carries a citation, and every figure in the document traces back to a record.
+4. What could not be established gets its own section, ahead of anything that reads like a conclusion.
+5. No score without a rubric printed beside it. This version emits none.
+
+Gate 3 is the one that does the work. It rebuilds, from the evidence alone, every number and hash a truthful dossier could carry, then fails the document on any figure that is not in that set. An invented transaction hash, an amount rounded in the retelling, a market that was never there: each fails the run rather than shipping in it.
+
+## What it ships
+
+- the executable [`probitas.py`](./scripts/probitas.py) collector, renderer and gate checker, standard library only;
+- adapters for [Wildcat](https://wildcat.finance) and Morpho Blue, and eleven further venues carried as named gaps rather than silence;
+- nine synthetic borrower fixtures, including the cured delinquency that a hand-assembled writeup usually reads as a default;
+- a [committed example dossier](./docs/example-dossier.md) that the tests regenerate and compare, so it cannot drift;
+- [a guide to closing a coverage gap](./docs/adding-a-venue.md) that assumes no knowledge of Wildcat; and
+- 234 tests and an audit log ([`audit/AUDIT.md`](./audit/AUDIT.md)) recording every round, including the fixes that were wrong the first time.
+
+## Day to day
+
+**Business development.** A counterparty asks for a market and someone has to decide whether their word is worth anything. Give this the addresses they declared and it comes back with what they borrowed elsewhere, whether they gave it back, and a list of the venues nobody could check, so the thin parts of the record are visible rather than absent.
+
+**Finance.** Exposure to a name that also borrows in three other places. The dossier states each position's venue, the amounts as exact on-chain integers, and whether anything was left unpaid after a liquidation, which is the number that ends up mattering.
+
+**Security and audit.** A document arrives asserting things about a counterparty and you have to decide whether to believe it. Run `verify` against the evidence file it came with: every figure in the document has to trace back to a record with a transaction hash, and one that does not fails the check by arithmetic rather than by your reading it closely.
+
 ## Run it
 
 From this directory, `plugins/probitas`:

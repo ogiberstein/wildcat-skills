@@ -26,6 +26,26 @@ instead of repeating the plugin name in the call.
 `lemmatise` was avoided because it already means reducing words to dictionary
 forms in natural-language processing, which this plugin does not do.
 
+## What it ships
+
+- a Solidity chunker driven by the compiler AST;
+- a Markdown chunker that splits on rendered heading structure;
+- schema validation and an invented baseline corpus; and
+- a pinned `solc` container wrapper for reproducible compiler output.
+
+It stops after chunking. It does not embed, index, retrieve, or answer from the
+output.
+
+Its one skill is `chunk`, giving the qualified name `lemma:chunk`. The plain
+name matches the operation and avoids implying the unrelated NLP operation of
+lemmatisation.
+
+## Day to day
+
+**Developers.** A documentation or verified-contract corpus needs source-linked
+JSONL before it can enter a retrieval system. Lemma creates that file and
+rejects chunks that fail its schema checks.
+
 ## Solidity
 
 Pass one or more solc standard JSON input files:

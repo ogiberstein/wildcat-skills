@@ -23,6 +23,35 @@ subset in a local harness, and the harness dies with the engagement.
 
 This is the corpus that survives it.
 
+## How it works
+
+The catalogue holds ten laws across conservation, accrual and withdrawal
+claims. Nine are exact. The path-independence law carries a bound derived from
+the rounding performed by linear accrual, and its tests assert the figures on
+both the sound reference and the compounding specimen.
+
+## What it ships
+
+- one-state and transition laws written against economic observables rather
+  than protocol-specific function names;
+- broken specimens and replayable counterexamples for every law;
+- observer, driver and differential adapters for Foundry, Echidna and Medusa;
+- a reduced Wildcat market model recording where three laws need narrower
+  applicability; and
+- a checker, catalogue renderer, search record and tests that keep each law's
+  six required parts together.
+
+## Day to day
+
+**Security and audit.** A credit protocol arrives and its economic invariants
+have to be settled before a fuzz campaign can mean anything. Pandects supplies
+the laws, the assumptions behind them, and evidence that each catches the fault
+it names.
+
+**Developers.** A change touches accrual or a withdrawal queue. Run the
+applicable laws against the build and inspect the quantities behind any verdict
+that moved.
+
 ## What a law is
 
 Six parts, and the checker refuses anything with fewer:

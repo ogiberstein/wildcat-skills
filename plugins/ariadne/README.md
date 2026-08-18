@@ -33,6 +33,37 @@ rather than the only one, and a dataset, a chain-state fixture and a
 grounded-agent release each get a predicate beside it rather than a tool of
 their own.
 
+## How it works
+
+A release publishes a claim. The compiler that produced the bytecode, the test run, the fuzz campaign, the audit and its scope, the deployment: all of it sits somewhere else, joined to the claim by a URL and a promise. Those links do not establish that the audit covered the released commit, that the build produced the deployed bytecode, or that the fuzz run used the settings the report describes. Ariadne writes the join down as a statement whose subject is a digest, so the binding survives the assembly.
+
+The statement is [in-toto's](https://github.com/in-toto/attestation) and the envelope is [DSSE's](https://github.com/secure-systems-lab/dsse). Neither is forked. What Ariadne adds is the discipline a bare statement does not carry, as seven gates:
+
+1. Every claim names the exact digest it covers. A result tied to a repository or a branch is refused, because those move.
+2. The environment is recoverable. A compiler version without the optimiser settings, the EVM target, the dependency lock and the command is not a build description.
+3. Absence stays visible. Skipped, failed, timed-out and redacted work stays in the statement record, and anything other than a pass carries a reason.
+4. Results are not upgraded into conclusions. A passing property records the property and the run, never that the artefact is safe.
+5. Deltas name both sides. A comparison fails when either baseline cannot be identified by digest, rather than degrading into a report of no changes.
+6. Replay distinguishes deterministic work. Bytecode can require an exact match; a fuzz campaign's coverage cannot.
+7. Signature verification is external. Ariadne holds no key, checks no signature, and says so every time it is asked.
+
+Five of those belong to an artefact-neutral core and run for any predicate, including a type the build has never seen. The other two come from the predicate, and a type without them is reported as unchecked rather than clean.
+
+## What it ships
+
+- the executable [`ariadne.py`](./scripts/ariadne.py) capture, verifier and replay, standard library only;
+- the [Solidity release predicate](./docs/solidity-release.md) and [its published schema](./schemas/solidity-release-v1.json), tied together by a test so the two cannot drift;
+- capture from a Foundry build that reads the compiler's own output, refuses to decide whether your tests passed, and scrubs a build command before recording it;
+- conformance fixtures with a passing statement and one breach per core gate, for anyone writing another producer or verifier;
+- two example attestations, one of them carrying a fuzz campaign that timed out and an audit covering an earlier revision; and
+- 310 tests, including a set that fails when a shipped document drifts from the code it describes, and an audit log ([`audit/AUDIT.md`](./audit/AUDIT.md)) recording every round.
+
+## Day to day
+
+**Developers.** A release goes out, and six months later somebody asks which commit the deployed bytecode came from and whether the audit covered it. `capture` reads that out of the build you already ran, and the statement answers from its own contents rather than from a changelog nobody updated.
+
+**Security and audit.** An attestation arrives with a release. `verify` says which gates hold, which went unchecked and why, and states plainly that it checked no signature. `replay` re-runs the deterministic half and compares the artefacts, so the recorded digests are something you can test rather than something you accept.
+
 ## What is in it
 
 **The core.** Digest sets and their matching rules, in-toto Statement v1, the

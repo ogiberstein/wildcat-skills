@@ -32,3 +32,22 @@ what was verified, and ends with one next action.
 **Security and audit.** A finding mixes observed behaviour, inference and an
 untested assumption. Sapheneia labels each one and keeps the risk-bearing
 qualification attached to the decision it changes.
+## How it works
+
+The contract sits upstream of whatever the agent is producing. It applies to
+commentary, progress updates, questions, errors and final replies for the rest
+of the session once selected. It does not diagnose the reader, and it yields
+as soon as the reader states a different preference.
+
+The ten rules are ranked. The first line carries the action or finished result;
+asks are literal and labelled; multi-step work has one active step; facts,
+assumptions and unknowns stay separate; and unfinished work ends with one next
+action. Imprimatur remains the prose lint, and a voice mask remains responsible
+for register.
+
+## What it ships
+
+- one canonical [`SKILL.md`](./skills/sapheneia/SKILL.md) shared by Codex, Claude Code and portable agents;
+- an agent-facing runtime contract that makes the agent itself the subject;
+- contract tests that hold the ranked rule count, persistence language, host descriptions and portable links together.
+
