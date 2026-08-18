@@ -379,8 +379,8 @@ contract PayableBeyondReservesCampaign is Campaign {
 ///
 /// Reaching it needs four calls in one sequence: a deposit, a borrow, a
 /// withdrawal request for more than what is left held, and a fee. The request is
-/// the one an earlier draft of this comment left out, and it is the one that
-/// matters: without a recorded claim nothing is owed, and without a claim larger
+/// the one an earlier draft of this comment left out, and the property cannot be
+/// reached without it: without a recorded claim nothing is owed, and without a claim larger
 /// than what is held the earmark covers it and the cap does not leak. Echidna
 /// shrinks its own sequence to those four.
 contract FeeFromQueuedCampaign is Campaign {
