@@ -60,11 +60,11 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 
 | Day | Phase | What happens |
 | --- | --- | --- |
-| 1 | `study` | Study the topic; write `.hexaemeron/study.md`, linted |
-| 2 | `runbook` | Divide the work into discrete, self-contained steps |
+| 1 | `study` | Study the topic; write `.hexaemeron/study.md` to `protasis`'s contract, linted |
+| 2 | `runbook` | Divide the work into steps that meet `protasis`'s schema: discrete, self-contained, provable exits |
 | 3-4 | `implement` | Build the step, least mental load that satisfies the runbook |
-| 5 | `audit` | The vendored Pashov suite in rounds until clean or reasoned out; fixes on a stacked branch |
-| 6 | `prose` | The `imprimatur` lint, then the `vulgate` voice mask, on every document and the PR text |
+| 5 | `audit` | The vendored Pashov suite in rounds until clean or reasoned out; non-Solidity rounds run the `phylax`, `ephoros` and `hypomnema` lints; fixes on a stacked branch |
+| 6 | `prose` | `hypomnema` decides what gets recorded, then the `imprimatur` lint and the `vulgate` mask, on every document and the PR text |
 | rest | `push` | Stage and commit the final diff, push, merge the PR, clean up the branch, and close the task issue |
 
 Days 3 through the rest repeat per step. The sixth day makes the prose in
