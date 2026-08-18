@@ -2,11 +2,11 @@
 
 Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VERSIONING.md)
 
-- Current version: `horos-v2.2.0`
+- Current version: `horos-v3.2.0`
 - Frontier status: `open`
-- Frontier revision: `ts-outline-extractor`
-- Current frontier: Horos's map verb reads Python only; the maintainer-directed TypeScript outline extractor, internal to Horos with verbatim source slices and confessed unparsed regions, remains unbuilt.
-- Next Fiat job: Build the TypeScript outline extractor inside Horos's map verb: a lexer-accurate outliner that quotes declaration slices verbatim, confesses unparsed regions by count and location, ships stdlib-only, and is developed against a dev-time differential corpus. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
+- Frontier revision: `filetype-census`
+- Current frontier: A repository's walk-worthiness and its missing extractors are still decided by guesswork; scan records no per-filetype breakdown.
+- Next Fiat job: Add a filetype census to scan: per-filetype bytes and share of the tree, recorded under .horos, so walk-worthiness and the next extractor are decided from a recorded breakdown rather than a guess. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
 
 ## History
 
@@ -16,3 +16,4 @@ Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VE
 | `horos-v1.1.0` | evolution | `text-asset-and-sql-rules` | `00037861d1e760fac2143bb83dd5d2d8c0978c391c3d669fc06cf70d01f7e187` | [wildcat-app-v2 evidence bundle](../../docs/evidence/wildcat-app-v2.md) | The held live-evidence job completed. The wildcat-app-v2 capture records 80.3% of readable bytes classified with zero false exclusions, and the maintainer refused TypeScript skeleton maps rather than take a parser dependency or a subprocess boundary. The new held job takes the capture's two quantified misses. |
 | `horos-v2.1.0` | evolution | `ts-outline-extractor` | `232d7abdc4940d51512b8bae935029cd0545cbabaa54a02182997e5df10af9b5` | [second wildcat-app-v2 capture](../../docs/evidence/wildcat-app-v2-rules.md) | The held rule-classes job completed: SVG text assets and migrations-segment SQL are classified with near-miss tests, and the second capture against the same commit rises from 80.3% to 83.3% with a delta proven to be exactly the two families. The maintainer directed this session that TypeScript skeletons return as an outline extractor internal to Horos, superseding the v1.1.0 refusal's premise without contradicting it; that is the new held job. |
 | `horos-v2.2.0` | generation | `ts-outline-extractor` | `232d7abdc4940d51512b8bae935029cd0545cbabaa54a02182997e5df10af9b5` | [README adoption section](../../README.md) | Maintainer question: a committed boundary bound only agents carrying this skill. scan --write now prints an adoption stanza for the target repository's AGENTS.md or CLAUDE.md, so the discipline travels with the repository and binds any instruction-following agent. Frontier unchanged. |
+| `horos-v3.2.0` | evolution | `filetype-census` | `96ea44f20966aa0a05a887994819d97e80fb416d38eb7c26110f0d2a6dff1209` | [outline differential bundle](../../docs/evidence/wildcat-app-v2-outline.md) | The held outline-extractor job completed. map now reads TypeScript through a per-language extractor folder: a lexer, verbatim declaration slices, and confessed unparsed regions, held against the compiler API over 866 files with 2,237 of 2,239 declarations matched, zero unconfessed misses, zero extras and zero crashes. The maintainer named the filetype census as the next held job. |

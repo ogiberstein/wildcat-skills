@@ -13,11 +13,12 @@ what it saves.
 
 from pathlib import PurePosixPath
 import argparse
-import ast
 import fnmatch
 import json
 import os
 import sys
+
+import languages
 
 # The classifier's own reading limit. Raising it is an ask-first change once
 # the tests pin it: every content rule below is defined against this prefix.
@@ -384,46 +385,17 @@ def check_tree(root, out=None):
     return 1
 
 
-def first_docstring_line(node):
-    docstring = ast.get_docstring(node)
-    if not docstring:
-        return None
-    return docstring.strip().splitlines()[0]
-
-
-def skeleton_lines(node, depth=0):
-    """Signatures and class structure, one line each, bodies left behind."""
-    lines = []
-    pad = "    " * depth
-    for child in node.body if hasattr(node, "body") else []:
-        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            for decorator in child.decorator_list:
-                lines.append(f"{pad}@{ast.unparse(decorator)}")
-            keyword = "async def" if isinstance(child, ast.AsyncFunctionDef) else "def"
-            returns = f" -> {ast.unparse(child.returns)}" if child.returns else ""
-            line = f"{pad}{keyword} {child.name}({ast.unparse(child.args)}){returns}:"
-            summary = first_docstring_line(child)
-            if summary:
-                line += f"  # {summary}"
-            lines.append(line)
-        elif isinstance(child, ast.ClassDef):
-            for decorator in child.decorator_list:
-                lines.append(f"{pad}@{ast.unparse(decorator)}")
-            bases = ", ".join(ast.unparse(base) for base in child.bases)
-            line = f"{pad}class {child.name}" + (f"({bases}):" if bases else ":")
-            summary = first_docstring_line(child)
-            if summary:
-                line += f"  # {summary}"
-            lines.append(line)
-            lines.extend(skeleton_lines(child, depth + 1))
-    return lines
-
-
 def map_file(path, out=None):
-    """Print a Python file's skeleton; orientation without the read."""
+    """Print a file's skeleton via its language extractor; orientation
+    without the read."""
     out = out if out is not None else sys.stdout
-    if not path.endswith(".py"):
-        print(f"horos: map reads Python only, not {path}", file=out)
+    extractor = None
+    for suffix in sorted(languages.EXTRACTORS, key=len, reverse=True):
+        if path.endswith(suffix):
+            extractor = languages.EXTRACTORS[suffix]
+            break
+    if extractor is None:
+        print(f"horos: map supports {languages.supported()}, not {path}", file=out)
         return 2
     try:
         with open(path, "rb") as handle:
@@ -431,16 +403,7 @@ def map_file(path, out=None):
     except OSError as error:
         print(f"horos: cannot read {path}: {error}", file=out)
         return 2
-    try:
-        tree = ast.parse(source)
-    except SyntaxError as error:
-        print(f"horos: syntax error in {path} at line {error.lineno}", file=out)
-        return 1
-    summary = first_docstring_line(tree)
-    print(f"module: {summary}" if summary else "module: (no docstring)", file=out)
-    for line in skeleton_lines(tree):
-        print(line, file=out)
-    return 0
+    return extractor(path, source, out)
 
 
 def main(argv=None):

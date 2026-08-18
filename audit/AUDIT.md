@@ -1135,3 +1135,88 @@ them, and that both prior ledger rows are byte-identical to before.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Outline-extractor run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+67/67, root 24/24. The review checked the move: the Python extractor's
+output is pinned by the untouched fixture test, the registry refuses
+unregistered suffixes naming its supported list, and the refusal-message
+test moved with the message as the runbook records.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Outline-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 79/79, root
+24/24. The review walked the risk register's lexer rows: escapes consume
+line continuations, character classes protect a slash inside a regex, the
+newline guard bounds a wrong regex guess to one line, operator folding
+keeps arrow and equality tokens whole, and every unterminated construct
+confesses the remainder.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: inside a template expression the scanner
+treats a slash literally, so a regex literal containing a brace or backtick
+inside `${...}` can mis-span the template. Bounded to that template, and
+deferred to the step 4 corpus run, which will show whether real code does
+this before any fix is designed.
+
+## Outline-extractor run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 89/89, root
+24/24. Two defects were found and fixed during the step's own build, before
+the implement receipt, and are recorded here for the trail: a statement
+position that never advanced on a stray closing brace hung the first live
+run (fixed with an explicit step-over plus a monotonic advance guard), and
+method heads truncated at their parameter list because the statement-end
+scanner was handed the closing parenthesis itself (fixed with
+position-ordered member dispatch). The round's review after those fixes
+walked the emitted fixture line by line against the source and found the
+slices verbatim and the confession exact.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings in the round itself. Leads not pursued: multiline arrow-
+function signatures quote only their first line; the differential in step 4
+measures whether that loses names in practice.
+
+## Outline-extractor run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+92/92, root 24/24. The review held the register's rows: the oracle tool is
+committed but nothing in the runtime or test path imports or invokes it
+(the consistency tests read only the committed results JSON); the bundle
+names its commit, oracle version and altitudes; the acceptance numbers
+(missed 0, extra 0, crashes 0) are asserted by test rather than quoted; and
+the three corpus-found fixes each landed with the corpus rerun after them.
+The step 2 lead (a regex with braces inside a template expression) did not
+occur in 866 real files: no file crashed or misparsed on it, so it stays a
+recorded limitation.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the corpus is one repository's style
+(prettier, semicolon-free); a semicolon-heavy or decorator-heavy corpus
+would exercise different paths and can join the evidence when one matters.
+
+## Outline-extractor run, step 5, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24 (the evolution contract validates
+the v3.2.0 digest; the prose contract validates surface agreement and job
+uniqueness), horos 92/92. The review confirmed the refusal's revision is
+recorded as a revision, both prior ledger rows are byte-identical, and the
+new held job is the maintainer's own words for the filetype census.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
