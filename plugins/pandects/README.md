@@ -257,32 +257,25 @@ python3 scripts/pandects.py laws
 python3 scripts/pandects.py check
 forge test
 python3 scripts/pandects.py run --out search-record.json
-```
 
-`laws` prints ten laws with their applicability. `check` reports every part
-present. `forge test` runs both diagonals, the counterexamples, the adapters and
-the Wildcat model. `run` searches and writes the record.
-
-Then watch a law fire against a contract built to break it:
-
-```bash
 echidna . --contract ClaimHaircutCampaign --test-limit 20000 --seed 20260816
-```
-
-`recorded_claim_never_shrinks` fails and nothing else does. Replay the sequence
-it prints and call `explain()` for the reason in the law's own words.
-
-And the case the corpus was built for -- laws written against no protocol in
-particular, pointed at a real design:
-
-```bash
 forge test --match-contract WildcatTest
 ```
 
+`laws` prints ten laws with their applicability. `check` reports every part
+present. The first `forge test` runs both diagonals, the counterexamples, the
+adapters and the Wildcat model. `run` searches and writes the record.
+
+The Echidna command runs a law against its broken specimen:
+`recorded_claim_never_shrinks` fails and nothing else does. Replay the printed
+sequence and call `explain()` for the law's reason.
+
+The final command points protocol-independent laws at a real design.
+
 `integrations/wildcat/` models a market with batched withdrawals, a reserve the
 borrower may not touch, delinquency and penalty accrual.
-[`APPLICABILITY.md`](./integrations/wildcat/APPLICABILITY.md) is the part worth
-reading. Six laws apply flatly. `queue-order-preserved` applies at batch
+[`APPLICABILITY.md`](./integrations/wildcat/APPLICABILITY.md) records the
+limits. Six laws apply flatly. `queue-order-preserved` applies at batch
 granularity and says nothing per lender. `path-independent` holds while the
 market is solvent and stops holding once the penalty is running. And
 `recorded-claim-never-shrinks` does not hold over a batch that is still open,

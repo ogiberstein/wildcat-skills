@@ -81,10 +81,21 @@ widened. Widening it introduced two ways to accuse an honest law, which is the
 cost of scanning a whole file instead of one function body and worth paying only
 once it is paid down.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R2-01 | medium | `scripts/pandects_lib/checker.py` | The pattern accepted any uppercase letter after the word, to catch `revert CustomError()`. A function named `revertHelper` matched it, so a law with an honestly named internal helper was reported as reverting to signal a violation | fixed in this round: the pattern takes the two real spellings, `revert(` and `revert` followed by whitespace and a capital, and nothing else |
-| S1-R2-02 | medium | `scripts/pandects_lib/checker.py` | The scan read string literals. A law whose `statement()` describes a system that requires collateral was accused of requiring it, which would have pushed authors to write worse sentences to get past a check | fixed in this round: string literals are removed before comments, so a `//` inside one is removed with the string rather than truncating the line |
+FINDING
+[Medium] S1-R2-01: Revert detection accused valid helpers.
+Location: `scripts/pandects_lib/checker.py`
+Mechanism: The pattern accepted any uppercase letter after the word; `revertHelper` matched while targeting `revert CustomError()`.
+Impact: A law with a valid internal helper was reported as reverting to signal a violation.
+Fix: Accept only `revert(` or `revert` followed by whitespace and a capital; fixed in this round.
+END
+
+FINDING
+[Medium] S1-R2-02: String literals affected source checks.
+Location: `scripts/pandects_lib/checker.py`
+Mechanism: A `statement()` describing required collateral was scanned as code.
+Impact: Authors could be pushed to weaken valid law statements.
+Fix: Remove strings before comments, so `//` inside a string cannot truncate the line; fixed in this round.
+END
 
 Checked and found sound:
 
@@ -111,9 +122,13 @@ the wrong type, empty and whitespace paths, absolute and traversing paths, and
 paths naming a directory where a file belongs. Then the parser over six
 documents that are not catalogues.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R3-01 | low | `scripts/pandects_lib/checker.py` | A path carrying an embedded null byte raised `ValueError` out of `realpath` rather than being reported. The same class as round 1's unreadable component: malformed input crashing the checker instead of being told to the reader | fixed in this round: a path the filesystem will not look at is a containment that cannot be established, so it is refused |
+FINDING
+[Low] S1-R3-01: A null byte escaped checker reporting.
+Location: `scripts/pandects_lib/checker.py`
+Mechanism: An embedded null made `realpath` raise `ValueError`.
+Impact: Malformed input crashed instead of producing the round 1 unreadable-component result.
+Fix: Refuse paths whose filesystem containment cannot be established; fixed in this round.
+END
 
 Checked and found sound:
 
@@ -333,10 +348,21 @@ Reviewed: the tree with round 1 applied, and the two areas round 1 did not
 reach -- what the path-independence law takes on trust, and what the reference
 can be driven into that no law describes.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R2-01 | medium | src/laws/AccrualPathIndependent.sol | The bound is `subdivisions - 1`, and `subdivisions` is fixed when the law is deployed. Nothing in either observation says how many steps the subdivided run actually took, so a law built for the wrong count silently compares against the wrong bound -- too generous and a compounding system passes, too tight and a correct one is reported as violated. | fixed in 0b7ae32 |
-| S3-R2-02 | low | src/laws/ReservesCoverPayableClaims.sol | The law reports a violation when more claims are declared payable than exist, which is marginally broader than its statement. The reason -- that the alternative reads past the end of the queue and reverts into silence -- was in nobody's head but mine. | fixed in 0b7ae32 |
+FINDING
+[Medium] S3-R2-01: A deployment-time count could set the wrong accrual bound.
+Location: `src/laws/AccrualPathIndependent.sol`
+Mechanism: The bound is `subdivisions - 1`, but neither observation records the actual subdivided step count.
+Impact: A loose count passes compounding; a tight count reports a correct system as violated.
+Fix: Fixed in `0b7ae32` with the wrong-count counterexample described below.
+END
+
+FINDING
+[Low] S3-R2-02: The payable-claims law judged beyond its statement.
+Location: `src/laws/ReservesCoverPayableClaims.sol`
+Mechanism: It reported a violation when more claims were declared payable than existed; reading farther would revert into silence.
+Impact: The law's executable scope was broader than its stated scope.
+Fix: Fixed in `0b7ae32` and documented.
+END
 
 **S3-R2-01, and why the fix is a test rather than a guard.** There is no guard
 available. The count cannot be derived from the observations, so it is part of
@@ -475,23 +501,29 @@ Reviewed: the tree with round 1 applied, and the two places round 1 did not
 reach -- what an integrator without a withdrawal queue can actually get out of
 the adapters, and whether the record says "unknown" the same way twice.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R2-01 | medium | adapters/CorpusBase.sol | `explainOneState` reads all five laws, so against a target with no withdrawal queue it reverts and takes the three answers down with the two reads that had none. An integrator whose system has no queue was told nothing at all, including about the laws that were happy to judge it. | fixed in cf9cf68 |
-| S4-R2-02 | low | scripts/pandects_lib/run.py | A seed nobody could read was absent from the record; an engine version nobody could read was present and null. Same reason, two spellings, in one document. | fixed in cf9cf68 |
+FINDING
+[Medium] S4-R2-01: Queue-less targets lost three valid explanations.
+Location: `adapters/CorpusBase.sol`
+Mechanism: `explainOneState` read all five laws, so two unavailable queue reads reverted the whole call.
+Impact: An integrator received none of the three answers the target supported.
+Fix: Fixed in `cf9cf68` by adding `explainCore`; queue reads still revert.
+END
 
-**S4-R2-01, and what the fix is not.** `explainOneState` still reverts, because
-reading a queue off a target that has none is exactly the documented limit and
-softening it would be inventing a verdict. What changed is that `explainCore`
-exists beside it, carrying the three reasons that had answers. `coreHolds` and
-`queueHolds` were already split this way; the explanation was not, and the split
-is only useful if it goes all the way through.
+FINDING
+[Low] S4-R2-02: Unavailable engine fields used two representations.
+Location: `scripts/pandects_lib/run.py`
+Mechanism: An unreadable seed was absent while an unreadable engine version was null.
+Impact: One record gave the same establishment limit two meanings.
+Fix: Fixed in `cf9cf68`; unreadable values are absent.
+END
 
-**S4-R2-02, on why a low finding was worth fixing.** A record that spells
-"unknown" two ways has to be read twice, and the second reading is where
-somebody decides that null means the run had no seed. The rule is now one rule
-and a test walks the whole record asserting no field anywhere in it is null,
-rather than checking the two fields that prompted it.
+`explainOneState` still reverts when a target has no queue. Reading an absent
+queue is the documented limit; softening it would invent a verdict.
+`explainCore` now carries the three available reasons, matching the existing
+`coreHolds` and `queueHolds` split.
+
+The S4-R2-02 fix gives "unknown" one representation. A test now rejects null
+anywhere in the record, not only in the seed and engine-version fields.
 
 **What ran.** 60 Solidity tests across nine suites, 92 catalogue, checker and
 search-record tests, the repository's 9, `pandects check` over nine laws, and
@@ -549,10 +581,21 @@ from step 3. Each is recorded in the round that found it.
 Reviewed: the whole of the step's diff. The Wildcat model, its applicability
 notes, the three documents, the drift check and the demo.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S5-R1-01 | medium | docs/catalogue.md | The document calls itself a rendering and there was no renderer. It was written once by a script that was not committed, and the drift test caught a stale document without offering any way to fix it: somebody adding a law was told the document was wrong and left to work out what it should have said. | fixed in ac37f14 |
-| S5-R1-02 | low | integrations/wildcat/APPLICABILITY.md | A law added to the catalogue could go unmentioned in the integration's notes, which is the one place the applicability question actually gets asked of a real design. Nothing checked. | fixed in ac37f14 |
+FINDING
+[Medium] S5-R1-01: The rendered catalogue had no committed renderer.
+Location: `docs/catalogue.md`
+Mechanism: An uncommitted script wrote it once; drift tests only reported stale output.
+Impact: A law author had no reproducible repair path.
+Fix: Fixed in `ac37f14` with `scripts/pandects_lib/render.py` and byte comparison.
+END
+
+FINDING
+[Low] S5-R1-02: Integration notes could omit a catalogue law.
+Location: `integrations/wildcat/APPLICABILITY.md`
+Mechanism: Nothing compared the real-design applicability record with the catalogue.
+Impact: A new law could ship without a Wildcat applicability decision.
+Fix: Fixed in `ac37f14` with a drift check.
+END
 
 **S5-R1-01, and what it took to make the claim true.**
 `scripts/pandects_lib/render.py` is now the only thing that writes that file,
@@ -609,10 +652,21 @@ Leads not pursued:
 Reviewed: the tree with round 1 applied, and the one thing round 1's fix could
 not check about itself.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S5-R2-01 | medium | scripts/pandects_lib/render.py | The renderer hardcoded "Nine laws in three families" and looped over its own list of families rather than the catalogue's. A tenth law would produce a document that lies about its own count, and a law filed under a new family would vanish from the document entirely -- neither of which the drift test can see, because that test compares the document against this renderer and both would be wrong the same way. | fixed in 9eb1314 |
-| S5-R2-02 | low | .gitignore | The demo tells a reader to write `search-record.json` into the plugin, and nothing ignored it. Following the documented walkthrough left the repository dirty. | fixed in 9eb1314 |
+FINDING
+[Medium] S5-R2-01: Renderer-owned counts and families could drift together.
+Location: `scripts/pandects_lib/render.py`
+Mechanism: It hardcoded "Nine laws in three families" and iterated its own family list; a tenth law or new family could disappear from both compared outputs.
+Impact: The catalogue document could lie while its byte comparison passed.
+Fix: Fixed in `9eb1314`; counts and headings now come from the catalogue.
+END
+
+FINDING
+[Low] S5-R2-02: The documented demo dirtied the repository.
+Location: `.gitignore`
+Mechanism: It wrote `search-record.json` inside the plugin without an ignore rule.
+Impact: Following the walkthrough left an untracked file.
+Fix: Fixed in `9eb1314` by ignoring the output.
+END
 
 **S5-R2-01, and why round 1's fix could not have caught it.** Making the
 document a rendering closed the gap between the document and the renderer. It
