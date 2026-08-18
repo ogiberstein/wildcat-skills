@@ -615,3 +615,40 @@ repository's 20, and `pandects check` over ten laws. No engine re-run: `explain`
 not a property and no property changed.
 
 Leads not pursued: the four accepted at the close of step 2. None is touched here.
+
+## Withdrawal batch fee law, step 3, round 3 -- 2026-08-18
+
+Reviewed: the harness header, which is the last thing in this step's files stating a
+number nothing checked, and the two claims that number rests on.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | low | `src/campaigns/Specimens.sol` | The header reads "Nine of these eleven are expected to fail one property". Both numbers are written by hand, both move when a specimen is added, and this run has already found four counts written twice with nothing holding them. The figures were right; nothing said they would stay right. | Fixed in this round: a test counts the campaigns the file declares and the ones whose specimen breaks a law the harness asks, spells both out, and requires the header to match. Reverting the header to the pre-step counts names the two it should have read. |
+
+**The two exceptions, verified rather than reasoned.** The claim is that nine of
+eleven campaigns fail a property, so two do not, and the two are worth an engine run
+each because they are the exceptions the count depends on.
+
+| campaign | result | calls |
+| --- | --- | --- |
+| `SoundCampaign` | nine properties passing | 20,140 |
+| `CompoundsPerStepCampaign` | nine properties passing | 20,140 |
+
+`CompoundsPerStepCampaign` is the interesting one. Its specimen compounds, which
+breaks `accrual/path-independent/v1`, and no campaign can search that law because a
+campaign drives one system along one route. So it holds everything a campaign can
+ask, and the new property is among the nine it holds, which is independence evidence
+for the new law from a specimen built to break something else.
+
+**Round 2's own prose.** It shipped "load-bearing" in the audit entry and in the
+comment that entry described, which imprimatur bans as a structural metaphor. The
+lint ran after that commit rather than before it. Fixed in `364a7ac`, and recorded
+here rather than left in a commit message, because the same mistake in a shipped
+document is what step 2's rounds spent findings on.
+
+**What ran.** 78 Solidity tests under forge 1.7.1, 116 Python tests, up from 115 by
+the count gate, the repository's 20, `pandects check` over ten laws, and Echidna
+2.3.3 against `CompoundsPerStepCampaign` with the shipped configuration and seed
+20260816.
+
+Leads not pursued: the four accepted at the close of step 2, none touched here.

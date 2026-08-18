@@ -432,6 +432,49 @@ class ShippedAdapterTests(unittest.TestCase):
                     % law.id,
                 )
 
+    def test_the_harness_counts_the_campaigns_it_declares(self):
+        """The header states two numbers and both are written by hand.
+
+        "Nine of these eleven are expected to fail one property" is a count of
+        campaigns and a count of the ones whose law the harness carries. Both move
+        when a specimen is added, and this plugin has already shipped four wrong
+        counts written twice, so neither is left to be noticed.
+
+        A campaign fails a property when the law its specimen was built to break is
+        one the harness asks. `SoundCampaign` breaks nothing by construction, and
+        `CompoundsPerStepCampaign` breaks path independence, which no campaign can
+        search.
+        """
+        source = self.sources[self.CAMPAIGN]
+        words = [
+            "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
+            "Eight", "Nine", "Ten", "Eleven", "Twelve",
+        ]
+        campaigns = re.findall(r"(?m)^contract (\w+)Campaign is Campaign", source)
+        specimens = {
+            os.path.basename(law["specimen"]).replace(".sol", ""): law.id
+            for law in self.catalogue.laws
+        }
+        breaking = [
+            name
+            for name in campaigns
+            if name in specimens and specimens[name] not in self.NOT_IN_CAMPAIGN
+        ]
+        header = source[: source.index("abstract contract Campaign")]
+        self.assertIn(
+            "%s of these %s are expected to fail one property"
+            % (words[len(breaking)], words[len(campaigns)].lower()),
+            header,
+            "the file declares %d campaigns, %d of them breaking a law the harness "
+            "asks, so the header should read '%s of these %s'"
+            % (
+                len(campaigns),
+                len(breaking),
+                words[len(breaking)],
+                words[len(campaigns)].lower(),
+            ),
+        )
+
     def _is_one_state(self, component):
         """A one-state law extends `Law`; a pair law extends `PairLaw`.
 
