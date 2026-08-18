@@ -73,7 +73,9 @@ rather than broadening the selected skill.
 
 ## Checks for changes to this repository
 
-Run the checks that cover every changed area:
+Run the checks that cover every changed area.
+
+### Suites
 
 ```bash
 python3 -m unittest discover -s tests
@@ -92,11 +94,27 @@ python3 -m unittest discover -s plugins/sapheneia/tests -t plugins/sapheneia
 python3 -m unittest discover -s plugins/tabularium/tests -t plugins/tabularium
 ```
 
+### Solidity
+
 Pandects also carries Solidity. From `plugins/pandects/`:
 
 ```bash
 forge build
 forge test
+```
+
+### Lints
+
+Prose that ships goes through the lexicon lint and then the structural one.
+The three skill lints read a tree rather than a diff, so they run from the root
+and must exit clean:
+
+```bash
+python3 plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py <changed prose>
+python3 plugins/brevitas/skills/brevitas/scripts/brevitas.py <changed prose>
+python3 plugins/hexaemeron/skills/phylax/scripts/phylax.py plugins tests
+python3 plugins/hexaemeron/skills/ephoros/scripts/ephoros.py plugins tests
+python3 plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py README.md AGENTS.md .agents plugins docs
 ```
 
 Validate every changed skill directory against the Agent Skills frontmatter
