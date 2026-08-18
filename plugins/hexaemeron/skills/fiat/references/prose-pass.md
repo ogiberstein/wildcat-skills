@@ -15,18 +15,24 @@ bundled in this plugin, so no external install is involved.
 
 ## Order
 
-1. **Lint.** Run the bundled script on each file:
+1. **Record.** Apply `hypomnema` (read `$PLUGIN_ROOT/skills/hypomnema/SKILL.md`)
+   before touching a word: decide which decisions this step made that earn a
+   written reason, put each in the file its rules name, and run its pointer
+   lint over the changed documents so nothing shipped links to something
+   absent. A record pointing nowhere fails the phase the same way a hard lint
+   hit does.
+2. **Lint.** Run the bundled script on each file:
    `python3 "$PLUGIN_ROOT/skills/imprimatur/scripts/imprimatur.py" <file>`.
    Hard hits are defects: rewrite the sentence, never substitute a
    neighbour from the same family. Keep every qualifier that carries
    scope, risk, or legal meaning.
-2. **Voice.** Apply the `vulgate` mask (read
+3. **Voice.** Apply the `vulgate` mask (read
    `$PLUGIN_ROOT/skills/vulgate/SKILL.md` and follow it -- `$PLUGIN_ROOT`
    as defined in the entry skill): neutral
    register unless the document's content demands serious. The mask changes
    surface only; every fact, number, commitment, and caveat survives
    verbatim, and the spelling convention stays consistent.
-3. **Re-lint.** The mask can reintroduce a marker; run the lint once more
+4. **Re-lint.** The mask can reintroduce a marker; run the lint once more
    and settle any new hits.
 
 ## PR text

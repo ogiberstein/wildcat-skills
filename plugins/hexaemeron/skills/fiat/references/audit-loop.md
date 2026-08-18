@@ -66,10 +66,25 @@ phase.
 ## Non-Solidity steps
 
 When a step touches no Solidity and no configured skill applies, the round
-is still real: review the diff for the risk register's concerns, log the
-result, record the round. The suite waiver in the `security_suite` receipt
-covers why the Pashov pair did not run; it does not excuse skipping the
-look.
+is still real, and it has a mechanical part. Run the three bundled lints
+against the changed tree and require exit 0 from each:
+
+```text
+python3 "$PLUGIN_ROOT/skills/phylax/scripts/phylax.py" <changed paths>
+python3 "$PLUGIN_ROOT/skills/ephoros/scripts/ephoros.py" <changed paths>
+python3 "$PLUGIN_ROOT/skills/hypomnema/scripts/hypomnema.py" <changed docs>
+```
+
+A non-zero exit is a finding like any other: log it, fix it on the stacked
+branch, and run the next round against the fixed tree. Then review the diff
+for the risk register's concerns the lints cannot see, log the result, and
+record the round with the lint outcomes in the log entry. The suite waiver in
+the `security_suite` receipt covers why the Pashov pair did not run; it does
+not excuse skipping the look, and it does not excuse skipping the lints.
+
+When a round surfaces a failure -- a test gone red, a lint that will not come
+clean, behaviour that stopped matching -- work it under `elenchus`: reproduce,
+reduce, fix the mechanism, and guard it before the next round.
 
 ## Honesty
 
