@@ -19,6 +19,12 @@ Hexaemeron skill matches a task.
 | `imprimatur` | `skills/imprimatur/SKILL.md` | Lint shipped prose against the banned lexicon |
 | `vulgate` | `skills/vulgate/SKILL.md` | Rewrite prose in a plain human register without changing its content |
 | `kronos` | `skills/kronos/SKILL.md` | Repeatedly rank eligible skill frontiers and send the best held job through Fiat |
+| `protasis` | `skills/protasis/SKILL.md` | Decide whether a study or runbook says enough to build from, before implementation starts |
+| `elenchus` | `skills/elenchus/SKILL.md` | Find the cause of a failure that has already happened, and guard it with a test |
+| `phylax` | `skills/phylax/SKILL.md` | Harden the off-chain surface: external input, subprocesses, fetched hosts, secrets, dependencies and model output |
+| `ephoros` | `skills/ephoros/SKILL.md` | Choose the events, metrics, traces and alerts a step must emit to stay diagnosable |
+| `metron` | `skills/metron/SKILL.md` | Baseline something slow, change one thing, re-measure, and keep or revert on the numbers |
+| `hypomnema` | `skills/hypomnema/SKILL.md` | Record the reason behind a decision, and put each kind of record where it will be found |
 
 The first-party `fiat`, `imprimatur`, `vulgate`, and `kronos` directories each
 carry an `EVOLUTION.md` ledger governed by `skills/VERSIONING.md`. Read the
