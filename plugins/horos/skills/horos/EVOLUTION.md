@@ -2,11 +2,11 @@
 
 Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VERSIONING.md)
 
-- Current version: `horos-v4.2.0`
+- Current version: `horos-v4.2.1`
 - Frontier status: `open`
-- Frontier revision: `census-breadth`
-- Current frontier: Two trees are censused; whether Solidity or anything else earns the next extractor stays undecided until more protocol and UI repositories are on the record.
-- Next Fiat job: Census several more live Wildcat repositories, protocol and UI alike, recording each as evidence, then decide the next extractor from the accumulated breakdowns; Solidity leads on the v2-protocol record and one tree does not earn a build. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
+- Frontier revision: `go-and-cpp-extractors`
+- Current frontier: Ingested external repositories are expected to carry Go and C++, and map reads neither.
+- Next Fiat job: Build the Go outline extractor in the languages registry, in the shape the TypeScript extractor fixed: a lexer, verbatim declaration slices, confessed unparsed regions, and a dev-time differential corpus over a live external repository. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
 
 ## History
 
@@ -18,3 +18,4 @@ Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VE
 | `horos-v2.2.0` | generation | `ts-outline-extractor` | `232d7abdc4940d51512b8bae935029cd0545cbabaa54a02182997e5df10af9b5` | [README adoption section](../../README.md) | Maintainer question: a committed boundary bound only agents carrying this skill. scan --write now prints an adoption stanza for the target repository's AGENTS.md or CLAUDE.md, so the discipline travels with the repository and binds any instruction-following agent. Frontier unchanged. |
 | `horos-v3.2.0` | evolution | `filetype-census` | `96ea44f20966aa0a05a887994819d97e80fb416d38eb7c26110f0d2a6dff1209` | [outline differential bundle](../../docs/evidence/wildcat-app-v2-outline.md) | The held outline-extractor job completed. map now reads TypeScript through a per-language extractor folder: a lexer, verbatim declaration slices, and confessed unparsed regions, held against the compiler API over 866 files with 2,237 of 2,239 declarations matched, zero unconfessed misses, zero extras and zero crashes. The maintainer named the filetype census as the next held job. |
 | `horos-v4.2.0` | evolution | `census-breadth` | `87e29b9531544818db7fbb9d0c36cb1025c388304c198b9a28b24ed06db6a6cc` | [two recorded censuses](../../docs/evidence/wildcat-app-v2-census.md) | The held census job completed. scan --census records per-filetype bytes, share and boundary attribution through the boundary's own walk, committed under .horos beside the boundary. The first two recorded censuses show wildcat-app-v2 needing no third extractor and v2-protocol 87.6% Solidity by readable weight; the maintainer held the extractor decision open pending more censused repositories, and that breadth is the new held job. |
+| `horos-v4.2.1` | epoch | `go-and-cpp-extractors` | `dd233b96fded20dffbde65cf290bcf1a29d916dbcfcd400daed9d3b7f8f0b9a3` | Maintainer requirement, 2026-08-18: Horos exists to speed the ingestion of external repositories, not only to census Wildcat's own, so census-breadth over Wildcat trees cannot evidence the decision it was holding; Go and C++ are the named expected external languages, with maturity expected after both ship | Reopens the held target at the maintainer's direction, superseding census-breadth. The held job becomes the Go outline extractor, C++ follows it, and the frontier is expected to close mature after both, absent further evidence. |
