@@ -12,7 +12,7 @@ Pandects supplies executable laws for credit contracts, each paired with a delib
 
 **Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
 
-**Current frontier.** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
+**Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
 Read [the Pandects runtime contract](../../../plugins/pandects/AGENTS.md). Use

@@ -1,7 +1,7 @@
 # Pandects audit log
 
 <!-- marketplace-context:start -->
-> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** No law prevents fees from reducing pooled lender claims below amounts owed on open withdrawal batches.
+> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
 One section per round. A round with no findings is still a round and still gets
