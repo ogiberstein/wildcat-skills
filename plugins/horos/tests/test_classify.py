@@ -147,6 +147,14 @@ class ClassifyTests(unittest.TestCase):
         paths = [entry["path"] for entry in first["entries"]]
         self.assertEqual(paths, sorted(paths))
 
+    def test_an_unreadable_file_is_counted_as_skipped_not_readable(self):
+        path = write(self.root, "locked.txt", "cannot read me\n")
+        os.chmod(path, 0)
+        self.addCleanup(os.chmod, path, 0o644)
+        result = horos.scan_tree(self.root)
+        self.assertEqual(result["counts"]["files_skipped_unreadable"], 1)
+        self.assertEqual(result["entries"], [])
+
     def test_counts_report_bytes_per_category(self):
         write(self.root, "a.bin", b"\x00" * 10)
         write(self.root, "yarn.lock", "lock\n")

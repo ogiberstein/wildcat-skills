@@ -956,3 +956,18 @@ found nothing further.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); the round ran the three bundled lints, all clean,
+then reviewed the classifier against the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/horos/skills/horos/scripts/horos.py | classify_file swallowed OSError and returned None, so an unreadable file was reported as readable instead of counted in files_skipped_unreadable, understating what the scan skipped | fixed: the function raises and the walker counts, with a chmod-0 regression test |
+| S2-R1-02 | low | plugins/horos/skills/horos/scripts/horos.py | classify_file is public but did not itself refuse symlinks; only the walker guarded them, so a direct caller could make the scanner read outside root | fixed: the function refuses links as well |
+
+Leads not pursued: a stat-then-open race (a file swapped for a symlink between
+the check and the read) is accepted for the prototype; exploiting it requires
+an attacker writing to the tree during the scan, at which point the tree is
+already theirs.

@@ -140,13 +140,18 @@ def classify_content(name, size, prefix):
 
 
 def classify_file(root, relpath):
-    """Classify one file; None means it stays readable."""
+    """Classify one file; None means it stays readable.
+
+    Raises OSError when the file cannot be statted or read, so the caller
+    can count it as skipped rather than silently readable. Symlinks are
+    refused here as well as in the walk: this function is public, and a
+    caller handing it a link must not make the scanner read outside root.
+    """
     fullpath = os.path.join(root, relpath)
-    name = PurePosixPath(relpath).name
-    try:
-        size = os.stat(fullpath).st_size
-    except OSError:
+    if os.path.islink(fullpath):
         return None
+    name = PurePosixPath(relpath).name
+    size = os.stat(fullpath).st_size
 
     if name in LOCKFILE_NAMES:
         return {
@@ -156,10 +161,7 @@ def classify_file(root, relpath):
             "evidence": f"lockfile name {name}",
         }
 
-    try:
-        prefix = read_prefix(fullpath)
-    except OSError:
-        return None
+    prefix = read_prefix(fullpath)
     verdict = classify_content(name, size, prefix)
     if verdict is None:
         return None
