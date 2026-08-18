@@ -904,3 +904,17 @@ lint commands resolve through `$PLUGIN_ROOT` exactly as the masks already do
 in the same file; and both suites pass. Root 24/24, hexaemeron 124/124.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-18
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The lint battery is clean over the changed tree; the diff touches
+two READMEs' prose, one manifest description and three version fields; the
+short description four surfaces must agree on is untouched, and the marketplace
+prose tests hold. Root 24/24, hexaemeron 124/124.
+
+Leads not pursued: the root README's one-line Hexaemeron entry says nothing
+about the phase skills. It also says nothing false, and the status table's
+"Use it for" cell already names them, so no change.
