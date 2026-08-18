@@ -1,4 +1,4 @@
-# Compound v3 Phase 0 data dictionary
+Compound v3 Phase 0 data dictionary
 
 <!-- marketplace-context:start -->
 > **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
@@ -7,11 +7,12 @@
 `facts.jsonl` contains three non-canonical fact kinds. Every row binds the
 transaction, block, proxy implementation and implementation-code digest.
 
-| Kind | Meaning |
-| --- | --- |
-| `call` | A successful ordered Bulker-to-Comet call with its call path, selector, input, output and raw call-trace selector. |
-| `storage-write` | A relevant proxy-storage `SSTORE`, in opcode order, bound to the enclosing Comet call path and the raw struct-log selector. |
-| `principal-transition` | The packed `userBasic` word before and after the transaction, its Ethereum mapping slot, signed `int104` values and active base borrow index. |
+- `call`: successful ordered Bulker-to-Comet call with path, selector, input,
+  output and raw call-trace selector.
+- `storage-write`: relevant proxy-storage `SSTORE`, in opcode order, bound to
+  the enclosing Comet call path and raw struct-log selector.
+- `principal-transition`: packed `userBasic` before and after the transaction,
+  its Ethereum mapping slot, signed `int104` values and active base borrow index.
 
 `witness.json` binds the Alexandria release ID, pinned Comet commit, raw
 component digests, fact byte count and digest, and Alexandria method receipt. The receipt

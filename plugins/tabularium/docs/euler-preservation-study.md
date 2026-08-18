@@ -1,8 +1,16 @@
-# Euler preservation study
+Euler preservation study
 
 <!-- marketplace-context:start -->
 > **Marketplace context: Tabularium.** Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning. Use Alexandria to collect and preserve heterogeneous lending data, Probitas for a counterparty dossier, and Lazarus for proof-checked historical state or exact RPC replay. **Current frontier:** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
+
+Primary version sources:
+
+- https://docs.euler.finance/developers/
+- https://docs.euler.finance/developers/data-querying/euler-v3-api/
+- https://github.com/euler-xyz/euler-lite
+- https://github.com/euler-xyz/euler-interfaces
+- https://github.com/euler-xyz/liquidation-bot-v3
 
 Issue [#57](https://github.com/wildcat-finance/skills/issues/57) ordered
 Tabularium preservation and reproducible offline verification after the Euler
@@ -45,14 +53,6 @@ Rejected designs were relabelling synthetic fixtures as production releases,
 widening schema v1 in place, and waiting for a venue-wide archival service.
 The first would overstate the evidence, the second would change old release
 meaning, and the third was not a dependency of issue #57.
-
-Primary version sources:
-
-- https://docs.euler.finance/developers/
-- https://docs.euler.finance/developers/data-querying/euler-v3-api/
-- https://github.com/euler-xyz/euler-lite
-- https://github.com/euler-xyz/euler-interfaces
-- https://github.com/euler-xyz/liquidation-bot-v3
 
 Repository evidence:
 

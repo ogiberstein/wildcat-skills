@@ -55,9 +55,7 @@ python3 scripts/tabularium.py build \
   --out <release-dir>/events.jsonl \
   --manifest <release-dir>/coverage.json \
   --release <release-id>
-
 python3 scripts/tabularium.py verify <release-dir>/coverage.json
-
 python3 scripts/tabularium.py compound-witness \
   --alexandria-release <alexandria-release> \
   --out facts.jsonl --manifest witness.json
