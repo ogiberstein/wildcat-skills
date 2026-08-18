@@ -2,11 +2,11 @@
 
 Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VERSIONING.md)
 
-- Current version: `horos-v5.2.1`
-- Frontier status: `open`
-- Frontier revision: `cpp-extractor`
-- Current frontier: The C++ half of the external-ingestion epoch remains: map does not read C++.
-- Next Fiat job: Build the C++ outline extractor in the languages registry, in the extractor shape now fixed twice: a lexer including raw strings and preprocessor lines, verbatim declaration slices, confessed unparsed regions, and a dev-time differential corpus over a live external repository, with maturity expected at its close. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
+- Current version: `horos-v6.2.1`
+- Frontier status: `mature`
+- Frontier revision: `external-ingestion-complete`
+- Current frontier: The external-ingestion epoch is complete: map reads Python, TypeScript, Go and C++, each lexed extractor held against an independent parser over a live repository; no evidenced improvement remains.
+- Next Fiat job: `None -- mature`
 
 ## History
 
@@ -20,3 +20,4 @@ Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VE
 | `horos-v4.2.0` | evolution | `census-breadth` | `87e29b9531544818db7fbb9d0c36cb1025c388304c198b9a28b24ed06db6a6cc` | [two recorded censuses](../../docs/evidence/wildcat-app-v2-census.md) | The held census job completed. scan --census records per-filetype bytes, share and boundary attribution through the boundary's own walk, committed under .horos beside the boundary. The first two recorded censuses show wildcat-app-v2 needing no third extractor and v2-protocol 87.6% Solidity by readable weight; the maintainer held the extractor decision open pending more censused repositories, and that breadth is the new held job. |
 | `horos-v4.2.1` | epoch | `go-and-cpp-extractors` | `dd233b96fded20dffbde65cf290bcf1a29d916dbcfcd400daed9d3b7f8f0b9a3` | Maintainer requirement, 2026-08-18: Horos exists to speed the ingestion of external repositories, not only to census Wildcat's own, so census-breadth over Wildcat trees cannot evidence the decision it was holding; Go and C++ are the named expected external languages, with maturity expected after both ship | Reopens the held target at the maintainer's direction, superseding census-breadth. The held job becomes the Go outline extractor, C++ follows it, and the frontier is expected to close mature after both, absent further evidence. |
 | `horos-v5.2.1` | evolution | `cpp-extractor` | `15cd1ac5364fb34b4c50aa9fce096d78defeab569e9b4d44bacfbb38939f0572` | [go-ethereum differential bundle](../../docs/evidence/go-ethereum-outline.md) | The Go half of the epoch completed. map reads Go through languages/go: grouped declarations, receivers, generics and raw strings all sliced verbatim, held against tree-sitter-go over 1,421 go-ethereum files with 21,648 of 21,648 declarations matched, zero misses, zero extras, zero crashes. The C++ extractor is the remaining held job, with maturity expected at its close. |
+| `horos-v6.2.1` | evolution | `external-ingestion-complete` | `6642fb08c31dda94b9ad73061e893097606a6642b4cd06157ac889e548589766` | [solidity differential bundle](../../docs/evidence/solidity-outline.md) | The C++ half of the epoch completed and closes the frontier. map reads C++ through languages/cpp, held against tree-sitter-cpp over 842 solidity files: 7,013 of 7,013 declarations matched at declared altitudes, zero misses, zero extras, zero crashes, with the oracle's 170 parse-failed files compared for crash-freedom and declared. Both epoch languages ship; per the versioning contract no evidenced material improvement remains, so the status is mature. Reopening requires new external evidence recorded as an epoch entry. |

@@ -1340,3 +1340,70 @@ all prior rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Cpp-extractor run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+118/118, root 24/24. Prose-only step; one imprimatur defect (a structural
+metaphor) was fixed before the copies were committed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Cpp-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 132/132, root
+24/24. Three defects were found and fixed during the step's own build,
+before the implement receipt, recorded for the trail: a broken template
+reattachment vestige replaced with the decorator pattern; a function body's
+close consuming the following statement (refresh, fromQuery and formatApr
+vanished from the fixture until the tail scan was cut back to the brace);
+and Allman-style bodies orphaned from their heads until a one-line peek
+joined them, with the orphan-brace branch defused from eating statements.
+The round's review walked the fixture against the source and found the
+slices verbatim, the raw-string containment exact and the confession
+correct.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings in the round itself. Leads not pursued: preprocessor
+conditionals that unbalance braces mis-slice until the next recogniser, as
+the study prices; the step 3 corpus reports how often real code does it.
+
+## Cpp-extractor run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity shipped; the corpus is the Solidity compiler's
+C++); lints phylax 0, ephoros 0, hypomnema 0. Horos 136/136, root 24/24.
+The review held the register's rows: the venv and oracle stay outside every
+runtime and test path, the bundle declares its altitudes and exclusions
+including the 170 oracle-unparsed files, the acceptance numbers are
+asserted by test, and the five corpus-found outliner defects each landed
+with the corpus rerun after them. The step 2 lead (preprocessor
+conditionals unbalancing braces) produced zero confessed regions across 842
+files of heavily conditionalised code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the oracle-unparsed fifth of the corpus
+is compared for crash-freedom only; a stronger C++ oracle would widen the
+compared set and can join the evidence if one becomes available without a
+toolchain the ingested tree does not owe us.
+
+## Cpp-extractor run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, imprimatur 100 on
+all four reconciled surfaces. Root 24/24 (the evolution contract validates
+the mature row's digest; the prose contract validates surface agreement),
+horos 136/136, demo pinned. The review confirmed the maturity closure meets
+the study's stated condition (the differential closed clean at declared
+altitudes), the reopening path is named on every surface, and all prior
+ledger rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
