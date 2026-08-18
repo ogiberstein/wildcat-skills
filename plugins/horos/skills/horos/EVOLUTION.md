@@ -2,11 +2,11 @@
 
 Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VERSIONING.md)
 
-- Current version: `horos-v8.2.2`
-- Frontier status: `open`
-- Frontier revision: `three-repository-marking`
-- Current frontier: One job remains from the reopened scope: committed boundaries and censuses across the three home repositories, using the refined classifier.
-- Next Fiat job: Run Horos over v2-protocol, wildcat-app-v2 and the skills repository itself: commit graded boundaries, candidates, censuses and adoption stanzas, record the recaptures as evidence, and close the frontier mature. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose.
+- Current version: `horos-v9.2.2`
+- Frontier status: `mature`
+- Frontier revision: `reopened-scope-complete`
+- Current frontier: The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains.
+- Next Fiat job: `None -- mature`
 
 ## History
 
@@ -24,3 +24,4 @@ Policy: [../../../hexaemeron/skills/VERSIONING.md](../../../hexaemeron/skills/VE
 | `horos-v6.2.2` | epoch | `solidity-extractor` | `7753df377099409e28fa5b8a297cb51eb0331ca950665454b080164e53985cef` | Maintainer reopening, 2026-08-18: Solidity outlining is required after all (the v2-protocol census already records .sol as 87.6% of readable weight), and the maintainer supplied a written classifier-refinement specification, committed verbatim at [docs/refinement/maintainer-spec.md](../../docs/refinement/maintainer-spec.md) | Reopens the mature frontier by epoch at the maintainer's direction, naming three jobs in order: the Solidity outline extractor, the budgeted two-tier classifier refinement, and committed boundaries and censuses across the three home repositories, after which the frontier is expected to close again. |
 | `horos-v7.2.2` | evolution | `classifier-refinement` | `78c6f721120b24093d9acff65e18a3681916826916fc41493516c847bc93c7d5` | [v2-protocol differential bundle](../../docs/evidence/v2-protocol-outline.md) | The reopened frontier's first job completed. map reads Solidity through languages/solidity, held against tree-sitter-solidity over all 151 v2-protocol files: 2,329 of 2,329 declarations matched at declared altitudes, zero misses, zero extras, zero crashes, zero confessions, every file oracle-parsed. The classifier refinement is the next held job, the three-repository marking after it. |
 | `horos-v8.2.2` | evolution | `three-repository-marking` | `50b6f2888a65029ef5bee108ad54321f7e7497ee84f1a795c373f74d9bb8d3af` | [the maintainer's specification](../../docs/refinement/maintainer-spec.md) and the graded fixture at [examples](../../examples/README.md) | The maintainer's budgeted two-tier classifier landed whole: nested gitattributes scopes, file signatures, corroborated directory exclusions, second sampling windows, hard and candidate evidence grades with boundary schema 2 and a candidates artefact, and a git-tracked default universe. Only hard evidence binds agents now. The last held job is the three-repository marking, with maturity expected at its close. |
+| `horos-v9.2.2` | evolution | `reopened-scope-complete` | `266ff46585035b2cd23466f87888a43ea06156de23470a3d98d7baa797850585` | [the marking bundle](../../docs/evidence/three-repository-marking.md) | The reopened frontier's last job completed and closes the frontier again. The skills repository carries its own verified boundary and stanza; v2-protocol and wildcat-app-v2 each carry a marking pull request (v2-protocol#134, wildcat-app-v2#360) with graded artefacts, stanzas and the candidate-promoting gitattributes lines, awaiting their own review gates. Per the versioning contract no evidenced material improvement remains; reopening requires new external evidence recorded as an epoch entry. |
