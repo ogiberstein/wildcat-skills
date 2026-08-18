@@ -79,7 +79,7 @@ def root_readme_frontier(name):
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     match = re.search(
         rf"(?m)^\| \[[^\]]+\]\(\./plugins/{re.escape(name)}\) "
-        r"\| [^|\n]* \| [^|\n]* \| (?P<frontier>[^|\n]+) \|$",
+        r"\| [^|\n]* \| (?P<frontier>[^|\n]+) \|$",
         readme,
     )
     if match is None:
@@ -118,7 +118,7 @@ class MarketplaceProseTests(unittest.TestCase):
 
     def test_root_readme_maps_every_plugin(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("## Choose the job, then the plugin", readme)
+        self.assertIn("## Current status", readme)
         for name in PLUGINS:
             with self.subTest(plugin=name):
                 self.assertIn("[", readme)

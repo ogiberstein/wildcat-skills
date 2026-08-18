@@ -7,26 +7,6 @@ Each plugin has a narrow job, a clear trigger and the instructions, code,
 evidence or tests that job needs. Read a plugin before running it: skills can
 execute commands and edit source.
 
-## Choose the job, then the plugin
-
-The names are memorable; the boundaries matter more. This is the short map of
-what each plugin does, where it hands work over and what is honestly left to
-build.
-
-| Plugin | Use it for | Try this instead | Current frontier |
-| --- | --- | --- | --- |
-| [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Tabularium for semantic event mapping; Probitas for a dossier. | Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented. |
-| [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | An external Sigstore or cosign verifier for signatures. | The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented. |
-| [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | Imprimatur for vocabulary; Vulgate for register; Sapheneia for AuDHD interaction shape. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
-| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Pandects or the audit skills for broader behavioural and security work. | No complete, reproducible live Wildcat evidence bundle is published. |
-| [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | A named bundled skill when the controller is unnecessary. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
-| [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | An embedding, index, retrieval or answering system for every later stage. | Callable-surface ABI validation does not independently check return types or state mutability. |
-| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Alexandria for a lending archive; Tabularium for event interpretation. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
-| [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | Fizz for a protocol-specific fuzz harness. | The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records. |
-| [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Alexandria for archived inputs. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
-| [Sapheneia](./plugins/sapheneia) | Shaping the agent's own replies so an AuDHD reader can see the action, boundaries, state and evidence. | Imprimatur for prose linting; Vulgate or another voice mask for register. | Cross-model behaviour has not yet been held against a published AuDHD task corpus. |
-| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Alexandria for raw harvesting; Probitas for a dossier. | Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented. |
-
 ## Plugins
 
 ### Alexandria
@@ -34,13 +14,11 @@ build.
 [Alexandria](./plugins/alexandria) keeps heterogeneous lending data unchanged,
 then derives only the credit rows a reviewed mapping can defend.
 
-The full account, what it ships and who it is for live in [Alexandria's README](./plugins/alexandria/README.md).
 
 ### Ariadne
 
 [Ariadne](./plugins/ariadne) binds a release to the evidence behind it, in a statement another person can check.
 
-The full account, what it ships and who it is for live in [Ariadne's README](./plugins/ariadne/README.md).
 
 ### Brevitas
 
@@ -50,19 +28,16 @@ commentary. It controls line count, finding shape, headings, tables, code fences
 and connective prose. Imprimatur still owns vocabulary, Vulgate owns register,
 and Sapheneia owns AuDHD interaction shape.
 
-The full account, what it ships and who it is for live in [Brevitas's README](./plugins/brevitas/README.md).
 
 ### Hermes
 
 [Hermes](./plugins/hermes) treats Solidity gas work as a verification problem.
 
-The full account, what it ships and who it is for live in [Hermes's README](./plugins/hermes/README.md).
 
 ### Hexaemeron
 
 [Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working prototype through one receipted loop.
 
-The full account, what it ships and who it is for live in [Hexaemeron's README](./plugins/hexaemeron/README.md).
 
 ### Lemma
 
@@ -70,7 +45,6 @@ The full account, what it ships and who it is for live in [Hexaemeron's README](
 into JSONL chunks. The two chunkers share one schema and keep source text used
 for quotation separate from text prepared for a model or embedder.
 
-The full account, what it ships and who it is for live in [Lemma's README](./plugins/lemma/README.md).
 
 ### Lazarus
 
@@ -78,7 +52,6 @@ The full account, what it ships and who it is for live in [Lemma's README](./plu
 state and RPC evidence that one application test needs, then replays only the
 requests in that fixture.
 
-The full account, what it ships and who it is for live in [Lazarus's README](./plugins/lazarus/README.md).
 
 ### Pandects
 
@@ -90,13 +63,11 @@ the accounting model and observables it requires.
 The catalogue holds ten laws across conservation, accrual and withdrawal
 claims. Nine are exact.
 
-The full account, what it ships and who it is for live in [Pandects's README](./plugins/pandects/README.md).
 
 ### Probitas
 
 [Probitas](./plugins/probitas) builds a sourced dossier on what a counterparty has done across on-chain lending venues.
 
-The full account, what it ships and who it is for live in [Probitas's README](./plugins/probitas/README.md).
 
 ### Sapheneia
 
@@ -104,14 +75,12 @@ The full account, what it ships and who it is for live in [Probitas's README](./
 engineers. It keeps the next action, task boundary, done condition, current
 state, evidence and unknowns visible from turn to turn.
 
-The full account, what it ships and who it is for live in [Sapheneia's README](./plugins/sapheneia/README.md).
 
 ### Tabularium
 
 [Tabularium](./plugins/tabularium) preserves on-chain credit events in a form
 another person can rebuild after the endpoint that served them is gone.
 
-The full account, what it ships and who it is for live in [Tabularium's README](./plugins/tabularium/README.md).
 
 ## Who these are for
 
@@ -127,6 +96,24 @@ Scored out of 10 for doing the job, not for reading the output. A marketer can q
 | Legal | 3 | 3 | 2 | 1 | 4 | 1 | 2 | 2 | 4 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
+
+## Current status
+
+The short map of what each plugin does and what is honestly left to build.
+
+| Plugin | Use it for | Current frontier |
+| --- | --- | --- |
+| [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented. |
+| [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented. |
+| [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
+| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | No complete, reproducible live Wildcat evidence bundle is published. |
+| [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
+| [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | Callable-surface ABI validation does not independently check return types or state mutability. |
+| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
+| [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records. |
+| [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
+| [Sapheneia](./plugins/sapheneia) | Shaping the agent's own replies so an AuDHD reader can see the action, boundaries, state and evidence. | Cross-model behaviour has not yet been held against a published AuDHD task corpus. |
+| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented. |
 
 ## Install
 
@@ -177,6 +164,7 @@ Claude namespaces plugin skills, so each entry skill answers as:
 /brevitas:brevitas
 /hermes:hermes
 /hexaemeron:fiat "<topic>"
+/hexaemeron:kronos
 /lemma:chunk
 /lazarus:lazarus
 /pandects:pandects
@@ -223,7 +211,13 @@ Use Brevitas to enforce evidence-preserving structural budgets on this engineeri
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
-Use Hexaemeron Phylax to harden the off-chain surface of this change, or name Protasis, Elenchus, Ephoros, Metron or Hypomnema.
+Use Hexaemeron Kronos to rank the held frontier jobs and run the best through Fiat until none remain.
+Use Hexaemeron Protasis to say whether this study and runbook are ready to build from.
+Use Hexaemeron Elenchus to find the root cause of this failure and guard it with a test.
+Use Hexaemeron Phylax to harden the off-chain surface of this change.
+Use Hexaemeron Ephoros to choose the events, metrics and alerts this step must emit.
+Use Hexaemeron Metron to baseline this slow path, change one thing and keep or revert on the numbers.
+Use Hexaemeron Hypomnema to record this decision where the next person will find it.
 Use Lemma to chunk this Solidity standard input into JSONL.
 Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
 Use Pandects to check this credit protocol against the executable laws in the corpus.
