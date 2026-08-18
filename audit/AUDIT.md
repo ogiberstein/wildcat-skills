@@ -851,3 +851,12 @@ the 159-file source inventory, 43 excluded files, 29 protected passages, four di
 refusals, and the committed study and runbook. No other open finding was established.
 The Solidity security suite remains waived because the step changes Markdown and Python
 test parsers only.
+
+## Repository-wide Brevitas pass, step 1, round 2 -- 2026-08-18
+
+The fixed non-Solidity tree has no open finding. Status: clean.
+
+The round re-read the historical mechanism at `audit/AUDIT.md:20`, both compact-list
+parsers, their fixtures, and the full protected-state proof. Root `22/22`, Hexaemeron
+`62/62`, Imprimatur, Brevitas `--source`, protected SHA verification, and
+`git diff --check` pass. No further lead was established.
