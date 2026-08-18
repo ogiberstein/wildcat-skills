@@ -66,19 +66,27 @@ which is what was wanted. `marketplace_entry` is a helper rather than a test,
 since its name does not begin with `test_`, and the six tests still pass.
 Neither fix introduced anything.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S1-R2-01 | info | audit/AUDIT.md | The audit log sat at the repository root. This repository will hold four plugins before long and a top-level `audit/` belongs to none of them. A plugin should carry its own log inside its own directory. | fixed in 3ef025f |
-| S1-R2-02 | low | .github/workflows/probitas.yml | The README and the study both claim Python 3.9 or later, and CI tested 3.11 alone. An untested compatibility claim is a claim that quietly stops being true. | fixed in 3ef025f |
+FINDING
+[Info] S1-R2-01: The audit log belonged inside its plugin.
+Location: `audit/AUDIT.md`
+Mechanism: The repository would hold four plugins, so a root `audit/` belonged to none.
+Impact: Ownership was unclear.
+Fix: fixed in `3ef025f`.
+END
+
+FINDING
+[Low] S1-R2-02: CI did not cover the documented interpreter floor.
+Location: `.github/workflows/probitas.yml`
+Mechanism: The README and study claimed Python 3.9 or later; CI tested only 3.11.
+Impact: Compatibility could regress without detection.
+Fix: fixed in `3ef025f`.
+END
 
 Leads not pursued: none.
 
 ## Step 1, round 3 -- 2026-08-15
 
 Reviewed: the tree with both rounds of fixes applied.
-
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
 
 Nothing found. Checked this round:
 
@@ -134,10 +142,21 @@ attack, which is the threat that matters here. Recorded rather than deepened.
 Reviewed: the round 1 fixes, then the tree again. Round 1's third fix turned
 out to overreach, which is the case for running a second round.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R2-01 | medium | scripts/probitas_lib/evidence.py | The personal-key guard refused `market_name`, `token_name` and `market_age`. A market has a name and so does a token, and the Wildcat adapter in step 3 needs both. A guard that blocks the data the next step depends on gets loosened by whoever hits it, which is worse than a guard that never fired. | fixed in 4c377b1 |
-| S2-R2-02 | low | scripts/probitas_lib/evidence.py | A `doc:` reference could carry a pipe, which breaks out of a Markdown table cell. Round 1 refused the link metacharacters and missed the table one. | fixed in 4c377b1 |
+FINDING
+[Medium] S2-R2-01: The personal-key guard rejected valid entity fields.
+Location: `scripts/probitas_lib/evidence.py`
+Mechanism: It refused `market_name`, `token_name` and `market_age`, including fields needed by the Wildcat adapter in step 3.
+Impact: A later adapter would need to weaken the guard.
+Fix: fixed in `4c377b1` with an explicit non-person key list.
+END
+
+FINDING
+[Low] S2-R2-02: A document reference could break its table cell.
+Location: `scripts/probitas_lib/evidence.py`
+Mechanism: `doc:` allowed a pipe after round 1 blocked only link metacharacters.
+Impact: The reference could inject a Markdown column.
+Fix: fixed in `4c377b1`.
+END
 
 The fix for S2-R2-01 is an explicit list of keys that name a thing rather than
 a person, checked before the guard. The guard itself stays broad: a false
@@ -162,13 +181,24 @@ Reviewed: the tree with both rounds applied, plus a randomised sweep over the
 sanitiser and the source classifier. 20,000 generated strings drawn from
 printable ASCII plus a zero width space, a right-to-left override, a byte order
 mark, a non-breaking space, a null, an unassigned codepoint and every Markdown
-metacharacter. The sweep is what found both of these; neither was visible by
-reading.
+metacharacter. The sweep found both; neither was visible in a line-by-line
+inspection.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S2-R3-01 | medium | scripts/probitas_lib/evidence.py | Round 1 excluded link syntax from a URL source and round 2 excluded a pipe from a document reference, and between them nobody excluded a pipe from a URL. Sources render inside a Markdown table, so `https://x/a|b` invents a column. | fixed in 7038d88 |
-| S2-R3-02 | medium | scripts/probitas_lib/evidence.py | A URL source could carry a control or format character. A right-to-left override inside a URL makes it display as a different address than the one it points at, in a document whose whole purpose is that a reader can check the citation. Nulls, byte order marks and zero-width spaces got through the same hole. | fixed in 7038d88 |
+FINDING
+[Medium] S2-R3-01: URL sources could inject a table column.
+Location: `scripts/probitas_lib/evidence.py`
+Mechanism: Rounds 1 and 2 blocked link syntax and document-reference pipes, but URL `https://x/a|b` remained valid.
+Impact: A network source could change the rendered table structure.
+Fix: fixed in `7038d88`.
+END
+
+FINDING
+[Medium] S2-R3-02: URL sources accepted deceptive control characters.
+Location: `scripts/probitas_lib/evidence.py`
+Mechanism: Right-to-left overrides, nulls, byte order marks and zero-width spaces survived.
+Impact: A citation could display a different address from its target.
+Fix: fixed in `7038d88` by refusing rather than rewriting the source.
+END
 
 The second is refused rather than stripped. Quietly rewriting a citation is
 worse than rejecting it: the operator finds out either way, and only one of
@@ -190,9 +220,6 @@ Leads not pursued: none.
 
 Reviewed: the tree with all three rounds of fixes, and the round 3 fixes for
 regressions.
-
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
 
 Nothing found. Checked this round:
 
@@ -300,9 +327,13 @@ key in all three fixtures dropped in turn, then every scalar corrupted in turn,
 asking each time whether the adapter raised or quietly produced a different
 record set. 1,266 mutations. Fourteen changed the output without raising.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S3-R3-01 | high | scripts/probitas_lib/adapters/wildcat.py | Every flag was read with `bool()`, which is true for any non-empty value the venue might send. A field turning from `false` into a string made a healthy market report as delinquent, a cure report as an entry, and, worst of the set, a withdrawal batch that expired unpaid report as settled and drop out of the dossier entirely. Eight of the fourteen silent mutations were this one bug. | fixed in be54fdd |
+FINDING
+[High] S3-R3-01: String flags inverted Wildcat findings.
+Location: `scripts/probitas_lib/adapters/wildcat.py`
+Mechanism: `bool()` treats every non-empty value as true; changing `false` to a string affected eight of fourteen silent mutations.
+Impact: Healthy markets appeared delinquent, cures became entries, and expired unpaid withdrawals disappeared as settled.
+Fix: fixed in `be54fdd`.
+END
 
 The remaining six are `name` and `asset.symbol` on each fixture. Both are free
 text, so a changed name changing the record is the adapter working. They are
@@ -324,9 +355,6 @@ Leads not pursued: none.
 
 Reviewed: the adapter with all three rounds applied, and the round 3 fix for
 regressions.
-
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
 
 Nothing found. Checked this round:
 
@@ -419,10 +447,21 @@ which the fixtures do not cover. 22 records, three markets, two real
 delinquencies, one cured inside the grace period and one that ran past it. All
 five gates pass, and tampering with a real 18-decimal amount is caught.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R2-01 | low | scripts/probitas_lib/gates.py | Round 1's gate 2 fix looked for each venue anywhere in the Coverage section. A venue named in another venue's note would stand in for its own missing row. No note currently names another venue, so the hole was latent rather than open, but notes change. | fixed in 498ae55 |
-| S4-R2-02 | low | scripts/probitas_lib/render.py | `load` checked that each block was present, not that it was a list. An evidence file with `records` as an object would fail somewhere further in with an error about neither records nor evidence. | fixed in 498ae55 |
+FINDING
+[Low] S4-R2-01: A note could stand in for a missing coverage row.
+Location: `scripts/probitas_lib/gates.py`
+Mechanism: Round 1 gate 2 searched for venue names anywhere in Coverage; no note then named another venue.
+Impact: A later note could hide an omitted venue row.
+Fix: fixed in `498ae55` by requiring its own table row.
+END
+
+FINDING
+[Low] S4-R2-02: Evidence block types failed late and unclearly.
+Location: `scripts/probitas_lib/render.py`
+Mechanism: `load` checked block presence, not that `records` and its peers were lists.
+Impact: Object-shaped records failed later with an unrelated error.
+Fix: fixed in `498ae55`.
+END
 
 Gate 2 is now anchored to the first cell of a table row rather than to a
 substring of the section.
@@ -449,9 +488,6 @@ caught.
 
 Reviewed: the tree with both rounds applied, and the round 2 fixes for
 regressions.
-
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
 
 Nothing found. Checked this round:
 
@@ -480,9 +516,13 @@ and is not numbered as a round: three rounds ran and three is what the list
 above says. Recorded because the fix is real and the reason for it is worth
 keeping.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S4-R4-01 | low | plugins/probitas/tests/test_graphql.py | Round 2 silenced a `ResourceWarning` by closing a mocked `HTTPError`. On Python 3.9 an `HTTPError` built with no file object raises `KeyError` when closed, so the fix broke the oldest interpreter the README claims to support while passing on the newest. | fixed in 2bc32fc |
+FINDING
+[Low] S4-R4-01: A warning fix broke Python 3.9.
+Location: `plugins/probitas/tests/test_graphql.py`
+Mechanism: Round 2 closed a mocked `HTTPError`; without a file object, 3.9 raises `KeyError` while newer Python passes.
+Impact: The documented oldest interpreter failed.
+Fix: fixed in `2bc32fc`.
+END
 
 The error now carries a real empty file object, which closes cleanly on both.
 The suite also passes with `-W error::ResourceWarning`, so the warning is gone
@@ -550,9 +590,13 @@ protocol were not. Written up as issue 16.
 Reviewed: the round 1 fixes for regressions, then both adapters side by side,
 which is what a second venue makes possible.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S5-R2-01 | medium | scripts/probitas_lib/adapters/wildcat.py | Round 1 made the Morpho coverage row say `ethereum mainnet only` and left the Wildcat row saying nothing about its chain. Wildcat is deployed on Plasma as well as mainnet, the adapter queries one of them, and a row reading `checked` invites a reader to take it for both. The fix that landed for one venue was needed for the other. | fixed in 02eca61 |
+FINDING
+[Medium] S5-R2-01: Wildcat coverage omitted its chain boundary.
+Location: `scripts/probitas_lib/adapters/wildcat.py`
+Mechanism: Round 1 labelled Morpho `ethereum mainnet only` but left Wildcat unqualified despite its Plasma deployment.
+Impact: A `checked` row could be read as covering both chains when the adapter queried one.
+Fix: fixed in `02eca61`.
+END
 
 Regenerating the committed example dossier was part of this: the demo test
 compares it against a fresh run, so a coverage note changing anywhere makes it
@@ -579,9 +623,6 @@ Reviewed: the tree with both rounds applied, with the CI matrix run first this
 time rather than after the close. That is the correction step 4 called for: an
 audit that closes before the oldest supported interpreter has seen the code
 closes early, and step 4 found that out the expensive way.
-
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
 
 Nothing found. Checked this round:
 
@@ -649,8 +690,8 @@ Checked and clean:
   tree. The archive node discussed in issue 12 is named nowhere in the code.
 
 Leads not pursued: none. The Aave request shape was left unestablished on a
-first pass and then established properly, which is the better outcome and took
-reading the published schema rather than guessing at it. `aave/aave-v4-sdk`
+first pass and then established properly from the published schema rather than
+guessed. `aave/aave-v4-sdk`
 carries the whole thing at `packages/graphql/schema.graphql`. The working
 `activities` query is in the guide, verified against a live borrow returning an
 exact on-chain integer and a transaction hash, so the next person writing that
@@ -823,9 +864,13 @@ to give. Probitas scores 9 for business development, 7 for finance and 5 for
 security and audit, so three desks get examples. Marketing gets 1 and gets
 nothing, which is the correct outcome rather than a gap.
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| PE-01 | low | plugins/probitas/skills/probitas/README.md | A copy of a file beside the original is a drift risk by construction. A shadow that has fallen behind is worse than no shadow, because a reader has no way to tell which of the two is current. | fixed |
+FINDING
+[Low] PE-01: The skill's shadow README could drift.
+Location: `plugins/probitas/skills/probitas/README.md`
+Mechanism: A copied instruction file could fall behind its canonical peer.
+Impact: Readers could not tell which version was current.
+Fix: removed the shadow and its drift surface.
+END
 
 Ten tests hold the shape. They check that the portable entrypoint's name
 matches its directory and its links resolve, that the runtime contract points

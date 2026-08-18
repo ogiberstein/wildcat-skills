@@ -6,10 +6,9 @@
 
 {{run_line}}
 
-This document was assembled by probitas from public sources. It carries no
-rating and no recommendation. Every assertion below cites a transaction, a URL
-or a document reference; anything that could not be sourced was dropped rather
-than softened.
+Probitas assembled this document from public sources without a rating or
+recommendation. Every assertion cites a transaction, URL or document reference;
+unsourced claims were dropped.
 
 ## Subject
 
@@ -17,9 +16,8 @@ than softened.
 
 ## Coverage
 
-What was checked, and what was not. A venue with no row here would be an
-omission; a venue with a row saying nobody checked is a gap, and a gap is not
-a clean record.
+A missing venue is an omission. A row saying nobody checked is a gap, not a
+clean record.
 
 {{coverage}}
 
@@ -39,8 +37,8 @@ Terms the counterparty set for themselves, and whether they held to them.
 
 ## Counterparty graph
 
-Limited to relationships the counterparty declared and relationships visible on
-chain between the declared addresses. No inference from off-chain association.
+Limited to declared relationships and those visible on chain between the
+declared addresses. Off-chain association is not used.
 
 {{graph}}
 
@@ -52,8 +50,8 @@ Insolvencies, exploits and enforcement actions, each with a source.
 
 ## Addresses not declared
 
-Addresses suspected but neither declared nor provably linked on chain. Findings
-here are held apart from everything above and feed no conclusion.
+Suspected addresses that were neither declared nor linked on chain. Their
+findings stay apart and feed no conclusion.
 
 {{inferred}}
 

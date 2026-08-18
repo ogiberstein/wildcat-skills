@@ -4,28 +4,23 @@
 > **Marketplace context: Probitas.** Probitas builds a sourced record of what a counterparty did across lending venues from addresses they declared, without identifying a person or issuing a Wildcat verdict. Use Alexandria for archived lending inputs and Tabularium when the job is publishing a reusable credit-event release rather than assessing one counterparty. **Current frontier:** Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented.
 <!-- marketplace-context:end -->
 
-Probitas contains one Agent Skill. Select from this table, then read the chosen
-`SKILL.md` in full.
+Probitas contains one Agent Skill:
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `probitas` | `skills/probitas/SKILL.md` | Build a sourced dossier on what a counterparty did across on-chain lending venues |
+- `probitas`: read `skills/probitas/SKILL.md` in full to build a sourced
+  dossier on a counterparty's actions across on-chain lending venues.
 
 `skills/probitas/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
 
 ## Translate tool names by capability
 
-The canonical skill was written for hosts that name their tools. A local agent
-must map those names to equivalent capabilities:
+Map host tool names to these capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+- `Read`: read the named file completely or at the stated range.
+- `Write` or `Edit`: create or patch the named file.
+- `Bash`: execute the command and inspect its exit status.
+- `Glob`, `Grep`, or `find`: enumerate or search the stated pattern.
+- `AskUserQuestion`: ask through structured UI or concise text.
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent local

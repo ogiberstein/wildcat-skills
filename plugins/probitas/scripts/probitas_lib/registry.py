@@ -83,8 +83,8 @@ VENUES = (
         "ethereum",
         False,
         "none",
-        "450 vaults on mainnet, on the same keyless API. A counterparty may "
-        "appear here as a curator rather than a borrower, and a curator who "
+        "450 vaults on mainnet, on the same keyless API. A counterparty can "
+        "appear here as a curator, not a borrower; a curator who "
         "allocated into a market that took bad debt made a call that cost "
         "lenders money. Not collected yet.",
     ),

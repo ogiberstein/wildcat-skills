@@ -29,19 +29,26 @@ would let a reader take one chain's silence for all of them.
 
 ## What does not, and why
 
-| Venue | Blocker |
-| --- | --- |
-| MetaMorpho vaults | Same keyless API as Morpho Blue, not collected. A counterparty may appear here as a curator rather than a borrower |
-| Morpho Vaults V2 | Same, a separate surface with its own allocation transactions |
-| Morpho Midnight | A different keyless REST API on Base, `api.morpho.org/v0/midnight`. Fixed maturities |
-| Centrifuge | Keyless GraphQL at `api.centrifuge.io`, introspects cleanly, 24 mainnet pools. Needs only an adapter |
-| Aave v3 | Keyless at `api.aave.com/graphql`, carrying `userBorrows` and `userPositions`. Introspection is off but errors name fields |
-| Aave v4 | Live on Ethereum mainnet since March 2026, same first-party API. A v3 borrower and a v4 borrower are one counterparty |
-| Maple Finance | Answers but disables introspection and publishes no schema, so the query shape cannot be established without guessing |
-| Compound v3 | No first-party API answered; The Graph gateway needs a paid key |
-| Goldfinch | Wound down June 2026 after defaults. Needs a gateway key. The record is a list of who did not repay, which is worth more than most live venues |
-| Clearpool | Live, behind a bot challenge returning 403. An agreement is the way in, not a workaround |
-| TrueFi | Restructured through a token migration completing May 2026; no public endpoint answered |
+- MetaMorpho vaults: same keyless API as Morpho Blue, not collected; a
+  counterparty can appear as a curator, not a borrower.
+- Morpho Vaults V2: same API, separate allocation surface.
+- Morpho Midnight: different keyless REST API on Base,
+  `api.morpho.org/v0/midnight`; fixed maturities.
+- Centrifuge: keyless GraphQL at `api.centrifuge.io`, clean introspection, 24
+  mainnet pools; needs only an adapter.
+- Aave v3: keyless `api.aave.com/graphql` with `userBorrows` and
+  `userPositions`; no introspection, but errors name fields.
+- Aave v4: live on Ethereum mainnet since March 2026 through the same
+  first-party API; v3 and v4 borrowers are one counterparty.
+- Maple Finance: answers without introspection or a published schema, so its
+  query shape cannot be established without guessing.
+- Compound v3: no first-party API answered; The Graph gateway needs a paid key.
+- Goldfinch: wound down in June 2026 after defaults; needs a gateway key; its
+  record names who did not repay.
+- Clearpool: live behind a 403 bot challenge; access needs an agreement, not a
+  workaround.
+- TrueFi: restructured through a token migration completing May 2026; no public
+  endpoint answered.
 
 Six of the eleven need only an adapter. The rest are blocked on somebody else's
 key, bot protection or documentation.
@@ -80,15 +87,15 @@ about a price.
 
 What the adapter emits, one record per event, each citing its own transaction:
 
-| Claim | What it says |
-| --- | --- |
-| `market_terms` | The reserve ratio, rate, grace period and penalty rate the borrower set |
-| `market_standing` | Drawn, repaid, penalty interest accrued, and whether the market is delinquent now |
-| `borrow`, `repayment` | Each draw and each repayment |
-| `delinquency_entered` | Liquidity fell below the reserve ratio, with what was held against what was required |
-| `delinquency_cured` | It came back, how long it took, and whether that ran past the grace period |
-| `withdrawal_batch_expired_unpaid` | A lender asked for money and did not get it |
-| `market_closed` | The borrower closed the market |
+- `market_terms`: reserve ratio, rate, grace period and penalty rate set by the
+  borrower.
+- `market_standing`: drawn, repaid, penalty interest accrued and current
+  delinquency state.
+- `borrow`, `repayment`: each draw and repayment.
+- `delinquency_entered`: liquidity held against the reserve requirement.
+- `delinquency_cured`: recovery time and whether it passed the grace period.
+- `withdrawal_batch_expired_unpaid`: a lender requested money and did not get it.
+- `market_closed`: the borrower closed the market.
 
 Two readings this adapter gets right and a naive one does not.
 
@@ -103,11 +110,9 @@ usually loses, and one of the synthetic fixtures exists to hold it still.
 
 ## Morpho Blue, in detail
 
-| Claim | What it says |
-| --- | --- |
-| `borrow`, `repayment` | Each draw and each repayment against a Blue market |
-| `liquidation` | The position was closed. The record states it was collateralised, so nobody reads it as a default |
-| `bad_debt` | The liquidation did not cover the debt. Lenders lost money |
+- `borrow`, `repayment`: each draw and repayment against a Blue market.
+- `liquidation`: the collateralised position closed; this is not labelled a default.
+- `bad_debt`: liquidation did not cover the debt; lenders lost money.
 
 Repaid and seized are different assets with different decimals, so they carry
 their own scales: `token_decimals` for the loan and `collateral_decimals` for

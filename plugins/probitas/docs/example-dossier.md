@@ -6,10 +6,9 @@
 
 Run `demo`.
 
-This document was assembled by probitas from public sources. It carries no
-rating and no recommendation. Every assertion below cites a transaction, a URL
-or a document reference; anything that could not be sourced was dropped rather
-than softened.
+Probitas assembled this document from public sources without a rating or
+recommendation. Every assertion cites a transaction, URL or document reference;
+unsourced claims were dropped.
 
 ## Subject
 
@@ -21,9 +20,8 @@ than softened.
 
 ## Coverage
 
-What was checked, and what was not. A venue with no row here would be an
-omission; a venue with a row saying nobody checked is a gap, and a gap is not
-a clean record.
+A missing venue is an omission. A row saying nobody checked is a gap, not a
+clean record.
 
 | Venue | Status | Range | Records | Note |
 | --- | --- | --- | --- | --- |
@@ -36,7 +34,7 @@ a clean record.
 | Euler v1 | empty | fixture | 0 | ethereum mainnet canonical Euler v1 proxy log; Borrow, Repay and Liquidation events checked through finalized block 18000000; no borrowing activity found for any subject address |
 | Goldfinch | unimplemented | -- | 0 | The protocol wound down in June 2026 after roughly 100 million dollars originated, with depositors reporting far heavier losses than the dashboard showed. The record stays on chain and is worth more to a dossier than most live venues, since it is a list of who did not repay. |
 | Maple Finance | unimplemented | -- | 0 | api.maple.finance responds but disables introspection, so the query shape could not be established. Undercollateralised, so worth the work. |
-| MetaMorpho vaults | unimplemented | -- | 0 | 450 vaults on mainnet, on the same keyless API. A counterparty may appear here as a curator rather than a borrower, and a curator who allocated into a market that took bad debt made a call that cost lenders money. Not collected yet. |
+| MetaMorpho vaults | unimplemented | -- | 0 | 450 vaults on mainnet, on the same keyless API. A counterparty can appear here as a curator, not a borrower; a curator who allocated into a market that took bad debt made a call that cost lenders money. Not collected yet. |
 | Morpho Blue | checked | fixture | 3 | ethereum mainnet only; 3 record(s) across 1 address(es) |
 | Morpho Midnight | unimplemented | -- | 0 | Fixed-rate, fixed-maturity lending on a separate keyless REST API at api.morpho.org/v0/midnight, not the GraphQL one. A maturity means there is a date by which the money was due, so this reads closer to Wildcat than Blue does. Base rather than mainnet. Not collected yet. |
 | Morpho Vaults V2 | unimplemented | -- | 0 | 474 vaults on mainnet, same API, separate surface from MetaMorpho with its own allocation transactions. Not collected yet. |
@@ -45,19 +43,17 @@ a clean record.
 
 ## What could not be established
 
-| Subject | Why |
-| --- | --- |
-| aave-v3 borrowing history | Reachable without a key after all, at api.aave.com/graphql. The `activities` query filtered by user returns borrows, repayments and liquidations, each with a txHash and an exact on-chain integer. Introspection is off; the schema is published in the aave-v4-sdk repository. The Graph gateway route needs a paid key; this does not. |
-| aave-v4 borrowing history | Live on Ethereum mainnet since March 2026, hub and spoke rather than one pool, keyless at api.v4.aave.com/graphql. A borrower on v3 and a borrower on v4 are the same counterparty and the dossier should say so. |
-| centrifuge borrowing history | Keyless GraphQL at api.centrifuge.io, introspects cleanly, 24 pools on mainnet. Carries pools, holdings, investor transactions and debt changes. The most build-ready of the unbuilt venues. |
-| clearpool borrowing history | Live, and the API sits behind a bot challenge that returns 403 to a plain request. Working around that is not something this tool should do; an agreement with them is the way in. |
-| compound-v3 borrowing history | No first-party API found. The Graph gateway rejects unauthenticated requests and the old hosted service is gone. |
-| goldfinch borrowing history | The protocol wound down in June 2026 after roughly 100 million dollars originated, with depositors reporting far heavier losses than the dashboard showed. The record stays on chain and is worth more to a dossier than most live venues, since it is a list of who did not repay. |
-| maple borrowing history | api.maple.finance responds but disables introspection, so the query shape could not be established. Undercollateralised, so worth the work. |
-| metamorpho borrowing history | 450 vaults on mainnet, on the same keyless API. A counterparty may appear here as a curator rather than a borrower, and a curator who allocated into a market that took bad debt made a call that cost lenders money. Not collected yet. |
-| morpho-midnight borrowing history | Fixed-rate, fixed-maturity lending on a separate keyless REST API at api.morpho.org/v0/midnight, not the GraphQL one. A maturity means there is a date by which the money was due, so this reads closer to Wildcat than Blue does. Base rather than mainnet. Not collected yet. |
-| morpho-vaults-v2 borrowing history | 474 vaults on mainnet, same API, separate surface from MetaMorpho with its own allocation transactions. Not collected yet. |
-| truefi borrowing history | Restructured through 2025 and into a token migration completing May 2026. No public API endpoint answered. Historical undercollateralised loans are still the interesting part. |
+- aave-v3 borrowing history: Reachable without a key after all, at api.aave.com/graphql. The `activities` query filtered by user returns borrows, repayments and liquidations, each with a txHash and an exact on-chain integer. Introspection is off; the schema is published in the aave-v4-sdk repository. The Graph gateway route needs a paid key; this does not.
+- aave-v4 borrowing history: Live on Ethereum mainnet since March 2026, hub and spoke rather than one pool, keyless at api.v4.aave.com/graphql. A borrower on v3 and a borrower on v4 are the same counterparty and the dossier should say so.
+- centrifuge borrowing history: Keyless GraphQL at api.centrifuge.io, introspects cleanly, 24 pools on mainnet. Carries pools, holdings, investor transactions and debt changes. The most build-ready of the unbuilt venues.
+- clearpool borrowing history: Live, and the API sits behind a bot challenge that returns 403 to a plain request. Working around that is not something this tool should do; an agreement with them is the way in.
+- compound-v3 borrowing history: No first-party API found. The Graph gateway rejects unauthenticated requests and the old hosted service is gone.
+- goldfinch borrowing history: The protocol wound down in June 2026 after roughly 100 million dollars originated, with depositors reporting far heavier losses than the dashboard showed. The record stays on chain and is worth more to a dossier than most live venues, since it is a list of who did not repay.
+- maple borrowing history: api.maple.finance responds but disables introspection, so the query shape could not be established. Undercollateralised, so worth the work.
+- metamorpho borrowing history: 450 vaults on mainnet, on the same keyless API. A counterparty can appear here as a curator, not a borrower; a curator who allocated into a market that took bad debt made a call that cost lenders money. Not collected yet.
+- morpho-midnight borrowing history: Fixed-rate, fixed-maturity lending on a separate keyless REST API at api.morpho.org/v0/midnight, not the GraphQL one. A maturity means there is a date by which the money was due, so this reads closer to Wildcat than Blue does. Base rather than mainnet. Not collected yet.
+- morpho-vaults-v2 borrowing history: 474 vaults on mainnet, same API, separate surface from MetaMorpho with its own allocation transactions. Not collected yet.
+- truefi borrowing history: Restructured through 2025 and into a token migration completing May 2026. No public API endpoint answered. Historical undercollateralised loans are still the interesting part.
 
 ## Borrowing history
 
@@ -82,8 +78,8 @@ Terms the counterparty set for themselves, and whether they held to them.
 
 ## Counterparty graph
 
-Limited to relationships the counterparty declared and relationships visible on
-chain between the declared addresses. No inference from off-chain association.
+Limited to declared relationships and those visible on chain between the
+declared addresses. Off-chain association is not used.
 
 No relationship between the declared addresses appears on chain in the venues checked, and none was declared.
 
@@ -95,8 +91,8 @@ _Nothing to report._
 
 ## Addresses not declared
 
-Addresses suspected but neither declared nor provably linked on chain. Findings
-here are held apart from everything above and feed no conclusion.
+Suspected addresses that were neither declared nor linked on chain. Their
+findings stay apart and feed no conclusion.
 
 _Nothing to report._
 

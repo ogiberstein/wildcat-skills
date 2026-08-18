@@ -240,9 +240,9 @@ def _gaps(payload):
             "Nothing. Every venue in the registry was checked and every "
             "declared address resolved."
         )
-    lines = ["| Subject | Why |", "| --- | --- |"]
+    lines = []
     for gap in payload["gaps"]:
-        lines.append(f"| {gap['subject']} | {gap['reason']} |")
+        lines.append(f"- {gap['subject']}: {gap['reason']}")
     return "\n".join(lines)
 
 

@@ -47,15 +47,9 @@ query($prefix: Bytes!) {
     orderDirection: asc
     where: { addressPrefix: $prefix, debt_gt: 0 }
   ) {
-    id
-    vault
-    addressPrefix
-    account
-    balance
-    debt
-    blockNumber
-    blockTimestamp
-    transactionHash
+    id vault addressPrefix account
+    balance debt
+    blockNumber blockTimestamp transactionHash
   }
   _meta { block { number hash } deployment hasIndexingErrors }
 }
@@ -179,11 +173,8 @@ event Liquidation(
 );
 ```
 
-The mainnet address manifest binds those events to the canonical proxy:
-
-```text
-0x27182842E098f60e3D576794A5bFFb0777E025d3
-```
+The mainnet address manifest binds those events to canonical proxy
+`0x27182842E098f60e3D576794A5bFFb0777E025d3`.
 
 `https://mainnet.gateway.tenderly.co` accepted a keyless `eth_getLogs` query
 from block 0 through `latest`, filtered by that proxy and the indexed borrower.

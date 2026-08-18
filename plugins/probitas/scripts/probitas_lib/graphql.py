@@ -51,7 +51,7 @@ def post(endpoint, query, variables=None, timeout=DEFAULT_TIMEOUT):
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "probitas/0.1.0",
+            "User-Agent": "probitas/0.2.0",
         },
         method="POST",
     )
