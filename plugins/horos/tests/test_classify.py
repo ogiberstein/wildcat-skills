@@ -112,6 +112,34 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(entry["category"], "vendored")
         self.assertIn(".gitattributes", entry["evidence"])
 
+    def test_an_svg_with_a_root_element_is_an_asset(self):
+        write(self.root, "icons/logo.svg", '<?xml version="1.0"?>\n<svg xmlns="x"></svg>\n')
+        entry = self.entries()["icons/logo.svg"]
+        self.assertEqual(entry["category"], "asset")
+        self.assertIn("svg root element", entry["evidence"])
+
+    def test_an_svg_file_without_the_root_element_stays_readable(self):
+        write(self.root, "notes.svg", "not actually vector art\n")
+        self.assertNotIn("notes.svg", self.entries())
+
+    def test_an_svg_fragment_under_another_name_stays_readable(self):
+        write(self.root, "snippet.html", "<div><svg></svg></div>\n")
+        self.assertNotIn("snippet.html", self.entries())
+
+    def test_sql_under_a_migrations_segment_is_generated(self):
+        write(self.root, "prisma/migrations/0001_init/migration.sql", "CREATE TABLE a (id int);\n")
+        entry = self.entries()["prisma/migrations/0001_init/migration.sql"]
+        self.assertEqual(entry["category"], "generated")
+        self.assertIn("migrations directory segment", entry["evidence"])
+
+    def test_sql_outside_a_migrations_segment_stays_readable(self):
+        write(self.root, "queries/report.sql", "SELECT 1;\n")
+        self.assertNotIn("queries/report.sql", self.entries())
+
+    def test_non_sql_inside_a_migrations_segment_stays_readable(self):
+        write(self.root, "prisma/migrations/README.md", "how we migrate\n")
+        self.assertNotIn("prisma/migrations/README.md", self.entries())
+
     def test_a_symlink_out_of_the_root_is_never_followed(self):
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)

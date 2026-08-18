@@ -1,12 +1,13 @@
 {
   "counts": {
+    "bytes_asset": 138,
     "bytes_binary": 11,
     "bytes_blob": 50275,
-    "bytes_generated": 147,
+    "bytes_generated": 218,
     "bytes_lockfile": 54,
     "bytes_vendored": 53,
     "files_skipped_unreadable": 0,
-    "files_walked": 8
+    "files_walked": 10
   },
   "entries": [
     {
@@ -47,6 +48,12 @@
       "path": "gen/api.py"
     },
     {
+      "bytes": 138,
+      "category": "asset",
+      "evidence": "svg root element in the first 4096 bytes",
+      "path": "icons/logo.svg"
+    },
+    {
       "bytes": 10,
       "category": "vendored",
       "evidence": "linguist-vendored for 'lib/**' in .gitattributes",
@@ -59,6 +66,12 @@
       "evidence": "directory name node_modules",
       "files": 1,
       "path": "node_modules/"
+    },
+    {
+      "bytes": 71,
+      "category": "generated",
+      "evidence": "sql file under a migrations directory segment",
+      "path": "prisma/migrations/0001_init/migration.sql"
     },
     {
       "bytes": 54,

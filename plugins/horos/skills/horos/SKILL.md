@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "1.1.0"
+  version: "2.1.0"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** Text assets and machine-emitted migration SQL evidenced in the wildcat-app-v2 bundle stay readable, and TypeScript skeleton maps are refused rather than built.
+**Current frontier.** Horos's map verb reads Python only; the maintainer-directed TypeScript outline extractor, internal to Horos with verbatim source slices and confessed unparsed regions, remains unbuilt.
 
 ## The verbs
 
@@ -57,14 +57,18 @@ lines) so a large Python file can be oriented in without being read whole.
 It parses; it never imports or executes what it reads.
 
 `map` reads Python only, by decision rather than omission. TypeScript
-skeletons were considered and refused on 2026-08-18: stdlib Python cannot
-parse TypeScript honestly, a regex sketch of a language is a guess this
-marketplace refuses, and no parser dependency or subprocess boundary is
-justified by a secondary verb. The refusal is on the ledger in
-[EVOLUTION.md](EVOLUTION.md). The measured win on TypeScript repositories
-comes from `scan`, which classified 80.3% of the live wildcat-app-v2 tree;
-the recorded capture lives at
-[../../docs/evidence/wildcat-app-v2.md](../../docs/evidence/wildcat-app-v2.md).
+skeletons were refused on 2026-08-18: stdlib Python cannot parse TypeScript
+honestly, a regex sketch of a language is a guess this marketplace refuses,
+and no parser dependency or subprocess boundary is justified by a secondary
+verb. Later the same day the maintainer directed a superseding design that
+keeps every one of those grounds: an outline extractor internal to Horos
+that lexes rather than parses, quotes declaration slices verbatim, and
+confesses unparsed regions by count and location instead of guessing. It is
+the ledger's held job in [EVOLUTION.md](EVOLUTION.md), specified and not yet
+built. The measured win on TypeScript repositories meanwhile comes from
+`scan`: 83.3% of the live wildcat-app-v2 tree classified in the second
+recorded capture at
+[../../docs/evidence/wildcat-app-v2-rules.md](../../docs/evidence/wildcat-app-v2-rules.md).
 
 ## The discipline
 
