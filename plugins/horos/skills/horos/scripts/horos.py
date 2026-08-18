@@ -123,6 +123,11 @@ def classify_content(name, size, prefix):
 
     text = prefix.decode("utf-8", errors="replace")
     lowered = text.lower()
+    # SVG before the marker scan: a tool-stamped SVG is still an asset, and
+    # asset is the more specific truth about it.
+    if name.endswith(".svg") and "<svg" in lowered:
+        return "asset", f"svg root element in the first {PREFIX_BYTES} bytes"
+
     for marker in GENERATED_MARKERS:
         if marker in lowered:
             return "generated", f"marker {marker!r} in the first {PREFIX_BYTES} bytes"
@@ -163,6 +168,14 @@ def classify_file(root, relpath):
             "category": "lockfile",
             "bytes": size,
             "evidence": f"lockfile name {name}",
+        }
+
+    if name.endswith(".sql") and "migrations" in PurePosixPath(relpath).parts[:-1]:
+        return {
+            "path": relpath,
+            "category": "generated",
+            "bytes": size,
+            "evidence": "sql file under a migrations directory segment",
         }
 
     prefix = read_prefix(fullpath)
