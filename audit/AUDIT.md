@@ -203,3 +203,22 @@ The round-2 fix was re-read against the sources. `COUNT` is 5 in
 says.
 
 Leads not pursued: the two carried from round 1, unchanged.
+
+## Withdrawal batch fee law, step 1, round 4 -- 2026-08-18
+
+No Solidity and no campaign. This round read step 3's evidence requirement
+against the tooling that exists to satisfy it, and re-checked which documents in
+the plugin are generated, which the previous round had only established for one of
+them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 3 asked for "a search record for each run" and for "a run record beside the existing campaign evidence", without naming a mechanism. One exists and does not cover the case: `python3 scripts/pandects.py run` writes a search record and knows only the `foundry` engine. An implementer would either read the requirement as satisfied by that command for all three engines, which would silently drop the two fuzzers the step exists to run, or invent a record format for them. | Fixed in this round: step 3 names the command for the Foundry record, says it has no Echidna or Medusa support, and requires the two fuzzers to be recorded as audit prose the way the original delivery recorded them. It also says not to extend the runner here. |
+
+`docs/applicability.md` was checked and is not generated. `pandects render` writes
+`docs/catalogue.md` and nothing else, so step 4's remaining prose surfaces are
+hand-written and correctly listed.
+
+Leads not pursued: extending the search-record runner past `foundry`, now stated
+in the runbook as out of scope for this step and a candidate frontier of its own;
+and the two carried from round 1.

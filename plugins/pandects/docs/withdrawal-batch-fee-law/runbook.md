@@ -102,14 +102,21 @@ engines found.
 **Entry.** Step 2's exit state.
 
 **Exit.** Echidna and Medusa both drive the new specimen and both report the
-violation; the harness exposes it under `echidna_` and `property_`; a search
-record for each run states engine, configuration digest, sequence length and
-corpus digest, with Echidna's seed recorded and Medusa's stated as unavailable
-rather than invented.
+violation, and the harness exposes it under `echidna_` and `property_`.
+
+Two mechanisms carry the evidence and they are not interchangeable.
+`python3 scripts/pandects.py run` writes a machine search record, and it knows one
+engine: `foundry`. It has no Echidna or Medusa support, and an engine that did not
+run is absent from a record rather than present and empty, which is the runner's
+own rule. So the Foundry record comes from that command, and the two fuzzers are
+recorded the way the original delivery recorded them, as prose in the audit round
+naming the engine, the configuration, the sequence and what failed, with Echidna's
+seed given and Medusa's stated as unavailable rather than invented. Do not extend
+the runner to a second engine in this step; that is its own frontier.
 
 **Files.** `src/campaigns/Specimens.sol`, extended. `adapters/echidna/CorpusEchidna.sol`
 and `adapters/medusa/CorpusMedusa.sol` where the new property needs an entry
-point. A run record beside the existing campaign evidence.
+point.
 
 **Tests.** `test/Corpus.t.sol` or `test/Adapters.t.sol` extended so the new
 entry point is exercised without an engine, the way the existing prefixed entry
