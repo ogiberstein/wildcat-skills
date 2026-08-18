@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "7.2.2"
+  version: "8.2.2"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** The classifier refinement the maintainer specified and the three-repository boundary marking remain from the reopened scope; map now reads Solidity.
+**Current frontier.** One job remains from the reopened scope: committed boundaries and censuses across the three home repositories, using the refined classifier.
 
 ## The verbs
 
@@ -111,7 +111,15 @@ confessions and every file oracle-parsed, recorded at
    whole only when the skeleton was not enough, and mind the confession
    line: a large unparsed region means the skeleton understates the file.
 4. Classification is fail-open, so the boundary understates the sinks. What
-   it lists is evidenced; what it omits is merely unproven.
+   it lists is evidenced; what it omits is merely unproven. Evidence comes
+   in two grades: only hard evidence (an exact lockfile name, a Git
+   attribute, a binary signature, a generated marker, sourcemap structure,
+   a corroborated directory) reaches `boundary.json` and binds; candidates
+   (a name, a convention or geometry alone) live in
+   `.horos/candidates.json` as an advisory report a maintainer can promote
+   to a repository-specific rule. Scans of git repositories cover tracked
+   files by default, so local build products never contaminate a committed
+   boundary; `--include-untracked` widens the universe deliberately.
 5. When writing a boundary into a repository other agents will work in, add
    the adoption stanza that `scan --write` prints to that repository's
    AGENTS.md or CLAUDE.md. Agent harnesses load those files at session

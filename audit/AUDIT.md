@@ -1463,3 +1463,96 @@ all prior rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Refinement run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+152/152, root 24/24. Prose-only step; the committed copies match the
+receipted artefacts and sit beside the maintainer's verbatim specification.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Refinement run, step 2, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Root 24/24. One
+finding, and it is a process finding against this run's own record: the
+implement receipt recorded "horos 157/157" while the plugin suite was in
+fact red with two test errors, because a chained shell command swallowed
+the suite's exit status. The errors were wrong expectations in the two new
+nested-attributes tests (asserting file-level entries where directory
+aggregation correctly forecloses them), fixed in 1d33f7f with the semantics
+documented in the tests themselves. The true counts: 155 tests before the
+fix with 2 errors; 155/155 after. The receipt's count also overstated the
+total by two. The correction stands here rather than in a rewritten
+receipt, because the ledger is append-only and the round exists to catch
+exactly this.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | .hexaemeron ledger | implement receipt asserted a green suite over a red one | corrected in 1d33f7f and recorded here |
+
+Leads not pursued: none.
+
+## Refinement run, step 2, round 2 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 155/155, root
+24/24, against the fixed tree. The round re-walked the two corrected tests
+against the scanner's actual semantics and the scope table's registration
+order, and re-verified the frozen fixture boundary is byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Refinement run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+changed README. Horos 159/159, root 24/24, both verified before the
+implement receipt this time. The review walked the specification against
+the landed pipeline clause by clause: the hard list is exactly the
+specification's five plus corroborated directories, geometry stays
+candidate wherever found including the windows, the sample is
+deterministic (first eight sorted, 4 KiB each), the byte budget holds (at
+most 8 KiB for large unresolved files), candidates never bind and check
+never fails on them, and the safety rule the specification preserves
+(security reviews ignore the boundary) is untouched in the skill text.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the specification's closing note names
+nested .gitattributes and corroborated exclusions as the largest gains;
+both landed, and the recapture evidence for real trees belongs to the
+third job.
+
+## Refinement run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0 (the git subprocess carries its
+allow comment naming fixed argv, no shell, pinned cwd), ephoros 0. Horos
+165/165, root 24/24, verified before the receipt. The review held the
+register's rows: ignored files never enter any universe, the widened mode
+still excludes them, aggregation counts only universe members, check
+reproduces the committed universe, and the fixture's tracked label is safe
+because running the suite presupposes a git clone.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Refinement run, step 5, round 1 -- 2026-08-18
+
+Suite waived; lints phylax 0, ephoros 0, imprimatur 100 on all four
+reconciled surfaces. Root 24/24, horos 165/165, demo byte-identical, all
+verified before the receipt. The review confirmed the discipline's new
+grade and universe language matches the shipped behaviour exactly, and all
+prior ledger rows are byte-identical.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.

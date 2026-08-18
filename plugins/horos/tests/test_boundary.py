@@ -70,10 +70,20 @@ class BoundaryTests(unittest.TestCase):
 
     def test_a_new_sink_drifts_and_is_named(self):
         horos.write_boundary(self.root, self.document())
-        write(self.root, "data.bin", b"\x00")
+        write(self.root, "data.wasm", b"\x00asm\x01\x00\x00\x00")
         code, output = self.check()
         self.assertEqual(code, 1)
-        self.assertIn("drift: data.bin: evidenced by the tree", output)
+        self.assertIn("drift: data.wasm: evidenced by the tree", output)
+
+    def test_a_candidate_never_fails_check(self):
+        horos.write_boundary(self.root, self.document())
+        horos.write_candidates(
+            self.root, horos.candidates_document(horos.scan_tree(self.root))
+        )
+        write(self.root, "notes.svg", '<svg xmlns="x"></svg>')
+        code, output = self.check()
+        self.assertEqual(code, 0)
+        self.assertIn("candidate drift: notes.svg", output)
 
     def test_a_removed_sink_drifts_and_is_named(self):
         horos.write_boundary(self.root, self.document())
