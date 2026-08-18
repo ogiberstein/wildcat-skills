@@ -1418,3 +1418,19 @@ receipted artefacts.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Solidity-extractor run, step 2, round 1 -- 2026-08-18
+
+Suite waived (the run ships Python that reads Solidity, none of its own);
+lints phylax 0, ephoros 0. Horos 149/149, root 24/24. The review walked the
+study's risk rows: hex and unicode strings lex through the ordinary quote
+scanner with prefixes staying in code harmlessly, attribute chains and
+override lists ride in verbatim heads, the walker inherits the monotonic
+advance and Allman peeks its three predecessors learned, and constructors
+are outlined but excluded from the differential's compared set like C++
+destructors.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
