@@ -1166,3 +1166,23 @@ treats a slash literally, so a regex literal containing a brace or backtick
 inside `${...}` can mis-span the template. Bounded to that template, and
 deferred to the step 4 corpus run, which will show whether real code does
 this before any fix is designed.
+
+## Outline-extractor run, step 3, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0. Horos 89/89, root
+24/24. Two defects were found and fixed during the step's own build, before
+the implement receipt, and are recorded here for the trail: a statement
+position that never advanced on a stray closing brace hung the first live
+run (fixed with an explicit step-over plus a monotonic advance guard), and
+method heads truncated at their parameter list because the statement-end
+scanner was handed the closing parenthesis itself (fixed with
+position-ordered member dispatch). The round's review after those fixes
+walked the emitted fixture line by line against the source and found the
+slices verbatim and the confession exact.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings in the round itself. Leads not pursued: multiline arrow-
+function signatures quote only their first line; the differential in step 4
+measures whether that loses names in practice.

@@ -252,6 +252,293 @@ def _scan_template_expression(source, start):
     return None
 
 
+OPENERS = "([{"
+CLOSERS = ")]}"
+
+MODIFIERS = frozenset(
+    {
+        "export",
+        "default",
+        "declare",
+        "abstract",
+        "async",
+        "public",
+        "private",
+        "protected",
+        "static",
+        "readonly",
+        "override",
+        "accessor",
+        "get",
+        "set",
+    }
+)
+
+# Keywords whose declaration head runs to the body brace.
+HEADED = frozenset({"function", "class", "interface", "enum", "namespace", "module"})
+
+# Keywords whose declaration is quoted as its first line.
+SIMPLE = frozenset({"import", "type", "const", "let", "var"})
+
+# Statement-final characters that suppress the newline statement end: a line
+# ending in one of these still owes the next line something.
+CONTINUERS = frozenset(",=&|+-*/<>?:.([{")
+
+
+def _line_of(source, offset):
+    return source.count("\n", 0, offset) + 1
+
+
+def _masked(source, spans):
+    """The source with every non-code span blanked, newlines kept, so
+    structure tracking cannot be derailed by braces inside literals."""
+    parts = []
+    for kind, start, end in spans:
+        segment = source[start:end]
+        if kind == "code":
+            parts.append(segment)
+        else:
+            parts.append("".join(ch if ch == "\n" else " " for ch in segment))
+    return "".join(parts)
+
+
+def _statement_end(mask, i, end):
+    """Index just past the statement starting at i: a balanced `;`, a
+    newline that plausibly ends it, or the region's closing brace."""
+    depth = 0
+    last = ""
+    while i < end:
+        c = mask[i]
+        if c in OPENERS:
+            depth += 1
+        elif c in CLOSERS:
+            depth -= 1
+            if depth < 0:
+                return i
+            last = c
+        elif depth == 0 and c == ";":
+            return i + 1
+        elif depth == 0 and c == "\n":
+            if last and last not in CONTINUERS:
+                return i + 1
+        elif not c.isspace():
+            last = c
+        i += 1
+    return end
+
+
+def _find_at_depth(mask, start, stop, target):
+    """The first target character at bracket depth zero, or -1."""
+    depth = 0
+    i = start
+    while i < stop:
+        c = mask[i]
+        if c in OPENERS:
+            if c == target and depth == 0:
+                return i
+            depth += 1
+        elif c in CLOSERS:
+            depth -= 1
+        elif c == target and depth == 0:
+            return i
+        i += 1
+    return -1
+
+
+def _matching_brace(mask, open_index, end):
+    depth = 0
+    i = open_index
+    while i < end:
+        c = mask[i]
+        if c in OPENERS:
+            depth += 1
+        elif c in CLOSERS:
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return end
+
+
+def _leading_words(mask, i, end):
+    """The statement's leading identifier-like words, for recognition."""
+    words = []
+    while i < end and len(words) < 8:
+        while i < end and mask[i] in " \t":
+            i += 1
+        j = i
+        while j < end and mask[j] in WORD_CHARS:
+            j += 1
+        if j == i:
+            break
+        words.append(mask[i:j])
+        i = j
+    return words
+
+
+def _first_line(source, start, stop):
+    newline = source.find("\n", start, stop)
+    cut = stop if newline == -1 else newline
+    return source[start:cut].rstrip().rstrip(";").rstrip()
+
+
+class _Outline:
+    def __init__(self, source, mask):
+        self.source = source
+        self.mask = mask
+        self.lines = []
+        self.regions = []
+        self.declarations = 0
+
+    def emit(self, text, depth):
+        pad = "    " * depth
+        for line in text.splitlines():
+            self.lines.append(pad + line.strip() if depth else line.rstrip())
+
+    def confess(self, start, stop):
+        first = _line_of(self.source, start)
+        last = _line_of(self.source, max(start, stop - 1))
+        if self.regions and self.regions[-1][1] >= first - 1:
+            self.regions[-1] = (self.regions[-1][0], max(self.regions[-1][1], last))
+        else:
+            self.regions.append((first, last))
+
+    def region(self, start, end, depth, in_class):
+        mask = self.mask
+        i = start
+        while i < end:
+            while i < end and (mask[i].isspace() or mask[i] == ";"):
+                i += 1
+            if i >= end:
+                break
+            if mask[i] in CLOSERS:
+                # A stray closer at statement position cannot start anything;
+                # stepping over it is what keeps this loop finite.
+                i += 1
+                continue
+            if mask[i] == "@":
+                stop = self._decorator_end(i, end)
+                self.emit(self.source[i:stop].rstrip(), depth)
+                i = max(stop, i + 1)
+                continue
+            if in_class:
+                i = max(self._member(i, end, depth), i + 1)
+                continue
+            i = max(self._statement(i, end, depth), i + 1)
+
+    def _decorator_end(self, i, end):
+        j = i + 1
+        while j < end and self.mask[j] in WORD_CHARS.union("."):
+            j += 1
+        if j < end and self.mask[j] == "(":
+            return _matching_brace(self.mask, j, end) + 1
+        return j
+
+    def _statement(self, i, end, depth):
+        words = _leading_words(self.mask, i, end)
+        keyword = next((w for w in words if w not in MODIFIERS), None)
+
+        if keyword in HEADED:
+            return self._headed(i, end, depth, keyword)
+        if keyword in SIMPLE or (words[:2] == ["export", "default"]) or (
+            words and words[0] == "export" and keyword is None
+        ):
+            stop = _statement_end(self.mask, i, end)
+            self.emit(_first_line(self.source, i, stop), depth)
+            self.declarations += 1
+            return stop
+        stop = _statement_end(self.mask, i, end)
+        self.confess(i, stop)
+        return stop
+
+    def _headed(self, i, end, depth, keyword):
+        brace = self.mask.find("{", i, _statement_end(self.mask, i, end))
+        if brace == -1:
+            stop = _statement_end(self.mask, i, end)
+            self.emit(_first_line(self.source, i, stop), depth)
+            self.declarations += 1
+            return stop
+        self.emit(self.source[i:brace].rstrip(), depth)
+        self.declarations += 1
+        close = _matching_brace(self.mask, brace, end)
+        if keyword == "class":
+            self.region(brace + 1, close, depth + 1, in_class=True)
+        elif keyword in ("namespace", "module"):
+            self.region(brace + 1, close, depth + 1, in_class=False)
+        return close + 1
+
+    def _member(self, i, end, depth):
+        stmt_stop = _statement_end(self.mask, i, end)
+        paren = _find_at_depth(self.mask, i, stmt_stop, "(")
+        equals = _find_at_depth(self.mask, i, stmt_stop, "=")
+        brace = _find_at_depth(self.mask, i, stmt_stop, "{")
+        first = min(x for x in (paren, equals, brace, stmt_stop) if x != -1)
+
+        if first == paren:
+            # A method: head runs from the modifiers through the parameter
+            # list and any return type, up to the body brace.
+            after = _matching_brace(self.mask, paren, end) + 1
+            rest_stop = _statement_end(self.mask, after, end)
+            body = _find_at_depth(self.mask, after, rest_stop, "{")
+            head_stop = body if body != -1 else rest_stop
+            self.emit(self.source[i:head_stop].rstrip().rstrip(";").rstrip(), depth)
+            self.declarations += 1
+            if body != -1:
+                return _matching_brace(self.mask, body, end) + 1
+            return rest_stop
+        if first == brace:
+            # A static initialiser block or similar: name it, skip its body.
+            self.emit(self.source[i:brace].rstrip(), depth)
+            self.declarations += 1
+            return _matching_brace(self.mask, brace, end) + 1
+        # A property, with or without an initialiser: quote the head only.
+        head_stop = equals if first == equals else stmt_stop
+        self.emit(_first_line(self.source, i, head_stop), depth)
+        self.declarations += 1
+        return stmt_stop
+
+
+def _module_header(source, spans):
+    for kind, start, end in spans:
+        if kind == "code" and source[start:end].strip():
+            return None
+        if kind in ("line_comment", "block_comment"):
+            for raw in source[start:end].splitlines():
+                text = raw.strip().lstrip("/*").rstrip("*/").strip("* ").strip()
+                if text:
+                    return text
+            return None
+    return None
+
+
+def outline(path, source, out):
+    """Print the file's declaration outline; 0 clean, 1 when the lexer
+    confessed an unterminated construct."""
+    spans, errors = lex(source)
+    mask = _masked(source, spans)
+    header = _module_header(source, spans)
+    print(f"module: {header}" if header else "module: (no header comment)", file=out)
+
+    walker = _Outline(source, mask)
+    lexed_end = spans[-1][2] if errors and spans else len(source)
+    walker.region(0, lexed_end if not errors else spans[-1][1], 0, in_class=False)
+    for offset, reason in errors:
+        print(f"lexer: {reason} at line {_line_of(source, offset)}", file=out)
+        walker.confess(offset, len(source))
+
+    for line in walker.lines:
+        print(line, file=out)
+    print(f"declarations: {walker.declarations}", file=out)
+    if walker.regions:
+        listed = ", ".join(
+            f"lines {a}-{b}" if a != b else f"line {a}" for a, b in walker.regions
+        )
+        print(f"unparsed: {len(walker.regions)} region(s): {listed}", file=out)
+    else:
+        print("unparsed: none", file=out)
+    return 1 if errors else 0
+
+
 def _scan_regex(source, start):
     """From the opening slash past the closing one and its flags; None when
     a newline arrives first, which proves this slash was division."""

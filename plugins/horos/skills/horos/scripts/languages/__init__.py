@@ -6,9 +6,12 @@ absent here is refused by map, never guessed at.
 """
 
 from .python import python
+from .typescript import typescript
 
 EXTRACTORS = {
     ".py": python.outline,
+    ".ts": typescript.outline,
+    ".tsx": typescript.outline,
 }
 
 
