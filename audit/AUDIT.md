@@ -1080,3 +1080,14 @@ the in-place study corrections are named in the commit rather than silent.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Rule-classes run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over the
+two spec documents. Root 24/24, horos 55/55. Prose-only step; the committed
+copies match the receipted artefacts.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
