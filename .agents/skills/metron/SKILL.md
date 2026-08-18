@@ -11,8 +11,8 @@ Metron holds every measurement except gas: the page, the route, the query, the h
 
 On its own it is four refusals and a decision table. No baseline means no change, no re-measurement means no keep, neutral is a revert, and a red suite means no win however good the number looks.
 
-Inside Hexaemeron it applies to any change made in the name of speed, and it is the discipline Hermes already imposes on gas, extended to everything gas is not. It is one of six practice skills that share a shape and hand work
-to each other, so reaching for the neighbour a rule names usually beats
+Inside Hexaemeron it applies to any change made in the name of speed, and it is the discipline Hermes already imposes on gas, extended to everything gas is not. It is one of six skills bundled with Hexaemeron that share a shape
+and hand work to each other, so reaching for the neighbour a rule names usually beats
 stretching this one.
 
 Read [the canonical Metron skill](../../../plugins/hexaemeron/skills/metron/SKILL.md)

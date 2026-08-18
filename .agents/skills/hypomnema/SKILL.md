@@ -11,8 +11,8 @@ Hypomnema decides which decisions earn a written reason and which file holds it,
 
 On its own it answers where a decision, a runbook or a gotcha belongs, and its lint reports records pointing at things that do not exist, which reads as though a reason was checked when it was not.
 
-Inside Hexaemeron it runs before the prose phase and decides whether there is anything to write, leaving the mask order and the receipt to Fiat. It is one of six practice skills that share a shape and hand work
-to each other, so reaching for the neighbour a rule names usually beats
+Inside Hexaemeron it runs before the prose phase and decides whether there is anything to write, leaving the mask order and the receipt to Fiat. It is one of six skills bundled with Hexaemeron that share a shape
+and hand work to each other, so reaching for the neighbour a rule names usually beats
 stretching this one.
 
 Read [the canonical Hypomnema skill](../../../plugins/hexaemeron/skills/hypomnema/SKILL.md)

@@ -3,7 +3,7 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Hexaemeron runs an explicit, receipted delivery loop, and also exposes on their own the fuzzing, audit-readiness, security-review and prose skills it uses, plus six practice skills covering specification, debugging, hardening, telemetry, measurement and what gets recorded.
+Hexaemeron runs an explicit, receipted delivery loop, and every skill it uses answers on its own: fuzzing, audit-readiness and security review, prose lint and voice, and the specification, debugging, hardening, telemetry, measurement and record-keeping skills the loop holds each phase to.
 
 **Try something else when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
 
@@ -136,7 +136,7 @@ https://www.pashov.com/. Preflight records the bundled ids in the
 so a stale config cannot fake a suite. Prose-free or Solidity-free runs record
 a waiver instead.
 
-## The practice skills
+## The skills each phase is held to
 
 Six skills carry the standards each phase is held to, and each runs on its own
 outside the loop. `protasis` says what a study and a runbook must answer.
