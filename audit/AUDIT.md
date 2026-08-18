@@ -554,3 +554,215 @@ because the rounds ran out.
 step 3's first line of work with the check required in the same commit as the
 property. Recorded here as well as in the runbook, because it is the only thing
 this step knowingly leaves for the next one.
+
+## Withdrawal batch fee law, step 3, round 1 -- 2026-08-18
+
+Reviewed: the whole of the step's diff, and first of all the check it added, since
+step 2 spent six findings on checks narrower than the class they were written for.
+It was narrower than the class it was written for.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `tests/test_documents.py` | The campaign-harness check skipped every pair law. It classified each law by shape and returned early on anything that was not one-state, so the three pair properties the harness declares through `judgePair` were held to nothing, and a fourth pair law would arrive in the catalogue and not in the harness with a green suite either way. The check was written in the commit that closed this class for the one-state family and left the other half open. | Fixed in this round: pair-law bindings are read alongside the one-state ones and the property pattern accepts `judge` or `judgePair`, so both families are held under both prefixes. Deleting `echidna_recorded_claim_never_shrinks` now names that law. |
+| S3-R1-02 | medium | `tests/test_documents.py` | Nothing tied a catalogued specimen to a campaign. Every one has a campaign today, and `FeeFromQueuedCampaign` exists because this step added it by hand, so the eleventh specimen would have rested on somebody remembering. A specimen with a property to fail and no harness to fail it under is caught by the deterministic suite and by no search, and a campaign report says nothing about which specimens were in it. | Fixed in this round: every catalogued specimen must have a `<Specimen>Campaign` in the harness. Renaming `FeeFromQueuedCampaign` now names the law whose specimen went undriven. |
+
+**What ran.** 77 Solidity tests under forge 1.7.1, 114 Python tests, up from 113 by
+the specimen check, the repository's 20, and `pandects check` over ten laws. No
+engine re-run for the findings themselves: both are tests over an unchanged harness,
+and the engine evidence this step exists for was taken in the implement phase and is
+recorded below.
+
+**The engines, on the harness this step built.** Both reach the specimen and neither
+reaches anything else.
+
+| engine | `pooled_claims_cover_open_batches` | the other eight | detail |
+| --- | --- | --- | --- |
+| Echidna 2.3.3, seed 20260816 | falsified, shrunk to four calls | passing | `deposit`, `borrow(1)`, `reserve`, `accrueFee(1)` |
+| Medusa 1.5.1, twenty thousand | failed | passing | "pooled claims are below what the open batches are owed" |
+
+**A defect in the check, caught by the check.** The first version of the pair-law
+pattern read `judgePair?`, which is `judgePai` followed by an optional `r` rather
+than `judge` followed by an optional `Pair`. It matched the pair laws and missed
+every one-state law, so twelve subtests failed at once and named the laws they could
+not find. Worth recording because the failure was loud: a pattern that matches
+nothing leaves `asked` empty and every law unfound, rather than passing quietly,
+which is the behaviour a check guarding against silence should have.
+
+Leads not pursued: the four accepted at the close of step 2 stand, and none of them
+is touched by this step.
+
+## Withdrawal batch fee law, step 3, round 2 -- 2026-08-18
+
+Reviewed: the tree with round 1 applied, then the harness's own reporting path,
+which no round had opened. The properties were right and the thing that tells you
+why one failed was not.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | medium | `src/campaigns/Specimens.sol` | `explain` returned eight reasons for the nine laws the harness now carries, and the missing one was the new law's. That function exists so a reader replaying a falsified sequence gets the law's own words with the numbers in them rather than reconstructing them from a call trace, and for the one law this run added it returned nothing. Both engines had already falsified that property, so the failure was reachable and its reason was not. This is the same defect as `explainOneState` in step 2, which is the third place in the plugin where a law count is written twice. | Fixed in this round: `explain` returns nine, the new law's reason sits with the one-state group, and the three pair-law positions moved by one. `test_the_campaign_explanation_is_as_wide_as_the_laws_it_carries` holds the width and the contents to the catalogue; narrowing it back and hollowing the entry each fail for their own reason. |
+| S3-R2-02 | low | `src/campaigns/Specimens.sol` | The comment on `FeeFromQueuedCampaign` said reaching the property needs three things and listed a deposit, a borrow and a fee. It needs four. The withdrawal request is the one it left out and the one that matters: with no recorded claim nothing is owed, and with a claim no larger than what is held the earmark covers it and the cap does not leak. Echidna's own shrink is four calls. | Fixed in this round: the comment names four, says which one the earlier draft dropped and why the property cannot be reached without it. |
+
+**What the index shift caught on the way.** `test/Explain.t.sol` read positions as
+numerals, so inserting a one-state law in the middle of that group moved every
+pair-law index by one and the compiler only objected to the width. A test asserting
+`details[6]` carried a pair law's reason would have gone on passing against a
+different law's reason had the widths happened to agree. The positions are named
+constants now, with the reason written where they are declared.
+
+**What ran.** 78 Solidity tests under forge 1.7.1, up from 77 by the reason
+assertion for the new law, 115 Python tests, up from 114 by the width check, the
+repository's 20, and `pandects check` over ten laws. No engine re-run: `explain` is
+not a property and no property changed.
+
+Leads not pursued: the four accepted at the close of step 2. None is touched here.
+
+## Withdrawal batch fee law, step 3, round 3 -- 2026-08-18
+
+Reviewed: the harness header, which is the last thing in this step's files stating a
+number nothing checked, and the two claims that number rests on.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | low | `src/campaigns/Specimens.sol` | The header reads "Nine of these eleven are expected to fail one property". Both numbers are written by hand, both move when a specimen is added, and this run has already found four counts written twice with nothing holding them. The figures were right; nothing said they would stay right. | Fixed in this round: a test counts the campaigns the file declares and the ones whose specimen breaks a law the harness asks, spells both out, and requires the header to match. Reverting the header to the pre-step counts names the two it should have read. |
+
+**The two exceptions, verified rather than reasoned.** The claim is that nine of
+eleven campaigns fail a property, so two do not, and the two are worth an engine run
+each because they are the exceptions the count depends on.
+
+| campaign | result | calls |
+| --- | --- | --- |
+| `SoundCampaign` | nine properties passing | 20,140 |
+| `CompoundsPerStepCampaign` | nine properties passing | 20,140 |
+
+`CompoundsPerStepCampaign` is the interesting one. Its specimen compounds, which
+breaks `accrual/path-independent/v1`, and no campaign can search that law because a
+campaign drives one system along one route. So it holds everything a campaign can
+ask, and the new property is among the nine it holds, which is independence evidence
+for the new law from a specimen built to break something else.
+
+**Round 2's own prose.** It shipped "load-bearing" in the audit entry and in the
+comment that entry described, which imprimatur bans as a structural metaphor. The
+lint ran after that commit rather than before it. Fixed in `364a7ac`, and recorded
+here rather than left in a commit message, because the same mistake in a shipped
+document is what step 2's rounds spent findings on.
+
+**What ran.** 78 Solidity tests under forge 1.7.1, 116 Python tests, up from 115 by
+the count gate, the repository's 20, `pandects check` over ten laws, and Echidna
+2.3.3 against `CompoundsPerStepCampaign` with the shipped configuration and seed
+20260816.
+
+Leads not pursued: the four accepted at the close of step 2, none touched here.
+
+## Withdrawal batch fee law, step 3, round 4 -- 2026-08-18
+
+Reviewed: the step against its own exit conditions, then the diagonal against the
+engines rather than against hand-derived states. Two conditions the runbook set for
+this step had not been met.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | medium | `test/Adapters.t.sol` | The step's exit asks for the new entry point to be exercised without an engine, the way `test_the_echidna_entry_points_answer` already does for an older law, and nothing called either of the new prefixed wrappers. They are two separate functions delegating to the same internal judgement, so one can be wired to the wrong law while the other is right, and only a campaign under that one engine would notice: the deterministic suite would pass and the other engine would agree with it. | Fixed in this round: `test_both_prefixes_answer_for_the_new_law` calls both before and after the four-call sequence, and asserts two unrelated laws stay held. Rewiring `property_pooled_claims_cover_open_batches` to a different law fails it by name. |
+| S3-R4-02 | low | `audit/AUDIT.md` | The step's exit asks that a Medusa record state the seed as unavailable rather than invent one. Round 1 recorded the Medusa run with its engine, version and call limit and said nothing about a seed at all, which is the absence this plugin's own discipline is about: silence reads as a run whose seed nobody wrote down rather than a run that has none to write. | Fixed in this round: recorded below, and the earlier table stands with this note against it. |
+
+**Medusa exposes no seed.** Medusa 1.5.1 takes no seed argument and reports none, so
+the runs in rounds 1 to 4 carry the engine, its version, the configuration digest,
+the call limit of twenty thousand and the corpus digest, and no seed. Echidna's runs
+all carry seed 20260816 from `adapters/echidna/echidna.yaml`. A Medusa campaign here
+is reproducible to the configuration and not to the sequence.
+
+**The diagonal, under search.** The deterministic diagonal asserts each specimen
+breaks its own law at one state. This is the same claim put to an engine, every
+campaign in the harness, each at roughly twenty thousand calls with seed 20260816.
+
+| campaign | the law it fails | the new law |
+| --- | --- | --- |
+| `SoundCampaign` | none | passing |
+| `MintedClaimsCampaign` | `value_conserved` | passing |
+| `OverReservedCampaign` | `reserves_backed` | passing |
+| `OverPromisedCampaign` | `held_partitioned` | passing |
+| `DebtForgivenCampaign` | `debt_falls_only_against_payment` | passing |
+| `AccruesAtRestCampaign` | `no_accrual_at_rest` | passing |
+| `CompoundsPerStepCampaign` | none searchable | passing |
+| `ClaimHaircutCampaign` | `recorded_claim_never_shrinks` | passing |
+| `QueueJumpedCampaign` | `queue_order_preserved` | passing |
+| `PayableBeyondReservesCampaign` | `reserves_cover_payable` | passing |
+| `FeeFromQueuedCampaign` | **the new law** | falsified, four calls |
+
+Every campaign fails exactly one property and it is the one its specimen was built to
+break. The new law fires on one specimen out of eleven and on none of the other ten
+under search, which is the study's second risk answered by an engine rather than by
+the argument the step opened with. Three adapter-based campaigns were run earlier in
+step 2 and agree: `ObservedQueueJumpedEchidna`, `DrivenClaimHaircutEchidna` and
+`WildcatMarketCampaign` each hold the new law and fail only their own.
+
+**What ran.** 79 Solidity tests under forge 1.7.1, up from 78 by the entry-point
+assertion, 116 Python tests, the repository's 20, `pandects check` over ten laws, and
+Echidna 2.3.3 against eight campaigns in this round.
+
+Leads not pursued: the four accepted at the close of step 2, none touched here.
+
+## Withdrawal batch fee law, step 3, round 5 -- 2026-08-18
+
+Reviewed: what these rounds have said about the suite, rather than the tree. Both
+findings are about this log rather than the code, and both are the kind the honesty
+rule at the top of Fiat's audit loop exists for.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R5-01 | medium | `audit/AUDIT.md` | Round 2 changed a function in `src/campaigns/Specimens.sol`, which is a contract, and recorded "No engine re-run: `explain` is not a property and no property changed." That was true of the engines and said nothing about Slither, which had not run against this step's contracts at all. Rounds 3 and 4 carried the same omission forward. A round that changes Solidity and reports the suite without one of its members has reported a suite that did not run. | Fixed in this round: Slither 0.11.6 run against the step's tree. 52 contracts, 23 results across the same three benign classes the original delivery documented, and nothing naming the new campaign or the new law. The rounds above stand with this note against them. |
+| S3-R5-02 | medium | `audit/AUDIT.md` | The `security_suite` receipt names `hexaemeron:x-ray`, `hexaemeron:solidity-auditor` and `hexaemeron:fizz`, and no round in either step has said what became of the third. Silence about a named member of the suite is the failure this log is supposed to make impossible, and it is worse here than a waiver would have been, because a reader counting three names against the rounds would assume all three ran. | Fixed in this round: stated below, plainly, with what was done instead and why. |
+
+**Fizz, and why the generator did not run.** `fizz` generates a stateful Solidity
+fuzz suite under `test/fizz/` with its runtime metadata beside it. This plugin
+already has that suite: `src/campaigns/Specimens.sol` is a hand-written harness with
+one campaign per specimen and one property per law, and building or refreshing it is
+the whole content of this step rather than something a round does to it. It sits
+under `src/` on purpose, and the file says why: crytic-compile skips `test/` when it
+builds a Foundry project, so a harness generated into `test/fizz/` is a harness
+neither engine can see.
+
+So the function `fizz` performs was performed, by hand, as the step's deliverable,
+and the generator was not run because running it would produce a second harness in
+the one directory this plugin documents as unreachable. That is a judgement, not a
+waiver, and it is recorded here rather than left as an absence. `x-ray` and
+`solidity-auditor` are the reading passes and the rounds above are what they
+produced.
+
+**What ran.** 79 Solidity tests under forge 1.7.1, 116 Python tests, the
+repository's 20, `pandects check` over ten laws, and Slither 0.11.6 over 52
+contracts. No engine re-run in this round: nothing in it touches a contract.
+
+Leads not pursued: the four accepted at the close of step 2, none touched here.
+
+## Withdrawal batch fee law, step 3, round 6 -- 2026-08-18
+
+Reviewed: the fixed tree, and each check the five earlier rounds added, by breaking
+the thing it guards and confirming it says so.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| None | - | - | The fixed tree has no open finding. | clean |
+
+**The checks, re-proved rather than re-read.** Removing a pair-law property fails the
+prefix check. Renaming a specimen's campaign fails two checks at once, the
+specimen-has-a-campaign one and the header count, which is the right answer and shows
+they are independent. Narrowing `explain` back to eight fails the width check.
+Changing "Nine of these eleven" to ten fails the header check. All four then pass
+again with the file restored.
+
+**What ran.** 79 Solidity tests across ten suites under forge 1.7.1 and solc 0.8.28,
+116 catalogue, checker, search-record and document tests on Python 3.14, the
+repository's 20, `pandects check` over ten laws, Slither 0.11.6 over 52 contracts at
+23 results, and Echidna 2.3.3 over every campaign in the harness at roughly twenty
+thousand calls each with seed 20260816.
+
+**One asymmetry, stated rather than left to be noticed.** Echidna drove all eleven
+campaigns. Medusa drove two: `SoundCampaign`, which holds everything, and
+`FeeFromQueuedCampaign`, which is the specimen this step exists for. The step's exit
+asks that both engines drive the new specimen and both do. The other nine campaigns
+have Echidna's verdict and not Medusa's, and no claim here rests on Medusa having
+searched them.
+
+Leads not pursued: the four accepted at the close of step 2, none of them touched by
+this step, and the Medusa coverage asymmetry above, which is a stated limit rather
+than a defect.

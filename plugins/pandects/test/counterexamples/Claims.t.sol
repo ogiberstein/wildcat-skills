@@ -101,36 +101,40 @@ contract ClaimsCounterexamples {
         require(!held, "the counterexample no longer reproduces");
     }
 
-    /// `FeeFromQueued.deposit(2)`, `borrow(1)`, `reserve(1)`, `reserve(1)`,
-    /// `accrueFee(1)`. Five calls, and five is the floor: the leak only exists
-    /// where the earmark falls short of the queue, that needs the borrow, and
-    /// the borrow needs something to have been deposited first.
+    /// `FeeFromQueued.deposit(2)`, `borrow(1)`, `reserve(2)`, `accrueFee(1)`.
+    /// Four calls, and four is the floor: the leak only exists where the earmark
+    /// falls short of the queue, that needs the borrow, and the borrow needs
+    /// something deposited first.
     ///
-    /// Two lenders are each recorded as owed one unit. The system holds one,
-    /// so it can earmark only one, and the fee measures itself against that
-    /// earmark rather than against the two it owes. One unit moves into fees.
-    /// Both lenders still have their number, the books still balance, reserves
-    /// are still within claims, and the pool behind those two numbers is now
-    /// one unit.
+    /// Derived by hand at five calls with two lenders, then reduced to this after
+    /// Echidna shrank its own sequence to four. The engine's shape is better and
+    /// the difference is worth keeping: one lender asks for two units from a pool
+    /// that holds one, so the system earmarks the one unit it has, and the fee
+    /// measures itself against that earmark rather than against the two it owes.
+    /// A second lender was never needed.
+    ///
+    /// One unit moves into fees. The lender still has their number, the books
+    /// still balance, reserves are still within claims, and the pool behind that
+    /// number is now half of it.
     function test_pooled_claims_cover_open_batches_counterexample() external {
         FeeFromQueued target = new FeeFromQueued();
         target.deposit(2);
         target.borrow(1);
-        target.reserve(1);
-        target.reserve(1);
+        target.reserve(2);
 
-        require(target.claimCount() == 2, "two claims were not recorded");
+        require(target.claimCount() == 1, "the claim was not recorded");
         require(target.totalLenderClaims() == 2, "the pool is not owed 2");
-        require(target.reservedAssets() == 1, "more than one unit was set aside");
+        (uint256 owed, uint256 paid) = target.claimAt(0);
+        require(owed == 2 && paid == 0, "the claim is not owed 2 unpaid");
+        require(target.reservedAssets() == 1, "more than the one unit held was set aside");
+        require(target.totalAssets() == 1, "the borrow did not leave one unit");
 
         target.accrueFee(1);
 
         require(target.totalLenderClaims() == 1, "the fee did not take a unit");
         require(target.accruedFees() == 1, "the unit did not land in fees");
-        (uint256 firstOwed, uint256 firstPaid) = target.claimAt(0);
-        (uint256 secondOwed, uint256 secondPaid) = target.claimAt(1);
-        require(firstOwed == 1 && firstPaid == 0, "the first claim moved");
-        require(secondOwed == 1 && secondPaid == 0, "the second claim moved");
+        (owed, paid) = target.claimAt(0);
+        require(owed == 2 && paid == 0, "the recorded claim moved");
 
         PooledClaimsCoverOpenBatches law = new PooledClaimsCoverOpenBatches();
         (bool held, ) = law.check(target);
