@@ -186,3 +186,20 @@ so the queue is empty when the cap applies and the tightened cap cannot change
 that test. The runbook now says so.
 
 Leads not pursued: the two carried from round 1, unchanged.
+
+## Withdrawal batch fee law, step 1, round 3 -- 2026-08-18
+
+No Solidity and no campaign again. This round read the runbook's file lists
+against what the repository actually generates and against what it treats as a
+record, which is the class of error the previous two rounds had not looked at.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 2 listed `docs/catalogue.md` as a file to write and step 4 listed it again as prose to reconcile. It is neither: `python3 scripts/pandects.py render` generates it and `tests/test_documents.py` checks it against the renderer. A hand-edit either fails that check, or passes it by reproducing what the renderer would have produced and thereby hides a real drift. An earlier round of the original delivery, S5-R2-01, fixed the renderer for exactly this reason. | Fixed in this round: step 2 regenerates it and says why, and step 4 drops it from the prose surfaces and names the command. |
+| S1-R3-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/runbook.md` | Step 4's reconciliation list left this run's own study and runbook out without saying so, and both of them claim Pandects ships nine laws. The omission reads as an oversight rather than a decision, so an implementer would either rewrite a spec into disagreement with the run it specifies, or leave a claim stale with nothing recording which was meant. | Fixed in this round: step 4 states that the two spec documents are records on the same footing as the audit log's historical rounds and are not reconciled, and why rewriting them would be worse. |
+
+The round-2 fix was re-read against the sources. `COUNT` is 5 in
+`test/Corpus.t.sol` and 3 in `test/Pairs.t.sol`, which is what the runbook now
+says.
+
+Leads not pursued: the two carried from round 1, unchanged.

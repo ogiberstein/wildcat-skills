@@ -69,7 +69,10 @@ the intermediate quantities.
 - `catalogue/pandects.json`, one entry: family `claims`, bounds `exact`,
   applicability naming the accounting model, the assumptions that would make the
   law false, and the four observables it requires.
-- `docs/catalogue.md`, the rendering for that entry.
+- `docs/catalogue.md`, regenerated with `python3 scripts/pandects.py render`
+  rather than edited. It is a rendering of the catalogue, `tests/test_documents.py`
+  checks it against the renderer, and a hand-edit either fails that check or
+  makes a real drift invisible by matching it.
 - `test/counterexamples/Claims.t.sol`, extended.
 - `test/Corpus.t.sol`, the new law and specimen added to the corpus tables the
   diagonal walks.
@@ -133,13 +136,14 @@ python3 scripts/pandects.py check
 ```
 
 Every claim of "nine laws" reconciled; the twelve documents carrying the frontier
-sentence updated; `python3 -m unittest discover -s tests` green, which is the gate
-on the marketplace-context blocks; the ledger advanced exactly once under
+sentence updated; `docs/catalogue.md` regenerated rather than edited;
+`python3 -m unittest discover -s tests` green, which is the gate on the
+marketplace-context blocks; the ledger advanced exactly once under
 `plugins/hexaemeron/skills/VERSIONING.md`.
 
 **Files.** `README.md` at the repository root, and inside the plugin
 `README.md`, `AGENTS.md`, `docs/applicability.md`, `docs/design.md`,
-`docs/writing-a-law.md`, `docs/catalogue.md`, `adapters/medusa/README.md`,
+`docs/writing-a-law.md`, `adapters/medusa/README.md`,
 `integrations/wildcat/APPLICABILITY.md`, `audit/AUDIT.md` for its
 marketplace-context block only, `skills/pandects/SKILL.md`,
 `skills/pandects/EVOLUTION.md`, and the `.agents/skills/pandects/SKILL.md` mirror.
@@ -157,6 +161,11 @@ rather than counting it among the laws that always held.
 `audit/AUDIT.md` records past audit rounds. Those are history and stay as
 written, including their nine-law counts. Only its marketplace-context block is
 mutable.
+
+This run's own study and runbook are records on the same footing, and they are
+not reconciled either. Both say Pandects ships nine laws, which is what was true
+when the spec was written and is the whole reason the run exists. Rewriting them
+to say ten would leave a spec describing work nobody needed to do.
 
 The ledger advances once: evolution increments, generation and epoch stay, and
 either one evidenced next job is recorded or the frontier is set to `mature` with
