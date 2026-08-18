@@ -56,8 +56,11 @@ bare.
 6. Read the selected skill's canonical instructions, its ledger, and Fiat's
    `SKILL.md`. Invoke Fiat with the held Next Fiat job byte for byte.
 7. Let Fiat finish its complete terminal path: implement, validate, stage,
-   commit, push, merge, branch cleanup where permitted, and issue closure.
-   A PR merely opened is not a completed iteration.
+   commit, push each step's stacked pull request, then the integrate phase --
+   the stack merged into the run branch in order, the run branch merged into
+   the base, branch cleanup where permitted, and issue closure. A stack of
+   pull requests merely opened is not a completed iteration; the controller
+   reaching `done` is.
 8. Require the completed frontier run to update that skill's ledger under
    `VERSIONING.md`: evolution advances once and the held job is replaced, or
    the frontier becomes mature. Then rescan the entire scope from disk --

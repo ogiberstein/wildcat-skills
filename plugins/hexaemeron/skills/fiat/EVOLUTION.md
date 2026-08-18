@@ -2,7 +2,7 @@
 
 Policy: [../VERSIONING.md](../VERSIONING.md)
 
-- Current version: `fiat-v3.3.1`
+- Current version: `fiat-v3.4.1`
 - Frontier status: `open`
 - Frontier revision: `receipted-lint-rounds`
 - Current frontier: The loop runs under the phase skills as contract, and the lint outcomes a non-Solidity audit round depends on live only as prose in the audit log.
@@ -18,3 +18,4 @@ Policy: [../VERSIONING.md](../VERSIONING.md)
 | `fiat-v2.3.0` | generation | `installed-path-and-maturity-proof` | `17c94c70b434ea1cbc9c3cd6ff5f3054972af08f8e027b7ea9850f5e06695f77` | Maintainer report: stacked runs on a named base silently retargeted to the default branch | The push phase now passes the base recorded at `init` to `gh pr create` instead of letting GitHub default it, so a run started from a named branch merges back into that branch. Frontier unchanged and still mature. |
 | `fiat-v2.3.1` | epoch | `phase-skill-integration` | `71a670a73c5566775210abd42395263bc129bf66db2139ec209ab144a7e435eb` | Maintainer reopening: six sibling phase skills landed in [skills#103](https://github.com/wildcat-finance/skills/pull/103) and Protasis's held job supersedes two Fiat references, so the closed frontier's premise that the loop's content rules live in Fiat no longer holds | Reopens the mature frontier by epoch at the maintainer's direction, for the run that folds the phase skills into the loop. |
 | `fiat-v3.3.1` | evolution | `receipted-lint-rounds` | `f6ab990ae6f7c8c720e923cc0c661ee6025d03015cfb05baa23dd47aa2f1b76f` | [skills#116](https://github.com/wildcat-finance/skills/pull/116), [skills#117](https://github.com/wildcat-finance/skills/pull/117), [skills#118](https://github.com/wildcat-finance/skills/pull/118) | Completes the reopened frontier: Protasis holds the study and runbook contract alone, the non-Solidity audit round runs the three bundled lints as its mechanical part, the prose pass opens with Hypomnema, and every surface describing the loop says so. |
+| `fiat-v3.4.1` | generation | `receipted-lint-rounds` | `f6ab990ae6f7c8c720e923cc0c661ee6025d03015cfb05baa23dd47aa2f1b76f` | Maintainer report: every step branch merged straight into `main` under names like `step1`, so a single run left a pile of merges on the default branch | A run now works on one descriptively named integration branch off the base, with step branches chained onto each other and their pull requests stacked on the step below. Nothing merges while the steps run: the new `integrate` phase brings the stack down into the run branch in step order, then merges the run branch into the base exactly once and closes any recorded task issue. Frontier unchanged. |

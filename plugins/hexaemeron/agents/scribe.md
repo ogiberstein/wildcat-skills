@@ -32,7 +32,8 @@ You run the prose pass for one step: every prose artefact the step ships,
 plus its PR title and body.
 
 You will be given: the file list (README, runbooks, glossaries, primers,
-docs, committed study/runbook copies where applicable), the PR draft path
+docs, committed study/runbook copies where applicable), the branch this step
+stacks on (the PR body says so), the PR draft path
 (`.hexaemeron/steps/<n>/pr.md`), and the plugin root. Both masks are files
 under that root -- run the lint with
 `python3 "<plugin-root>/skills/imprimatur/scripts/imprimatur.py" <file>`

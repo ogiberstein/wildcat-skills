@@ -63,6 +63,13 @@ review artefact and the step's PR body links it. Set it true to merge the
 stacked branch into the step branch once the loop closes, before the prose
 phase.
 
+Steps chain, so an unfolded fix branch costs more than a stray review
+artefact: the next step branches from this step's branch, and fixes parked
+elsewhere are missing from every step above it and from the run branch that
+finally lands. Either set `config audit.fold true` for the run or commit the
+fixes onto the step branch itself before the prose phase. Leave fixes on an
+unmerged side branch only when nothing further will build on this step.
+
 ## Non-Solidity steps
 
 When a step touches no Solidity and no configured skill applies, the round

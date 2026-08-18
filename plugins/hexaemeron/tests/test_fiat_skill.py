@@ -91,11 +91,37 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("pre-existing human pull\nrequest", self.push_discipline)
 
     def test_publish_phase_merges_and_closes_its_own_work(self):
-        self.assertIn("merge it using the repository's permitted", self.push_discipline)
-        self.assertIn("close that exact\nissue", self.push_discipline)
-        self.assertIn("--head-commit <sha> --merge-commit <sha>", self.push_discipline)
+        flat = " ".join(self.push_discipline.split())
+        self.assertIn("permitted merge method", flat)
+        self.assertIn("close that exact issue", flat)
+        self.assertIn(
+            "hexctl done integrate --pr-url <url> --merge-commit <sha>",
+            self.push_discipline,
+        )
         self.assertNotIn("Never merge it", self.push_discipline)
-        self.assertIn("routine publish or closure action is not a\nhandoff", self.fiat)
+        self.assertIn(
+            "routine publish or closure action is not a handoff",
+            " ".join(self.fiat.split()),
+        )
+
+    def test_steps_stack_and_only_the_run_branch_merges_into_the_base(self):
+        flat = " ".join(self.push_discipline.split())
+        fiat = " ".join(self.fiat.split())
+        # A step's pull request targets the step below it, never the base.
+        self.assertIn("gh pr create --base <pr_base> --head <branch>", self.push_discipline)
+        self.assertIn("hexctl done push --pr-url <url> --head-commit <sha> --pr-base <ref>",
+                      self.push_discipline)
+        self.assertIn("never point one at the recorded base", flat)
+        self.assertIn("only merge into the base in the whole run", flat)
+        # The stack comes down in order, in its own phase.
+        self.assertIn("hexctl done merge-step --step <n> --merge-commit <sha>",
+                      self.push_discipline)
+        self.assertIn("Merges belong to `integrate`", self.push_discipline)
+        # And the loop itself says so.
+        self.assertIn("Never target the base or the repository default branch with a step pull",
+                      self.fiat)
+        self.assertIn("Never merge into the base more than once in a run", self.fiat)
+        self.assertIn("nothing merges while the steps run", fiat.lower())
 
 
 class ContributorCheckTests(unittest.TestCase):

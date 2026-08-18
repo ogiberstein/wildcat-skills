@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "3.3.1"
+  version: "3.4.1"
 ---
 
 # Fiat
@@ -102,8 +102,11 @@ the second.
    run the read-only preflight checks below, then `hexctl init --topic
    "<topic>" --base <ref>`, record the post-init receipts, and enter the loop.
    `--base` defaults to `main`; honour any branch, repo, or commit the user
-   named as the starting point, and carry that same ref through to the pull
-   request created in the push phase.
+   named as the starting point. `init` also names the run branch, printed and
+   held in state: one integration branch for the whole run, cut from the base.
+   Create it before the first step (`git checkout -b <run branch> <base>`) and
+   push it. Pass `--run-branch <name>` only when the user wants a different
+   name than the topic slug.
 
 ## Frontier maturity gate
 
@@ -160,6 +163,30 @@ without pretending that it changes Fiat or another skill.
    '"<url>"'`. Do not invent an issue otherwise.
 6. Nothing else.
 
+## Branches, stacks, and the one merge
+
+A run is one integration branch off the base and a stack of step branches on
+top of it. The controller names every branch and every pull request base; take
+them from the directive rather than inventing a name.
+
+```text
+main ─── fiat/<run slug>                                  the run branch
+          └── fiat/<run slug>-step-1-<slug>               PR -> run branch
+               └── fiat/<run slug>-step-2-<slug>          PR -> step 1
+                    └── fiat/<run slug>-step-3-<slug>     PR -> step 2
+```
+
+Each step branches from the step below it and its pull request targets that
+same branch, so a reviewer sees one step's diff and nothing else. Step branches
+are siblings of the run branch, never nested under it: git cannot hold
+`fiat/x` and `fiat/x/step-1` as refs at once.
+
+Nothing merges while the steps run. The stack stays open, each pull request
+reviewable on its own, until every step is pushed. Then the `integrate` phase
+merges the stack into the run branch in step order and merges the run branch
+into the base exactly once. One merge into `main` per run, at the end, carrying
+the whole delivery.
+
 ## The loop
 
 Repeat until `next` returns `done`, `halted`, or `audit-verdict`:
@@ -179,7 +206,9 @@ Act on the single directive it prints, then receipt it. The directory:
 | `close-audit` | Last round was clean; close the phase | [audit-loop.md](references/audit-loop.md) | `done audit [--fixes-ref <ref>]` |
 | `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 4 | `record security_suite ...` |
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
-| `push` | Stage and commit final changes, push, open and merge the PR, delete the task branch where allowed, and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done push --pr-url <url> --head-commit <sha> --merge-commit <sha> [--closed-issue-url <url>]` |
+| `push` | Stage and commit final changes, push the step branch, open its stacked PR against `pr_base`, and leave it open | [push-discipline.md](references/push-discipline.md) | `done push --pr-url <url> --head-commit <sha> --pr-base <ref>` |
+| `merge-step` | Merge the named step's PR into the run branch, bottom of the stack first | [push-discipline.md](references/push-discipline.md) | `done merge-step --step <n> --merge-commit <sha>` |
+| `integrate` | Open and merge one PR from the run branch into the base, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
 | `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
 | `done` | Final report | below | -- |
@@ -214,9 +243,10 @@ the name of speed without a recorded before and after, and a failure worked
 mid-step follows `elenchus` rather than a guess. Their lints run in every
 audit round, so meeting them here is cheaper than meeting them there. The runbook step is the yardstick: reread it before
 declaring the step complete, and do not add anything it does not ask for.
-Branch as `step-<n>-<slug>` from the base named by `config git.step_base`
-(`chain` means branch from the previous step's branch; `base` means branch
-from `config git.base`).
+The `implement` directive carries `branch` and `branch_from`: cut that exact
+branch from that exact ref. Step 1 branches from the run branch, every later
+step from the step below it, so each step builds on the reviewed tree of the
+one before without waiting for a merge.
 
 **Audit.** `elenchus` works any failure a round surfaces down to its cause.
 The longest phase by design. One round is the full suite: `x-ray`
@@ -237,13 +267,21 @@ constant. Both are bundled: run the lint script by path, read the mask's
 SKILL.md by path and apply it. The receipt refuses a skills list missing
 either configured id.
 
-**Push.** Stage and commit every intended final change, push the branch, and
-open a PR using the prepared prose. Do not add an issue reference unless one
-was independently supplied or required by higher-priority repository policy.
-Wait for gates, merge without bypassing them, remove the task branch where
-allowed, and close any recorded task issue. Receipt the final head SHA, PR URL,
-merge SHA, and closed issue URL. A routine publish or closure action is not a
-handoff to a human.
+**Push.** Stage and commit every intended final change, push the step branch,
+and open its pull request against the `pr_base` the directive names, using the
+prepared prose. Wait for its gates but leave it open: a step's work lands in the
+integrate phase, not here. Do not add an issue reference unless one was
+independently supplied or required by higher-priority repository policy. Receipt
+the head SHA, PR URL, and PR base.
+
+**Integrate.** Once every step is pushed, the stack comes down in order. Merge
+step 1's pull request into the run branch, delete its branch, and let the next
+step's pull request retarget onto the run branch; receipt each merge before
+starting the next. With the stack landed, open one pull request from the run
+branch into the recorded base, wait for its gates, merge it without bypassing
+them, delete the run branch where policy allows, and close any recorded task
+issue. That merge is the only one into the base for the whole run. A routine
+publish or closure action is not a handoff to a human.
 
 ## Delegation and context
 
@@ -268,6 +306,13 @@ Use `hexctl halt --reason ...` so the stop itself is on the ledger.
 - Never reconstruct progress from chat; `status` and `next` are the truth.
 - Never claim a lint, audit round, or test run happened when it did not.
 - Never force-push over someone else's work or bypass a merge gate.
+- Never target the base or the repository default branch with a step pull
+  request, and never merge one during the steps; the stack lands in
+  `integrate`.
+- Never merge into the base more than once in a run, and never open a step
+  branch straight off the base once a run branch exists.
+- Never invent a branch name the controller did not give, and never name a
+  branch after its number alone.
 - Never call a plan or implementation complete while its own final changes,
   PR, task branch, or recorded issue still need routine stage, push, merge,
   deletion, or closure work.
@@ -283,5 +328,7 @@ Use `hexctl halt --reason ...` so the stop itself is on the ledger.
 ## Final report
 
 When `next` returns `done`, run `hexctl status` and `hexctl verify`, then
-hand over: topic, step list with PR URLs, audit rounds per step with the
-closing state of each, and where the study and runbook live.
+hand over: topic, the run branch and the base it landed on, the step list with
+each stacked PR URL and the order the stack merged in, the integration PR and
+its merge SHA, audit rounds per step with the closing state of each, and where
+the study and runbook live.
