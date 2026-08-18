@@ -83,8 +83,11 @@ class EvolutionContractTests(unittest.TestCase):
             ledger = (SKILLS / skill / "EVOLUTION.md").read_text(encoding="utf-8")
             rows = history_rows(ledger)
             self.assertEqual(rows[0]["axis"], "baseline")
-            expected_baseline = (0, 0, 0) if skill == "kronos" else (1, 1, 0)
-            self.assertEqual(version_parts(rows[0]["version"], skill), expected_baseline)
+            # Baselines are adopted, not assigned: a skill enters the contract at
+            # whatever version it already declared, so no fixed pair holds across
+            # the marketplace. Assert the label parses; tests/test_evolution_contract.py
+            # owns the rules that span every governed skill.
+            version_parts(rows[0]["version"], skill)
             previous = rows[0]
             previous_version = version_parts(previous["version"], skill)
             for row in rows[1:]:

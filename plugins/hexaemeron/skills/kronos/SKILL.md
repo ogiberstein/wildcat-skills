@@ -7,7 +7,7 @@ description: >-
   Use only when the user explicitly asks for Kronos or for a repeated ranked
   Fiat frontier loop. Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.0.0"
+  version: "0.1.0"
 ---
 
 # Kronos
@@ -26,12 +26,20 @@ bare.
 ## Loop
 
 1. Resolve the scope from the user's named directories or repositories. If no
-   narrower scope was named, use the current marketplace checkout.
-2. Find every `EVOLUTION.md` in scope. Exclude:
+   narrower scope was named, use the current marketplace checkout, rooted at
+   the checkout itself rather than at any one plugin. Scope spans every plugin
+   in that checkout, not only the plugin Kronos was invoked from.
+2. Walk the whole scope and find every `EVOLUTION.md` beneath it, descending
+   into each plugin's own skills directory. A governed skill is named by its
+   own directory and not by its plugin, so one plugin may hold several and a
+   skill may be named differently from the plugin around it. Exclude:
    - Kronos itself;
    - vendored or third-party skills;
    - a ledger whose `Frontier status` is `mature`;
    - a ledger whose `Next Fiat job` is `None -- mature` or absent.
+   Report any in-scope skill carrying no ledger as ungoverned instead of
+   dropping it silently. An ungoverned skill is never scored, but a skill that
+   has quietly lost its ledger must not vanish from the report.
 3. Score each remaining held job out of 100:
    - material user or protocol impact: 40;
    - evidenced urgency or defect severity: 25;
@@ -52,8 +60,11 @@ bare.
    A PR merely opened is not a completed iteration.
 8. Require the completed frontier run to update that skill's ledger under
    `VERSIONING.md`: evolution advances once and the held job is replaced, or
-   the frontier becomes mature. Rescan from disk, rerank from scratch, and
-   repeat.
+   the frontier becomes mature. Then rescan the entire scope from disk --
+   every plugin and every governed skill, not only those ranked in the
+   previous pass -- rerank from scratch, and repeat. A skill whose frontier
+   was replaced re-enters the ranking carrying its new held job, and a skill
+   whose ledger has appeared since the last pass enters for the first time.
 
 Stop successfully when no eligible ledger remains. If Fiat halts on a genuine
 external blocker, preserve the durable goal and report that blocker; do not

@@ -1,14 +1,23 @@
 # Skill evolution contract
 
-First-party Hexaemeron skills use labels of the form
+Governed first-party marketplace skills use labels of the form
 `{skill}-v{evolution}.{generation}.{epoch}`. These labels are not SemVer and
-do not rename the skill: invocations remain `fiat`, `imprimatur`, `vulgate`,
-and `kronos`.
+do not rename the skill: a label is built from the skill's own name, not its
+plugin's, so Lemma's skill is governed as `chunk`.
 
-The adoption baseline for Fiat, Imprimatur, and Vulgate is `v1.1.0`. History
-begins at adoption; do not invent or reconstruct versions for work that
-predated this contract. Kronos was introduced after the reset and deliberately
-starts at `v0.0.0`.
+This contract governs a skill, not a plugin. A plugin whose skills each hold
+their own frontier keeps one ledger per skill. Vendored or third-party skills
+are not governed and keep no ledger; inside Hexaemeron that exempts the
+bundled Pashov suite (`fizz`, `x-ray`, `solidity-auditor`), which remains
+covered by Hexaemeron's own plugin frontier.
+
+History begins at adoption; do not invent or reconstruct versions for work
+that predated this contract. The adoption baseline for Fiat, Imprimatur, and
+Vulgate is `v1.1.0`. Kronos was introduced after the reset and deliberately
+starts at `v0.0.0` to mark it terminal and outside the frontier loop. The
+nine top-level plugin skills adopted at whatever version their `SKILL.md`
+already declared, so their baselines are not uniform and no baseline value
+may be assumed.
 
 - **Evolution** is the first number. Increment it exactly once after a
   completed frontier Fiat job changes that skill's `Next Fiat job`, including
@@ -23,7 +32,7 @@ starts at `v0.0.0`.
   incomplete evidence. Do not use it as a patch number. The other counters do
   not reset.
 
-Each first-party skill keeps `EVOLUTION.md` beside its `SKILL.md`. That ledger
+Each governed skill keeps `EVOLUTION.md` beside its `SKILL.md`. That ledger
 is the authority for the current label, frontier status, frontier revision,
 next job, and history. The numeric version in `SKILL.md` frontmatter must
 match it. Each history row also stores the SHA-256 of this exact UTF-8 line,
