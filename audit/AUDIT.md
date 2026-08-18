@@ -1121,3 +1121,17 @@ tests read only committed files.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Rule-classes run, step 4, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0 over plugins tests,
+imprimatur 100 on all four reconciled surfaces. Root 24/24 (the evolution
+contract validates the v2.1.0 digest; the prose contract validates surface
+agreement and job uniqueness), horos 65/65. The review confirmed the
+supersession keeps the refusal's grounds in the record rather than erasing
+them, and that both prior ledger rows are byte-identical to before.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
