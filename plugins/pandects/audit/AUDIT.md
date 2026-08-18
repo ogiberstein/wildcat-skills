@@ -667,3 +667,30 @@ Leads not pursued: whether the claim law should be relaxed and the fee that can
 drop pooled claims below what is owed on open batches, both from round 1;
 `slither_results.json` still tracked, from round 2; and the nine carried from
 earlier steps. Each is recorded in the round that found it.
+
+## Leads closed since
+
+The rounds above stay as they were written. This section is what became of two of
+the leads they left open, so a reader meeting them does not have to guess whether
+anybody went back.
+
+**A fee can drop pooled claims below what is owed on open batches**, from step 5
+round 1, which closes with "No law covers it. It is a real gap and a new law rather
+than a fix to this one." One does now.
+`claims/pooled-claims-cover-open-batches/v1` was added in the
+`withdrawal-batch-fee-law` frontier run, with `specimens/FeeFromQueued.sol`, a
+four-call counterexample reduced by Echidna, and a campaign both engines drive. The
+lead's own reading was right on both counts: the cap against the earmark was the
+defect, and it needed a law rather than a change to the one it sat beside. Both
+`Sound` and `WildcatMarketModel` were corrected, and the study, the runbook and that
+run's rounds are in `docs/withdrawal-batch-fee-law/` and the repository's
+`audit/AUDIT.md`.
+
+**`slither_results.json` still tracked**, from step 5 round 2. Closed in the same
+run. The ignore rules for it and two sibling artefacts were written one directory too
+shallow, so an engine invoked from a subdirectory wrote past them. The patterns are
+depth-independent now and the three files are untracked.
+
+The other leads those rounds left open are untouched, including whether
+`claims/recorded-claim-never-shrinks/v1` should be relaxed, which still wants a
+second integration to decide.

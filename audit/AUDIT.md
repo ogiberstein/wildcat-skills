@@ -766,3 +766,45 @@ searched them.
 Leads not pursued: the four accepted at the close of step 2, none of them touched by
 this step, and the Medusa coverage asymmetry above, which is a stated limit rather
 than a defect.
+
+## Withdrawal batch fee law, step 4, round 1 -- 2026-08-18
+
+Reviewed: every document the step touched, the ledger against the versioning
+contract, and the branch the step was built on. This step ships prose and a ledger
+entry, so `x-ray`, `solidity-auditor` and `fizz` had no Solidity to read and none of
+them ran. Saying so rather than recording a zero, for the reason step 3 round 5 gave.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/pandects/audit/AUDIT.md` | The plugin's own audit log records this run's whole subject as a lead not pursued, closing with "No law covers it. It is a real gap and a new law rather than a fix to this one." A law covers it now, and nothing in that log said so. Its historical rounds stay as written, which is right, but that left a reader of the plugin's own record meeting an open gap that had been closed in another file. The same log also carries the `slither_results.json` lead, which this run closed in step 2 round 2. | Fixed in this round: a "Leads closed since" section says what became of both, names the law, the specimen, the reduced counterexample and where the run is recorded, and states which leads remain untouched. No historical round was edited. |
+| S4-R1-02 | medium | this log | The step was branched from a stale `origin/loop/2026-08-18-kronos`, taken before step 3's pull request merged, so the tree it was verified against did not contain step 3. The demo path caught it: `forge test` reported 77 where step 3 had closed at 79. Merging would not have reverted step 3, because the merge base was below it, but every number in the step's receipt would have described a tree that was never going to ship. | Fixed before the step was committed: the branch was reset to the current tip and the twelve-file change reapplied, which it did cleanly because step 3 and step 4 share no file. Re-verified after replanting: 79 Solidity tests, ten laws, no catalogue drift. Recorded here rather than left in the reflog, because the receipt would have carried the wrong evidence and only a count nobody was checking on purpose revealed it. |
+
+**The ledger, against the contract.** `pandects-v0.1.0` becomes `pandects-v1.1.0`:
+the evolution counter moves once for a completed frontier job, generation and epoch
+are retained, and `SKILL.md` frontmatter matches the ledger. The frontier revision
+moves from `withdrawal-batch-fee-law` to `search-record-engine-coverage`, which an
+evolution entry is allowed to do and a generation entry is not. The recorded SHA-256
+was recomputed from the four ledger fields as written, including the trailing
+newline, and matches the digest in the history row.
+
+**The new frontier, and why it is not mature.** The contract asks whether another
+pass has a concrete evidenced chance of material improvement. It does, and the
+evidence is this run's own log: rounds in steps 2 and 3 recorded Echidna and Medusa
+results as prose because `pandects run` emits one engine, `foundry`, and nothing
+else. A corpus whose argument is that a campaign result means nothing without its
+search record can machine-record one of the three engines it uses. That is a gap
+this run demonstrated rather than one chosen from a list.
+
+**What was reconciled.** Twelve documents carried the old frontier sentence and all
+twelve carry the new one. Five prose law counts said nine and say ten. Two others say
+nine and are right: one counts the laws other than this one, and one is about a
+lexicon. `docs/catalogue.md` was regenerated rather than edited and produced no
+diff, because it already counted ten from the catalogue.
+
+**What ran.** The repository's 20 tests including the marketplace prose gate, 116
+plugin tests, 79 Solidity tests under forge 1.7.1, `pandects laws` printing ten with
+their applicability, `pandects check` over ten laws, and `pandects render` with no
+drift.
+
+Leads not pursued: the four accepted at the close of step 2, and the Medusa coverage
+asymmetry stated in step 3 round 6.
