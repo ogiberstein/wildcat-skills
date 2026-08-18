@@ -1,0 +1,21 @@
+{
+  "name": "brevitas",
+  "displayName": "Brevitas",
+  "version": "0.1.0",
+  "description": "Evidence-preserving budgets for engineering prose.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/brevitas",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "audit",
+    "security-review",
+    "engineering-prose",
+    "lint",
+    "evidence",
+    "brevity"
+  ],
+  "skills": "./skills/"
+}

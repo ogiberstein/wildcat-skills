@@ -7,7 +7,7 @@ the canonical `SKILL.md` it names.
 
 ## Marketplace boundaries
 
-The ten plugins form one marketplace, not ten competing descriptions of the
+The eleven plugins form one marketplace, not eleven competing descriptions of the
 same job. Alexandria preserves lending inputs; Tabularium interprets preserved
 venue records; Probitas assembles a counterparty dossier. Lazarus preserves the
 finite historical Ethereum state and exact RPC traffic a test needs, while
@@ -15,9 +15,10 @@ Ariadne binds a released artefact digest to its evidence. Pandects supplies
 reviewed credit laws, Hermes measures a single gas-optimisation class,
 Hexaemeron controls a receipted delivery loop and Lemma stops after producing
 source-linked chunks. Sapheneia shapes the agent's own replies for AuDHD
-readers without changing another skill's facts or gates. If a request crosses
-one of those boundaries, hand it to the named sibling rather than broadening
-the selected skill.
+readers without changing another skill's facts or gates. Brevitas controls the
+volume and structure of engineering prose after vocabulary and register passes.
+If a request crosses one of those boundaries, hand it to the named sibling
+rather than broadening the selected skill.
 
 ## Repository map
 
@@ -26,6 +27,8 @@ the selected skill.
   plugin.
 - Ariadne is under `plugins/ariadne/`. Read `plugins/ariadne/AGENTS.md` before
   running its skill or changing that plugin.
+- Brevitas is under `plugins/brevitas/`. Read `plugins/brevitas/AGENTS.md`
+  before running its skill or changing that plugin.
 - Hermes is under `plugins/hermes/`. Read `plugins/hermes/AGENTS.md` before
   running its skill or changing that plugin.
 - Hexaemeron is under `plugins/hexaemeron/`. Read
@@ -71,6 +74,7 @@ Run the checks that cover every changed area:
 python3 -m unittest discover -s tests
 python3 -m unittest discover -s plugins/alexandria/tests -t plugins/alexandria
 python3 -m unittest discover -s plugins/ariadne/tests -t plugins/ariadne
+python3 -m unittest discover -s plugins/brevitas/tests -t plugins/brevitas
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
 python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
