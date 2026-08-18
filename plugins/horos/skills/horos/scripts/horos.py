@@ -16,6 +16,7 @@ import argparse
 import fnmatch
 import json
 import os
+import subprocess
 import sys
 
 import languages
@@ -382,7 +383,7 @@ def corroborate_directory(fulldir, dirname):
     return None
 
 
-def directory_entry(root, relpath, category, evidence, tally=None, grade="hard"):
+def directory_entry(root, relpath, category, evidence, tally=None, grade="hard", universe=None):
     """Aggregate a vendored or generated directory into one entry."""
     total = 0
     files = 0
@@ -394,6 +395,10 @@ def directory_entry(root, relpath, category, evidence, tally=None, grade="hard")
             fullpath = os.path.join(dirpath, filename)
             if os.path.islink(fullpath):
                 continue
+            if universe is not None:
+                inner = os.path.relpath(fullpath, root).replace(os.sep, "/")
+                if inner not in universe:
+                    continue
             try:
                 size = os.stat(fullpath).st_size
             except OSError:
@@ -411,13 +416,36 @@ def directory_entry(root, relpath, category, evidence, tally=None, grade="hard")
     }
 
 
-def scan_tree(root, census=False):
+def resolve_universe(root, include_untracked=False):
+    """The file set a scan covers. Git-tracked by default so local build
+    products and caches never contaminate a committed boundary; the
+    filesystem walk is the fallback when git or the repository is absent.
+
+    Returns (label, relpath_set_or_None)."""
+    argv = ["git", "-C", root, "ls-files", "-z"]
+    if include_untracked:
+        argv += ["--cached", "--others", "--exclude-standard"]
+    try:
+        completed = subprocess.run(  # phylax: allow subprocess: fixed argv, no shell, cwd pinned by -C
+            argv, capture_output=True, check=False
+        )
+    except OSError:
+        return "filesystem", None
+    if completed.returncode != 0:
+        return "filesystem", None
+    paths = completed.stdout.decode("utf-8", errors="replace").split("\0")
+    label = "tracked+untracked" if include_untracked else "tracked"
+    return label, {p for p in paths if p}
+
+
+def scan_tree(root, census=False, include_untracked=False):
     """Walk the tree and return entries plus the counts a quiet run reports.
 
     With census=True the same walk also tallies every file by suffix, so the
     census can never describe a different tree than the boundary does; the
     result gains a "census" key and nothing else changes."""
     root = os.path.abspath(root)
+    universe_label, universe = resolve_universe(root, include_untracked)
     scopes = {}
     tally = {} if census else None
     entries = []
@@ -456,6 +484,7 @@ def scan_tree(root, census=False):
                             named_category,
                             f"directory name {dirname} corroborated by {corroboration}",
                             tally,
+                            universe=universe,
                         )
                     )
                     continue
@@ -469,6 +498,7 @@ def scan_tree(root, census=False):
                         f"directory name {dirname} alone, uncorroborated",
                         None,
                         grade="candidate",
+                        universe=universe,
                     )
                 )
                 keep.append(dirname)
@@ -476,7 +506,9 @@ def scan_tree(root, census=False):
             matched = match_attribute_scopes(scopes, relpath + "/")
             if matched is not None:
                 entries.append(
-                    directory_entry(root, relpath, matched[0], matched[1], tally)
+                    directory_entry(
+                        root, relpath, matched[0], matched[1], tally, universe=universe
+                    )
                 )
                 continue
             keep.append(dirname)
@@ -488,6 +520,8 @@ def scan_tree(root, census=False):
                 continue
             relpath = filename if relative_dir == "." else f"{relative_dir}/{filename}"
             relpath = relpath.replace(os.sep, "/")
+            if universe is not None and relpath not in universe:
+                continue
             walked += 1
             matched = match_attribute_scopes(scopes, relpath)
             if matched is not None:
@@ -532,7 +566,12 @@ def scan_tree(root, census=False):
     for entry in entries:
         key = "bytes_" + entry["category"]
         counts[key] = counts.get(key, 0) + entry["bytes"]
-    result = {"entries": entries, "candidates": candidates, "counts": counts}
+    result = {
+        "entries": entries,
+        "candidates": candidates,
+        "counts": counts,
+        "universe": universe_label,
+    }
     if tally is not None:
         result["census"] = tally
     return result
@@ -566,6 +605,7 @@ def boundary_document(result):
     return {
         "schema": BOUNDARY_SCHEMA,
         "tool": "horos",
+        "universe": result["universe"],
         "entries": result["entries"],
         "counts": result["counts"],
     }
@@ -607,6 +647,7 @@ def candidates_document(result):
     return {
         "schema": BOUNDARY_SCHEMA,
         "tool": "horos",
+        "universe": result["universe"],
         "entries": result["candidates"],
         "counts": counts,
     }
@@ -671,7 +712,8 @@ def check_tree(root, out=None):
     except (OSError, json.JSONDecodeError) as error:
         print(f"horos: unreadable boundary: {error}", file=out)
         return 2
-    result = scan_tree(root)
+    include_untracked = committed.get("universe") == "tracked+untracked"
+    result = scan_tree(root, include_untracked=include_untracked)
     fresh = boundary_document(result)
     drifted = diff_documents(committed, fresh)
     candidate_drift = []
@@ -728,6 +770,11 @@ def main(argv=None):
         "--write", action="store_true", help=f"write {BOUNDARY_RELPATH} atomically"
     )
     scan.add_argument(
+        "--include-untracked",
+        action="store_true",
+        help="widen the universe to untracked-but-not-ignored files",
+    )
+    scan.add_argument(
         "--census",
         action="store_true",
         help=f"per-filetype breakdown; with --write it goes to {CENSUS_RELPATH}",
@@ -748,7 +795,9 @@ def main(argv=None):
     if args.command == "check":
         return check_tree(args.root)
 
-    result = scan_tree(args.root, census=args.census)
+    result = scan_tree(
+        args.root, census=args.census, include_untracked=args.include_untracked
+    )
 
     if args.census:
         document = census_document(result)
