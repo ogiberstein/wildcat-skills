@@ -1463,3 +1463,14 @@ all prior rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Refinement run, step 1, round 1 -- 2026-08-18
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+152/152, root 24/24. Prose-only step; the committed copies match the
+receipted artefacts and sit beside the maintainer's verbatim specification.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
