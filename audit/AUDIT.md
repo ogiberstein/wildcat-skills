@@ -140,3 +140,27 @@ published calibration and final reports replay without a byte difference.
 Leads not pursued: model authorship beyond the declared provenance rule,
 population-prevalence claims and tuning against the spent v1 holdout remain
 outside this frontier.
+
+## Withdrawal batch fee law, step 1, round 1 -- 2026-08-18
+
+The Pashov pair did not run and no campaign ran, because this step commits two
+markdown documents and touches no Solidity. Saying so is the point: the
+`security_suite` receipt names `x-ray`, `solidity-auditor` and `fizz`, none of
+them read this diff, and a zero count here would assert they had. The review
+instead read the committed spec against the risk register it declares, against
+the nine shipped laws, and against the two models it proposes to correct.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study asserted that all nine laws hold in the violating state, but only the five single-state laws had been executed. The four pair laws were reasoned about from what a fee does not touch. In a corpus whose whole argument is that a passing campaign proves nothing without a specimen, an argued verdict presented beside measured ones is the same defect one level up. | Fixed in this round: all four pair laws executed against the pair on both models, and the study now reports what was run. `accrual/path-independent/v1` returns held and the study says that verdict carries no weight, because the law compares two runs rather than one system's before and after. |
+| S1-R1-02 | low | `plugins/pandects/docs/withdrawal-batch-fee-law/study.md` | The study named a fee leak in `integrations/wildcat/WildcatMarketModel.sol` with figures, and never fixed the boundary to the deployed market contracts. The plugin's own applicability document warns that nothing in the model should be mistaken for them; a reader meeting the figures first could take the study as a claim about the protocol. | Fixed in this round: the study states that the finding is about the reduced model and the corpus's silence, and that it establishes nothing either way about the deployed contracts. |
+
+A third lead was checked and is not a finding. The study's chosen statement is
+false of `Sound` as shipped, and the study says so and builds on it. That is the
+method in `docs/writing-a-law.md` working rather than a defect in the spec.
+
+Leads not pursued: whether the two model corrections should ship as their own
+step ahead of the law, which the runbook argues against on the grounds that
+`pandects.py check` and the corpus diagonal leave no green intermediate state;
+and the seven property families deferred from the original delivery, which are
+outside this frontier.

@@ -17,16 +17,28 @@ the plugin's own Wildcat model:
 | then `accrueFee` | **200** | **1000** | 200 | 200 | 800 |
 
 The market is delinquent, holds 200 because the borrow left the twenty per cent
-required reserve, and owes 1000 on one open batch. The fee takes 800 of it. Every
-one of the five single-state laws returns `held = true` in the second row, and the
-four pair laws hold across the transition: the accrual pair reads debt, which a fee
-does not touch, and `claims/recorded-claim-never-shrinks/v1` reads each batch's own
-`owed` and `paid`, which a fee does not touch either. The protocol has taken four
-fifths of what a departing lender is owed and the corpus has no opinion.
+required reserve, and owes 1000 on one open batch. The fee takes 800 of it. The
+protocol has taken four fifths of what a departing lender is owed and the corpus
+has no opinion.
+
+Every law was executed against that pair rather than argued about. The five
+single-state laws each return `held = true` on the second row.
+`claims/recorded-claim-never-shrinks/v1` holds, because a fee touches neither
+`owed` nor `paid` on any batch. Both accrual pair laws hold, because they read
+debt and a fee does not move it. `accrual/path-independent/v1` also returns held,
+and that verdict carries no weight either way: it compares two systems advanced
+over the same span by different routes, so a single system's before and after is
+not the comparison it describes.
+
+This is a finding about the reduced model in `integrations/wildcat/`, and about
+the corpus being silent on the state it reaches. It is not a claim about the
+deployed Wildcat market contracts, which are not read here and whose fee
+accounting this study does not establish either way.
 
 The sound reference does the same thing on a shorter path: `deposit(100)`,
 `borrow(50)`, `reserve(100)`, `reserve(100)`, `accrueFee` lands on claims 50
-against 100 owed, with all five single-state laws holding.
+against 100 owed, with all five single-state laws and all four pair laws holding,
+again by execution.
 
 **Working prototype.** A tenth law, `claims/pooled-claims-cover-open-batches/v1`,
 carrying all six parts, and both models corrected so they hold it. It works when
@@ -99,6 +111,12 @@ together those two comments are the bug: the fee is capped against `reserved`, a
 **In this repository.** `plugins/ariadne` carries the search record for any campaign
 this produces. `tests/test_marketplace_prose.py` gates the prose reconciliation the
 held job asks for, so that half of the job is machine-checked rather than eyeballed.
+
+The frontier is also not a fresh idea. `plugins/pandects/audit/AUDIT.md` closes its
+last round carrying, among its leads not pursued, the fee that can drop pooled
+claims below what is owed on open batches. The defect was seen during the original
+delivery's audit loop, judged not worth another round then, and written down instead
+of dropped. This run is that lead being taken up.
 
 **Outside.** `crytic/properties` covers ERC-20 and ERC-4626 and has no withdrawal
 queue, so there is no upstream property to adopt or contribute back to here.
