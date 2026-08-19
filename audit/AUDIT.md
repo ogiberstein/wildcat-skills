@@ -1623,3 +1623,14 @@ Location: `plugins/hexaemeron/skills/phylax/scripts/phylax.py:610`
 Mechanism: The checker read each untrusted `.ts` or `.tsx` file in full before the linear lexer ran.
 Impact: An oversized tracked file could consume unbounded memory and analysis time.
 Fix: Read at most 1 MiB plus one byte, fail closed with `P000`, and guard the limit with a regression test.
+
+## Phylax TypeScript boundaries, step 1, round 2 -- 2026-08-19
+
+Suite waived (no Solidity); Phylax, Ephoros and Hypomnema lints clean.
+Hexaemeron 167/167, root 24/24, pinned application clean and unchanged.
+Manual review of `bff0eb6460e8f682e230ee6d982456121a33e2cc` found no further issue.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
