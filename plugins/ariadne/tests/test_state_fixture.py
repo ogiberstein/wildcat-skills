@@ -605,18 +605,41 @@ class SchemaAgreementTests(unittest.TestCase):
         ),
     }
 
+    def schema(self):
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "schemas",
+            "state-fixture-v1.json",
+        )
+        with open(path, "rb") as handle:
+            return json.loads(handle.read().decode("utf-8"))
+
+    def test_the_schema_carries_the_two_rules_it_used_to_leave_out(self):
+        """Always-on evidence, because the test below needs `jsonschema` and this
+        plugin does not depend on it. Structural rather than behavioural: it checks
+        that the rules are in the document, not that a validator applies them the
+        way the verifier does."""
+        schema = self.schema()
+        conditional = schema["allOf"][0]
+        claimed = conditional["if"]["properties"]["evidence"]["properties"]
+        self.assertEqual(claimed["proof_backed"]["minimum"], 1)
+        self.assertIn(
+            "state_root", conditional["then"]["properties"]["chain"]["required"]
+        )
+        self.assertNotIn(
+            "state_root", schema["properties"]["chain"]["required"]
+        )
+        path_shape = schema["properties"]["fixture_subjects"]["items"][
+            "properties"
+        ]["path"]
+        self.assertIn("pattern", path_shape)
+
     def test_the_schema_and_the_verifier_agree(self):
         try:
             import jsonschema
         except ImportError:
             self.skipTest("jsonschema is not installed")
-        schema_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "schemas",
-            "state-fixture-v1.json",
-        )
-        with open(schema_path, "rb") as handle:
-            schema = json.loads(handle.read().decode("utf-8"))
+        schema = self.schema()
         jsonschema.Draft202012Validator.check_schema(schema)
         validator = jsonschema.Draft202012Validator(schema)
         for label, mutate in self.CASES.items():
