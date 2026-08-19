@@ -10,7 +10,7 @@ description: >-
   has observed yet, which belongs to solidity-auditor and x-ray, and do not use
   it to speed up something that already works, which belongs to metron.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Elenchus
@@ -180,20 +180,35 @@ study, not a rescue improvised during debugging.
 ## The mechanical subset
 
 One rule here is executable: whether the fix carries a test that fails without
-it. The check applies the commit's test files to its parent and runs them
-there.
+it. The check applies the commit's changed test files to its parent, runs them
+there and reads a fresh structured report owned by the declared runner.
 
 ```bash
 python3 "$PLUGIN_ROOT/skills/elenchus/scripts/elenchus.py" \
-  --ref HEAD --test-command "python3 -m unittest discover -s tests"
+  --ref HEAD \
+  --test-command "python3 tests/emit_unittest_report.py {report}" \
+  --report-format unittest-json-v1 \
+  --report-file .elenchus/unittest.json
 ```
 
-The test command is yours to supply, so this runs wherever git and a runner do.
-It reports one of four outcomes. A guard that failed on the parent by assertion
-is `guarded`. A commit changing no test files is `unguarded`. A test that passed
-on the parent guards nothing and reports `passed`. A run that died before it
-could assert, usually importing something the parent has not got yet, is
-`inconclusive` rather than proof either way.
+The test command is yours to supply. It must contain one exact `{report}`
+argument. Elenchus replaces that argument with an absolute location inside the
+detached parent worktree and removes any inherited `ELENCHUS_REPORT_FILE`
+variable before starting the command. Accepted formats are
+`unittest-json-v1`, `forge-junit-v1` and `node-test-json-v1`. Stdlib unittest
+and Node need small repository-owned emitters; Forge can send native
+`forge test --junit` XML to the declared file.
+
+Every adapter normalises completion, executed tests, assertion failures,
+infrastructure errors and skips. An assertion with no infrastructure error is
+`guarded`. A clean executed test is `passed`. A missing, stale, malformed,
+oversized, incomplete or zero-test report is `inconclusive`, as are mixed
+assertion/error reports, timeouts, interrupted commands and unsafe report
+paths. A commit changing no tests remains `unguarded`.
+
+Stdout, stderr and ordinary exit codes are retained as bounded diagnostics for
+a person. They never classify the result. A legacy invocation that omits
+either report flag is `inconclusive`; with `--require-guard` it exits 1.
 
 That last distinction is the point. Dropping a new test on an older tree
 usually fails to import, and counting that as a guard would wave through every
