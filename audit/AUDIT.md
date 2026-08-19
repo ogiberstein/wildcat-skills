@@ -2486,3 +2486,65 @@ of 299 Hexaemeron tests. The single error is `ForgeReports`, environmental.
 
 Leads not pursued: the network-mount caveat on `append_ledger` from round 1 stands, and the
 budget-count lead from step 1.
+
+## Metron budget check, step 3, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | `plugins/hexaemeron/README.md` | The plugin README said "six more skills holding each phase to a standard, four of them with an executable check". Four was right on `main` -- `elenchus`, `phylax`, `ephoros` and `hypomnema` -- and this run made it five. A prose count of something the tree can be asked about goes stale the next time one is added, which is exactly what happened. | fixed in this round |
+
+The count is corrected and derived rather than trusted: a new test in `test_fiat_skill.py`
+counts the phase skills that ship `scripts/<name>.py` and asserts the README's number word
+matches. Reverting the count to four makes it fail, which was checked.
+
+The step reconciles prose, so the review looked for a surface still describing the old shape.
+Metron's own claim that it serves the `implement` phase with no Fiat counterpart is unchanged
+and still true; the same sentence appears in `phylax` and `ephoros`. The portable entrypoint
+routes to the canonical skill rather than describing its files, so it needed nothing.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`.
+
+The demonstration from the study ran against the committed tree: the regression fixture exits
+1 naming the budget and its margin, the neutral fixture exits 0, `record` writes the reverted
+attempt into the ledger with its verdicts, `SKILL.md` has no dangling links, and the script it
+names runs.
+
+The ledger was checked against the contract rather than only by the suite. The digest
+`5186746b189eea981393a052e8437de3a179d36d1afa88b38b18384cec881cff` recomputes from
+`open|measured-before-and-after|<current frontier>|<next Fiat job>` with its trailing newline,
+the row sits on the evolution axis moving 0.1.0 to 1.1.0, and the frontmatter version agrees.
+
+Both suites pass: 24 repository tests and 300 of 301 Hexaemeron tests. The single error is
+`ForgeReports`, environmental.
+
+Leads not pursued: the plugin's own version is not bumped by this run. #207 moved Hexaemeron
+to 1.4.0 for the controller change, and metron gaining a script is the same class of thing:
+an installation on 1.4.0 will not see `scripts/metron.py` until the version moves again. That
+is a decision about release cadence rather than a defect in this diff, and it is named here so
+it is not discovered the way #207 was.
+
+## Metron budget check, step 3, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1 found a prose count the tree could have answered, so this round asked
+whether there were others rather than assuming that was the only one.
+
+Every number word followed by a countable noun in the shipped prose of every plugin README,
+runtime contract and canonical skill was pulled out and checked. Three were counts of tree
+contents and all three hold: Hexaemeron's "six more skills" matches the six phase skill
+directories, Ariadne's "five core gates" matches `len(gates.CORE_GATES)` and is already
+asserted twice in that plugin's own document tests, and Pandects' "three succession laws" is
+guarded at the repository level by
+`test_marketplace_prose.test_pandects_prose_counts_the_laws_the_catalogue_holds`. The rest
+were descriptive rather than counts, such as "one security round" and "one long step".
+
+So the README's check count was the only unguarded one, and it is now derived.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and 300
+of 301 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the plugin-version lead from round 1 stands. An installation will not see
+`scripts/metron.py` until Hexaemeron's version moves again, which is a release-cadence
+decision rather than a defect in this diff.
