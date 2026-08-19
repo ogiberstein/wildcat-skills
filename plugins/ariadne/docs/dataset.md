@@ -59,7 +59,13 @@ because an absent `deltas` block reads as nothing having changed instead of as
 there being nothing to change from.
 
 Record-level differences recorded against a null baseline fail. There was no
-prior release to differ from.
+prior release to differ from. The current side is checked either way: a first
+release still has to name it and digest it, and that digest still has to be a
+subject of the statement.
+
+A release compared against itself fails. `records` carries `added`, `removed` and
+`changed` and nothing else, because an unknown key inside a digested comparison is
+undeclared content just as an unknown section is.
 
 ## The coverage check
 
@@ -72,6 +78,9 @@ most easily use to mislead: an interval printed with no gaps reads as complete.
 - Gaps must not overlap each other.
 - An absent `gaps` key fails. An empty array passes, and asserts that the
   producer looked.
+- A reason of whitespace is no reason, the same way gate 3 treats a whitespace
+  claim reason.
+- `dimension` has to name something.
 
 ## The inputs check
 

@@ -63,6 +63,11 @@ REQUIRED_FIELDS = PREDICATE_FIELDS
 empty `inputs` array, which says the question was asked and answered; leaving the
 block out would leave it open."""
 
+RECORD_KEYS = ("added", "removed", "changed")
+"""What a `records` section may carry. Unknown sections at the `deltas` level are
+refused, so an unknown key one level down cannot pass either: both are undeclared
+content sitting inside a digested comparison."""
+
 BOTH_SIDED = ("changed",)
 """Sections whose entries describe a change rather than a name, so each entry
 carries what it was and what it became."""
@@ -133,9 +138,12 @@ def gate_2_environment(statement):
                 faults.append("producer %s must be a string" % field)
         command = producer.get("command")
         if not isinstance(command, list) or not all(
-            isinstance(word, str) for word in command
+            isinstance(word, str) and word for word in command
         ):
-            faults.append("producer command must be an argv of strings")
+            faults.append(
+                "producer command must be an argv of non-empty strings; an argv "
+                "carrying an empty word is not what ran"
+            )
         try:
             digests.check(producer["parameters_digest"])
         except digests.DigestError as error:
@@ -218,7 +226,14 @@ def gate_2_environment(statement):
 def section_faults(section, body):
     """Gate 5 inside a section: a listed change names both of its sides."""
     faults = []
+    unknown = sorted(set(body) - set(RECORD_KEYS))
+    if unknown:
+        faults.append(
+            "deltas %s carries unknown keys: %s" % (section, ", ".join(unknown))
+        )
     for key, entries in body.items():
+        if key not in RECORD_KEYS:
+            continue
         if not isinstance(entries, list):
             faults.append("deltas %s.%s must be an array" % (section, key))
             continue
@@ -365,8 +380,8 @@ def gate_coverage(statement):
     if faults:
         return Gate(None, "coverage", False, "; ".join(faults))
 
-    if not isinstance(coverage["dimension"], str):
-        faults.append("coverage dimension must be a string")
+    if not isinstance(coverage["dimension"], str) or not coverage["dimension"].strip():
+        faults.append("coverage dimension must name something")
     for field in ("start", "end"):
         if not whole_number(coverage[field]):
             faults.append("coverage %s must be a whole number" % field)
@@ -389,6 +404,11 @@ def gate_coverage(statement):
             for field in ("start", "end"):
                 if gap.get(field) == 0 and field in absent:
                     absent = [f for f in absent if f != field]
+            reason = gap.get("reason")
+            # `missing` reads "" as absent but not "   ". The reason is the record,
+            # so whitespace is no reason, the same way gate 3 treats a claim.
+            if isinstance(reason, str) and not reason.strip() and "reason" not in absent:
+                absent = absent + ["reason"]
             unknown = sorted(set(gap) - GAP_FIELDS)
             if unknown:
                 faults.append("%s carries unknown fields: %s" % (label, ", ".join(unknown)))

@@ -134,11 +134,22 @@ class GateTwoTests(unittest.TestCase):
         self.assertIn("parameters_digest", found.detail)
 
     def test_a_producer_command_that_is_not_an_argv_fails(self):
+        """An empty list is caught one step earlier, by the absent-field check, so
+        this asserts the fault names the field rather than a fixed sentence."""
+        for value in ("python3 tabularium.py release", ["forge", ""], [], ["forge", 3]):
+            body = predicate()
+            body["producer"]["command"] = value
+            with self.subTest(command=repr(value)):
+                found = gate(2, body)
+                self.assertFalse(found.passed)
+                self.assertIn("command", found.detail)
+
+    def test_an_argv_carrying_an_empty_word_is_not_what_ran(self):
         body = predicate()
-        body["producer"]["command"] = "python3 tabularium.py release"
+        body["producer"]["command"] = ["forge", ""]
         found = gate(2, body)
         self.assertFalse(found.passed)
-        self.assertIn("argv of strings", found.detail)
+        self.assertIn("argv of non-empty strings", found.detail)
 
     def test_a_parameters_digest_that_is_not_hex_fails(self):
         body = predicate()
@@ -392,6 +403,25 @@ class GateFiveTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("not a subject of this statement", found.detail)
 
+    def test_an_unknown_key_inside_records_fails(self):
+        """An unknown section at the deltas level is refused, so an unknown key one
+        level down cannot pass either. Both are undeclared content inside a digested
+        comparison."""
+        body = predicate()
+        body["deltas"]["records"]["renamed"] = [{"baseline": "x", "current": "y"}]
+        found = gate(5, body)
+        self.assertFalse(found.passed)
+        self.assertIn("unknown keys", found.detail)
+
+    def test_the_declared_record_keys_are_allowed(self):
+        body = predicate()
+        body["deltas"]["records"] = {
+            "added": ["0xa"],
+            "removed": ["0xb"],
+            "changed": [{"baseline": "0xc", "current": "0xd"}],
+        }
+        self.assertTrue(gate(5, body).passed)
+
     def test_an_unknown_delta_section_fails(self):
         body = predicate()
         body["deltas"]["columns"] = {"added": ["borrower"]}
@@ -482,6 +512,22 @@ class CoverageTests(unittest.TestCase):
         ]
         found = named("coverage", body)
         self.assertTrue(found.passed, found.detail)
+
+    def test_a_dimension_that_names_nothing_fails(self):
+        for value in ("", "   ", 7, None):
+            body = predicate()
+            body["coverage"]["dimension"] = value
+            with self.subTest(dimension=repr(value)):
+                self.assertFalse(named("coverage", body).passed)
+
+    def test_a_gap_reason_of_whitespace_is_no_reason(self):
+        """`missing` reads "" as absent but not "   ". The reason is the record, so
+        whitespace is treated the way gate 3 treats a whitespace claim reason."""
+        body = predicate()
+        body["coverage"]["gaps"] = [{"start": 12000000, "end": 12000100, "reason": "   "}]
+        found = named("coverage", body)
+        self.assertFalse(found.passed)
+        self.assertIn("reason", found.detail)
 
     def test_a_bound_that_is_not_a_whole_number_fails(self):
         body = predicate()

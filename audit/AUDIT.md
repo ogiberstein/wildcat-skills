@@ -1902,3 +1902,27 @@ tests, 2 skipped.
 
 Leads not pursued: the byte-budget lead stands from round 1, and the
 constraint-level drift lead from round 5.
+
+## Ariadne dataset predicate, step 4, round 7 -- 2026-08-19
+
+Every sweep from rounds 1 to 6 was re-run against the fixed tree first and all of
+it came back clean: the three lints, 306 malformed shapes across both registered
+predicates with nothing raised, all 27 conformance fixtures with each breaching one
+holding to a single check, the demo path end to end, and both suites. Then seven
+new weakest-value probes were run on fields the earlier sweeps had not reached, and
+four of those were defects.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R7-01 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A gap `reason` of whitespace passed. `missing()` reads `""` as absent but not `"   "`, so the one field whose whole job is to carry the reason accepted a string that carries none. Gate 3 already refuses this for a claim reason, so the predicate disagreed with itself. | fixed in this round |
+| S4-R7-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | An unknown key inside `deltas.records` passed, while an unknown section one level up was refused. Both are undeclared content sitting inside a digested comparison. `records` now carries `added`, `removed` and `changed` and nothing else. | fixed in this round |
+| S4-R7-03 | low | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A producer `command` containing an empty word passed. An argv with an empty word is not what ran, and gate 2's promise is that somebody else can run it. | fixed in this round |
+| S4-R7-04 | low | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A `coverage.dimension` of whitespace passed, naming nothing while satisfying the string check. | fixed in this round |
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 456 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead from round 1, the constraint-level drift
+lead from round 5, and S4-R6-06 in the Solidity release predicate, which stays open
+and out of scope with its patch recorded.
