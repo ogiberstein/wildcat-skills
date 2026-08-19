@@ -353,6 +353,28 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(gate(2, body).passed, "gate 2 should accept a rootless pin")
         self.assertFalse(named("evidence", body).passed)
 
+    def test_exactly_one_proved_record_needs_a_state_root(self):
+        """The boundary, and the smallest claim a fixture can make. A mutation
+        probe changed the rule from `> 0` to `> 1` and the suite stayed green,
+        because every other test here counts two."""
+        body = predicate()
+        del body["chain"]["state_root"]
+        body["evidence"]["proof_backed"] = 1
+        found = named("evidence", body)
+        self.assertFalse(found.passed)
+        self.assertIn("1 proof_backed record(s)", found.detail)
+
+    def test_the_rule_holds_at_each_count_from_zero_upward(self):
+        """Swept rather than sampled, because the rule is a threshold and a
+        threshold is where an off-by-one lives."""
+        for count in (0, 1, 2, 3, 100, fixture.MAX_COUNT):
+            body = predicate()
+            del body["chain"]["state_root"]
+            body["evidence"]["proof_backed"] = count
+            with self.subTest(proof_backed=count):
+                found = named("evidence", body)
+                self.assertEqual(found.passed, count == 0, found.detail)
+
     def test_no_proved_records_needs_no_state_root(self):
         body = predicate()
         del body["chain"]["state_root"]
