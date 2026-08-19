@@ -90,6 +90,7 @@ The pinned validation tree contains 872 tracked `.ts` and `.tsx` files. These fi
 - Apply reason-bearing suppression to TypeScript with `// phylax: allow <reason>` on the finding line or the line above. A bare pragma must not suppress. Existing `#` suppression stays valid for Python.
 - Read `.ts` and `.tsx`; do not turn on `.js`, `.jsx`, `.mjs`, generated Storybook output or source maps in this frontier.
 - Fail with `P000` for unreadable input or an unterminated lexical construct needed by a rule. The scanner is not a TypeScript type checker and must not reject otherwise valid syntax merely because it does not understand a construct.
+- Read at most 1 MiB from each TypeScript file and fail closed with `P000` when the file is larger. This bounds memory use and the lexer’s linear work on untrusted source.
 - Keep the app validation tree at head `9b8b6d5d6db06428c5b539f267623277b65315cd` and make no write there.
 - Keep each rule’s unsafe specimen beside safe neighbours in `plugins/hexaemeron/tests/test_phylax_checker.py` so a future widening has an immediate false-positive cost.
 

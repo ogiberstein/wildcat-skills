@@ -35,8 +35,9 @@ The shared lexer copy retains Horos provenance and the source offsets, span
 kinds and error behaviour used by `lex(source)`. The Phylax checker emits
 `P005`, `P006` and `P007` for the unsafe fixtures defined in the study, preserves
 `P000` through `P004`, applies reason-bearing TypeScript suppressions, and keeps
-text and JSON output compatible. The committed study and runbook describe the
-source-local limit. `SKILL.md` describes the expanded mechanical subset. The
+text and JSON output compatible. It reads at most 1 MiB from each TypeScript
+file and emits `P000` above that limit. The committed study and runbook describe
+the source-local limit. `SKILL.md` describes the expanded mechanical subset. The
 Phylax ledger advances exactly once under `VERSIONING.md` and records either one
 evidenced next job or `None -- mature`.
 
