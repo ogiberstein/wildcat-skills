@@ -348,17 +348,40 @@ class StateFixtureSchemaDriftTests(unittest.TestCase):
             "integer",
         )
 
-    def test_the_hash_patterns_match_the_module(self):
-        """The module accepts lowercase only, for the reason `digests.check` does:
-        two spellings of one value compare unequal."""
+    def test_the_hash_patterns_accept_what_the_module_accepts(self):
+        """Behaviour rather than the pattern string. The module refuses the
+        all-zero hash inside `hash32` and the schema refuses it inside the
+        pattern, so the two spell the same rule differently and comparing the
+        text would fail on a disagreement that is not one."""
+        import re
+
+        candidates = (
+            "0x" + "0f" * 32,
+            "0x" + "0F" * 32,
+            "0x" + "f" * 64,
+            state_fixture.ZERO_HASH,
+            "0x" + "f" * 63,
+            "0x" + "f" * 65,
+            "f" * 64,
+            "0x",
+            "",
+        )
         chain = self.properties["chain"]["properties"]
         for field in ("block_hash", "state_root"):
-            with self.subTest(field=field):
-                self.assertEqual(
-                    chain[field]["pattern"], state_fixture.HASH32.pattern
-                )
-        self.assertTrue(state_fixture.hash32("0x" + "0f" * 32))
-        self.assertFalse(state_fixture.hash32("0x" + "0F" * 32))
+            pattern = re.compile(chain[field]["pattern"])
+            for value in candidates:
+                with self.subTest(field=field, value=value):
+                    self.assertEqual(
+                        bool(pattern.match(value)),
+                        state_fixture.hash32(value),
+                        "%s: schema and module disagree on %r" % (field, value),
+                    )
+
+    def test_the_module_refuses_the_unset_hash(self):
+        """It matches `HASH32` and identifies nothing, which is why the check is
+        not the pattern alone."""
+        self.assertTrue(state_fixture.HASH32.match(state_fixture.ZERO_HASH))
+        self.assertFalse(state_fixture.hash32(state_fixture.ZERO_HASH))
 
     def test_the_published_bounds_are_the_ones_the_module_enforces(self):
         """Names matching is not enough. The schema carried a count ceiling of

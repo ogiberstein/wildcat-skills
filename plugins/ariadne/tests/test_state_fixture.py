@@ -159,6 +159,14 @@ class GateTwoTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("block_hash", found.detail)
 
+    def test_an_all_zero_block_hash_fails(self):
+        """It matches the pattern and identifies nothing."""
+        body = predicate()
+        body["chain"]["block_hash"] = fixture.ZERO_HASH
+        found = gate(2, body)
+        self.assertFalse(found.passed)
+        self.assertIn("block_hash", found.detail)
+
     def test_a_block_hash_of_the_wrong_length_fails(self):
         body = predicate()
         body["chain"]["block_hash"] = "0xdeadbeef"
@@ -352,6 +360,24 @@ class EvidenceTests(unittest.TestCase):
         found = named("evidence", body)
         self.assertTrue(found.passed, found.detail)
 
+    def test_proved_records_against_an_all_zero_state_root_fails(self):
+        """The unset value. It matches the hash pattern, so a check that only
+        asked about the shape would let a proof-backed count sit beside a root
+        nobody filled in -- the same shape as an emitted-but-empty field."""
+        body = predicate()
+        body["chain"]["state_root"] = fixture.ZERO_HASH
+        found = named("evidence", body)
+        self.assertFalse(found.passed)
+        self.assertIn("no state root", found.detail)
+
+    def test_an_all_zero_state_root_with_no_proofs_still_fails_the_gate(self):
+        """Gate 2 checks a state root that is present, so the unset value is
+        refused there whether or not anything claims a proof."""
+        body = predicate()
+        body["chain"]["state_root"] = fixture.ZERO_HASH
+        body["evidence"]["proof_backed"] = 0
+        self.assertFalse(gate(2, body).passed)
+
     def test_proved_records_against_a_malformed_state_root_fails(self):
         """A root that does not parse is not a root to have proved anything
         against, even though gate 2 reports that fault separately."""
@@ -502,6 +528,87 @@ class ShapeTests(unittest.TestCase):
                 (None, "replay"),
             ],
         )
+
+
+class SchemaAgreementTests(unittest.TestCase):
+    """The schema and the verifier reach the same verdict on the same document.
+
+    A schema that accepts what the verifier refuses sends a producer straight into
+    a refusal, and one that refuses what the verifier accepts refuses honest work.
+    Two disagreements were found by hand in round 2 of this step: the conditional
+    state-root rule, which the schema had a comment saying it could not express and
+    draft 2020-12 can, and a component path leaving the fixture, which had no
+    pattern at all.
+
+    `jsonschema` is not a dependency of this plugin, so the test skips when it is
+    absent rather than adding one.
+    """
+
+    CASES = {
+        "the passing shape": lambda p: None,
+        "a count at the ceiling": lambda p: p["evidence"].update(
+            recorded_rpc=fixture.MAX_COUNT
+        ),
+        "a count over the ceiling": lambda p: p["evidence"].update(
+            recorded_rpc=fixture.MAX_COUNT + 1
+        ),
+        "bytes over the ceiling": lambda p: p["fixture_subjects"][1].update(
+            bytes=fixture.MAX_BYTES + 1
+        ),
+        "no state root and no proofs": lambda p: (
+            p["chain"].pop("state_root"),
+            p["evidence"].update(proof_backed=0),
+        ),
+        "no state root with proofs claimed": lambda p: p["chain"].pop("state_root"),
+        "an all-zero state root": lambda p: p["chain"].update(
+            state_root=fixture.ZERO_HASH
+        ),
+        "replay reaching a network": lambda p: p["replay"].update(
+            reaches_network=True
+        ),
+        "a hex block number": lambda p: p["chain"].update(block_number="0xc7da16"),
+        "a boolean count": lambda p: p["evidence"].update(proof_backed=True),
+        "an uppercased block hash": lambda p: p["chain"].update(
+            block_hash="0x" + "A" * 64
+        ),
+        "an undefined chain field": lambda p: p["chain"].update(difficulty="0x0"),
+        "an undefined evidence class": lambda p: p["evidence"].update(
+            trusted_oracle=1
+        ),
+        "a path leaving the fixture": lambda p: p["fixture_subjects"][1].update(
+            path="../outside.jsonl"
+        ),
+        "an absolute path": lambda p: p["fixture_subjects"][1].update(
+            path="/etc/passwd"
+        ),
+    }
+
+    def test_the_schema_and_the_verifier_agree(self):
+        try:
+            import jsonschema
+        except ImportError:
+            self.skipTest("jsonschema is not installed")
+        schema_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "schemas",
+            "state-fixture-v1.json",
+        )
+        with open(schema_path, "rb") as handle:
+            schema = json.loads(handle.read().decode("utf-8"))
+        jsonschema.Draft202012Validator.check_schema(schema)
+        validator = jsonschema.Draft202012Validator(schema)
+        for label, mutate in self.CASES.items():
+            body = predicate()
+            mutate(body)
+            with self.subTest(case=label):
+                verifier_ok = all(g.passed for g in fixture.check(built(body)))
+                schema_ok = not list(validator.iter_errors(body))
+                self.assertEqual(
+                    verifier_ok,
+                    schema_ok,
+                    "%s: verifier %s, schema %s"
+                    % (label, verifier_ok, schema_ok),
+                )
 
 
 class LazarusAgreementTests(unittest.TestCase):

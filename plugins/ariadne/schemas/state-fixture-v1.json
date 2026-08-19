@@ -18,7 +18,7 @@
   "properties": {
     "chain": {
       "type": "object",
-      "description": "The pin: which chain, which height, which of the blocks at that height. state_root is optional here and required by what the statement claims: the verifier refuses a proof_backed count above zero without one. A schema cannot express that, which is why the key is not simply required.",
+      "description": "The pin: which chain, which height, which of the blocks at that height. state_root is not in this object's required list, because a capture that proved nothing against the trie needs none. It becomes required as soon as a proof_backed count is above zero, which the allOf/if/then at the bottom of this schema expresses and the verifier enforces.",
       "additionalProperties": false,
       "required": [
         "chain_id",
@@ -44,13 +44,13 @@
         },
         "block_hash": {
           "type": "string",
-          "pattern": "^0x[0-9a-f]{64}$",
-          "description": "A 32-byte hash, 0x-prefixed and lowercase. Lazarus writes block hashes in either case; this type accepts only lowercase, because two spellings of one value compare unequal and a statement is a thing other implementations compare."
+          "pattern": "^0x(?!0{64}$)[0-9a-f]{64}$",
+          "description": "A 32-byte hash, 0x-prefixed and lowercase. Lazarus writes block hashes in either case; this type accepts only lowercase, because two spellings of one value compare unequal and a statement is a thing other implementations compare. The all-zero value is refused: it matches the shape and identifies nothing."
         },
         "state_root": {
           "type": "string",
-          "pattern": "^0x[0-9a-f]{64}$",
-          "description": "A 32-byte hash, 0x-prefixed and lowercase. Lazarus writes block hashes in either case; this type accepts only lowercase, because two spellings of one value compare unequal and a statement is a thing other implementations compare. The state root is what a proof-backed record was checked against. Optional in this shape; required by the verifier as soon as a proof_backed count is above zero."
+          "pattern": "^0x(?!0{64}$)[0-9a-f]{64}$",
+          "description": "The state root a proof-backed record was checked against. A 32-byte hash, 0x-prefixed and lowercase. Required whenever proof_backed is above zero. The all-zero value is refused by the verifier: it matches the pattern and identifies nothing."
         }
       }
     },
@@ -122,7 +122,8 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1024,
-            "description": "Fixture-relative. An absolute path or one carrying a .. segment resolves outside the fixture and is refused."
+            "description": "Fixture-relative. The pattern refuses a leading slash, a backslash, an empty segment and any .. segment, so a reader resolving it against the fixture stays inside it. The verifier refuses the same shapes; an earlier draft of this schema left the rule to the verifier alone and accepted paths it went on to reject.",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\\\]+$"
           },
           "digest": {
             "type": "object",
@@ -371,5 +372,42 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "evidence"
+        ],
+        "properties": {
+          "evidence": {
+            "type": "object",
+            "required": [
+              "proof_backed"
+            ],
+            "properties": {
+              "proof_backed": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "chain": {
+            "required": [
+              "chain_id",
+              "block_number",
+              "block_hash",
+              "state_root"
+            ]
+          }
+        }
+      },
+      "$comment": "A proof-backed count above zero needs a state root to have been proved against. Nothing else in this schema depends on a value elsewhere in the document."
+    }
+  ]
 }

@@ -119,6 +119,12 @@ It does not check the proofs. It checks that a count of proof-backed records has
 state root behind it. Whether those proofs verify is Lazarus's own `verify`, and a
 statement records the result as a claim like any other.
 
+Nor does it cross-check the counts against the components. A statement claiming one
+proof-backed record while listing no proofs file verifies, because this predicate
+reads a statement and not a fixture directory. Reading the two together is what the
+capture path does, and a statement it wrote carries counts taken from the manifest
+rather than from its caller.
+
 It does not upgrade recorded evidence. A `recorded_rpc` count is a count of
 responses somebody wrote down. No gate here makes one stronger, and the split
 exists so that nobody reading the statement can be misled into thinking one did.
@@ -129,9 +135,17 @@ exists so that nobody reading the statement can be misled into thinking one did.
 shape for another producer to read. A drift test holds it to the field tables in
 the module, so a field added to one and not the other fails the suite.
 
-The schema cannot express the gates. It can require a `state_root` key and it
-cannot require that a `proof_backed` count above zero has one, which is why both
-ship.
+The schema expresses more of the rules than an earlier draft of it did. Draft
+2020-12 has `if`/`then`, so the conditional state-root rule is in there: a
+`proof_backed` count above zero makes `state_root` required. A component path that
+would leave the fixture is refused by a pattern rather than left to the verifier.
+Round 2 of the step that added this type found both by comparing the two on the
+same documents, and a test now holds them to the same verdict on fifteen shapes.
+
+What the schema still cannot express is the reason. It can refuse an all-zero
+state root with a pattern and it cannot say that the value identifies nothing, and
+a producer reading a pattern mismatch learns less than one reading a gate line. So
+both ship, and the verifier is the one that explains itself.
 
 ## Running it
 

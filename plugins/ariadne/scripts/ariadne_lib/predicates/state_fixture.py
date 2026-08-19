@@ -120,6 +120,16 @@ not, for the reason `digests.check` does not: two spellings of one value compare
 unequal, and a statement is a thing other implementations compare.
 """
 
+ZERO_HASH = "0x" + "0" * 64
+"""The unset value, refused wherever a hash is required.
+
+It matches `HASH32` and identifies nothing. A proof-backed count above zero beside
+this state root is the shape this repository keeps meeting: a field that satisfies
+a presence and a shape check while carrying no evidence. It is not the empty trie
+root, which is a real keccak digest; it is what a producer writes when the value
+was never filled in.
+"""
+
 MAX_BYTES = 536870912
 """One component's byte count, matching the ceiling Lazarus's manifest schema
 sets. A larger number describes a file neither tool would have written."""
@@ -174,8 +184,15 @@ def whole_number(value):
 
 
 def hash32(value):
-    """True for a lowercase 0x-prefixed 32-byte hash."""
-    return isinstance(value, str) and bool(HASH32.match(value))
+    """True for a lowercase 0x-prefixed 32-byte hash that identifies something.
+
+    The all-zero hash is refused. It satisfies the pattern and names nothing, and
+    accepting it would let a proof-backed count sit beside a state root that was
+    never filled in.
+    """
+    if not isinstance(value, str) or not HASH32.match(value):
+        return False
+    return value != ZERO_HASH
 
 
 def exactly_false(record, field):
