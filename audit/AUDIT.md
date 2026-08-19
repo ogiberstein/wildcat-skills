@@ -2305,3 +2305,23 @@ The three bundled lints ran and each exited 0. Both suites pass: 24 repository t
 Leads not pursued: the `load_state` lead is now this skill's held frontier rather than a
 lead, so it leaves this list. `verify` still checks the ledger chain and phase consistency
 rather than the shape of a round.
+
+## Receipted lint rounds, step 3, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1's fix was re-read in place rather than trusted: the bare form at
+`audit-loop.md:40` is still there, which is right, and the sentence after it now says the
+form is complete for a Solidity round and points at the section that adds the rest. Every
+other `audit-round` form in the repository's Markdown is either the new receipt table row,
+the new reference section, or this run's committed study and runbook.
+
+The demonstration was re-run against the committed tree: the round is refused without the
+three results, accepted with them, and `verify` reports the chain intact.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and
+214 of 215 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: `verify` checks the ledger chain and phase consistency rather than the
+shape of a round.
