@@ -114,12 +114,17 @@ wrong type, a value that satisfies the shape and identifies nothing, a digest th
 statement does not cover, a path that resolves outside the tree, a field the type does
 not define, and each numbered gate and named check breached on its own.
 
-It has not been shown every field. The state-fixture predicate makes 31
-distinguishable refusals and ships 14 fixtures, chosen so that each family appears and
-the rules distinctive to the type appear on their own: the unset hash, the count
-ceiling taken from Lazarus, `0` in place of `false`, and a proof-backed count with no
-state root. An implementation that checked `block_number` and forgot `chain_id` would
-pass everything here.
+It has not been shown every field. The state-fixture predicate refuses far more
+distinct things than the fourteen its breaching fixtures cover, and the fourteen were
+chosen so that each family appears and the rules distinctive to the type appear on
+their own: the unset hash, the count ceiling taken from Lazarus, `0` in place of
+`false`, and a proof-backed count with no state root. An implementation that checked
+`block_number` and forgot `chain_id` would pass everything here.
+
+The ratio is deliberately left unstated. Counting a predicate's distinct refusals
+means choosing which messages count as one rule, and any number written here would be
+the author's enumeration rather than something a reader could recompute. Fourteen is
+countable; what it is fourteen out of is not.
 
 That is a deliberate limit rather than an omission. A fixture per rule would triple
 this directory and teach a reader no more, because the fixtures are read as examples
