@@ -1,0 +1,8 @@
+{
+  "note": "batched the balance reads",
+  "measurements": {
+    "harvest.usdc.wall_clock": 700,
+    "harvest.usdc.round_trips": 120,
+    "release.digest.throughput": 71
+  }
+}

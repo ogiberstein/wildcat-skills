@@ -1,0 +1,7 @@
+{
+  "measurements": {
+    "harvest.usdc.wall_clock": 1000,
+    "harvest.usdc.round_trips": 300,
+    "release.digest.throughput": 50
+  }
+}

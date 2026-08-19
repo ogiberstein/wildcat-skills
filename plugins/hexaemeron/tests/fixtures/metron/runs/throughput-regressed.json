@@ -1,0 +1,8 @@
+{
+  "note": "a higher-is-better budget going the wrong way",
+  "measurements": {
+    "harvest.usdc.wall_clock": 1000,
+    "harvest.usdc.round_trips": 300,
+    "release.digest.throughput": 41
+  }
+}
