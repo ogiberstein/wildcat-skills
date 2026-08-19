@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -57,13 +58,30 @@ class BudgetError(ValueError):
 
 
 def number(value) -> bool:
-    """True for a real number this check will do arithmetic on.
+    """True for a finite real number this check will do arithmetic on.
 
     `bool` is excluded deliberately. Python makes `True` an integer, so a
     measurement of `true` would be compared against a limit and reported as a
     verdict.
+
+    Non-finite is excluded for a sharper reason. Every comparison against `nan` is
+    False, including `!=`, so a `nan` measurement does not fail a threshold: it
+    falls through whichever branch happens to be tested last and is reported as
+    whatever that branch says. An infinite limit means nothing ever exceeds it.
     """
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(value)
+
+
+def refuse_constant(token: str):
+    """Refuse the non-standard JSON constants at parse time.
+
+    `json.loads` accepts `NaN`, `Infinity` and `-Infinity` by default, which are a
+    Python extension rather than JSON. Refusing them here names the token, where
+    catching them later could only say the value was not a number.
+    """
+    raise ValueError(f"{token} is not permitted; these files hold finite numbers")
 
 
 def read_json(path: str, what: str):
@@ -80,7 +98,7 @@ def read_json(path: str, what: str):
     except OSError as error:
         raise BudgetError(f"cannot read {what} {path}: {error}")
     try:
-        return json.loads(raw.decode("utf-8"))
+        return json.loads(raw.decode("utf-8"), parse_constant=refuse_constant)
     except (ValueError, UnicodeDecodeError) as error:
         raise BudgetError(f"{what} {path} is not readable JSON: {error}")
 
@@ -143,11 +161,31 @@ def load_budgets(path: str) -> list[dict]:
 
 
 def load_measurements(path: str, what: str) -> dict:
-    """A name-to-number mapping from a run or a baseline file."""
+    """A name-to-number mapping from a run or a baseline file.
+
+    Two shapes read the same: the mapping on its own, or wrapped under
+    `measurements` alongside whatever else the producer wanted to record. A
+    document carrying both is refused rather than resolved, because taking the
+    wrapped one drops the others in silence, and a dropped measurement is the
+    difference between an `undeclared` verdict and no verdict at all.
+    """
     document = read_json(path, what)
     if not isinstance(document, dict):
         raise BudgetError(f"{what} must hold an object of budget name to value")
-    values = document.get("measurements", document)
+    if "measurements" in document:
+        stray = sorted(
+            key for key, value in document.items()
+            if key != "measurements" and number(value)
+        )
+        if stray:
+            raise BudgetError(
+                f"{what} carries measurements alongside a measurements block: "
+                f"{', '.join(stray)}. Put every value inside the block, or none of "
+                "them; taking one shape would drop the other without saying so"
+            )
+        values = document["measurements"]
+    else:
+        values = document
     if not isinstance(values, dict):
         raise BudgetError(f"{what} measurements must be an object")
     for name, value in sorted(values.items()):
