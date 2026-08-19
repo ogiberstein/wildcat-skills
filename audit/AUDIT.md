@@ -2458,3 +2458,31 @@ Leads not pursued: `append_ledger` opens in append mode and writes one line, whi
 enough for a single short write on a local filesystem but is not guaranteed across a network
 mount. A ledger is a record rather than a gate, so a torn line loses one entry rather than
 changing a verdict.
+
+## Metron budget check, step 2, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1's fix was re-verified and the round moved to the write path, which the
+comparison sweep had not touched.
+
+The ledger's shape is one JSON object per line, so the round asked what could break that. A
+note carrying a newline, a carriage return, a quote, a tab or non-ASCII text is escaped by
+`json.dumps`, so five such notes produced five lines, each parsing on its own with the value
+preserved. That case is now guarded.
+
+Concurrency was checked rather than assumed: six threads appending forty entries each produced
+exactly 240 lines and all 240 parsed. That is left unguarded on purpose, because a threaded
+test is a flake waiting to happen in a suite nobody watches, and the property it would guard
+is a single short append in `a` mode rather than logic this run wrote.
+
+Three smaller shapes behaved: an empty run against a declared budget is `unmeasured` rather
+than nothing, and both report styles render a single verdict correctly, with the JSON `ok`
+field agreeing with the exit status.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and 298
+of 299 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the network-mount caveat on `append_ledger` from round 1 stands, and the
+budget-count lead from step 1.

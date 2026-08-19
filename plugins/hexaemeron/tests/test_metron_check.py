@@ -682,6 +682,18 @@ class RecordCommandTests(TempFiles):
         self.assertEqual(proc.returncode, 2)
         self.assertIn("--baseline", proc.stderr)
 
+    def test_a_note_cannot_break_one_object_per_line(self):
+        """The ledger's whole shape is one JSON object per line, so a note carrying a
+        newline would split one entry into two unparseable ones if it were not escaped."""
+        ledger = Path(self.tmp.name) / "ledger.jsonl"
+        notes = ["two\nlines", 'a "quote"', "\u00fc\u00f1\u00ef\u00e7\u00f8d\u00e9",
+                 "\r\n", "tab\there"]
+        for note in notes:
+            metron.append_ledger(str(ledger), {"note": note, "measurements": {"a": 1}})
+        lines = ledger.read_text(encoding="utf-8").strip().split("\n")
+        self.assertEqual(len(lines), len(notes))
+        self.assertEqual([json.loads(line)["note"] for line in lines], notes)
+
     def test_a_ledger_in_a_missing_directory_is_refused(self):
         proc = self.run_cli("record", "--budgets", str(BUDGETS),
                             "--run", str(RUNS / "neutral.json"),
