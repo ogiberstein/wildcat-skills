@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """ariadne -- signed evidence another person can check.
 
-Six subcommands:
+Seven subcommands:
 
     predicates  list the predicate types this build understands
     capture     read a build on disk into a statement
     capture-dataset  read a dataset release on disk into a statement
+    capture-state-fixture  read a Lazarus fixture on disk into a statement
     inspect     read a statement or DSSE envelope and report what it covers
     verify      run the gates over a statement and report each one
     replay      re-run the deterministic commands a statement records
@@ -22,7 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ariadne_lib import digests, envelope, registry, replay, safejson, verify  # noqa: E402
 from ariadne_lib import predicates  # noqa: E402,F401  (registers them)
-from ariadne_lib.capture import dataset as dataset_capture  # noqa: E402
+from ariadne_lib.capture import dataset as dataset_capture
+from ariadne_lib.capture import state_fixture as state_fixture_capture  # noqa: E402
 from ariadne_lib.capture import foundry  # noqa: E402
 from ariadne_lib.statement import StatementError  # noqa: E402
 
@@ -281,6 +283,25 @@ def cmd_capture_dataset(args):
     return write_statement(statement, args.out)
 
 
+def cmd_capture_state_fixture(args):
+    try:
+        statement = state_fixture_capture.capture(
+            args.fixture,
+            name=args.name,
+            capture_tool=args.capture_tool,
+            capture_version=args.capture_version,
+            capture_command=args.capture_command or None,
+            parameters=dict(args.parameter or []),
+            previous=args.previous,
+            previous_name=args.previous_name,
+            first_capture_reason=args.first_capture_reason,
+        )
+    except (state_fixture_capture.CaptureError, digests.DigestError) as error:
+        print("capture failed: %s" % error, file=sys.stderr)
+        return USAGE_ERROR
+    return write_statement(statement, args.out)
+
+
 def cmd_capture(args):
     try:
         statement = foundry.capture(
@@ -456,6 +477,31 @@ def build_parser():
     grab_dataset.add_argument("--first-release-reason")
     grab_dataset.add_argument("--out")
     grab_dataset.set_defaults(handler=cmd_capture_dataset)
+
+    grab_fixture = subcommands.add_parser(
+        "capture-state-fixture",
+        help="read a Lazarus state fixture on disk into a statement",
+    )
+    add_input_bounds(grab_fixture)
+    grab_fixture.add_argument("--fixture", required=True)
+    grab_fixture.add_argument("--name", required=True)
+    grab_fixture.add_argument(
+        "--capture-tool",
+        required=True,
+        help="the tool that wrote the fixture; the manifest carries a version and "
+        "does not name it",
+    )
+    grab_fixture.add_argument(
+        "--capture-version",
+        help="checked against the manifest's tool_version rather than replacing it",
+    )
+    grab_fixture.add_argument("--capture-command", action="append", required=True)
+    grab_fixture.add_argument("--parameter", action="append", type=parameter)
+    grab_fixture.add_argument("--previous")
+    grab_fixture.add_argument("--previous-name")
+    grab_fixture.add_argument("--first-capture-reason")
+    grab_fixture.add_argument("--out")
+    grab_fixture.set_defaults(handler=cmd_capture_state_fixture)
 
     check = subcommands.add_parser(
         "verify", help="run the core gates over a statement"

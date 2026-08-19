@@ -79,6 +79,24 @@ class AgreementTests(unittest.TestCase):
 
 
 class FileAndTreeTests(unittest.TestCase):
+    def test_a_fifo_is_refused_rather_than_read(self):
+        """`open` on a fifo blocks until something writes to it. `tree_listing`
+        has refused this since the first build; `of_file` did not, and both
+        capture paths call it directly."""
+        directory = tempfile.mkdtemp(prefix="ariadne-fifo-")
+        self.addCleanup(shutil.rmtree, directory, True)
+        path = os.path.join(directory, "pipe")
+        os.mkfifo(path)
+        with self.assertRaises(digests.DigestError) as caught:
+            digests.of_file(path)
+        self.assertIn("not a regular file", str(caught.exception))
+
+    def test_a_directory_is_refused_rather_than_read(self):
+        directory = tempfile.mkdtemp(prefix="ariadne-fifo-")
+        self.addCleanup(shutil.rmtree, directory, True)
+        with self.assertRaises(digests.DigestError):
+            digests.of_file(directory)
+
     def setUp(self):
         self.root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.root)

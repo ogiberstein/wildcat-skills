@@ -74,6 +74,13 @@ python3 scripts/ariadne.py capture-dataset \
   --producer-command python3 --producer-command scripts/tabularium.py \
   --previous <dir> --previous-name goldfinch-credit-events-v1 --out release.json
 
+python3 scripts/ariadne.py capture-state-fixture \
+  --fixture <dir> --name goldfinch-v0 \
+  --capture-tool lazarus \
+  --capture-command python3 --capture-command scripts/lazarus.py \
+  --first-capture-reason '<why there is no earlier capture of this block>' \
+  --out fixture.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
@@ -104,6 +111,20 @@ reads as what made the files. With `--previous` it
 identifies both sides of the comparison and records no record-level differences,
 because telling which records changed needs a record identity it does not have.
 [`docs/capturing-a-dataset.md`](../../docs/capturing-a-dataset.md) has the flags.
+
+`capture-state-fixture` reads a Lazarus fixture directory into a state-fixture
+statement. It takes the evidence counts from the manifest rather than computing
+them, because Lazarus is the only thing that knows which of its records were checked
+against the state root, and a capture that recomputed one and got a larger number
+would upgrade recorded evidence into proved evidence. It checks the manifest against
+the directory in both directions: a component the manifest declares and the directory
+lacks is refused, and so is a file the directory holds and the manifest does not
+declare, because the fixture digest would not cover it. Hex quantities become the
+integers this predicate compares. `reaches_network` and `canonical_chain_claim` are
+written false and are not flags, because Ariadne reaches no network and neither tool
+re-derives a chain, so offering a flag would imply otherwise.
+[`docs/capturing-a-state-fixture.md`](../../docs/capturing-a-state-fixture.md) has
+the flags.
 
 `inspect` reads either a bare in-toto statement or a DSSE envelope wrapping
 one, and reports the predicate type, whether that type is registered here, the
