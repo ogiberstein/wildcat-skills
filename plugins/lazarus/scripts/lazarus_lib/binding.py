@@ -36,8 +36,9 @@ from __future__ import annotations
 import unicodedata
 from typing import Any
 
-from .errors import FormatError, IntegrityError
-from .text import visible
+from .errors import FormatError, IntegrityError, ResourceLimitError
+from .manifest import MAX_COMPONENTS
+from .text import listed, visible
 
 IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
 """The envelope the predicate is read inside.
@@ -60,6 +61,20 @@ EVIDENCE_CLASSES = ("proof_backed", "header_bound", "recorded_rpc")
 
 REPLAY_CLAIMS = ("reaches_network", "canonical_chain_claim")
 """The two things verification does not do, which the statement must not say it does."""
+
+MAX_FIXTURE_SUBJECTS = MAX_COMPONENTS
+"""A statement cannot describe more components than a fixture can hold.
+
+Taken from the manifest's own limit rather than restated, so the two cannot
+drift apart into a statement this accepts and no fixture can satisfy.
+"""
+
+MAX_SUBJECTS = 2 * MAX_COMPONENTS
+"""The in-toto subject list may name more than the fixture's components.
+
+The capture itself is one, and a producer may have others. The cap is a bound on
+work rather than a claim about what belongs there.
+"""
 
 CHECKS = (
     "statement-type",
@@ -184,7 +199,9 @@ def predicate_type_of(statement: dict[str, Any]) -> str:
 
 def _check_statement_type(statement: dict[str, Any]) -> None:
     found = _member(statement, "_type", "statement")
-    if not isinstance(found, str) or found != IN_TOTO_STATEMENT_TYPE:
+    if not isinstance(found, str) or not visible(found):
+        raise FormatError(f"statement _type names nothing: {found!r}")
+    if found != IN_TOTO_STATEMENT_TYPE:
         raise IntegrityError(
             f"statement _type is {found!r} and this binds "
             f"{IN_TOTO_STATEMENT_TYPE}; a predicate type is read inside an "
@@ -260,7 +277,7 @@ def _check_evidence_counts(predicate: dict[str, Any], report: dict[str, Any]) ->
     if unknown:
         raise IntegrityError(
             "statement counts evidence in classes this fixture does not have: "
-            + ", ".join(unknown)
+            + listed(unknown)
         )
     for name in EVIDENCE_CLASSES:
         if name not in evidence:
@@ -311,6 +328,11 @@ def _declared_components(predicate: dict[str, Any]) -> dict[str, dict[str, Any]]
     subjects = _member(predicate, "fixture_subjects", "statement predicate")
     if not isinstance(subjects, list) or not subjects:
         raise FormatError("statement fixture_subjects must be a non-empty array")
+    if len(subjects) > MAX_FIXTURE_SUBJECTS:
+        raise ResourceLimitError(
+            f"statement describes {len(subjects)} components and a fixture holds "
+            f"at most {MAX_FIXTURE_SUBJECTS}"
+        )
     found: dict[str, dict[str, Any]] = {}
     names: set[str] = set()
     for index, entry in enumerate(subjects):
@@ -343,13 +365,13 @@ def _check_components(predicate: dict[str, Any], manifest: dict[str, Any]) -> No
     if absent:
         raise IntegrityError(
             "statement names components the fixture does not hold: "
-            + ", ".join(absent)
+            + listed(absent)
         )
     missing = sorted(set(held) - set(declared))
     if missing:
         raise IntegrityError(
             "statement does not name components the fixture holds: "
-            + ", ".join(missing)
+            + listed(missing)
         )
 
     for path in sorted(held):
@@ -382,6 +404,11 @@ def _check_subjects(statement: dict[str, Any], manifest: dict[str, Any]) -> None
     subjects = _member(statement, "subject", "statement")
     if not isinstance(subjects, list) or not subjects:
         raise FormatError("statement subject must be a non-empty array")
+    if len(subjects) > MAX_SUBJECTS:
+        raise ResourceLimitError(
+            f"statement lists {len(subjects)} subjects and this reads at most "
+            f"{MAX_SUBJECTS}"
+        )
     digests: set[str] = set()
     names: set[str] = set()
     for index, entry in enumerate(subjects):
@@ -401,7 +428,7 @@ def _check_subjects(statement: dict[str, Any], manifest: dict[str, Any]) -> None
     if uncovered:
         raise IntegrityError(
             "statement subject list does not cover components the fixture holds: "
-            + ", ".join(uncovered)
+            + listed(uncovered)
         )
 
 

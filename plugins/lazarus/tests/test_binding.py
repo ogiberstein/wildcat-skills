@@ -13,11 +13,17 @@ from lazarus_lib.binding import (
     CHECKS,
     EVIDENCE_CLASSES,
     IN_TOTO_STATEMENT_TYPE,
+    MAX_FIXTURE_SUBJECTS,
+    MAX_SUBJECTS,
     REPLAY_CLAIMS,
     STATE_FIXTURE_TYPE,
     bind,
 )
-from lazarus_lib.errors import FormatError, IntegrityError
+from lazarus_lib.errors import (
+    FormatError,
+    IntegrityError,
+    ResourceLimitError,
+)
 
 BLOCK_HASH = "0x" + "41" * 32
 BLOCK_NUMBER = 13097494
@@ -457,12 +463,15 @@ class StatementTypeTests(unittest.TestCase):
         with self.assertRaises(FormatError):
             bound(statement)
 
-    def test_a_type_of_the_wrong_shape_is_refused(self):
+    def test_a_type_that_names_nothing_is_refused(self):
+        """Shape and disagreement are told apart here as they are for the
+        predicate type: a caller catching one should not have to catch the
+        other to learn a field was blank."""
         for value in (None, "", "   ", 12345, [], {}, True, "​"):
             statement = sample_statement()
             statement["_type"] = value
             with self.subTest(statement_type=repr(value)), self.assertRaises(
-                IntegrityError
+                FormatError
             ):
                 bound(statement)
 
@@ -794,6 +803,60 @@ class NameSpellingTests(unittest.TestCase):
         statement["subject"][0]["name"] = self.COMPOSED
         statement["subject"][1]["name"] = "plan.json"
         self.assertEqual(bound(statement), list(CHECKS))
+
+
+class LimitTests(unittest.TestCase):
+    """A refusal that names a hundred thousand paths is a refusal nobody reads."""
+
+    @staticmethod
+    def components(count):
+        return [
+            {
+                "name": "c%d" % index,
+                "path": "c%d" % index,
+                "digest": {"sha256": "%064x" % index},
+                "bytes": index,
+            }
+            for index in range(count)
+        ]
+
+    def test_more_components_than_a_fixture_can_hold_is_refused(self):
+        statement = sample_statement()
+        statement["predicate"]["fixture_subjects"] = self.components(
+            MAX_FIXTURE_SUBJECTS + 1
+        )
+        with self.assertRaises(ResourceLimitError) as caught:
+            bound(statement)
+        self.assertIn(str(MAX_FIXTURE_SUBJECTS), str(caught.exception))
+
+    def test_exactly_the_limit_is_read_rather_than_refused(self):
+        """The cap is a bound on work. A fixture may hold that many, so a
+        statement describing that many is read and then disagreed with."""
+        statement = sample_statement()
+        statement["predicate"]["fixture_subjects"] = self.components(
+            MAX_FIXTURE_SUBJECTS
+        )
+        with self.assertRaises(IntegrityError):
+            bound(statement)
+
+    def test_more_subjects_than_this_reads_is_refused(self):
+        statement = sample_statement()
+        statement["subject"] = [
+            {"name": "s%d" % index, "digest": {"sha256": "%064x" % index}}
+            for index in range(MAX_SUBJECTS + 1)
+        ]
+        with self.assertRaises(ResourceLimitError) as caught:
+            bound(statement)
+        self.assertIn(str(MAX_SUBJECTS), str(caught.exception))
+
+    def test_a_refusal_counts_the_names_it_does_not_spell_out(self):
+        statement = sample_statement()
+        statement["predicate"]["fixture_subjects"] = self.components(200)
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        message = str(caught.exception)
+        self.assertIn("more", message)
+        self.assertLess(len(message), 500)
 
 
 if __name__ == "__main__":
