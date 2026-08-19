@@ -697,18 +697,51 @@ def cmd_audit_round(args) -> None:
         )
     if args.findings is None or args.findings < 0:
         die("--findings must be a non-negative integer")
+
+    exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
+    for lint, value in exits.items():
+        if value is not None and value < 0:
+            die(f"--{lint}-exit must be a non-negative exit status, got {value}")
+
+    if not solidity_round(state):
+        absent = [f"--{lint}-exit" for lint in LINTS if exits[lint] is None]
+        if absent:
+            die(
+                "this round runs the three bundled lints, so it still needs "
+                + ", ".join(absent)
+                + "; a round recorded without "
+                + ("that" if len(absent) == 1 else "them")
+                + " cannot say whether the lint ran (see references/audit-loop.md; "
+                "`config set solidity true` if this run really is a Solidity one)"
+            )
+
+    recorded = {lint: value for lint, value in exits.items() if value is not None}
+    dirty = sorted(lint for lint, value in recorded.items() if value)
+    if dirty and args.findings == 0:
+        die(
+            "round reports 0 findings while "
+            + ", ".join(f"{lint} exited {recorded[lint]}" for lint in dirty)
+            + "; a non-zero lint exit is a finding like any other"
+        )
+
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
         "log": args.log,
         "fixes_commit": args.fixes_commit,
+        "lints": recorded or None,
         "ts": now(),
     }
     rounds.append(entry)
     commit(args.dir, state, "audit-round", {"step": step["n"], **entry})
+    tail = ""
+    if recorded:
+        tail = "; lints " + ", ".join(
+            f"{lint} {recorded[lint]}" for lint in LINTS if lint in recorded
+        )
     print(
         f"step {step['n']} audit round {entry['round']} recorded "
-        f"({args.findings} finding(s))"
+        f"({args.findings} finding(s)){tail}"
     )
 
 
@@ -1031,8 +1064,10 @@ def _next_directive(state: dict) -> dict:
             }
         rounds = step["audit"]["rounds"]
         max_rounds = max_rounds_of(state)
+        lints_owed = not solidity_round(state)
+        owed = {"lints": [f"--{lint}-exit" for lint in LINTS]} if lints_owed else {}
         if not rounds:
-            return {**base, "do": "audit-round", "round": 1}
+            return {**base, "do": "audit-round", "round": 1, **owed}
         last = rounds[-1]
         if last["findings"] == 0:
             return {**base, "do": "close-audit", "rounds": len(rounds)}
@@ -1048,6 +1083,7 @@ def _next_directive(state: dict) -> dict:
             "do": "audit-round",
             "round": len(rounds) + 1,
             "prior_findings": last["findings"],
+            **owed,
         }
     if step["phase"] == "issue":
         return {**base, "do": "implement", "legacy_issue_phase_skipped": True}
@@ -1271,6 +1307,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--findings", type=int, required=True)
     sp.add_argument("--log")
     sp.add_argument("--fixes-commit", dest="fixes_commit")
+    for lint in LINTS:
+        sp.add_argument(
+            f"--{lint}-exit",
+            dest=f"{lint}_exit",
+            type=int,
+            help=f"the exit status {lint} returned; 0 is clean",
+        )
     sp.set_defaults(fn=cmd_audit_round)
 
     sp = sub.add_parser("halt", help="stop the run with a reason")

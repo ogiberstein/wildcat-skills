@@ -13,6 +13,18 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
 
+SUITE = '["hexaemeron:x-ray", "hexaemeron:solidity-auditor"]'
+"""A security_suite receipt shaped like the one preflight records.
+
+These tests used the string "suite", which is neither a waiver nor a list of ids. The
+round classifier reads it as a receipt it cannot make sense of, and demands the lint
+results, which is the right answer for a receipt like that and the wrong fixture for a
+test about a Solidity round.
+"""
+
+LINTS_CLEAN = ("--phylax-exit", "0", "--ephoros-exit", "0", "--hypomnema-exit", "0")
+"""What a non-Solidity round records when all three lints came back clean."""
+
 
 def hexctl_module():
     """The controller imported as a module.
@@ -189,7 +201,8 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
     def finish_step(self, step_no=1):
         self.run_ctl("done", "implement", "--branch", self.step_branch(step_no),
                      "--commit", f"abc{step_no}")
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
+                     *LINTS_CLEAN)
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
@@ -387,13 +400,13 @@ class TestAuditLoop(HexctlCase):
     def test_close_blocked_while_findings_open(self):
         self.to_audit()
         self.run_ctl("record", "security_suite", '"waived: prose-only repo"')
-        self.run_ctl("audit-round", "--findings", "2")
+        self.run_ctl("audit-round", "--findings", "2", *LINTS_CLEAN)
         proc = self.run_ctl("done", "audit", expect=2)
         self.assertIn("open", proc.stderr)
 
     def test_clean_close_requires_fixes_evidence_when_findings_existed(self):
         self.to_audit()
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("audit-round", "--findings", "2")
         self.run_ctl("audit-round", "--findings", "0")
         proc = self.run_ctl("done", "audit", expect=2)
@@ -403,7 +416,7 @@ class TestAuditLoop(HexctlCase):
 
     def test_fixes_commit_on_round_satisfies_evidence(self):
         self.to_audit()
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("audit-round", "--findings", "1",
                      "--fixes-commit", "beef01")
         self.run_ctl("audit-round", "--findings", "0")
@@ -411,7 +424,7 @@ class TestAuditLoop(HexctlCase):
 
     def test_no_further_leads_verdict(self):
         self.to_audit()
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("audit-round", "--findings", "1", "--fixes-commit", "b1")
         proc = self.run_ctl("done", "audit", "--no-further-leads", expect=2)
         self.assertIn("--reason", proc.stderr)
@@ -420,7 +433,7 @@ class TestAuditLoop(HexctlCase):
 
     def test_max_rounds_forces_verdict(self):
         self.to_audit()
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("config", "set", "audit.max_rounds", "2")
         self.run_ctl("audit-round", "--findings", "2", "--fixes-commit", "b1")
         self.run_ctl("audit-round", "--findings", "1", "--fixes-commit", "b2")
@@ -434,7 +447,7 @@ class TestAuditLoop(HexctlCase):
 class TestProseAndPush(HexctlCase):
     def to_prose(self):
         self.to_audit()
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("audit-round", "--findings", "0")
         self.run_ctl("done", "audit")
 
@@ -589,7 +602,7 @@ class TestProseAndPush(HexctlCase):
 
     def test_push_advances_steps_then_the_stack_integrates(self):
         self.to_steps(("One", "Two"))
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         run_branch = self.run_branch()
         first, second = self.step_branch(1), self.step_branch(2)
         self.finish_step(1)
@@ -627,7 +640,7 @@ class TestProseAndPush(HexctlCase):
 
     def test_reset_refuses_a_run_whose_stack_has_not_landed(self):
         self.to_steps(("One",))
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.finish_step(1)
         proc = self.run_ctl("reset", expect=2)
         self.assertIn("integrate", proc.stderr)
@@ -668,7 +681,7 @@ class TestControls(HexctlCase):
 
     def test_reset_archives_completed_run_and_allows_reinit(self):
         self.to_steps(("One",))
-        self.run_ctl("record", "security_suite", '"suite"')
+        self.run_ctl("record", "security_suite", SUITE)
         self.finish_step(1)
         self.integrate_run()
         self.assertEqual(self.next_json()["do"], "done")
@@ -810,6 +823,164 @@ class TestFuzzRegressions(HexctlCase):
                      "--steps-file", sf)
         proc = self.run_ctl("status")
         self.assertNotIn("\x1b", proc.stdout)
+
+
+class LintReceiptTests(HexctlCase):
+    """The three lint results a non-Solidity round owes, and the refusals."""
+
+    def to_waived_audit(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", '"waived: prose-only repo"')
+
+    def to_solidity_audit(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+
+    def rounds(self):
+        return self.state()["steps"][0]["audit"]["rounds"]
+
+    def test_a_non_solidity_round_is_refused_without_any_of_the_three(self):
+        self.to_waived_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0", expect=2)
+        for lint in ("phylax", "ephoros", "hypomnema"):
+            self.assertIn(f"--{lint}-exit", proc.stderr)
+
+    def test_the_refusal_names_only_what_is_still_missing(self):
+        self.to_waived_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0",
+                            "--phylax-exit", "0", "--ephoros-exit", "0", expect=2)
+        self.assertIn("--hypomnema-exit", proc.stderr)
+        self.assertNotIn("--phylax-exit", proc.stderr)
+        self.assertNotIn("--ephoros-exit", proc.stderr)
+
+    def test_the_refusal_points_at_the_override(self):
+        """A run whose receipt cannot be read but which really is a Solidity run has a
+        way out, and the refusal says what it is."""
+        self.to_waived_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0", expect=2)
+        self.assertIn("config set solidity true", proc.stderr)
+
+    def test_a_complete_round_records_all_three(self):
+        self.to_waived_audit()
+        out = self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN).stdout
+        self.assertIn("lints phylax 0, ephoros 0, hypomnema 0", out)
+        self.assertEqual(
+            self.rounds()[0]["lints"],
+            {"phylax": 0, "ephoros": 0, "hypomnema": 0},
+        )
+
+    def test_a_recorded_non_zero_exit_survives_onto_the_round(self):
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "3",
+                     "--phylax-exit", "1", "--ephoros-exit", "0", "--hypomnema-exit", "2")
+        self.assertEqual(
+            self.rounds()[0]["lints"], {"phylax": 1, "ephoros": 0, "hypomnema": 2}
+        )
+
+    def test_zero_findings_beside_a_failing_lint_is_refused(self):
+        """A non-zero lint exit is a finding like any other, so the two halves of the
+        receipt would otherwise contradict each other."""
+        self.to_waived_audit()
+        for flag in ("--phylax-exit", "--ephoros-exit", "--hypomnema-exit"):
+            with self.subTest(flag=flag):
+                args = ["audit-round", "--findings", "0", *LINTS_CLEAN]
+                args[args.index(flag) + 1] = "1"
+                proc = self.run_ctl(*args, expect=2)
+                self.assertIn("0 findings", proc.stderr)
+                self.assertIn("finding like any other", proc.stderr)
+
+    def test_a_failing_lint_with_findings_recorded_is_accepted(self):
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "1",
+                     "--phylax-exit", "1", "--ephoros-exit", "0", "--hypomnema-exit", "0")
+        self.assertEqual(self.rounds()[0]["findings"], 1)
+
+    def test_a_negative_exit_is_refused(self):
+        self.to_waived_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0", "--phylax-exit", "-1",
+                            "--ephoros-exit", "0", "--hypomnema-exit", "0", expect=2)
+        self.assertIn("non-negative exit status", proc.stderr)
+
+    def test_a_non_integer_exit_is_refused_by_the_parser(self):
+        self.to_waived_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0", "--phylax-exit", "clean",
+                            "--ephoros-exit", "0", "--hypomnema-exit", "0", expect=2)
+        self.assertIn("invalid int value", proc.stderr)
+
+    def test_a_solidity_round_needs_none_of_them(self):
+        self.to_solidity_audit()
+        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.assertIsNone(self.rounds()[0]["lints"])
+
+    def test_a_solidity_round_may_still_record_them(self):
+        self.to_solidity_audit()
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
+        self.assertEqual(
+            self.rounds()[0]["lints"], {"phylax": 0, "ephoros": 0, "hypomnema": 0}
+        )
+
+    def test_the_consistency_rule_applies_to_a_solidity_round_too(self):
+        """If the exits are recorded at all, they have to agree with the count."""
+        self.to_solidity_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0", "--phylax-exit", "1",
+                            "--ephoros-exit", "0", "--hypomnema-exit", "0", expect=2)
+        self.assertIn("finding like any other", proc.stderr)
+
+    def test_the_override_lifts_the_requirement(self):
+        self.to_waived_audit()
+        self.run_ctl("config", "set", "solidity", "true")
+        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.assertIsNone(self.rounds()[0]["lints"])
+
+    def test_the_override_can_impose_it_on_a_recorded_suite(self):
+        self.to_solidity_audit()
+        self.run_ctl("config", "set", "solidity", "false")
+        proc = self.run_ctl("audit-round", "--findings", "0", expect=2)
+        self.assertIn("--phylax-exit", proc.stderr)
+
+    def test_next_names_the_flags_a_non_solidity_round_owes(self):
+        self.to_waived_audit()
+        out = self.next_json()
+        self.assertEqual(out["do"], "audit-round")
+        self.assertEqual(
+            out["lints"], ["--phylax-exit", "--ephoros-exit", "--hypomnema-exit"]
+        )
+
+    def test_next_stays_quiet_about_lints_on_a_solidity_round(self):
+        self.to_solidity_audit()
+        self.assertNotIn("lints", self.next_json())
+
+    def test_next_still_names_them_on_a_later_round(self):
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "2", *LINTS_CLEAN)
+        out = self.next_json()
+        self.assertEqual(out["round"], 2)
+        self.assertEqual(out["prior_findings"], 2)
+        self.assertIn("--phylax-exit", out["lints"])
+
+    def test_closing_the_audit_reads_a_round_that_carries_lints(self):
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
+                     *LINTS_CLEAN)
+        self.run_ctl("done", "audit")
+        self.assertEqual(self.state()["steps"][0]["phase"], "prose")
+
+    def test_a_round_recorded_before_this_existed_still_reads(self):
+        """Rounds already on disk carry no lints key. Every reader has to treat it as
+        absent rather than assume it."""
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
+                     *LINTS_CLEAN)
+        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state["steps"][0]["audit"]["rounds"][0].pop("lints")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        self.run_ctl("status")
+        self.run_ctl("next")
+        self.run_ctl("done", "audit")
+        self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
 
 class RoundClassifierTests(unittest.TestCase):
