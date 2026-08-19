@@ -121,9 +121,10 @@ def write_release(
         raise FormatError(f"release output has no parent directory: {parent}")
 
     statement_bytes = _read_statement(statement_path)
+    # A document that is not an object is refused by the binding, which says so
+    # in the same words it uses for every other shape it will not read. A second
+    # check here would be a second authority on one question.
     statement = loads(statement_bytes)
-    if not isinstance(statement, dict):
-        raise FormatError("statement must be a JSON object")
 
     report = verify_fixture(source)
     checks = bind(statement, report["manifest"], report)

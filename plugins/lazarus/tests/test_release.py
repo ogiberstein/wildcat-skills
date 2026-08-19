@@ -37,9 +37,15 @@ STATE_FIXTURE_TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
 CLI = support.PLUGIN_ROOT / "scripts" / "lazarus.py"
 
 
-def write_fixture(root: Path):
-    """A fixture that verifies, built from synthetic material."""
+def write_fixture(root: Path, *, hash_source=None):
+    """A fixture that verifies, built from synthetic material.
+
+    `hash_source` changes one string nothing verifies against, which is enough
+    to make a second fixture that verifies to a different digest.
+    """
     material = support.synthetic_fixture_material()
+    if hash_source is not None:
+        material["plan"]["block"]["hash_source"] = hash_source
     dump(root / "plan.json", material["plan"])
     dump(root / "header.json", material["header"])
     write_rpc_records(root / "rpc.jsonl", material["rpc_records"])
@@ -306,12 +312,27 @@ class RefusedReleaseTests(unittest.TestCase):
             self.refuse(prepared)
 
     def test_a_statement_that_is_not_an_object_is_refused(self):
+        """Refused by the binding, in the words it uses for every other shape it
+        will not read, rather than by a second check here saying the same thing."""
         for text in (b"[]", b'"a statement"', b"12345", b"null", b"true"):
             with tempfile.TemporaryDirectory() as directory:
                 prepared = Prepared(directory)
                 prepared.statement.write_bytes(text)
                 with self.subTest(statement=text):
-                    self.refuse(prepared, FormatError)
+                    error = self.refuse(prepared, FormatError)
+                    self.assertIn("statement must be an object", str(error))
+
+    def test_an_output_that_is_a_dangling_symlink_is_refused(self):
+        """`exists` follows the link and says no. The name is still taken, and
+        a rename onto it would replace the link rather than write beside it."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.out.symlink_to(prepared.root / "nothing-here")
+            with self.assertRaises(FormatError) as caught:
+                prepared.release()
+            self.assertIn("already exists", str(caught.exception))
+            self.assertTrue(prepared.out.is_symlink())
+            self.assertEqual(prepared.staged(), [])
 
     def test_a_statement_carrying_a_number_json_should_not_have_is_refused(self):
         """`json.loads` accepts NaN and Infinity. Nothing downstream would."""
@@ -399,6 +420,32 @@ class KilledRunTests(unittest.TestCase):
             self.assertFalse(prepared.out.exists())
             self.assertEqual(prepared.staged(), [])
 
+    def test_a_copy_of_another_fixture_leaves_no_release(self):
+        """A copy that verifies is not enough. It has to verify to the digest
+        the release records, or the release describes a fixture it does not
+        hold."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            other = prepared.root / "other-fixture"
+            other.mkdir()
+            write_fixture(other, hash_source="a second synthetic offline test vector")
+            from lazarus_lib import release as module
+
+            original = module._copy_fixture
+
+            def elsewhere(source, target, manifest):
+                original(other, target, verify_fixture(other)["manifest"])
+
+            module._copy_fixture = elsewhere
+            try:
+                with self.assertRaises(IntegrityError) as caught:
+                    prepared.release()
+            finally:
+                module._copy_fixture = original
+            self.assertIn("verifies to", str(caught.exception))
+            self.assertFalse(prepared.out.exists())
+            self.assertEqual(prepared.staged(), [])
+
     def test_a_copy_that_does_not_verify_leaves_no_release(self):
         with tempfile.TemporaryDirectory() as directory:
             prepared = Prepared(directory)
@@ -418,6 +465,73 @@ class KilledRunTests(unittest.TestCase):
                 module._copy_fixture = original
             self.assertFalse(prepared.out.exists())
             self.assertEqual(prepared.staged(), [])
+
+
+class OneReadTests(unittest.TestCase):
+    """The decision the module docstring leads with, pinned.
+
+    Verification and binding both need the manifest. Reading it twice reads two
+    states, and nothing after the first read would notice a component changing
+    between them.
+    """
+
+    def test_the_binding_is_given_the_manifest_the_report_was_computed_from(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            from lazarus_lib import release as module
+
+            original = module.bind
+            seen = {}
+
+            def watched(statement, manifest, report):
+                seen["manifest"] = manifest
+                seen["report"] = report
+                return original(statement, manifest, report)
+
+            module.bind = watched
+            try:
+                prepared.release()
+            finally:
+                module.bind = original
+            self.assertIs(seen["manifest"], seen["report"]["manifest"])
+
+    def test_a_release_records_the_digest_the_report_carried(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            document = prepared.release()
+            report = verify_fixture(prepared.fixture)
+            self.assertEqual(
+                document["fixture"]["fixture_digest"],
+                report["manifest"]["fixture_digest"],
+            )
+
+
+class DocumentTests(unittest.TestCase):
+    def test_a_document_the_schema_refuses_is_not_returned(self):
+        """The block hash comes out of verification lowercased. A report that
+        carried it otherwise would build a document the schema refuses, and the
+        release must not be the thing that discovers this later."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            report = verify_fixture(prepared.fixture)
+            report["block_hash"] = report["block_hash"].upper().replace("0X", "0x")
+            with self.assertRaises(FormatError):
+                build_release(prepared.document, b"{}", report, list(CHECKS))
+
+    def test_a_document_with_no_checks_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            report = verify_fixture(prepared.fixture)
+            with self.assertRaises(FormatError):
+                build_release(prepared.document, b"{}", report, [])
+
+    def test_a_check_that_names_nothing_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            report = verify_fixture(prepared.fixture)
+            for name in ("", "   ", "\u200b"):
+                with self.subTest(check=repr(name)), self.assertRaises(FormatError):
+                    build_release(prepared.document, b"{}", report, [name])
 
 
 class CopyTests(unittest.TestCase):
