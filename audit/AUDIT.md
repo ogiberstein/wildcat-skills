@@ -2203,3 +2203,41 @@ suites pass: 24 repository tests and 194 of 195 Hexaemeron tests. The single err
 `ForgeReports`, environmental and unchanged.
 
 Leads not pursued: the `load_state` lead stands from round 1.
+
+## Receipted lint rounds, step 2, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`.
+
+The new logic is a function of the round type, the findings count and three optional
+exits, so it was swept rather than probed. All 108 combinations were run through a fresh
+state via the command line -- two receipt kinds, findings of 0 and 1, and each of the
+three exits absent, 0 or 1 -- and every accept or refuse matched the rule the code
+documents. No combination differed.
+
+Three properties were checked beyond the sweep.
+
+**No reader assumes the new field.** Every existing read of a round touches `findings`
+or `fixes_commit`. Nothing indexes `lints`, so a round recorded before this step has
+nothing to trip over, and a test pops the key back out to hold that.
+
+**The override leaves a trace.** `config set solidity true` lifts the requirement, which
+is the point of having it, and a run that uses it to dodge the lints records
+`{"path": "solidity", "value": true}` in the hash-chained ledger. `verify` passes on that
+ledger, so the dodge is auditable rather than invisible. This is the honest limit of the
+change: `hexctl` records what the caller reports, as the study's non-goals say, and
+cannot know whether a lint really ran. What it can do, and now does, is refuse a round
+that does not even claim.
+
+**The refusal names only what is missing.** Passing two of three names the third and not
+the two supplied, so the message tracks the actual gap.
+
+Both suites pass: 24 repository tests and 213 of 214 Hexaemeron tests, 19 new in this
+step. The single error is `ForgeReports`, environmental and unchanged.
+
+Leads not pursued: the `load_state` lead stands from step 1 round 1. `verify` validates
+the ledger chain and the state's phase consistency, not the shape of a round, so a
+hand-edited round with a nonsense `lints` value would pass it.
