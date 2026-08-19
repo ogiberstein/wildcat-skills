@@ -251,6 +251,28 @@ class GateTwoTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("fixture-relative", found.detail)
 
+    def test_a_backslash_traversal_is_refused(self):
+        """A single backslash separates segments on Windows. An earlier version
+        normalised only a doubled backslash, so `a\\..\\..\\b` reached a POSIX
+        consumer as one odd filename and a Windows consumer as a traversal. Found
+        by sweeping `usable_path` in round 5, and the same defect was live in the
+        dataset predicate, which this function was copied from."""
+        for value in ("a\\..\\..\\b", "..\\outside", "a\\b\\..\\..\\..\\c"):
+            with self.subTest(path=value):
+                self.assertFalse(fixture.usable_path(value))
+
+    def test_a_backslash_inside_a_name_is_not_a_traversal(self):
+        """Refusing every backslash would refuse a legitimate POSIX filename that
+        happens to contain one."""
+        self.assertTrue(fixture.usable_path("a\\b"))
+
+    def test_a_unc_prefix_is_refused(self):
+        self.assertFalse(fixture.usable_path("\\\\server\\share\\x"))
+
+    def test_a_trailing_separator_is_refused(self):
+        """It names a directory, and a component is a file."""
+        self.assertFalse(fixture.usable_path("a/"))
+
     def test_one_path_listed_twice_fails(self):
         body = predicate()
         body["fixture_subjects"][1]["path"] = "header.json"
