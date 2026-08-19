@@ -303,6 +303,14 @@ class TypeScriptContract(unittest.TestCase):
         self.assertEqual(["P000"], [finding.code for finding in result])
         self.assertEqual(1, result[0].line)
 
+    def test_oversized_typescript_stops_at_the_analysis_cap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "oversized.ts"
+            path.write_bytes(b"a" * (phylax.TYPESCRIPT_MAX_BYTES + 1))
+            result = phylax.check(path)
+        self.assertEqual(["P000"], [finding.code for finding in result])
+        self.assertIn("1048576-byte analysis cap", result[0].message)
+
     def test_findings_do_not_repeat_secret_material_in_text_or_json(self):
         sample_value = "top-secret-session-value"
         result = findings(
