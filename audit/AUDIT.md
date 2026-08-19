@@ -2033,3 +2033,29 @@ The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
 Leads not pursued: the lead from round 1 stands. Nothing tests a docstring against the
 state it describes, and a check for it would have to decide which sentences are
 claims about the code.
+
+## Ariadne dataset predicate, step 5, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The step's own subject was checked against the contract rather than only
+by the suite that guards it.
+
+- Fourteen marketplace-context blocks across the plugin and the portable entrypoint
+  carry one distinct frontier sentence between them, and the root selection table's
+  cell is that same sentence.
+- The ledger's frontier digest recomputes from
+  `open|state-fixture-predicate|<current frontier>|<next Fiat job>` with its trailing
+  newline. The new row sits on the evolution axis at `ariadne-v1.1.0`.
+- The skill metadata, both plugin manifests and the marketplace entry all read 1.1.0.
+- The landing README's next-job line carries the required prefix and suffix with a
+  topic that ends in a full stop, which is what the repository contract reads.
+- The demo path from the study runs end to end and exits 0.
+
+The three bundled lints ran across every Python and Markdown file in the plugin and
+each exited 0: `phylax`, `ephoros`, `hypomnema`. Both suites pass: 24 repository tests
+and 463 ariadne tests, 2 skipped.
+
+Leads not pursued: the docstring lead from rounds 1 and 2 stands, and the three
+findings left open in step 4 stay open with their patches recorded.
