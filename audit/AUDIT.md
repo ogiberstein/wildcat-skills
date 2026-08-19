@@ -1634,3 +1634,28 @@ Manual review of `bff0eb6460e8f682e230ee6d982456121a33e2cc` found no further iss
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Ariadne dataset predicate, step 1, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The step ships three documents and one test change, and no Solidity,
+so the suite waiver covers the Pashov pair. The three bundled lints ran against
+the changed tree and each exited 0: `phylax`, `ephoros`, `hypomnema`.
+
+The step relaxes a test, so the review checked that the relaxation stays narrow.
+Two adversarial probes were run and both behaved:
+
+- A non-policy relative link leaving the plugin, appended to the ledger, still
+  fails `test_no_shipped_document_links_outside_the_plugin`.
+- A policy citation pointing at a file that does not exist still fails
+  `test_ledgers_cite_the_versioning_contract` at the repository root.
+
+Both suites pass on the committed tree: 24 repository tests and 310 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the same out-of-plugin policy citation exists in the other
+ten non-Hexaemeron ledgers and is unasserted there, because only Ariadne ships
+a link test. Raising it across the marketplace is outside this step and outside
+this run's held frontier.
