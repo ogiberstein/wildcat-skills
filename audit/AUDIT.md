@@ -2799,3 +2799,170 @@ Leads not pursued: nothing cross-checks an evidence count against the presence o
 matching component, because this predicate reads a statement rather than a fixture
 directory. It is stated in the document's own boundary section and it is step 4's
 work, where capture takes the counts from the manifest.
+
+## Ariadne state-fixture predicate, step 3, round 1 -- 2026-08-19
+
+Reviewed: the conformance fixtures, read as the artefact another implementation checks
+itself against rather than as test data.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | `plugins/ariadne/tests/fixtures/conformance/fail-gate5-state-fixture-baseline-without-digest.json` | Three changes from its passing sibling for a one-rule breach, so a reader diffing the pair could not tell which change caused it | fixed in this round: two, which is the least that reaches the branch |
+| S3-R1-02 | medium | `plugins/ariadne/tests/fixtures/conformance/` | Most of the refusals this type can produce had no fixture. A verifier passing the whole set could have implemented one field of the pin and skipped another | fixed in this round: four fixtures for the rules distinctive to the type, and the remaining gap stated in the conformance document |
+| S3-R1-03 | low | `plugins/ariadne/docs/conformance.md` | The coverage section I had just written claimed every breaching fixture in the directory was one leaf from its passing sibling. Measurement contradicted it | fixed in this round: the true numbers, and a test holding the claim it can defend |
+
+The third is worth reading twice, because it is the same fault this project spends its
+gates refusing. A sentence went into a shipped document asserting a property of the
+fixture set, and the property had not been measured. Twelve of fourteen hold for this
+type; nine of twenty-one elsewhere, up to eight leaves for the core fixtures written
+against `pass-minimal.json`, which is a different and deliberate choice.
+
+Measuring it needed a comparison carrying each value's type. Two of these fixtures
+change only a type -- `header_bound` from `1` to `true`, `reaches_network` from
+`false` to `0` -- and `True == 1` in Python, so a comparison without the type reported
+them as identical to the fixture they breach against. The rules those two fixtures
+exercise exist because of that same equality.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this run, so the build's suite waiver
+covers the Pashov pair.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 3, round 2 -- 2026-08-19
+
+Reviewed: whether the shipped files are what a stranger receives, and whether the
+published schema agrees with the verifier about them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | medium | `plugins/ariadne/schemas/` | All three schemas typed a delta side name as a string with no lower bound, so they accepted an empty name every verifier here refuses. Two shipped fixtures were files the schema accepted and the tool rejected | fixed in this round in all three, since the shape was copied between them |
+
+Four probes came back clean before that one. The sixteen files on disk are canonical
+two-space JSON, ASCII, newline-terminated, with no tabs or carriage returns. Every
+verdict survives a decode and a re-encode. Every verdict is the same inside an unsigned
+DSSE envelope as bare. The CLI exits 0 for both passing fixtures and 1 for all
+fourteen breaching ones.
+
+A fifth checked every fixture field by field against
+`plugins/lazarus/examples/goldfinch-v0`. Each agrees with the real capture except in
+the leaf it deliberately mutates.
+
+The technique matters more than the finding. The agreement test added in step 2 ran
+over fourteen shapes somebody had thought of, and an empty side name was not one of
+them. It runs over the shipped fixtures now, which are the files another implementation
+actually reads.
+
+One disagreement is beyond any schema and stays. Whether a component digest also
+appears in the statement's `subject` array is a fact about the document around the
+predicate, and no keyword reaches outside the body being validated.
+
+Leads not pursued: two more schema disagreements, both outside this step's files and
+both expressible. `schemas/dataset-v1.json` accepts an input carrying neither a digest
+nor a disposition, which `anyOf` on an input item would close.
+`schemas/solidity-release-v1.json` accepts delta content beside a null baseline, which
+`if`/`then` would close.
+
+## Ariadne state-fixture predicate, step 3, round 3 -- 2026-08-19
+
+Reviewed: what round 2 changed, and what sat underneath it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | medium | `plugins/ariadne/scripts/ariadne_lib/core_predicate.py` | `check_side` tested a side's name for truthiness, and `"   "` is truthy. A comparison could name either end with a space and pass the check whose whole job is making both ends identifiable | fixed in this round, with tests from all three callers |
+
+The schemas agreed with the verifier here and both were wrong, which is why round 2's
+comparison stayed quiet: a lower bound refuses an empty string and accepts a space. A
+pattern requiring one non-whitespace character refuses both, and all three schemas
+carry it now.
+
+`core_predicate.py` is outside this step's file list. The rule is written once and
+called from all three predicates, so fixing it anywhere means fixing it everywhere.
+
+This was the fourth appearance in this run of a field satisfying a presence check while
+carrying no evidence, after the null current side, the all-zero hash, and `0` in place
+of `false`.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 3, round 4 -- 2026-08-19
+
+Reviewed: that same family, hunted across all three predicates at once rather than
+waiting for a fifth instance.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/solidity_release.py` | `confirmed_against_chain` was read for truthiness, so a deployment carrying `"null"` or `" "` verified clean and the report line read `0 unconfirmed against a chain`. The verifier told a reader every deployment had been checked against a chain, by a tool that reaches no network | fixed in this round: only the two booleans, with a fixture and tests |
+| S3-R4-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/solidity_release.py` | `chain_id` was unchecked, so a deployment could name its chain `" "` or `true` | fixed in this round |
+| S3-R4-03 | low | `plugins/ariadne/scripts/ariadne_lib/predicates/` | U+200B and U+2060 pass `stated()`, because Python's `str.strip()` does not treat them as whitespace, so a name or a path can render as empty and satisfy every check | recorded as a lead: refusing invisible characters is a policy decision with real trade-offs and belongs in its own change |
+
+The first is the one that mattered. The field exists because an address printed with no
+note reads as confirmed, and this let a note be written that meant nothing. Both were
+already correct in the published schema -- `"type": "boolean"` and `"type": "integer"`
+-- so the verifier was accepting statements its own shape refused, and a producer
+following the tool would have shipped something the shape rejects.
+
+The sweep was every leaf of every passing fixture replaced by each of fourteen values
+that satisfy a presence check and carry nothing: 4426 substitutions, nothing raised.
+
+The instrument was wrong first, and said so. It walked the predicate and wrote into the
+document root, so all 784 substitutions of the first run raised `KeyError` into an
+`except ... continue` and the sweep reported no findings because it had run nothing. The
+zero total is the only reason that did not read as a clean round.
+
+`tests/test_schema_agreement.py` is the systemic answer to three drift findings from one
+technique. It runs the schema and the verifier over every shipped fixture of every
+registered type. Three disagreements remain, each named with its reason, and four guards
+stop a fourth joining them quietly: an unlisted disagreement fails, a listed one that no
+longer disagrees fails, and a listed one naming a fixture that does not exist fails.
+
+`solidity_release.py` is outside this step's file list. The deviation is recorded here.
+
+Leads not pursued: the invisible-character finding above, and the two schema
+disagreements carried from round 2.
+
+## Ariadne state-fixture predicate, step 3, round 5 -- 2026-08-19
+
+Reviewed: round 4's changes, from the other direction.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R5-01 | low | `plugins/ariadne/docs/conformance.md` | The coverage section said the predicate makes 31 distinguishable refusals. That figure came from a list written by hand while auditing, not from anything a reader could recompute | fixed in this round: removed, with the denominator stated as unavailable rather than implied |
+
+Checked and found sound:
+
+- The hardened deployments check refuses nothing legitimate: mainnet confirmed and
+  unconfirmed, an L2, a chain id of 2 to the 53rd. It counts correctly across three
+  deployments with one confirmed, and reports both faults when two are wrong rather
+  than stopping at the first.
+- The new agreement test was mutated seven ways to see whether it can fail at all.
+  Five schema mutations in both directions, including one making a schema stricter
+  than the verifier, and two on its own exception list. All seven caught.
+
+The finding is the same fault as round 1's and worse in kind. A claim reads as an
+assertion; a number reads as having been counted.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 3, round 6 -- 2026-08-19
+
+Reviewed: the step's shipped documents, read as assertions.
+
+No findings.
+
+Three of the five earlier rounds found faults in prose rather than in code, so each
+claim was checked against the code: fourteen breaching fixtures, twelve of fourteen at
+one leaf, every fixture of this type named in the conformance document, the one allowed
+schema exception named, three registered types in the skill and three in the registry,
+every predicate field and evidence class and replay field named in the predicate
+document, the passing fixture's counts equal to the ones in Lazarus's manifest, seven
+gate lines and three further checks, exit 0, and every fixture path the document prints
+present on disk. Fourteen claims, all holding.
+
+The cheapest member of that family is now a test rather than a habit. Every
+`tests/fixtures/...json` path any document under `docs/` prints has to exist, and the
+test was proved able to fail by breaking one path and watching it catch rather than
+accepted on the strength of a green run.
+
+Leads not pursued: the three carried from earlier rounds, each named in
+`ACCEPTED_BY_THE_SCHEMA` or in a round log with the keyword that would close it.
