@@ -6,6 +6,7 @@ while saying something the records do not support.
 """
 
 import copy
+import unicodedata
 import unittest
 
 from lazarus_lib.binding import (
@@ -664,6 +665,135 @@ class SubjectTests(unittest.TestCase):
         with self.assertRaises(IntegrityError) as caught:
             bound(statement)
         self.assertIn("twice", str(caught.exception))
+
+
+class TrustedDocumentTests(unittest.TestCase):
+    """The manifest and the report are the caller's, not a producer's.
+
+    `verify_manifest` and `verify_fixture` establish what they say. These tests
+    are about the difference between a refusal naming the field and a traceback
+    out of the middle of a comparison, for a caller who handed over the wrong
+    document.
+    """
+
+    def test_a_manifest_component_of_the_wrong_shape_is_refused(self):
+        for field, value in (
+            ("path", []), ("path", None), ("path", "   "), ("path", "\u200b"),
+            ("sha256", {}), ("sha256", None), ("sha256", ""),
+            ("bytes", None), ("bytes", "1418"), ("bytes", True), ("bytes", -1),
+        ):
+            manifest = sample_manifest()
+            manifest["components"][1][field] = value
+            with self.subTest(field=field, value=repr(value)), self.assertRaises(
+                FormatError
+            ):
+                bound(manifest=manifest)
+
+    def test_a_manifest_missing_what_the_binding_reads_is_refused(self):
+        for field in ("chain_id", "components"):
+            manifest = sample_manifest()
+            del manifest[field]
+            with self.subTest(field=field), self.assertRaises(FormatError):
+                bound(manifest=manifest)
+
+    def test_a_manifest_that_is_not_an_object_is_refused(self):
+        for value in (None, [], "manifest", 12345):
+            with self.subTest(manifest=value), self.assertRaises(FormatError):
+                bind(sample_statement(), value, sample_report())
+
+    def test_a_manifest_holding_no_components_is_refused(self):
+        for value in ([], None, {}, "header.json"):
+            manifest = sample_manifest()
+            manifest["components"] = value
+            with self.subTest(components=value), self.assertRaises(FormatError):
+                bound(manifest=manifest)
+
+    def test_a_report_missing_what_the_binding_reads_is_refused(self):
+        for field in (
+            "block_hash", "block_number", "state_root", "evidence_counts",
+            "header_bound",
+        ):
+            report = sample_report()
+            del report[field]
+            with self.subTest(field=field), self.assertRaises(FormatError):
+                bound(report=report)
+
+    def test_a_report_count_of_the_wrong_shape_is_refused(self):
+        for name in EVIDENCE_CLASSES:
+            for value in (None, "", [], {}, 1.5, True, -1):
+                report = sample_report()
+                report["evidence_counts"][name] = value
+                with self.subTest(name=name, value=repr(value)), self.assertRaises(
+                    FormatError
+                ):
+                    bound(report=report)
+
+    def test_a_report_count_left_out_is_refused(self):
+        for name in EVIDENCE_CLASSES:
+            report = sample_report()
+            del report["evidence_counts"][name]
+            with self.subTest(name=name), self.assertRaises(FormatError):
+                bound(report=report)
+
+    def test_a_report_block_field_that_names_nothing_is_refused(self):
+        for field in ("block_hash", "block_number", "state_root"):
+            for value in (None, "", "   ", 12345, [], "\u200b"):
+                report = sample_report()
+                report[field] = value
+                with self.subTest(field=field, value=repr(value)), self.assertRaises(
+                    FormatError
+                ):
+                    bound(report=report)
+
+    def test_a_report_with_no_canonical_chain_claim_is_refused(self):
+        report = sample_report()
+        del report["header_bound"]["canonical_chain_claim"]
+        with self.assertRaises(FormatError):
+            bound(report=report)
+
+    def test_a_report_that_is_not_an_object_is_refused(self):
+        for value in (None, [], "report", 12345):
+            with self.subTest(report=value), self.assertRaises(FormatError):
+                bind(sample_statement(), sample_manifest(), value)
+
+
+class NameSpellingTests(unittest.TestCase):
+    """Two Unicode spellings of one name are one name to a reader."""
+
+    COMPOSED = unicodedata.normalize("NFC", "pl\u00e1n.json")
+    DECOMPOSED = unicodedata.normalize("NFD", "pl\u00e1n.json")
+
+    def test_the_two_spellings_differ_as_strings(self):
+        """Without this the rest of the class would pass for the wrong reason."""
+        self.assertNotEqual(self.COMPOSED, self.DECOMPOSED)
+
+    def test_one_subject_name_in_two_spellings_is_refused(self):
+        statement = sample_statement()
+        statement["subject"][0]["name"] = self.COMPOSED
+        statement["subject"].append(
+            {"name": self.DECOMPOSED, "digest": {"sha256": "e" * 64}}
+        )
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("twice", str(caught.exception))
+
+    def test_one_fixture_subject_name_in_two_spellings_is_refused(self):
+        statement = sample_statement()
+        subjects = statement["predicate"]["fixture_subjects"]
+        subjects[0]["name"] = self.COMPOSED
+        entry = copy.deepcopy(subjects[0])
+        entry["name"] = self.DECOMPOSED
+        entry["path"] = "other.json"
+        subjects.append(entry)
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("twice", str(caught.exception))
+
+    def test_names_that_differ_by_more_than_spelling_still_bind(self):
+        statement = sample_statement()
+        statement["subject"][0]["name"] = self.COMPOSED
+        statement["subject"][1]["name"] = "plan.json"
+        self.assertEqual(bound(statement), list(CHECKS))
 
 
 if __name__ == "__main__":

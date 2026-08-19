@@ -33,6 +33,7 @@ way to tell which half of a bound document was checked.
 
 from __future__ import annotations
 
+import unicodedata
 from typing import Any
 
 from .errors import FormatError, IntegrityError
@@ -105,16 +106,72 @@ def _hex_quantity(value: Any, what: str) -> int:
 
 
 def _named(entry: dict[str, Any], what: str, seen: set[str]) -> str:
+    """A name that names something, and names it once.
+
+    Compared in composed form. Two Unicode spellings of one name are one name to
+    a reader, and a duplicate that gets past this rule by being spelled the other
+    way is the ambiguity the rule exists to refuse.
+    """
     name = _member(entry, "name", what)
     if not isinstance(name, str) or not visible(name):
         raise FormatError(f"{what} names nothing: {name!r}")
-    if name in seen:
+    settled = unicodedata.normalize("NFC", name)
+    if settled in seen:
         raise IntegrityError(
             f"statement uses the name {name} twice; a reader matching a subject "
             "by name cannot tell which digest was meant"
         )
-    seen.add(name)
+    seen.add(settled)
     return name
+
+
+def _verified_manifest(manifest: Any) -> dict[str, Any]:
+    """The fields this binding reads out of a manifest, present and shaped.
+
+    Not a second verification: `verify_manifest` did that, and a caller who
+    skipped it is not caught here. It is the difference between a refusal naming
+    the field and a traceback out of the middle of a comparison, for a caller who
+    handed over the manifest read off disk rather than the verified one.
+    """
+    manifest = _object(manifest, "manifest")
+    _member(manifest, "chain_id", "manifest")
+    components = _member(manifest, "components", "manifest")
+    if not isinstance(components, list) or not components:
+        raise FormatError("manifest components must be a non-empty array")
+    for index, entry in enumerate(components):
+        what = f"manifest component {index + 1}"
+        entry = _object(entry, what)
+        path = _member(entry, "path", what)
+        if not isinstance(path, str) or not visible(path):
+            raise FormatError(f"{what} path names nothing: {path!r}")
+        digest = _member(entry, "sha256", what)
+        if not isinstance(digest, str) or not visible(digest):
+            raise FormatError(f"{what} has no sha256 digest: {digest!r}")
+        size = _member(entry, "bytes", what)
+        if not _whole_number(size) or size < 0:
+            raise FormatError(f"{what} bytes is {size!r} rather than a byte count")
+    return manifest
+
+
+def _verified_report(report: Any) -> dict[str, Any]:
+    """The fields this binding reads out of a verified report, present and shaped."""
+    report = _object(report, "report")
+    for field in ("block_hash", "block_number", "state_root"):
+        value = _member(report, field, "report")
+        if not isinstance(value, str) or not visible(value):
+            raise FormatError(f"report {field} names nothing: {value!r}")
+    counts = _object(
+        _member(report, "evidence_counts", "report"), "report evidence_counts"
+    )
+    for name in EVIDENCE_CLASSES:
+        value = _member(counts, name, "report evidence_counts")
+        if not _whole_number(value) or value < 0:
+            raise FormatError(
+                f"report {name} count is {value!r} rather than a number of records"
+            )
+    header = _object(_member(report, "header_bound", "report"), "report header_bound")
+    _member(header, "canonical_chain_claim", "report header_bound")
+    return report
 
 
 def predicate_type_of(statement: dict[str, Any]) -> str:
@@ -364,6 +421,8 @@ def bind(
     worth reading, and a release is refused whole.
     """
     statement = _object(statement, "statement")
+    manifest = _verified_manifest(manifest)
+    report = _verified_report(report)
     predicate = _object(
         _member(statement, "predicate", "statement"), "statement predicate"
     )
