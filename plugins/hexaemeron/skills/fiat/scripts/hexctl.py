@@ -706,13 +706,16 @@ def cmd_audit_round(args) -> None:
     if not solidity_round(state):
         absent = [f"--{lint}-exit" for lint in LINTS if exits[lint] is None]
         if absent:
+            one = len(absent) == 1
             die(
                 "this round runs the three bundled lints, so it still needs "
                 + ", ".join(absent)
                 + "; a round recorded without "
-                + ("that" if len(absent) == 1 else "them")
-                + " cannot say whether the lint ran (see references/audit-loop.md; "
-                "`config set solidity true` if this run really is a Solidity one)"
+                + ("that" if one else "them")
+                + " cannot say whether "
+                + ("it ran" if one else "they ran")
+                + " (see references/audit-loop.md; `config set solidity true` if this "
+                "run really is a Solidity one)"
             )
 
     recorded = {lint: value for lint, value in exits.items() if value is not None}

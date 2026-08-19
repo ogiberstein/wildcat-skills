@@ -85,9 +85,29 @@ python3 "$PLUGIN_ROOT/skills/hypomnema/scripts/hypomnema.py" <changed docs>
 A non-zero exit is a finding like any other: log it, fix it on the stacked
 branch, and run the next round against the fixed tree. Then review the diff
 for the risk register's concerns the lints cannot see, log the result, and
-record the round with the lint outcomes in the log entry. The suite waiver in
-the `security_suite` receipt covers why the Pashov pair did not run; it does
-not excuse skipping the look, and it does not excuse skipping the lints.
+record the round. The suite waiver in the `security_suite` receipt covers why
+the Pashov pair did not run; it does not excuse skipping the look, and it does
+not excuse skipping the lints.
+
+The controller takes the three exits as fields, and refuses the round without
+them:
+
+```text
+hexctl audit-round --findings <n> --log audit/AUDIT.md \
+  --phylax-exit <n> --ephoros-exit <n> --hypomnema-exit <n>
+```
+
+`next` names the three flags when the round owes them, so the requirement
+arrives before the refusal does. A round reporting zero findings beside a
+non-zero exit is refused as well: the log would otherwise say a lint failed
+while the ledger said the round was clean.
+
+Which rounds owe them comes from the `security_suite` receipt. A waiver means
+these three are the mechanical part. A recorded list of suite ids means the
+Pashov pair ran. Anything else is not a suite that ran, so the lints are
+required. `config set solidity true` overrides that for a run whose receipt
+cannot be read but which really is a Solidity one, and the override records
+itself on the ledger.
 
 When a round surfaces a failure -- a test gone red, a lint that will not come
 clean, behaviour that stopped matching -- work it under `elenchus`: reproduce,
