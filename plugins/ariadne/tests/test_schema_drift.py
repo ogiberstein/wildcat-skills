@@ -20,14 +20,20 @@ from ariadne_lib import core_predicate  # noqa: E402
 from ariadne_lib import registry  # noqa: E402
 from ariadne_lib.predicates import dataset  # noqa: E402
 from ariadne_lib.predicates import solidity_release as release  # noqa: E402
+from ariadne_lib.predicates import state_fixture  # noqa: E402
 
 SCHEMAS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "schemas"
 )
 SCHEMA = os.path.join(SCHEMAS, "solidity-release-v1.json")
 DATASET_SCHEMA = os.path.join(SCHEMAS, "dataset-v1.json")
+STATE_FIXTURE_SCHEMA = os.path.join(SCHEMAS, "state-fixture-v1.json")
 
-SHIPPED = ((release, SCHEMA), (dataset, DATASET_SCHEMA))
+SHIPPED = (
+    (release, SCHEMA),
+    (dataset, DATASET_SCHEMA),
+    (state_fixture, STATE_FIXTURE_SCHEMA),
+)
 """Each shipped predicate and its published schema."""
 
 
@@ -241,6 +247,129 @@ class DatasetSchemaDriftTests(unittest.TestCase):
             json.loads(raw.decode("utf-8"))["$schema"],
             "https://json-schema.org/draft/2020-12/schema",
         )
+
+
+
+class StateFixtureSchemaDriftTests(unittest.TestCase):
+    def setUp(self):
+        self.schema = read_schema(STATE_FIXTURE_SCHEMA)
+        self.properties = self.schema["properties"]
+
+    def test_the_schema_names_this_predicate_type(self):
+        self.assertIn(state_fixture.TYPE, self.schema["description"])
+
+    def test_the_top_level_fields_match_the_module(self):
+        self.assertEqual(
+            sorted(self.properties), sorted(state_fixture.PREDICATE_FIELDS)
+        )
+        self.assertEqual(
+            self.schema["required"], list(state_fixture.REQUIRED_FIELDS)
+        )
+
+    def test_the_pin_fields_match(self):
+        self.assertEqual(
+            self.properties["chain"]["required"],
+            list(state_fixture.CHAIN_REQUIRED),
+        )
+        self.assertEqual(
+            sorted(self.properties["chain"]["properties"]),
+            sorted(state_fixture.CHAIN_FIELDS),
+        )
+
+    def test_the_state_root_is_not_required_by_the_shape(self):
+        """It is required by what a statement claims, which is the evidence
+        check's rule. Requiring it here would make that rule unreachable: a
+        statement with no root would fail gate 2 first, and the rule refusing a
+        proof-backed count without one would never decide anything."""
+        self.assertNotIn("state_root", self.properties["chain"]["required"])
+        self.assertNotIn("state_root", state_fixture.CHAIN_REQUIRED)
+        self.assertIn("state_root", state_fixture.CHAIN_FIELDS)
+
+    def test_the_capture_fields_match(self):
+        self.assertEqual(
+            self.properties["capture"]["required"],
+            list(state_fixture.CAPTURE_REQUIRED),
+        )
+
+    def test_the_component_fields_match(self):
+        self.assertEqual(
+            self.properties["fixture_subjects"]["items"]["required"],
+            list(state_fixture.FIXTURE_SUBJECT_REQUIRED),
+        )
+
+    def test_the_evidence_classes_match(self):
+        self.assertEqual(
+            self.properties["evidence"]["required"],
+            list(state_fixture.EVIDENCE_CLASSES),
+        )
+        self.assertEqual(
+            sorted(self.properties["evidence"]["properties"]),
+            sorted(state_fixture.EVIDENCE_CLASSES),
+        )
+
+    def test_the_replay_fields_match_and_are_pinned_false(self):
+        """The module accepts only `False`, so a schema allowing `true` would send
+        a producer straight into a refusal here."""
+        replay = self.properties["replay"]
+        self.assertEqual(replay["required"], list(state_fixture.REPLAY_REQUIRED))
+        for field in state_fixture.REPLAY_REQUIRED:
+            with self.subTest(field=field):
+                self.assertIs(replay["properties"][field]["const"], False)
+
+    def test_the_delta_sections_match(self):
+        sections = set(self.properties["deltas"]["properties"])
+        self.assertEqual(
+            sections,
+            set(state_fixture.DELTA_SECTIONS) | {"baseline", "current", "reason"},
+        )
+
+    def test_the_both_sided_sections_require_both_sides(self):
+        components = self.properties["deltas"]["properties"]["components"][
+            "properties"
+        ]
+        for section in state_fixture.BOTH_SIDED:
+            with self.subTest(section=section):
+                self.assertEqual(
+                    components[section]["items"]["required"], ["baseline", "current"]
+                )
+
+    def test_the_numbers_are_integers_rather_than_wire_strings(self):
+        """A Lazarus manifest writes the chain id and the block number as hex
+        quantity strings. The module refuses those, so a schema typing either as a
+        string would publish a shape this tool will not accept."""
+        chain = self.properties["chain"]["properties"]
+        for field in ("chain_id", "block_number"):
+            with self.subTest(field=field):
+                self.assertEqual(chain[field]["type"], "integer")
+        self.assertEqual(
+            self.properties["fixture_subjects"]["items"]["properties"]["bytes"][
+                "type"
+            ],
+            "integer",
+        )
+
+    def test_the_hash_patterns_match_the_module(self):
+        """The module accepts lowercase only, for the reason `digests.check` does:
+        two spellings of one value compare unequal."""
+        chain = self.properties["chain"]["properties"]
+        for field in ("block_hash", "state_root"):
+            with self.subTest(field=field):
+                self.assertEqual(
+                    chain[field]["pattern"], state_fixture.HASH32.pattern
+                )
+        self.assertTrue(state_fixture.hash32("0x" + "0f" * 32))
+        self.assertFalse(state_fixture.hash32("0x" + "0F" * 32))
+
+    def test_the_component_constraints_match_the_gate(self):
+        props = self.properties["fixture_subjects"]["items"]["properties"]
+        self.assertEqual(props["bytes"]["minimum"], 0)
+        self.assertEqual(props["bytes"]["maximum"], state_fixture.MAX_BYTES)
+        self.assertEqual(props["path"]["minLength"], 1)
+        self.assertFalse(state_fixture.usable_path("/etc/passwd"))
+        self.assertFalse(state_fixture.usable_path("../outside.json"))
+        self.assertFalse(state_fixture.usable_path("schemas/../../outside.json"))
+        self.assertTrue(state_fixture.usable_path("manifest.json"))
+        self.assertTrue(state_fixture.usable_path("schemas/header-v1.json"))
 
 
 class CompletenessTests(unittest.TestCase):

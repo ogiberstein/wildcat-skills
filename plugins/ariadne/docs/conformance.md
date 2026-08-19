@@ -15,10 +15,11 @@ nowhere on purpose. A verifier meeting it should check the core gates, report
 that gates 2 and 5 belong to a predicate it does not know, and not describe the
 run as clean.
 
-The `solidity` and `dataset` fixtures use the two types this build registers, so
-they exercise each predicate's own gates as well as the core ones. Gates 2 and 5
-mean different things for a dataset release than for a contract release, so each
-type carries its own breaching fixtures for them.
+The `solidity`, `dataset` and `state-fixture` fixtures use the three types this
+build registers, so they exercise each predicate's own gates as well as the core
+ones. Gates 2 and 5 mean different things for a state fixture than for a dataset
+release or a contract release, so each type carries its own breaching fixtures for
+them.
 
 ## The naming convention
 
@@ -73,6 +74,11 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-check-coverage-dataset-no-gaps-block.json` | A coverage interval with no gaps block, which reads as complete without saying so |
 | `fail-check-inputs-dataset-locator-only.json` | An input with a locator and neither a digest nor a reason for not having one |
 | `fail-check-predicate-fields-dataset-unknown-field.json` | A dataset predicate carrying a field the type does not define |
+| `pass-state-fixture.json` | A Lazarus state fixture published as a statement: the pinned block with its state root, four components, the three evidence counts, and a replay that reaches no network. The digests, byte counts and counts are the ones Lazarus wrote for `plugins/lazarus/examples/goldfinch-v0` |
+| `fail-gate2-state-fixture-hex-block-number.json` | A block number written as the hex quantity string a Lazarus manifest carries, which is right on the wire and orders as text |
+| `fail-gate5-state-fixture-unnamed-current.json` | A first capture whose current side has no name and a digest the statement does not cover |
+| `fail-check-evidence-state-fixture-proved-without-a-state-root.json` | Two proof-backed records counted with no state root to have proved them against. Gate 2 passes, which is the point: the rule reaches statements the pin check accepts |
+| `fail-check-replay-state-fixture-reaches-network.json` | A replay recorded as reaching a network, which is not the boundary a fixture exists to be |
 
 ## Running them
 
