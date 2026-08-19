@@ -22,6 +22,7 @@ import re
 
 from .. import deltas as deltas_module
 from .. import digests
+from ..core_predicate import check_side, missing
 from ..gates import Gate
 
 REVISION = re.compile(r"^[0-9a-f]{40}$|^[0-9a-f]{64}$")
@@ -69,12 +70,6 @@ REQUIRED_FIELDS = (
 """What a statement of this type cannot leave out. `audits` and `deployments`
 are absent when there are none, and a release that was audited records the audit
 rather than the absence of one."""
-
-
-def missing(record, required):
-    if not isinstance(record, dict):
-        return list(required)
-    return [field for field in required if record.get(field) in (None, "", [], {})]
 
 
 def gate_2_environment(statement):
@@ -170,18 +165,6 @@ def gate_2_environment(statement):
             len(predicate["release_subjects"]),
         ),
     )
-
-
-def check_side(side, which, faults):
-    if not isinstance(side, dict):
-        faults.append("delta %s side is not an object" % which)
-        return
-    if not side.get("name"):
-        faults.append("delta %s side has no name" % which)
-    try:
-        digests.check(side.get("digest"))
-    except digests.DigestError as error:
-        faults.append("delta %s side: %s" % (which, error))
 
 
 BOTH_SIDED = ("changed", "moved", "retyped")

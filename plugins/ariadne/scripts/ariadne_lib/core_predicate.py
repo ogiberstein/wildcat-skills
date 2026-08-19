@@ -77,3 +77,35 @@ def walk(value):
 def normalise_key(key):
     """Fold a key for comparison: case, underscores and hyphens dropped."""
     return "".join(c for c in key.lower() if c.isalnum())
+
+
+def missing(record, required):
+    """The required fields a record leaves absent, empty, or blank.
+
+    Absent and empty are one answer here on purpose. A producer that writes
+    `"commit": ""` has recorded no commit, and a gate that accepted it would be
+    reading the key rather than the value. A field that is legitimately false
+    has to be checked separately, because `False` lands in this list.
+    """
+    if not isinstance(record, dict):
+        return list(required)
+    return [field for field in required if record.get(field) in (None, "", [], {})]
+
+
+def check_side(side, which, faults):
+    """One side of a comparison: a name, and a digest that parses.
+
+    Shared by every predicate whose deltas name a baseline and a current, so the
+    rule that an unidentifiable side fails is written once.
+    """
+    from . import digests
+
+    if not isinstance(side, dict):
+        faults.append("delta %s side is not an object" % which)
+        return
+    if not side.get("name"):
+        faults.append("delta %s side has no name" % which)
+    try:
+        digests.check(side.get("digest"))
+    except digests.DigestError as error:
+        faults.append("delta %s side: %s" % (which, error))

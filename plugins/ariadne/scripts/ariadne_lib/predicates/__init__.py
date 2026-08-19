@@ -7,8 +7,9 @@ table somebody has to remember to update.
 """
 
 from .. import registry
-from . import solidity_release
+from . import dataset, solidity_release
 
 registry.DEFAULT.register(solidity_release)
+registry.DEFAULT.register(dataset)
 
-__all__ = ["solidity_release"]
+__all__ = ["dataset", "solidity_release"]

@@ -184,6 +184,27 @@ reaches a network, so that last field always says nothing did.
 by field, and `schemas/solidity-release-v1.json` ships for producers that are not
 this tool.
 
+Type URI: `https://ariadne.wildcat.finance/solidity-release/v1`.
+
+## The dataset predicate
+
+The second shape. Its subject is a released data file, and it carries the
+producer with its version and argv, the inputs with a digest or a recorded
+reason for not having one, every released file with its digest and record count,
+the interval the release claims to describe with the gaps inside it, and the
+record-level differences against the previous release.
+
+Two checks are its own. Coverage refuses an interval with no `gaps` key, a gap
+outside the bounds, a gap without a reason and a pair of gaps that overlap, so an
+interval printed with no gaps cannot read as complete. Inputs refuses an input
+carrying neither a digest nor a disposition, because a locator alone records
+nothing about what was read. Coverage bounds are whole numbers.
+
+[`docs/dataset.md`](../../docs/dataset.md) describes it field by field, and
+`schemas/dataset-v1.json` ships for producers that are not this tool.
+
+Type URI: `https://ariadne.wildcat.finance/dataset/v1`.
+
 ## Examples
 
 [`examples/`](../../examples) holds two attestations over the fixture project:
@@ -199,10 +220,9 @@ fails a named gate.
 
 Named so the edge is visible rather than implied.
 
-The registry holds one predicate. The dataset, chain-state fixture and
-grounded-agent predicates are specified and not implemented here, so a statement
-of one of those types verifies its core gates and is told which gates went
-unchecked.
+The registry holds two predicates. The chain-state fixture and grounded-agent
+predicates are specified and not implemented here, so a statement of one of those
+types verifies its core gates and is told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each of those is a deliberate boundary rather than an

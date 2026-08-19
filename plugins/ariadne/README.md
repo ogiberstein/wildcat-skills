@@ -29,9 +29,9 @@ when either baseline cannot be identified, and replay separates what must match
 byte for byte from what cannot.
 
 The core is artefact-neutral. A contract release is the first and sharpest case
-rather than the only one, and a dataset, a chain-state fixture and a
-grounded-agent release each get a predicate beside it rather than a tool of
-their own.
+rather than the only one; a dataset release has its own predicate beside it, and a
+chain-state fixture and a grounded-agent release each get one rather than a tool
+of their own.
 
 ## How it works
 
@@ -151,10 +151,9 @@ field by field, the conformance set, and the capture flags.
 
 ## Where it stops
 
-The registry holds one predicate. The dataset, chain-state fixture and
-grounded-agent predicates are specified and not implemented here, so a statement
-of one of those types verifies its core gates and is told which gates went
-unchecked.
+The registry holds two predicates. The chain-state fixture and grounded-agent
+predicates are specified and not implemented here, so a statement of one of those
+types verifies its core gates and is told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each is a deliberate boundary: the first needs a node, the
