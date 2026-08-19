@@ -273,6 +273,73 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
         self.assertTrue(stated)
         self.assertIn("no state root", stated[0]["reason"])
 
+    def rewrite_header(self, header):
+        """The header is a component, so the manifest has to follow it."""
+        path = os.path.join(self.fixture, "header.json")
+        with open(path, "w") as handle:
+            json.dump(header, handle)
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        manifest = self.manifest()
+        for entry in manifest["components"]:
+            if entry["path"] == "header.json":
+                entry["sha256"] = hashlib.sha256(raw).hexdigest()
+                entry["bytes"] = len(raw)
+        self.rewrite(manifest)
+
+    def header(self):
+        return read_json(os.path.join(self.fixture, "header.json"))
+
+    def test_a_malformed_state_root_in_the_header_is_refused(self):
+        """The header is read off disk like the manifest. A mutation probe removed
+        the check on it and the suite stayed green, so the rule held and nothing
+        pinned it."""
+        for label, value in (
+            ("all zero", predicate.ZERO_HASH),
+            ("too short", "0xdeadbeef"),
+            ("no prefix", "f" * 64),
+            ("not a string", 12345),
+            ("null", None),
+        ):
+            header = self.header()
+            header["state_root"] = value
+            self.rewrite_header(header)
+            with self.subTest(state_root=label):
+                self.assertIn("state_root", self.refused())
+
+    def test_an_uppercased_state_root_is_lowered_rather_than_refused(self):
+        """Two spellings of one value, as with the block hash."""
+        header = self.header()
+        header["state_root"] = header["state_root"].upper().replace("0X", "0x")
+        self.rewrite_header(header)
+        body = taken(self.fixture)["predicate"]
+        self.assertEqual(body["chain"]["state_root"], header["state_root"].lower())
+        self.assertTrue(report_for(taken(self.fixture)).ok)
+
+    def test_a_header_with_no_state_root_leaves_it_out(self):
+        header = self.header()
+        del header["state_root"]
+        self.rewrite_header(header)
+        body = taken(self.fixture)["predicate"]
+        self.assertNotIn("state_root", body["chain"])
+        report = report_for(taken(self.fixture))
+        self.assertFalse(report.ok)
+        self.assertEqual([g.name for g in report.gates if not g.passed], ["evidence"])
+
+    def test_a_header_that_is_not_json_is_refused(self):
+        path = os.path.join(self.fixture, "header.json")
+        with open(path, "w") as handle:
+            handle.write("{not json")
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        manifest = self.manifest()
+        for entry in manifest["components"]:
+            if entry["path"] == "header.json":
+                entry["sha256"] = hashlib.sha256(raw).hexdigest()
+                entry["bytes"] = len(raw)
+        self.rewrite(manifest)
+        self.assertIn("is not JSON", self.refused())
+
     def test_a_component_the_directory_lacks_is_refused(self):
         os.unlink(os.path.join(self.fixture, "plan.json"))
         self.assertIn("which the fixture does not hold", self.refused())
