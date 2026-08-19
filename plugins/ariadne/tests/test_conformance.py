@@ -220,5 +220,91 @@ class FixtureTests(unittest.TestCase):
                 self.assertTrue(raw.endswith(b"\n"), "%s has no trailing newline" % name)
 
 
+
+class MinimalityTests(unittest.TestCase):
+    """A breaching fixture of the state-fixture type is one change from a passing one.
+
+    The fixtures are read as examples, so a reader diffing a breaching file against
+    its passing sibling should see the rule and nothing else. `docs/conformance.md`
+    states this, and a claim in a shipped document that nothing enforces is worth no
+    more than the sentence.
+
+    Scoped to one type on purpose. The older core fixtures are written against
+    `pass-minimal.json`, the smallest statement that can carry the breach rather
+    than a near sibling, and they differ by up to eight leaves. That is a different
+    deliberate choice and not one this test is entitled to overturn.
+    """
+
+    TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
+    PASSING = "pass-state-fixture.json"
+    ALLOWED = {
+        # A comparison against a baseline has to name a current side, so no single
+        # change reaches that branch of gate 5.
+        "fail-gate5-state-fixture-unnamed-current.json": 2,
+        "fail-gate5-state-fixture-baseline-without-digest.json": 4,
+    }
+
+    @staticmethod
+    def leaves(value, path=""):
+        """Every leaf of a document, with its type beside its value.
+
+        The type travels because `True == 1` and `0 == False` in Python. Two
+        fixtures here change only a value's type, and a comparison without the type
+        reports them as identical to the fixture they breach against -- which is
+        the very equality those two rules exist to refuse.
+        """
+        if isinstance(value, dict):
+            found = {}
+            for key, item in value.items():
+                here = "%s.%s" % (path, key) if path else key
+                found.update(MinimalityTests.leaves(item, here))
+            return found
+        if isinstance(value, list):
+            found = {}
+            for index, item in enumerate(value):
+                found.update(MinimalityTests.leaves(item, "%s[%d]" % (path, index)))
+            return found or {path + "[]": ("empty", None)}
+        return {path: (type(value).__name__, value)}
+
+    def distance(self, left, right):
+        one, two = self.leaves(left), self.leaves(right)
+        changed = sorted(key for key in set(one) & set(two) if one[key] != two[key])
+        return sorted(set(one) ^ set(two)) + changed
+
+    def test_each_breaching_fixture_is_one_change_from_the_passing_one(self):
+        passing = statement_of(self.PASSING).predicate
+        found = 0
+        for name in fixtures():
+            if name.startswith("pass-"):
+                continue
+            if statement_of(name).predicate_type != self.TYPE:
+                continue
+            found += 1
+            apart = self.distance(passing, statement_of(name).predicate)
+            allowed = self.ALLOWED.get(name, 1)
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    len(apart),
+                    allowed,
+                    "%s differs from %s in %d leaves rather than %d: %s"
+                    % (name, self.PASSING, len(apart), allowed, apart),
+                )
+        self.assertTrue(found)
+
+    def test_a_type_only_change_is_not_read_as_no_change(self):
+        """The guard on the comparison above. Without the type, these two fixtures
+        measure as identical to the passing one and the test passes for the wrong
+        reason."""
+        passing = statement_of(self.PASSING).predicate
+        for name in (
+            "fail-check-evidence-state-fixture-count-is-a-boolean.json",
+            "fail-check-replay-state-fixture-zero-is-not-false.json",
+        ):
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    len(self.distance(passing, statement_of(name).predicate)), 1
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -519,6 +519,21 @@ class GateFiveTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("current side has no name", found.detail)
 
+    def test_a_side_named_only_whitespace_fails(self):
+        """`"   "` is truthy, so a bare presence test let a side identify nothing.
+        Found in round 3 of the fixture step: the schema and the verifier agreed
+        with each other and both were wrong."""
+        for value in (" ", "   ", "\t", "\n"):
+            body = predicate()
+            body["deltas"]["current"] = {
+                "name": value,
+                "digest": body["fixture_subjects"][0]["digest"],
+            }
+            with self.subTest(name=value):
+                found = gate(5, body)
+                self.assertFalse(found.passed)
+                self.assertIn("has no name", found.detail)
+
     def test_a_current_side_outside_the_statement_fails(self):
         body = predicate()
         body["deltas"]["current"] = {"name": "goldfinch-v1", "digest": ELSEWHERE}
@@ -656,6 +671,13 @@ class SchemaAgreementTests(unittest.TestCase):
         ]["path"]
         self.assertIn("pattern", path_shape)
 
+    INEXPRESSIBLE = {
+        # A schema describes the predicate body. Whether a component digest also
+        # appears in the statement's `subject` array is a fact about the document
+        # around the predicate, and no keyword reaches it.
+        "fail-gate2-state-fixture-component-not-a-subject.json",
+    }
+
     def test_the_schema_and_the_verifier_agree(self):
         try:
             import jsonschema
@@ -676,6 +698,91 @@ class SchemaAgreementTests(unittest.TestCase):
                     "%s: verifier %s, schema %s"
                     % (label, verifier_ok, schema_ok),
                 )
+
+    def test_they_agree_on_the_shipped_fixtures_too(self):
+        """The case list above is hand written, so it only covers what somebody
+        thought of. The fixtures are the artefact another implementation reads, and
+        running the pair over those found a disagreement the list had missed: the
+        schema accepted an empty delta side name that every verifier here refuses.
+        """
+        try:
+            import jsonschema
+        except ImportError:
+            self.skipTest("jsonschema is not installed")
+        from ariadne_lib import envelope, registry, verify
+
+        validator = jsonschema.Draft202012Validator(self.schema())
+        directory = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "fixtures", "conformance"
+        )
+        found = 0
+        for name in sorted(os.listdir(directory)):
+            if not name.endswith(".json"):
+                continue
+            with open(os.path.join(directory, name), "rb") as handle:
+                document = envelope.read(handle.read())
+            if document.statement.predicate_type != fixture.TYPE:
+                continue
+            found += 1
+            verifier_ok = verify.report(document, registry.DEFAULT).ok
+            errors = list(validator.iter_errors(document.statement.predicate))
+            expected = verifier_ok or name in self.INEXPRESSIBLE
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    not errors,
+                    expected,
+                    "%s: verifier %s, schema %s, %s"
+                    % (name, verifier_ok, not errors,
+                       [e.message for e in errors[:2]]),
+                )
+        self.assertTrue(found)
+
+
+class ShippedFixtureTests(unittest.TestCase):
+    """The two passing fixtures cover both branches, and go on covering them.
+
+    The completeness tests in `test_conformance.py` check that every gate and
+    check has a breaching fixture. Nothing there checks that a passing fixture
+    still exercises the branch it was written for, so adding a state root to the
+    proved-nothing fixture would leave the suite green while the fixture stopped
+    testing anything. That is the shape this step keeps meeting: something that
+    reads as cover and holds nothing.
+    """
+
+    FIXTURES = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "fixtures", "conformance"
+    )
+
+    def read(self, name):
+        with open(os.path.join(self.FIXTURES, name), "rb") as handle:
+            return json.loads(handle.read().decode("utf-8"))["predicate"]
+
+    def test_one_passing_fixture_proves_something_and_carries_a_root(self):
+        body = self.read("pass-state-fixture.json")
+        self.assertGreater(body["evidence"][fixture.PROVED], 0)
+        self.assertTrue(fixture.hash32(body["chain"]["state_root"]))
+
+    def test_the_other_proves_nothing_and_carries_no_root(self):
+        body = self.read("pass-state-fixture-proved-nothing.json")
+        self.assertEqual(body["evidence"][fixture.PROVED], 0)
+        self.assertNotIn("state_root", body["chain"])
+
+    def test_the_proved_nothing_fixture_records_the_absence_rather_than_omitting_it(
+        self,
+    ):
+        """A zero count and a skipped claim. A capture that proved nothing has
+        said so; one that left the evidence block out has not."""
+        body = self.read("pass-state-fixture-proved-nothing.json")
+        self.assertEqual(sorted(body["evidence"]), sorted(fixture.EVIDENCE_CLASSES))
+        skipped = [c for c in body["claims"] if c["disposition"] == "skipped"]
+        self.assertTrue(skipped, "the absence of proofs is not recorded as a claim")
+        self.assertTrue(all(c.get("reason", "").strip() for c in skipped))
+
+    def test_the_proved_nothing_fixture_lists_no_proofs_component(self):
+        """It would otherwise describe a file the capture does not hold."""
+        body = self.read("pass-state-fixture-proved-nothing.json")
+        paths = [entry["path"] for entry in body["fixture_subjects"]]
+        self.assertNotIn("proofs.jsonl", paths)
 
 
 class LazarusAgreementTests(unittest.TestCase):

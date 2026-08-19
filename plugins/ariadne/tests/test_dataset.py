@@ -458,6 +458,18 @@ class GateFiveTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("against a null baseline", found.detail)
 
+    def test_a_side_named_only_whitespace_fails(self):
+        """`"   "` is truthy. `check_side` is shared by all three predicates and
+        used a bare presence test, so a side could identify nothing and pass."""
+        for side in ("baseline", "current"):
+            for value in (" ", "   ", "\t"):
+                body = predicate()
+                body["deltas"][side] = dict(body["deltas"][side], name=value)
+                with self.subTest(side=side, name=value):
+                    found = gate(5, body)
+                    self.assertFalse(found.passed)
+                    self.assertIn("has no name", found.detail)
+
     def test_a_baseline_without_a_digest_fails(self):
         body = predicate()
         body["deltas"]["baseline"] = {"name": "goldfinch-v1"}
