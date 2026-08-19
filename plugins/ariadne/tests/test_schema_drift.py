@@ -360,6 +360,20 @@ class StateFixtureSchemaDriftTests(unittest.TestCase):
         self.assertTrue(state_fixture.hash32("0x" + "0f" * 32))
         self.assertFalse(state_fixture.hash32("0x" + "0F" * 32))
 
+    def test_the_published_bounds_are_the_ones_the_module_enforces(self):
+        """Names matching is not enough. The schema carried a count ceiling of
+        100000 before the module enforced one, so a statement with a larger count
+        passed the verifier and was refused by the schema shipping beside it. Both
+        ceilings come from Lazarus's manifest schema."""
+        evidence = self.properties["evidence"]["properties"]
+        for name in state_fixture.EVIDENCE_CLASSES:
+            with self.subTest(evidence_class=name):
+                self.assertEqual(evidence[name]["minimum"], 0)
+                self.assertEqual(evidence[name]["maximum"], state_fixture.MAX_COUNT)
+        component = self.properties["fixture_subjects"]["items"]["properties"]
+        self.assertEqual(component["bytes"]["minimum"], 0)
+        self.assertEqual(component["bytes"]["maximum"], state_fixture.MAX_BYTES)
+
     def test_the_component_constraints_match_the_gate(self):
         props = self.properties["fixture_subjects"]["items"]["properties"]
         self.assertEqual(props["bytes"]["minimum"], 0)

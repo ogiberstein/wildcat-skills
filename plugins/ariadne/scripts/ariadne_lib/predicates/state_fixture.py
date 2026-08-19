@@ -124,6 +124,17 @@ MAX_BYTES = 536870912
 """One component's byte count, matching the ceiling Lazarus's manifest schema
 sets. A larger number describes a file neither tool would have written."""
 
+MAX_COUNT = 100000
+"""One evidence class's count, matching the ceiling Lazarus's manifest schema sets.
+
+Both ceilings come from that schema rather than from an opinion here, so a fixture
+Lazarus would accept is one this predicate accepts. The count ceiling was in the
+published schema before it was in this module, which is drift of exactly the kind
+the schema exists to prevent: a statement with a larger count passed the verifier
+and was refused by the schema the verifier ships beside. A sweep found it and the
+drift tests now compare the bounds rather than only the field names.
+"""
+
 
 def usable_path(value):
     """True for a fixture-relative path a reader can resolve safely.
@@ -494,10 +505,10 @@ def gate_evidence(statement):
             )
             continue
         count = evidence[name]
-        if not whole_number(count) or count < 0:
+        if not whole_number(count) or not 0 <= count <= MAX_COUNT:
             faults.append(
-                "evidence %s must be a non-negative whole number, not %r"
-                % (name, count)
+                "evidence %s must be a whole number of records from 0 to %d, "
+                "not %r" % (name, MAX_COUNT, count)
             )
 
     if faults:

@@ -285,7 +285,7 @@ class EvidenceTests(unittest.TestCase):
         body["evidence"]["recorded_rpc"] = -1
         found = named("evidence", body)
         self.assertFalse(found.passed)
-        self.assertIn("non-negative", found.detail)
+        self.assertIn("from 0 to", found.detail)
 
     def test_a_boolean_count_fails(self):
         """`True` is an integer in Python, so a check that only asked whether the
@@ -298,6 +298,22 @@ class EvidenceTests(unittest.TestCase):
                     found = named("evidence", body)
                     self.assertFalse(found.passed)
                     self.assertIn(name, found.detail)
+
+    def test_a_count_over_the_ceiling_fails(self):
+        """The ceiling comes from Lazarus's manifest schema, and it was in this
+        type's published schema before it was in the module. A sweep found the
+        gap: a count of 10**30 verified clean and the schema refused it."""
+        body = predicate()
+        body["evidence"]["recorded_rpc"] = fixture.MAX_COUNT + 1
+        found = named("evidence", body)
+        self.assertFalse(found.passed)
+        self.assertIn("recorded_rpc", found.detail)
+
+    def test_a_count_at_the_ceiling_passes(self):
+        body = predicate()
+        body["evidence"]["recorded_rpc"] = fixture.MAX_COUNT
+        found = named("evidence", body)
+        self.assertTrue(found.passed, found.detail)
 
     def test_a_float_count_fails(self):
         body = predicate()
@@ -512,13 +528,17 @@ class LazarusAgreementTests(unittest.TestCase):
     def test_the_proved_class_is_one_of_them(self):
         self.assertIn(fixture.PROVED, fixture.EVIDENCE_CLASSES)
 
-    def test_the_byte_ceiling_matches_the_one_lazarus_sets(self):
+    def test_the_ceilings_match_the_ones_lazarus_sets(self):
         if not os.path.isfile(LAZARUS_MANIFEST_SCHEMA):
             self.skipTest("Lazarus is not beside this plugin in this checkout")
         with open(LAZARUS_MANIFEST_SCHEMA, "rb") as handle:
             schema = json.loads(handle.read().decode("utf-8"))
         component = schema["properties"]["components"]["items"]["properties"]
         self.assertEqual(component["bytes"]["maximum"], fixture.MAX_BYTES)
+        counts = schema["properties"]["evidence_counts"]["properties"]
+        for name in fixture.EVIDENCE_CLASSES:
+            with self.subTest(evidence_class=name):
+                self.assertEqual(counts[name]["maximum"], fixture.MAX_COUNT)
 
 
 if __name__ == "__main__":
