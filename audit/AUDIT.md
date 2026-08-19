@@ -2522,3 +2522,29 @@ to 1.4.0 for the controller change, and metron gaining a script is the same clas
 an installation on 1.4.0 will not see `scripts/metron.py` until the version moves again. That
 is a decision about release cadence rather than a defect in this diff, and it is named here so
 it is not discovered the way #207 was.
+
+## Metron budget check, step 3, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1 found a prose count the tree could have answered, so this round asked
+whether there were others rather than assuming that was the only one.
+
+Every number word followed by a countable noun in the shipped prose of every plugin README,
+runtime contract and canonical skill was pulled out and checked. Three were counts of tree
+contents and all three hold: Hexaemeron's "six more skills" matches the six phase skill
+directories, Ariadne's "five core gates" matches `len(gates.CORE_GATES)` and is already
+asserted twice in that plugin's own document tests, and Pandects' "three succession laws" is
+guarded at the repository level by
+`test_marketplace_prose.test_pandects_prose_counts_the_laws_the_catalogue_holds`. The rest
+were descriptive rather than counts, such as "one security round" and "one long step".
+
+So the README's check count was the only unguarded one, and it is now derived.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and 300
+of 301 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the plugin-version lead from round 1 stands. An installation will not see
+`scripts/metron.py` until Hexaemeron's version moves again, which is a release-cadence
+decision rather than a defect in this diff.
