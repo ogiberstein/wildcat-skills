@@ -1,0 +1,9 @@
+{
+  "note": "a name no budget declares, usually a typo",
+  "measurements": {
+    "harvest.usdc.wall_clock": 1000,
+    "harvest.usdc.round_trip": 300,
+    "harvest.usdc.round_trips": 300,
+    "release.digest.throughput": 50
+  }
+}

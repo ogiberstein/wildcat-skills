@@ -2347,3 +2347,221 @@ run are covered by local evidence only. The same was true of the Ariadne run's 4
 
 Both suites pass on the consolidated branch: 24 repository tests and 214 of 215 Hexaemeron
 tests, the single error being `ForgeReports`.
+
+## Metron budget check, step 1, round 1 -- 2026-08-19
+
+The first audit round in this marketplace recorded under the contract #206 added. The
+directive named the three flags before the round was taken, and the round carries their
+exits.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/metron/skills/../scripts/metron.py` | `NaN`, `Infinity` and `-Infinity` were accepted as a budget limit and as a measurement. `json.loads` permits all three by default as a Python extension rather than as JSON. The consequence is specific to a comparison tool: every comparison against `nan` is False, including `!=`, so a `nan` measurement does not fail a threshold -- it falls through whichever branch is tested last and is reported as whatever that branch says. An infinite limit means nothing ever exceeds it, so the budget passes forever. | fixed in this round |
+
+Fixed at both layers. `parse_constant` refuses the three tokens while reading, which names
+the token, and `number()` requires `math.isfinite`, which guards a value reaching the
+comparison any other way.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this run, so the suite waiver covers the
+Pashov pair.
+
+The loader is a function of one document, so it was swept rather than probed. Every required
+budget field was replaced in turn by each of sixteen values that satisfy a presence check
+but carry nothing usable, 80 combinations, and the whole document and the measurement files
+were mutated the same way: 178 mutations in total. Nothing raised. After the fix the only
+values still accepted are legitimate ones: a short name, a short unit, limits of 0, 1 and
+3.5, and a variance of 0.
+
+Two accepted shapes were examined and left alone. An empty `measurements` object loads,
+because a run that measured nothing is a real thing to record and step 2's `unmeasured`
+verdict is what refuses it. A negative measurement loads, because a delta can be negative
+and the comparison decides what it means rather than the loader.
+
+Both suites pass on the fixed tree: 24 repository tests and 252 of 253 Hexaemeron tests, 39
+new in this step. The single error is `test_elenchus_checker.ForgeReports`, which needs
+`forge`; the proxy refuses both `foundry.paradigm.xyz` and GitHub releases, and it errors
+identically on clean `main`.
+
+Leads not pursued: `MAX_BYTES` caps each file at 4 MiB and nothing caps the number of
+budgets a file may declare. A file with a million budgets would be read and reported rather
+than refused, which is slow rather than wrong.
+
+## Metron budget check, step 1, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/skills/metron/scripts/metron.py` | A run or baseline carrying both shapes at once -- a `measurements` block and measurement values at the top level -- silently kept the block and dropped the rest. `{"measurements": {"a": 1}, "b": 2}` loaded as `{"a": 1}` with nothing said about `b`. For this check that is worse than an ordinary dropped field: a measurement that never arrives cannot produce an `undeclared` verdict, so a typo'd name would vanish instead of failing. | fixed in this round |
+
+The ambiguous document is now refused and the message names every stray value. Metadata
+beside the block still loads, because a producer recording a note, a timestamp, a flag or a
+list of tags alongside its numbers is doing the right thing, and only a stray *number* is
+ambiguous.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`, `ephoros`,
+`hypomnema`.
+
+Three other file-handling probes behaved and are now guarded: a directory passed where a
+file belongs is refused rather than raising `IsADirectoryError`, a file past `MAX_BYTES` is
+refused, and a file that merely approaches the cap is still read. A symlink is followed,
+which is left as it is: these paths are named by whoever runs the check rather than supplied
+by a stranger, and refusing a symlinked budget file would break a legitimate layout.
+
+Both suites pass: 24 repository tests and 257 of 258 Hexaemeron tests, 44 new in this step.
+The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the budget-count lead from round 1 stands.
+
+## Metron budget check, step 1, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The sweep was re-run against the fixed tree and widened to cover the shape round
+2 introduced: 185 mutations across every budget field, the whole document, the measurement
+files, and a stray value beside a measurements block. Nothing raised, no document was
+accepted that should not have been, and the only budget values still accepted are legitimate
+ones -- a short name, a short unit, limits of 0, 1 and 3.5, and a variance of 0. The three
+non-standard JSON constants are refused.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`. Both suites
+pass: 24 repository tests and 257 of 258 Hexaemeron tests. The single error is
+`ForgeReports`, environmental.
+
+Leads not pursued: the budget-count lead from round 1 stands. Nothing caps how many budgets
+a file may declare, which is slow rather than wrong.
+
+## Metron budget check, step 2, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `plugins/hexaemeron/skills/metron/scripts/metron.py` | `--promote` wrote the baseline with `write_text`, which truncates before it writes. A write that died partway left the baseline as invalid JSON, and the baseline is what every later comparison is measured against: the previous value was gone with nothing saying so, and every subsequent run would exit 2 on a file it could no longer read. Reproduced by making the write fail after a short write and reading the result back. | fixed in this round |
+
+`write_atomically` writes a temporary file in the same directory, fsyncs it and replaces the
+target, so the baseline is either the old contents or the new ones. A forced failure of
+`os.replace` now leaves the file byte-identical and no temporary behind. This is the same
+fault the Ariadne run fixed for `capture --out`, in a second place.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`, `ephoros`,
+`hypomnema`.
+
+The comparison is a function of seven inputs, so it was swept rather than probed. 2880
+combinations of a run value, a baseline, both directions, two limits, three variances, a
+present or absent measurement, and an undeclared name were each checked against the rule the
+code documents. Nothing differed and nothing raised. All six verdicts were reached, and every
+verdict's `failed` flag agreed with the `FAILING` list, which is what the exit status reads.
+
+Both suites pass: 24 repository tests and 297 of 298 Hexaemeron tests, 40 new in this step.
+The single error is `ForgeReports`, environmental.
+
+Leads not pursued: `append_ledger` opens in append mode and writes one line, which is atomic
+enough for a single short write on a local filesystem but is not guaranteed across a network
+mount. A ledger is a record rather than a gate, so a torn line loses one entry rather than
+changing a verdict.
+
+## Metron budget check, step 2, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1's fix was re-verified and the round moved to the write path, which the
+comparison sweep had not touched.
+
+The ledger's shape is one JSON object per line, so the round asked what could break that. A
+note carrying a newline, a carriage return, a quote, a tab or non-ASCII text is escaped by
+`json.dumps`, so five such notes produced five lines, each parsing on its own with the value
+preserved. That case is now guarded.
+
+Concurrency was checked rather than assumed: six threads appending forty entries each produced
+exactly 240 lines and all 240 parsed. That is left unguarded on purpose, because a threaded
+test is a flake waiting to happen in a suite nobody watches, and the property it would guard
+is a single short append in `a` mode rather than logic this run wrote.
+
+Three smaller shapes behaved: an empty run against a declared budget is `unmeasured` rather
+than nothing, and both report styles render a single verdict correctly, with the JSON `ok`
+field agreeing with the exit status.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and 298
+of 299 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the network-mount caveat on `append_ledger` from round 1 stands, and the
+budget-count lead from step 1.
+
+## Metron budget check, step 3, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | `plugins/hexaemeron/README.md` | The plugin README said "six more skills holding each phase to a standard, four of them with an executable check". Four was right on `main` -- `elenchus`, `phylax`, `ephoros` and `hypomnema` -- and this run made it five. A prose count of something the tree can be asked about goes stale the next time one is added, which is exactly what happened. | fixed in this round |
+
+The count is corrected and derived rather than trusted: a new test in `test_fiat_skill.py`
+counts the phase skills that ship `scripts/<name>.py` and asserts the README's number word
+matches. Reverting the count to four makes it fail, which was checked.
+
+The step reconciles prose, so the review looked for a surface still describing the old shape.
+Metron's own claim that it serves the `implement` phase with no Fiat counterpart is unchanged
+and still true; the same sentence appears in `phylax` and `ephoros`. The portable entrypoint
+routes to the canonical skill rather than describing its files, so it needed nothing.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`.
+
+The demonstration from the study ran against the committed tree: the regression fixture exits
+1 naming the budget and its margin, the neutral fixture exits 0, `record` writes the reverted
+attempt into the ledger with its verdicts, `SKILL.md` has no dangling links, and the script it
+names runs.
+
+The ledger was checked against the contract rather than only by the suite. The digest
+`5186746b189eea981393a052e8437de3a179d36d1afa88b38b18384cec881cff` recomputes from
+`open|measured-before-and-after|<current frontier>|<next Fiat job>` with its trailing newline,
+the row sits on the evolution axis moving 0.1.0 to 1.1.0, and the frontmatter version agrees.
+
+Both suites pass: 24 repository tests and 300 of 301 Hexaemeron tests. The single error is
+`ForgeReports`, environmental.
+
+Leads not pursued: the plugin's own version is not bumped by this run. #207 moved Hexaemeron
+to 1.4.0 for the controller change, and metron gaining a script is the same class of thing:
+an installation on 1.4.0 will not see `scripts/metron.py` until the version moves again. That
+is a decision about release cadence rather than a defect in this diff, and it is named here so
+it is not discovered the way #207 was.
+
+## Metron budget check, step 3, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1 found a prose count the tree could have answered, so this round asked
+whether there were others rather than assuming that was the only one.
+
+Every number word followed by a countable noun in the shipped prose of every plugin README,
+runtime contract and canonical skill was pulled out and checked. Three were counts of tree
+contents and all three hold: Hexaemeron's "six more skills" matches the six phase skill
+directories, Ariadne's "five core gates" matches `len(gates.CORE_GATES)` and is already
+asserted twice in that plugin's own document tests, and Pandects' "three succession laws" is
+guarded at the repository level by
+`test_marketplace_prose.test_pandects_prose_counts_the_laws_the_catalogue_holds`. The rest
+were descriptive rather than counts, such as "one security round" and "one long step".
+
+So the README's check count was the only unguarded one, and it is now derived.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and 300
+of 301 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the plugin-version lead from round 1 stands. An installation will not see
+`scripts/metron.py` until Hexaemeron's version moves again, which is a release-cadence
+decision rather than a defect in this diff.
+
+## Metron budget check, integrate -- 2026-08-19
+
+Not an audit round. A record of what the integrate phase could and could not do.
+
+The stack is consolidated: three step branches merged into
+`fiat/a-metron-budget-file-and-the-check-that-holds-a` in order, receipted from the real
+commit each time. `main` had moved to 9ba4444 with the #207 version bump, which merged in with
+no conflict because this run does not touch those files.
+
+The merge into `main` is refused, as it was for the two runs before this. The pull request
+merge API returns HTTP 403, "Merging into a protected base branch is not permitted for this
+session type", and a direct push is rejected. Integration pull request #211 is open from the run
+branch into `main` awaiting a human merge.
+
+Both suites pass on the consolidated branch: 24 repository tests and 300 of 301 Hexaemeron
+tests, 113 new across the run. The single error is `ForgeReports`.

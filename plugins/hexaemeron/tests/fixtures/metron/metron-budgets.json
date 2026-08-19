@@ -1,0 +1,25 @@
+{
+  "budgets": [
+    {
+      "name": "harvest.usdc.wall_clock",
+      "unit": "s",
+      "limit": 1200,
+      "variance": 0.05,
+      "direction": "lower_is_better"
+    },
+    {
+      "name": "harvest.usdc.round_trips",
+      "unit": "requests",
+      "limit": 400,
+      "variance": 0.02,
+      "direction": "lower_is_better"
+    },
+    {
+      "name": "release.digest.throughput",
+      "unit": "MB/s",
+      "limit": 40,
+      "variance": 0.1,
+      "direction": "higher_is_better"
+    }
+  ]
+}

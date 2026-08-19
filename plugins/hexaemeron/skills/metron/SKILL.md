@@ -8,7 +8,7 @@ description: >-
   Solidity gas, which belongs to hermes and its Foundry loop, and do not use it
   for something that is broken rather than slow, which belongs to elenchus.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Metron
@@ -105,6 +105,23 @@ scattering them costs renders of its own.
 Set the rest from what the product needs rather than from habit: a p95 for each
 route, a ceiling on the initial bundle, a wall-clock bound on a full harvest.
 A budget nobody checks in CI is a preference.
+
+So declare them in a file and run the check over it:
+
+```bash
+python3 scripts/metron.py check \
+  --budgets metron-budgets.json --baseline metron-baseline.json --run build/run.json
+```
+
+A budget carries a limit, a variance and a direction. The check compares a recorded run
+against the limit and against the stored baseline, and exits non-zero when a budget is past
+its ceiling, when it regressed past its variance, when the run stopped reporting it, or when
+the run reports a name no budget declares. A move inside the variance is another sample, as
+above. `record` keeps the ledger below, including the reverted attempts.
+
+It measures nothing itself. The run comes from whatever measured it.
+[`references/budget-check.md`](references/budget-check.md) has the file formats and the six
+verdicts.
 
 ## Keep or revert
 

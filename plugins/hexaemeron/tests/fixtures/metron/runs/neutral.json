@@ -1,0 +1,8 @@
+{
+  "note": "a change that did not beat the noise",
+  "measurements": {
+    "harvest.usdc.wall_clock": 1020,
+    "harvest.usdc.round_trips": 303,
+    "release.digest.throughput": 49
+  }
+}
