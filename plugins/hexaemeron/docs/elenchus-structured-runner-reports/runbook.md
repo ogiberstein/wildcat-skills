@@ -23,7 +23,8 @@ Hexaemeron tests and 24 root tests, all green under Python 3.14.6. The runner
 fixtures will be exercised with Forge 1.7.1 and Node 26.6.0.
 
 **Exit.** `elenchus.py` accepts the explicit report-format and report-file
-contract from the study, validates report paths and sizes, parses versioned
+contract from the study, substitutes the path for one exact `{report}` command
+argument without exporting an inheritable report variable, validates paths and sizes, parses versioned
 unittest `TestResult` JSON, Forge JUnit XML and Node `TestsStream` JSON, and
 normalises each into completion, executed, assertion-failure, error and skip
 counts. The shared decision table fails closed for missing, stale, malformed,

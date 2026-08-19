@@ -79,7 +79,7 @@ The prototype is accepted only when all of these are true:
 
 - Preserve result statuses, the `check()` purpose, `audit_line()`, JSON/text CLI output and default `--require-guard` severity. Change only how a completed runner invocation is classified.
 - Keep `changed_tests`, parent lookup, overlay and worktree cleanup behaviour unless a report-path safety fix requires a narrow change.
-- Add explicit `--report-format` and `--report-file` inputs. The declared file is resolved inside the detached worktree, removed before the run, and exposed to fixture-owned emitters through `ELENCHUS_REPORT_FILE`.
+- Add explicit `--report-format` and `--report-file` inputs. The declared file is resolved inside the detached worktree, removed before the run, and substituted for one exact `{report}` argument in the declared command. Remove any inherited `ELENCHUS_REPORT_FILE` variable so nested commands cannot acquire the path by accident.
 - Accept three declared formats: versioned unittest JSON, Forge JUnit XML and versioned Node test JSON. Parse JSON with `json` and XML with `xml.etree.ElementTree`.
 - Require a schema/version marker, completion marker where the native format supports one, non-negative integer counts and at least one executed test. Reject contradictions such as totals smaller than failures.
 - Classify a mixed report containing both assertion failures and infrastructure errors as `inconclusive`; a broken run cannot establish a clean guard merely because one assertion also fired.
@@ -138,11 +138,11 @@ The CLI keeps `--test-command` and adds:
 --report-file <relative-path-inside-parent-worktree>
 ```
 
-Before starting the child, Elenchus validates that the report path resolves under the detached worktree, removes any prior file at that path and sets `ELENCHUS_REPORT_FILE` to its absolute path. The supplied command writes the report. Legacy calls that omit either declaration run no text heuristic and return `inconclusive` with a migration detail; with `--require-guard` they exit 1.
+Before starting the child, Elenchus validates that the report path resolves under the detached worktree, removes any prior file at that path and substitutes its absolute path for one exact `{report}` argument. It removes any inherited `ELENCHUS_REPORT_FILE` variable before launch. The supplied command writes the report to the explicit argument. Legacy calls that omit either declaration, or commands with no single placeholder, run no text heuristic and return `inconclusive` with a migration detail; with `--require-guard` they exit 1.
 
 The unittest fixture carries a stdlib emitter that discovers tests, runs them, and writes a versioned JSON object from `TestResult.testsRun`, `failures`, `errors`, `skipped`, `expectedFailures` and `unexpectedSuccesses`. It records counts and completion, not traceback strings.
 
-The Forge fixture carries a small stdlib launcher that sends native `forge test --junit` XML to `ELENCHUS_REPORT_FILE`. The parser counts executed `testcase` elements and their `failure`, `error` and `skipped` children. A compiler failure produces no accepted XML and is therefore inconclusive.
+The Forge fixture carries a small stdlib launcher that sends native `forge test --junit` XML to the report-path argument. The parser counts executed `testcase` elements and their `failure`, `error` and `skipped` children. A compiler failure produces no accepted XML and is therefore inconclusive.
 
 The Node fixture carries a custom reporter over `node:test`'s programmatic `TestsStream`. It writes versioned JSON counts, marks an assertion using the actual assertion-error type/structured cause, marks other failed events as errors, and writes `complete: true` only after the stream ends. It uses no npm dependency.
 

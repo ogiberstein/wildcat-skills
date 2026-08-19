@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,7 +43,7 @@ payload = {
     "expectedFailures": len(result.expectedFailures),
     "unexpectedSuccesses": len(result.unexpectedSuccesses),
 }
-target = Path(os.environ["ELENCHUS_REPORT_FILE"])
+target = Path(sys.argv[1])
 target.parent.mkdir(parents=True, exist_ok=True)
 target.write_text(json.dumps(payload), encoding="utf-8")
 if "--exit-zero" not in sys.argv:
@@ -50,12 +51,12 @@ if "--exit-zero" not in sys.argv:
 '''
 
 FORGE_EMITTER = '''\
-import os
 from pathlib import Path
 import subprocess
+import sys
 
 run = subprocess.run(["forge", "test", "--junit"], capture_output=True, check=False)
-target = Path(os.environ["ELENCHUS_REPORT_FILE"])
+target = Path(sys.argv[1])
 if run.stdout:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(run.stdout)
@@ -89,7 +90,7 @@ const finished = new Promise((resolve, reject) => {
 });
 stream.resume();
 await finished;
-await writeFile(process.env.ELENCHUS_REPORT_FILE, JSON.stringify({
+await writeFile(process.argv[2], JSON.stringify({
   schema: "elenchus.node-test.v1",
   complete: true,
   ...counts,
@@ -167,7 +168,7 @@ class RunnerCase(unittest.TestCase):
 class UnittestReports(RunnerCase):
     @classmethod
     def setUpClass(cls):
-        cls.command = [sys.executable, "emit_unittest.py"]
+        cls.command = [sys.executable, "emit_unittest.py", "{report}"]
         cls.report_format = "unittest-json-v1"
         cls.fixture = Fixture({
             "adder.py": "def add(a, b):\n    return a - b\n",
@@ -201,7 +202,8 @@ class UnittestReports(RunnerCase):
     def test_diagnostic_poisoning_and_exit_code_do_not_change_the_report(self):
         ordinary = self.outcome(self.guarded)
         forced_zero = self.outcome(
-            self.guarded, [sys.executable, "emit_unittest.py", "--exit-zero"]
+            self.guarded,
+            [sys.executable, "emit_unittest.py", "{report}", "--exit-zero"],
         )
         self.assertEqual("guarded", ordinary["status"])
         self.assertEqual("guarded", forced_zero["status"])
@@ -218,7 +220,7 @@ class UnittestReports(RunnerCase):
     def test_legacy_cli_is_nonfatal_by_default_and_fails_when_required(self):
         argv = [
             "--repo", str(self.fixture.path), "--ref", self.guarded,
-            "--test-command", f"{sys.executable} emit_unittest.py",
+            "--test-command", f"{sys.executable} emit_unittest.py {{report}}",
         ]
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(0, elenchus.main(argv))
@@ -230,6 +232,33 @@ class UnittestReports(RunnerCase):
         self.assertEqual("inconclusive", traversal["status"])
         self.assertEqual("inconclusive", tracked["status"])
 
+    def test_report_ownership_is_an_explicit_command_argument(self):
+        no_placeholder = self.outcome(
+            self.guarded, [sys.executable, "emit_unittest.py"]
+        )
+        payload = json.dumps({
+            "schema": "elenchus.unittest.v1",
+            "complete": True,
+            "testsRun": 1,
+            "failures": 1,
+            "errors": 0,
+            "skipped": 0,
+            "expectedFailures": 0,
+            "unexpectedSuccesses": 0,
+        })
+        inherited_writer = (
+            "import os; from pathlib import Path; "
+            f"value={payload!r}; target=os.environ.get('ELENCHUS_REPORT_FILE'); "
+            "target and Path(target).write_text(value, encoding='utf-8')"
+        )
+        with mock.patch.dict(os.environ, {"ELENCHUS_REPORT_FILE": "inherited"}):
+            inherited = self.outcome(
+                self.guarded,
+                [sys.executable, "-c", inherited_writer, "{report}"],
+            )
+        self.assertEqual("inconclusive", no_placeholder["status"])
+        self.assertEqual("inconclusive", inherited["status"])
+
     def test_no_changed_test_is_still_unguarded(self):
         self.assertEqual("unguarded", self.outcome(self.unguarded)["status"])
 
@@ -240,7 +269,7 @@ class ForgeReports(RunnerCase):
         cls.runner_version = subprocess.run(
             ["forge", "--version"], capture_output=True, text=True, check=True
         ).stdout.splitlines()[0]
-        cls.command = [sys.executable, "emit_forge.py"]
+        cls.command = [sys.executable, "emit_forge.py", "{report}"]
         cls.report_format = "forge-junit-v1"
         cls.fixture = Fixture({
             "foundry.toml": (
@@ -293,7 +322,7 @@ class NodeReports(RunnerCase):
         cls.runner_version = subprocess.run(
             ["node", "--version"], capture_output=True, text=True, check=True
         ).stdout.strip()
-        cls.command = ["node", "emit_node.mjs"]
+        cls.command = ["node", "emit_node.mjs", "{report}"]
         cls.report_format = "node-test-json-v1"
         cls.fixture = Fixture({
             "adder.mjs": "export const add = (a, b) => a - b;\n",
@@ -405,16 +434,25 @@ class LaunchFailures(RunnerCase):
 
     def test_missing_report_timeout_and_executable_failure_are_inconclusive_and_clean(self):
         before = self.fixture.worktrees()
-        missing = self.outcome(self.changed, [sys.executable, "-c", "pass"])
+        missing = self.outcome(
+            self.changed, [sys.executable, "-c", "pass", "{report}"]
+        )
         timeout = self.outcome(
             self.changed,
-            [sys.executable, "-c", "import time; time.sleep(3)"],
+            [sys.executable, "-c", "import time; time.sleep(3)", "{report}"],
             timeout=1,
         )
-        absent = self.outcome(self.changed, ["elenchus-command-does-not-exist"])
+        absent = self.outcome(
+            self.changed, ["elenchus-command-does-not-exist", "{report}"]
+        )
         interrupted = self.outcome(
             self.changed,
-            [sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGTERM)"],
+            [
+                sys.executable,
+                "-c",
+                "import os, signal; os.kill(os.getpid(), signal.SIGTERM)",
+                "{report}",
+            ],
         )
         self.assertEqual(["inconclusive"] * 4, [
             missing["status"], timeout["status"], absent["status"], interrupted["status"],

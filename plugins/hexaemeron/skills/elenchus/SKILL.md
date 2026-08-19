@@ -186,16 +186,18 @@ there and reads a fresh structured report owned by the declared runner.
 ```bash
 python3 "$PLUGIN_ROOT/skills/elenchus/scripts/elenchus.py" \
   --ref HEAD \
-  --test-command "python3 tests/emit_unittest_report.py" \
+  --test-command "python3 tests/emit_unittest_report.py {report}" \
   --report-format unittest-json-v1 \
   --report-file .elenchus/unittest.json
 ```
 
-The test command is yours to supply. Elenchus sets `ELENCHUS_REPORT_FILE` to an
-absolute location inside the detached parent worktree, and the command writes
-its report there. Accepted formats are `unittest-json-v1`, `forge-junit-v1` and
-`node-test-json-v1`. Stdlib unittest and Node need small repository-owned
-emitters; Forge can send native `forge test --junit` XML to the declared file.
+The test command is yours to supply. It must contain one exact `{report}`
+argument. Elenchus replaces that argument with an absolute location inside the
+detached parent worktree and removes any inherited `ELENCHUS_REPORT_FILE`
+variable before starting the command. Accepted formats are
+`unittest-json-v1`, `forge-junit-v1` and `node-test-json-v1`. Stdlib unittest
+and Node need small repository-owned emitters; Forge can send native
+`forge test --junit` XML to the declared file.
 
 Every adapter normalises completion, executed tests, assertion failures,
 infrastructure errors and skips. An assertion with no infrastructure error is
