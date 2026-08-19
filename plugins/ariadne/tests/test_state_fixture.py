@@ -656,6 +656,13 @@ class SchemaAgreementTests(unittest.TestCase):
         ]["path"]
         self.assertIn("pattern", path_shape)
 
+    INEXPRESSIBLE = {
+        # A schema describes the predicate body. Whether a component digest also
+        # appears in the statement's `subject` array is a fact about the document
+        # around the predicate, and no keyword reaches it.
+        "fail-gate2-state-fixture-component-not-a-subject.json",
+    }
+
     def test_the_schema_and_the_verifier_agree(self):
         try:
             import jsonschema
@@ -676,6 +683,44 @@ class SchemaAgreementTests(unittest.TestCase):
                     "%s: verifier %s, schema %s"
                     % (label, verifier_ok, schema_ok),
                 )
+
+    def test_they_agree_on_the_shipped_fixtures_too(self):
+        """The case list above is hand written, so it only covers what somebody
+        thought of. The fixtures are the artefact another implementation reads, and
+        running the pair over those found a disagreement the list had missed: the
+        schema accepted an empty delta side name that every verifier here refuses.
+        """
+        try:
+            import jsonschema
+        except ImportError:
+            self.skipTest("jsonschema is not installed")
+        from ariadne_lib import envelope, registry, verify
+
+        validator = jsonschema.Draft202012Validator(self.schema())
+        directory = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "fixtures", "conformance"
+        )
+        found = 0
+        for name in sorted(os.listdir(directory)):
+            if not name.endswith(".json"):
+                continue
+            with open(os.path.join(directory, name), "rb") as handle:
+                document = envelope.read(handle.read())
+            if document.statement.predicate_type != fixture.TYPE:
+                continue
+            found += 1
+            verifier_ok = verify.report(document, registry.DEFAULT).ok
+            errors = list(validator.iter_errors(document.statement.predicate))
+            expected = verifier_ok or name in self.INEXPRESSIBLE
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    not errors,
+                    expected,
+                    "%s: verifier %s, schema %s, %s"
+                    % (name, verifier_ok, not errors,
+                       [e.message for e in errors[:2]]),
+                )
+        self.assertTrue(found)
 
 
 class ShippedFixtureTests(unittest.TestCase):

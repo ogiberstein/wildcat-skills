@@ -142,9 +142,16 @@ would leave the fixture is refused by a pattern rather than left to the verifier
 Round 2 of the step that added this type found both by comparing the two on the
 same documents, and a test now holds them to the same verdict on fifteen shapes.
 
-What the schema still cannot express is the reason. It can refuse an all-zero
-state root with a pattern and it cannot say that the value identifies nothing, and
-a producer reading a pattern mismatch learns less than one reading a gate line. So
+One rule is beyond any schema, rather than beyond this one. A schema describes the
+predicate body, and whether a component digest also appears in the statement's
+`subject` array is a fact about the document around the predicate. No keyword
+reaches it, so `fail-gate2-state-fixture-component-not-a-subject.json` is the single
+fixture the schema accepts and the verifier refuses. A test names it as the one
+allowed exception, so a second one cannot appear quietly.
+
+The other thing a schema cannot express is the reason. It can refuse an all-zero
+state root with a pattern and it cannot say that the value identifies nothing, and a
+producer reading a pattern mismatch learns less than one reading a gate line. So
 both ship, and the verifier is the one that explains itself.
 
 ## Running it
