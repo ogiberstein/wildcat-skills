@@ -891,6 +891,26 @@ class RoundClassifierTests(unittest.TestCase):
                 )
         self.assertIsInstance(self.ctl.solidity_round({}), bool)
 
+    def test_as_dict_defeats_a_stored_null(self):
+        """d.get(key, {}) returns the stored value when the key exists, so a state
+        holding "integrate": null defeated the default and the next .get raised. Four
+        chained reads in the controller had that shape."""
+        for value in (None, [], "x", 7, True):
+            with self.subTest(value=value):
+                self.assertEqual(self.ctl.as_dict(value), {})
+        self.assertEqual(self.ctl.as_dict({"a": 1}), {"a": 1})
+
+    def test_no_chained_read_uses_a_container_default(self):
+        """The pattern this run removed, asserted against the source so it does not
+        come back: `.get(x, {}).` and `.get(x, []).` are both defeated by a stored
+        null."""
+        import re
+
+        with open(HEXCTL, encoding="utf-8") as fh:
+            source = fh.read()
+        offenders = re.findall(r"\.get\([^)]*,\s*(?:\{\}|\[\])\)\s*\.", source)
+        self.assertEqual(offenders, [], "use as_dict() instead")
+
     def test_an_integer_is_not_a_mode(self):
         for value in (0, 1, 2):
             with self.subTest(value=value):

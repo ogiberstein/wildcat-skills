@@ -125,6 +125,16 @@ def canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
 
 
+def as_dict(value) -> dict:
+    """A mapping, or an empty one.
+
+    `d.get(key, {})` returns the stored value when the key exists, so a state holding
+    `"integrate": null` defeats the default and the next `.get` raises. `load_state`
+    validates no shape, so this is the guard every chained read here needs.
+    """
+    return value if isinstance(value, dict) else {}
+
+
 def is_waiver(value) -> bool:
     """True when a `security_suite` receipt says the Pashov pair did not run.
 
@@ -160,12 +170,11 @@ def solidity_round(state: dict) -> bool:
     hand-edited or half-written state reaches this function, and a traceback out of the
     controller is a worse answer than the one every other fault here gets.
     """
-    config = state.get("config")
-    mode = config.get("solidity", "auto") if isinstance(config, dict) else "auto"
+    mode = as_dict(state.get("config")).get("solidity", "auto")
     if mode is True or mode is False:
         return mode
-    receipts = state.get("receipts")
-    if not isinstance(receipts, dict) or "security_suite" not in receipts:
+    receipts = as_dict(state.get("receipts"))
+    if "security_suite" not in receipts:
         return True
     suite = receipts["security_suite"]
     if is_waiver(suite):
@@ -851,7 +860,7 @@ def done_push(args, state: dict) -> None:
 def _integrate_directive(state: dict) -> dict:
     """Merge the stack bottom up, then the run branch into the base once."""
     run_branch = run_branch_of(state)
-    merged = state.get("integrate", {}).get("merged", [])
+    merged = as_dict(state.get("integrate")).get("merged") or []
     for step in state["steps"]:
         if step["n"] in merged:
             continue
@@ -860,7 +869,7 @@ def _integrate_directive(state: dict) -> dict:
             "step": step["n"],
             "title": step["title"],
             "branch": step_branch_name(state, step),
-            "pr_url": step["receipts"].get("push", {}).get("pr_url"),
+            "pr_url": as_dict(step["receipts"].get("push")).get("pr_url"),
             "into": run_branch,
             "then": (
                 f"hexctl done merge-step --step {step['n']} "
@@ -1069,7 +1078,7 @@ def cmd_status(args) -> None:
     if phase in ("study", "runbook"):
         print(f"phase: {phase} (day {DAY[phase]})")
     elif phase == "integrate":
-        merged = len(state.get("integrate", {}).get("merged", []))
+        merged = len(as_dict(state.get("integrate")).get("merged") or [])
         print(
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
@@ -1148,7 +1157,7 @@ def verify_run(base_dir: str) -> int:
             "state.json was edited outside hexctl", 1
         )
     if state["phase"] == "integrate":
-        merged = state.get("integrate", {}).get("merged", [])
+        merged = as_dict(state.get("integrate")).get("merged") or []
         expected = [s["n"] for s in state["steps"][: len(merged)]]
         if merged != expected:
             die(
