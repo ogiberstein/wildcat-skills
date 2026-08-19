@@ -1873,3 +1873,32 @@ Leads not pursued: the drift tests compare field tables and now three constraint
 not every constraint in the schema. A general comparison would need the schema
 walked and each keyword mapped to the gate that enforces it, which is a piece of
 work in its own right. The byte-budget lead stands from round 1.
+
+## Ariadne dataset predicate, step 4, round 6 -- 2026-08-19
+
+Round 5's method applied to the surface it had not reached: the capture function's
+own arguments, twelve probes, and the gate-5 branch those probes walked into.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R6-01 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | Gate 5 never checked the current side on a first release. The `baseline is None` branch validated the reason and returned, so a statement could name a current side with no name, no digest, or a digest the statement does not cover, and verify clean. Every first release therefore had one end of its comparison unchecked. | fixed in this round |
+| S4-R6-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A release compared against itself passed gate 5 and reported no differences, which reads as a release that changed nothing rather than as a comparison that means nothing. | fixed in this round |
+| S4-R6-03 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `parameters` or `record_counts` passed as a list of pairs raised a bare `ValueError` out of `dict()`, and a non-numeric stated count raised `TypeError` from a `%d` format. A library caller got a stack trace instead of the refusal the module gives for every other bad argument. | fixed in this round |
+| S4-R6-04 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | A blank or absent `--name` produced a statement whose current side had no name. With S4-R6-01 open it verified clean; with it fixed the capture would have emitted a statement its own verifier refuses. | fixed in this round |
+| S4-R6-05 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `inputs` or `gaps` passed as a string, or holding a non-object entry, produced a statement that verify then refused. A blank `--first-release-reason` did the same. The capture's contract is that what it writes, verify accepts unedited. | fixed in this round |
+| S4-R6-06 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/solidity_release.py` | The same hole as S4-R6-01 is present in the Solidity release predicate, and has been since before this run. Confirmed against the shipped fixture: replacing a first release's `deltas.current` with `{"name": "", "digest": <a digest the statement does not cover>}` verifies clean and exits 0. The shipped fixture omits `current` entirely on a first release, so nothing exercised the branch. | open, out of scope |
+
+S4-R6-06 is left open deliberately. This run's study put
+`predicates/solidity_release.py` under ask-first, and the fix belongs to the
+Solidity predicate rather than to a run whose subject is a new type. The patch is
+the same shape as the one applied here: move the `check_side(deltas.get("current"),
+...)` call and its subject-coverage check above the `baseline is None` branch, so
+the current side is validated on both paths, and add a
+`fail-gate5-solidity-first-release-unnamed-current.json` fixture to exercise it.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 451 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead stands from round 1, and the
+constraint-level drift lead from round 5.

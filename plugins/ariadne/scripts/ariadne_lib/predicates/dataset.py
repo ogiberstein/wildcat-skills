@@ -284,6 +284,13 @@ def gate_5_deltas(statement):
             continue
         faults.extend(section_faults(section, deltas[section]))
 
+    # The current side is this release, whether or not there is a baseline. The
+    # null-baseline branch used to return before reaching this, so a first release
+    # could name a current side with no name and no digest and still verify.
+    check_side(deltas.get("current"), "current", faults)
+    if not faults and not statement.covers(deltas["current"]["digest"]):
+        faults.append("delta current side is not a subject of this statement")
+
     if deltas.get("baseline") is None:
         reason = deltas.get("reason")
         if not isinstance(reason, str) or not reason.strip():
@@ -294,15 +301,22 @@ def gate_5_deltas(statement):
             )
         if faults:
             return Gate(5, "deltas", False, "; ".join(faults))
-        return Gate(5, "deltas", True, "no baseline: %s" % deltas["reason"].strip())
+        return Gate(
+            5,
+            "deltas",
+            True,
+            "%s, no baseline: %s"
+            % (deltas["current"]["name"], deltas["reason"].strip()),
+        )
 
     check_side(deltas.get("baseline"), "baseline", faults)
-    check_side(deltas.get("current"), "current", faults)
-    if not faults and not statement.covers(deltas["current"]["digest"]):
-        # The current side is meant to be this release. Left unchecked, a
-        # statement could compare two releases it does not cover and present the
-        # result as its own history.
-        faults.append("delta current side is not a subject of this statement")
+    if not faults and deltas["baseline"]["digest"] == deltas["current"]["digest"]:
+        # A release compared against itself reports no differences and means
+        # nothing. Left unchecked it reads as a release that changed nothing.
+        faults.append(
+            "delta baseline and current are the same release; a comparison against "
+            "itself records nothing"
+        )
     if faults:
         return Gate(5, "deltas", False, "; ".join(faults))
 

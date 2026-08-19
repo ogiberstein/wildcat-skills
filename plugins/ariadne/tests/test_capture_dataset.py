@@ -311,6 +311,68 @@ class RefusalTests(unittest.TestCase):
         self.assertIn("the release does not hold", str(caught.exception))
 
 
+class ArgumentTests(unittest.TestCase):
+    """A library caller can pass shapes argparse would have coerced.
+
+    Each of these used to raise a bare ValueError or TypeError from inside the
+    capture, or produce a statement that verify then refused. A capture reports
+    what is wrong with its arguments the same way it reports what is wrong with a
+    release.
+    """
+
+    def test_a_release_name_that_was_not_stated_is_refused(self):
+        for value in (None, "", "   ", 7):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(name=value)
+                self.assertIn("--name", str(caught.exception))
+
+    def test_inputs_that_are_not_a_list_of_objects_are_refused(self):
+        for value, expected in (
+            ("alexandria://x", "must be a list"),
+            (["alexandria://x"], "must be an object"),
+            ([None], "must be an object"),
+        ):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(inputs=value)
+                self.assertIn(expected, str(caught.exception))
+
+    def test_gaps_that_are_not_a_list_of_objects_are_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(gaps="12000000")
+        self.assertIn("must be a list", str(caught.exception))
+
+    def test_parameters_that_are_not_a_mapping_are_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(parameters=["venue", "goldfinch"])
+        self.assertIn("--parameter must be a mapping", str(caught.exception))
+
+    def test_record_counts_that_are_not_a_mapping_are_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(record_counts=["events.jsonl", 2])
+        self.assertIn("--record-count must be a mapping", str(caught.exception))
+
+    def test_a_stated_count_that_is_not_a_whole_number_is_refused(self):
+        for value in ("two", -2, 1.5, True):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(record_counts={"events.jsonl": value})
+                self.assertIn("whole number of records", str(caught.exception))
+
+    def test_comparing_a_release_against_itself_is_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(V2, previous=V2, previous_name="itself")
+        self.assertIn("comparison against itself", str(caught.exception))
+
+    def test_a_blank_first_release_reason_is_refused(self):
+        """It used to produce a statement that gate 5 then refused, which breaks
+        the capture's contract: what it writes, verify accepts unedited."""
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(first_release_reason="   ")
+        self.assertIn("--first-release-reason", str(caught.exception))
+
+
 class CoverageTests(unittest.TestCase):
     def test_an_empty_gap_list_is_written_rather_than_omitted(self):
         """The predicate refuses an absent gaps key, because that is the

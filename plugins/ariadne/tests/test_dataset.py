@@ -286,6 +286,53 @@ class GateFiveTests(unittest.TestCase):
         self.assertTrue(found.passed, found.detail)
         self.assertIn("first release", found.detail)
 
+    def test_a_first_release_still_has_its_current_side_checked(self):
+        """The null-baseline branch used to return before reaching the current
+        side, so a first release could name a current side with no name and no
+        digest and still verify clean."""
+        for side, expected in (
+            ({"digest": EVENTS}, "no name"),
+            ({"name": "goldfinch-v1"}, "current side"),
+            ({"name": "", "digest": EVENTS}, "no name"),
+        ):
+            with self.subTest(side=side):
+                found = gate(
+                    5,
+                    predicate(
+                        deltas={
+                            "baseline": None,
+                            "current": side,
+                            "reason": "first release of this dataset",
+                        }
+                    ),
+                )
+                self.assertFalse(found.passed)
+                self.assertIn(expected, found.detail)
+
+    def test_a_first_release_naming_a_digest_the_statement_lacks_fails(self):
+        found = gate(
+            5,
+            predicate(
+                deltas={
+                    "baseline": None,
+                    "current": {
+                        "name": "somebody else's release",
+                        "digest": {"sha256": hashlib.sha256(b"elsewhere").hexdigest()},
+                    },
+                    "reason": "first release of this dataset",
+                }
+            ),
+        )
+        self.assertFalse(found.passed)
+        self.assertIn("not a subject of this statement", found.detail)
+
+    def test_a_release_compared_against_itself_fails(self):
+        body = predicate()
+        body["deltas"]["baseline"] = {"name": "goldfinch-v1", "digest": EVENTS}
+        found = gate(5, body)
+        self.assertFalse(found.passed)
+        self.assertIn("comparison against itself", found.detail)
+
     def test_a_null_baseline_without_a_reason_fails(self):
         found = gate(
             5,
