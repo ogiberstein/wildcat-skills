@@ -54,7 +54,7 @@ class DisciplineTests(unittest.TestCase):
         candidates = result["candidates"]
         self.assertEqual(
             {entry["category"] for entry in hard},
-            {"binary", "lockfile", "generated", "vendored"},
+            {"binary", "content_addressed", "lockfile", "generated", "vendored"},
         )
         self.assertEqual(
             {entry["category"] for entry in candidates},
@@ -71,6 +71,7 @@ class DisciplineTests(unittest.TestCase):
             ".gitattributes",
             "file signature",
             "lockfile name",
+            "digest of the file's own bytes",
         ):
             self.assertIn(family, hard_evidence)
         candidate_evidence = " | ".join(entry["evidence"] for entry in candidates)

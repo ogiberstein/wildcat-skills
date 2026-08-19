@@ -2,7 +2,7 @@
 name: horos
 description: Emit and verify an evidence-backed reading boundary over a repository. Classify token sinks (generated files, vendored trees, lockfiles, minified bundles, single-line blobs), write the deterministic boundary agents consult before reading, and print Python skeleton maps for oriented reading. Use when a user names Horos or asks to cut the reading cost of a repository without rewriting its code. Never apply a boundary during security review.
 metadata:
-  version: "9.2.2"
+  version: "9.2.3"
 ---
 
 # Horos
@@ -22,7 +22,7 @@ to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
 never rewrites code: the compression premise was measured and rejected in the
 study this plugin ships at `docs/study.md`.
 
-**Current frontier.** The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains.
+**Current frontier.** A census roll-up of the skills repository refuted the closure: the marker rule files horos.py and test_classify.py as generated from their own rule list, 42,673 of the boundary's 114,151 bytes, and content-addressed object stores stand unclassified at 7,844,877 bytes more. The held job is the marker self-exclusion fix; the content-addressed object rule and the Markdown outline extractor follow it, with maturity expected after all three.
 
 ## The verbs
 

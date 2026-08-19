@@ -14,6 +14,7 @@ what it saves.
 from pathlib import PurePosixPath
 import argparse
 import fnmatch
+import hashlib
 import json
 import os
 import subprocess
@@ -74,6 +75,72 @@ VENDORED_DIR_NAMES = frozenset(
 
 # Never walked, never listed: not source and not a sink worth recording.
 SKIPPED_DIR_NAMES = frozenset({".git", ".horos", "__pycache__"})
+
+# A content-addressed object store names each file by the digest of its own
+# bytes. That makes it the one rule here whose evidence is recomputable from
+# the file alone: nothing rests on a name, a convention or a marker string a
+# repository could write to invite an exclusion. The digest either matches
+# the name or the file stays readable.
+CONTENT_ADDRESSED_ALGORITHMS = {
+    "sha1": 40,
+    "sha256": 64,
+    "sha384": 96,
+    "sha512": 128,
+}
+
+# The algorithm segment has to sit under one of these to count. Git's own
+# object store deliberately matches neither layout: it names no algorithm,
+# and its digests cover a header the raw bytes do not carry, so a git
+# directory falls through to the other rules instead of verifying here.
+CONTENT_ADDRESSED_PARENTS = frozenset({"blobs", "objects"})
+
+# Verification is the only rule that reads a whole file rather than a
+# bounded prefix, so the shape gate runs first and only a path already
+# shaped like a content-addressed object is ever hashed. The read is
+# chunked: these stores hold a tree's largest files by construction.
+DIGEST_CHUNK_BYTES = 1 << 20
+
+
+def _is_lower_hex(text):
+    """True when every character is a lowercase hex digit."""
+    return text != "" and all(c in "0123456789abcdef" for c in text)
+
+
+def content_addressed_algorithm(relpath):
+    """The digest algorithm this path's shape claims, or None.
+
+    Two layouts count, both needing an <algorithm> segment directly under a
+    'blobs' or 'objects' parent: flat, as an OCI image lays out
+    blobs/sha256/<digest>, and sharded, as objects/sha256/<xx>/<digest>,
+    where the shard must be a proper prefix of the digest it files. The name
+    must be exactly the algorithm's hex width. Shape alone excludes nothing;
+    it only decides which files are worth hashing.
+    """
+    parts = PurePosixPath(relpath).parts
+    name = parts[-1]
+    for index in range(len(parts) - 2, 0, -1):
+        width = CONTENT_ADDRESSED_ALGORITHMS.get(parts[index])
+        if width is None or parts[index - 1] not in CONTENT_ADDRESSED_PARENTS:
+            continue
+        if len(name) != width or not _is_lower_hex(name):
+            continue
+        shards = parts[index + 1 : -1]
+        if shards:
+            if len(shards) != 1 or len(shards[0]) >= width:
+                continue
+            if not name.startswith(shards[0]):
+                continue
+        return parts[index]
+    return None
+
+
+def digest_matches_name(fullpath, algorithm, name):
+    """Hash the file's bytes and compare them with the name that claims them."""
+    digest = hashlib.new(algorithm)
+    with open(fullpath, "rb") as handle:
+        for chunk in iter(lambda: handle.read(DIGEST_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest() == name
 
 
 def read_prefix(path):
@@ -282,6 +349,18 @@ def classify_file(root, relpath):
         return None
     name = PurePosixPath(relpath).name
     size = os.stat(fullpath).st_size
+
+    # First, because it is the only rule that proves itself: a matching
+    # digest is evidence no other reading of the file can overturn.
+    algorithm = content_addressed_algorithm(relpath)
+    if algorithm is not None and digest_matches_name(fullpath, algorithm, name):
+        return {
+            "path": relpath,
+            "category": "content_addressed",
+            "bytes": size,
+            "evidence": f"{algorithm} digest of the file's own bytes equals its name",
+            "grade": "hard",
+        }
 
     if name in LOCKFILE_NAMES:
         return {
