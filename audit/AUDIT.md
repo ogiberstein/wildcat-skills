@@ -2325,3 +2325,25 @@ The three bundled lints ran and each exited 0. Both suites pass: 24 repository t
 
 Leads not pursued: `verify` checks the ledger chain and phase consistency rather than the
 shape of a round.
+
+## Receipted lint rounds, integrate -- 2026-08-19
+
+Not an audit round. A record of what the integrate phase could and could not do.
+
+The stack is consolidated: all three step branches merged into
+`fiat/receipted-lint-results-as-structured-fields-on-h` in order, one merge commit each,
+receipted from the real commit each time. The run branch already contained `main`, so no
+base merge and no conflict this time.
+
+The merge into `main` is refused, as it was for the Ariadne run. The pull request merge
+API returns HTTP 403, "Merging into a protected base branch is not permitted for this
+session type", and a direct push to `main` is rejected. Integration pull request #206 is
+open from the run branch into `main`, `mergeable_state` clean, awaiting a human merge.
+
+CI on the head is green: CodeQL and the four Analyze jobs. Worth recording that **no
+workflow runs the Hexaemeron suite**. The repository has three workflows, and `lazarus.yml`
+and `pandects.yml` are path-filtered to their own plugins, so all 39 tests added by this
+run are covered by local evidence only. The same was true of the Ariadne run's 439 tests.
+
+Both suites pass on the consolidated branch: 24 repository tests and 214 of 215 Hexaemeron
+tests, the single error being `ForgeReports`.
