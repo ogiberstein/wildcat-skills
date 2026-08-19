@@ -1770,3 +1770,27 @@ Leads not pursued: `MAX_RELEASE_FILES` is 4096 and there is no cap on the total
 bytes a release may hold. A caller pointing `--release` at a very large tree waits
 a long time rather than being refused. Adding a byte budget is a flag and a
 decision about its default, which is more than this step asks for.
+
+## Ariadne dataset predicate, step 4, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | high | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `os.walk` swallows a directory it cannot read, because `onerror` defaults to `None`. An unreadable subdirectory's files were dropped from `dataset_subjects` and from the release bundle digest with nothing recording it. Same class as S4-R1-01, which round 1 fixed for symlinked directories only and did not generalise. | fixed in this round |
+
+`onerror` now raises a `CaptureError`: a release that cannot be read whole cannot
+be captured.
+
+The finding was reached by asking whether round 1's fix generalised. It did not:
+round 1 closed the one silent path it had found and left a second open. The probe
+that found it replaces `os.scandir` for one directory rather than using
+permissions, because this container runs as root and a `chmod 0` probe passes
+without exercising anything. That is recorded here because the first attempt at
+this probe was inconclusive for exactly that reason.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+Both suites pass: 24 repository tests and 423 ariadne tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead from round 1 stands. `MAX_RELEASE_FILES`
+caps the file count at 4096 and nothing caps total bytes.

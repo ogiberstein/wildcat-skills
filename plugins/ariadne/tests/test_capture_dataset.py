@@ -204,6 +204,34 @@ class RefusalTests(unittest.TestCase):
                     grab(release)
                 self.assertIn(name, str(caught.exception))
 
+    def test_a_directory_that_cannot_be_read_is_refused(self):
+        """os.walk swallows a directory it cannot read, which drops its contents
+        the same way a symlinked directory did. Simulated rather than done with
+        permissions, because a run as root would read it anyway and the test would
+        pass without exercising anything."""
+        release = os.path.join(self.root, "unreadable")
+        locked = os.path.join(release, "locked")
+        os.makedirs(locked)
+        with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n')
+        with open(os.path.join(locked, "hidden.jsonl"), "wb") as handle:
+            handle.write(b'{"b":2}\n')
+
+        real_scandir = os.scandir
+
+        def refusing(path="."):
+            if os.path.realpath(str(path)) == os.path.realpath(locked):
+                raise PermissionError(13, "Permission denied", str(path))
+            return real_scandir(path)
+
+        os.scandir = refusing
+        try:
+            with self.assertRaises(capture.CaptureError) as caught:
+                grab(release)
+        finally:
+            os.scandir = real_scandir
+        self.assertIn("cannot be read whole", str(caught.exception))
+
     def test_a_nested_directory_of_records_is_captured_rather_than_skipped(self):
         release = os.path.join(self.root, "nested")
         os.makedirs(os.path.join(release, "by-pool"))

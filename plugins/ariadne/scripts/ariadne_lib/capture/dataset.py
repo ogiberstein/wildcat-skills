@@ -91,9 +91,20 @@ def files(root):
     and the bundle digest, with nothing recording that anything was dropped. That
     is the silent absence the gates exist to refuse, so a symlinked directory is
     refused here instead.
+
+    `os.walk` also swallows a directory it cannot read, which drops its contents
+    the same way. `onerror` turns that into a refusal, because a capture that
+    cannot read part of the release has not captured the release.
     """
+
+    def unreadable(error):
+        raise CaptureError(
+            "cannot read %s: %s; a release that cannot be read whole cannot be "
+            "captured" % (getattr(error, "filename", root), error)
+        )
+
     found = []
-    for directory, names, entries in os.walk(root):
+    for directory, names, entries in os.walk(root, onerror=unreadable):
         for name in sorted(names):
             here = os.path.join(directory, name)
             shown = os.path.relpath(here, root)
