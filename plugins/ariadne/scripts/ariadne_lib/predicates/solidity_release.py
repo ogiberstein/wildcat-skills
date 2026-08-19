@@ -240,6 +240,27 @@ def gate_5_deltas(statement):
             continue
         faults.extend(section_faults(section, deltas[section]))
 
+    # A current side that is present gets checked whether or not there is a
+    # baseline. This ran only after the null-baseline branch returned, so a first
+    # release could carry a current side with no name, no digest, or a digest the
+    # statement does not cover, and verify clean. Recorded as S4-R6-06 by the
+    # dataset run, which fixed the same shape in its own predicate and left this one
+    # to the run that needed it.
+    #
+    # Presence is not required here. A first release omits the side entirely, which
+    # is what `capture` writes and what the shipped fixture holds, and demanding one
+    # would change what a released statement of this type has to say. The hole was
+    # a side that was there and unexamined, not a side that was absent.
+    if "current" in deltas:
+        check_side(deltas.get("current"), "current", faults)
+        if not faults and not statement.covers(deltas["current"]["digest"]):
+            # The current side is meant to be this release. Left unchecked, a
+            # statement could compare two artefacts it does not cover and present
+            # the result as its own history.
+            faults.append(
+                "delta current side is not a subject of this statement"
+            )
+
     if deltas.get("baseline") is None:
         reason = deltas.get("reason")
         if not isinstance(reason, str) or not reason.strip():
@@ -251,17 +272,16 @@ def gate_5_deltas(statement):
             )
         if faults:
             return Gate(5, "deltas", False, "; ".join(faults))
-        return Gate(5, "deltas", True, "no baseline: %s" % deltas["reason"].strip())
+        named = ""
+        if isinstance(deltas.get("current"), dict) and deltas["current"].get("name"):
+            named = "%s, " % deltas["current"]["name"]
+        return Gate(
+            5, "deltas", True, "%sno baseline: %s" % (named, deltas["reason"].strip())
+        )
 
     check_side(deltas.get("baseline"), "baseline", faults)
-    check_side(deltas.get("current"), "current", faults)
-    if not faults and not statement.covers(deltas["current"]["digest"]):
-        # The current side is meant to be this release. Left unchecked, a
-        # statement could compare two artefacts it does not cover and present
-        # the result as its own history.
-        faults.append(
-            "delta current side is not a subject of this statement"
-        )
+    if "current" not in deltas:
+        faults.append("a comparison against a baseline names a current side")
     if faults:
         return Gate(5, "deltas", False, "; ".join(faults))
 

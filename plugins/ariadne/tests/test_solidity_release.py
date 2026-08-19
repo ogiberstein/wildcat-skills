@@ -284,6 +284,73 @@ class GateFiveTests(unittest.TestCase):
         self.assertIn("gas", found.detail)
 
 
+class NullBaselineCurrentSideTests(unittest.TestCase):
+    """The current side of a first release, which gate 5 used to skip entirely.
+
+    The null-baseline branch returned before anything looked at the current
+    side, so a first release could name no version, carry no digest, or point at
+    bytes the statement does not cover, and gate 5 would report a pass. A first
+    release that leaves the side out is the shipped convention and still passes;
+    a side that is there is now checked like any other.
+    """
+
+    def first_release(self, current=None):
+        body = predicate()
+        body["deltas"] = {
+            "baseline": None,
+            "reason": "first tagged release; nothing to compare against",
+        }
+        if current is not None:
+            body["deltas"]["current"] = current
+        return body
+
+    def test_a_first_release_with_no_current_side_passes(self):
+        found = gate(5, self.first_release())
+        self.assertTrue(found.passed, found.detail)
+        self.assertIn("no baseline", found.detail)
+
+    def test_a_first_release_naming_a_covered_current_side_passes(self):
+        found = gate(
+            5, self.first_release({"name": "v1.0.0", "digest": RUNTIME})
+        )
+        self.assertTrue(found.passed, found.detail)
+        self.assertIn("v1.0.0, no baseline", found.detail)
+
+    def test_a_current_side_without_a_name_fails(self):
+        found = gate(5, self.first_release({"digest": RUNTIME}))
+        self.assertFalse(found.passed)
+        self.assertIn("current side has no name", found.detail)
+
+    def test_an_empty_name_on_a_current_side_fails(self):
+        found = gate(5, self.first_release({"name": "", "digest": RUNTIME}))
+        self.assertFalse(found.passed)
+        self.assertIn("current side has no name", found.detail)
+
+    def test_a_current_side_without_a_digest_fails(self):
+        found = gate(5, self.first_release({"name": "v1.0.0"}))
+        self.assertFalse(found.passed)
+        self.assertIn("current side", found.detail)
+
+    def test_a_current_side_whose_digest_is_malformed_fails(self):
+        found = gate(
+            5, self.first_release({"name": "v1.0.0", "digest": {"sha256": "beef"}})
+        )
+        self.assertFalse(found.passed)
+        self.assertIn("current side", found.detail)
+
+    def test_a_current_side_outside_the_statement_fails(self):
+        found = gate(
+            5, self.first_release({"name": "v1.0.0", "digest": PREVIOUS})
+        )
+        self.assertFalse(found.passed)
+        self.assertIn("not a subject of this statement", found.detail)
+
+    def test_a_current_side_that_is_not_an_object_fails(self):
+        found = gate(5, self.first_release("v1.0.0"))
+        self.assertFalse(found.passed)
+        self.assertIn("current side is not an object", found.detail)
+
+
 class AuditTests(unittest.TestCase):
     def test_an_audit_naming_its_revision_passes(self):
         body = predicate(
