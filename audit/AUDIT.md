@@ -2006,3 +2006,30 @@ Both suites pass: 24 repository tests and 463 ariadne tests, 2 skipped.
 Leads not pursued: nothing tests a docstring against the state it describes, which is
 how S5-R1-01 survived. A check for it would have to decide which sentences are claims
 about the code, and that is a larger piece of work than this step.
+
+## Ariadne dataset predicate, step 5, round 2 -- 2026-08-19
+
+Round 1 found one docstring describing a state long gone. This round generalised the
+search rather than assuming it was the only one, and found two more.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R2-01 | low | `plugins/ariadne/tests/test_cli.py` | The module docstring said "The two subcommands that exist at this point". There are six. | fixed in this round |
+| S5-R2-02 | low | `plugins/ariadne/scripts/ariadne.py` | The `capture` subcommand's `kind` argument was helped by "the predicate to capture; one so far". A reader meeting it now takes it as a claim about the registry, which holds two. | fixed in this round |
+
+Both docstrings now describe what they do rather than how many of something there
+are, and `test_cli.py` says why the count is left out. A sentence that counts
+something goes stale the next time one is added, which is what produced all three of
+these findings across two rounds.
+
+The search covered every Python file under the plugin for phrases that date a
+sentence: "one so far", "two so far", "at this point", "for now", "not yet",
+"currently". A re-sweep after the fixes returns nothing.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 463 ariadne tests,
+2 skipped.
+
+Leads not pursued: the lead from round 1 stands. Nothing tests a docstring against the
+state it describes, and a check for it would have to decide which sentences are
+claims about the code.

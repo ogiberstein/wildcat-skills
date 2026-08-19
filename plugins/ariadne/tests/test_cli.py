@@ -1,4 +1,9 @@
-"""The two subcommands that exist at this point, and their exit codes."""
+"""Every subcommand the parser offers, and the exit codes they use.
+
+The count is not stated here on purpose. A docstring naming it goes stale the next
+time one is added, which is how registry.py came to say the registry was empty and
+test_cli.py came to say there were two subcommands when there were six.
+"""
 
 import contextlib
 import io

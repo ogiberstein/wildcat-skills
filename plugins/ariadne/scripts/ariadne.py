@@ -408,7 +408,7 @@ def build_parser():
     grab.add_argument(
         "kind",
         choices=["solidity-release"],
-        help="the predicate to capture; one so far",
+        help="what this subcommand reads; a dataset release uses capture-dataset",
     )
     grab.add_argument("--project", required=True)
     grab.add_argument("--repository", required=True)
