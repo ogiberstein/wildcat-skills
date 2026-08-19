@@ -1659,3 +1659,36 @@ Leads not pursued: the same out-of-plugin policy citation exists in the other
 ten non-Hexaemeron ledgers and is unasserted there, because only Ariadne ships
 a link test. Raising it across the marketplace is outside this step and outside
 this run's held frontier.
+
+## Ariadne dataset predicate, step 2, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The step ships Python, a JSON schema and prose, and no Solidity, so
+the suite waiver covers the Pashov pair. The three bundled lints ran against the
+changed tree and each exited 0: `phylax`, `ephoros`, `hypomnema`.
+
+The risk register named two concerns the lints cannot see. Both were probed.
+
+**Gate isolation.** The conformance suite requires a breaching fixture to fail
+its named gate and no other. Nine representative faults were run through
+`verify.report` on the real envelope path. Each tripped exactly one check: two
+gate 2 cases, two gate 5 cases, two coverage cases, one inputs case, one
+predicate-fields case, and a clean statement failing nothing. A clean dataset
+statement reports `unchecked: []`, which is the state the held frontier was
+opened to reach.
+
+**Malformed input from elsewhere.** A statement arrives from a stranger, so every
+check must return rather than raise. 361 malformed shapes were run through
+`dataset.check`: the whole predicate replaced by each of nineteen junk values,
+then every top-level field, every coverage sub-field, and the first entry of
+`inputs`, `dataset_subjects` and `coverage.gaps` replaced the same way. Nothing
+raised.
+
+Both suites pass on the committed tree: 24 repository tests and 373 ariadne
+tests, 2 skipped, 62 of them new in this step.
+
+Leads not pursued: the two probes above are one-off scripts rather than committed
+tests. Step 3 owns the fixture and gate-completeness contract, so the guards land
+there rather than here.
