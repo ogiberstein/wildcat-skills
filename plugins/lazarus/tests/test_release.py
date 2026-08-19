@@ -392,6 +392,49 @@ class RefusedReleaseTests(unittest.TestCase):
             self.assertIn("staged", str(caught.exception))
             self.assertFalse(prepared.out.exists())
 
+    def test_a_statement_inside_the_fixture_is_refused(self):
+        """It refuses itself either way: an unlisted file fails verification, a
+        listed one would have to carry its own digest. Neither refusal names the
+        reason, and the reason is that the fixture digest would cover the
+        statement made about the fixture."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            inside = prepared.fixture / "statement.json"
+            inside.write_bytes(prepared.statement.read_bytes())
+            error = self.refuse(prepared, FormatError, statement=inside)
+            self.assertIn("sits inside the fixture it describes", str(error))
+
+    def test_a_statement_below_the_fixture_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            below = prepared.fixture / "schemas"
+            below.mkdir(exist_ok=True)
+            inside = below / "statement.json"
+            inside.write_bytes(prepared.statement.read_bytes())
+            error = self.refuse(prepared, FormatError, statement=inside)
+            self.assertIn("sits inside", str(error))
+
+    def test_a_statement_path_that_cannot_be_resolved_is_refused(self):
+        """Skipping the containment check because the path would not resolve is
+        the quiet failure this plugin refuses everywhere else."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            first = prepared.root / "loop-a"
+            second = prepared.root / "loop-b"
+            first.symlink_to(second)
+            second.symlink_to(first)
+            error = self.refuse(prepared, PathError, statement=first / "statement.json")
+            self.assertIn("cannot resolve", str(error))
+
+    def test_a_statement_beside_the_fixture_is_read(self):
+        """The rule is about being inside, not about being nearby."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            beside = prepared.fixture.parent / "fixture-source-statement.json"
+            beside.write_bytes(prepared.statement.read_bytes())
+            prepared.release(statement=beside)
+            self.assertTrue((prepared.out / RELEASE_NAME).is_file())
+
     def test_a_fixture_that_is_not_there_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:
             prepared = Prepared(directory)

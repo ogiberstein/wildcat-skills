@@ -120,6 +120,7 @@ def write_release(
     if not parent.is_dir():
         raise FormatError(f"release output has no parent directory: {parent}")
 
+    _refuse_statement_inside(source, statement_path)
     statement_bytes = _read_statement(statement_path)
     # A document that is not an object is refused by the binding, which says so
     # in the same words it uses for every other shape it will not read. A second
@@ -179,6 +180,33 @@ def _refuse_overlap(source: Path, destination: Path) -> None:
     if first.is_relative_to(second):
         raise FormatError(
             f"fixture {source} sits inside the release output {destination}"
+        )
+
+
+def _refuse_statement_inside(source: Path, statement_path: str | Path) -> None:
+    """A statement about a fixture may not be a file inside it.
+
+    The case refuses itself either way -- an unlisted file fails verification,
+    and a listed one would have to carry its own digest, which no file can. Both
+    refusals name something else, and a reader chasing a digest mismatch would
+    spend a while getting to the reason. The reason is that the fixture digest
+    would cover the statement made about the fixture, which is the same rule the
+    release document is held to.
+    """
+    handed = Path(statement_path)
+    try:
+        resolved = handed.resolve()
+        inside = source.resolve()
+    except (OSError, RuntimeError) as error:
+        # Skipping the check because the path could not be resolved would be the
+        # quiet failure this plugin refuses everywhere else. A symlink loop is
+        # the case that gets here, and pathlib reports that one as a RuntimeError
+        # rather than as the OSError the kernel gave it.
+        raise PathError(f"cannot resolve {handed}: {error}") from error
+    if resolved.is_relative_to(inside):
+        raise FormatError(
+            f"statement {handed} sits inside the fixture it describes; the "
+            "fixture digest would cover the statement made about it"
         )
 
 
