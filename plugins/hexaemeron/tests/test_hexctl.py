@@ -14,6 +14,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
 
 
+def hexctl_module():
+    """The controller imported as a module.
+
+    Every other test here drives the CLI, which is the surface the skill uses. The
+    round classifier has no CLI of its own -- it decides what `audit-round` demands --
+    so it is exercised directly rather than through a command that would only report
+    it indirectly.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("hexctl_under_test", HEXCTL)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class HexctlCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -794,6 +810,138 @@ class TestFuzzRegressions(HexctlCase):
                      "--steps-file", sf)
         proc = self.run_ctl("status")
         self.assertNotIn("\x1b", proc.stdout)
+
+
+class RoundClassifierTests(unittest.TestCase):
+    """Which rounds have to carry lint results, and why."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ctl = hexctl_module()
+
+    def classify(self, suite=..., mode="auto"):
+        receipts = {} if suite is ... else {"security_suite": suite}
+        return self.ctl.solidity_round({"config": {"solidity": mode}, "receipts": receipts})
+
+    def test_a_waiver_means_the_lints_are_the_mechanical_part(self):
+        self.assertFalse(self.classify("waived: prose-only repo"))
+
+    def test_a_waiver_is_recognised_whatever_its_case_and_spacing(self):
+        for value in ("waived: x", "Waived: x", "  WAIVED: x  ", "waived x"):
+            with self.subTest(receipt=value):
+                self.assertFalse(self.classify(value))
+
+    def test_a_recorded_suite_means_the_pashov_pair_ran(self):
+        self.assertTrue(self.classify(["hexaemeron:x-ray", "hexaemeron:solidity-auditor"]))
+
+    def test_an_empty_suite_list_is_not_a_suite_that_ran(self):
+        """Recording no ids is not recording a suite. Demanding the lints is the safe
+        direction when the receipt cannot be read as one."""
+        self.assertFalse(self.classify([]))
+
+    def test_a_receipt_that_is_neither_demands_the_lints(self):
+        for value in ("suite", 7, {"suite": True}, None, True):
+            with self.subTest(receipt=value):
+                self.assertFalse(self.classify(value))
+
+    def test_a_missing_receipt_infers_nothing(self):
+        """`cmd_audit_round` refuses a missing receipt before asking this, so the
+        classifier must not invent a requirement out of its absence."""
+        self.assertTrue(self.classify())
+
+    def test_the_config_key_overrides_the_receipt_in_both_directions(self):
+        self.assertTrue(self.classify("waived: x", mode=True))
+        self.assertFalse(self.classify(["hexaemeron:x-ray"], mode=False))
+
+    def test_the_default_mode_is_auto(self):
+        self.assertEqual(self.ctl.DEFAULT_CONFIG["solidity"], "auto")
+
+    def test_the_waiver_prefix_is_what_preflight_writes(self):
+        self.assertTrue("waived: reason".startswith(self.ctl.WAIVER_PREFIX))
+
+    def test_the_three_lints_are_named_once(self):
+        self.assertEqual(self.ctl.LINTS, ("phylax", "ephoros", "hypomnema"))
+
+    def test_a_waiver_is_its_first_word_not_merely_a_prefix(self):
+        """`startswith` alone read `waivedX` and `waived-ish` as waivers, which is not
+        what the rule beside WAIVER_PREFIX says."""
+        for value in ("waived: x", "waived", "  WAIVED: y  ", "waived x"):
+            with self.subTest(receipt=value, expect=True):
+                self.assertTrue(self.ctl.is_waiver(value))
+        for value in ("waivedX", "waived-ish", "waivers: x", "unwaived: x", "not waived", ""):
+            with self.subTest(receipt=value, expect=False):
+                self.assertFalse(self.ctl.is_waiver(value))
+
+    def test_a_state_whose_config_or_receipts_is_not_an_object_does_not_raise(self):
+        """load_state validates no shape, so a hand-edited or half-written state
+        reaches the classifier. A traceback out of the controller is a worse answer
+        than the one every other fault here gets."""
+        for config in (None, [], "auto", 7):
+            with self.subTest(config=config):
+                self.assertIsInstance(
+                    self.ctl.solidity_round({"config": config, "receipts": {}}), bool
+                )
+        for receipts in (None, [], "waived", 7):
+            with self.subTest(receipts=receipts):
+                self.assertIsInstance(
+                    self.ctl.solidity_round(
+                        {"config": {"solidity": "auto"}, "receipts": receipts}
+                    ),
+                    bool,
+                )
+        self.assertIsInstance(self.ctl.solidity_round({}), bool)
+
+    def test_as_dict_defeats_a_stored_null(self):
+        """d.get(key, {}) returns the stored value when the key exists, so a state
+        holding "integrate": null defeated the default and the next .get raised. Four
+        chained reads in the controller had that shape."""
+        for value in (None, [], "x", 7, True):
+            with self.subTest(value=value):
+                self.assertEqual(self.ctl.as_dict(value), {})
+        self.assertEqual(self.ctl.as_dict({"a": 1}), {"a": 1})
+
+    def test_no_chained_read_uses_a_container_default(self):
+        """The pattern this run removed, asserted against the source so it does not
+        come back: `.get(x, {}).` and `.get(x, []).` are both defeated by a stored
+        null."""
+        import re
+
+        with open(HEXCTL, encoding="utf-8") as fh:
+            source = fh.read()
+        offenders = re.findall(r"\.get\([^)]*,\s*(?:\{\}|\[\])\)\s*\.", source)
+        self.assertEqual(offenders, [], "use as_dict() instead")
+
+    def test_an_integer_is_not_a_mode(self):
+        for value in (0, 1, 2):
+            with self.subTest(value=value):
+                self.assertFalse(self.ctl.solidity_mode(value))
+        for value in (True, False, "auto"):
+            with self.subTest(value=value):
+                self.assertTrue(self.ctl.solidity_mode(value))
+
+
+class SolidityConfigTests(HexctlCase):
+    def test_the_solidity_key_accepts_only_its_three_modes(self):
+        self.init()
+        for value in ('"auto"', "true", "false"):
+            with self.subTest(value=value):
+                self.run_ctl("config", "set", "solidity", value)
+        self.assertEqual(json.loads(self.run_ctl("config", "get", "solidity").stdout), False)
+
+    def test_a_value_outside_the_three_modes_is_refused(self):
+        """`1` and `0` are in here because Python makes them equal to `True` and
+        `False`, so a membership test would have stored an integer as a mode."""
+        self.init()
+        for value in ('"yes"', "1", "0", '"Auto"', '["auto"]', "null"):
+            with self.subTest(value=value):
+                proc = self.run_ctl("config", "set", "solidity", value, expect=2)
+                self.assertIn("config solidity takes", proc.stderr)
+
+    def test_a_refused_value_leaves_the_key_alone(self):
+        self.init()
+        self.run_ctl("config", "set", "solidity", "false")
+        self.run_ctl("config", "set", "solidity", '"nonsense"', expect=2)
+        self.assertEqual(json.loads(self.run_ctl("config", "get", "solidity").stdout), False)
 
 
 if __name__ == "__main__":
