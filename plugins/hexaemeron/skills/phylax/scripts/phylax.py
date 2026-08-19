@@ -55,6 +55,7 @@ RAW_HTML_MARKER = re.compile(r"(?:raw|html|markdown|content)", re.IGNORECASE)
 TRUSTED_DIRECT_SANITISERS = frozenset(
     {"sanitize-html", "dompurify", "isomorphic-dompurify"}
 )
+TYPESCRIPT_MAX_BYTES = 1024 * 1024
 
 
 def suppressed(text: str, line: int) -> bool:
@@ -606,7 +607,17 @@ def check(path: Path) -> list[Finding]:
     if not requirements and path.suffix != ".py" and not typescript:
         return []
     try:
-        text = path.read_text(encoding="utf-8")
+        if typescript:
+            with path.open("rb") as source:
+                raw = source.read(TYPESCRIPT_MAX_BYTES + 1)
+            if len(raw) > TYPESCRIPT_MAX_BYTES:
+                return [Finding(
+                    path, 1, "P000",
+                    f"TypeScript source exceeds {TYPESCRIPT_MAX_BYTES}-byte analysis cap",
+                )]
+            text = raw.decode("utf-8")
+        else:
+            text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
         return [Finding(path, 1, "P000", f"unreadable: {err}")]
     if requirements:

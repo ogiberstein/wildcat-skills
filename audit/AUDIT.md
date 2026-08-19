@@ -1615,3 +1615,11 @@ rows are byte-identical.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Phylax TypeScript boundaries, step 1, round 1 -- 2026-08-19
+
+[Medium] TypeScript input had no work bound.
+Location: `plugins/hexaemeron/skills/phylax/scripts/phylax.py:610`
+Mechanism: The checker read each untrusted `.ts` or `.tsx` file in full before the linear lexer ran.
+Impact: An oversized tracked file could consume unbounded memory and analysis time.
+Fix: Read at most 1 MiB plus one byte, fail closed with `P000`, and guard the limit with a regression test.

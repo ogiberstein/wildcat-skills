@@ -291,7 +291,9 @@ fixed-host and source-opaque `fetch(url)` calls stay outside that claim.
 The TypeScript recognisers use an attributed copy of Horos's lexer inside
 Hexaemeron. They never import a separately installed Horos plugin, invoke Node,
 load the target's dependencies or execute inspected source. A lexical construct
-that cannot be terminated reports `P000`.
+that cannot be terminated reports `P000`. The lint reads at most 1 MiB from
+each TypeScript file and reports `P000` when that limit is exceeded, bounding
+the lexer work before it accepts untrusted source.
 
 Deliberate exceptions state a reason: `# phylax: allow <why>` in Python or
 `// phylax: allow <why>` in TypeScript, on the line or the one above it. A bare
