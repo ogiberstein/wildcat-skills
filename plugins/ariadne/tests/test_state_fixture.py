@@ -519,6 +519,21 @@ class GateFiveTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("current side has no name", found.detail)
 
+    def test_a_side_named_only_whitespace_fails(self):
+        """`"   "` is truthy, so a bare presence test let a side identify nothing.
+        Found in round 3 of the fixture step: the schema and the verifier agreed
+        with each other and both were wrong."""
+        for value in (" ", "   ", "\t", "\n"):
+            body = predicate()
+            body["deltas"]["current"] = {
+                "name": value,
+                "digest": body["fixture_subjects"][0]["digest"],
+            }
+            with self.subTest(name=value):
+                found = gate(5, body)
+                self.assertFalse(found.passed)
+                self.assertIn("has no name", found.detail)
+
     def test_a_current_side_outside_the_statement_fails(self):
         body = predicate()
         body["deltas"]["current"] = {"name": "goldfinch-v1", "digest": ELSEWHERE}

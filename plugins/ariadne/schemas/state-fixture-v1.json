@@ -207,7 +207,8 @@
                 "name": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "A side that is there has to identify something. Every verifier here refuses an empty name, and a schema accepting one publishes a shape the tool will not take."
+                  "description": "A side that is there has to identify something. Every verifier here refuses a name that is absent or only whitespace, and a schema accepting one publishes a shape the tool will not take.",
+                  "pattern": "\\S"
                 },
                 "digest": {
                   "type": "object",
@@ -235,7 +236,8 @@
             "name": {
               "type": "string",
               "minLength": 1,
-              "description": "A side that is there has to identify something. Every verifier here refuses an empty name, and a schema accepting one publishes a shape the tool will not take."
+              "description": "A side that is there has to identify something. Every verifier here refuses a name that is absent or only whitespace, and a schema accepting one publishes a shape the tool will not take.",
+              "pattern": "\\S"
             },
             "digest": {
               "type": "object",
