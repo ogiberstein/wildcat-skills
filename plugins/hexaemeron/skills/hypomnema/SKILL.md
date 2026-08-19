@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Hypomnema
