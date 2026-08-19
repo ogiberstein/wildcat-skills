@@ -2626,3 +2626,176 @@ verifies clean because of it, and the dataset predicate guards identically. Repo
 rather than two is this build's stated preference, written into gate 1's own docstring.
 
 Leads not pursued: none.
+
+## Ariadne state-fixture predicate, step 2, round 1 -- 2026-08-19
+
+Reviewed: the new predicate module, its published schema, and the drift tests holding
+one to the other.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/state_fixture.py` | The published schema caps each evidence count at 100000, taken from Lazarus's manifest schema, and the module enforced no ceiling at all. A count of 10 to the 30th passed the verifier and was refused by the schema shipping beside it | fixed in this round: `MAX_COUNT` enforced, and the drift tests now compare maxima and minima rather than field names alone |
+| S2-R1-02 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/state_fixture.py` | Gate 2 required `state_root`, which made the evidence check's central rule unreachable. Every statement that rule would refuse had already failed the gate, so it read as the safeguard this type exists for while deciding nothing. It also refused an honest capture that proved nothing and had no use for a root | fixed before the implement receipt: the root is required by what a statement claims, and gate 2 checks it only when present |
+
+The second finding came from writing the conformance fixture rather than from reading
+the code. The fixture could not breach the evidence check alone, which is what the
+naming convention demands, and the reason it could not was that the rule had nothing
+of its own to decide.
+
+The sweep was 509 leaf mutations: every required field replaced in turn by each of
+eighteen values that satisfy a presence check while carrying nothing usable, plus
+every block replaced by each of them, plus every block removed. Nothing raised.
+Sixty-two mutations verified clean and each was read rather than counted.
+
+The sweep also had a fault of its own worth recording. It called the predicate's
+`check()` directly, so twenty of those sixty-two were mutations of `claims` and
+`commands`, which belong to gates 1, 3 and 6 and cannot fail a check this module
+returns. Re-run through `verify.report`, only the unmutated values verify clean, so
+the core catches all thirty-four.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this run, so the build's suite waiver
+covers the Pashov pair.
+
+Leads not pursued: `chain_id` and `block_number` are unbounded above in the module
+and in the schema, which is agreement rather than drift, and a well-formed nonsense
+number is contradicted by the block hash beside it.
+
+## Ariadne state-fixture predicate, step 2, round 2 -- 2026-08-19
+
+Reviewed: the schema and the verifier against each other, on the same documents.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/state_fixture.py` | The all-zero hash matched the pattern and identified nothing, so a proof-backed count could sit beside a state root nobody filled in. The emitted-but-empty shape, in the one field this type exists to guard | fixed in this round: refused for the block hash and the state root, pinned by four tests |
+| S2-R2-02 | low | `plugins/ariadne/schemas/state-fixture-v1.json` | The schema carried a comment saying a schema could not express the conditional state-root rule. Draft 2020-12 has `if`/`then` and can | fixed in this round: the rule is in the schema, and the document says which rule a schema still cannot carry -- the reason rather than the shape |
+| S2-R2-03 | medium | `plugins/ariadne/schemas/state-fixture-v1.json` | The component path had no pattern, so the schema accepted paths the verifier went on to reject. A producer validating against the published shape would be sent into a refusal | fixed in this round: a pattern refusing a leading slash, a backslash, an empty segment and any `..` segment |
+
+Both schema findings came from one technique: fourteen documents put through the
+schema and the verifier with the verdicts compared. Two disagreed. A test now holds
+the pair to the same answer on fifteen shapes, so they cannot drift apart quietly.
+
+Fourteen state-root shapes were put beside a non-zero proof-backed count -- absent,
+uppercase, unprefixed, too short, too long, all-zero, empty, whitespace, the string
+`null`, an integer, a boolean, a list, a nested digest set, and `0x` alone. One got
+through, which is the first finding.
+
+The hash drift test now compares behaviour rather than pattern text. The module
+refuses the all-zero value inside `hash32` and the schema refuses it inside the
+pattern, so the two spell one rule in different places and comparing the strings
+would report a disagreement that is not one.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 2, round 3 -- 2026-08-19
+
+Reviewed: whether any test holds each rule the predicate adds, by mutating the rules
+one at a time.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R3-01 | medium | `plugins/ariadne/tests/test_state_fixture.py` | Changing the proof-backed rule from `> 0` to `> 1` left the suite green. Every test of that rule counted two records, so a fixture claiming exactly one proved record with no state root would have verified clean -- the smallest claim the rule exists to refuse, and the one a real capture is likeliest to make | fixed in this round: a boundary test, and a sweep across zero, one, two, three, a hundred and the ceiling |
+
+Fourteen mutants, one per rule: accept the all-zero hash, drop the state-root rule,
+raise its threshold, stop requiring every evidence class, drop the count ceiling, let
+a boolean count through, accept a truthy replay value, stop requiring both replay
+fields, accept a hex block number, stop closing the chain object, stop requiring a
+component digest to be a subject, accept a path leaving the fixture, drop the
+duplicate-path check, stop closing the predicate shape. Thirteen caught. All fourteen
+are caught now.
+
+Checked and found sound:
+
+- All thirty-three conformance fixtures re-verified after the zero-hash and ceiling
+  changes. Every passing fixture is clean and every breaching one fails exactly one
+  gate or check.
+- The registry lists three types, and an unregistered type still reports that gates 2
+  and 5 belong to a predicate and were not checked. Adding the third predicate did
+  not disturb the first two.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 2, round 4 -- 2026-08-19
+
+Reviewed: the comparison block for this type, the envelope path, and the strength of
+the evidence round 2 left behind.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R4-01 | low | `plugins/ariadne/tests/test_state_fixture.py` | The schema agreement test needs `jsonschema`, which this plugin does not depend on, so it skipped on every interpreter without the package. The evidence for round 2's two schema fixes was conditional on something nobody installs | fixed in this round: a companion test reads the schema and checks both rules are in the document. Structural, weaker than validating, and it never skips |
+
+The deltas matrix was swept as the Solidity predicate's was in step 1: 2178 shapes
+over eleven baseline values, eleven current values, six reasons and three content
+states, each verdict compared against the rule restated from the docstrings
+independently of the implementation. Zero disagreements.
+
+A statement of this type inside an unsigned DSSE envelope reports ten gate lines, runs
+the predicate, and leaves nothing unchecked.
+
+The suite runs green on Python 3.10, 3.11, 3.12 and 3.13. On an interpreter without
+`jsonschema` the agreement test skips and the structural one runs, which was confirmed
+rather than assumed.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 2, round 5 -- 2026-08-19
+
+Reviewed: the helpers, the module's own constants, and the shipped fixture against the
+capture it claims to describe.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R5-01 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/state_fixture.py`, `dataset.py` | `usable_path` normalised only a doubled backslash, because the source wrote four characters where two reach the string. So `a\..\..\b` arrived as one path segment and passed the check that keeps a consumer inside the tree. One odd filename on POSIX; a traversal out of the tree on Windows | fixed in this round in both predicates, with the same normalisation and matching tests |
+
+The defect was already live in the dataset predicate, which this copy came from.
+Fixing only the new copy would have meant shipping a fix for a defect while leaving
+the original in place, so both are fixed together. `dataset.py` is outside this step's
+file list and the deviation is recorded here rather than left for a reader to find.
+
+A UNC prefix still fails, because it normalises to a leading slash. A trailing
+separator still fails, because it names a directory. A backslash inside a filename
+still passes, because refusing every one would refuse a legitimate POSIX name.
+
+Checked and found sound:
+
+- The five checks against a non-object predicate, built directly rather than through
+  `from_dict`, which refuses one first. The guards are depth against a caller that did
+  not go through the parser, which is what the tests are.
+- The module's constants against each other: the proved class is one of the three,
+  `CHAIN_FIELDS` covers `CHAIN_REQUIRED`, `REFUSALS` covers every replay field, and the
+  five check names are distinct.
+- The shipped passing fixture re-derived field by field from
+  `plugins/lazarus/examples/goldfinch-v0` rather than trusted: the chain id, block
+  number, block hash, state root, evidence counts, tool version, and every component
+  digest and byte count. Zero disagreements.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 2, round 6 -- 2026-08-19
+
+Reviewed: what round 5 changed, attacked again from a different direction.
+
+No findings.
+
+`usable_path` was swept over 8400 generated paths -- seven prefixes by ten segments by
+six separator combinations by ten segments -- with each verdict compared against a rule
+written independently as a segment walk rather than by reusing the module's own. Zero
+disagreements, against both predicates, and the two copies agree with each other on
+all 4200 paths, so the fix landed identically.
+
+Checked and found sound:
+
+- Unicode separator look-alikes. A path carrying U+2215 division slash or U+FF0F
+  fullwidth solidus is accepted, correctly: no filesystem treats either as a
+  separator, so the path names one file.
+- A path containing a newline is accepted, which led to the one question worth
+  following past the predicate. `digests.of_tree` separates a listing's fields with a
+  NUL byte and its records with a newline, so a filename carrying a newline could in
+  principle forge an entry. It cannot, and this was confirmed by trying it: the
+  filesystem accepts a newline in a filename and refuses a NUL, so the field separator
+  is unforgeable. A rename still changes the tree digest.
+
+Leads not pursued: nothing cross-checks an evidence count against the presence of a
+matching component, because this predicate reads a statement rather than a fixture
+directory. It is stated in the document's own boundary section and it is step 4's
+work, where capture takes the counts from the manifest.

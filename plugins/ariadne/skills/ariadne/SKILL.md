@@ -81,10 +81,11 @@ python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py replay <statement.json> [--allow-execution --project <dir>]
 ```
 
-`predicates` lists the predicate types this build understands. Two are
-registered, `https://ariadne.wildcat.finance/solidity-release/v1` and
-`https://ariadne.wildcat.finance/dataset/v1`, and a statement of any other type
-still parses and still gets its core gates.
+`predicates` lists the predicate types this build understands. Three are
+registered, `https://ariadne.wildcat.finance/solidity-release/v1`,
+`https://ariadne.wildcat.finance/dataset/v1` and
+`https://ariadne.wildcat.finance/state-fixture/v1`, and a statement of any other
+type still parses and still gets its core gates.
 
 `capture` reads a Foundry project's build output into a release statement that
 `verify` accepts unedited. It does not decide whether your tests passed: a
@@ -225,6 +226,32 @@ nothing about what was read. Coverage bounds are whole numbers.
 
 Type URI: `https://ariadne.wildcat.finance/dataset/v1`.
 
+## The state-fixture predicate
+
+The third shape. Its subject is a component of a captured Lazarus fixture, and it
+carries the pin -- chain, block number, block hash and state root -- the tool that
+captured it, every component with its digest and byte count, the three evidence
+counts, and whether replay reaches a network.
+
+Two checks are its own. Evidence requires all three class keys, refuses a count
+that is not a non-negative whole number, and refuses a `proof_backed` count above
+zero when there is no `state_root` to have proved it against. Replay requires
+`reaches_network` and `canonical_chain_claim` and refuses either being true.
+
+The evidence check is the point of the type. Lazarus distinguishes what was proved
+against the state root from what an endpoint merely said, and nothing here shifts
+a count between those columns.
+
+Numbers are integers. A Lazarus manifest writes the chain id and the block number
+as hex quantity strings, which order as text, so this type refuses the wire form
+rather than comparing it.
+
+[`docs/state-fixture.md`](../../docs/state-fixture.md) describes it field by
+field, and `schemas/state-fixture-v1.json` ships for producers that are not this
+tool.
+
+Type URI: `https://ariadne.wildcat.finance/state-fixture/v1`.
+
 ## Examples
 
 [`examples/`](../../examples) holds two attestations over the fixture project:
@@ -240,9 +267,9 @@ fails a named gate.
 
 Named so the edge is visible rather than implied.
 
-The registry holds two predicates. The chain-state fixture and grounded-agent
-predicates are specified and not implemented here, so a statement of one of those
-types verifies its core gates and is told which gates went unchecked.
+The registry holds three predicates. The grounded-agent predicate is specified
+and not implemented here, so a statement of that type verifies its core gates and
+is told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each of those is a deliberate boundary rather than an

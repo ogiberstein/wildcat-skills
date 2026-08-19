@@ -96,11 +96,18 @@ def usable_path(value):
     """
     if not isinstance(value, str) or not value.strip():
         return False
-    if value.startswith("/") or value.startswith("\\\\"):
+    # A single backslash separates path segments on Windows, so it is normalised
+    # before anything looks for a traversal. An earlier version replaced only a
+    # doubled backslash, which left "a\\..\\..\\b" reaching a POSIX consumer as one
+    # odd filename and a Windows consumer as a traversal out of the tree. A UNC
+    # prefix survives the change: it normalises to a leading slash, which the next
+    # test refuses.
+    normalised = value.replace("\\", "/")
+    if normalised.startswith("/"):
         return False
     if ntpath.isabs(value) or posixpath.isabs(value):
         return False
-    parts = value.replace("\\\\", "/").split("/")
+    parts = normalised.split("/")
     return ".." not in parts and "" not in parts[1:]
 
 

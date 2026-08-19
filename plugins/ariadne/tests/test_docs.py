@@ -15,6 +15,7 @@ import ariadne  # noqa: E402
 from ariadne_lib import core_predicate, gates, registry  # noqa: E402
 from ariadne_lib.predicates import dataset  # noqa: E402
 from ariadne_lib.predicates import solidity_release as release  # noqa: E402
+from ariadne_lib.predicates import state_fixture  # noqa: E402
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,8 +25,13 @@ CONTRACT = os.path.join(PLUGIN, "AGENTS.md")
 CONFORMANCE = os.path.join(PLUGIN, "docs", "conformance.md")
 PREDICATE_DOC = os.path.join(PLUGIN, "docs", "solidity-release.md")
 DATASET_DOC = os.path.join(PLUGIN, "docs", "dataset.md")
+STATE_FIXTURE_DOC = os.path.join(PLUGIN, "docs", "state-fixture.md")
 
-DOCUMENTED = ((release, PREDICATE_DOC), (dataset, DATASET_DOC))
+DOCUMENTED = (
+    (release, PREDICATE_DOC),
+    (dataset, DATASET_DOC),
+    (state_fixture, STATE_FIXTURE_DOC),
+)
 """Each shipped predicate and the document that describes its fields."""
 EXAMPLES = os.path.join(PLUGIN, "examples")
 
