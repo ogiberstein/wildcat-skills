@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ET
 TEST_NAMES = ("test_", "_test.", ".test.", ".spec.", ".t.sol")
 TEST_DIRS = ("test", "tests", "spec", "__tests__")
 REPORT_FORMATS = ("unittest-json-v1", "forge-junit-v1", "node-test-json-v1")
+REPORT_PLACEHOLDER = "{report}"
 MAX_REPORT_BYTES = 1024 * 1024
 MAX_DIAGNOSTIC_CHARS = 4000
 
@@ -209,12 +210,13 @@ def read_report(
         raise ReportError("the runner report is not a regular file")
     if stat.st_mtime_ns < started_ns:
         raise ReportError("the runner report is stale")
-    if stat.st_size > MAX_REPORT_BYTES:
-        raise ReportError("the runner report exceeds the size limit")
     try:
-        raw = path.read_bytes()
+        with path.open("rb") as source:
+            raw = source.read(MAX_REPORT_BYTES + 1)
     except OSError as err:
         raise ReportError("the runner report could not be read") from err
+    if len(raw) > MAX_REPORT_BYTES:
+        raise ReportError("the runner report exceeds the size limit")
     parsers = {
         "unittest-json-v1": parse_unittest_report,
         "forge-junit-v1": parse_forge_report,
@@ -305,12 +307,23 @@ def check(
         except ReportError as err:
             return _base_result(ref, "inconclusive", tests, str(err))
 
+        if command.count(REPORT_PLACEHOLDER) != 1:
+            return _base_result(
+                ref,
+                "inconclusive",
+                tests,
+                "the test command must contain one exact {report} argument",
+            )
+        resolved_command = [
+            str(report_path) if argument == REPORT_PLACEHOLDER else argument
+            for argument in command
+        ]
         environment = os.environ.copy()
-        environment["ELENCHUS_REPORT_FILE"] = str(report_path)
+        environment.pop("ELENCHUS_REPORT_FILE", None)
         started_ns = time.time_ns()
         try:
             run = subprocess.run(
-                command, cwd=tree, capture_output=True, text=True, check=False,
+                resolved_command, cwd=tree, capture_output=True, text=True, check=False,
                 timeout=timeout, env=environment,
             )
         except subprocess.TimeoutExpired:

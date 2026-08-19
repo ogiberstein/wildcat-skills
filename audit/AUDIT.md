@@ -1634,3 +1634,17 @@ Manual review of `bff0eb6460e8f682e230ee6d982456121a33e2cc` found no further iss
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Elenchus structured reports, step 1, round 1 -- 2026-08-19
+
+[Medium] A descendant process could supply the accepted report.
+Location: `plugins/hexaemeron/skills/elenchus/scripts/elenchus.py:310`
+Mechanism: The report path was exported through `ELENCHUS_REPORT_FILE`, so every descendant inherited the same write target.
+Impact: A broken parent run was classified as guarded from a nested fixture's unrelated assertion report.
+Fix: Substitute one exact `{report}` command argument and remove the inherited report variable before launch.
+
+[Medium] The report-size check had a stat/read race.
+Location: `plugins/hexaemeron/skills/elenchus/scripts/elenchus.py:214`
+Mechanism: A background writer could grow the file after its accepted size was read but before unbounded `read_bytes()` completed.
+Impact: A report could exceed the 1 MiB memory and parser-work limit.
+Fix: Read at most 1 MiB plus one byte and reject the extra byte before parsing.
