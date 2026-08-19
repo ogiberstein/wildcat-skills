@@ -2241,3 +2241,29 @@ step. The single error is `ForgeReports`, environmental and unchanged.
 Leads not pursued: the `load_state` lead stands from step 1 round 1. `verify` validates
 the ledger chain and the state's phase consistency, not the shape of a round, so a
 hand-edited round with a nonsense `lints` value would pass it.
+
+## Receipted lint rounds, step 2, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding, and one guard added for a property nothing asserted.
+
+`done_audit` calls a close clean when the last round found nothing, and the consistency
+rule from this step forbids a zero findings count beside a non-zero lint exit. Together
+those mean a clean close cannot sit on a failing lint. That is the property the whole
+change buys, and it was emergent rather than tested: it holds because two separate rules
+happen to compose, so a later edit to either could take it away without any test
+noticing.
+
+The new test walks the sequence rather than asserting the composition abstractly: a
+failing lint beside zero findings is refused, the same failure recorded with a findings
+count is accepted, closing is then blocked while that count stands, and only a genuinely
+clean round closes with `clean` true and every recorded exit zero.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and
+214 of 215 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the two from earlier rounds stand. `load_state` validates nothing, and
+`verify` checks the ledger chain and phase consistency rather than the shape of a round,
+so a hand-edited round carrying a nonsense `lints` value would pass it.

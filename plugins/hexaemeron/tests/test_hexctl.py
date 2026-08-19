@@ -965,6 +965,30 @@ class LintReceiptTests(HexctlCase):
         self.run_ctl("done", "audit")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
+    def test_a_clean_close_now_implies_the_lints_passed(self):
+        """An emergent property worth pinning. `done audit` calls a close clean when the
+        last round found nothing, and the consistency rule forbids a zero findings count
+        beside a non-zero exit, so a clean close cannot sit on a failing lint. Nothing
+        asserted that, and it is the property the whole change buys."""
+        self.to_waived_audit()
+        proc = self.run_ctl("audit-round", "--findings", "0", "--phylax-exit", "1",
+                            "--ephoros-exit", "0", "--hypomnema-exit", "0", expect=2)
+        self.assertIn("finding like any other", proc.stderr)
+
+        self.run_ctl("audit-round", "--findings", "1", "--phylax-exit", "1",
+                     "--ephoros-exit", "0", "--hypomnema-exit", "0")
+        blocked = self.run_ctl("done", "audit", expect=2)
+        self.assertIn("open", blocked.stderr)
+
+        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
+                     *LINTS_CLEAN)
+        self.run_ctl("done", "audit", "--fixes-ref", "deadbeef")
+        receipt = self.state()["steps"][0]["receipts"]["audit"]
+        self.assertTrue(receipt["clean"])
+        rounds = self.rounds()
+        self.assertEqual(rounds[-1]["findings"], 0)
+        self.assertEqual(set(rounds[-1]["lints"].values()), {0})
+
     def test_a_round_recorded_before_this_existed_still_reads(self):
         """Rounds already on disk carry no lints key. Every reader has to treat it as
         absent rather than assume it."""
