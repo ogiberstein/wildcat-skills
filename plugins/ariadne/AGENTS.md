@@ -44,8 +44,10 @@ as clean when it exited 1.
 
 ## Network and side effects
 
-Ariadne reaches no network of its own. `capture` writes only where `--out`
-points, and every other subcommand prints.
+Ariadne reaches no network of its own. The three capture subcommands --
+`capture`, `capture-dataset` and `capture-state-fixture` -- write only where
+`--out` points, and every other subcommand prints. Each reads a directory that
+already exists and runs nothing in it.
 
 `replay` is the one subcommand that executes anything, and it does so only with
 `--allow-execution`, a `--project` to run in, and a statement that verifies. It
