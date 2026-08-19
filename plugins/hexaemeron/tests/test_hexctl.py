@@ -862,6 +862,35 @@ class RoundClassifierTests(unittest.TestCase):
     def test_the_three_lints_are_named_once(self):
         self.assertEqual(self.ctl.LINTS, ("phylax", "ephoros", "hypomnema"))
 
+    def test_a_waiver_is_its_first_word_not_merely_a_prefix(self):
+        """`startswith` alone read `waivedX` and `waived-ish` as waivers, which is not
+        what the rule beside WAIVER_PREFIX says."""
+        for value in ("waived: x", "waived", "  WAIVED: y  ", "waived x"):
+            with self.subTest(receipt=value, expect=True):
+                self.assertTrue(self.ctl.is_waiver(value))
+        for value in ("waivedX", "waived-ish", "waivers: x", "unwaived: x", "not waived", ""):
+            with self.subTest(receipt=value, expect=False):
+                self.assertFalse(self.ctl.is_waiver(value))
+
+    def test_a_state_whose_config_or_receipts_is_not_an_object_does_not_raise(self):
+        """load_state validates no shape, so a hand-edited or half-written state
+        reaches the classifier. A traceback out of the controller is a worse answer
+        than the one every other fault here gets."""
+        for config in (None, [], "auto", 7):
+            with self.subTest(config=config):
+                self.assertIsInstance(
+                    self.ctl.solidity_round({"config": config, "receipts": {}}), bool
+                )
+        for receipts in (None, [], "waived", 7):
+            with self.subTest(receipts=receipts):
+                self.assertIsInstance(
+                    self.ctl.solidity_round(
+                        {"config": {"solidity": "auto"}, "receipts": receipts}
+                    ),
+                    bool,
+                )
+        self.assertIsInstance(self.ctl.solidity_round({}), bool)
+
     def test_an_integer_is_not_a_mode(self):
         for value in (0, 1, 2):
             with self.subTest(value=value):

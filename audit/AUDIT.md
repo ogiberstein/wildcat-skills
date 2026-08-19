@@ -2114,3 +2114,34 @@ step branch was refused as well, which is why they are all still present.
 
 The integration pull request is #202, from the run branch into `main`, carrying the
 run-level description. It is open and waiting for a merge this session cannot perform.
+
+## Receipted lint rounds, step 1, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `solidity_round` raised out of the controller on a state whose `config` or `receipts` was not an object. `state.get("config", {})` returns `None` when the key exists holding null, so the default never applies and the next `.get` is an `AttributeError`. 356 of 676 state shapes produced a traceback rather than the named error every other fault in this file gets. `load_state` validates no shape at all, so a hand-edited or half-written state reaches this function. | fixed in this round |
+| S1-R1-02 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `is_waiver` used `startswith`, so it read `waivedX` and `waived-ish` as waivers, which is not the rule written beside `WAIVER_PREFIX`. Both spellings reach the same classification by the other branch, so the mismatch produced no wrong answer; it would produce one the moment a message explained which branch it took. The first word is now compared rather than the prefix. | fixed in this round |
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this run, so the suite waiver covers the
+Pashov pair.
+
+The classifier is a pure function of two values, so it was swept rather than probed.
+81 combinations of the three config modes against 27 receipt values were checked
+against the rule its docstring states, and every answer matched. That sweep is what
+showed S1-R1-02 to be invisible rather than absent: a mis-parsed waiver and an
+unreadable receipt both land on non-Solidity, so the wrong reasoning gave the right
+answer. 676 malformed state shapes were then run through it, which is what found
+S1-R1-01.
+
+Both suites pass on the fixed tree: 24 repository tests and 192 of 193 Hexaemeron
+tests, 20 new in this step. The single error is
+`test_elenchus_checker.ForgeReports`, which needs `forge`. The proxy refuses both
+`foundry.paradigm.xyz` and GitHub releases, so it cannot be installed here, and it
+errors identically on clean `origin/main`. Node was raised to v26.6.0 so the sibling
+fixture passes; without that the baseline would be 191 of 193.
+
+Leads not pursued: `load_state` still validates nothing, so every other reader of the
+state file has the same exposure this round fixed in one function. Validating the
+whole state shape on load is a larger change than this step, and it would belong to a
+run about the controller's own robustness rather than to this one.

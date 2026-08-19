@@ -126,10 +126,18 @@ def canonical(obj) -> str:
 
 
 def is_waiver(value) -> bool:
-    """True when a `security_suite` receipt says the Pashov pair did not run."""
+    """True when a `security_suite` receipt says the Pashov pair did not run.
+
+    The first word has to be the prefix, not merely start with it: `startswith` alone
+    read `waivedX` and `waived-ish` as waivers, which the rule beside `WAIVER_PREFIX`
+    does not say. Both currently land on the same answer by another route, so the
+    mismatch was invisible; it would stop being invisible the moment a message
+    explained which branch it took.
+    """
     if not isinstance(value, str):
         return False
-    return value.strip().lower().startswith(WAIVER_PREFIX)
+    first = value.strip().lower().replace(":", " ").split()
+    return bool(first) and first[0] == WAIVER_PREFIX
 
 
 def solidity_round(state: dict) -> bool:
@@ -146,12 +154,18 @@ def solidity_round(state: dict) -> bool:
 
     A missing receipt reads as Solidity, because nothing can be inferred from it.
     `cmd_audit_round` refuses a missing receipt before ever asking this.
+
+    A state file whose `config` or `receipts` is not an object is read as though the
+    key were absent rather than allowed to raise. `load_state` validates no shape, so a
+    hand-edited or half-written state reaches this function, and a traceback out of the
+    controller is a worse answer than the one every other fault here gets.
     """
-    mode = state.get("config", {}).get("solidity", "auto")
+    config = state.get("config")
+    mode = config.get("solidity", "auto") if isinstance(config, dict) else "auto"
     if mode is True or mode is False:
         return mode
-    receipts = state.get("receipts", {})
-    if "security_suite" not in receipts:
+    receipts = state.get("receipts")
+    if not isinstance(receipts, dict) or "security_suite" not in receipts:
         return True
     suite = receipts["security_suite"]
     if is_waiver(suite):
