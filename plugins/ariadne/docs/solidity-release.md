@@ -32,7 +32,9 @@ digest has to be a subject of the statement.
 **`deltas`** -- the comparison against the previous release. Both sides carry a
 `name` and a `digest`. The sections are `abi`, `method_identifiers` and
 `storage`, and each entry inside them names both sides too. A first release
-carries `"baseline": null` with a `reason`.
+carries `"baseline": null` with a `reason`, and may leave the current side out
+entirely, since there is nothing to compare it against. Leaving it out is not the
+same as writing it empty: a side that is there gets checked like any other.
 
 **`audits`** -- `report_digest`, `covered_revision`, `scope`. The covered
 revision is the field that matters: a report linked beside a release, with no
@@ -55,6 +57,11 @@ incomplete.
 be identified by digest. It also fails when delta content sits beside a null
 baseline, since a list of added functions with nothing to have added them to is
 a comparison against something the statement will not name.
+
+The current side is checked whenever it is present, on a first release as much as
+on a comparison, and its digest has to be a subject of the statement. A release
+that named some other pair of artefacts and presented the result as its own
+history is what that last part refuses.
 
 Both run beside the five core gates, so a release statement prints seven gate
 lines and three further checks: the predicate's field shape, its audits and its

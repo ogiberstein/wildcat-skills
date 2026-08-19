@@ -2565,3 +2565,64 @@ branch into `main` awaiting a human merge.
 
 Both suites pass on the consolidated branch: 24 repository tests and 300 of 301 Hexaemeron
 tests, 113 new across the run. The single error is `ForgeReports`.
+
+## Ariadne state-fixture predicate, step 1, round 1 -- 2026-08-19
+
+Reviewed: the gate 5 change on the Solidity release predicate, which closes the hole the
+dataset run recorded as S4-R6-06 and left to the run that would inherit it. A new predicate
+copies this branch, so a state-fixture predicate written over the hole would carry it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | `plugins/ariadne/tests/test_solidity_release.py` | `deltas.current` set to `null` was refused by the code and held by no test. A producer emitting the key with nothing in it has said a side exists and then identified none, which is the case the absent branch must not swallow; membership rather than a truthiness test is what separates them, and nothing pinned that line | fixed in this round: two tests, one on each branch |
+
+The finding came from a mutation probe rather than a reading. Five mutants of the change were
+built and the suite run against each: dropping the new block, requiring the side to be present
+instead of checking it when present, skipping the covers check, dropping the baselined branch's
+requirement that a comparison name a current side, and replacing membership with a truthiness
+test. Four were caught. The fifth survived, which is what a missing test looks like from the
+outside. All five are caught now.
+
+The gate was also swept rather than probed. Every shape of `deltas` over a baseline, a current
+side, a reason and one content section was built from an alphabet of eleven side values, six
+reasons and three content states -- 2178 statements -- and each verdict compared against the
+rule restated from the docstrings independently of the implementation. Zero disagreements.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`, `ephoros`,
+`hypomnema`. No Solidity ships in this run, so the build's suite waiver covers the Pashov pair.
+
+Suites on the fixed tree: 473 Ariadne tests, 24 repository tests, and 300 of 301 Hexaemeron
+tests. The single error is `test_elenchus_checker.ForgeReports`, which needs `forge`; the proxy
+refuses both `foundry.paradigm.xyz` and GitHub releases, and it errors identically on clean
+`main`.
+
+Leads not pursued: none.
+
+## Ariadne state-fixture predicate, step 1, round 2 -- 2026-08-19
+
+Reviewed: the same change from three angles round 1 did not reach, and once end to end.
+
+No findings.
+
+Seven digest shapes were put on the current side of a first release: `sha512` alone against a
+statement carrying `sha256`, a matching `sha256` beside an unknown `sha512`, a non-matching
+`sha256` beside `sha512`, an uppercased `sha256`, an empty set, an integer, and a list. Each
+verdict is the one `covers` and `digests.check` document. The only pass is the case where a
+shared supported algorithm agrees, which is the rule step 1 of the original build wrote.
+
+Twenty-one hostile values were then put on the current side against both branches of the gate,
+42 calls in total, to see whether the reordered block could raise where the old one returned
+first. Nothing raised.
+
+The proof is a before and after. The new conformance fixture was copied into a detached
+worktree at `origin/main` and verified there: exit 0, with gate 5 reporting `pass -- no
+baseline`. The same file on this branch exits 1 with gate 5 failing. The hole was live and is
+closed.
+
+One thing was examined and left alone. The covers check is guarded by a no-faults test, so an
+unrelated fault -- an unknown delta section, say -- suppresses the line about the current side
+being outside the statement. The gate still fails on the suppressing fault, so no statement
+verifies clean because of it, and the dataset predicate guards identically. Reporting one fault
+rather than two is this build's stated preference, written into gate 1's own docstring.
+
+Leads not pursued: none.

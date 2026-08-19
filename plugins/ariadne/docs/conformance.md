@@ -63,6 +63,7 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-gate2-source-without-commit.json` | A source record with a tree digest and no commit |
 | `fail-gate5-baseline-without-digest.json` | A comparison against a release named but not identified |
 | `fail-gate5-content-against-null-baseline.json` | Added functions listed against a baseline the statement says does not exist |
+| `fail-gate5-solidity-first-release-unnamed-current.json` | A first release carrying a current side with no name and a digest the statement does not cover, which gate 5 skipped before this fixture existed |
 | `fail-check-audits-solidity-without-covered-revision.json` | An audit report attached to a release without naming the revision it covered |
 | `fail-check-deployments-solidity-without-confirmation.json` | A deployment address printed without saying whether anything confirmed it against a chain |
 | `pass-dataset-release.json` | A complete dataset release: two released files with record counts, one input digested and one recorded absent with its reason, a coverage interval with a gap, and a comparison against the previous release |
