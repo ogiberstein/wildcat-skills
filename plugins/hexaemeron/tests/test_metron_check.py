@@ -7,6 +7,7 @@ presence check while carrying nothing a comparison can use.
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -643,6 +644,35 @@ class RecordCommandTests(TempFiles):
         self.assertIn("promoted", proc.stdout)
         found = json.loads(baseline.read_text(encoding="utf-8"))["measurements"]
         self.assertEqual(found["harvest.usdc.wall_clock"], 700)
+
+    def test_a_failed_promote_leaves_the_baseline_alone(self):
+        """The baseline is what every later comparison is measured against, so a write that
+        dies partway is worse than one that never started: the previous value is gone and
+        nothing says so."""
+        baseline = Path(self.tmp.name) / "baseline.json"
+        baseline.write_text(BASELINE.read_text(encoding="utf-8"), encoding="utf-8")
+        before = baseline.read_text(encoding="utf-8")
+        real = os.replace
+
+        def refuse(source, target):
+            raise OSError("device full")
+
+        os.replace = refuse
+        try:
+            with self.assertRaises(OSError):
+                metron.write_atomically(str(baseline), '{"measurements": {"a": 1}}')
+        finally:
+            os.replace = real
+        self.assertEqual(baseline.read_text(encoding="utf-8"), before)
+        leftovers = [n for n in os.listdir(self.tmp.name) if n.startswith(".metron-")]
+        self.assertEqual(leftovers, [])
+
+    def test_a_successful_write_replaces_the_whole_file(self):
+        baseline = Path(self.tmp.name) / "baseline.json"
+        baseline.write_text('{"measurements": {"a": 1, "b": 2}}\n', encoding="utf-8")
+        metron.write_atomically(str(baseline), '{"measurements": {"a": 9}}\n')
+        found = json.loads(baseline.read_text(encoding="utf-8"))
+        self.assertEqual(found["measurements"], {"a": 9})
 
     def test_promote_without_a_baseline_is_refused(self):
         ledger = str(Path(self.tmp.name) / "ledger.jsonl")

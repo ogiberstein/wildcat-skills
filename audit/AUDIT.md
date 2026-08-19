@@ -2430,3 +2430,31 @@ pass: 24 repository tests and 257 of 258 Hexaemeron tests. The single error is
 
 Leads not pursued: the budget-count lead from round 1 stands. Nothing caps how many budgets
 a file may declare, which is slow rather than wrong.
+
+## Metron budget check, step 2, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `plugins/hexaemeron/skills/metron/scripts/metron.py` | `--promote` wrote the baseline with `write_text`, which truncates before it writes. A write that died partway left the baseline as invalid JSON, and the baseline is what every later comparison is measured against: the previous value was gone with nothing saying so, and every subsequent run would exit 2 on a file it could no longer read. Reproduced by making the write fail after a short write and reading the result back. | fixed in this round |
+
+`write_atomically` writes a temporary file in the same directory, fsyncs it and replaces the
+target, so the baseline is either the old contents or the new ones. A forced failure of
+`os.replace` now leaves the file byte-identical and no temporary behind. This is the same
+fault the Ariadne run fixed for `capture --out`, in a second place.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`, `ephoros`,
+`hypomnema`.
+
+The comparison is a function of seven inputs, so it was swept rather than probed. 2880
+combinations of a run value, a baseline, both directions, two limits, three variances, a
+present or absent measurement, and an undeclared name were each checked against the rule the
+code documents. Nothing differed and nothing raised. All six verdicts were reached, and every
+verdict's `failed` flag agreed with the `FAILING` list, which is what the exit status reads.
+
+Both suites pass: 24 repository tests and 297 of 298 Hexaemeron tests, 40 new in this step.
+The single error is `ForgeReports`, environmental.
+
+Leads not pursued: `append_ledger` opens in append mode and writes one line, which is atomic
+enough for a single short write on a local filesystem but is not guaranteed across a network
+mount. A ledger is a record rather than a gate, so a torn line loses one entry rather than
+changing a verdict.

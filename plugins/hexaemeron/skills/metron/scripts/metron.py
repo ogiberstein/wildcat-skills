@@ -35,7 +35,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 MAX_BYTES = 4 * 1024 * 1024
@@ -369,6 +371,34 @@ def append_ledger(path: str, entry: dict) -> None:
         raise BudgetError(f"cannot write the ledger {path}: {error}")
 
 
+def write_atomically(path: str, body: str) -> None:
+    """Replace a file's contents, or leave them alone.
+
+    The baseline is what every later comparison is measured against, so a write that
+    dies partway is worse than one that never started: the previous value is gone and
+    nothing says so. A temporary file in the same directory keeps the replace on one
+    filesystem.
+    """
+    where = Path(path)
+    directory = str(where.parent) if str(where.parent) else "."
+    handle = tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=directory, prefix=".metron-", suffix=".tmp",
+        delete=False,
+    )
+    try:
+        with handle:
+            handle.write(body)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(handle.name, path)
+    except BaseException:
+        try:
+            os.unlink(handle.name)
+        except OSError:
+            pass
+        raise
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Metron budget check.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -415,10 +445,13 @@ def main(argv: list[str] | None = None) -> int:
                 },
             )
             if args.promote:
-                Path(args.baseline).write_text(
-                    json.dumps({"measurements": run}, indent=2, sort_keys=True) + "\n",
-                    encoding="utf-8",
-                )
+                try:
+                    write_atomically(
+                        args.baseline,
+                        json.dumps({"measurements": run}, indent=2, sort_keys=True) + "\n",
+                    )
+                except OSError as error:
+                    raise BudgetError(f"cannot write the baseline {args.baseline}: {error}")
     except BudgetError as error:
         print(f"metron: error: {error}", file=sys.stderr)
         return 2
