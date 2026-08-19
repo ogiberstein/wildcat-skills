@@ -104,6 +104,7 @@ class ScaffoldTests(unittest.TestCase):
                 "paths.py",
                 "proofs.py",
                 "records.py",
+                "release.py",
                 "replay.py",
                 "rlp.py",
                 "rpc.py",

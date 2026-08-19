@@ -22,6 +22,14 @@ REQUIRED_COMPONENTS = {"plan.json", "header.json", "rpc.jsonl", "proofs.jsonl"}
 
 
 def verify_fixture(root: str | Path) -> dict[str, Any]:
+    """Verify a whole fixture offline and account for its evidence.
+
+    The report carries the manifest its numbers were computed from. A caller that
+    needs both -- binding a statement to the fixture needs the component list and
+    the recomputed counts together -- must take the manifest from here rather
+    than reading the directory a second time. Two reads are two states, and
+    nothing after the first would notice a component changing between them.
+    """
     manifest = verify_manifest(root)
     paths = {item["path"] for item in manifest["components"]}
     missing = sorted(REQUIRED_COMPONENTS - paths)
@@ -85,6 +93,7 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
     if counts != manifest["evidence_counts"]:
         raise IntegrityError("manifest evidence counts do not match verified contents")
     return {
+        "manifest": manifest,
         "fixture_digest": manifest["fixture_digest"],
         "block_hash": header_report["hash"],
         "block_number": header_report["number"],

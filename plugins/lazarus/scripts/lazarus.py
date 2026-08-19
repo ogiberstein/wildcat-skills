@@ -67,6 +67,24 @@ def parser() -> argparse.ArgumentParser:
     )
     replay.add_argument("fixture", type=Path)
     replay.add_argument("--port", type=int, default=DEFAULT_REPLAY_PORT)
+
+    release = commands.add_parser(
+        "release",
+        help="write a fixture, a statement about it, and the document binding them",
+    )
+    release.add_argument("fixture", type=Path)
+    release.add_argument(
+        "--statement",
+        required=True,
+        type=Path,
+        help="a statement about this fixture, written by something else",
+    )
+    release.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="a directory that does not exist yet and is not inside the fixture",
+    )
     return root
 
 
@@ -110,6 +128,19 @@ def run(argv: list[str] | None = None) -> int:
         report = capture_fixture(args.plan, args.rpc_url, args.out)
         print(f"fixture: {report['fixture_digest']}")
         print(f"block: {report['block_hash']}")
+        return 0
+    if args.command == "release":
+        from lazarus_lib.release import write_release
+
+        document = write_release(args.fixture, args.statement, args.out)
+        print(f"release: {document['release_digest']}")
+        print(f"fixture: {document['fixture']['fixture_digest']}")
+        print(f"statement: {document['statement']['predicate_type']}")
+        counts = document["verified"]["evidence_counts"]
+        print(f"proof-backed: {counts['proof_backed']}")
+        print(f"header-bound: {counts['header_bound']}")
+        print(f"recorded-rpc: {counts['recorded_rpc']}")
+        print("checks: " + ", ".join(document["binding"]["checks"]))
         return 0
     if args.command == "replay":
         from lazarus_lib.server import serve_fixture
