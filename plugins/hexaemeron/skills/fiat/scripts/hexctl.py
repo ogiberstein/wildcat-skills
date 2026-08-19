@@ -77,6 +77,41 @@ DEFAULT_CONFIG = {
     "solidity": "auto",
 }
 
+LINTS = ("phylax", "ephoros", "hypomnema")
+"""The three bundled lints a non-Solidity audit round runs.
+
+Named here so the flags, the refusal message and the stored round all read from one
+list. `references/audit-loop.md` is the contract they satisfy.
+"""
+
+SOLIDITY_MODES = ("auto", True, False)
+"""What `config solidity` accepts.
+
+`auto` reads the answer off the `security_suite` receipt, which is where the run
+already recorded whether the Pashov pair applies. `true` and `false` force it, for a
+repository where the receipt does not tell the truth about the diff.
+"""
+
+
+def solidity_mode(value) -> bool:
+    """True when a value is one of the three modes.
+
+    Checked by identity rather than by `in SOLIDITY_MODES`, because Python makes
+    `1 == True` and `0 == False`, so membership would accept an integer as a mode and
+    store it. `config set solidity 1` is a caller error, not a way to spell `true`.
+    """
+    if isinstance(value, bool):
+        return True
+    return value == "auto"
+
+WAIVER_PREFIX = "waived"
+"""How a `security_suite` receipt says the Pashov pair did not run.
+
+One rule, so the classifier never guesses: the receipt is a waiver when it is a string
+whose first word is this, ignoring case and surrounding space. Preflight writes
+`"waived: <reason>"`, and a reason is the point of the string.
+"""
+
 def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -88,6 +123,40 @@ def die(msg: str, code: int = 2) -> None:
 
 def canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+
+def is_waiver(value) -> bool:
+    """True when a `security_suite` receipt says the Pashov pair did not run."""
+    if not isinstance(value, str):
+        return False
+    return value.strip().lower().startswith(WAIVER_PREFIX)
+
+
+def solidity_round(state: dict) -> bool:
+    """Whether this run's audit rounds are Solidity rounds.
+
+    False means the round's mechanical part is the three bundled lints, so
+    `audit-round` requires their exit statuses.
+
+    Under `auto` the answer comes from the `security_suite` receipt: a waiver means no
+    Solidity, a non-empty list of suite ids means Solidity. Anything else -- an empty
+    list, a number, an object -- is not a suite that ran, so it is treated as a
+    non-Solidity round and the lints are required. Demanding more evidence is the safe
+    direction when the receipt cannot be read.
+
+    A missing receipt reads as Solidity, because nothing can be inferred from it.
+    `cmd_audit_round` refuses a missing receipt before ever asking this.
+    """
+    mode = state.get("config", {}).get("solidity", "auto")
+    if mode is True or mode is False:
+        return mode
+    receipts = state.get("receipts", {})
+    if "security_suite" not in receipts:
+        return True
+    suite = receipts["security_suite"]
+    if is_waiver(suite):
+        return False
+    return isinstance(suite, list) and bool(suite)
 
 
 # ------------------------------------------------------------------ branches
@@ -478,7 +547,13 @@ def cmd_config(args) -> None:
     leaf = parts[-1]
     if not isinstance(node, dict) or leaf not in node:
         die(f"config path not found: {args.path}")
-    node[leaf] = parse_value(args.value)
+    value = parse_value(args.value)
+    if args.path == "solidity" and not solidity_mode(value):
+        die(
+            "config solidity takes %s; got %r"
+            % (", ".join(json.dumps(m) for m in SOLIDITY_MODES), value)
+        )
+    node[leaf] = value
     commit(args.dir, state, "config-set", {"path": args.path, "value": node[leaf]})
     print(f"set {args.path}")
 
