@@ -1,0 +1,8 @@
+{
+  "venue": "goldfinch",
+  "source": "alexandria://goldfinch/2024-01",
+  "fields": {
+    "drawdown": "DrawdownMade(address,uint256)",
+    "repayment": "PaymentApplied(address,address,uint256,uint256,uint256,uint256)"
+  }
+}

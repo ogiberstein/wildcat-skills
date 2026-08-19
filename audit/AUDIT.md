@@ -1731,3 +1731,241 @@ levels down, so a gate indexing into a gap entry's contents without a type check
 would not be caught by it. The gap-entry case is covered by the hand-written
 tests in `test_dataset.py`; a general recursive sweep is a larger piece of work
 than this step.
+
+## Ariadne dataset predicate, step 4, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | A symlink to a directory inside the release was skipped in silence. `os.walk` does not descend one, so every file under it was left out of both `dataset_subjects` and the release bundle digest, and nothing in the statement recorded that anything had been left out. A release could ship a statement describing part of its contents with no indication. This is the silent absence the gates exist to refuse, applied against the tool itself. | fixed in this round |
+| S4-R1-02 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `SKIPPED_NAMES` dropped `.git` and `__pycache__` from the walk without recording it, so the bundle digest covered part of the tree while the statement said nothing about the rest. Same class as S4-R1-01, smaller blast radius. | fixed in this round |
+
+Both are now refusals that name what to change rather than omissions. The
+directory case says why it refuses: the contents "would be left out of the
+statement and out of the release digest without anything saying so".
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this step, so the suite waiver covers
+the Pashov pair.
+
+The rest of the filesystem surface was probed and behaved:
+
+- A symlink to a *file* inside the release was already refused.
+- The release directory itself may be a symlink; `confined` resolves it.
+- A `..` segment in `--release` resolves before use.
+- A release holding no files is refused rather than producing an empty statement.
+- `--out` writes through a temporary file in the same directory and replaces the
+  target. A forced failure of `os.replace` leaves neither the target nor a stray
+  temporary file.
+- Record counts are read in fixed blocks. A 20000-record file spanning several
+  blocks counts correctly, and a final line with no trailing newline still counts.
+
+Three guard tests were added for the fixed cases, plus one asserting that a nested
+directory of records is captured rather than skipped, since the fix touches the
+walk.
+
+Both suites pass on the fixed tree: 24 repository tests and 422 ariadne tests, 2
+skipped.
+
+Leads not pursued: `MAX_RELEASE_FILES` is 4096 and there is no cap on the total
+bytes a release may hold. A caller pointing `--release` at a very large tree waits
+a long time rather than being refused. Adding a byte budget is a flag and a
+decision about its default, which is more than this step asks for.
+
+## Ariadne dataset predicate, step 4, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | high | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `os.walk` swallows a directory it cannot read, because `onerror` defaults to `None`. An unreadable subdirectory's files were dropped from `dataset_subjects` and from the release bundle digest with nothing recording it. Same class as S4-R1-01, which round 1 fixed for symlinked directories only and did not generalise. | fixed in this round |
+
+`onerror` now raises a `CaptureError`: a release that cannot be read whole cannot
+be captured.
+
+The finding was reached by asking whether round 1's fix generalised. It did not:
+round 1 closed the one silent path it had found and left a second open. The probe
+that found it replaces `os.scandir` for one directory rather than using
+permissions, because this container runs as root and a `chmod 0` probe passes
+without exercising anything. That is recorded here because the first attempt at
+this probe was inconclusive for exactly that reason.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+Both suites pass: 24 repository tests and 423 ariadne tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead from round 1 stands. `MAX_RELEASE_FILES`
+caps the file count at 4096 and nothing caps total bytes.
+
+## Ariadne dataset predicate, step 4, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R3-01 | high | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | The producer block was fabricated when the caller supplied nothing: `tool` defaulted to `ariadne`, `tool_version` to the string `unstated`, and `command` to `["ariadne", "capture-dataset"]`. Gate 2 passed on that, so a statement asserted a recoverable environment while recording nothing recoverable, and named Ariadne as what produced a dataset it had only read. `unstated` is a value that satisfies a non-empty-string check while carrying no information, which is the move gate 3 refuses for claims. | fixed in this round |
+| S4-R3-02 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | A `--record-count` naming a path the release does not hold was accepted in silence. A typo meant the count the caller believed they supplied was not the one in the statement, and for a line-delimited file the derived count would be used instead with no sign anything had been ignored. | fixed in this round |
+| S4-R3-03 | low | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | The refusal added for S4-R3-02 ran before the path refusals, so a release holding a symlinked file reported the count problem rather than the path problem. Found by two tests that started failing for the wrong reason. Every path refusal now happens inside `files()`, before any count is considered. | fixed in this round |
+
+All three producer fields are required at the library boundary and on the command
+line. The three bundled lints ran against the fixed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`.
+
+The study's demo path changed with the code rather than after it. Both committed
+copies of the study now carry the producer flags, and the path was run end to end
+against the fixed tree: seven numbered gates, no unchecked line, exit 0.
+
+Both suites pass: 24 repository tests and 429 ariadne tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead stands from round 1. `parameters_digest`
+over an empty parameter set is a real digest of an empty mapping rather than a
+fabrication, so it is left as it is and documented.
+
+## Ariadne dataset predicate, step 4, round 4 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R4-01 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | The inputs check accepted `"disposition": "passed"` with no digest. That is a single word around the rule the check exists for: it asserted the input was read while recording nothing about what was read, and the tally then counted it as recorded absent, which contradicts the disposition it carries. A statement built this way verified clean and exited 0. | fixed in this round |
+
+`passed` is no longer available as an input disposition. An input that was read
+carries a digest; the four remaining values describe an absence and each needs a
+reason. The rule is enforced in three places: the gate, the published schema's
+enum, and the command line where the caller can still fix the invocation. The
+drift test asserts `passed` is absent from that enum with the reason written next
+to the assertion.
+
+This is the fourth consecutive round to find something, and all four are the same
+family: a field that satisfies a shape check while carrying no evidence. Rounds 1
+and 2 were absences dropped from the walk, round 3 was a fabricated producer, and
+this is an absence dressed as a result.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 434 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead stands from round 1.
+
+## Ariadne dataset predicate, step 4, round 5 -- 2026-08-19
+
+Eight weakest-passing-value probes, one per field the predicate declares, rather
+than the ad-hoc probing of earlier rounds. Three were defects and five were
+legitimate values that must keep passing.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R5-01 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A statement claiming `record_count: -5` verified clean. The published schema says `minimum: 0` and the gate did not check, so the validator and the schema disagreed about what they accept. | fixed in this round |
+| S4-R5-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | Two `dataset_subjects` entries could name the same `path` with different digests. One file cannot carry two digests, and the release bundle digest is taken over that listing, so the digest covered a description of the release that contradicted itself. | fixed in this round |
+| S4-R5-03 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A released file's `path` could be absolute or carry a `..` segment. A consumer resolves `path` against a release directory, so either form describes a file the release does not hold and points a careless reader out of the tree. The capture path never produces one; a hand-written statement did. | fixed in this round |
+
+The five that were left alone, with the reason: two files with identical content
+are a real thing to publish and only a duplicate path is incoherent; a
+single-point coverage interval is one block; a negative coverage interval is
+nonsense for `block` but the dimension is free-form and could legitimately be
+signed; a gap covering the whole interval is a release that honestly describes
+nothing; and a `tool_version` of the literal string `unstated` is a caller stating
+something false rather than the tool fabricating it, which no shape check can tell
+from a real version string.
+
+The schema now states the path and count constraints, and a new drift test holds
+the two together rather than only comparing field tables.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 440 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the drift tests compare field tables and now three constraints,
+not every constraint in the schema. A general comparison would need the schema
+walked and each keyword mapped to the gate that enforces it, which is a piece of
+work in its own right. The byte-budget lead stands from round 1.
+
+## Ariadne dataset predicate, step 4, round 6 -- 2026-08-19
+
+Round 5's method applied to the surface it had not reached: the capture function's
+own arguments, twelve probes, and the gate-5 branch those probes walked into.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R6-01 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | Gate 5 never checked the current side on a first release. The `baseline is None` branch validated the reason and returned, so a statement could name a current side with no name, no digest, or a digest the statement does not cover, and verify clean. Every first release therefore had one end of its comparison unchecked. | fixed in this round |
+| S4-R6-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A release compared against itself passed gate 5 and reported no differences, which reads as a release that changed nothing rather than as a comparison that means nothing. | fixed in this round |
+| S4-R6-03 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `parameters` or `record_counts` passed as a list of pairs raised a bare `ValueError` out of `dict()`, and a non-numeric stated count raised `TypeError` from a `%d` format. A library caller got a stack trace instead of the refusal the module gives for every other bad argument. | fixed in this round |
+| S4-R6-04 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | A blank or absent `--name` produced a statement whose current side had no name. With S4-R6-01 open it verified clean; with it fixed the capture would have emitted a statement its own verifier refuses. | fixed in this round |
+| S4-R6-05 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `inputs` or `gaps` passed as a string, or holding a non-object entry, produced a statement that verify then refused. A blank `--first-release-reason` did the same. The capture's contract is that what it writes, verify accepts unedited. | fixed in this round |
+| S4-R6-06 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/solidity_release.py` | The same hole as S4-R6-01 is present in the Solidity release predicate, and has been since before this run. Confirmed against the shipped fixture: replacing a first release's `deltas.current` with `{"name": "", "digest": <a digest the statement does not cover>}` verifies clean and exits 0. The shipped fixture omits `current` entirely on a first release, so nothing exercised the branch. | open, out of scope |
+
+S4-R6-06 is left open deliberately. This run's study put
+`predicates/solidity_release.py` under ask-first, and the fix belongs to the
+Solidity predicate rather than to a run whose subject is a new type. The patch is
+the same shape as the one applied here: move the `check_side(deltas.get("current"),
+...)` call and its subject-coverage check above the `baseline is None` branch, so
+the current side is validated on both paths, and add a
+`fail-gate5-solidity-first-release-unnamed-current.json` fixture to exercise it.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 451 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead stands from round 1, and the
+constraint-level drift lead from round 5.
+
+## Ariadne dataset predicate, step 4, round 7 -- 2026-08-19
+
+Every sweep from rounds 1 to 6 was re-run against the fixed tree first and all of
+it came back clean: the three lints, 306 malformed shapes across both registered
+predicates with nothing raised, all 27 conformance fixtures with each breaching one
+holding to a single check, the demo path end to end, and both suites. Then seven
+new weakest-value probes were run on fields the earlier sweeps had not reached, and
+four of those were defects.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R7-01 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A gap `reason` of whitespace passed. `missing()` reads `""` as absent but not `"   "`, so the one field whose whole job is to carry the reason accepted a string that carries none. Gate 3 already refuses this for a claim reason, so the predicate disagreed with itself. | fixed in this round |
+| S4-R7-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | An unknown key inside `deltas.records` passed, while an unknown section one level up was refused. Both are undeclared content sitting inside a digested comparison. `records` now carries `added`, `removed` and `changed` and nothing else. | fixed in this round |
+| S4-R7-03 | low | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A producer `command` containing an empty word passed. An argv with an empty word is not what ran, and gate 2's promise is that somebody else can run it. | fixed in this round |
+| S4-R7-04 | low | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A `coverage.dimension` of whitespace passed, naming nothing while satisfying the string check. | fixed in this round |
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 456 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead from round 1, the constraint-level drift
+lead from round 5, and S4-R6-06 in the Solidity release predicate, which stays open
+and out of scope with its patch recorded.
+
+## Ariadne dataset predicate, step 4, round 8 -- 2026-08-19
+
+The last round the controller allows. Method changed again: instead of hand-picked
+probes, every leaf in a fully populated valid predicate was replaced in turn by each
+of nine values that satisfy a presence check while carrying nothing. 369 mutations,
+and 101 of them still verified clean.
+
+Triage separated three groups. Four were values that must keep passing and were
+settled in round 5: a `record_count` of zero on either file, and a `coverage.start`
+of zero or negative. Twenty-two sit in the core gates and eight in a helper shared
+with the Solidity predicate, both recorded below as out of scope. The rest were
+defects.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R8-01 | medium | `.../predicates/dataset.py` | A released file `path` of whitespace passed. `usable_path` tested truthiness, so `"   "` was a path. | fixed in this round |
+| S4-R8-02 | medium | `.../predicates/dataset.py` | A gap `reason` that was not a string passed: `1.5`, `0` and `True` all satisfied the presence check. Round 7 fixed whitespace strings and did not generalise to the type. | fixed in this round |
+| S4-R8-03 | medium | `.../predicates/dataset.py` | Entries in `deltas.records.added` and `.removed`, and both sides of a `changed` entry, accepted any value at all: `None`, `{}`, `1.5`. A comparison listed records it did not identify, inside a block gate 5 reports as a recorded difference. | fixed in this round |
+| S4-R8-04 | low | `.../predicates/dataset.py` | `producer.tool` and `producer.tool_version` of whitespace passed. | fixed in this round |
+| S4-R8-05 | low | `.../predicates/dataset.py` | An input `name` or `locator` that was whitespace or a number passed. The locator is what lets a reader find the input again. | fixed in this round |
+| S4-R8-06 | low | `.../predicates/dataset.py` | A released file `name` of whitespace passed. | fixed in this round |
+| S4-R8-07 | low | `.../predicates/dataset.py` | An argv word of whitespace passed. Round 7 required non-empty and stopped there. | fixed in this round |
+| S4-R8-08 | low | `.../gates.py` | Core gates 3 and 6 accept a blank or non-string `name` on a claim or a command, and gate 6 accepts an argv word that is empty or whitespace. `core_predicate.label()` falls back to a positional name, so nothing breaks, but a recorded command cannot be re-run from an argv holding a blank word. | open, out of scope |
+| S4-R8-09 | low | `.../core_predicate.py` | `check_side` accepts a delta side `name` that is whitespace or a number, because it tests truthiness. The helper is shared with the Solidity release predicate, so tightening it changes what that predicate accepts. | open, out of scope |
+
+S4-R8-08 and S4-R8-09 are both left open on the same reasoning as S4-R6-06: this
+run's study puts the core gates and the Solidity predicate's behaviour under
+ask-first, and neither belongs to a run whose subject is a new predicate. The patch
+for S4-R8-09 is to give `core_predicate` the same non-blank-string helper this
+predicate now uses and call it from `check_side`; for S4-R8-08 it is the same helper
+applied to the `name` and `argv` checks in `gates.py`, each with a fixture.
+
+After the fixes the sweep was re-run: 34 mutations still verify clean, and every one
+is accounted for. Twenty-two core gates, eight the shared helper, four deliberate,
+and none unexplained.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. All 27 conformance fixtures behave. Both suites pass: 24
+repository tests and 463 ariadne tests, 2 skipped.
+
+Leads not pursued: S4-R6-06, S4-R8-08 and S4-R8-09 above, the byte-budget lead from
+round 1, and the constraint-level drift lead from round 5.

@@ -66,6 +66,14 @@ python3 scripts/ariadne.py capture solidity-release \
   --project <dir> --previous <dir> --previous-name v1.0.0 \
   --repository <url> --commit <40-hex> --out release.json
 
+python3 scripts/ariadne.py capture-dataset \
+  --release <dir> --name goldfinch-credit-events-v2 \
+  --coverage-dimension block --coverage-start 11370000 --coverage-end 15000000 \
+  --gap 'start=12000000,end=12000100,reason=<why this range is not described>' \
+  --producer-tool tabularium --producer-version 0.3.0 \
+  --producer-command python3 --producer-command scripts/tabularium.py \
+  --previous <dir> --previous-name goldfinch-credit-events-v1 --out release.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
@@ -73,9 +81,10 @@ python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py replay <statement.json> [--allow-execution --project <dir>]
 ```
 
-`predicates` lists the predicate types this build understands. One is
-registered, `https://ariadne.wildcat.finance/solidity-release/v1`, and a
-statement of any other type still parses and still gets its core gates.
+`predicates` lists the predicate types this build understands. Two are
+registered, `https://ariadne.wildcat.finance/solidity-release/v1` and
+`https://ariadne.wildcat.finance/dataset/v1`, and a statement of any other type
+still parses and still gets its core gates.
 
 `capture` reads a Foundry project's build output into a release statement that
 `verify` accepts unedited. It does not decide whether your tests passed: a
@@ -83,6 +92,17 @@ result arrives as a stated disposition, and leaving it out records `skipped`
 with a reason saying nothing was supplied.
 [`docs/capturing-a-release.md`](../../docs/capturing-a-release.md) has the
 flags.
+
+`capture-dataset` reads a dataset release directory into a dataset statement. It
+digests every file, counts the records in line-delimited JSON, and refuses a file
+whose count is neither derivable nor stated rather than guessing one. Coverage, inputs and the
+producer come from the caller, because a directory of records does not say which
+interval it was meant to describe, what it was built from, or what built it. None
+of the three has a default: one would put this tool's own name in the field gate 2
+reads as what made the files. With `--previous` it
+identifies both sides of the comparison and records no record-level differences,
+because telling which records changed needs a record identity it does not have.
+[`docs/capturing-a-dataset.md`](../../docs/capturing-a-dataset.md) has the flags.
 
 `inspect` reads either a bare in-toto statement or a DSSE envelope wrapping
 one, and reports the predicate type, whether that type is registered here, the

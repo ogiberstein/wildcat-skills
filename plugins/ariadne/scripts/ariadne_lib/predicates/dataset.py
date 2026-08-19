@@ -25,9 +25,12 @@ check comes to pass on values it never really ordered. A producer with
 timestamps records them as integers or uses a different dimension.
 """
 
+import ntpath
+import posixpath
+
 from .. import deltas as deltas_module
 from .. import digests
-from ..core_predicate import DISPOSITIONS, NEEDS_REASON, check_side, missing
+from ..core_predicate import NEEDS_REASON, check_side, missing
 from ..gates import Gate
 
 TYPE = "https://ariadne.wildcat.finance/dataset/v1"
@@ -60,12 +63,55 @@ REQUIRED_FIELDS = PREDICATE_FIELDS
 empty `inputs` array, which says the question was asked and answered; leaving the
 block out would leave it open."""
 
+RECORD_KEYS = ("added", "removed", "changed")
+"""What a `records` section may carry. Unknown sections at the `deltas` level are
+refused, so an unknown key one level down cannot pass either: both are undeclared
+content sitting inside a digested comparison."""
+
 BOTH_SIDED = ("changed",)
 """Sections whose entries describe a change rather than a name, so each entry
 carries what it was and what it became."""
 
 INPUT_FIELDS = frozenset({"name", "locator", "digest", "disposition", "reason"})
+
+INPUT_DISPOSITIONS = NEEDS_REASON
+"""What an input may say instead of carrying a digest.
+
+`passed` is not on this list. An input that was read has a digest, so `passed`
+with no digest is a one-word way around the rule this check exists for: it would
+assert the input was read while recording nothing about what was read. The
+remaining dispositions are the ones that describe an absence, and each needs a
+reason.
+"""
 GAP_FIELDS = frozenset({"start", "end", "reason"})
+
+
+def usable_path(value):
+    """True for a release-relative path a reader can resolve safely.
+
+    A consumer resolves `path` against a release directory. An absolute path or one
+    carrying a `..` segment resolves somewhere else, so a statement using either
+    describes a file the release does not hold and points a careless reader out of
+    the tree. The capture path never produces one; a statement written by hand can.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return False
+    if value.startswith("/") or value.startswith("\\\\"):
+        return False
+    if ntpath.isabs(value) or posixpath.isabs(value):
+        return False
+    parts = value.replace("\\\\", "/").split("/")
+    return ".." not in parts and "" not in parts[1:]
+
+
+def stated(value):
+    """True for a non-blank string.
+
+    Used for the fields whose only job is to let a reader find something again. A
+    field holding `"   "` or a number satisfies a presence check while naming
+    nothing, which is the shape this predicate spends its gates refusing.
+    """
+    return isinstance(value, str) and bool(value.strip())
 
 
 def whole_number(value):
@@ -98,13 +144,14 @@ def gate_2_environment(statement):
         faults.append("producer is missing %s" % ", ".join(absent))
     else:
         for field in ("tool", "tool_version"):
-            if not isinstance(producer.get(field), str):
-                faults.append("producer %s must be a string" % field)
+            if not stated(producer.get(field)):
+                faults.append("producer %s must name something" % field)
         command = producer.get("command")
-        if not isinstance(command, list) or not all(
-            isinstance(word, str) for word in command
-        ):
-            faults.append("producer command must be an argv of strings")
+        if not isinstance(command, list) or not all(stated(word) for word in command):
+            faults.append(
+                "producer command must be an argv of non-empty strings; a word that "
+                "is empty or only whitespace is not what ran"
+            )
         try:
             digests.check(producer["parameters_digest"])
         except digests.DigestError as error:
@@ -120,11 +167,25 @@ def gate_2_environment(statement):
             absent = missing(entry, INPUT_REQUIRED)
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
+                continue
+            for field in INPUT_REQUIRED:
+                if not stated(entry.get(field)):
+                    faults.append("%s %s must name something" % (label, field))
 
     subjects = predicate.get("dataset_subjects")
     if not isinstance(subjects, list) or not subjects:
         faults.append("dataset_subjects must be a non-empty array")
     else:
+        seen = {}
+        for index, entry in enumerate(subjects):
+            if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+                if entry["path"] in seen:
+                    faults.append(
+                        "path %s is listed twice; one file cannot carry two "
+                        "digests, and the release digest is over this listing"
+                        % entry["path"]
+                    )
+                seen[entry["path"]] = index
         for index, entry in enumerate(subjects):
             label = entry.get("name") if isinstance(entry, dict) else None
             label = label or "dataset subject %d" % (index + 1)
@@ -137,10 +198,19 @@ def gate_2_environment(statement):
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
                 continue
-            if not whole_number(entry["record_count"]):
-                faults.append("%s record_count must be a whole number" % label)
-            if not isinstance(entry["path"], str):
-                faults.append("%s path must be a string" % label)
+            if not stated(entry["name"]):
+                faults.append("dataset subject %d has no name" % (index + 1))
+            if not whole_number(entry["record_count"]) or entry["record_count"] < 0:
+                faults.append(
+                    "%s record_count must be a whole number of records, not %r"
+                    % (label, entry["record_count"])
+                )
+            if not usable_path(entry["path"]):
+                faults.append(
+                    "%s path %r is not a release-relative path; a reader resolving "
+                    "it against the release would land outside it"
+                    % (label, entry["path"])
+                )
             try:
                 digests.check(entry["digest"])
             except digests.DigestError as error:
@@ -170,11 +240,23 @@ def gate_2_environment(statement):
 def section_faults(section, body):
     """Gate 5 inside a section: a listed change names both of its sides."""
     faults = []
+    unknown = sorted(set(body) - set(RECORD_KEYS))
+    if unknown:
+        faults.append(
+            "deltas %s carries unknown keys: %s" % (section, ", ".join(unknown))
+        )
     for key, entries in body.items():
+        if key not in RECORD_KEYS:
+            continue
         if not isinstance(entries, list):
             faults.append("deltas %s.%s must be an array" % (section, key))
             continue
         if key not in BOTH_SIDED:
+            for index, entry in enumerate(entries):
+                if not stated(entry):
+                    faults.append(
+                        "deltas %s.%s[%d] identifies no record" % (section, key, index)
+                    )
             continue
         for index, entry in enumerate(entries):
             if not isinstance(entry, dict):
@@ -188,6 +270,13 @@ def section_faults(section, body):
                     "deltas %s.%s[%d] names no %s"
                     % (section, key, index, " or ".join(absent))
                 )
+                continue
+            for side in ("baseline", "current"):
+                if not stated(entry[side]):
+                    faults.append(
+                        "deltas %s.%s[%d] %s identifies no record"
+                        % (section, key, index, side)
+                    )
     return faults
 
 
@@ -236,6 +325,13 @@ def gate_5_deltas(statement):
             continue
         faults.extend(section_faults(section, deltas[section]))
 
+    # The current side is this release, whether or not there is a baseline. The
+    # null-baseline branch used to return before reaching this, so a first release
+    # could name a current side with no name and no digest and still verify.
+    check_side(deltas.get("current"), "current", faults)
+    if not faults and not statement.covers(deltas["current"]["digest"]):
+        faults.append("delta current side is not a subject of this statement")
+
     if deltas.get("baseline") is None:
         reason = deltas.get("reason")
         if not isinstance(reason, str) or not reason.strip():
@@ -246,15 +342,22 @@ def gate_5_deltas(statement):
             )
         if faults:
             return Gate(5, "deltas", False, "; ".join(faults))
-        return Gate(5, "deltas", True, "no baseline: %s" % deltas["reason"].strip())
+        return Gate(
+            5,
+            "deltas",
+            True,
+            "%s, no baseline: %s"
+            % (deltas["current"]["name"], deltas["reason"].strip()),
+        )
 
     check_side(deltas.get("baseline"), "baseline", faults)
-    check_side(deltas.get("current"), "current", faults)
-    if not faults and not statement.covers(deltas["current"]["digest"]):
-        # The current side is meant to be this release. Left unchecked, a
-        # statement could compare two releases it does not cover and present the
-        # result as its own history.
-        faults.append("delta current side is not a subject of this statement")
+    if not faults and deltas["baseline"]["digest"] == deltas["current"]["digest"]:
+        # A release compared against itself reports no differences and means
+        # nothing. Left unchecked it reads as a release that changed nothing.
+        faults.append(
+            "delta baseline and current are the same release; a comparison against "
+            "itself records nothing"
+        )
     if faults:
         return Gate(5, "deltas", False, "; ".join(faults))
 
@@ -303,8 +406,8 @@ def gate_coverage(statement):
     if faults:
         return Gate(None, "coverage", False, "; ".join(faults))
 
-    if not isinstance(coverage["dimension"], str):
-        faults.append("coverage dimension must be a string")
+    if not isinstance(coverage["dimension"], str) or not coverage["dimension"].strip():
+        faults.append("coverage dimension must name something")
     for field in ("start", "end"):
         if not whole_number(coverage[field]):
             faults.append("coverage %s must be a whole number" % field)
@@ -327,6 +430,11 @@ def gate_coverage(statement):
             for field in ("start", "end"):
                 if gap.get(field) == 0 and field in absent:
                     absent = [f for f in absent if f != field]
+            # `missing` reads "" as absent but not `"   "` or `1.5`. The reason is
+            # the record, so neither whitespace nor a number is one, the same way
+            # gate 3 treats a claim reason.
+            if "reason" not in absent and not stated(gap.get("reason")):
+                absent = absent + ["reason"]
             unknown = sorted(set(gap) - GAP_FIELDS)
             if unknown:
                 faults.append("%s carries unknown fields: %s" % (label, ", ".join(unknown)))
@@ -416,20 +524,25 @@ def gate_inputs(statement):
                 "records nothing about what was read" % label
             )
             continue
-        if disposition not in DISPOSITIONS:
+        if disposition == "passed":
             faults.append(
-                "%s has disposition %r, outside %s"
-                % (label, disposition, ", ".join(DISPOSITIONS))
+                "%s is passed with no digest; an input that was read has one, and "
+                "passed without it records nothing about what was read" % label
             )
             continue
-        if disposition in NEEDS_REASON:
-            reason = entry.get("reason")
-            if not isinstance(reason, str) or not reason.strip():
-                faults.append(
-                    "%s is %s with no reason; the reason is the record"
-                    % (label, disposition)
-                )
-                continue
+        if disposition not in INPUT_DISPOSITIONS:
+            faults.append(
+                "%s has disposition %r, outside %s"
+                % (label, disposition, ", ".join(INPUT_DISPOSITIONS))
+            )
+            continue
+        reason = entry.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            faults.append(
+                "%s is %s with no reason; the reason is the record"
+                % (label, disposition)
+            )
+            continue
         absent += 1
 
     if faults:

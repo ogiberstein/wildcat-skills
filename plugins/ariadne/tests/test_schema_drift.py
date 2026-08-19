@@ -181,6 +181,19 @@ class DatasetSchemaDriftTests(unittest.TestCase):
                     records[section]["items"]["required"], ["baseline", "current"]
                 )
 
+    def test_the_released_file_constraints_match_the_gate(self):
+        """The gate refuses a negative count and a path that is absolute or carries
+        a .. segment. A schema that allowed either would send a producer straight
+        into a refusal here."""
+        props = self.properties["dataset_subjects"]["items"]["properties"]
+        self.assertEqual(props["record_count"]["minimum"], 0)
+        self.assertEqual(props["path"]["minLength"], 1)
+        self.assertFalse(dataset.usable_path("/etc/passwd"))
+        self.assertFalse(dataset.usable_path("../outside.jsonl"))
+        self.assertFalse(dataset.usable_path("by-pool/../../outside.jsonl"))
+        self.assertTrue(dataset.usable_path("events.jsonl"))
+        self.assertTrue(dataset.usable_path("by-pool/pool-a.jsonl"))
+
     def test_the_coverage_bounds_are_integers(self):
         """The module refuses a bound that is not a whole number, so a schema
         allowing a string would send a producer straight into a refusal here."""
@@ -212,7 +225,12 @@ class DatasetSchemaDriftTests(unittest.TestCase):
         self.assertEqual(sorted(commands), sorted(core_predicate.COMMAND_FIELDS))
         self.assertEqual(
             self.properties["inputs"]["items"]["properties"]["disposition"]["enum"],
-            list(core_predicate.DISPOSITIONS),
+            list(dataset.INPUT_DISPOSITIONS),
+        )
+        self.assertNotIn(
+            "passed",
+            self.properties["inputs"]["items"]["properties"]["disposition"]["enum"],
+            "an input that was read carries a digest, not a passed disposition",
         )
 
     def test_the_schema_is_committed_as_readable_json(self):
