@@ -340,6 +340,17 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
         self.rewrite(manifest)
         self.assertIn("whole number", self.refused())
 
+    def test_a_fifo_where_a_component_belongs_is_refused(self):
+        """It used to hang. `open` on a fifo blocks until something writes to it,
+        so a capture over a directory holding one produced no output, no error and
+        no timeout. `digests.tree_listing` had refused this since the first build
+        and its comment names the same hazard, but both captures call
+        `digests.of_file` directly and it had no such guard."""
+        target = os.path.join(self.fixture, "plan.json")
+        os.unlink(target)
+        os.mkfifo(target)
+        self.assertIn("not a regular file", self.refused())
+
     def test_a_symlinked_component_is_refused(self):
         target = os.path.join(self.fixture, "plan.json")
         moved = os.path.join(self.root, "plan.json")

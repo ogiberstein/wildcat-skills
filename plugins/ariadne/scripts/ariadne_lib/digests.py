@@ -104,6 +104,15 @@ def of_file(path, algorithm=DEFAULT_ALGORITHM):
         raise DigestError("unsupported algorithm %r" % algorithm)
     if os.path.islink(path):
         raise DigestError("%s is a symlink; digest the target explicitly" % path)
+    if not os.path.isfile(path):
+        # A fifo opened for reading blocks until somebody writes to it, so a
+        # hostile tree could hang a caller indefinitely with no output and no
+        # timeout. `tree_listing` has refused this since the first build and its
+        # comment names the same hazard; `of_file` did not, and both capture paths
+        # call it directly rather than going through a tree digest.
+        raise DigestError(
+            "%s is not a regular file; a digest covers regular files only" % path
+        )
     digest = ALGORITHMS[algorithm][0]()
     try:
         with open(path, "rb") as handle:

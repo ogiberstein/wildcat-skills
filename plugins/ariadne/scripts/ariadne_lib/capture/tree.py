@@ -108,6 +108,17 @@ def files(root, kind="release"):
                     "%s is a symlink; a digest over its target would describe "
                     "something the %s does not contain" % (relative, kind)
                 )
+            if not os.path.isfile(absolute):
+                # Refused at the walk as well as inside `digests.of_file`, so the
+                # walk stops before anything opens it and the message names the
+                # tree rather than one path. A fifo opened for reading blocks
+                # until somebody writes to it, which hangs a capture with no
+                # output and no timeout.
+                raise CaptureError(
+                    "%s is not a regular file; a %s holds files, and reading a "
+                    "fifo would block until something wrote to it"
+                    % (relative, kind)
+                )
             inside(root, absolute, "%s file" % kind, kind)
             found.append((relative, absolute))
             if len(found) > MAX_FILES:
