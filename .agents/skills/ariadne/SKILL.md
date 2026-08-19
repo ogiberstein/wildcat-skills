@@ -12,7 +12,7 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 
 **Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
 
-**Current frontier.** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+**Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 Read [the Ariadne runtime contract](../../../plugins/ariadne/AGENTS.md). Use its

@@ -3,9 +3,10 @@
 The registry is the reason the core can stay artefact-neutral. A predicate
 module owns its own field table and its own checks, and the core knows only how
 to find it and what to ask of it. Adding a predicate costs a module and a
-registration, which is what the dataset predicate cost.
+registration, which is what the dataset and state-fixture predicates each cost.
 
-Two are registered: the Solidity release and the dataset. `ariadne predicates`
+Three are registered: the Solidity release, the dataset and the state fixture.
+`ariadne predicates`
 lists whatever is there rather than a table somebody maintains. An unknown
 predicate type is reported rather than raised: a verifier that meets a type it
 does not know can still check the core gates, and should say which part it could

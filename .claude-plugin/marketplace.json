@@ -184,7 +184,7 @@
       "displayName": "Ariadne",
       "source": "./plugins/ariadne",
       "description": "Release evidence statements binding artefact digests to the record behind them.",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": {
         "name": "Wildcat Labs",
         "url": "https://wildcat.finance"
