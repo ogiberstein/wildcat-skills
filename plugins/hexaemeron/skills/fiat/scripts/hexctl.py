@@ -77,6 +77,41 @@ DEFAULT_CONFIG = {
     "solidity": "auto",
 }
 
+LINTS = ("phylax", "ephoros", "hypomnema")
+"""The three bundled lints a non-Solidity audit round runs.
+
+Named here so the flags, the refusal message and the stored round all read from one
+list. `references/audit-loop.md` is the contract they satisfy.
+"""
+
+SOLIDITY_MODES = ("auto", True, False)
+"""What `config solidity` accepts.
+
+`auto` reads the answer off the `security_suite` receipt, which is where the run
+already recorded whether the Pashov pair applies. `true` and `false` force it, for a
+repository where the receipt does not tell the truth about the diff.
+"""
+
+
+def solidity_mode(value) -> bool:
+    """True when a value is one of the three modes.
+
+    Checked by identity rather than by `in SOLIDITY_MODES`, because Python makes
+    `1 == True` and `0 == False`, so membership would accept an integer as a mode and
+    store it. `config set solidity 1` is a caller error, not a way to spell `true`.
+    """
+    if isinstance(value, bool):
+        return True
+    return value == "auto"
+
+WAIVER_PREFIX = "waived"
+"""How a `security_suite` receipt says the Pashov pair did not run.
+
+One rule, so the classifier never guesses: the receipt is a waiver when it is a string
+whose first word is this, ignoring case and surrounding space. Preflight writes
+`"waived: <reason>"`, and a reason is the point of the string.
+"""
+
 def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -88,6 +123,63 @@ def die(msg: str, code: int = 2) -> None:
 
 def canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+
+def as_dict(value) -> dict:
+    """A mapping, or an empty one.
+
+    `d.get(key, {})` returns the stored value when the key exists, so a state holding
+    `"integrate": null` defeats the default and the next `.get` raises. `load_state`
+    validates no shape, so this is the guard every chained read here needs.
+    """
+    return value if isinstance(value, dict) else {}
+
+
+def is_waiver(value) -> bool:
+    """True when a `security_suite` receipt says the Pashov pair did not run.
+
+    The first word has to be the prefix, not merely start with it: `startswith` alone
+    read `waivedX` and `waived-ish` as waivers, which the rule beside `WAIVER_PREFIX`
+    does not say. Both currently land on the same answer by another route, so the
+    mismatch was invisible; it would stop being invisible the moment a message
+    explained which branch it took.
+    """
+    if not isinstance(value, str):
+        return False
+    first = value.strip().lower().replace(":", " ").split()
+    return bool(first) and first[0] == WAIVER_PREFIX
+
+
+def solidity_round(state: dict) -> bool:
+    """Whether this run's audit rounds are Solidity rounds.
+
+    False means the round's mechanical part is the three bundled lints, so
+    `audit-round` requires their exit statuses.
+
+    Under `auto` the answer comes from the `security_suite` receipt: a waiver means no
+    Solidity, a non-empty list of suite ids means Solidity. Anything else -- an empty
+    list, a number, an object -- is not a suite that ran, so it is treated as a
+    non-Solidity round and the lints are required. Demanding more evidence is the safe
+    direction when the receipt cannot be read.
+
+    A missing receipt reads as Solidity, because nothing can be inferred from it.
+    `cmd_audit_round` refuses a missing receipt before ever asking this.
+
+    A state file whose `config` or `receipts` is not an object is read as though the
+    key were absent rather than allowed to raise. `load_state` validates no shape, so a
+    hand-edited or half-written state reaches this function, and a traceback out of the
+    controller is a worse answer than the one every other fault here gets.
+    """
+    mode = as_dict(state.get("config")).get("solidity", "auto")
+    if mode is True or mode is False:
+        return mode
+    receipts = as_dict(state.get("receipts"))
+    if "security_suite" not in receipts:
+        return True
+    suite = receipts["security_suite"]
+    if is_waiver(suite):
+        return False
+    return isinstance(suite, list) and bool(suite)
 
 
 # ------------------------------------------------------------------ branches
@@ -478,7 +570,13 @@ def cmd_config(args) -> None:
     leaf = parts[-1]
     if not isinstance(node, dict) or leaf not in node:
         die(f"config path not found: {args.path}")
-    node[leaf] = parse_value(args.value)
+    value = parse_value(args.value)
+    if args.path == "solidity" and not solidity_mode(value):
+        die(
+            "config solidity takes %s; got %r"
+            % (", ".join(json.dumps(m) for m in SOLIDITY_MODES), value)
+        )
+    node[leaf] = value
     commit(args.dir, state, "config-set", {"path": args.path, "value": node[leaf]})
     print(f"set {args.path}")
 
@@ -599,18 +697,54 @@ def cmd_audit_round(args) -> None:
         )
     if args.findings is None or args.findings < 0:
         die("--findings must be a non-negative integer")
+
+    exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
+    for lint, value in exits.items():
+        if value is not None and value < 0:
+            die(f"--{lint}-exit must be a non-negative exit status, got {value}")
+
+    if not solidity_round(state):
+        absent = [f"--{lint}-exit" for lint in LINTS if exits[lint] is None]
+        if absent:
+            one = len(absent) == 1
+            die(
+                "this round runs the three bundled lints, so it still needs "
+                + ", ".join(absent)
+                + "; a round recorded without "
+                + ("that" if one else "them")
+                + " cannot say whether "
+                + ("it ran" if one else "they ran")
+                + " (see references/audit-loop.md; `config set solidity true` if this "
+                "run really is a Solidity one)"
+            )
+
+    recorded = {lint: value for lint, value in exits.items() if value is not None}
+    dirty = sorted(lint for lint, value in recorded.items() if value)
+    if dirty and args.findings == 0:
+        die(
+            "round reports 0 findings while "
+            + ", ".join(f"{lint} exited {recorded[lint]}" for lint in dirty)
+            + "; a non-zero lint exit is a finding like any other"
+        )
+
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
         "log": args.log,
         "fixes_commit": args.fixes_commit,
+        "lints": recorded or None,
         "ts": now(),
     }
     rounds.append(entry)
     commit(args.dir, state, "audit-round", {"step": step["n"], **entry})
+    tail = ""
+    if recorded:
+        tail = "; lints " + ", ".join(
+            f"{lint} {recorded[lint]}" for lint in LINTS if lint in recorded
+        )
     print(
         f"step {step['n']} audit round {entry['round']} recorded "
-        f"({args.findings} finding(s))"
+        f"({args.findings} finding(s)){tail}"
     )
 
 
@@ -762,7 +896,7 @@ def done_push(args, state: dict) -> None:
 def _integrate_directive(state: dict) -> dict:
     """Merge the stack bottom up, then the run branch into the base once."""
     run_branch = run_branch_of(state)
-    merged = state.get("integrate", {}).get("merged", [])
+    merged = as_dict(state.get("integrate")).get("merged") or []
     for step in state["steps"]:
         if step["n"] in merged:
             continue
@@ -771,7 +905,7 @@ def _integrate_directive(state: dict) -> dict:
             "step": step["n"],
             "title": step["title"],
             "branch": step_branch_name(state, step),
-            "pr_url": step["receipts"].get("push", {}).get("pr_url"),
+            "pr_url": as_dict(step["receipts"].get("push")).get("pr_url"),
             "into": run_branch,
             "then": (
                 f"hexctl done merge-step --step {step['n']} "
@@ -933,8 +1067,10 @@ def _next_directive(state: dict) -> dict:
             }
         rounds = step["audit"]["rounds"]
         max_rounds = max_rounds_of(state)
+        lints_owed = not solidity_round(state)
+        owed = {"lints": [f"--{lint}-exit" for lint in LINTS]} if lints_owed else {}
         if not rounds:
-            return {**base, "do": "audit-round", "round": 1}
+            return {**base, "do": "audit-round", "round": 1, **owed}
         last = rounds[-1]
         if last["findings"] == 0:
             return {**base, "do": "close-audit", "rounds": len(rounds)}
@@ -950,6 +1086,7 @@ def _next_directive(state: dict) -> dict:
             "do": "audit-round",
             "round": len(rounds) + 1,
             "prior_findings": last["findings"],
+            **owed,
         }
     if step["phase"] == "issue":
         return {**base, "do": "implement", "legacy_issue_phase_skipped": True}
@@ -980,7 +1117,7 @@ def cmd_status(args) -> None:
     if phase in ("study", "runbook"):
         print(f"phase: {phase} (day {DAY[phase]})")
     elif phase == "integrate":
-        merged = len(state.get("integrate", {}).get("merged", []))
+        merged = len(as_dict(state.get("integrate")).get("merged") or [])
         print(
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
@@ -1059,7 +1196,7 @@ def verify_run(base_dir: str) -> int:
             "state.json was edited outside hexctl", 1
         )
     if state["phase"] == "integrate":
-        merged = state.get("integrate", {}).get("merged", [])
+        merged = as_dict(state.get("integrate")).get("merged") or []
         expected = [s["n"] for s in state["steps"][: len(merged)]]
         if merged != expected:
             die(
@@ -1173,6 +1310,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--findings", type=int, required=True)
     sp.add_argument("--log")
     sp.add_argument("--fixes-commit", dest="fixes_commit")
+    for lint in LINTS:
+        sp.add_argument(
+            f"--{lint}-exit",
+            dest=f"{lint}_exit",
+            type=int,
+            help=f"the exit status {lint} returned; 0 is clean",
+        )
     sp.set_defaults(fn=cmd_audit_round)
 
     sp = sub.add_parser("halt", help="stop the run with a reason")

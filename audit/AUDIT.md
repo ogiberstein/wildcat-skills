@@ -2114,3 +2114,236 @@ step branch was refused as well, which is why they are all still present.
 
 The integration pull request is #202, from the run branch into `main`, carrying the
 run-level description. It is open and waiting for a merge this session cannot perform.
+
+## Receipted lint rounds, step 1, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `solidity_round` raised out of the controller on a state whose `config` or `receipts` was not an object. `state.get("config", {})` returns `None` when the key exists holding null, so the default never applies and the next `.get` is an `AttributeError`. 356 of 676 state shapes produced a traceback rather than the named error every other fault in this file gets. `load_state` validates no shape at all, so a hand-edited or half-written state reaches this function. | fixed in this round |
+| S1-R1-02 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `is_waiver` used `startswith`, so it read `waivedX` and `waived-ish` as waivers, which is not the rule written beside `WAIVER_PREFIX`. Both spellings reach the same classification by the other branch, so the mismatch produced no wrong answer; it would produce one the moment a message explained which branch it took. The first word is now compared rather than the prefix. | fixed in this round |
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this run, so the suite waiver covers the
+Pashov pair.
+
+The classifier is a pure function of two values, so it was swept rather than probed.
+81 combinations of the three config modes against 27 receipt values were checked
+against the rule its docstring states, and every answer matched. That sweep is what
+showed S1-R1-02 to be invisible rather than absent: a mis-parsed waiver and an
+unreadable receipt both land on non-Solidity, so the wrong reasoning gave the right
+answer. 676 malformed state shapes were then run through it, which is what found
+S1-R1-01.
+
+Both suites pass on the fixed tree: 24 repository tests and 192 of 193 Hexaemeron
+tests, 20 new in this step. The single error is
+`test_elenchus_checker.ForgeReports`, which needs `forge`. The proxy refuses both
+`foundry.paradigm.xyz` and GitHub releases, so it cannot be installed here, and it
+errors identically on clean `origin/main`. Node was raised to v26.6.0 so the sibling
+fixture passes; without that the baseline would be 191 of 193.
+
+Leads not pursued: `load_state` still validates nothing, so every other reader of the
+state file has the same exposure this round fixed in one function. Validating the
+whole state shape on load is a larger change than this step, and it would belong to a
+run about the controller's own robustness rather than to this one.
+
+## Receipted lint rounds, step 1, round 2 -- 2026-08-19
+
+Round 1 found a chained read defeated by a stored null and fixed it in one function.
+This round asked whether that fix generalised. It did not.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The same shape sat at four more sites: three reads of `state["integrate"]["merged"]` at lines 854, 1072 and 1151, and one of `step["receipts"]["push"]["pr_url"]` at line 863. Each raises `AttributeError` out of the controller when the key exists holding null. Both spellings were confirmed to raise before being touched. `as_dict()` is now the single guard at all six sites, and behaviour on well-formed state is unchanged. | fixed in this round |
+
+The guard for this one asserts the pattern against the source rather than against
+behaviour, because the defect is a spelling that four separate call sites shared.
+Injecting one of the old reads makes the test fail and print the offending text.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+One process note, recorded because it cost work rather than because it changed the
+code. The regression probe for that test was first run by editing the working file and
+undoing it with `git checkout --`, which reverted to the last commit and discarded the
+round's uncommitted fix along with the injected regression. The suite reported 187 of
+195 and the loss was visible immediately. The change was redone, committed as a safety
+point, and the probe re-run against a copy of the file instead. Nothing reached a
+branch in the broken state.
+
+Both suites pass: 24 repository tests and 194 of 195 Hexaemeron tests, 22 new in this
+step. The single error is `ForgeReports`, unchanged and environmental.
+
+Leads not pursued: the `load_state` lead from round 1 stands. `as_dict` guards the
+reads this file makes; it does not make `load_state` validate the state it returns.
+
+## Receipted lint rounds, step 1, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Every sweep from rounds 1 and 2 was re-run against the fixed tree and came
+back clean: 676 malformed state shapes with nothing raised, 42 mode-and-receipt pairs
+all returning a boolean, and the source-level assertion that no chained read uses a
+container default.
+
+Two checks were new to this round.
+
+**Backward compatibility against real data rather than a fixture.** The state and
+ledger of the Ariadne run archived earlier today were copied to a scratch directory and
+read with the new controller. `status` reports its five shipped steps, `verify` passes
+48 ledger entries with the chain intact, `config get solidity` answers `"auto"`, and the
+classifier reads that run's waiver as a non-Solidity round. That run's state was written
+before any of this existed.
+
+**The command line rather than the function.** A fresh run defaults to `"auto"`,
+accepts `false`, and refuses `"maybe"` with a message naming the three modes.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`. Both
+suites pass: 24 repository tests and 194 of 195 Hexaemeron tests. The single error is
+`ForgeReports`, environmental and unchanged.
+
+Leads not pursued: the `load_state` lead stands from round 1.
+
+## Receipted lint rounds, step 2, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`.
+
+The new logic is a function of the round type, the findings count and three optional
+exits, so it was swept rather than probed. All 108 combinations were run through a fresh
+state via the command line -- two receipt kinds, findings of 0 and 1, and each of the
+three exits absent, 0 or 1 -- and every accept or refuse matched the rule the code
+documents. No combination differed.
+
+Three properties were checked beyond the sweep.
+
+**No reader assumes the new field.** Every existing read of a round touches `findings`
+or `fixes_commit`. Nothing indexes `lints`, so a round recorded before this step has
+nothing to trip over, and a test pops the key back out to hold that.
+
+**The override leaves a trace.** `config set solidity true` lifts the requirement, which
+is the point of having it, and a run that uses it to dodge the lints records
+`{"path": "solidity", "value": true}` in the hash-chained ledger. `verify` passes on that
+ledger, so the dodge is auditable rather than invisible. This is the honest limit of the
+change: `hexctl` records what the caller reports, as the study's non-goals say, and
+cannot know whether a lint really ran. What it can do, and now does, is refuse a round
+that does not even claim.
+
+**The refusal names only what is missing.** Passing two of three names the third and not
+the two supplied, so the message tracks the actual gap.
+
+Both suites pass: 24 repository tests and 213 of 214 Hexaemeron tests, 19 new in this
+step. The single error is `ForgeReports`, environmental and unchanged.
+
+Leads not pursued: the `load_state` lead stands from step 1 round 1. `verify` validates
+the ledger chain and the state's phase consistency, not the shape of a round, so a
+hand-edited round with a nonsense `lints` value would pass it.
+
+## Receipted lint rounds, step 2, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding, and one guard added for a property nothing asserted.
+
+`done_audit` calls a close clean when the last round found nothing, and the consistency
+rule from this step forbids a zero findings count beside a non-zero lint exit. Together
+those mean a clean close cannot sit on a failing lint. That is the property the whole
+change buys, and it was emergent rather than tested: it holds because two separate rules
+happen to compose, so a later edit to either could take it away without any test
+noticing.
+
+The new test walks the sequence rather than asserting the composition abstractly: a
+failing lint beside zero findings is refused, the same failure recorded with a findings
+count is accepted, closing is then blocked while that count stands, and only a genuinely
+clean round closes with `clean` true and every recorded exit zero.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and
+214 of 215 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the two from earlier rounds stand. `load_state` validates nothing, and
+`verify` checks the ledger chain and phase consistency rather than the shape of a round,
+so a hand-edited round carrying a nonsense `lints` value would pass it.
+
+## Receipted lint rounds, step 3, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | `plugins/hexaemeron/skills/fiat/references/audit-loop.md` | Step 4 of the generic "One round" list still showed the bare command. It is complete for a Solidity round, and a reader working a non-Solidity round would have taken it as complete for theirs, then met the refusal. The step now says which round it is complete for and points at the section that adds the rest. | fixed in this round |
+
+The step reconciles prose, so the review looked for the failure a prose test cannot see: a
+surface that still describes the old contract. Every mention of `audit-round` across the
+repository's Markdown was read. One was stale and is fixed; the rest are the new receipt
+table, the new reference section, the ledger row, this run's committed study and runbook,
+a Solidity-agnostic `...` elision in the plugin README, an unrelated historical audit
+entry, and Elenchus's SKILL.md naming the phase it serves.
+
+The study's line about 21 call sites is left as it was: it describes the tree the run
+started from, which is what a study's prior-art section is for.
+
+The ledger was checked against the contract rather than only by the suite. The digest
+`6e406e13adce5276ded6bfe7317c3229f069312b8a9de3a4a0c5c78c89ec9ca3` recomputes from
+`open|receipted-lint-rounds|<current frontier>|<next Fiat job>` with its trailing newline,
+the row sits on the evolution axis moving 3.4.1 to 4.4.1, and the frontmatter version
+agrees with it.
+
+Hexaemeron's plugin-level frontier was deliberately not touched. It concerns a published
+end-to-end Solidity delivery, this run is not one, and Fiat's SKILL.md warns against
+substituting one frontier for the other. The plugin's context blocks therefore need no
+change, which is why this step edits no landing README.
+
+The demonstration ran end to end against the checkout controller: `next` naming the three
+flags, the refusal without them, acceptance with them, the three exits on the round in the
+state file, a clean close, and `verify` reporting the chain intact.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and
+214 of 215 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the `load_state` lead is now this skill's held frontier rather than a
+lead, so it leaves this list. `verify` still checks the ledger chain and phase consistency
+rather than the shape of a round.
+
+## Receipted lint rounds, step 3, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Round 1's fix was re-read in place rather than trusted: the bare form at
+`audit-loop.md:40` is still there, which is right, and the sentence after it now says the
+form is complete for a Solidity round and points at the section that adds the rest. Every
+other `audit-round` form in the repository's Markdown is either the new receipt table row,
+the new reference section, or this run's committed study and runbook.
+
+The demonstration was re-run against the committed tree: the round is refused without the
+three results, accepted with them, and `verify` reports the chain intact.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and
+214 of 215 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: `verify` checks the ledger chain and phase consistency rather than the
+shape of a round.
+
+## Receipted lint rounds, integrate -- 2026-08-19
+
+Not an audit round. A record of what the integrate phase could and could not do.
+
+The stack is consolidated: all three step branches merged into
+`fiat/receipted-lint-results-as-structured-fields-on-h` in order, one merge commit each,
+receipted from the real commit each time. The run branch already contained `main`, so no
+base merge and no conflict this time.
+
+The merge into `main` is refused, as it was for the Ariadne run. The pull request merge
+API returns HTTP 403, "Merging into a protected base branch is not permitted for this
+session type", and a direct push to `main` is rejected. Integration pull request #206 is
+open from the run branch into `main`, `mergeable_state` clean, awaiting a human merge.
+
+CI on the head is green: CodeQL and the four Analyze jobs. Worth recording that **no
+workflow runs the Hexaemeron suite**. The repository has three workflows, and `lazarus.yml`
+and `pandects.yml` are path-filtered to their own plugins, so all 39 tests added by this
+run are covered by local evidence only. The same was true of the Ariadne run's 439 tests.
+
+Both suites pass on the consolidated branch: 24 repository tests and 214 of 215 Hexaemeron
+tests, the single error being `ForgeReports`.
