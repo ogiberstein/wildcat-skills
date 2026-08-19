@@ -39,6 +39,40 @@ def slot(byte="00"):
     return "0x" + byte * 32
 
 
+def digest(byte="33"):
+    return byte * 32
+
+
+def sample_release():
+    """A well-formed release document, for the schema tests to damage.
+
+    The counts are the ones the shipped Goldfinch fixture verifies to, so a
+    reader comparing this against the example is not comparing invented numbers
+    against real ones.
+    """
+    return {
+        "schema_version": 1,
+        "tool_version": "0.1.0",
+        "fixture": {"path": "fixture", "fixture_digest": digest("44")},
+        "statement": {
+            "path": "statement.json",
+            "sha256": digest("55"),
+            "predicate_type": "https://ariadne.wildcat.finance/state-fixture/v1",
+        },
+        "verified": {
+            "block_hash": hash32("41"),
+            "evidence_counts": {
+                "proof_backed": 2,
+                "header_bound": 1,
+                "recorded_rpc": 4,
+            },
+            "canonical_chain_claim": False,
+        },
+        "binding": {"checks": ["predicate-type", "block-hash", "evidence-counts"]},
+        "release_digest": digest("66"),
+    }
+
+
 def sample_plan():
     return {
         "schema_version": 1,
