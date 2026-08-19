@@ -10,7 +10,7 @@ description: >-
   it to diagnose a failure that has already happened, which belongs to
   elenchus.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Phylax
@@ -266,25 +266,43 @@ what could not be established.
 
 ## The mechanical subset
 
-Four of these rules are settled by a parser rather than by reading. Run the
+Seven of these rules are settled by a parser rather than by reading. Run the
 lint over the paths a step touched, and require exit 0.
 
 ```bash
 python3 "$PLUGIN_ROOT/skills/phylax/scripts/phylax.py" src tests
 ```
 
-It reports a shell invocation, a subprocess command passed as a string rather
-than an argument list, a requirement with no exact pin, and a credential in
-source or handed to something that writes output. It covers Python and
-requirements files, and says nothing about the TypeScript surface.
+For Python and requirements files it reports a shell invocation, a subprocess
+command passed as a string rather than an argument list, a requirement with no
+exact pin, and a credential in source or handed to something that writes
+output.
 
-Deliberate exceptions state a reason: `# phylax: allow <why>` on the line or
-the one above it. A bare pragma with no reason does not suppress anything. Test
-material shaped like a credential is the usual honest case, and a lint with no
-pragma to answer it is a lint people learn to bypass.
+For tracked `.ts` and `.tsx` source it reports three source-local cases. A
+`rehype-raw` binding in a rendered plugin array needs a later
+`rehype-sanitize` binding, and a raw-named `dangerouslySetInnerHTML` value needs
+a sanitiser imported from `sanitize-html`, `dompurify` or
+`isomorphic-dompurify`. A `sessionToken`, `authToken`, `accessToken`, `jwt` or
+`bearer` value cannot reach Web Storage or an unfiltered `persistReducer`. A
+visibly absolute URL built from a runtime host cannot reach global `fetch`
+until a same-scope named allowlist guard dominates it. Relative, same-origin,
+fixed-host and source-opaque `fetch(url)` calls stay outside that claim.
+
+The TypeScript recognisers use an attributed copy of Horos's lexer inside
+Hexaemeron. They never import a separately installed Horos plugin, invoke Node,
+load the target's dependencies or execute inspected source. A lexical construct
+that cannot be terminated reports `P000`. The lint reads at most 1 MiB from
+each TypeScript file and reports `P000` when that limit is exceeded, bounding
+the lexer work before it accepts untrusted source.
+
+Deliberate exceptions state a reason: `# phylax: allow <why>` in Python or
+`// phylax: allow <why>` in TypeScript, on the line or the one above it. A bare
+pragma with no reason does not suppress anything. Test material shaped like a
+credential is the usual honest case, and a lint with no pragma to answer it is
+a lint people learn to bypass.
 
 Everything else in this skill stays judgement, and a clean exit says only that
-these four found nothing.
+these seven found nothing.
 
 ## Rationalisations
 

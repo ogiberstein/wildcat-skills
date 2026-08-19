@@ -8,6 +8,9 @@ reading intent. Everything else in SKILL.md stays a judgement.
   P002  a subprocess command passed as a string rather than an argument list
   P003  a requirement with no exact pin
   P004  a credential in source, or handed to something that writes output
+  P005  raw HTML reaches a renderer without a later trusted sanitiser
+  P006  a session credential reaches persisted browser storage
+  P007  a runtime-selected absolute fetch host has no prior allowlist check
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 """
@@ -20,6 +23,12 @@ import json
 import re
 import sys
 from pathlib import Path
+
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+if str(PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_ROOT))
+
+from lib.typescript_lexer import lex  # noqa: E402
 
 RUNNERS = {"run", "call", "check_call", "check_output", "Popen"}
 WRITERS = {"print", "debug", "info", "warning", "warn", "error", "critical", "exception"}
@@ -35,7 +44,18 @@ PIN = re.compile(r"(==|@(?:git\+)?[0-9a-f]{40})")
 SKIP_REQ = re.compile(r"^\s*(?:#|-r\s|--|$)")
 
 
-ALLOW = re.compile(r"#\s*phylax:\s*allow\s+(?P<reason>\S.*)$")
+ALLOW = re.compile(r"(?:#|//)\s*phylax:\s*allow\s+(?P<reason>\S.*)$")
+
+IDENTIFIER = r"[A-Za-z_$][\w$]*"
+SESSION_MARKER = re.compile(
+    rf"(?<![\w$])(?:session[_-]?token|auth[_-]?token|access[_-]?token|jwt|bearer)(?![\w$])",
+    re.IGNORECASE,
+)
+RAW_HTML_MARKER = re.compile(r"(?:raw|html|markdown|content)", re.IGNORECASE)
+TRUSTED_DIRECT_SANITISERS = frozenset(
+    {"sanitize-html", "dompurify", "isomorphic-dompurify"}
+)
+TYPESCRIPT_MAX_BYTES = 1024 * 1024
 
 
 def suppressed(text: str, line: int) -> bool:
@@ -177,15 +197,435 @@ def check_requirements(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def _line_of(text: str, offset: int) -> int:
+    return text.count("\n", 0, offset) + 1
+
+
+def _masked(text: str, spans, *, keep_strings: bool = False) -> str:
+    """Blank lexical non-code while preserving offsets and newlines."""
+    parts = []
+    for kind, start, end in spans:
+        segment = text[start:end]
+        if kind == "code" or (keep_strings and kind == "string"):
+            parts.append(segment)
+        else:
+            parts.append("".join(ch if ch == "\n" else " " for ch in segment))
+    return "".join(parts)
+
+
+def _matching(mask: str, opening: int) -> int | None:
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    if opening >= len(mask) or mask[opening] not in pairs:
+        return None
+    stack = [pairs[mask[opening]]]
+    for index in range(opening + 1, len(mask)):
+        current = mask[index]
+        if current in pairs:
+            stack.append(pairs[current])
+        elif stack and current == stack[-1]:
+            stack.pop()
+            if not stack:
+                return index
+    return None
+
+
+def _split_ranges(mask: str, start: int, end: int) -> list[tuple[int, int]]:
+    """Split a comma list at lexical depth zero, retaining source offsets."""
+    ranges = []
+    stack = []
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    item = start
+    for index in range(start, end):
+        current = mask[index]
+        if current in pairs:
+            stack.append(pairs[current])
+        elif stack and current == stack[-1]:
+            stack.pop()
+        elif current == "," and not stack:
+            ranges.append((item, index))
+            item = index + 1
+    ranges.append((item, end))
+    return ranges
+
+
+def _local_bindings(clause: str) -> set[str]:
+    """Return local names from one TypeScript import clause."""
+    bindings = set()
+    clause = re.sub(r"\btype\s+", "", clause).strip()
+    default = re.match(rf"({IDENTIFIER})(?:\s*,|$)", clause)
+    if default:
+        bindings.add(default.group(1))
+    namespace = re.search(rf"\*\s+as\s+({IDENTIFIER})", clause)
+    if namespace:
+        bindings.add(namespace.group(1))
+    named = re.search(r"\{(?P<body>[^}]*)\}", clause, re.DOTALL)
+    if named:
+        for item in named.group("body").split(","):
+            words = re.findall(IDENTIFIER, item)
+            if words:
+                bindings.add(words[-1])
+    return bindings
+
+
+def _imports(mask_with_strings: str) -> dict[str, set[str]]:
+    packages: dict[str, set[str]] = {}
+    pattern = re.compile(
+        r"\bimport\s+(?!['\"])(?P<clause>.{1,500}?)\s+from\s+"
+        r"(?P<quote>['\"])(?P<package>[^'\"]+)(?P=quote)",
+        re.DOTALL,
+    )
+    for match in pattern.finditer(mask_with_strings):
+        clause = match.group("clause")
+        if ";" in clause or len(clause.splitlines()) > 20:
+            continue
+        packages.setdefault(match.group("package"), set()).update(
+            _local_bindings(clause)
+        )
+    return packages
+
+
+def _trusted_sanitiser(expression: str, bindings: set[str]) -> bool:
+    for binding in bindings:
+        if re.search(rf"\b{re.escape(binding)}(?:\s*\.\s*sanitize)?\s*\(", expression):
+            return True
+    return False
+
+
+def _check_raw_html(path: Path, text: str, mask: str,
+                    imports: dict[str, set[str]]) -> list[Finding]:
+    findings = []
+    raw_bindings = imports.get("rehype-raw", set())
+    clean_bindings = imports.get("rehype-sanitize", set())
+
+    plugin_pattern = re.compile(r"\brehypePlugins\s*=\s*\{\s*\[")
+    for match in plugin_pattern.finditer(mask):
+        opening = mask.find("[", match.start(), match.end())
+        closing = _matching(mask, opening)
+        if closing is None:
+            continue
+        items = []
+        for start, end in _split_ranges(mask, opening + 1, closing):
+            item = mask[start:end].strip()
+            name = re.match(IDENTIFIER, item)
+            if name:
+                items.append((name.group(0), start + mask[start:end].find(name.group(0))))
+        for position, (name, offset) in enumerate(items):
+            if name in raw_bindings and not any(
+                later in clean_bindings for later, _ in items[position + 1:]
+            ):
+                findings.append(Finding(
+                    path, _line_of(text, offset), "P005",
+                    "raw HTML renderer has no later trusted sanitiser",
+                ))
+
+    direct_bindings = set()
+    for package in TRUSTED_DIRECT_SANITISERS:
+        direct_bindings.update(imports.get(package, set()))
+    dangerous = re.compile(r"\bdangerouslySetInnerHTML\s*=\s*\{\s*\{\s*__html\s*:")
+    for match in dangerous.finditer(mask):
+        outer = mask.find("{", match.start(), match.end())
+        inner = mask.find("{", outer + 1, match.end())
+        closing = _matching(mask, inner)
+        if closing is None:
+            continue
+        colon = mask.find(":", inner, match.end())
+        expression = mask[colon + 1:closing]
+        if RAW_HTML_MARKER.search(expression) and not _trusted_sanitiser(
+            expression, direct_bindings
+        ):
+            findings.append(Finding(
+                path, _line_of(text, match.start()), "P005",
+                "raw HTML value is not passed through a trusted sanitiser",
+            ))
+    return findings
+
+
+def _call_ranges(mask: str, binding: str):
+    pattern = re.compile(rf"(?<![\w$.]){re.escape(binding)}\s*\(")
+    for match in pattern.finditer(mask):
+        opening = mask.find("(", match.start(), match.end())
+        closing = _matching(mask, opening)
+        if closing is not None:
+            yield match.start(), opening, closing, _split_ranges(mask, opening + 1, closing)
+
+
+def _assigned_object(mask: str, name: str, before: int) -> tuple[int, int] | None:
+    pattern = re.compile(
+        rf"\b(?:const|let|var)\s+{re.escape(name)}(?:\s*:[^=\n]+)?\s*=\s*\{{"
+    )
+    matches = [match for match in pattern.finditer(mask, 0, before)]
+    if not matches:
+        return None
+    opening = mask.find("{", matches[-1].start(), matches[-1].end())
+    closing = _matching(mask, opening)
+    return (opening, closing + 1) if closing is not None else None
+
+
+def _config_text(text: str, mask: str, start: int, end: int,
+                 call_offset: int) -> tuple[str, str]:
+    expression_mask = mask[start:end].strip()
+    expression_text = text[start:end].strip()
+    identifier = re.fullmatch(IDENTIFIER, expression_mask)
+    if identifier:
+        assigned = _assigned_object(mask, identifier.group(0), call_offset)
+        if assigned:
+            left, right = assigned
+            return text[left:right], mask[left:right]
+    return expression_text, expression_mask
+
+
+def _array_property(text: str, mask: str, name: str) -> str | None:
+    match = re.search(rf"\b{re.escape(name)}\s*:\s*\[", mask)
+    if not match:
+        return None
+    opening = mask.find("[", match.start(), match.end())
+    closing = _matching(mask, opening)
+    return text[opening + 1:closing] if closing is not None else None
+
+
+def _persist_excludes_sensitive(text: str, mask: str, sensitive: set[str],
+                                source_mask: str) -> bool:
+    blacklist = _array_property(text, mask, "blacklist")
+    if blacklist is not None and any(
+        re.search(rf"(?<![\w$]){re.escape(field)}(?![\w$])", blacklist, re.I)
+        for field in sensitive
+    ):
+        return True
+    whitelist = _array_property(text, mask, "whitelist")
+    if whitelist is not None and not any(
+        re.search(rf"(?<![\w$]){re.escape(field)}(?![\w$])", whitelist, re.I)
+        for field in sensitive
+    ):
+        return True
+    transforms = _array_property(text, mask, "transforms")
+    if transforms is not None:
+        for transform in re.findall(IDENTIFIER, transforms):
+            declaration = re.search(
+                rf"\b(?:const|let|var)\s+{re.escape(transform)}\s*=\s*"
+                r"createTransform\s*\(",
+                source_mask,
+            )
+            if not declaration:
+                continue
+            opening = source_mask.find("(", declaration.start(), declaration.end())
+            closing = _matching(source_mask, opening)
+            if closing is None:
+                continue
+            body = source_mask[opening + 1:closing]
+            if "..." in body or "delete" in body:
+                if any(re.search(
+                    rf"(?<![\w$]){re.escape(field)}(?![\w$])", body, re.I
+                ) for field in sensitive):
+                    return True
+    return False
+
+
+def _sensitive_state_fields(mask: str) -> set[str]:
+    fields = set()
+    marker = r"(?:session[_-]?token|auth[_-]?token|access[_-]?token|jwt|bearer)"
+    for pattern in (
+        re.compile(rf"(?<![\w$])(?P<field>{marker})(?![\w$])\s*\??\s*:", re.I),
+        re.compile(rf"\b(?:state|initialState)\s*\.\s*(?P<field>{marker})(?![\w$])", re.I),
+    ):
+        fields.update(match.group("field") for match in pattern.finditer(mask))
+    return fields
+
+
+def _check_persistence(path: Path, text: str, mask: str,
+                       imports: dict[str, set[str]]) -> list[Finding]:
+    findings = []
+    storage = re.compile(
+        r"(?<![\w$])(?:window\s*\.\s*)?(?:localStorage|sessionStorage)"
+        r"\s*\.\s*setItem\s*\("
+    )
+    for match in storage.finditer(mask):
+        opening = mask.find("(", match.start(), match.end())
+        closing = _matching(mask, opening)
+        if closing is None:
+            continue
+        arguments = _split_ranges(mask, opening + 1, closing)
+        persisted = " ".join(text[start:end] for start, end in arguments[:2])
+        if SESSION_MARKER.search(persisted):
+            findings.append(Finding(
+                path, _line_of(text, match.start()), "P006",
+                "session credential written to persisted client storage",
+            ))
+
+    sensitive = _sensitive_state_fields(mask)
+    for binding in imports.get("redux-persist", set()):
+        if binding != "persistReducer" and "persist" not in binding.lower():
+            continue
+        for offset, _opening, _closing, arguments in _call_ranges(mask, binding):
+            if not sensitive or not arguments:
+                continue
+            start, end = arguments[0]
+            config_text, config_mask = _config_text(text, mask, start, end, offset)
+            if not _persist_excludes_sensitive(
+                config_text, config_mask, sensitive, mask
+            ):
+                findings.append(Finding(
+                    path, _line_of(text, offset), "P006",
+                    "session credential included in a persisted reducer",
+                ))
+    return findings
+
+
+def _statement_expression(text: str, mask: str, start: int) -> tuple[str, str]:
+    stack = []
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    end = start
+    while end < len(mask):
+        current = mask[end]
+        if current in pairs:
+            stack.append(pairs[current])
+        elif stack and current == stack[-1]:
+            stack.pop()
+        elif not stack and current in ";\n":
+            break
+        end += 1
+    return text[start:end].strip(), mask[start:end].strip()
+
+
+def _runtime_host(expression: str, expression_mask: str, text: str,
+                  mask: str, before: int) -> str | None:
+    template = re.search(
+        rf"https?://\$\{{\s*(?P<host>{IDENTIFIER})\s*\}}", expression, re.I
+    )
+    if template:
+        return template.group("host")
+    new_url = re.search(
+        rf"\bnew\s+URL\s*\([^,]+,\s*(?P<host>{IDENTIFIER})\s*\)",
+        expression_mask,
+        re.DOTALL,
+    )
+    if new_url and "window.location.origin" not in expression_mask:
+        return new_url.group("host")
+    reference = re.fullmatch(
+        rf"(?P<name>{IDENTIFIER})(?:\s*\.\s*toString\s*\(\s*\))?",
+        expression_mask.strip(),
+    )
+    if not reference:
+        return None
+    name = reference.group("name")
+    assignment = re.compile(
+        rf"\b(?:const|let|var)\s+{re.escape(name)}(?:\s*:[^=\n]+)?\s*=\s*"
+    )
+    matches = [match for match in assignment.finditer(mask, 0, before)]
+    if not matches:
+        return None
+    value_text, value_mask = _statement_expression(text, mask, matches[-1].end())
+    return _runtime_host(value_text, value_mask, text, mask, matches[-1].start())
+
+
+def _scope_start(mask: str, offset: int) -> int:
+    stack = []
+    for index, current in enumerate(mask[:offset]):
+        if current == "{":
+            stack.append(index)
+        elif current == "}" and stack:
+            stack.pop()
+    for opening in reversed(stack):
+        header = mask[max(0, opening - 300):opening]
+        if re.search(r"(?:\bfunction\b|=>)[^{}]*$", header, re.DOTALL):
+            return opening + 1
+    return (stack[-1] + 1) if stack else 0
+
+
+def _allowlist_guard(mask: str, start: int, end: int, host: str) -> bool:
+    prefix = mask[start:end]
+    membership = (
+        rf"(?P<list>{IDENTIFIER})\s*\.\s*(?:has|includes)\s*"
+        rf"\(\s*{re.escape(host)}\s*\)"
+    )
+    fail_closed = re.compile(
+        rf"\bif\s*\(\s*!\s*{membership}\s*\)\s*"
+        r"(?:\{[^{}]*\b(?:throw|return)\b[^{}]*\}|"
+        r"(?:throw|return)\b[^;\n]*(?:;|\n))",
+        re.IGNORECASE,
+    )
+    for match in fail_closed.finditer(prefix):
+        if _allowlist_name(match.group("list")):
+            return True
+
+    # A positive membership test dominates a fetch inside its still-open
+    # consequent block. Closed conditionals do not earn trust for later code.
+    stack = []
+    for index, current in enumerate(prefix):
+        if current == "{":
+            stack.append(index)
+        elif current == "}" and stack:
+            stack.pop()
+    positive = re.compile(rf"\bif\s*\(\s*{membership}\s*\)\s*$", re.I)
+    for opening in stack:
+        header = prefix[max(0, opening - 500):opening]
+        match = positive.search(header)
+        if match and _allowlist_name(match.group("list")):
+            return True
+    return False
+
+
+def _allowlist_name(name: str) -> bool:
+    return bool(
+        re.search(r"(?:^|_)(?:allow|allowed)(?:_|$)", name, re.I)
+        or re.search(r"(?:Allowlist|AllowedHosts|AllowedOrigins)$", name)
+    )
+
+
+def _check_fetch_hosts(path: Path, text: str, mask: str) -> list[Finding]:
+    findings = []
+    for offset, _opening, _closing, arguments in _call_ranges(mask, "fetch"):
+        if not arguments:
+            continue
+        start, end = arguments[0]
+        host = _runtime_host(text[start:end].strip(), mask[start:end].strip(),
+                             text, mask, offset)
+        if host and not _allowlist_guard(mask, _scope_start(mask, offset), offset, host):
+            findings.append(Finding(
+                path, _line_of(text, offset), "P007",
+                "runtime-selected absolute fetch host has no prior allowlist check",
+            ))
+    return findings
+
+
+def check_typescript(path: Path, text: str) -> list[Finding]:
+    spans, errors = lex(text)
+    if errors:
+        return [Finding(path, _line_of(text, offset), "P000", reason)
+                for offset, reason in errors]
+    mask = _masked(text, spans)
+    imports = _imports(_masked(text, spans, keep_strings=True))
+    return (
+        _check_raw_html(path, text, mask, imports)
+        + _check_persistence(path, text, mask, imports)
+        + _check_fetch_hosts(path, text, mask)
+    )
+
+
 def check(path: Path) -> list[Finding]:
     requirements = path.name.startswith("requirements") and path.suffix == ".txt"
-    if not requirements and path.suffix != ".py":
+    typescript = path.suffix in {".ts", ".tsx"}
+    if not requirements and path.suffix != ".py" and not typescript:
         return []
     try:
-        text = path.read_text(encoding="utf-8")
+        if typescript:
+            with path.open("rb") as source:
+                raw = source.read(TYPESCRIPT_MAX_BYTES + 1)
+            if len(raw) > TYPESCRIPT_MAX_BYTES:
+                return [Finding(
+                    path, 1, "P000",
+                    f"TypeScript source exceeds {TYPESCRIPT_MAX_BYTES}-byte analysis cap",
+                )]
+            text = raw.decode("utf-8")
+        else:
+            text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
         return [Finding(path, 1, "P000", f"unreadable: {err}")]
-    found = check_requirements(path, text) if requirements else check_python(path, text)
+    if requirements:
+        found = check_requirements(path, text)
+    elif typescript:
+        found = check_typescript(path, text)
+    else:
+        found = check_python(path, text)
     return [f for f in found if not suppressed(text, f.line)]
 
 
