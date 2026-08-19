@@ -2411,3 +2411,22 @@ Both suites pass: 24 repository tests and 257 of 258 Hexaemeron tests, 44 new in
 The single error is `ForgeReports`, environmental.
 
 Leads not pursued: the budget-count lead from round 1 stands.
+
+## Metron budget check, step 1, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The sweep was re-run against the fixed tree and widened to cover the shape round
+2 introduced: 185 mutations across every budget field, the whole document, the measurement
+files, and a stray value beside a measurements block. Nothing raised, no document was
+accepted that should not have been, and the only budget values still accepted are legitimate
+ones -- a short name, a short unit, limits of 0, 1 and 3.5, and a variance of 0. The three
+non-standard JSON constants are refused.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`. Both suites
+pass: 24 repository tests and 257 of 258 Hexaemeron tests. The single error is
+`ForgeReports`, environmental.
+
+Leads not pursued: the budget-count lead from round 1 stands. Nothing caps how many budgets
+a file may declare, which is slow rather than wrong.
