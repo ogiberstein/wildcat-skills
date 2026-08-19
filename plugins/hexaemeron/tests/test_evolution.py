@@ -174,6 +174,17 @@ class EvolutionContractTests(unittest.TestCase):
         self.assertIn("Kronos itself", kronos)
         self.assertIn("Never edit, implement, audit, or rewrite a target itself", kronos)
 
+    def test_kronos_phase_only_mode_keeps_the_loop_and_closes_the_market(self):
+        kronos = (SKILLS / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        phase_mode = kronos.split("## Phase-only mode", 1)[1].split("## Loop", 1)[0]
+        for skill in ("Protasis", "Phylax", "Ephoros", "Metron", "Elenchus", "Hypomnema"):
+            self.assertIn(skill, phase_mode)
+        self.assertIn("Do not discover, report, score, select or start", phase_mode)
+        self.assertIn("rescan all six phase ledgers from disk and no others", phase_mode)
+        self.assertIn("rerank from scratch and\nrepeat", phase_mode)
+        self.assertIn("stop only when none of the six\nphase ledgers remains eligible", phase_mode)
+        self.assertIn("iteration cap", phase_mode)
+
 
 if __name__ == "__main__":
     unittest.main()
