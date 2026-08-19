@@ -27,6 +27,24 @@ wanted.
 **Current frontier.** The ledger above is authoritative. Never substitute
 Hexaemeron's plugin-wide Solidity frontier for Fiat's own held target.
 
+## Phase skills
+
+Six sibling skills carry the loop's content contracts; Fiat runs the loop and
+defers to them rather than restating their rules. Each slots in as follows:
+
+| Skill | Slots into | Carries |
+| --- | --- | --- |
+| [protasis](../protasis/SKILL.md) | study and runbook phases | what a study must answer, what a runbook step must contain, when a topic decomposes first |
+| [phylax](../phylax/SKILL.md) | implement phase | the boundaries a step introduces and the control each needs |
+| [ephoros](../ephoros/SKILL.md) | implement phase | what the step must emit once it runs unattended |
+| [metron](../metron/SKILL.md) | implement phase | refusal of any speed-motivated change without a recorded before and after |
+| [elenchus](../elenchus/SKILL.md) | implement phase and audit rounds | any failure surfaced mid-step or mid-round, worked to its cause |
+| [hypomnema](../hypomnema/SKILL.md) | prose phase | what the step records and where it lives, before the masks run |
+
+Their lints run in every audit round, so meeting them during the step is
+cheaper than meeting them in the round. The phase notes below say how each one
+is applied.
+
 Let there be light.
 
 Drive the whole loop from durable controller state, never from conversation
