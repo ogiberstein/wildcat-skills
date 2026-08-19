@@ -2548,3 +2548,20 @@ of 301 Hexaemeron tests. The single error is `ForgeReports`, environmental.
 Leads not pursued: the plugin-version lead from round 1 stands. An installation will not see
 `scripts/metron.py` until Hexaemeron's version moves again, which is a release-cadence
 decision rather than a defect in this diff.
+
+## Metron budget check, integrate -- 2026-08-19
+
+Not an audit round. A record of what the integrate phase could and could not do.
+
+The stack is consolidated: three step branches merged into
+`fiat/a-metron-budget-file-and-the-check-that-holds-a` in order, receipted from the real
+commit each time. `main` had moved to 9ba4444 with the #207 version bump, which merged in with
+no conflict because this run does not touch those files.
+
+The merge into `main` is refused, as it was for the two runs before this. The pull request
+merge API returns HTTP 403, "Merging into a protected base branch is not permitted for this
+session type", and a direct push is rejected. Integration pull request #211 is open from the run
+branch into `main` awaiting a human merge.
+
+Both suites pass on the consolidated branch: 24 repository tests and 300 of 301 Hexaemeron
+tests, 113 new across the run. The single error is `ForgeReports`.
