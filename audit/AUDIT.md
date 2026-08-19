@@ -2347,3 +2347,86 @@ run are covered by local evidence only. The same was true of the Ariadne run's 4
 
 Both suites pass on the consolidated branch: 24 repository tests and 214 of 215 Hexaemeron
 tests, the single error being `ForgeReports`.
+
+## Metron budget check, step 1, round 1 -- 2026-08-19
+
+The first audit round in this marketplace recorded under the contract #206 added. The
+directive named the three flags before the round was taken, and the round carries their
+exits.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/metron/skills/../scripts/metron.py` | `NaN`, `Infinity` and `-Infinity` were accepted as a budget limit and as a measurement. `json.loads` permits all three by default as a Python extension rather than as JSON. The consequence is specific to a comparison tool: every comparison against `nan` is False, including `!=`, so a `nan` measurement does not fail a threshold -- it falls through whichever branch is tested last and is reported as whatever that branch says. An infinite limit means nothing ever exceeds it, so the budget passes forever. | fixed in this round |
+
+Fixed at both layers. `parse_constant` refuses the three tokens while reading, which names
+the token, and `number()` requires `math.isfinite`, which guards a value reaching the
+comparison any other way.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this run, so the suite waiver covers the
+Pashov pair.
+
+The loader is a function of one document, so it was swept rather than probed. Every required
+budget field was replaced in turn by each of sixteen values that satisfy a presence check
+but carry nothing usable, 80 combinations, and the whole document and the measurement files
+were mutated the same way: 178 mutations in total. Nothing raised. After the fix the only
+values still accepted are legitimate ones: a short name, a short unit, limits of 0, 1 and
+3.5, and a variance of 0.
+
+Two accepted shapes were examined and left alone. An empty `measurements` object loads,
+because a run that measured nothing is a real thing to record and step 2's `unmeasured`
+verdict is what refuses it. A negative measurement loads, because a delta can be negative
+and the comparison decides what it means rather than the loader.
+
+Both suites pass on the fixed tree: 24 repository tests and 252 of 253 Hexaemeron tests, 39
+new in this step. The single error is `test_elenchus_checker.ForgeReports`, which needs
+`forge`; the proxy refuses both `foundry.paradigm.xyz` and GitHub releases, and it errors
+identically on clean `main`.
+
+Leads not pursued: `MAX_BYTES` caps each file at 4 MiB and nothing caps the number of
+budgets a file may declare. A file with a million budgets would be read and reported rather
+than refused, which is slow rather than wrong.
+
+## Metron budget check, step 1, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/skills/metron/scripts/metron.py` | A run or baseline carrying both shapes at once -- a `measurements` block and measurement values at the top level -- silently kept the block and dropped the rest. `{"measurements": {"a": 1}, "b": 2}` loaded as `{"a": 1}` with nothing said about `b`. For this check that is worse than an ordinary dropped field: a measurement that never arrives cannot produce an `undeclared` verdict, so a typo'd name would vanish instead of failing. | fixed in this round |
+
+The ambiguous document is now refused and the message names every stray value. Metadata
+beside the block still loads, because a producer recording a note, a timestamp, a flag or a
+list of tags alongside its numbers is doing the right thing, and only a stray *number* is
+ambiguous.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`, `ephoros`,
+`hypomnema`.
+
+Three other file-handling probes behaved and are now guarded: a directory passed where a
+file belongs is refused rather than raising `IsADirectoryError`, a file past `MAX_BYTES` is
+refused, and a file that merely approaches the cap is still read. A symlink is followed,
+which is left as it is: these paths are named by whoever runs the check rather than supplied
+by a stranger, and refusing a symlinked budget file would break a legitimate layout.
+
+Both suites pass: 24 repository tests and 257 of 258 Hexaemeron tests, 44 new in this step.
+The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the budget-count lead from round 1 stands.
+
+## Metron budget check, step 1, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The sweep was re-run against the fixed tree and widened to cover the shape round
+2 introduced: 185 mutations across every budget field, the whole document, the measurement
+files, and a stray value beside a measurements block. Nothing raised, no document was
+accepted that should not have been, and the only budget values still accepted are legitimate
+ones -- a short name, a short unit, limits of 0, 1 and 3.5, and a variance of 0. The three
+non-standard JSON constants are refused.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`. Both suites
+pass: 24 repository tests and 257 of 258 Hexaemeron tests. The single error is
+`ForgeReports`, environmental.
+
+Leads not pursued: the budget-count lead from round 1 stands. Nothing caps how many budgets
+a file may declare, which is slow rather than wrong.
