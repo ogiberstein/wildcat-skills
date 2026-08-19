@@ -94,7 +94,7 @@ def usable_path(value):
     describes a file the release does not hold and points a careless reader out of
     the tree. The capture path never produces one; a statement written by hand can.
     """
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value.strip():
         return False
     if value.startswith("/") or value.startswith("\\\\"):
         return False
@@ -102,6 +102,16 @@ def usable_path(value):
         return False
     parts = value.replace("\\\\", "/").split("/")
     return ".." not in parts and "" not in parts[1:]
+
+
+def stated(value):
+    """True for a non-blank string.
+
+    Used for the fields whose only job is to let a reader find something again. A
+    field holding `"   "` or a number satisfies a presence check while naming
+    nothing, which is the shape this predicate spends its gates refusing.
+    """
+    return isinstance(value, str) and bool(value.strip())
 
 
 def whole_number(value):
@@ -134,15 +144,13 @@ def gate_2_environment(statement):
         faults.append("producer is missing %s" % ", ".join(absent))
     else:
         for field in ("tool", "tool_version"):
-            if not isinstance(producer.get(field), str):
-                faults.append("producer %s must be a string" % field)
+            if not stated(producer.get(field)):
+                faults.append("producer %s must name something" % field)
         command = producer.get("command")
-        if not isinstance(command, list) or not all(
-            isinstance(word, str) and word for word in command
-        ):
+        if not isinstance(command, list) or not all(stated(word) for word in command):
             faults.append(
-                "producer command must be an argv of non-empty strings; an argv "
-                "carrying an empty word is not what ran"
+                "producer command must be an argv of non-empty strings; a word that "
+                "is empty or only whitespace is not what ran"
             )
         try:
             digests.check(producer["parameters_digest"])
@@ -159,6 +167,10 @@ def gate_2_environment(statement):
             absent = missing(entry, INPUT_REQUIRED)
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
+                continue
+            for field in INPUT_REQUIRED:
+                if not stated(entry.get(field)):
+                    faults.append("%s %s must name something" % (label, field))
 
     subjects = predicate.get("dataset_subjects")
     if not isinstance(subjects, list) or not subjects:
@@ -186,6 +198,8 @@ def gate_2_environment(statement):
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
                 continue
+            if not stated(entry["name"]):
+                faults.append("dataset subject %d has no name" % (index + 1))
             if not whole_number(entry["record_count"]) or entry["record_count"] < 0:
                 faults.append(
                     "%s record_count must be a whole number of records, not %r"
@@ -238,6 +252,11 @@ def section_faults(section, body):
             faults.append("deltas %s.%s must be an array" % (section, key))
             continue
         if key not in BOTH_SIDED:
+            for index, entry in enumerate(entries):
+                if not stated(entry):
+                    faults.append(
+                        "deltas %s.%s[%d] identifies no record" % (section, key, index)
+                    )
             continue
         for index, entry in enumerate(entries):
             if not isinstance(entry, dict):
@@ -251,6 +270,13 @@ def section_faults(section, body):
                     "deltas %s.%s[%d] names no %s"
                     % (section, key, index, " or ".join(absent))
                 )
+                continue
+            for side in ("baseline", "current"):
+                if not stated(entry[side]):
+                    faults.append(
+                        "deltas %s.%s[%d] %s identifies no record"
+                        % (section, key, index, side)
+                    )
     return faults
 
 
@@ -404,10 +430,10 @@ def gate_coverage(statement):
             for field in ("start", "end"):
                 if gap.get(field) == 0 and field in absent:
                     absent = [f for f in absent if f != field]
-            reason = gap.get("reason")
-            # `missing` reads "" as absent but not "   ". The reason is the record,
-            # so whitespace is no reason, the same way gate 3 treats a claim.
-            if isinstance(reason, str) and not reason.strip() and "reason" not in absent:
+            # `missing` reads "" as absent but not `"   "` or `1.5`. The reason is
+            # the record, so neither whitespace nor a number is one, the same way
+            # gate 3 treats a claim reason.
+            if "reason" not in absent and not stated(gap.get("reason")):
                 absent = absent + ["reason"]
             unknown = sorted(set(gap) - GAP_FIELDS)
             if unknown:

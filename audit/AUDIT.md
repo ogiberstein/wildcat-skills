@@ -1926,3 +1926,46 @@ tests, 2 skipped.
 Leads not pursued: the byte-budget lead from round 1, the constraint-level drift
 lead from round 5, and S4-R6-06 in the Solidity release predicate, which stays open
 and out of scope with its patch recorded.
+
+## Ariadne dataset predicate, step 4, round 8 -- 2026-08-19
+
+The last round the controller allows. Method changed again: instead of hand-picked
+probes, every leaf in a fully populated valid predicate was replaced in turn by each
+of nine values that satisfy a presence check while carrying nothing. 369 mutations,
+and 101 of them still verified clean.
+
+Triage separated three groups. Four were values that must keep passing and were
+settled in round 5: a `record_count` of zero on either file, and a `coverage.start`
+of zero or negative. Twenty-two sit in the core gates and eight in a helper shared
+with the Solidity predicate, both recorded below as out of scope. The rest were
+defects.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R8-01 | medium | `.../predicates/dataset.py` | A released file `path` of whitespace passed. `usable_path` tested truthiness, so `"   "` was a path. | fixed in this round |
+| S4-R8-02 | medium | `.../predicates/dataset.py` | A gap `reason` that was not a string passed: `1.5`, `0` and `True` all satisfied the presence check. Round 7 fixed whitespace strings and did not generalise to the type. | fixed in this round |
+| S4-R8-03 | medium | `.../predicates/dataset.py` | Entries in `deltas.records.added` and `.removed`, and both sides of a `changed` entry, accepted any value at all: `None`, `{}`, `1.5`. A comparison listed records it did not identify, inside a block gate 5 reports as a recorded difference. | fixed in this round |
+| S4-R8-04 | low | `.../predicates/dataset.py` | `producer.tool` and `producer.tool_version` of whitespace passed. | fixed in this round |
+| S4-R8-05 | low | `.../predicates/dataset.py` | An input `name` or `locator` that was whitespace or a number passed. The locator is what lets a reader find the input again. | fixed in this round |
+| S4-R8-06 | low | `.../predicates/dataset.py` | A released file `name` of whitespace passed. | fixed in this round |
+| S4-R8-07 | low | `.../predicates/dataset.py` | An argv word of whitespace passed. Round 7 required non-empty and stopped there. | fixed in this round |
+| S4-R8-08 | low | `.../gates.py` | Core gates 3 and 6 accept a blank or non-string `name` on a claim or a command, and gate 6 accepts an argv word that is empty or whitespace. `core_predicate.label()` falls back to a positional name, so nothing breaks, but a recorded command cannot be re-run from an argv holding a blank word. | open, out of scope |
+| S4-R8-09 | low | `.../core_predicate.py` | `check_side` accepts a delta side `name` that is whitespace or a number, because it tests truthiness. The helper is shared with the Solidity release predicate, so tightening it changes what that predicate accepts. | open, out of scope |
+
+S4-R8-08 and S4-R8-09 are both left open on the same reasoning as S4-R6-06: this
+run's study puts the core gates and the Solidity predicate's behaviour under
+ask-first, and neither belongs to a run whose subject is a new predicate. The patch
+for S4-R8-09 is to give `core_predicate` the same non-blank-string helper this
+predicate now uses and call it from `check_side`; for S4-R8-08 it is the same helper
+applied to the `name` and `argv` checks in `gates.py`, each with a fixture.
+
+After the fixes the sweep was re-run: 34 mutations still verify clean, and every one
+is accounted for. Twenty-two core gates, eight the shared helper, four deliberate,
+and none unexplained.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. All 27 conformance fixtures behave. Both suites pass: 24
+repository tests and 463 ariadne tests, 2 skipped.
+
+Leads not pursued: S4-R6-06, S4-R8-08 and S4-R8-09 above, the byte-budget lead from
+round 1, and the constraint-level drift lead from round 5.

@@ -145,11 +145,74 @@ class GateTwoTests(unittest.TestCase):
                 self.assertIn("command", found.detail)
 
     def test_an_argv_carrying_an_empty_word_is_not_what_ran(self):
+        for word in ("", "   ", "\t"):
+            body = predicate()
+            body["producer"]["command"] = ["forge", word]
+            with self.subTest(word=repr(word)):
+                found = gate(2, body)
+                self.assertFalse(found.passed)
+                self.assertIn("argv of non-empty strings", found.detail)
+
+    def test_a_producer_tool_or_version_of_whitespace_names_nothing(self):
+        for field in ("tool", "tool_version"):
+            body = predicate()
+            body["producer"][field] = "   "
+            with self.subTest(field=field):
+                found = gate(2, body)
+                self.assertFalse(found.passed)
+                self.assertIn("must name something", found.detail)
+
+    def test_an_input_name_or_locator_that_names_nothing_fails(self):
+        for field in ("name", "locator"):
+            for value in ("   ", 1.5, True):
+                body = predicate()
+                body["inputs"][0][field] = value
+                with self.subTest(field=field, value=repr(value)):
+                    found = gate(2, body)
+                    self.assertFalse(found.passed)
+                    self.assertIn("must name something", found.detail)
+
+    def test_a_released_file_without_a_name_fails(self):
         body = predicate()
-        body["producer"]["command"] = ["forge", ""]
+        body["dataset_subjects"][0]["name"] = "   "
         found = gate(2, body)
         self.assertFalse(found.passed)
-        self.assertIn("argv of non-empty strings", found.detail)
+        self.assertIn("has no name", found.detail)
+
+    def test_a_path_of_whitespace_is_not_a_path(self):
+        body = predicate()
+        body["dataset_subjects"][0]["path"] = "   "
+        found = gate(2, body)
+        self.assertFalse(found.passed)
+        self.assertIn("release-relative", found.detail)
+
+    def test_a_gap_reason_that_is_not_a_string_is_no_reason(self):
+        for value in (1.5, 0, True, ["no receipts"]):
+            body = predicate()
+            body["coverage"]["gaps"] = [{"start": 12000000, "end": 12000100, "reason": value}]
+            with self.subTest(reason=repr(value)):
+                self.assertFalse(named("coverage", body).passed)
+
+    def test_a_record_identifier_that_identifies_nothing_fails(self):
+        for key in ("added", "removed"):
+            for value in ("", "   ", None, 1.5, True):
+                body = predicate()
+                body["deltas"]["records"] = {"added": [], "removed": [], "changed": []}
+                body["deltas"]["records"][key] = [value]
+                with self.subTest(key=key, value=repr(value)):
+                    found = gate(5, body)
+                    self.assertFalse(found.passed)
+                    self.assertIn("identifies no record", found.detail)
+
+    def test_a_changed_record_whose_side_identifies_nothing_fails(self):
+        for side in ("baseline", "current"):
+            body = predicate()
+            body["deltas"]["records"]["changed"] = [{"baseline": "x", "current": "y"}]
+            body["deltas"]["records"]["changed"][0][side] = "   "
+            with self.subTest(side=side):
+                found = gate(5, body)
+                self.assertFalse(found.passed)
+                self.assertIn("identifies no record", found.detail)
 
     def test_a_parameters_digest_that_is_not_hex_fails(self):
         body = predicate()
