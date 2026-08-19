@@ -2145,3 +2145,33 @@ Leads not pursued: `load_state` still validates nothing, so every other reader o
 state file has the same exposure this round fixed in one function. Validating the
 whole state shape on load is a larger change than this step, and it would belong to a
 run about the controller's own robustness rather than to this one.
+
+## Receipted lint rounds, step 1, round 2 -- 2026-08-19
+
+Round 1 found a chained read defeated by a stored null and fixed it in one function.
+This round asked whether that fix generalised. It did not.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The same shape sat at four more sites: three reads of `state["integrate"]["merged"]` at lines 854, 1072 and 1151, and one of `step["receipts"]["push"]["pr_url"]` at line 863. Each raises `AttributeError` out of the controller when the key exists holding null. Both spellings were confirmed to raise before being touched. `as_dict()` is now the single guard at all six sites, and behaviour on well-formed state is unchanged. | fixed in this round |
+
+The guard for this one asserts the pattern against the source rather than against
+behaviour, because the defect is a spelling that four separate call sites shared.
+Injecting one of the old reads makes the test fail and print the offending text.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+One process note, recorded because it cost work rather than because it changed the
+code. The regression probe for that test was first run by editing the working file and
+undoing it with `git checkout --`, which reverted to the last commit and discarded the
+round's uncommitted fix along with the injected regression. The suite reported 187 of
+195 and the loss was visible immediately. The change was redone, committed as a safety
+point, and the probe re-run against a copy of the file instead. Nothing reached a
+branch in the broken state.
+
+Both suites pass: 24 repository tests and 194 of 195 Hexaemeron tests, 22 new in this
+step. The single error is `ForgeReports`, unchanged and environmental.
+
+Leads not pursued: the `load_state` lead from round 1 stands. `as_dict` guards the
+reads this file makes; it does not make `load_state` validate the state it returns.
