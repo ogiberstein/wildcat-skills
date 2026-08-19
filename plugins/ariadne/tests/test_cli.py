@@ -35,13 +35,21 @@ class PredicatesTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("https://ariadne.wildcat.finance/solidity-release/v1", out)
 
+    def test_predicates_lists_the_dataset_predicate(self):
+        code, out, _ = run(["predicates"])
+        self.assertEqual(code, 0)
+        self.assertIn("https://ariadne.wildcat.finance/dataset/v1", out)
+
     def test_predicates_json_carries_the_type_and_summary(self):
         code, out, _ = run(["predicates", "--json"])
         self.assertEqual(code, 0)
         found = json.loads(out)
         self.assertEqual(
             [entry["type"] for entry in found],
-            ["https://ariadne.wildcat.finance/solidity-release/v1"],
+            [
+                "https://ariadne.wildcat.finance/dataset/v1",
+                "https://ariadne.wildcat.finance/solidity-release/v1",
+            ],
         )
         self.assertTrue(all(entry["summary"] for entry in found))
 
