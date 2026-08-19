@@ -161,11 +161,31 @@ def load_budgets(path: str) -> list[dict]:
 
 
 def load_measurements(path: str, what: str) -> dict:
-    """A name-to-number mapping from a run or a baseline file."""
+    """A name-to-number mapping from a run or a baseline file.
+
+    Two shapes read the same: the mapping on its own, or wrapped under
+    `measurements` alongside whatever else the producer wanted to record. A
+    document carrying both is refused rather than resolved, because taking the
+    wrapped one drops the others in silence, and a dropped measurement is the
+    difference between an `undeclared` verdict and no verdict at all.
+    """
     document = read_json(path, what)
     if not isinstance(document, dict):
         raise BudgetError(f"{what} must hold an object of budget name to value")
-    values = document.get("measurements", document)
+    if "measurements" in document:
+        stray = sorted(
+            key for key, value in document.items()
+            if key != "measurements" and number(value)
+        )
+        if stray:
+            raise BudgetError(
+                f"{what} carries measurements alongside a measurements block: "
+                f"{', '.join(stray)}. Put every value inside the block, or none of "
+                "them; taking one shape would drop the other without saying so"
+            )
+        values = document["measurements"]
+    else:
+        values = document
     if not isinstance(values, dict):
         raise BudgetError(f"{what} measurements must be an object")
     for name, value in sorted(values.items()):

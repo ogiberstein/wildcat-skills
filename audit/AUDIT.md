@@ -2386,3 +2386,28 @@ identically on clean `main`.
 Leads not pursued: `MAX_BYTES` caps each file at 4 MiB and nothing caps the number of
 budgets a file may declare. A file with a million budgets would be read and reported rather
 than refused, which is slow rather than wrong.
+
+## Metron budget check, step 1, round 2 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/skills/metron/scripts/metron.py` | A run or baseline carrying both shapes at once -- a `measurements` block and measurement values at the top level -- silently kept the block and dropped the rest. `{"measurements": {"a": 1}, "b": 2}` loaded as `{"a": 1}` with nothing said about `b`. For this check that is worse than an ordinary dropped field: a measurement that never arrives cannot produce an `undeclared` verdict, so a typo'd name would vanish instead of failing. | fixed in this round |
+
+The ambiguous document is now refused and the message names every stray value. Metadata
+beside the block still loads, because a producer recording a note, a timestamp, a flag or a
+list of tags alongside its numbers is doing the right thing, and only a stray *number* is
+ambiguous.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`, `ephoros`,
+`hypomnema`.
+
+Three other file-handling probes behaved and are now guarded: a directory passed where a
+file belongs is refused rather than raising `IsADirectoryError`, a file past `MAX_BYTES` is
+refused, and a file that merely approaches the cap is still read. A symlink is followed,
+which is left as it is: these paths are named by whoever runs the check rather than supplied
+by a stranger, and refusing a symlinked budget file would break a legitimate layout.
+
+Both suites pass: 24 repository tests and 257 of 258 Hexaemeron tests, 44 new in this step.
+The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the budget-count lead from round 1 stands.

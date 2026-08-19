@@ -252,6 +252,27 @@ class MeasurementFileTests(TempFiles):
                     metron.load_measurements(path, "run")
                 self.assertIn("a", str(caught.exception))
 
+    def test_a_document_carrying_both_shapes_is_refused(self):
+        """Taking the wrapped block drops the top-level values in silence, and a dropped
+        measurement is the difference between an `undeclared` verdict and no verdict."""
+        path = self.write("run.json", {"measurements": {"a": 1}, "b": 2, "c": 3.5})
+        with self.assertRaises(metron.BudgetError) as caught:
+            metron.load_measurements(path, "run")
+        message = str(caught.exception)
+        self.assertIn("b", message)
+        self.assertIn("c", message)
+
+    def test_metadata_beside_the_block_is_allowed(self):
+        """A producer recording a note or a timestamp alongside its numbers is doing the
+        right thing, and only a stray number is ambiguous."""
+        for extra in ({"note": "why"}, {"recorded_at": "2026-08-19"},
+                      {"ok": True}, {"tags": ["nightly"]}):
+            with self.subTest(extra=extra):
+                document = {"measurements": {"a": 1}}
+                document.update(extra)
+                path = self.write("run.json", document)
+                self.assertEqual(metron.load_measurements(path, "run"), {"a": 1})
+
     def test_a_negative_measurement_is_allowed(self):
         """A delta or a temperature can be negative. The comparison decides what it means,
         not the loader."""
@@ -274,6 +295,30 @@ class MeasurementFileTests(TempFiles):
                 with self.assertRaises(metron.BudgetError) as caught:
                     metron.load_measurements(path, what)
                 self.assertIn(what, str(caught.exception))
+
+
+class FileHandlingTests(TempFiles):
+    def test_a_directory_is_refused_rather_than_raising(self):
+        directory = Path(self.tmp.name) / "adir"
+        directory.mkdir()
+        self.assertIn("cannot read", self.refusal(str(directory)))
+
+    def test_a_file_past_the_cap_is_refused(self):
+        path = Path(self.tmp.name) / "big.json"
+        path.write_text("{" + " " * (metron.MAX_BYTES + 1) + "}", encoding="utf-8")
+        self.assertIn("larger than", self.refusal(str(path)))
+
+    def test_a_file_at_the_cap_is_read(self):
+        """The cap keeps a mistaken path from reading something enormous. It should not
+        refuse a file that merely approaches it."""
+        entry = {"name": "a", "unit": "s", "limit": 1, "variance": 0.05,
+                 "direction": "lower_is_better"}
+        document = json.dumps({"budgets": [entry]})
+        padding = " " * (metron.MAX_BYTES - len(document) - 1)
+        path = Path(self.tmp.name) / "wide.json"
+        path.write_text(document[:-1] + padding + "}", encoding="utf-8")
+        self.assertLessEqual(path.stat().st_size, metron.MAX_BYTES)
+        self.assertEqual(len(metron.load_budgets(str(path))), 1)
 
 
 class CommandLineTests(TempFiles):
