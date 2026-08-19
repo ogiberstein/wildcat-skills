@@ -79,6 +79,13 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-gate5-state-fixture-unnamed-current.json` | A first capture whose current side has no name and a digest the statement does not cover |
 | `fail-check-evidence-state-fixture-proved-without-a-state-root.json` | Two proof-backed records counted with no state root to have proved them against. Gate 2 passes, which is the point: the rule reaches statements the pin check accepts |
 | `fail-check-replay-state-fixture-reaches-network.json` | A replay recorded as reaching a network, which is not the boundary a fixture exists to be |
+| `pass-state-fixture-proved-nothing.json` | A capture that recorded a header and some responses and proved nothing. It carries no state root, because there was nothing to prove against, and says so with a zero proof-backed count and a skipped claim rather than leaving the field quietly absent |
+| `fail-gate2-state-fixture-no-block-hash.json` | A pin with a chain and a height and no hash, which does not say which of two blocks at that height |
+| `fail-gate2-state-fixture-component-not-a-subject.json` | A component the predicate describes and the statement does not cover |
+| `fail-gate5-state-fixture-baseline-without-digest.json` | A comparison against an earlier capture named but not identified |
+| `fail-check-evidence-state-fixture-class-absent.json` | An evidence class left out, which reads as nothing of that kind having been captured rather than as nobody having said |
+| `fail-check-evidence-state-fixture-count-is-a-boolean.json` | A count of `true`, which is an integer in Python and would read as one record |
+| `fail-check-replay-state-fixture-canonical-chain-claim.json` | A fixture claiming its pinned block is on the canonical chain, which nothing in either tool establishes |
 
 ## Running them
 

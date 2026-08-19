@@ -678,6 +678,53 @@ class SchemaAgreementTests(unittest.TestCase):
                 )
 
 
+class ShippedFixtureTests(unittest.TestCase):
+    """The two passing fixtures cover both branches, and go on covering them.
+
+    The completeness tests in `test_conformance.py` check that every gate and
+    check has a breaching fixture. Nothing there checks that a passing fixture
+    still exercises the branch it was written for, so adding a state root to the
+    proved-nothing fixture would leave the suite green while the fixture stopped
+    testing anything. That is the shape this step keeps meeting: something that
+    reads as cover and holds nothing.
+    """
+
+    FIXTURES = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "fixtures", "conformance"
+    )
+
+    def read(self, name):
+        with open(os.path.join(self.FIXTURES, name), "rb") as handle:
+            return json.loads(handle.read().decode("utf-8"))["predicate"]
+
+    def test_one_passing_fixture_proves_something_and_carries_a_root(self):
+        body = self.read("pass-state-fixture.json")
+        self.assertGreater(body["evidence"][fixture.PROVED], 0)
+        self.assertTrue(fixture.hash32(body["chain"]["state_root"]))
+
+    def test_the_other_proves_nothing_and_carries_no_root(self):
+        body = self.read("pass-state-fixture-proved-nothing.json")
+        self.assertEqual(body["evidence"][fixture.PROVED], 0)
+        self.assertNotIn("state_root", body["chain"])
+
+    def test_the_proved_nothing_fixture_records_the_absence_rather_than_omitting_it(
+        self,
+    ):
+        """A zero count and a skipped claim. A capture that proved nothing has
+        said so; one that left the evidence block out has not."""
+        body = self.read("pass-state-fixture-proved-nothing.json")
+        self.assertEqual(sorted(body["evidence"]), sorted(fixture.EVIDENCE_CLASSES))
+        skipped = [c for c in body["claims"] if c["disposition"] == "skipped"]
+        self.assertTrue(skipped, "the absence of proofs is not recorded as a claim")
+        self.assertTrue(all(c.get("reason", "").strip() for c in skipped))
+
+    def test_the_proved_nothing_fixture_lists_no_proofs_component(self):
+        """It would otherwise describe a file the capture does not hold."""
+        body = self.read("pass-state-fixture-proved-nothing.json")
+        paths = [entry["path"] for entry in body["fixture_subjects"]]
+        self.assertNotIn("proofs.jsonl", paths)
+
+
 class LazarusAgreementTests(unittest.TestCase):
     """The class names are copied from Lazarus. This is what checks the copy.
 
