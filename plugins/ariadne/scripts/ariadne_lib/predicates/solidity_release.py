@@ -240,6 +240,27 @@ def gate_5_deltas(statement):
             continue
         faults.extend(section_faults(section, deltas[section]))
 
+    # A current side that is present gets checked whether or not there is a
+    # baseline. This ran only after the null-baseline branch returned, so a first
+    # release could carry a current side with no name, no digest, or a digest the
+    # statement does not cover, and verify clean. Recorded as S4-R6-06 by the
+    # dataset run, which fixed the same shape in its own predicate and left this one
+    # to the run that needed it.
+    #
+    # Presence is not required here. A first release omits the side entirely, which
+    # is what `capture` writes and what the shipped fixture holds, and demanding one
+    # would change what a released statement of this type has to say. The hole was
+    # a side that was there and unexamined, not a side that was absent.
+    if "current" in deltas:
+        check_side(deltas.get("current"), "current", faults)
+        if not faults and not statement.covers(deltas["current"]["digest"]):
+            # The current side is meant to be this release. Left unchecked, a
+            # statement could compare two artefacts it does not cover and present
+            # the result as its own history.
+            faults.append(
+                "delta current side is not a subject of this statement"
+            )
+
     if deltas.get("baseline") is None:
         reason = deltas.get("reason")
         if not isinstance(reason, str) or not reason.strip():
@@ -251,17 +272,16 @@ def gate_5_deltas(statement):
             )
         if faults:
             return Gate(5, "deltas", False, "; ".join(faults))
-        return Gate(5, "deltas", True, "no baseline: %s" % deltas["reason"].strip())
+        named = ""
+        if isinstance(deltas.get("current"), dict) and deltas["current"].get("name"):
+            named = "%s, " % deltas["current"]["name"]
+        return Gate(
+            5, "deltas", True, "%sno baseline: %s" % (named, deltas["reason"].strip())
+        )
 
     check_side(deltas.get("baseline"), "baseline", faults)
-    check_side(deltas.get("current"), "current", faults)
-    if not faults and not statement.covers(deltas["current"]["digest"]):
-        # The current side is meant to be this release. Left unchecked, a
-        # statement could compare two artefacts it does not cover and present
-        # the result as its own history.
-        faults.append(
-            "delta current side is not a subject of this statement"
-        )
+    if "current" not in deltas:
+        faults.append("a comparison against a baseline names a current side")
     if faults:
         return Gate(5, "deltas", False, "; ".join(faults))
 
@@ -305,7 +325,28 @@ def gate_deployments(statement):
         if absent:
             faults.append("%s is missing %s" % (label, ", ".join(absent)))
             continue
-        if not entry["confirmed_against_chain"]:
+        # A chain id identifies a chain, so it has to be a number. `" "` and
+        # `"null"` and `true` all satisfied a presence test and named no chain.
+        chain_id = entry["chain_id"]
+        if not isinstance(chain_id, int) or isinstance(chain_id, bool) or chain_id < 1:
+            faults.append(
+                "%s chain_id must be a whole number, not %r" % (label, chain_id)
+            )
+            continue
+        # The field records a decision somebody made, so only the two booleans are
+        # in its vocabulary. Anything else was read for truthiness: `"null"` and
+        # `" "` are truthy, so a deployment carrying either was counted as
+        # confirmed and the line below told a reader every deployment had been
+        # checked against a chain. Nothing here has ever spoken to a node.
+        confirmed = entry["confirmed_against_chain"]
+        if confirmed is not True and confirmed is not False:
+            faults.append(
+                "%s confirmed_against_chain must be true or false, not %r; the "
+                "field records a decision and anything else is read as a yes"
+                % (label, confirmed)
+            )
+            continue
+        if not confirmed:
             unconfirmed += 1
 
     if faults:

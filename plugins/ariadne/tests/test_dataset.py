@@ -293,6 +293,29 @@ class GateTwoTests(unittest.TestCase):
                 self.assertFalse(found.passed)
                 self.assertIn("release-relative", found.detail)
 
+    def test_a_backslash_traversal_is_refused(self):
+        """A single backslash separates segments on Windows. This function
+        normalised only a doubled backslash, so `by-pool\\..\\..\\outside.jsonl`
+        reached a POSIX consumer as one odd filename and a Windows consumer as a
+        traversal out of the release. Found by sweeping the same function in the
+        state-fixture predicate, which was copied from this one, in round 5 of that
+        step."""
+        for bad in ("by-pool\\..\\..\\outside.jsonl", "..\\outside.jsonl",
+                    "\\\\server\\share\\x.jsonl"):
+            body = predicate()
+            body["dataset_subjects"][0]["path"] = bad
+            with self.subTest(path=bad):
+                found = gate(2, body)
+                self.assertFalse(found.passed)
+                self.assertIn("release-relative", found.detail)
+
+    def test_a_backslash_inside_a_name_is_not_a_traversal(self):
+        """Refusing every backslash would refuse a legitimate POSIX filename that
+        happens to contain one."""
+        body = predicate()
+        body["dataset_subjects"][0]["path"] = "odd\\name.jsonl"
+        self.assertTrue(gate(2, body).passed)
+
     def test_a_nested_release_relative_path_is_allowed(self):
         body = predicate()
         body["dataset_subjects"][0]["path"] = "by-pool/pool-a.jsonl"
@@ -434,6 +457,18 @@ class GateFiveTests(unittest.TestCase):
         )
         self.assertFalse(found.passed)
         self.assertIn("against a null baseline", found.detail)
+
+    def test_a_side_named_only_whitespace_fails(self):
+        """`"   "` is truthy. `check_side` is shared by all three predicates and
+        used a bare presence test, so a side could identify nothing and pass."""
+        for side in ("baseline", "current"):
+            for value in (" ", "   ", "\t"):
+                body = predicate()
+                body["deltas"][side] = dict(body["deltas"][side], name=value)
+                with self.subTest(side=side, name=value):
+                    found = gate(5, body)
+                    self.assertFalse(found.passed)
+                    self.assertIn("has no name", found.detail)
 
     def test_a_baseline_without_a_digest_fails(self):
         body = predicate()

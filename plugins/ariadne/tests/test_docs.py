@@ -15,6 +15,7 @@ import ariadne  # noqa: E402
 from ariadne_lib import core_predicate, gates, registry  # noqa: E402
 from ariadne_lib.predicates import dataset  # noqa: E402
 from ariadne_lib.predicates import solidity_release as release  # noqa: E402
+from ariadne_lib.predicates import state_fixture  # noqa: E402
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,8 +25,13 @@ CONTRACT = os.path.join(PLUGIN, "AGENTS.md")
 CONFORMANCE = os.path.join(PLUGIN, "docs", "conformance.md")
 PREDICATE_DOC = os.path.join(PLUGIN, "docs", "solidity-release.md")
 DATASET_DOC = os.path.join(PLUGIN, "docs", "dataset.md")
+STATE_FIXTURE_DOC = os.path.join(PLUGIN, "docs", "state-fixture.md")
 
-DOCUMENTED = ((release, PREDICATE_DOC), (dataset, DATASET_DOC))
+DOCUMENTED = (
+    (release, PREDICATE_DOC),
+    (dataset, DATASET_DOC),
+    (state_fixture, STATE_FIXTURE_DOC),
+)
 """Each shipped predicate and the document that describes its fields."""
 EXAMPLES = os.path.join(PLUGIN, "examples")
 
@@ -127,6 +133,32 @@ class PredicateTests(unittest.TestCase):
                     self.assertIn(
                         "`%s`" % field, text, "%s omits %s" % (doc, field)
                     )
+
+
+class PrintedCommandTests(unittest.TestCase):
+    """A file path printed in a document is a claim that the file is there.
+
+    Three of the faults found while auditing this predicate were in prose rather
+    than in code, and a stale path is the cheapest of them to leave behind: a
+    reader runs the command, gets an error about a missing file, and learns
+    nothing about the tool.
+    """
+
+    def test_every_fixture_path_a_document_prints_exists(self):
+        pattern = re.compile(r"(tests/fixtures/[\w./-]+\.json)")
+        found = 0
+        for name in sorted(os.listdir(os.path.join(PLUGIN, "docs"))):
+            if not name.endswith(".md"):
+                continue
+            text = read(os.path.join(PLUGIN, "docs", name))
+            for relative in pattern.findall(text):
+                found += 1
+                with self.subTest(document=name, path=relative):
+                    self.assertTrue(
+                        os.path.isfile(os.path.join(PLUGIN, relative)),
+                        "docs/%s prints %s and it is not there" % (name, relative),
+                    )
+        self.assertTrue(found)
 
 
 class FixtureTests(unittest.TestCase):

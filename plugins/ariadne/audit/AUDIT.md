@@ -1,7 +1,7 @@
 # Ariadne audit log
 
 <!-- marketplace-context:start -->
-> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 One section per round. A round with no findings is still a round and still gets
@@ -457,3 +457,178 @@ No findings.
 Leads not pursued: sandboxing, carried from round 1 and stated in
 `replay.py`'s own docstring.
 
+## Ariadne state-fixture predicate, step 4, round 1 -- 2026-08-19
+
+Reviewed: the capture, which is the first step in this run that reads files somebody
+else wrote.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/state_fixture.py` | `"schema_version": true` was accepted, because `True == 1` in Python and the check was a plain inequality against 1. That is the one check refusing a manifest this capture cannot read, and reading a later manifest as though it were version 1 is the evidence upgrade the capture exists to refuse | fixed in this round: the type is tested before the value |
+| S4-R1-02 | low | `plugins/ariadne/scripts/ariadne_lib/capture/state_fixture.py` | `fixture_digest` was required and never looked at, so a manifest carrying `{"a": 1}` there passed a check implying the document is one Lazarus wrote | fixed in this round: its shape is checked, and a test asserts the value is still unused |
+
+The first is the bool-is-an-int trap, fifth appearance in this marketplace and the
+first in code written for this run. It was found by sweeping every field of a real
+manifest against twenty values that satisfy a presence test and carry nothing: 300
+mutations over a copy of the shipped Goldfinch fixture.
+
+Nothing raised anything other than `CaptureError`, which is the contract the command
+line depends on to exit 2 rather than print a traceback.
+
+Thirty-one mutations captured anyway and each was read. After both fixes the only ones
+still accepted are legitimate: a zero count, which is a fixture that captured nothing
+of that kind, and odd `tool_version` strings, which a version is allowed to be.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+Leads not pursued: one of the accepted `tool_version` values is a zero-width space,
+which is the invisible-character lead recorded in step 3 and not reopened here.
+
+## Ariadne state-fixture predicate, step 4, round 2 -- 2026-08-19
+
+Reviewed: the capture through the filesystem rather than through the manifest,
+thirteen ways.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | medium | `plugins/ariadne/scripts/ariadne_lib/digests.py` | A fifo where a component belongs hung the capture indefinitely. `of_file` refused a symlink and read anything else, so `open` blocked until something wrote to it: no output, no error, no timeout | fixed in this round in `of_file` and in the shared walk |
+
+`tree_listing` has refused non-regular files since the first build and its comment
+names this exact hazard. `of_file` never got the same guard, and both capture paths
+call it directly rather than going through a tree digest, so the hang was live in the
+dataset capture on `main` as well as in the one this step adds. A fix applied in one
+place and not the other, found because this step wrote a third caller.
+
+The probe found it by hanging. The round could not finish until it was fixed, which is
+the most direct evidence a hang can offer.
+
+Ten of the thirteen cases were already refused correctly: a symlink pointing out of the
+tree, a symlinked subdirectory, `.git`, `__pycache__`, the manifest or the header
+replaced by a directory, a manifest over the size cap, a manifest that is not UTF-8,
+and a component that changed after the manifest was written.
+
+Three captured and each was judged rather than counted. Two unreadable-path cases
+captured because these tests run with rights that ignore file modes, which is the same
+reason the suite already skips two permission tests. The third is `--fixture` itself
+being a symlink to a real directory, which is captured on purpose: `confined` resolves
+it, and the refusals are about symlinks inside a tree whose targets could be elsewhere.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 4, round 3 -- 2026-08-19
+
+Reviewed: whether any test holds each rule the capture and its shared walk add.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R3-01 | low | `plugins/ariadne/tests/test_capture_state_fixture.py` | Taking the check off the state root read from `header.json` left the suite green. The rule held and nothing held the rule: the header is read off disk exactly like the manifest and had no coverage at all | fixed in this round: six tests |
+
+Seventeen mutants, one per rule: the schema version, the fixture-digest shape, a
+declared file the directory lacks, an undeclared file the directory holds, the digest
+comparison, the byte-count comparison, a leading zero in a quantity, an unknown
+evidence class, a class left out, a count outside the bounds, the caller's version
+overriding the manifest, a component path leaving the fixture, a component declared
+twice, replay written true, the state root taken unchecked, a fifo, and a symlinked
+file. Sixteen caught, and all seventeen are caught now.
+
+The six tests record what the rule actually is. The all-zero root, one too short, one
+with no prefix, a number and a null are refused. An uppercased one is lowered rather
+than refused, because that is two spellings of one value, as with the block hash. A
+header with no state root leaves the field out, and the predicate's evidence check is
+what refuses the proof-backed count beside it.
+
+Leads not pursued: none new.
+
+## Ariadne state-fixture predicate, step 4, round 4 -- 2026-08-19
+
+Reviewed: the command line, and what the shared walk did to the two captures that
+already shipped.
+
+No findings.
+
+Eleven command-line cases give the exit code they should: 0 for the happy path, for a
+version agreeing with the manifest, and for a parameter; 2 for a missing flag, a
+fixture that is not there, a fixture that is a file, an empty tool name, no reason and
+no previous, `--previous` without its name, and a version disagreeing with the
+manifest.
+
+Checked and found sound:
+
+- A failure prints its reason and no traceback, which is the contract the command line
+  depends on to exit 2 rather than crash.
+- `--out` writes, leaves no temporary file behind, and the written statement passes
+  `verify` and `inspect` through the command line.
+- The dataset capture still works end to end after moving to the shared walk, and the
+  Foundry capture, untouched by this step, still works.
+- Three separate processes produce a byte-identical statement, so the capture is
+  deterministic across runs rather than only within one.
+- The capture's output agrees with the hand-written conformance fixture on the pin, the
+  counts, the replay block, and on the digest and byte count of all four components the
+  fixture describes. The fixture names four of the eleven with human names; the capture
+  names all eleven by path, because nothing on disk states a human name.
+
+Leads not pursued: `capture/foundry.py` still defines its own `CaptureError`, so a
+caller catching one does not catch the other. The dataset capture's is now an alias of
+the shared class and Foundry's is not, because its `confined` does something different
+and touching it buys nothing here.
+
+## Ariadne state-fixture predicate, step 5, round 1 -- 2026-08-19
+
+Reviewed: the reconciliation, by re-deriving it rather than rereading the diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | low | `plugins/ariadne/AGENTS.md` | The runtime contract said `capture` writes only where `--out` points and every other subcommand prints, naming one of three capture subcommands. Accurate when written, narrowed silently when `capture-dataset` arrived, and narrower again now | fixed in this round: all three named, with what they have in common |
+
+It is the document that tells an agent what the tool writes, so a reader could take
+the sentence as covering the subcommand it names and conclude the other two were not
+spoken for.
+
+Checked and found sound:
+
+- The ledger digest recomputed from the header matches the stored row, checked against
+  the contract's own computation as well as by hand.
+- Every version agrees: the ledger at `ariadne-v2.1.0`, the skill metadata at 2.1.0,
+  the plugin manifest and the marketplace entry both at 1.2.0.
+- All twelve Ariadne marketplace-context blocks carry the ledger's frontier sentence,
+  as do the audit record-status block and the root selection table row. The old
+  sentence appears nowhere.
+- The tool reports three registered types, and no document still claims two.
+
+Two probe defects, recorded rather than hidden. The digest check stripped backticks
+from one ledger field where the contract strips them from four, so the digest appeared
+not to match until it was compared against the contract's own computation. The
+frontier-surface check looked for the word Ariadne near a context block rather than for
+the Ariadne context block, so ten of Lazarus's and Pandects's own frontier sentences
+read as disagreements. Neither was a defect in the run.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+Leads not pursued: the root README's Lazarus row says an Ariadne state-fixture
+predicate remains unimplemented, which this run makes false. That sentence is governed
+by Lazarus's own ledger, and the versioning contract reserves a frontier sentence to a
+completed frontier job for that skill. Changing it from here would be this run editing
+another skill's held frontier, so it is left for the run that closes it.
+
+## Ariadne state-fixture predicate, step 5, round 2 -- 2026-08-19
+
+Reviewed: the run's output as a stranger meets it -- every command any Ariadne document
+prints, run as written.
+
+No findings.
+
+Nineteen commands across the plugin README, the runtime contract, the examples README,
+six documents under `docs/` and the skill. All nineteen exit 0 or 1, and the 1s are the
+two the documents say exit 1.
+
+A third probe defect belongs here, because it bears on what a clean round is worth. The
+probe split command lines on whitespace rather than with `shlex`, so a quoted
+`--first-capture-reason` fragmented into positional arguments and two documented
+commands read as broken. Across these two rounds the probes were wrong three times and
+the deliverable once. A probe with that history is weak evidence when it finally comes
+back clean, so this round rests on the nineteen commands actually running rather than
+on the absence of a finding.
+
+Leads not pursued: the Lazarus frontier sentence carried from round 1.

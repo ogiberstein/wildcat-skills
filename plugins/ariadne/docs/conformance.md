@@ -1,7 +1,7 @@
 # Conformance fixtures
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 `tests/fixtures/conformance/` holds statements for checking an implementation
@@ -15,10 +15,11 @@ nowhere on purpose. A verifier meeting it should check the core gates, report
 that gates 2 and 5 belong to a predicate it does not know, and not describe the
 run as clean.
 
-The `solidity` and `dataset` fixtures use the two types this build registers, so
-they exercise each predicate's own gates as well as the core ones. Gates 2 and 5
-mean different things for a dataset release than for a contract release, so each
-type carries its own breaching fixtures for them.
+The `solidity`, `dataset` and `state-fixture` fixtures use the three types this
+build registers, so they exercise each predicate's own gates as well as the core
+ones. Gates 2 and 5 mean different things for a state fixture than for a dataset
+release or a contract release, so each type carries its own breaching fixtures for
+them.
 
 ## The naming convention
 
@@ -63,8 +64,10 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-gate2-source-without-commit.json` | A source record with a tree digest and no commit |
 | `fail-gate5-baseline-without-digest.json` | A comparison against a release named but not identified |
 | `fail-gate5-content-against-null-baseline.json` | Added functions listed against a baseline the statement says does not exist |
+| `fail-gate5-solidity-first-release-unnamed-current.json` | A first release carrying a current side with no name and a digest the statement does not cover, which gate 5 skipped before this fixture existed |
 | `fail-check-audits-solidity-without-covered-revision.json` | An audit report attached to a release without naming the revision it covered |
 | `fail-check-deployments-solidity-without-confirmation.json` | A deployment address printed without saying whether anything confirmed it against a chain |
+| `fail-check-deployments-solidity-confirmation-is-not-a-boolean.json` | `"null"` where the confirmation belongs. The field records a decision, and a value read for truthiness turned a deployment nobody checked into one the report counted as confirmed |
 | `pass-dataset-release.json` | A complete dataset release: two released files with record counts, one input digested and one recorded absent with its reason, a coverage interval with a gap, and a comparison against the previous release |
 | `pass-dataset-first-release.json` | The same shape with a null baseline, its reason, and an empty gap list that asserts the producer looked |
 | `fail-gate2-dataset-producer-without-parameters.json` | A producer named with a version but no digest over the parameters it was given |
@@ -72,6 +75,22 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-check-coverage-dataset-no-gaps-block.json` | A coverage interval with no gaps block, which reads as complete without saying so |
 | `fail-check-inputs-dataset-locator-only.json` | An input with a locator and neither a digest nor a reason for not having one |
 | `fail-check-predicate-fields-dataset-unknown-field.json` | A dataset predicate carrying a field the type does not define |
+| `pass-state-fixture.json` | A Lazarus state fixture published as a statement: the pinned block with its state root, four components, the three evidence counts, and a replay that reaches no network. The digests, byte counts and counts are the ones Lazarus wrote for `plugins/lazarus/examples/goldfinch-v0` |
+| `fail-gate2-state-fixture-hex-block-number.json` | A block number written as the hex quantity string a Lazarus manifest carries, which is right on the wire and orders as text |
+| `fail-gate5-state-fixture-unnamed-current.json` | A first capture whose current side has no name and a digest the statement does not cover |
+| `fail-check-evidence-state-fixture-proved-without-a-state-root.json` | Two proof-backed records counted with no state root to have proved them against. Gate 2 passes, which is the point: the rule reaches statements the pin check accepts |
+| `fail-check-replay-state-fixture-reaches-network.json` | A replay recorded as reaching a network, which is not the boundary a fixture exists to be |
+| `pass-state-fixture-proved-nothing.json` | A capture that recorded a header and some responses and proved nothing. It carries no state root, because there was nothing to prove against, and says so with a zero proof-backed count and a skipped claim rather than leaving the field quietly absent |
+| `fail-gate2-state-fixture-no-block-hash.json` | A pin with a chain and a height and no hash, which does not say which of two blocks at that height |
+| `fail-gate2-state-fixture-component-not-a-subject.json` | A component the predicate describes and the statement does not cover |
+| `fail-gate5-state-fixture-baseline-without-digest.json` | A comparison against an earlier capture named but not identified |
+| `fail-check-evidence-state-fixture-class-absent.json` | An evidence class left out, which reads as nothing of that kind having been captured rather than as nobody having said |
+| `fail-check-evidence-state-fixture-count-is-a-boolean.json` | A count of `true`, which is an integer in Python and would read as one record |
+| `fail-check-replay-state-fixture-canonical-chain-claim.json` | A fixture claiming its pinned block is on the canonical chain, which nothing in either tool establishes |
+| `fail-gate2-state-fixture-unset-block-hash.json` | The all-zero hash, which matches the shape and identifies nothing |
+| `fail-gate2-state-fixture-component-path-leaves-the-fixture.json` | A component path with a `..` segment, which resolves outside the fixture a reader has |
+| `fail-check-evidence-state-fixture-count-over-the-ceiling.json` | A count above the ceiling Lazarus's own manifest schema sets |
+| `fail-check-replay-state-fixture-zero-is-not-false.json` | `0` where `false` belongs. The field records a decision and `0` is not in its vocabulary |
 
 ## Running them
 
@@ -86,6 +105,55 @@ The whole set runs under:
 ```bash
 python3 -m unittest discover -s tests -t .
 ```
+
+## What passing the whole set proves
+
+One example per rule family, not one per rule. A verifier that passes every fixture
+here has been shown each *kind* of refusal: a required field absent, a value of the
+wrong type, a value that satisfies the shape and identifies nothing, a digest the
+statement does not cover, a path that resolves outside the tree, a field the type does
+not define, and each numbered gate and named check breached on its own.
+
+It has not been shown every field. The state-fixture predicate refuses far more
+distinct things than the fourteen its breaching fixtures cover, and the fourteen were
+chosen so that each family appears and the rules distinctive to the type appear on
+their own: the unset hash, the count ceiling taken from Lazarus, `0` in place of
+`false`, and a proof-backed count with no state root. An implementation that checked
+`block_number` and forgot `chain_id` would pass everything here.
+
+The ratio is deliberately left unstated. Counting a predicate's distinct refusals
+means choosing which messages count as one rule, and any number written here would be
+the author's enumeration rather than something a reader could recompute. Fourteen is
+countable; what it is fourteen out of is not.
+
+That is a deliberate limit rather than an omission. A fixture per rule would triple
+this directory and teach a reader no more, because the fixtures are read as examples
+and the rules are written down in each predicate's document. The unit suites are where
+every field is exercised: `tests/test_state_fixture.py` and its siblings, which is
+where a rule with no fixture is still held.
+
+Minimality is part of the teaching, and it holds for the state-fixture set rather
+than for the directory. Twelve of its fourteen breaching fixtures differ from
+`pass-state-fixture.json` in exactly one leaf, so a reader diffing the pair sees the
+rule and nothing else. A test holds them there.
+
+The two exceptions are both gate 5, and both for the same reason: a comparison
+against a baseline has to name a current side, so no single change reaches that
+branch. `fail-gate5-state-fixture-unnamed-current.json` differs in two leaves and
+`fail-gate5-state-fixture-baseline-without-digest.json` in four.
+
+The older core fixtures are written against `pass-minimal.json` instead, which is
+the smallest statement that holds rather than a near sibling, so they differ by up
+to eight leaves. That is a different and equally deliberate choice: a core gate is
+demonstrated on the least statement that can carry the breach, not on a full release
+with one thing changed.
+
+One warning for anyone diffing these files with a tool. Two of the fixtures change
+only a value's type -- `header_bound` from `1` to `true`, and `reaches_network` from
+`false` to `0` -- and a comparison written in Python will call those pairs equal,
+because `True == 1` and `0 == False`. The rules they breach exist because of that
+same equality. A differ that ignores types reports these fixtures as identical to
+the one they breach against.
 
 ## What the gates do not catch
 

@@ -103,7 +103,13 @@ def check_side(side, which, faults):
     if not isinstance(side, dict):
         faults.append("delta %s side is not an object" % which)
         return
-    if not side.get("name"):
+    name = side.get("name")
+    # A blank name is refused, not merely an absent one. `"   "` is truthy, so a
+    # bare truthiness test let a side identify nothing while passing the check that
+    # exists to make both ends identifiable. Every other name field in these
+    # predicates already required a non-blank string; this one, shared by all three,
+    # did not.
+    if not isinstance(name, str) or not name.strip():
         faults.append("delta %s side has no name" % which)
     try:
         digests.check(side.get("digest"))

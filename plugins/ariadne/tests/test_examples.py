@@ -7,6 +7,14 @@ import unittest
 from . import support  # noqa: F401  (sets sys.path)
 
 from ariadne_lib import envelope, registry, verify  # noqa: E402
+import ariadne_lib.predicates  # noqa: F401,E402  (registers the shipped predicates)
+"""Imported for the side effect, as `test_conformance.py` does.
+
+Without it this module passes only when something else has already registered the
+predicates, which under `unittest discover` happens to be true and on its own is
+not: every example reported gates 2 and 5 unchecked and the assertions that they
+were checked failed. It was passing for a reason other than the one it states.
+"""
 
 EXAMPLES = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples"
@@ -16,7 +24,14 @@ TAMPERED = os.path.join(EXAMPLES, "tampered")
 BREACHES = {
     "escrow-v1.1.0-claim-repointed.json": 1,
     "escrow-v1.1.0-with-gaps-reason-removed.json": 3,
+    "goldfinch-v0-fixture-state-root-removed.json": "evidence",
 }
+"""What each tampered copy is meant to breach: a gate number, or the name of a
+check that carries no number.
+
+The third is the rule the state-fixture predicate exists for. Its state root is
+gone and its proof-backed count is not, so the statement counts records with
+nothing to have proved them against."""
 
 
 def report_for(path):
@@ -34,7 +49,7 @@ def examples():
 class ExampleTests(unittest.TestCase):
     def test_both_examples_verify_with_nothing_unchecked(self):
         found = examples()
-        self.assertEqual(len(found), 2, found)
+        self.assertEqual(len(found), 3, found)
         for name in found:
             with self.subTest(example=name):
                 report = report_for(os.path.join(EXAMPLES, name))
@@ -80,7 +95,7 @@ class FreshnessTests(unittest.TestCase):
     bytecode that no longer exists. This catches that.
     """
 
-    def test_the_examples_still_describe_the_committed_fixture(self):
+    def test_the_solidity_examples_still_describe_the_committed_fixture(self):
         from ariadne_lib.capture import foundry
 
         fixtures = os.path.join(
@@ -94,11 +109,49 @@ class FreshnessTests(unittest.TestCase):
             previous_name="v1.0.0",
         )
         expected = current["predicate"]["release_subjects"]
+        found = 0
         for name in examples():
             with open(os.path.join(EXAMPLES, name), "rb") as handle:
-                found = json.loads(handle.read().decode("utf-8"))
+                document = json.loads(handle.read().decode("utf-8"))
+            if "release_subjects" not in document["predicate"]:
+                continue
+            found += 1
             with self.subTest(example=name):
-                self.assertEqual(found["predicate"]["release_subjects"], expected)
+                self.assertEqual(
+                    document["predicate"]["release_subjects"], expected
+                )
+        self.assertTrue(found)
+
+    def test_the_state_fixture_example_still_describes_the_lazarus_fixture(self):
+        """The same guard for the other kind. The example is a real capture over
+        `plugins/lazarus/examples/goldfinch-v0`, so a change there without a
+        recapture would leave it describing components that no longer exist."""
+        from ariadne_lib.capture import state_fixture
+
+        root = os.path.abspath(__file__)
+        for _ in range(4):  # tests -> ariadne -> plugins -> the checkout
+            root = os.path.dirname(root)
+        goldfinch = os.path.join(
+            root, "plugins", "lazarus", "examples", "goldfinch-v0"
+        )
+        if not os.path.isdir(goldfinch):
+            self.skipTest("Lazarus is not beside this plugin in this checkout")
+        with open(os.path.join(EXAMPLES, "goldfinch-v0-fixture.json"), "rb") as handle:
+            shipped = json.loads(handle.read().decode("utf-8"))
+        current = state_fixture.capture(
+            goldfinch,
+            name="goldfinch-v0",
+            capture_tool="lazarus",
+            capture_command=[
+                "python3", "scripts/lazarus.py", "verify", "examples/goldfinch-v0",
+            ],
+            parameters={"fixture": "goldfinch-v0"},
+            first_capture_reason=(
+                "first preservation release of this fixture; there is no earlier "
+                "capture of this block to compare against"
+            ),
+        )
+        self.assertEqual(current, shipped)
 
 
 class TamperTests(unittest.TestCase):
@@ -111,14 +164,20 @@ class TamperTests(unittest.TestCase):
             with self.subTest(tampered=name):
                 report = report_for(os.path.join(TAMPERED, name))
                 self.assertFalse(report.ok)
-                broken = [gate.number for gate in report.gates if not gate.passed]
+                broken = [
+                    gate.number if gate.number is not None else gate.name
+                    for gate in report.gates
+                    if not gate.passed
+                ]
                 self.assertEqual(broken, [expected])
 
     def test_each_tampered_copy_differs_from_its_example_in_one_place(self):
         """A tamper that changed several things would pass for the wrong reason."""
         for name in BREACHES:
-            source = name.replace("-claim-repointed", "").replace(
-                "-reason-removed", ""
+            source = (
+                name.replace("-claim-repointed", "")
+                .replace("-reason-removed", "")
+                .replace("-state-root-removed", "")
             )
             with open(os.path.join(EXAMPLES, source), "rb") as handle:
                 original = json.loads(handle.read().decode("utf-8"))
@@ -127,9 +186,14 @@ class TamperTests(unittest.TestCase):
             with self.subTest(tampered=name):
                 self.assertNotEqual(original, changed)
                 self.assertEqual(original["subject"], changed["subject"])
-                self.assertEqual(
-                    original["predicate"]["build"], changed["predicate"]["build"]
-                )
+                # Whichever block this type carries as its build record stays
+                # identical, so the tamper is the one thing the name says.
+                for field in ("build", "capture"):
+                    if field in original["predicate"]:
+                        self.assertEqual(
+                            original["predicate"][field],
+                            changed["predicate"][field],
+                        )
 
 
 if __name__ == "__main__":

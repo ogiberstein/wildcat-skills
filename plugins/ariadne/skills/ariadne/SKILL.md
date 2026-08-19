@@ -9,7 +9,7 @@ description: >
   new kind of artefact needs a predicate of its own. Ariadne neither signs nor
   verifies signatures; those operations belong to cosign.
 metadata:
-  version: "1.1.0"
+  version: "2.1.0"
 ---
 
 # Ariadne
@@ -28,7 +28,7 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 
 **Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
 
-**Current frontier.** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+**Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 A release publishes a claim. The evidence behind it sits somewhere else, joined
@@ -54,8 +54,8 @@ did not check them. What it never does is print an author it has not verified.
 
 **Research and data.** A dataset or a chain-state fixture needs the same thread
 as a contract release: the sources read, the block boundary, what was covered
-and what was not. The core is artefact-neutral so those predicates cost a module
-rather than a fork.
+and what was not. Both have a predicate now, each one a module rather than a
+fork, which is what an artefact-neutral core is for.
 
 ## The commands
 
@@ -74,6 +74,13 @@ python3 scripts/ariadne.py capture-dataset \
   --producer-command python3 --producer-command scripts/tabularium.py \
   --previous <dir> --previous-name goldfinch-credit-events-v1 --out release.json
 
+python3 scripts/ariadne.py capture-state-fixture \
+  --fixture <dir> --name goldfinch-v0 \
+  --capture-tool lazarus \
+  --capture-command python3 --capture-command scripts/lazarus.py \
+  --first-capture-reason '<why there is no earlier capture of this block>' \
+  --out fixture.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
@@ -81,10 +88,11 @@ python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py replay <statement.json> [--allow-execution --project <dir>]
 ```
 
-`predicates` lists the predicate types this build understands. Two are
-registered, `https://ariadne.wildcat.finance/solidity-release/v1` and
-`https://ariadne.wildcat.finance/dataset/v1`, and a statement of any other type
-still parses and still gets its core gates.
+`predicates` lists the predicate types this build understands. Three are
+registered, `https://ariadne.wildcat.finance/solidity-release/v1`,
+`https://ariadne.wildcat.finance/dataset/v1` and
+`https://ariadne.wildcat.finance/state-fixture/v1`, and a statement of any other
+type still parses and still gets its core gates.
 
 `capture` reads a Foundry project's build output into a release statement that
 `verify` accepts unedited. It does not decide whether your tests passed: a
@@ -103,6 +111,20 @@ reads as what made the files. With `--previous` it
 identifies both sides of the comparison and records no record-level differences,
 because telling which records changed needs a record identity it does not have.
 [`docs/capturing-a-dataset.md`](../../docs/capturing-a-dataset.md) has the flags.
+
+`capture-state-fixture` reads a Lazarus fixture directory into a state-fixture
+statement. It takes the evidence counts from the manifest rather than computing
+them, because Lazarus is the only thing that knows which of its records were checked
+against the state root, and a capture that recomputed one and got a larger number
+would upgrade recorded evidence into proved evidence. It checks the manifest against
+the directory in both directions: a component the manifest declares and the directory
+lacks is refused, and so is a file the directory holds and the manifest does not
+declare, because the fixture digest would not cover it. Hex quantities become the
+integers this predicate compares. `reaches_network` and `canonical_chain_claim` are
+written false and are not flags, because Ariadne reaches no network and neither tool
+re-derives a chain, so offering a flag would imply otherwise.
+[`docs/capturing-a-state-fixture.md`](../../docs/capturing-a-state-fixture.md) has
+the flags.
 
 `inspect` reads either a bare in-toto statement or a DSSE envelope wrapping
 one, and reports the predicate type, whether that type is registered here, the
@@ -225,6 +247,32 @@ nothing about what was read. Coverage bounds are whole numbers.
 
 Type URI: `https://ariadne.wildcat.finance/dataset/v1`.
 
+## The state-fixture predicate
+
+The third shape. Its subject is a component of a captured Lazarus fixture, and it
+carries the pin -- chain, block number, block hash and state root -- the tool that
+captured it, every component with its digest and byte count, the three evidence
+counts, and whether replay reaches a network.
+
+Two checks are its own. Evidence requires all three class keys, refuses a count
+that is not a non-negative whole number, and refuses a `proof_backed` count above
+zero when there is no `state_root` to have proved it against. Replay requires
+`reaches_network` and `canonical_chain_claim` and refuses either being true.
+
+The evidence check is the point of the type. Lazarus distinguishes what was proved
+against the state root from what an endpoint merely said, and nothing here shifts
+a count between those columns.
+
+Numbers are integers. A Lazarus manifest writes the chain id and the block number
+as hex quantity strings, which order as text, so this type refuses the wire form
+rather than comparing it.
+
+[`docs/state-fixture.md`](../../docs/state-fixture.md) describes it field by
+field, and `schemas/state-fixture-v1.json` ships for producers that are not this
+tool.
+
+Type URI: `https://ariadne.wildcat.finance/state-fixture/v1`.
+
 ## Examples
 
 [`examples/`](../../examples) holds two attestations over the fixture project:
@@ -240,9 +288,9 @@ fails a named gate.
 
 Named so the edge is visible rather than implied.
 
-The registry holds two predicates. The chain-state fixture and grounded-agent
-predicates are specified and not implemented here, so a statement of one of those
-types verifies its core gates and is told which gates went unchecked.
+The registry holds three predicates. The grounded-agent predicate is specified
+and not implemented here, so a statement of that type verifies its core gates and
+is told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each of those is a deliberate boundary rather than an
