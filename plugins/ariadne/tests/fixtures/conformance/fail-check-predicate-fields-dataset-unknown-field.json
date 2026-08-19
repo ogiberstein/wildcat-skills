@@ -1,0 +1,147 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "events.jsonl",
+      "digest": {
+        "sha256": "6ffa99be9585a3a77c80eaed9c7f1a470231cda553699946f022c25d08e832ed"
+      }
+    },
+    {
+      "name": "mapping.json",
+      "digest": {
+        "sha256": "7e4a2d88e6a5287eb259a8b6c09004f4616b0ec988adabc52c3c3b651b3499e6"
+      }
+    }
+  ],
+  "predicateType": "https://ariadne.wildcat.finance/dataset/v1",
+  "predicate": {
+    "producer": {
+      "tool": "tabularium",
+      "tool_version": "0.3.0",
+      "command": [
+        "python3",
+        "scripts/tabularium.py",
+        "release",
+        "--venue",
+        "goldfinch"
+      ],
+      "parameters_digest": {
+        "sha256": "118cedf8c1c9ce14e10b5fa61656a60be9ce1586bb2838991198c837eaff2f96"
+      }
+    },
+    "inputs": [
+      {
+        "name": "goldfinch capture",
+        "locator": "alexandria://goldfinch/2024-01",
+        "digest": {
+          "sha256": "b58d21114d69d9275fe85950893992f97da65313971a28e7e51b1d2abe87bab0"
+        }
+      },
+      {
+        "name": "subgraph backfill",
+        "locator": "https://api.thegraph.com/subgraphs/name/goldfinch",
+        "disposition": "skipped",
+        "reason": "the endpoint was retired before this release was built"
+      }
+    ],
+    "dataset_subjects": [
+      {
+        "name": "credit-events",
+        "path": "events.jsonl",
+        "digest": {
+          "sha256": "6ffa99be9585a3a77c80eaed9c7f1a470231cda553699946f022c25d08e832ed"
+        },
+        "record_count": 8412
+      },
+      {
+        "name": "mapping-provenance",
+        "path": "mapping.json",
+        "digest": {
+          "sha256": "7e4a2d88e6a5287eb259a8b6c09004f4616b0ec988adabc52c3c3b651b3499e6"
+        },
+        "record_count": 37
+      }
+    ],
+    "coverage": {
+      "dimension": "block",
+      "start": 11370000,
+      "end": 15000000,
+      "gaps": [
+        {
+          "start": 12000000,
+          "end": 12000100,
+          "reason": "the archive node returned no receipts for this range"
+        }
+      ]
+    },
+    "deltas": {
+      "baseline": {
+        "name": "goldfinch-credit-events-v1",
+        "digest": {
+          "sha256": "df5dfbb842ecdb49b7b43415fb0304f3be1add32e744252773b22b1020c3f22c"
+        }
+      },
+      "current": {
+        "name": "goldfinch-credit-events-v2",
+        "digest": {
+          "sha256": "6ffa99be9585a3a77c80eaed9c7f1a470231cda553699946f022c25d08e832ed"
+        }
+      },
+      "records": {
+        "added": [
+          "0xa1b2c3"
+        ],
+        "removed": [],
+        "changed": [
+          {
+            "baseline": "0xdeadbeef",
+            "current": "0xdeadbe01"
+          }
+        ]
+      }
+    },
+    "claims": [
+      {
+        "name": "record count matches the file",
+        "subject": {
+          "sha256": "6ffa99be9585a3a77c80eaed9c7f1a470231cda553699946f022c25d08e832ed"
+        },
+        "disposition": "passed"
+      },
+      {
+        "name": "mapping provenance reviewed",
+        "subject": {
+          "sha256": "7e4a2d88e6a5287eb259a8b6c09004f4616b0ec988adabc52c3c3b651b3499e6"
+        },
+        "disposition": "skipped",
+        "reason": "no reviewer was available before this release was cut"
+      }
+    ],
+    "commands": [
+      {
+        "name": "rebuild",
+        "argv": [
+          "python3",
+          "scripts/tabularium.py",
+          "verify",
+          "--offline"
+        ],
+        "determinism": "exact",
+        "output_digest": {
+          "sha256": "b377c3cd0555cbea1b49fcc1cc662615abd77d100b6d4aa7ac384c9e7faf531d"
+        }
+      },
+      {
+        "name": "coverage census",
+        "argv": [
+          "python3",
+          "scripts/tabularium.py",
+          "census"
+        ],
+        "determinism": "nondeterministic"
+      }
+    ],
+    "licence": "CC-BY-4.0"
+  }
+}
