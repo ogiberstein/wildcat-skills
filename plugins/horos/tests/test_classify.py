@@ -1,6 +1,7 @@
 """Every classifier rule earns its entry, and every near-miss stays readable."""
 
 from pathlib import Path
+import hashlib
 import os
 import sys
 import tempfile
@@ -271,6 +272,100 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(counts["bytes_lockfile"], 5)
         self.assertEqual(counts["files_walked"], 3)
         self.assertNotIn("bytes_blob", counts)
+
+
+class ContentAddressedTests(unittest.TestCase):
+    """A store that names files by their own digest proves its own entries."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = self._tmp.name
+        self.addCleanup(self._tmp.cleanup)
+
+    def entries(self):
+        return {entry["path"]: entry for entry in horos.scan_tree(self.root)["entries"]}
+
+    def classified(self):
+        result = horos.scan_tree(self.root)
+        return {entry["path"] for entry in result["entries"] + result["candidates"]}
+
+    def store(self, payload, sharded=True, algorithm="sha256", name=None):
+        """Write payload into a store and return its path."""
+        digest = hashlib.new(algorithm, payload).hexdigest()
+        filename = digest if name is None else name
+        if sharded:
+            relpath = f"objects/{algorithm}/{filename[:2]}/{filename}"
+        else:
+            relpath = f"blobs/{algorithm}/{filename}"
+        write(self.root, relpath, payload)
+        return relpath
+
+    def test_a_sharded_object_is_hard_evidence(self):
+        relpath = self.store(b"a captured response\n")
+        entry = self.entries()[relpath]
+        self.assertEqual(entry["category"], "content_addressed")
+        self.assertEqual(entry["grade"], "hard")
+        self.assertIn("sha256 digest", entry["evidence"])
+
+    def test_a_flat_oci_style_blob_is_hard_evidence(self):
+        relpath = self.store(b"a released layer\n", sharded=False)
+        self.assertEqual(self.entries()[relpath]["category"], "content_addressed")
+
+    def test_every_supported_algorithm_verifies(self):
+        for algorithm in ("sha1", "sha256", "sha384", "sha512"):
+            with self.subTest(algorithm=algorithm):
+                relpath = self.store(f"payload for {algorithm}\n".encode(), algorithm=algorithm)
+                self.assertEqual(
+                    self.entries()[relpath]["category"], "content_addressed"
+                )
+
+    def test_a_name_whose_digest_does_not_match_stays_readable(self):
+        # The shape is right and the width is right; only the bytes disagree.
+        digest = hashlib.sha256(b"the bytes that were promised\n").hexdigest()
+        relpath = f"objects/sha256/{digest[:2]}/{digest}"
+        write(self.root, relpath, "the bytes that arrived\n")
+        self.assertNotIn(relpath, self.classified())
+
+    def test_a_shard_that_does_not_prefix_its_digest_stays_readable(self):
+        payload = b"filed under the wrong shard\n"
+        digest = hashlib.sha256(payload).hexdigest()
+        shard = "ff" if not digest.startswith("ff") else "00"
+        relpath = f"objects/sha256/{shard}/{digest}"
+        write(self.root, relpath, payload)
+        self.assertNotIn(relpath, self.classified())
+
+    def test_an_algorithm_directory_needs_an_objects_or_blobs_parent(self):
+        payload = b"a digest-named file that is not in a store\n"
+        digest = hashlib.sha256(payload).hexdigest()
+        relpath = f"docs/sha256/{digest[:2]}/{digest}"
+        write(self.root, relpath, payload)
+        self.assertNotIn(relpath, self.classified())
+
+    def test_a_git_style_object_store_does_not_verify(self):
+        # Git names no algorithm and digests a header the bytes do not carry,
+        # so its objects fall through to the other rules rather than verify.
+        payload = b"blob 5\x00hello"
+        digest = hashlib.sha1(payload).hexdigest()
+        relpath = f"objects/{digest[:2]}/{digest[2:]}"
+        write(self.root, relpath, payload)
+        self.assertNotIn(relpath, self.entries())
+
+    def test_uppercase_hex_stays_readable(self):
+        payload = b"shouted digest\n"
+        digest = hashlib.sha256(payload).hexdigest().upper()
+        relpath = f"objects/sha256/{digest[:2]}/{digest}"
+        write(self.root, relpath, payload)
+        self.assertNotIn(relpath, self.classified())
+
+    def test_a_wrong_width_name_is_never_hashed(self):
+        # Shape gates the read: a short name is refused before any hashing.
+        self.assertIsNone(horos.content_addressed_algorithm("objects/sha256/ab/abcd"))
+
+    def test_counts_report_content_addressed_bytes(self):
+        payload = b"counted by category\n"
+        self.store(payload)
+        counts = horos.scan_tree(self.root)["counts"]
+        self.assertEqual(counts["bytes_content_addressed"], len(payload))
 
 
 if __name__ == "__main__":
