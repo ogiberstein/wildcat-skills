@@ -1731,3 +1731,42 @@ levels down, so a gate indexing into a gap entry's contents without a type check
 would not be caught by it. The gap-entry case is covered by the hand-written
 tests in `test_dataset.py`; a general recursive sweep is a larger piece of work
 than this step.
+
+## Ariadne dataset predicate, step 4, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | A symlink to a directory inside the release was skipped in silence. `os.walk` does not descend one, so every file under it was left out of both `dataset_subjects` and the release bundle digest, and nothing in the statement recorded that anything had been left out. A release could ship a statement describing part of its contents with no indication. This is the silent absence the gates exist to refuse, applied against the tool itself. | fixed in this round |
+| S4-R1-02 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | `SKIPPED_NAMES` dropped `.git` and `__pycache__` from the walk without recording it, so the bundle digest covered part of the tree while the statement said nothing about the rest. Same class as S4-R1-01, smaller blast radius. | fixed in this round |
+
+Both are now refusals that name what to change rather than omissions. The
+directory case says why it refuses: the contents "would be left out of the
+statement and out of the release digest without anything saying so".
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this step, so the suite waiver covers
+the Pashov pair.
+
+The rest of the filesystem surface was probed and behaved:
+
+- A symlink to a *file* inside the release was already refused.
+- The release directory itself may be a symlink; `confined` resolves it.
+- A `..` segment in `--release` resolves before use.
+- A release holding no files is refused rather than producing an empty statement.
+- `--out` writes through a temporary file in the same directory and replaces the
+  target. A forced failure of `os.replace` leaves neither the target nor a stray
+  temporary file.
+- Record counts are read in fixed blocks. A 20000-record file spanning several
+  blocks counts correctly, and a final line with no trailing newline still counts.
+
+Three guard tests were added for the fixed cases, plus one asserting that a nested
+directory of records is captured rather than skipped, since the fix touches the
+walk.
+
+Both suites pass on the fixed tree: 24 repository tests and 422 ariadne tests, 2
+skipped.
+
+Leads not pursued: `MAX_RELEASE_FILES` is 4096 and there is no cap on the total
+bytes a release may hold. A caller pointing `--release` at a very large tree waits
+a long time rather than being refused. Adding a byte budget is a flag and a
+decision about its default, which is more than this step asks for.

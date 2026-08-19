@@ -37,7 +37,13 @@ a cap keeps a mistaken `--release /` from walking a filesystem."""
 LINE_DELIMITED = (".jsonl", ".ndjson")
 """Formats where one record per line is the format, not an assumption."""
 
-SKIPPED_NAMES = frozenset({".git", "__pycache__"})
+REFUSED_NAMES = frozenset({".git", "__pycache__"})
+"""Directories that have no business in a data release.
+
+Skipping them quietly would be the silent absence this whole tool refuses: the
+bundle digest would cover part of the tree while the statement said nothing about
+the rest. Refusing says which directory to remove, and the caller decides.
+"""
 
 
 class CaptureError(ValueError):
@@ -79,10 +85,30 @@ def files(root):
     """Every file in the release, as (relative path, absolute path), sorted.
 
     Sorted because the statement has to come out the same way twice.
+
+    Nothing is skipped. `os.walk` does not descend a symlinked directory, so
+    leaving one in place would drop everything under it from both the statement
+    and the bundle digest, with nothing recording that anything was dropped. That
+    is the silent absence the gates exist to refuse, so a symlinked directory is
+    refused here instead.
     """
     found = []
     for directory, names, entries in os.walk(root):
-        names[:] = sorted(n for n in names if n not in SKIPPED_NAMES)
+        for name in sorted(names):
+            here = os.path.join(directory, name)
+            shown = os.path.relpath(here, root)
+            if name in REFUSED_NAMES:
+                raise CaptureError(
+                    "release holds %s; remove it or name a directory that holds "
+                    "only the release" % shown
+                )
+            if os.path.islink(here):
+                raise CaptureError(
+                    "%s is a symlink to a directory; its contents would be left "
+                    "out of the statement and out of the release digest without "
+                    "anything saying so" % shown
+                )
+        names[:] = sorted(names)
         for name in sorted(entries):
             absolute = os.path.join(directory, name)
             relative = os.path.relpath(absolute, root)

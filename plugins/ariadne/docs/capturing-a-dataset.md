@@ -28,8 +28,16 @@ python3 scripts/ariadne.py capture-dataset \
 ## What it reads from the files
 
 Every file under `--release`, sorted, digested with a streaming read so a large
-release never lands in memory whole. A symlink is refused rather than followed: it
-reads fine, and its digest would describe something the release does not contain.
+release never lands in memory whole. Nested directories are walked and their files
+are captured.
+
+Nothing is skipped quietly. A symlink to a file is refused, because it reads fine
+and its digest would describe something the release does not contain. A symlink to
+a directory is refused too, and for a sharper reason: the walk does not descend
+one, so leaving it in place would drop everything under it from both the statement
+and the release digest with nothing recording that anything had been dropped. A
+`.git` or `__pycache__` directory inside the release is refused the same way,
+naming what to remove.
 
 Record counts come from the file for `.jsonl` and `.ndjson`, where one record per
 line is the format rather than an assumption. A final line with no trailing

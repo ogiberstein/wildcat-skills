@@ -168,6 +168,52 @@ class RefusalTests(unittest.TestCase):
             grab(release)
         self.assertIn("outside the release", str(caught.exception))
 
+    def test_a_symlinked_directory_inside_the_release_is_refused(self):
+        """os.walk does not descend a symlink to a directory, so leaving one in
+        place dropped everything under it from the statement and from the release
+        digest with nothing saying so. That is the silent absence the gates exist
+        to refuse."""
+        release = os.path.join(self.root, "release")
+        os.mkdir(release)
+        with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n')
+        outside = os.path.join(self.root, "elsewhere")
+        os.mkdir(outside)
+        with open(os.path.join(outside, "more.jsonl"), "wb") as handle:
+            handle.write(b'{"b":2}\n{"b":3}\n')
+        try:
+            os.symlink(outside, os.path.join(release, "extra"))
+        except (OSError, NotImplementedError):
+            self.skipTest("this filesystem does not support symlinks")
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(release)
+        self.assertIn("symlink to a directory", str(caught.exception))
+        self.assertIn("without anything saying so", str(caught.exception))
+
+    def test_a_refused_directory_name_inside_the_release_is_refused(self):
+        """Skipping it quietly would leave the bundle digest covering part of the
+        tree while the statement said nothing about the rest."""
+        for name in sorted(capture.REFUSED_NAMES):
+            release = os.path.join(self.root, "release-" + name.strip("._"))
+            os.mkdir(release)
+            with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+                handle.write(b'{"a":1}\n')
+            os.mkdir(os.path.join(release, name))
+            with self.subTest(directory=name):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(release)
+                self.assertIn(name, str(caught.exception))
+
+    def test_a_nested_directory_of_records_is_captured_rather_than_skipped(self):
+        release = os.path.join(self.root, "nested")
+        os.makedirs(os.path.join(release, "by-pool"))
+        with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n')
+        with open(os.path.join(release, "by-pool", "pool-a.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n{"a":2}\n')
+        paths = [e["path"] for e in grab(release)["predicate"]["dataset_subjects"]]
+        self.assertEqual(sorted(paths), [os.path.join("by-pool", "pool-a.jsonl"), "events.jsonl"])
+
     def test_a_parent_segment_in_the_release_path_resolves_before_use(self):
         found = grab(os.path.join(V2, "..", "v2"))
         self.assertTrue(report(found).ok)
