@@ -2,13 +2,14 @@
 
 The registry is the reason the core can stay artefact-neutral. A predicate
 module owns its own field table and its own checks, and the core knows only how
-to find it and what to ask of it. Adding the dataset, fixture or agent predicate
-later costs a module and a registration.
+to find it and what to ask of it. Adding a predicate costs a module and a
+registration, which is what the dataset predicate cost.
 
-It is empty at this point in the build, and `ariadne predicates` says so. An
-unknown predicate type is reported rather than raised: a verifier that meets a
-type it does not know can still check the core gates, and should say which part
-it could not check.
+Two are registered: the Solidity release and the dataset. `ariadne predicates`
+lists whatever is there rather than a table somebody maintains. An unknown
+predicate type is reported rather than raised: a verifier that meets a type it
+does not know can still check the core gates, and should say which part it could
+not check.
 """
 
 REQUIRED_ATTRIBUTES = ("TYPE", "SUMMARY")

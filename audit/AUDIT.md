@@ -1969,3 +1969,40 @@ repository tests and 463 ariadne tests, 2 skipped.
 
 Leads not pursued: S4-R6-06, S4-R8-08 and S4-R8-09 above, the byte-budget lead from
 round 1, and the constraint-level drift lead from round 5.
+
+## Ariadne dataset predicate, step 5, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | low | `plugins/ariadne/scripts/ariadne_lib/registry.py` | The module docstring said "It is empty at this point in the build, and `ariadne predicates` says so." That was already false before this run, since the Solidity release predicate was registered, and the dataset predicate made it doubly so. A shipped file that describes its own state wrongly is the drift this plugin's own document tests exist to catch, and no test reached a docstring. | fixed in this round |
+
+The step reconciles prose, so the review looked for the failure a prose test cannot
+see: a paraphrase that says the same stale thing in different words. The repository
+was swept for claims about how many predicates are registered and which remain
+unimplemented, across Markdown, Python and JSON. One shipped file was wrong, and it
+is fixed above.
+
+Two hits were left alone on purpose. The committed study says "its registry holds one
+predicate", which is its problem statement describing the state the run started from
+and is correct as a historical record. The Fiat run artefacts under `.hexaemeron/` are
+not shipped.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this step, so the suite waiver covers the
+Pashov pair.
+
+The ledger was checked against the contract rather than only by the suite. The
+recomputed frontier digest
+`ec925d3f57001ac32eb6d40ffdd7d43f130e360283ef40eb8fbbda724f262c2f` is over
+`open|state-fixture-predicate|<current frontier>|<next Fiat job>` with its trailing
+newline, the new row sits on the evolution axis with the counter moving 0.1.0 to
+1.1.0, and the frontier revision changes because the held target was met.
+
+The demo path from the study was run end to end against the committed tree: seven
+numbered gates, three checks, no unchecked line, exit 0.
+
+Both suites pass: 24 repository tests and 463 ariadne tests, 2 skipped.
+
+Leads not pursued: nothing tests a docstring against the state it describes, which is
+how S5-R1-01 survived. A check for it would have to decide which sentences are claims
+about the code, and that is a larger piece of work than this step.
