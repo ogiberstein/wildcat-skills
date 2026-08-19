@@ -45,7 +45,8 @@ newline still counts.
 
 ## What you have to tell it
 
-Three things the files cannot answer.
+Four things the files cannot answer. None of them has a default, because a default
+here is a value nobody supplied sitting in a field a gate reads as evidence.
 
 **Coverage.** `--coverage-dimension`, `--coverage-start` and `--coverage-end` are
 required. A directory of records does not say which interval it was meant to
@@ -76,6 +77,18 @@ cannot be derived; state it with --record-count mapping.json=<n>
 
 That refusal is the design. A count read off a filename records nothing about the
 file.
+
+**The producer.** `--producer-tool`, `--producer-version` and `--producer-command`
+are all required. Ariadne read this release; it did not produce it, and gate 2
+reads the producer block as the thing that made the files. An earlier draft
+defaulted these to `ariadne`, `unstated` and `["ariadne", "capture-dataset"]`, and
+gate 2 passed on that: a statement asserting a recoverable environment while
+recording nothing recoverable. `--parameter key=value` is optional and feeds
+`parameters_digest`, which is a digest over the canonical form of whatever was
+passed, so the same parameters in a different order give the same digest.
+
+A `--record-count` naming a file the release does not hold is refused too, so a
+typo does not leave the count you thought you gave out of the statement.
 
 ## Comparing against a previous release
 

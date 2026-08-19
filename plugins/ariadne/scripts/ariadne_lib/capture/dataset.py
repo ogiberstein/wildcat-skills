@@ -15,6 +15,10 @@ Three things the caller has to supply, because the files cannot answer them:
   unambiguous, so `.jsonl` and `.ndjson` are counted here. Every other format
   needs the count stated, and a file whose count is neither derivable nor stated
   is refused rather than guessed at.
+- **The producer.** Ariadne read the release; it did not produce it. The tool, its
+  version and the argv that ran all come from the caller, and none of them has a
+  default. A default would put this tool's own name in the field gate 2 reads as
+  the thing that made the files.
 
 Record-level deltas are never computed here. Telling which records changed
 between two releases needs a record identity this tool does not have, and
@@ -123,6 +127,12 @@ def files(root):
         for name in sorted(entries):
             absolute = os.path.join(directory, name)
             relative = os.path.relpath(absolute, root)
+            if os.path.islink(absolute):
+                raise CaptureError(
+                    "%s is a symlink; a digest over its target would describe "
+                    "something the release does not contain" % relative
+                )
+            inside(root, absolute, "release file")
             found.append((relative, absolute))
             if len(found) > MAX_RELEASE_FILES:
                 raise CaptureError(
@@ -155,6 +165,16 @@ def line_count(path):
     return total
 
 
+def unused_counts(stated, entries):
+    """Stated counts naming a file the release does not hold.
+
+    A typo in `--record-count events.jsnol=5` would otherwise pass unremarked, and
+    the count the caller believed they supplied would not be the one in the
+    statement.
+    """
+    return sorted(set(stated) - {relative for relative, _ in entries})
+
+
 def record_count(relative, absolute, stated):
     """The count for one file: stated by the caller, or derived where it can be."""
     if relative in stated:
@@ -169,14 +189,15 @@ def record_count(relative, absolute, stated):
 
 def subjects(root, stated_counts):
     """One entry per released file, digested and counted."""
+    entries = files(root)
+    stray = unused_counts(stated_counts, entries)
+    if stray:
+        raise CaptureError(
+            "--record-count names %s, which the release does not hold; check the "
+            "path" % ", ".join(stray)
+        )
     out = []
-    for relative, absolute in files(root):
-        inside(root, absolute, "release file")
-        if os.path.islink(absolute):
-            raise CaptureError(
-                "%s is a symlink; a digest over its target would describe "
-                "something the release does not contain" % relative
-            )
+    for relative, absolute in entries:
         out.append(
             {
                 "name": relative,
@@ -265,11 +286,11 @@ def capture(
     coverage_dimension,
     coverage_start,
     coverage_end,
+    producer_tool,
+    producer_version,
+    producer_command,
     gaps=None,
     inputs=None,
-    producer_tool="ariadne",
-    producer_version=None,
-    producer_command=None,
     parameters=None,
     record_counts=None,
     previous=None,
@@ -277,6 +298,21 @@ def capture(
     first_release_reason=None,
 ):
     """A dataset release statement, read from a release directory on disk."""
+    for label, value in (
+        ("--producer-tool", producer_tool),
+        ("--producer-version", producer_version),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            raise CaptureError(
+                "%s is required; gate 2 reads it as what produced these files, and "
+                "this tool read them rather than producing them" % label
+            )
+    if not producer_command or not all(
+        isinstance(word, str) and word for word in producer_command
+    ):
+        raise CaptureError(
+            "--producer-command is required, as an argv nobody has to guess at"
+        )
     root = confined(release, "release")
     entries = subjects(root, dict(record_counts or {}))
     current = bundle(entries)
@@ -328,8 +364,8 @@ def capture(
     body = {
         "producer": {
             "tool": producer_tool,
-            "tool_version": producer_version or "unstated",
-            "command": list(producer_command or ["ariadne", "capture-dataset"]),
+            "tool_version": producer_version,
+            "command": list(producer_command),
             "parameters_digest": parameters_digest(parameters),
         },
         "inputs": list(inputs or []),

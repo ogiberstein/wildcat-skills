@@ -29,6 +29,9 @@ def grab(release=V2, **overrides):
         "coverage_end": 15000000,
         "record_counts": COUNTS,
         "first_release_reason": "the first release of this dataset",
+        "producer_tool": "tabularium",
+        "producer_version": "0.3.0",
+        "producer_command": ["python3", "scripts/tabularium.py", "release"],
     }
     kwargs.update(overrides)
     return capture.capture(release, **kwargs)
@@ -149,7 +152,7 @@ class RefusalTests(unittest.TestCase):
         empty = os.path.join(self.root, "empty")
         os.mkdir(empty)
         with self.assertRaises(capture.CaptureError) as caught:
-            grab(empty)
+            grab(empty, record_counts={})
         self.assertIn("holds no files", str(caught.exception))
 
     def test_a_symlink_out_of_the_release_is_refused(self):
@@ -165,8 +168,8 @@ class RefusalTests(unittest.TestCase):
         except (OSError, NotImplementedError):
             self.skipTest("this filesystem does not support symlinks")
         with self.assertRaises(capture.CaptureError) as caught:
-            grab(release)
-        self.assertIn("outside the release", str(caught.exception))
+            grab(release, record_counts={})
+        self.assertIn("is a symlink", str(caught.exception))
 
     def test_a_symlinked_directory_inside_the_release_is_refused(self):
         """os.walk does not descend a symlink to a directory, so leaving one in
@@ -186,7 +189,7 @@ class RefusalTests(unittest.TestCase):
         except (OSError, NotImplementedError):
             self.skipTest("this filesystem does not support symlinks")
         with self.assertRaises(capture.CaptureError) as caught:
-            grab(release)
+            grab(release, record_counts={})
         self.assertIn("symlink to a directory", str(caught.exception))
         self.assertIn("without anything saying so", str(caught.exception))
 
@@ -201,7 +204,7 @@ class RefusalTests(unittest.TestCase):
             os.mkdir(os.path.join(release, name))
             with self.subTest(directory=name):
                 with self.assertRaises(capture.CaptureError) as caught:
-                    grab(release)
+                    grab(release, record_counts={})
                 self.assertIn(name, str(caught.exception))
 
     def test_a_directory_that_cannot_be_read_is_refused(self):
@@ -227,7 +230,7 @@ class RefusalTests(unittest.TestCase):
         os.scandir = refusing
         try:
             with self.assertRaises(capture.CaptureError) as caught:
-                grab(release)
+                grab(release, record_counts={})
         finally:
             os.scandir = real_scandir
         self.assertIn("cannot be read whole", str(caught.exception))
@@ -239,7 +242,10 @@ class RefusalTests(unittest.TestCase):
             handle.write(b'{"a":1}\n')
         with open(os.path.join(release, "by-pool", "pool-a.jsonl"), "wb") as handle:
             handle.write(b'{"a":1}\n{"a":2}\n')
-        paths = [e["path"] for e in grab(release)["predicate"]["dataset_subjects"]]
+        paths = [
+            e["path"]
+            for e in grab(release, record_counts={})["predicate"]["dataset_subjects"]
+        ]
         self.assertEqual(sorted(paths), [os.path.join("by-pool", "pool-a.jsonl"), "events.jsonl"])
 
     def test_a_parent_segment_in_the_release_path_resolves_before_use(self):
@@ -275,6 +281,34 @@ class RefusalTests(unittest.TestCase):
         with self.assertRaises(capture.CaptureError) as caught:
             grab(first_release_reason=None)
         self.assertIn("--first-release-reason", str(caught.exception))
+
+    def test_a_producer_tool_or_version_that_was_not_stated_is_refused(self):
+        """A default would put this tool's own name in the field gate 2 reads as
+        the thing that made the files. Ariadne read them."""
+        for field, flag in (
+            ("producer_tool", "--producer-tool"),
+            ("producer_version", "--producer-version"),
+        ):
+            for value in (None, "", "   "):
+                with self.subTest(field=field, value=repr(value)):
+                    with self.assertRaises(capture.CaptureError) as caught:
+                        grab(**{field: value})
+                    self.assertIn(flag, str(caught.exception))
+
+    def test_a_producer_command_that_was_not_stated_is_refused(self):
+        for value in (None, [], [""], ["forge", 3]):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(producer_command=value)
+                self.assertIn("--producer-command", str(caught.exception))
+
+    def test_a_stated_count_naming_a_file_the_release_does_not_hold_is_refused(self):
+        """A typo would otherwise pass unremarked, and the count the caller
+        believed they supplied would not be the one in the statement."""
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(record_counts={"mapping.json": 1, "events.jsnol": 5})
+        self.assertIn("events.jsnol", str(caught.exception))
+        self.assertIn("the release does not hold", str(caught.exception))
 
 
 class CoverageTests(unittest.TestCase):
@@ -333,6 +367,30 @@ class InputTests(unittest.TestCase):
         document = grab(inputs=[entry])
         self.assertEqual(document["predicate"]["inputs"], [entry])
         self.assertTrue(report(document).ok)
+
+
+class ProducerTests(unittest.TestCase):
+    def test_the_producer_block_carries_what_the_caller_stated(self):
+        found = grab()["predicate"]["producer"]
+        self.assertEqual(found["tool"], "tabularium")
+        self.assertEqual(found["tool_version"], "0.3.0")
+        self.assertEqual(found["command"], ["python3", "scripts/tabularium.py", "release"])
+
+    def test_the_parameters_digest_is_stable_across_key_order(self):
+        one = grab(parameters={"venue": "goldfinch", "mode": "offline"})
+        two = grab(parameters={"mode": "offline", "venue": "goldfinch"})
+        self.assertEqual(
+            one["predicate"]["producer"]["parameters_digest"],
+            two["predicate"]["producer"]["parameters_digest"],
+        )
+
+    def test_different_parameters_give_a_different_digest(self):
+        one = grab(parameters={"venue": "goldfinch"})
+        two = grab(parameters={"venue": "clearpool"})
+        self.assertNotEqual(
+            one["predicate"]["producer"]["parameters_digest"],
+            two["predicate"]["producer"]["parameters_digest"],
+        )
 
 
 class WriteTests(unittest.TestCase):

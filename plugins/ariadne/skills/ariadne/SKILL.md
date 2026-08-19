@@ -70,6 +70,8 @@ python3 scripts/ariadne.py capture-dataset \
   --release <dir> --name goldfinch-credit-events-v2 \
   --coverage-dimension block --coverage-start 11370000 --coverage-end 15000000 \
   --gap 'start=12000000,end=12000100,reason=<why this range is not described>' \
+  --producer-tool tabularium --producer-version 0.3.0 \
+  --producer-command python3 --producer-command scripts/tabularium.py \
   --previous <dir> --previous-name goldfinch-credit-events-v1 --out release.json
 
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
@@ -93,9 +95,11 @@ flags.
 
 `capture-dataset` reads a dataset release directory into a dataset statement. It
 digests every file, counts the records in line-delimited JSON, and refuses a file
-whose count is neither derivable nor stated rather than guessing one. Coverage and
-inputs come from the caller, because a directory of records does not say which
-interval it was meant to describe or what it was built from. With `--previous` it
+whose count is neither derivable nor stated rather than guessing one. Coverage, inputs and the
+producer come from the caller, because a directory of records does not say which
+interval it was meant to describe, what it was built from, or what built it. None
+of the three has a default: one would put this tool's own name in the field gate 2
+reads as what made the files. With `--previous` it
 identifies both sides of the comparison and records no record-level differences,
 because telling which records changed needs a record identity it does not have.
 [`docs/capturing-a-dataset.md`](../../docs/capturing-a-dataset.md) has the flags.

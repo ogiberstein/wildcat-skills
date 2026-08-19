@@ -1794,3 +1794,25 @@ Both suites pass: 24 repository tests and 423 ariadne tests, 2 skipped.
 
 Leads not pursued: the byte-budget lead from round 1 stands. `MAX_RELEASE_FILES`
 caps the file count at 4096 and nothing caps total bytes.
+
+## Ariadne dataset predicate, step 4, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R3-01 | high | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | The producer block was fabricated when the caller supplied nothing: `tool` defaulted to `ariadne`, `tool_version` to the string `unstated`, and `command` to `["ariadne", "capture-dataset"]`. Gate 2 passed on that, so a statement asserted a recoverable environment while recording nothing recoverable, and named Ariadne as what produced a dataset it had only read. `unstated` is a value that satisfies a non-empty-string check while carrying no information, which is the move gate 3 refuses for claims. | fixed in this round |
+| S4-R3-02 | medium | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | A `--record-count` naming a path the release does not hold was accepted in silence. A typo meant the count the caller believed they supplied was not the one in the statement, and for a line-delimited file the derived count would be used instead with no sign anything had been ignored. | fixed in this round |
+| S4-R3-03 | low | `plugins/ariadne/scripts/ariadne_lib/capture/dataset.py` | The refusal added for S4-R3-02 ran before the path refusals, so a release holding a symlinked file reported the count problem rather than the path problem. Found by two tests that started failing for the wrong reason. Every path refusal now happens inside `files()`, before any count is considered. | fixed in this round |
+
+All three producer fields are required at the library boundary and on the command
+line. The three bundled lints ran against the fixed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`.
+
+The study's demo path changed with the code rather than after it. Both committed
+copies of the study now carry the producer flags, and the path was run end to end
+against the fixed tree: seven numbered gates, no unchecked line, exit 0.
+
+Both suites pass: 24 repository tests and 429 ariadne tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead stands from round 1. `parameters_digest`
+over an empty parameter set is a real digest of an empty mapping rather than a
+fabrication, so it is left as it is and documented.
