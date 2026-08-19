@@ -7,7 +7,7 @@ description: >-
   Use only when the user explicitly asks for Kronos or for a repeated ranked
   Fiat frontier loop. Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Kronos
@@ -22,6 +22,32 @@ bare.
 > Highest first, then Fiat runs.
 >
 > Kronos cuts till work is done.
+
+## Phase-only mode
+
+When the user explicitly asks for phase-only Kronos, run this same Kronos loop
+with a fixed candidate universe of exactly six skills:
+
+1. Protasis
+2. Phylax
+3. Ephoros
+4. Metron
+5. Elenchus
+6. Hypomnema
+
+Resolve those six directories beside this skill in the active Hexaemeron
+plugin. Read all six ledgers and fail closed if any ledger is missing,
+malformed, carries a status other than `open` or `mature`, or contradicts its
+status with its Next Fiat job. Do not discover, report, score, select or start
+a frontier from any other skill. Steps 3-7 below are unchanged. In step 8,
+rescan all six phase ledgers from disk and no others, rerank from scratch and
+repeat. A replacement held job may re-enter the ranking.
+
+Unless the user supplies an iteration cap, stop only when none of the six
+phase ledgers remains eligible. If the user requests a bounded batch, stop
+after that many completed Fiat iterations or sooner if the phase market is
+exhausted. The scope limits which skill owns a selected frontier; Fiat may
+still change any file genuinely required by that exact held job.
 
 ## Loop
 
@@ -77,6 +103,8 @@ skip to a lower-scoring job to make the loop look busy.
 
 - Never edit, implement, audit, or rewrite a target itself. Fiat owns the work.
 - Never score a mature, terminal, vendored, or out-of-scope skill.
+- In phase-only mode, never discover or score a ledger outside the fixed
+  six-skill phase allowlist.
 - Never alter a held Next Fiat job before its exact frontier job completes.
 - Never continue merely because the loop can continue. No eligible frontier
   means the goal is complete.
