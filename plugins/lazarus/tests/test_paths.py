@@ -43,6 +43,14 @@ class PathTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(PathError):
                 validate_relative_path(value)
 
+    def test_a_path_that_names_the_directory_itself_is_refused(self):
+        """`PurePosixPath(".")` has no parts, so every part-based check above
+        passes over nothing and it came back unchanged as though it named a
+        file."""
+        for value in (".", "./", "a/..", "./."):
+            with self.subTest(value=value), self.assertRaises(PathError):
+                validate_relative_path(value)
+
     def test_file_and_directory_symlinks_fail(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
             root = Path(directory)

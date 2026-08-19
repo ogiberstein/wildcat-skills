@@ -22,6 +22,11 @@ def validate_relative_path(value: str) -> str:
     path = PurePosixPath(value)
     if path.is_absolute() or value.startswith("/"):
         raise PathError(f"absolute component path is forbidden: {value}")
+    if not path.parts:
+        # "." has no parts at all, so every part-based check below passes
+        # vacuously and it comes back unchanged as though it named a file. It
+        # names the directory itself.
+        raise PathError(f"component path names no file: {value!r}")
     if any(part in ("", ".", "..") for part in path.parts):
         raise PathError(f"component path is not normalised: {value}")
     if any(not visible(part) for part in path.parts):
