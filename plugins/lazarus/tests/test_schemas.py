@@ -91,6 +91,42 @@ class SchemaTests(unittest.TestCase):
             ):
                 validate_document("release", document)
 
+    def test_a_release_string_that_renders_as_nothing_fails(self):
+        """Every string field in a release is read by somebody. A value that
+        satisfies a length check and displays as empty is the shape this
+        marketplace keeps meeting, so the schema asks for one visible
+        character rather than one character."""
+        BLANK = ("   ", " ", "\t", "\u200b")
+        for value in BLANK:
+            for dotted in (
+                ("fixture", "path"),
+                ("statement", "path"),
+                ("statement", "predicate_type"),
+            ):
+                document = support.sample_release()
+                document[dotted[0]][dotted[1]] = value
+                with self.subTest(field="/".join(dotted), value=value):
+                    with self.assertRaises((FormatError, PathError)):
+                        validate_document("release", document)
+            document = support.sample_release()
+            document["binding"]["checks"] = [value]
+            with self.subTest(field="binding/checks", value=value):
+                with self.assertRaises(FormatError):
+                    validate_document("release", document)
+
+    def test_a_predicate_type_that_is_not_a_uri_fails(self):
+        for value in ("state-fixture", "   ", "//x", "1https://x", "https:"):
+            document = support.sample_release()
+            document["statement"]["predicate_type"] = value
+            with self.subTest(predicate_type=value), self.assertRaises(FormatError):
+                validate_document("release", document)
+
+    def test_a_path_with_a_space_inside_it_is_still_a_path(self):
+        """Refusing every space would refuse a legitimate filename."""
+        document = support.sample_release()
+        document["statement"]["path"] = "a statement.json"
+        validate_document("release", document)
+
     def test_a_release_whose_statement_is_its_fixture_fails(self):
         document = support.sample_release()
         document["statement"]["path"] = document["fixture"]["path"]

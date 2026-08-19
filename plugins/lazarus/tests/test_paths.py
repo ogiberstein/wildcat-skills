@@ -14,6 +14,18 @@ from lazarus_lib.paths import (
 
 
 class PathTests(unittest.TestCase):
+    def test_a_segment_that_is_entirely_whitespace_is_refused(self):
+        """A legal POSIX filename that renders as nothing. A component listed
+        under it reads as an entry nobody can identify."""
+        for value in ("   ", " ", "\t", "a/ /b", " /a", "a/  "):
+            with self.subTest(path=value), self.assertRaises(PathError):
+                validate_relative_path(value)
+
+    def test_a_space_inside_a_segment_is_kept(self):
+        self.assertEqual(validate_relative_path("a b"), "a b")
+        self.assertEqual(validate_relative_path("dir one/file two.json"),
+                         "dir one/file two.json")
+
     def test_normal_relative_path_resolves(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

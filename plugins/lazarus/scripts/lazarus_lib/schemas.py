@@ -37,7 +37,7 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
     ),
     ("release", 1): (
         "release-v1.json",
-        "ba75008322380dd4d5ffad49c76ff4089cf07e912e39f45e7a5b3e822e9f100a",
+        "f7b8ce3eb37c40d79a23bdff1d88dd0e6e163c2d72ec67575b3b4e7023d5415d",
     ),
 }
 
@@ -106,6 +106,20 @@ def _validate_release(release: dict[str, Any]) -> None:
     fixture resolve to one path describes itself.
     """
     from .paths import validate_relative_path
+    from .text import visible
+
+    for field in ("predicate_type",):
+        if not visible(release["statement"][field]):
+            raise FormatError(
+                f"release statement {field} shows a reader nothing: "
+                f"{release['statement'][field]!r}"
+            )
+    for index, check in enumerate(release["binding"]["checks"]):
+        if not visible(check):
+            raise FormatError(
+                f"release binding check {index + 1} shows a reader nothing: "
+                f"{check!r}"
+            )
 
     fixture = validate_relative_path(release["fixture"]["path"])
     statement = validate_relative_path(release["statement"]["path"])
