@@ -196,6 +196,46 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
         self.rewrite(manifest)
         self.assertIn("this capture reads 1", self.refused())
 
+    def test_a_boolean_schema_version_is_refused(self):
+        """`True == 1` in Python, so a plain inequality let `true` through the one
+        check that refuses a manifest this capture cannot read. Found by sweeping
+        the manifest with values that satisfy a presence test."""
+        manifest = self.manifest()
+        manifest["schema_version"] = True
+        self.rewrite(manifest)
+        self.assertIn("schema_version", self.refused())
+
+    def test_a_fixture_digest_that_is_not_a_digest_is_refused(self):
+        """The field is required and unused. Requiring it and accepting any value
+        would be a presence test carrying nothing, and it would let this capture
+        call a document a Lazarus manifest on the strength of a key holding
+        `{"a": 1}`."""
+        for value in (None, "", "   ", 0, True, [], {}, {"a": 1}, "beef",
+                      "F" * 64, "0x" + "a" * 64):
+            manifest = self.manifest()
+            manifest["fixture_digest"] = value
+            self.rewrite(manifest)
+            with self.subTest(fixture_digest=value):
+                self.assertIn("fixture_digest", self.refused())
+
+    def test_a_real_fixture_digest_is_accepted(self):
+        manifest = self.manifest()
+        manifest["fixture_digest"] = "a" * 64
+        self.rewrite(manifest)
+        self.assertTrue(report_for(taken(self.fixture)).ok)
+
+    def test_the_capture_does_not_use_the_manifests_fixture_digest(self):
+        """It is Lazarus's digest over Lazarus's listing, by a method this tool has
+        not reimplemented. Presenting it as the digest of what Ariadne read would
+        assert a derivation nobody here performed."""
+        manifest = self.manifest()
+        before = taken(self.fixture)["predicate"]["deltas"]["current"]["digest"]
+        manifest["fixture_digest"] = "b" * 64
+        self.rewrite(manifest)
+        after = taken(self.fixture)["predicate"]["deltas"]["current"]["digest"]
+        self.assertEqual(before, after)
+        self.assertNotIn("b" * 64, json.dumps(taken(self.fixture)))
+
     def test_a_missing_header_leaves_the_state_root_out(self):
         """A capture that proved nothing has no use for one, and the predicate's
         evidence check is what refuses a proof-backed count without it."""

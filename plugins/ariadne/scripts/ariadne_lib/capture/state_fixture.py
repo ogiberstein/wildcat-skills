@@ -33,6 +33,7 @@ What the caller cannot supply:
 
 import json
 import os
+import re
 import tempfile
 
 from .. import digests
@@ -42,6 +43,9 @@ from .tree import CaptureError, confined
 
 MANIFEST = "manifest.json"
 HEADER = "header.json"
+
+DIGEST = re.compile(r"^[0-9a-f]{64}$")
+"""A sha256 digest as Lazarus writes one into a manifest: lowercase hex, no prefix."""
 
 MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 """A manifest listing a thousand components is a few hundred kilobytes. A cap keeps
@@ -163,14 +167,32 @@ def manifest_of(root):
     absent = [field for field in MANIFEST_REQUIRED if field not in found]
     if absent:
         raise CaptureError("%s is missing %s" % (MANIFEST, ", ".join(absent)))
-    if found["schema_version"] != SCHEMA_VERSION:
+    # `True == 1` in Python, so a plain inequality let `"schema_version": true`
+    # through the one check that refuses a manifest this capture cannot read. The
+    # type is tested before the value.
+    version = found["schema_version"]
+    if not predicate.whole_number(version) or version != SCHEMA_VERSION:
         raise CaptureError(
             "%s is schema_version %r and this capture reads %d; a later manifest may "
             "spell the evidence counts differently"
-            % (MANIFEST, found["schema_version"], SCHEMA_VERSION)
+            % (MANIFEST, version, SCHEMA_VERSION)
         )
     if not isinstance(found["tool_version"], str) or not found["tool_version"].strip():
         raise CaptureError("%s tool_version names no version" % MANIFEST)
+    # Required and unused, which needs saying. This capture does not compute a
+    # fixture digest from Lazarus's, because that digest is over Lazarus's listing
+    # by a method this tool has not reimplemented. The field is checked for shape
+    # anyway: requiring a field and accepting any value for it is a presence test
+    # that carries nothing, and it would let this capture call a document a Lazarus
+    # manifest on the strength of a key holding `{"a": 1}`.
+    if not isinstance(found["fixture_digest"], str) or not DIGEST.match(
+        found["fixture_digest"]
+    ):
+        raise CaptureError(
+            "%s fixture_digest is not a sha256 digest: %r; this capture does not use "
+            "it and checks it, because a manifest that cannot carry one is not a "
+            "manifest" % (MANIFEST, found["fixture_digest"])
+        )
     if not isinstance(found["block"], dict):
         raise CaptureError("%s block must be an object" % MANIFEST)
     for field in ("number", "hash"):
