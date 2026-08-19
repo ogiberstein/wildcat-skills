@@ -134,6 +134,9 @@ fixture, so work on a copy if you want the fixture left alone.
 
 ```bash
 python3 scripts/ariadne.py predicates
+python3 scripts/ariadne.py capture-dataset --release <dir> --name <release> \
+  --coverage-dimension block --coverage-start <n> --coverage-end <n> --out release.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py capture solidity-release --project <dir> \

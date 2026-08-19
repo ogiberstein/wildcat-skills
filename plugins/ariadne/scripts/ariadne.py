@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """ariadne -- signed evidence another person can check.
 
-Five subcommands:
+Six subcommands:
 
     predicates  list the predicate types this build understands
     capture     read a build on disk into a statement
+    capture-dataset  read a dataset release on disk into a statement
     inspect     read a statement or DSSE envelope and report what it covers
     verify      run the gates over a statement and report each one
     replay      re-run the deterministic commands a statement records
@@ -21,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ariadne_lib import digests, envelope, registry, replay, safejson, verify  # noqa: E402
 from ariadne_lib import predicates  # noqa: E402,F401  (registers them)
+from ariadne_lib.capture import dataset as dataset_capture  # noqa: E402
 from ariadne_lib.capture import foundry  # noqa: E402
 from ariadne_lib.statement import StatementError  # noqa: E402
 
@@ -169,6 +171,111 @@ def audit(value):
     }
 
 
+def gap(value):
+    found = parse_pairs(value, {"start", "end", "reason"}, "--gap")
+    for field in ("start", "end", "reason"):
+        if field not in found:
+            raise argparse.ArgumentTypeError("--gap needs %s" % field)
+    out = {"reason": found["reason"]}
+    for field in ("start", "end"):
+        try:
+            out[field] = int(found[field])
+        except ValueError:
+            raise argparse.ArgumentTypeError("--gap %s must be a whole number" % field)
+    return out
+
+
+def dataset_input(value):
+    """One upstream input: a digest, or a disposition and a reason.
+
+    The predicate refuses an input with neither, so this refuses it here where
+    the caller can still fix the command.
+    """
+    found = parse_pairs(
+        value, {"name", "locator", "file", "disposition", "reason"}, "--input"
+    )
+    for field in ("name", "locator"):
+        if field not in found:
+            raise argparse.ArgumentTypeError("--input needs %s" % field)
+    out = {"name": found["name"], "locator": found["locator"]}
+    if "file" in found:
+        try:
+            out["digest"] = digests.of_file(found["file"])
+        except digests.DigestError as error:
+            raise argparse.ArgumentTypeError("--input file: %s" % error)
+        return out
+    if "disposition" not in found:
+        raise argparse.ArgumentTypeError(
+            "--input needs file=<path> to digest, or disposition=<state> with a "
+            "reason; a locator alone records nothing about what was read"
+        )
+    out["disposition"] = found["disposition"]
+    if found["disposition"] != "passed":
+        if "reason" not in found:
+            raise argparse.ArgumentTypeError(
+                "--input disposition=%s needs a reason" % found["disposition"]
+            )
+        out["reason"] = found["reason"]
+    return out
+
+
+def record_count(value):
+    name, separator, count = value.partition("=")
+    if not separator:
+        raise argparse.ArgumentTypeError("--record-count takes path=<n>")
+    try:
+        return (name.strip(), int(count))
+    except ValueError:
+        raise argparse.ArgumentTypeError("--record-count %s must be a whole number" % name)
+
+
+def parameter(value):
+    key, separator, entry = value.partition("=")
+    if not separator:
+        raise argparse.ArgumentTypeError("--parameter takes key=value")
+    return (key.strip(), entry)
+
+
+def write_statement(statement, out):
+    """Serialise a statement and put it where the caller asked."""
+    body = json.dumps(statement, indent=2) + "\n"
+    if not out:
+        sys.stdout.write(body)
+        return 0
+    try:
+        dataset_capture.write(out, body)
+    except OSError as error:
+        print("cannot write %s: %s" % (out, error), file=sys.stderr)
+        return USAGE_ERROR
+    print("wrote %s" % out)
+    return 0
+
+
+def cmd_capture_dataset(args):
+    try:
+        statement = dataset_capture.capture(
+            args.release,
+            name=args.name,
+            coverage_dimension=args.coverage_dimension,
+            coverage_start=args.coverage_start,
+            coverage_end=args.coverage_end,
+            gaps=args.gap or None,
+            inputs=args.input or None,
+            producer_tool=args.producer_tool,
+            producer_version=args.producer_version,
+            producer_command=args.producer_command or None,
+            parameters=dict(args.parameter or []),
+            record_counts=dict(args.record_count or []),
+            previous=args.previous,
+            previous_name=args.previous_name,
+            first_release_reason=args.first_release_reason,
+        )
+    except (dataset_capture.CaptureError, digests.DigestError) as error:
+        print("capture failed: %s" % error, file=sys.stderr)
+        return USAGE_ERROR
+    return write_statement(statement, args.out)
+
+
 def cmd_capture(args):
     try:
         statement = foundry.capture(
@@ -189,18 +296,7 @@ def cmd_capture(args):
         print("capture failed: %s" % error, file=sys.stderr)
         return USAGE_ERROR
 
-    body = json.dumps(statement, indent=2) + "\n"
-    if args.out:
-        try:
-            with open(args.out, "w") as handle:
-                handle.write(body)
-        except OSError as error:
-            print("cannot write %s: %s" % (args.out, error), file=sys.stderr)
-            return USAGE_ERROR
-        print("wrote %s" % args.out)
-    else:
-        sys.stdout.write(body)
-    return 0
+    return write_statement(statement, args.out)
 
 
 def recomputer(project):
@@ -326,6 +422,35 @@ def build_parser():
     grab.add_argument("--first-release-reason")
     grab.add_argument("--out")
     grab.set_defaults(handler=cmd_capture)
+
+    grab_dataset = subcommands.add_parser(
+        "capture-dataset",
+        help="read a dataset release on disk into a statement",
+    )
+    add_input_bounds(grab_dataset)
+    grab_dataset.add_argument("--release", required=True)
+    grab_dataset.add_argument("--name", required=True)
+    grab_dataset.add_argument("--coverage-dimension", required=True)
+    grab_dataset.add_argument("--coverage-start", required=True, type=int)
+    grab_dataset.add_argument("--coverage-end", required=True, type=int)
+    grab_dataset.add_argument(
+        "--gap", action="append", type=gap,
+        help="start=<n>,end=<n>,reason=<why this range is not described>",
+    )
+    grab_dataset.add_argument(
+        "--input", action="append", type=dataset_input,
+        help="name=<n>,locator=<l> with either file=<path> or disposition=<state>,reason=<why>",
+    )
+    grab_dataset.add_argument("--producer-tool", default="ariadne")
+    grab_dataset.add_argument("--producer-version")
+    grab_dataset.add_argument("--producer-command", action="append")
+    grab_dataset.add_argument("--parameter", action="append", type=parameter)
+    grab_dataset.add_argument("--record-count", action="append", type=record_count)
+    grab_dataset.add_argument("--previous")
+    grab_dataset.add_argument("--previous-name")
+    grab_dataset.add_argument("--first-release-reason")
+    grab_dataset.add_argument("--out")
+    grab_dataset.set_defaults(handler=cmd_capture_dataset)
 
     check = subcommands.add_parser(
         "verify", help="run the core gates over a statement"
