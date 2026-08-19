@@ -14,11 +14,66 @@ import unittest
 from . import support  # noqa: F401  (sets sys.path)
 
 from ariadne_lib import envelope, gates, registry, verify  # noqa: E402
+import ariadne_lib.predicates  # noqa: F401,E402  (registers the shipped predicates)
 
 FIXTURES = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "fixtures", "conformance"
 )
 BREACH = re.compile(r"^fail-gate(\d+)-")
+CHECK_BREACH = "fail-check-"
+"""A check with no gate number gets a fixture too.
+
+Gates 2 and 5 are numbered and belong to a predicate. The other checks a
+predicate adds -- coverage, inputs, audits, deployments, the field-shape check --
+carry no number, so they cannot use the `fail-gate<n>-` name. Without a fixture
+they ship unexercised, which is the gap this convention closes.
+
+The check name is recovered by longest match against the names the registered
+predicates actually return, because a name like `predicate-fields` contains the
+separator.
+"""
+
+
+def statement_of(name):
+    with open(os.path.join(FIXTURES, name), "rb") as handle:
+        return envelope.read(handle.read()).statement
+
+
+def passing_by_type():
+    """One passing fixture per predicate type, for asking a module what it checks."""
+    found = {}
+    for name in fixtures():
+        if not name.startswith("pass-"):
+            continue
+        found.setdefault(statement_of(name).predicate_type, name)
+    return found
+
+
+def checks_of(type_uri, fixture):
+    """Every gate a predicate module returns, as (number, name) pairs."""
+    module = registry.DEFAULT.get(type_uri)
+    if module is None or not callable(getattr(module, "check", None)):
+        return []
+    return [(g.number, g.name) for g in module.check(statement_of(fixture))]
+
+
+def named_checks():
+    """The unnumbered check names every registered predicate exposes."""
+    names = set()
+    for type_uri, fixture in passing_by_type().items():
+        for number, name in checks_of(type_uri, fixture):
+            if number is None:
+                names.add(name)
+    return names
+
+
+def check_name_of(fixture):
+    """The check a `fail-check-` fixture is named for, or None."""
+    if not fixture.startswith(CHECK_BREACH):
+        return None
+    rest = fixture[len(CHECK_BREACH):]
+    matches = [name for name in named_checks() if rest.startswith(name + "-")]
+    return max(matches, key=len) if matches else None
 
 
 def fixtures():
@@ -84,9 +139,67 @@ class FixtureTests(unittest.TestCase):
         for name in fixtures():
             with self.subTest(fixture=name):
                 self.assertTrue(
-                    name.startswith("pass-") or BREACH.match(name),
-                    "%s is neither a pass- nor a fail-gate<n>- fixture" % name,
+                    name.startswith("pass-")
+                    or BREACH.match(name)
+                    or check_name_of(name) is not None,
+                    "%s is not a pass-, fail-gate<n>- or fail-check-<name>- fixture"
+                    % name,
                 )
+
+    def test_every_check_breaching_fixture_fails_the_check_it_is_named_for(self):
+        found = 0
+        for name in fixtures():
+            expected = check_name_of(name)
+            if expected is None:
+                continue
+            with self.subTest(fixture=name):
+                report = report_for(name)
+                failed = [gate.name for gate in report.gates if not gate.passed]
+                self.assertEqual(
+                    failed,
+                    [expected],
+                    "%s should breach %s alone, breached %s"
+                    % (name, expected, failed),
+                )
+                self.assertFalse(report.ok)
+            found += 1
+        self.assertTrue(found)
+
+    def test_every_registered_predicate_has_a_passing_fixture(self):
+        registered = {type_uri for type_uri, _ in registry.DEFAULT.entries()}
+        self.assertEqual(registered - set(passing_by_type()), set())
+
+    def test_every_predicate_gate_has_a_breaching_fixture_of_its_own_type(self):
+        """Gates 2 and 5 mean different things per predicate, so one type's
+        fixture does not exercise another's."""
+        for type_uri, fixture in passing_by_type().items():
+            owned = {n for n, _ in checks_of(type_uri, fixture) if n is not None}
+            if not owned:
+                continue
+            covered = set()
+            for name in fixtures():
+                match = BREACH.match(name)
+                if match and statement_of(name).predicate_type == type_uri:
+                    covered.add(int(match.group(1)))
+            with self.subTest(predicate=type_uri):
+                self.assertEqual(
+                    owned - covered,
+                    set(),
+                    "%s gates with no breaching fixture of that type: %s"
+                    % (type_uri, sorted(owned - covered)),
+                )
+
+    def test_every_named_check_has_a_breaching_fixture(self):
+        """An unnumbered check with no fixture is one nobody else can test
+        against, which is how `audits` and `deployments` shipped unexercised."""
+        covered = {check_name_of(name) for name in fixtures()}
+        covered.discard(None)
+        self.assertEqual(
+            named_checks() - covered,
+            set(),
+            "named checks with no breaching fixture: %s"
+            % sorted(named_checks() - covered),
+        )
 
     def test_the_envelope_fixture_reads_through_its_envelope(self):
         with open(
