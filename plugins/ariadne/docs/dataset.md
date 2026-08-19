@@ -45,6 +45,12 @@ A tool name and a version on their own fail, for the same reason a bare compiler
 version fails in the Solidity release predicate: without the parameters nobody
 gets the same bytes back.
 
+Each released file's `path` is release-relative, not absolute and carrying no `..`
+segment, because a reader resolves it against the release directory and either form
+would send them somewhere else. No two entries may name the same path: one file
+cannot carry two digests, and the release digest is taken over this listing.
+`record_count` is a whole number and never negative.
+
 ## Gate 5 here: a comparison names both sides
 
 The baseline is a named prior release with a digest, or `null` with a reason. A
@@ -53,7 +59,13 @@ because an absent `deltas` block reads as nothing having changed instead of as
 there being nothing to change from.
 
 Record-level differences recorded against a null baseline fail. There was no
-prior release to differ from.
+prior release to differ from. The current side is checked either way: a first
+release still has to name it and digest it, and that digest still has to be a
+subject of the statement.
+
+A release compared against itself fails. `records` carries `added`, `removed` and
+`changed` and nothing else, because an unknown key inside a digested comparison is
+undeclared content just as an unknown section is.
 
 ## The coverage check
 
@@ -66,12 +78,21 @@ most easily use to mislead: an interval printed with no gaps reads as complete.
 - Gaps must not overlap each other.
 - An absent `gaps` key fails. An empty array passes, and asserts that the
   producer looked.
+- A reason of whitespace is no reason, the same way gate 3 treats a whitespace
+  claim reason.
+- `dimension` has to name something.
 
 ## The inputs check
 
-An input carries a digest, or a disposition from the core vocabulary with a
-reason. An input with neither fails: a locator on its own records nothing about
-what was read, and nothing about whether it could be read at all.
+An input carries a digest, or a disposition describing an absence with a reason.
+An input with neither fails: a locator on its own records nothing about what was
+read, and nothing about whether it could be read at all.
+
+`passed` is not available as a disposition here. An input that was read has a
+digest, so `passed` without one was a single word that got around this check
+entirely, asserting the input was read while recording nothing about it. The
+dispositions this field accepts are `failed`, `skipped`, `timed_out` and
+`redacted`, and each needs a reason.
 
 ## What this predicate does not do
 

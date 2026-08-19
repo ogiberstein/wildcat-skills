@@ -15,6 +15,10 @@ Three things the caller has to supply, because the files cannot answer them:
   unambiguous, so `.jsonl` and `.ndjson` are counted here. Every other format
   needs the count stated, and a file whose count is neither derivable nor stated
   is refused rather than guessed at.
+- **The producer.** Ariadne read the release; it did not produce it. The tool, its
+  version and the argv that ran all come from the caller, and none of them has a
+  default. A default would put this tool's own name in the field gate 2 reads as
+  the thing that made the files.
 
 Record-level deltas are never computed here. Telling which records changed
 between two releases needs a record identity this tool does not have, and
@@ -37,7 +41,13 @@ a cap keeps a mistaken `--release /` from walking a filesystem."""
 LINE_DELIMITED = (".jsonl", ".ndjson")
 """Formats where one record per line is the format, not an assumption."""
 
-SKIPPED_NAMES = frozenset({".git", "__pycache__"})
+REFUSED_NAMES = frozenset({".git", "__pycache__"})
+"""Directories that have no business in a data release.
+
+Skipping them quietly would be the silent absence this whole tool refuses: the
+bundle digest would cover part of the tree while the statement said nothing about
+the rest. Refusing says which directory to remove, and the caller decides.
+"""
 
 
 class CaptureError(ValueError):
@@ -79,13 +89,50 @@ def files(root):
     """Every file in the release, as (relative path, absolute path), sorted.
 
     Sorted because the statement has to come out the same way twice.
+
+    Nothing is skipped. `os.walk` does not descend a symlinked directory, so
+    leaving one in place would drop everything under it from both the statement
+    and the bundle digest, with nothing recording that anything was dropped. That
+    is the silent absence the gates exist to refuse, so a symlinked directory is
+    refused here instead.
+
+    `os.walk` also swallows a directory it cannot read, which drops its contents
+    the same way. `onerror` turns that into a refusal, because a capture that
+    cannot read part of the release has not captured the release.
     """
+
+    def unreadable(error):
+        raise CaptureError(
+            "cannot read %s: %s; a release that cannot be read whole cannot be "
+            "captured" % (getattr(error, "filename", root), error)
+        )
+
     found = []
-    for directory, names, entries in os.walk(root):
-        names[:] = sorted(n for n in names if n not in SKIPPED_NAMES)
+    for directory, names, entries in os.walk(root, onerror=unreadable):
+        for name in sorted(names):
+            here = os.path.join(directory, name)
+            shown = os.path.relpath(here, root)
+            if name in REFUSED_NAMES:
+                raise CaptureError(
+                    "release holds %s; remove it or name a directory that holds "
+                    "only the release" % shown
+                )
+            if os.path.islink(here):
+                raise CaptureError(
+                    "%s is a symlink to a directory; its contents would be left "
+                    "out of the statement and out of the release digest without "
+                    "anything saying so" % shown
+                )
+        names[:] = sorted(names)
         for name in sorted(entries):
             absolute = os.path.join(directory, name)
             relative = os.path.relpath(absolute, root)
+            if os.path.islink(absolute):
+                raise CaptureError(
+                    "%s is a symlink; a digest over its target would describe "
+                    "something the release does not contain" % relative
+                )
+            inside(root, absolute, "release file")
             found.append((relative, absolute))
             if len(found) > MAX_RELEASE_FILES:
                 raise CaptureError(
@@ -118,6 +165,16 @@ def line_count(path):
     return total
 
 
+def unused_counts(stated, entries):
+    """Stated counts naming a file the release does not hold.
+
+    A typo in `--record-count events.jsnol=5` would otherwise pass unremarked, and
+    the count the caller believed they supplied would not be the one in the
+    statement.
+    """
+    return sorted(set(stated) - {relative for relative, _ in entries})
+
+
 def record_count(relative, absolute, stated):
     """The count for one file: stated by the caller, or derived where it can be."""
     if relative in stated:
@@ -132,14 +189,15 @@ def record_count(relative, absolute, stated):
 
 def subjects(root, stated_counts):
     """One entry per released file, digested and counted."""
+    entries = files(root)
+    stray = unused_counts(stated_counts, entries)
+    if stray:
+        raise CaptureError(
+            "--record-count names %s, which the release does not hold; check the "
+            "path" % ", ".join(stray)
+        )
     out = []
-    for relative, absolute in files(root):
-        inside(root, absolute, "release file")
-        if os.path.islink(absolute):
-            raise CaptureError(
-                "%s is a symlink; a digest over its target would describe "
-                "something the release does not contain" % relative
-            )
+    for relative, absolute in entries:
         out.append(
             {
                 "name": relative,
@@ -177,6 +235,48 @@ def parameters_digest(parameters):
     )
 
 
+def mapping(value, what):
+    """A caller-supplied mapping, or a refusal naming the flag.
+
+    A library caller can pass a list of pairs where a mapping belongs, and the
+    `dict()` that used to be here raised a bare ValueError from inside the capture.
+    A capture reports what is wrong with its arguments the same way it reports what
+    is wrong with a release.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return dict(value)
+    raise CaptureError("%s must be a mapping, got %s" % (what, type(value).__name__))
+
+
+def counts(value):
+    """The stated record counts, each a whole number of records."""
+    found = mapping(value, "--record-count")
+    for path, count in sorted(found.items()):
+        if not predicate.whole_number(count) or count < 0:
+            raise CaptureError(
+                "--record-count %s must be a whole number of records, got %r"
+                % (path, count)
+            )
+    return found
+
+
+def entries_of(value, what):
+    """A caller-supplied list of objects, or a refusal naming the flag."""
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise CaptureError("%s must be a list, got %s" % (what, type(value).__name__))
+    for index, entry in enumerate(value):
+        if not isinstance(entry, dict):
+            raise CaptureError(
+                "%s entry %d must be an object, got %s"
+                % (what, index + 1, type(entry).__name__)
+            )
+    return list(value)
+
+
 def coverage(dimension, start, end, gaps):
     """The coverage block, with the gaps the caller recorded.
 
@@ -192,7 +292,7 @@ def coverage(dimension, start, end, gaps):
     if start > end:
         raise CaptureError("coverage starts at %d and ends at %d" % (start, end))
     out = {"dimension": dimension, "start": start, "end": end, "gaps": []}
-    for entry in gaps or ():
+    for entry in entries_of(gaps, "--gap"):
         for field in ("start", "end", "reason"):
             if field not in entry:
                 raise CaptureError("a gap needs %s" % field)
@@ -228,11 +328,11 @@ def capture(
     coverage_dimension,
     coverage_start,
     coverage_end,
+    producer_tool,
+    producer_version,
+    producer_command,
     gaps=None,
     inputs=None,
-    producer_tool="ariadne",
-    producer_version=None,
-    producer_command=None,
     parameters=None,
     record_counts=None,
     previous=None,
@@ -240,21 +340,48 @@ def capture(
     first_release_reason=None,
 ):
     """A dataset release statement, read from a release directory on disk."""
+    for label, value in (
+        ("--producer-tool", producer_tool),
+        ("--producer-version", producer_version),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            raise CaptureError(
+                "%s is required; gate 2 reads it as what produced these files, and "
+                "this tool read them rather than producing them" % label
+            )
+    if not producer_command or not all(
+        isinstance(word, str) and word for word in producer_command
+    ):
+        raise CaptureError(
+            "--producer-command is required, as an argv nobody has to guess at"
+        )
+    if not isinstance(name, str) or not name.strip():
+        raise CaptureError(
+            "--name is required; it identifies the current side of the comparison "
+            "and names the release among the statement's subjects"
+        )
+    stated = counts(record_counts)
+    inputs = entries_of(inputs, "--input")
     root = confined(release, "release")
-    entries = subjects(root, dict(record_counts or {}))
+    entries = subjects(root, stated)
     current = bundle(entries)
 
     if previous:
         if not previous_name:
             raise CaptureError("--previous needs --previous-name to identify it")
         previous_root = confined(previous, "previous release")
+        if previous_root == root:
+            raise CaptureError(
+                "--previous is the same directory as --release; a comparison "
+                "against itself records nothing"
+            )
         baseline = {
             "name": previous_name,
-            "digest": bundle(subjects(previous_root, dict(record_counts or {}))),
+            "digest": bundle(subjects(previous_root, stated)),
         }
         deltas = {"baseline": baseline, "current": {"name": name, "digest": current}}
     else:
-        if not first_release_reason:
+        if not isinstance(first_release_reason, str) or not first_release_reason.strip():
             raise CaptureError(
                 "a release with no --previous needs --first-release-reason; a null "
                 "baseline carries the reason there is nothing to compare against"
@@ -291,11 +418,11 @@ def capture(
     body = {
         "producer": {
             "tool": producer_tool,
-            "tool_version": producer_version or "unstated",
-            "command": list(producer_command or ["ariadne", "capture-dataset"]),
-            "parameters_digest": parameters_digest(parameters),
+            "tool_version": producer_version,
+            "command": list(producer_command),
+            "parameters_digest": parameters_digest(mapping(parameters, "--parameter")),
         },
-        "inputs": list(inputs or []),
+        "inputs": inputs,
         "dataset_subjects": entries,
         "coverage": coverage(coverage_dimension, coverage_start, coverage_end, gaps),
         "deltas": deltas,

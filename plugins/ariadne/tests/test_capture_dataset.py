@@ -29,6 +29,9 @@ def grab(release=V2, **overrides):
         "coverage_end": 15000000,
         "record_counts": COUNTS,
         "first_release_reason": "the first release of this dataset",
+        "producer_tool": "tabularium",
+        "producer_version": "0.3.0",
+        "producer_command": ["python3", "scripts/tabularium.py", "release"],
     }
     kwargs.update(overrides)
     return capture.capture(release, **kwargs)
@@ -149,7 +152,7 @@ class RefusalTests(unittest.TestCase):
         empty = os.path.join(self.root, "empty")
         os.mkdir(empty)
         with self.assertRaises(capture.CaptureError) as caught:
-            grab(empty)
+            grab(empty, record_counts={})
         self.assertIn("holds no files", str(caught.exception))
 
     def test_a_symlink_out_of_the_release_is_refused(self):
@@ -165,8 +168,85 @@ class RefusalTests(unittest.TestCase):
         except (OSError, NotImplementedError):
             self.skipTest("this filesystem does not support symlinks")
         with self.assertRaises(capture.CaptureError) as caught:
-            grab(release)
-        self.assertIn("outside the release", str(caught.exception))
+            grab(release, record_counts={})
+        self.assertIn("is a symlink", str(caught.exception))
+
+    def test_a_symlinked_directory_inside_the_release_is_refused(self):
+        """os.walk does not descend a symlink to a directory, so leaving one in
+        place dropped everything under it from the statement and from the release
+        digest with nothing saying so. That is the silent absence the gates exist
+        to refuse."""
+        release = os.path.join(self.root, "release")
+        os.mkdir(release)
+        with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n')
+        outside = os.path.join(self.root, "elsewhere")
+        os.mkdir(outside)
+        with open(os.path.join(outside, "more.jsonl"), "wb") as handle:
+            handle.write(b'{"b":2}\n{"b":3}\n')
+        try:
+            os.symlink(outside, os.path.join(release, "extra"))
+        except (OSError, NotImplementedError):
+            self.skipTest("this filesystem does not support symlinks")
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(release, record_counts={})
+        self.assertIn("symlink to a directory", str(caught.exception))
+        self.assertIn("without anything saying so", str(caught.exception))
+
+    def test_a_refused_directory_name_inside_the_release_is_refused(self):
+        """Skipping it quietly would leave the bundle digest covering part of the
+        tree while the statement said nothing about the rest."""
+        for name in sorted(capture.REFUSED_NAMES):
+            release = os.path.join(self.root, "release-" + name.strip("._"))
+            os.mkdir(release)
+            with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+                handle.write(b'{"a":1}\n')
+            os.mkdir(os.path.join(release, name))
+            with self.subTest(directory=name):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(release, record_counts={})
+                self.assertIn(name, str(caught.exception))
+
+    def test_a_directory_that_cannot_be_read_is_refused(self):
+        """os.walk swallows a directory it cannot read, which drops its contents
+        the same way a symlinked directory did. Simulated rather than done with
+        permissions, because a run as root would read it anyway and the test would
+        pass without exercising anything."""
+        release = os.path.join(self.root, "unreadable")
+        locked = os.path.join(release, "locked")
+        os.makedirs(locked)
+        with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n')
+        with open(os.path.join(locked, "hidden.jsonl"), "wb") as handle:
+            handle.write(b'{"b":2}\n')
+
+        real_scandir = os.scandir
+
+        def refusing(path="."):
+            if os.path.realpath(str(path)) == os.path.realpath(locked):
+                raise PermissionError(13, "Permission denied", str(path))
+            return real_scandir(path)
+
+        os.scandir = refusing
+        try:
+            with self.assertRaises(capture.CaptureError) as caught:
+                grab(release, record_counts={})
+        finally:
+            os.scandir = real_scandir
+        self.assertIn("cannot be read whole", str(caught.exception))
+
+    def test_a_nested_directory_of_records_is_captured_rather_than_skipped(self):
+        release = os.path.join(self.root, "nested")
+        os.makedirs(os.path.join(release, "by-pool"))
+        with open(os.path.join(release, "events.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n')
+        with open(os.path.join(release, "by-pool", "pool-a.jsonl"), "wb") as handle:
+            handle.write(b'{"a":1}\n{"a":2}\n')
+        paths = [
+            e["path"]
+            for e in grab(release, record_counts={})["predicate"]["dataset_subjects"]
+        ]
+        self.assertEqual(sorted(paths), [os.path.join("by-pool", "pool-a.jsonl"), "events.jsonl"])
 
     def test_a_parent_segment_in_the_release_path_resolves_before_use(self):
         found = grab(os.path.join(V2, "..", "v2"))
@@ -200,6 +280,96 @@ class RefusalTests(unittest.TestCase):
     def test_a_first_release_without_a_reason_is_refused(self):
         with self.assertRaises(capture.CaptureError) as caught:
             grab(first_release_reason=None)
+        self.assertIn("--first-release-reason", str(caught.exception))
+
+    def test_a_producer_tool_or_version_that_was_not_stated_is_refused(self):
+        """A default would put this tool's own name in the field gate 2 reads as
+        the thing that made the files. Ariadne read them."""
+        for field, flag in (
+            ("producer_tool", "--producer-tool"),
+            ("producer_version", "--producer-version"),
+        ):
+            for value in (None, "", "   "):
+                with self.subTest(field=field, value=repr(value)):
+                    with self.assertRaises(capture.CaptureError) as caught:
+                        grab(**{field: value})
+                    self.assertIn(flag, str(caught.exception))
+
+    def test_a_producer_command_that_was_not_stated_is_refused(self):
+        for value in (None, [], [""], ["forge", 3]):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(producer_command=value)
+                self.assertIn("--producer-command", str(caught.exception))
+
+    def test_a_stated_count_naming_a_file_the_release_does_not_hold_is_refused(self):
+        """A typo would otherwise pass unremarked, and the count the caller
+        believed they supplied would not be the one in the statement."""
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(record_counts={"mapping.json": 1, "events.jsnol": 5})
+        self.assertIn("events.jsnol", str(caught.exception))
+        self.assertIn("the release does not hold", str(caught.exception))
+
+
+class ArgumentTests(unittest.TestCase):
+    """A library caller can pass shapes argparse would have coerced.
+
+    Each of these used to raise a bare ValueError or TypeError from inside the
+    capture, or produce a statement that verify then refused. A capture reports
+    what is wrong with its arguments the same way it reports what is wrong with a
+    release.
+    """
+
+    def test_a_release_name_that_was_not_stated_is_refused(self):
+        for value in (None, "", "   ", 7):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(name=value)
+                self.assertIn("--name", str(caught.exception))
+
+    def test_inputs_that_are_not_a_list_of_objects_are_refused(self):
+        for value, expected in (
+            ("alexandria://x", "must be a list"),
+            (["alexandria://x"], "must be an object"),
+            ([None], "must be an object"),
+        ):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(inputs=value)
+                self.assertIn(expected, str(caught.exception))
+
+    def test_gaps_that_are_not_a_list_of_objects_are_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(gaps="12000000")
+        self.assertIn("must be a list", str(caught.exception))
+
+    def test_parameters_that_are_not_a_mapping_are_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(parameters=["venue", "goldfinch"])
+        self.assertIn("--parameter must be a mapping", str(caught.exception))
+
+    def test_record_counts_that_are_not_a_mapping_are_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(record_counts=["events.jsonl", 2])
+        self.assertIn("--record-count must be a mapping", str(caught.exception))
+
+    def test_a_stated_count_that_is_not_a_whole_number_is_refused(self):
+        for value in ("two", -2, 1.5, True):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    grab(record_counts={"events.jsonl": value})
+                self.assertIn("whole number of records", str(caught.exception))
+
+    def test_comparing_a_release_against_itself_is_refused(self):
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(V2, previous=V2, previous_name="itself")
+        self.assertIn("comparison against itself", str(caught.exception))
+
+    def test_a_blank_first_release_reason_is_refused(self):
+        """It used to produce a statement that gate 5 then refused, which breaks
+        the capture's contract: what it writes, verify accepts unedited."""
+        with self.assertRaises(capture.CaptureError) as caught:
+            grab(first_release_reason="   ")
         self.assertIn("--first-release-reason", str(caught.exception))
 
 
@@ -249,6 +419,23 @@ class InputTests(unittest.TestCase):
     def test_a_release_derived_from_nothing_records_an_empty_list(self):
         self.assertEqual(grab()["predicate"]["inputs"], [])
 
+    def test_an_input_claiming_passed_without_a_digest_does_not_verify(self):
+        """The capture takes inputs from the caller verbatim, so the predicate is
+        what stops this reaching a reader."""
+        document = grab(
+            inputs=[
+                {
+                    "name": "goldfinch capture",
+                    "locator": "alexandria://goldfinch/2024-01",
+                    "disposition": "passed",
+                }
+            ]
+        )
+        found = report(document)
+        self.assertFalse(found.ok)
+        failed = [g.name for g in found.gates if not g.passed]
+        self.assertEqual(failed, ["inputs"])
+
     def test_an_input_recorded_absent_survives_and_verifies(self):
         entry = {
             "name": "subgraph backfill",
@@ -259,6 +446,30 @@ class InputTests(unittest.TestCase):
         document = grab(inputs=[entry])
         self.assertEqual(document["predicate"]["inputs"], [entry])
         self.assertTrue(report(document).ok)
+
+
+class ProducerTests(unittest.TestCase):
+    def test_the_producer_block_carries_what_the_caller_stated(self):
+        found = grab()["predicate"]["producer"]
+        self.assertEqual(found["tool"], "tabularium")
+        self.assertEqual(found["tool_version"], "0.3.0")
+        self.assertEqual(found["command"], ["python3", "scripts/tabularium.py", "release"])
+
+    def test_the_parameters_digest_is_stable_across_key_order(self):
+        one = grab(parameters={"venue": "goldfinch", "mode": "offline"})
+        two = grab(parameters={"mode": "offline", "venue": "goldfinch"})
+        self.assertEqual(
+            one["predicate"]["producer"]["parameters_digest"],
+            two["predicate"]["producer"]["parameters_digest"],
+        )
+
+    def test_different_parameters_give_a_different_digest(self):
+        one = grab(parameters={"venue": "goldfinch"})
+        two = grab(parameters={"venue": "clearpool"})
+        self.assertNotEqual(
+            one["predicate"]["producer"]["parameters_digest"],
+            two["predicate"]["producer"]["parameters_digest"],
+        )
 
 
 class WriteTests(unittest.TestCase):

@@ -34,10 +34,13 @@ A working prototype means this sequence succeeds from a clean checkout:
 ```text
 python3 plugins/ariadne/scripts/ariadne.py capture-dataset \
   --release plugins/ariadne/tests/fixtures/dataset-release/v2 \
-  --name goldfinch-credit-events \
+  --name goldfinch-credit-events-v2 \
   --coverage-dimension block \
   --coverage-start 11370000 --coverage-end 15000000 \
-  --gap 12000000:12000100:archive node returned no receipts for this range \
+  --gap 'start=12000000,end=12000100,reason=the archive node returned no receipts here' \
+  --producer-tool tabularium --producer-version 0.3.0 \
+  --producer-command python3 --producer-command scripts/tabularium.py \
+  --record-count mapping.json=1 \
   --previous plugins/ariadne/tests/fixtures/dataset-release/v1 \
   --previous-name goldfinch-credit-events-v1 \
   --out /tmp/dataset.json
@@ -45,6 +48,10 @@ python3 plugins/ariadne/scripts/ariadne.py verify /tmp/dataset.json
 ```
 
 The second command exits 0 and prints seven gate lines with none unchecked.
+The producer flags are required rather than defaulted. Step 4's audit found that
+defaulting them put this tool's own name in the field gate 2 reads as what made
+the files, and Ariadne reads a release rather than producing one.
+
 
 ## Prior art
 

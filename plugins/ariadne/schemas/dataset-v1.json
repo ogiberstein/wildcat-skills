@@ -83,13 +83,12 @@
           },
           "disposition": {
             "enum": [
-              "passed",
               "failed",
               "skipped",
               "timed_out",
               "redacted"
             ],
-            "description": "Present instead of a digest when the input could not be digested. Anything but passed needs a reason."
+            "description": "Present instead of a digest when the input could not be digested. `passed` is not available here: an input that was read carries a digest. Every value on this list needs a reason."
           },
           "reason": {
             "type": "string"
@@ -113,7 +112,9 @@
             "type": "string"
           },
           "path": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "description": "Release-relative. Not absolute, and carrying no .. segment: a reader resolves this against the release directory, and either form would send them outside it."
           },
           "digest": {
             "type": "object",
@@ -127,9 +128,12 @@
           "record_count": {
             "type": "integer",
             "minimum": 0,
-            "description": "Read from the file. A count taken from a filename records nothing about the file."
+            "description": "Read from the file, and never negative. A count taken from a filename records nothing about the file."
           }
-        }
+        },
+        "uniqueItemProperties": [
+          "path"
+        ]
       }
     },
     "coverage": {

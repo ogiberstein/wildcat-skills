@@ -28,8 +28,16 @@ python3 scripts/ariadne.py capture-dataset \
 ## What it reads from the files
 
 Every file under `--release`, sorted, digested with a streaming read so a large
-release never lands in memory whole. A symlink is refused rather than followed: it
-reads fine, and its digest would describe something the release does not contain.
+release never lands in memory whole. Nested directories are walked and their files
+are captured.
+
+Nothing is skipped quietly. A symlink to a file is refused, because it reads fine
+and its digest would describe something the release does not contain. A symlink to
+a directory is refused too, and for a sharper reason: the walk does not descend
+one, so leaving it in place would drop everything under it from both the statement
+and the release digest with nothing recording that anything had been dropped. A
+`.git` or `__pycache__` directory inside the release is refused the same way,
+naming what to remove.
 
 Record counts come from the file for `.jsonl` and `.ndjson`, where one record per
 line is the format rather than an assumption. A final line with no trailing
@@ -37,7 +45,8 @@ newline still counts.
 
 ## What you have to tell it
 
-Three things the files cannot answer.
+Four things the files cannot answer. None of them has a default, because a default
+here is a value nobody supplied sitting in a field a gate reads as evidence.
 
 **Coverage.** `--coverage-dimension`, `--coverage-start` and `--coverage-end` are
 required. A directory of records does not say which interval it was meant to
@@ -54,8 +63,11 @@ accident.
 **Inputs.** `--input name=<n>,locator=<l>` with either `file=<path>` to digest, or
 `disposition=<state>,reason=<why>` when the input cannot be digested. A locator on
 its own is refused, because it records nothing about what was read or whether it
-could be read at all. Passing no inputs writes an empty array, which says the
-question was asked.
+could be read at all. `disposition=passed` is refused too: an input that was read
+has a digest, and `passed` without one was a single word that got around the check.
+The dispositions this field accepts are `failed`, `skipped`, `timed_out` and
+`redacted`. Passing no inputs writes an empty array, which says the question was
+asked.
 
 **Record counts for anything that is not line-delimited.**
 `--record-count <path>=<n>`. A file whose count is neither derivable nor stated is
@@ -68,6 +80,18 @@ cannot be derived; state it with --record-count mapping.json=<n>
 
 That refusal is the design. A count read off a filename records nothing about the
 file.
+
+**The producer.** `--producer-tool`, `--producer-version` and `--producer-command`
+are all required. Ariadne read this release; it did not produce it, and gate 2
+reads the producer block as the thing that made the files. An earlier draft
+defaulted these to `ariadne`, `unstated` and `["ariadne", "capture-dataset"]`, and
+gate 2 passed on that: a statement asserting a recoverable environment while
+recording nothing recoverable. `--parameter key=value` is optional and feeds
+`parameters_digest`, which is a digest over the canonical form of whatever was
+passed, so the same parameters in a different order give the same digest.
+
+A `--record-count` naming a file the release does not hold is refused too, so a
+typo does not leave the count you thought you gave out of the statement.
 
 ## Comparing against a previous release
 
