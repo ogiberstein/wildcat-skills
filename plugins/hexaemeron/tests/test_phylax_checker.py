@@ -6,7 +6,10 @@ an RPC client with a `.call`, and a lint that flags those is a lint people
 learn to bypass.
 """
 
+import contextlib
 import importlib.util
+import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,6 +27,13 @@ def codes(source, name="sample.py"):
         path = Path(directory) / name
         path.write_text(source, encoding="utf-8")
         return sorted(finding.code for finding in phylax.check(path))
+
+
+def findings(source, name="sample.ts"):
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / name
+        path.write_text(source, encoding="utf-8")
+        return phylax.check(path)
 
 
 class ShellInvocation(unittest.TestCase):
@@ -100,6 +110,223 @@ class Suppression(unittest.TestCase):
 
     def test_a_bare_pragma_without_a_reason_does_not_suppress(self):
         self.assertIn("P004", codes('SECRET = "9f4b2c8e"  # phylax: allow\n'))
+
+
+class RawHTML(unittest.TestCase):
+    def test_it_flags_raw_rehype_without_a_later_sanitiser_on_the_exact_line(self):
+        source = (
+            'import raw from "rehype-raw"\n'
+            'import clean from "rehype-sanitize"\n'
+            'const view = <Markdown rehypePlugins={[\n'
+            '  raw,\n'
+            ']} />\n'
+        )
+        result = findings(source, "sample.tsx")
+        self.assertEqual(["P005"], [finding.code for finding in result])
+        self.assertEqual(4, result[0].line)
+
+    def test_it_allows_import_aliases_in_safe_order(self):
+        source = (
+            'import unsafeTransform from "rehype-raw"\n'
+            'import scrub from "rehype-sanitize"\n'
+            'const view = <Markdown rehypePlugins={[unsafeTransform, scrub]} />\n'
+        )
+        self.assertEqual([], codes(source, "sample.tsx"))
+
+    def test_it_allows_emotion_style_injection(self):
+        source = '<style dangerouslySetInnerHTML={{ __html: styles }} />\n'
+        self.assertEqual([], codes(source, "sample.tsx"))
+
+    def test_it_flags_raw_named_html_without_a_trusted_call(self):
+        source = 'const view = <div dangerouslySetInnerHTML={{ __html: rawHtml }} />\n'
+        self.assertEqual(["P005"], codes(source, "sample.tsx"))
+
+    def test_a_side_effect_import_does_not_hide_the_raw_binding(self):
+        source = (
+            'import "./setup"\n'
+            'import raw from "rehype-raw"\n'
+            'const view = <Markdown rehypePlugins={[raw]} />\n'
+        )
+        self.assertEqual(["P005"], codes(source, "sample.tsx"))
+
+    def test_it_allows_raw_html_passed_to_an_imported_sanitiser(self):
+        source = (
+            'import clean from "sanitize-html"\n'
+            'const view = <div dangerouslySetInnerHTML={{ __html: clean(rawHtml) }} />\n'
+        )
+        self.assertEqual([], codes(source, "sample.tsx"))
+
+    def test_an_unrelated_function_named_sanitize_does_not_earn_trust(self):
+        source = (
+            'const sanitize = (value: string) => value\n'
+            'const view = <div dangerouslySetInnerHTML={{ __html: sanitize(rawHtml) }} />\n'
+        )
+        self.assertEqual(["P005"], codes(source, "sample.tsx"))
+
+
+class PersistedSessions(unittest.TestCase):
+    def test_it_flags_a_session_token_written_to_storage_on_the_exact_line(self):
+        source = (
+            'const accessToken = getToken()\n'
+            'localStorage.setItem("accessToken", accessToken)\n'
+        )
+        result = findings(source)
+        self.assertEqual(["P006"], [finding.code for finding in result])
+        self.assertEqual(2, result[0].line)
+
+    def test_it_allows_ordinary_ui_storage(self):
+        self.assertEqual([], codes(
+            'localStorage.setItem("lastSeen", String(Date.now()))\n', "sample.ts"))
+
+    def test_it_allows_api_token_domain_and_pending_signature_names(self):
+        source = (
+            'type ApiTokensState = { apiTokens: Record<string, string> }\n'
+            'type Pending = { signature?: string }\n'
+            'localStorage.setItem("apiTokens", JSON.stringify(apiTokens))\n'
+        )
+        self.assertEqual([], codes(source, "sample.ts"))
+
+    def test_it_flags_a_session_field_in_a_persisted_reducer(self):
+        source = (
+            'import { persistReducer } from "redux-persist"\n'
+            'type AuthState = { sessionToken: string }\n'
+            'const persistConfig = { key: "auth", storage }\n'
+            'export default persistReducer(persistConfig, reducer)\n'
+        )
+        result = findings(source)
+        self.assertEqual(["P006"], [finding.code for finding in result])
+        self.assertEqual(4, result[0].line)
+
+    def test_it_allows_a_sensitive_field_on_the_blacklist(self):
+        source = (
+            'import { persistReducer } from "redux-persist"\n'
+            'type AuthState = { authToken: string; theme: string }\n'
+            'const persistConfig = { key: "auth", storage, blacklist: ["authToken"] }\n'
+            'export default persistReducer(persistConfig, reducer)\n'
+        )
+        self.assertEqual([], codes(source, "sample.ts"))
+
+    def test_it_allows_a_whitelist_that_omits_the_sensitive_field(self):
+        source = (
+            'import { persistReducer } from "redux-persist"\n'
+            'type AuthState = { jwt: string; theme: string }\n'
+            'const persistConfig = { key: "auth", storage, whitelist: ["theme"] }\n'
+            'export default persistReducer(persistConfig, reducer)\n'
+        )
+        self.assertEqual([], codes(source, "sample.ts"))
+
+    def test_it_allows_a_visible_transform_that_removes_the_sensitive_field(self):
+        source = (
+            'import { createTransform, persistReducer } from "redux-persist"\n'
+            'type AuthState = { authToken: string; theme: string }\n'
+            'const stripAuth = createTransform((state: AuthState) => {\n'
+            '  const { authToken, ...safe } = state\n'
+            '  return safe\n'
+            '})\n'
+            'const config = { key: "auth", storage, transforms: [stripAuth] }\n'
+            'export default persistReducer(config, reducer)\n'
+        )
+        self.assertEqual([], codes(source, "sample.ts"))
+
+
+class FetchHosts(unittest.TestCase):
+    def test_it_flags_an_interpolated_absolute_host_on_the_exact_line(self):
+        source = (
+            'async function load(host: string) {\n'
+            '  return fetch(`https://${host}/api`)\n'
+            '}\n'
+        )
+        result = findings(source)
+        self.assertEqual(["P007"], [finding.code for finding in result])
+        self.assertEqual(2, result[0].line)
+
+    def test_it_flags_new_url_with_a_runtime_base(self):
+        source = (
+            'async function load(host: string) {\n'
+            '  const url = new URL("/api", host)\n'
+            '  return fetch(url.toString())\n'
+            '}\n'
+        )
+        self.assertEqual(["P007"], codes(source, "sample.ts"))
+
+    def test_it_allows_a_prior_named_allowlist_guard(self):
+        source = (
+            'const ALLOWED_HOSTS = new Set(["api.example"])\n'
+            'async function load(host: string) {\n'
+            '  if (!ALLOWED_HOSTS.has(host)) throw new Error("not allowed")\n'
+            '  return fetch(`https://${host}/api`)\n'
+            '}\n'
+        )
+        self.assertEqual([], codes(source, "sample.ts"))
+
+    def test_a_non_dominating_membership_check_does_not_earn_trust(self):
+        source = (
+            'const ALLOWED_HOSTS = new Set(["api.example"])\n'
+            'async function load(host: string) {\n'
+            '  if (ALLOWED_HOSTS.has(host)) recordAllowed(host)\n'
+            '  return fetch(`https://${host}/api`)\n'
+            '}\n'
+        )
+        self.assertEqual(["P007"], codes(source, "sample.ts"))
+
+    def test_it_allows_relative_same_origin_and_fixed_urls(self):
+        source = (
+            'fetch("/api/items")\n'
+            'fetch(new URL("/api/items", window.location.origin))\n'
+            'fetch("https://api.example/items")\n'
+        )
+        self.assertEqual([], codes(source, "sample.ts"))
+
+    def test_a_bare_fetch_binding_has_no_invented_host(self):
+        self.assertEqual([], codes(
+            'async function query(url: string) { return fetch(url) }\n', "sample.ts"))
+
+
+class TypeScriptContract(unittest.TestCase):
+    def test_reason_bearing_line_and_previous_line_suppressions_work(self):
+        self.assertEqual([], codes(
+            '// phylax: allow hostile fixture\n'
+            'localStorage.setItem("authToken", authToken)\n', "sample.ts"))
+        self.assertEqual([], codes(
+            'localStorage.setItem("authToken", authToken) // phylax: allow test-only token\n',
+            "sample.ts",
+        ))
+
+    def test_a_bare_typescript_pragma_does_not_suppress(self):
+        self.assertEqual(["P006"], codes(
+            'localStorage.setItem("authToken", authToken) // phylax: allow\n',
+            "sample.ts",
+        ))
+
+    def test_unterminated_typescript_is_p000(self):
+        result = findings('const value = `unterminated ${name}\n')
+        self.assertEqual(["P000"], [finding.code for finding in result])
+        self.assertEqual(1, result[0].line)
+
+    def test_findings_do_not_repeat_secret_material_in_text_or_json(self):
+        sample_value = "top-secret-session-value"
+        result = findings(
+            f'const accessToken = "{sample_value}"\n'
+            'localStorage.setItem("accessToken", accessToken)\n'
+        )
+        rendered = "\n".join(str(finding) for finding in result)
+        encoded = json.dumps([finding.as_dict() for finding in result])
+        self.assertNotIn(sample_value, rendered)
+        self.assertNotIn(sample_value, encoded)
+
+    def test_main_accepts_mixed_python_and_typescript_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            python_path = Path(directory) / "unsafe.py"
+            typescript_path = Path(directory) / "unsafe.ts"
+            python_path.write_text('SECRET = "live-value"\n', encoding="utf-8")
+            typescript_path.write_text(
+                'localStorage.setItem("authToken", authToken)\n', encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = phylax.main([str(python_path), str(typescript_path)])
+        self.assertEqual(1, status)
+        self.assertIn("P004", output.getvalue())
+        self.assertIn("P006", output.getvalue())
 
 
 class OverTheMarketplace(unittest.TestCase):
