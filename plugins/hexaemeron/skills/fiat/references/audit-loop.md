@@ -40,6 +40,10 @@ another pass.
    hexctl audit-round --findings <n> --log audit/AUDIT.md --fixes-commit <sha>
    ```
 
+   That form is complete for a Solidity round. A non-Solidity round owes the
+   three lint exits as well, which the section below sets out; `hexctl next`
+   names them when they are owed.
+
 5. Re-run from 1 against the fixed tree. The next round audits the tree
    with fixes applied, so a regression introduced by a fix gets caught.
 

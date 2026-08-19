@@ -2267,3 +2267,41 @@ The three bundled lints ran and each exited 0. Both suites pass: 24 repository t
 Leads not pursued: the two from earlier rounds stand. `load_state` validates nothing, and
 `verify` checks the ledger chain and phase consistency rather than the shape of a round,
 so a hand-edited round carrying a nonsense `lints` value would pass it.
+
+## Receipted lint rounds, step 3, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | `plugins/hexaemeron/skills/fiat/references/audit-loop.md` | Step 4 of the generic "One round" list still showed the bare command. It is complete for a Solidity round, and a reader working a non-Solidity round would have taken it as complete for theirs, then met the refusal. The step now says which round it is complete for and points at the section that adds the rest. | fixed in this round |
+
+The step reconciles prose, so the review looked for the failure a prose test cannot see: a
+surface that still describes the old contract. Every mention of `audit-round` across the
+repository's Markdown was read. One was stale and is fixed; the rest are the new receipt
+table, the new reference section, the ledger row, this run's committed study and runbook,
+a Solidity-agnostic `...` elision in the plugin README, an unrelated historical audit
+entry, and Elenchus's SKILL.md naming the phase it serves.
+
+The study's line about 21 call sites is left as it was: it describes the tree the run
+started from, which is what a study's prior-art section is for.
+
+The ledger was checked against the contract rather than only by the suite. The digest
+`6e406e13adce5276ded6bfe7317c3229f069312b8a9de3a4a0c5c78c89ec9ca3` recomputes from
+`open|receipted-lint-rounds|<current frontier>|<next Fiat job>` with its trailing newline,
+the row sits on the evolution axis moving 3.4.1 to 4.4.1, and the frontmatter version
+agrees with it.
+
+Hexaemeron's plugin-level frontier was deliberately not touched. It concerns a published
+end-to-end Solidity delivery, this run is not one, and Fiat's SKILL.md warns against
+substituting one frontier for the other. The plugin's context blocks therefore need no
+change, which is why this step edits no landing README.
+
+The demonstration ran end to end against the checkout controller: `next` naming the three
+flags, the refusal without them, acceptance with them, the three exits on the round in the
+state file, a clean close, and `verify` reporting the chain intact.
+
+The three bundled lints ran and each exited 0. Both suites pass: 24 repository tests and
+214 of 215 Hexaemeron tests. The single error is `ForgeReports`, environmental.
+
+Leads not pursued: the `load_state` lead is now this skill's held frontier rather than a
+lead, so it leaves this list. `verify` still checks the ledger chain and phase consistency
+rather than the shape of a round.
