@@ -1,5 +1,9 @@
 # Dataset release fixture
 
+<!-- marketplace-context:start -->
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+<!-- marketplace-context:end -->
+
 Two releases of the same small dataset, for exercising `capture-dataset` and the
 comparison between them. `v2` adds two events to `v1` and leaves the mapping
 alone.
