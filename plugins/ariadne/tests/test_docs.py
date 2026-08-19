@@ -24,6 +24,17 @@ CONFORMANCE = os.path.join(PLUGIN, "docs", "conformance.md")
 PREDICATE_DOC = os.path.join(PLUGIN, "docs", "solidity-release.md")
 EXAMPLES = os.path.join(PLUGIN, "examples")
 
+POLICY_CITATION = re.compile(r"(?m)^Policy: \[[^\]]+\]\([^)]+\)$")
+"""The one link a ledger has to point outside the plugin.
+
+`tests/test_evolution_contract.py` at the repository root requires every
+governed ledger to cite `plugins/hexaemeron/skills/VERSIONING.md` by a relative
+path that resolves to that file. The versioning contract is shared by twelve
+plugins and is not copied into each, so that citation cannot both satisfy the
+repository contract and stay inside this plugin. The exemption is this one line;
+every other link in the ledger is held to the rule below.
+"""
+
 
 def read(path):
     with open(path, "rb") as handle:
@@ -143,7 +154,10 @@ class ContractTests(unittest.TestCase):
                 if not name.endswith(".md"):
                     continue
                 path = os.path.join(directory, name)
-                for link in re.findall(r"\]\((\.[^)]+)\)", read(path)):
+                text = read(path)
+                if name == "EVOLUTION.md":
+                    text = POLICY_CITATION.sub("", text)
+                for link in re.findall(r"\]\((\.[^)]+)\)", text):
                     target = os.path.normpath(os.path.join(directory, link))
                     with self.subTest(document=os.path.relpath(path, PLUGIN)):
                         self.assertTrue(
