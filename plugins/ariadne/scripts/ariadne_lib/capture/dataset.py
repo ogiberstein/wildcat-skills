@@ -33,115 +33,40 @@ import tempfile
 
 from .. import digests
 from ..predicates import dataset as predicate
+from . import tree
 
-MAX_RELEASE_FILES = 4096
-"""A release is somebody's output directory rather than a stranger's archive, but
-a cap keeps a mistaken `--release /` from walking a filesystem."""
+MAX_RELEASE_FILES = tree.MAX_FILES
+"""Kept as a name because the tests and the document both cite it. The cap itself
+lives with the walk, which is the code that enforces it."""
 
 LINE_DELIMITED = (".jsonl", ".ndjson")
 """Formats where one record per line is the format, not an assumption."""
 
-REFUSED_NAMES = frozenset({".git", "__pycache__"})
-"""Directories that have no business in a data release.
+REFUSED_NAMES = tree.REFUSED_NAMES
 
-Skipping them quietly would be the silent absence this whole tool refuses: the
-bundle digest would cover part of the tree while the statement said nothing about
-the rest. Refusing says which directory to remove, and the caller decides.
+CaptureError = tree.CaptureError
+"""The same class the walk raises.
+
+It used to be a separate class defined here, and `capture/foundry.py` still defines
+its own, so a caller catching one does not catch the other. Sharing it means a
+caller can catch `CaptureError` from either capture that walks a tree.
 """
 
-
-class CaptureError(ValueError):
-    """A release that cannot be captured, with the reason a caller can act on."""
-
-
-def confined(path, what):
-    """Resolve a directory, refusing anything that is not one.
-
-    `realpath` collapses `..` and follows symlinks, so the resolved path is what
-    every later containment check compares against.
-    """
-    if not path:
-        raise CaptureError("%s is required" % what)
-    resolved = os.path.realpath(path)
-    if not os.path.isdir(resolved):
-        raise CaptureError("%s %s is not a directory" % (what, path))
-    return resolved
+confined = tree.confined
 
 
 def inside(root, path, what):
-    """The resolved path, or a refusal when it leaves the root.
-
-    A symlink inside the release pointing out of it is the case this catches:
-    the file reads fine, and its digest would describe something the release does
-    not contain.
-    """
-    resolved = os.path.realpath(path)
-    try:
-        shared = os.path.commonpath([root, resolved])
-    except ValueError as error:
-        raise CaptureError("%s %s: cannot place it inside %s (%s)" % (what, path, root, error))
-    if shared != root:
-        raise CaptureError("%s %s resolves outside the release" % (what, path))
-    return resolved
+    return tree.inside(root, path, what, "release")
 
 
 def files(root):
     """Every file in the release, as (relative path, absolute path), sorted.
 
-    Sorted because the statement has to come out the same way twice.
-
-    Nothing is skipped. `os.walk` does not descend a symlinked directory, so
-    leaving one in place would drop everything under it from both the statement
-    and the bundle digest, with nothing recording that anything was dropped. That
-    is the silent absence the gates exist to refuse, so a symlinked directory is
-    refused here instead.
-
-    `os.walk` also swallows a directory it cannot read, which drops its contents
-    the same way. `onerror` turns that into a refusal, because a capture that
-    cannot read part of the release has not captured the release.
+    The walk is shared, because it was written twice before this and the second
+    copy of a path helper in this package was where a traversal defect had already
+    been found.
     """
-
-    def unreadable(error):
-        raise CaptureError(
-            "cannot read %s: %s; a release that cannot be read whole cannot be "
-            "captured" % (getattr(error, "filename", root), error)
-        )
-
-    found = []
-    for directory, names, entries in os.walk(root, onerror=unreadable):
-        for name in sorted(names):
-            here = os.path.join(directory, name)
-            shown = os.path.relpath(here, root)
-            if name in REFUSED_NAMES:
-                raise CaptureError(
-                    "release holds %s; remove it or name a directory that holds "
-                    "only the release" % shown
-                )
-            if os.path.islink(here):
-                raise CaptureError(
-                    "%s is a symlink to a directory; its contents would be left "
-                    "out of the statement and out of the release digest without "
-                    "anything saying so" % shown
-                )
-        names[:] = sorted(names)
-        for name in sorted(entries):
-            absolute = os.path.join(directory, name)
-            relative = os.path.relpath(absolute, root)
-            if os.path.islink(absolute):
-                raise CaptureError(
-                    "%s is a symlink; a digest over its target would describe "
-                    "something the release does not contain" % relative
-                )
-            inside(root, absolute, "release file")
-            found.append((relative, absolute))
-            if len(found) > MAX_RELEASE_FILES:
-                raise CaptureError(
-                    "release holds more than %d files; name a narrower directory"
-                    % MAX_RELEASE_FILES
-                )
-    if not found:
-        raise CaptureError("release %s holds no files" % root)
-    return found
+    return tree.files(root, "release")
 
 
 def line_count(path):

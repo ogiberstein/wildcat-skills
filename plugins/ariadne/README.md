@@ -139,6 +139,10 @@ python3 scripts/ariadne.py capture-dataset --release <dir> --name <release> \
   --producer-tool <tool> --producer-version <v> --producer-command <argv0> \
   --out release.json
 
+python3 scripts/ariadne.py capture-state-fixture --fixture <dir> --name <fixture> \
+  --capture-tool lazarus --capture-command <argv0> \
+  --first-capture-reason <why there is nothing earlier> --out fixture.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py capture solidity-release --project <dir> \
