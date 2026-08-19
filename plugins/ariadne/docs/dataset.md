@@ -45,6 +45,12 @@ A tool name and a version on their own fail, for the same reason a bare compiler
 version fails in the Solidity release predicate: without the parameters nobody
 gets the same bytes back.
 
+Each released file's `path` is release-relative, not absolute and carrying no `..`
+segment, because a reader resolves it against the release directory and either form
+would send them somewhere else. No two entries may name the same path: one file
+cannot carry two digests, and the release digest is taken over this listing.
+`record_count` is a whole number and never negative.
+
 ## Gate 5 here: a comparison names both sides
 
 The baseline is a named prior release with a digest, or `null` with a reason. A

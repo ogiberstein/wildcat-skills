@@ -1840,3 +1840,36 @@ The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
 tests, 2 skipped.
 
 Leads not pursued: the byte-budget lead stands from round 1.
+
+## Ariadne dataset predicate, step 4, round 5 -- 2026-08-19
+
+Eight weakest-passing-value probes, one per field the predicate declares, rather
+than the ad-hoc probing of earlier rounds. Three were defects and five were
+legitimate values that must keep passing.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R5-01 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A statement claiming `record_count: -5` verified clean. The published schema says `minimum: 0` and the gate did not check, so the validator and the schema disagreed about what they accept. | fixed in this round |
+| S4-R5-02 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | Two `dataset_subjects` entries could name the same `path` with different digests. One file cannot carry two digests, and the release bundle digest is taken over that listing, so the digest covered a description of the release that contradicted itself. | fixed in this round |
+| S4-R5-03 | medium | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | A released file's `path` could be absolute or carry a `..` segment. A consumer resolves `path` against a release directory, so either form describes a file the release does not hold and points a careless reader out of the tree. The capture path never produces one; a hand-written statement did. | fixed in this round |
+
+The five that were left alone, with the reason: two files with identical content
+are a real thing to publish and only a duplicate path is incoherent; a
+single-point coverage interval is one block; a negative coverage interval is
+nonsense for `block` but the dimension is free-form and could legitimately be
+signed; a gap covering the whole interval is a release that honestly describes
+nothing; and a `tool_version` of the literal string `unstated` is a caller stating
+something false rather than the tool fabricating it, which no shape check can tell
+from a real version string.
+
+The schema now states the path and count constraints, and a new drift test holds
+the two together rather than only comparing field tables.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 440 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the drift tests compare field tables and now three constraints,
+not every constraint in the schema. A general comparison would need the schema
+walked and each keyword mapped to the gate that enforces it, which is a piece of
+work in its own right. The byte-budget lead stands from round 1.

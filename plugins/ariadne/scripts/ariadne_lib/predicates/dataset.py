@@ -25,6 +25,9 @@ check comes to pass on values it never really ordered. A producer with
 timestamps records them as integers or uses a different dimension.
 """
 
+import ntpath
+import posixpath
+
 from .. import deltas as deltas_module
 from .. import digests
 from ..core_predicate import NEEDS_REASON, check_side, missing
@@ -76,6 +79,24 @@ remaining dispositions are the ones that describe an absence, and each needs a
 reason.
 """
 GAP_FIELDS = frozenset({"start", "end", "reason"})
+
+
+def usable_path(value):
+    """True for a release-relative path a reader can resolve safely.
+
+    A consumer resolves `path` against a release directory. An absolute path or one
+    carrying a `..` segment resolves somewhere else, so a statement using either
+    describes a file the release does not hold and points a careless reader out of
+    the tree. The capture path never produces one; a statement written by hand can.
+    """
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith("/") or value.startswith("\\\\"):
+        return False
+    if ntpath.isabs(value) or posixpath.isabs(value):
+        return False
+    parts = value.replace("\\\\", "/").split("/")
+    return ".." not in parts and "" not in parts[1:]
 
 
 def whole_number(value):
@@ -135,6 +156,16 @@ def gate_2_environment(statement):
     if not isinstance(subjects, list) or not subjects:
         faults.append("dataset_subjects must be a non-empty array")
     else:
+        seen = {}
+        for index, entry in enumerate(subjects):
+            if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+                if entry["path"] in seen:
+                    faults.append(
+                        "path %s is listed twice; one file cannot carry two "
+                        "digests, and the release digest is over this listing"
+                        % entry["path"]
+                    )
+                seen[entry["path"]] = index
         for index, entry in enumerate(subjects):
             label = entry.get("name") if isinstance(entry, dict) else None
             label = label or "dataset subject %d" % (index + 1)
@@ -147,10 +178,17 @@ def gate_2_environment(statement):
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
                 continue
-            if not whole_number(entry["record_count"]):
-                faults.append("%s record_count must be a whole number" % label)
-            if not isinstance(entry["path"], str):
-                faults.append("%s path must be a string" % label)
+            if not whole_number(entry["record_count"]) or entry["record_count"] < 0:
+                faults.append(
+                    "%s record_count must be a whole number of records, not %r"
+                    % (label, entry["record_count"])
+                )
+            if not usable_path(entry["path"]):
+                faults.append(
+                    "%s path %r is not a release-relative path; a reader resolving "
+                    "it against the release would land outside it"
+                    % (label, entry["path"])
+                )
             try:
                 digests.check(entry["digest"])
             except digests.DigestError as error:

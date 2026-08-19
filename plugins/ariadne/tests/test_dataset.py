@@ -190,6 +190,47 @@ class GateTwoTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("whole number", found.detail)
 
+    def test_a_negative_record_count_fails(self):
+        """The published schema said minimum 0 and the gate did not check, so a
+        statement claiming minus five records verified clean."""
+        body = predicate()
+        body["dataset_subjects"][0]["record_count"] = -5
+        found = gate(2, body)
+        self.assertFalse(found.passed)
+        self.assertIn("whole number of records", found.detail)
+
+    def test_the_same_path_listed_twice_fails(self):
+        """One file cannot carry two digests, and the release digest is over this
+        listing."""
+        body = predicate()
+        body["dataset_subjects"][1]["path"] = body["dataset_subjects"][0]["path"]
+        found = gate(2, body)
+        self.assertFalse(found.passed)
+        self.assertIn("listed twice", found.detail)
+
+    def test_a_path_that_leaves_the_release_fails(self):
+        """A consumer resolves this against a release directory. The capture path
+        never writes one of these; a statement written by hand can."""
+        for bad in ("../../etc/passwd", "/etc/passwd", "by-pool/../../outside.jsonl"):
+            body = predicate()
+            body["dataset_subjects"][0]["path"] = bad
+            with self.subTest(path=bad):
+                found = gate(2, body)
+                self.assertFalse(found.passed)
+                self.assertIn("release-relative", found.detail)
+
+    def test_a_nested_release_relative_path_is_allowed(self):
+        body = predicate()
+        body["dataset_subjects"][0]["path"] = "by-pool/pool-a.jsonl"
+        self.assertTrue(gate(2, body).passed)
+
+    def test_two_files_with_the_same_content_are_allowed(self):
+        """Duplicate content is a real thing to publish. Only a duplicate path is
+        incoherent."""
+        body = predicate()
+        body["dataset_subjects"][1]["digest"] = body["dataset_subjects"][0]["digest"]
+        self.assertTrue(gate(2, body).passed)
+
     def test_an_input_missing_its_locator_fails(self):
         body = predicate()
         body["inputs"][0] = without(body["inputs"][0], "locator")
