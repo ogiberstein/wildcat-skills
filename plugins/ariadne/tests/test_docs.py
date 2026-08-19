@@ -135,6 +135,32 @@ class PredicateTests(unittest.TestCase):
                     )
 
 
+class PrintedCommandTests(unittest.TestCase):
+    """A file path printed in a document is a claim that the file is there.
+
+    Three of the faults found while auditing this predicate were in prose rather
+    than in code, and a stale path is the cheapest of them to leave behind: a
+    reader runs the command, gets an error about a missing file, and learns
+    nothing about the tool.
+    """
+
+    def test_every_fixture_path_a_document_prints_exists(self):
+        pattern = re.compile(r"(tests/fixtures/[\w./-]+\.json)")
+        found = 0
+        for name in sorted(os.listdir(os.path.join(PLUGIN, "docs"))):
+            if not name.endswith(".md"):
+                continue
+            text = read(os.path.join(PLUGIN, "docs", name))
+            for relative in pattern.findall(text):
+                found += 1
+                with self.subTest(document=name, path=relative):
+                    self.assertTrue(
+                        os.path.isfile(os.path.join(PLUGIN, relative)),
+                        "docs/%s prints %s and it is not there" % (name, relative),
+                    )
+        self.assertTrue(found)
+
+
 class FixtureTests(unittest.TestCase):
     def test_the_conformance_document_names_every_fixture(self):
         text = read(CONFORMANCE)
