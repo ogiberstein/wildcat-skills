@@ -25,6 +25,10 @@ presented as proved state.
 So the numbers a statement is held to here come from `verify_fixture`, never from
 the manifest. The manifest is the part a producer can edit; the verified report is
 what the records actually support.
+
+Every other field the statement states about this capture is compared too. A
+field nothing compares is a field a producer writes freely, and a reader has no
+way to tell which half of a bound document was checked.
 """
 
 from __future__ import annotations
@@ -33,6 +37,14 @@ from typing import Any
 
 from .errors import FormatError, IntegrityError
 from .text import visible
+
+IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
+"""The envelope the predicate is read inside.
+
+A predicate type says how to read `predicate`; the statement type says the
+document is the kind of thing that has one. Without it a bare object carrying the
+right two strings binds as though it were an attestation.
+"""
 
 STATE_FIXTURE_TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
 """The predicate this binding understands.
@@ -45,13 +57,18 @@ a vocabulary nothing here has read.
 EVIDENCE_CLASSES = ("proof_backed", "header_bound", "recorded_rpc")
 """The three classes, spelled as this plugin spells them everywhere else."""
 
+REPLAY_CLAIMS = ("reaches_network", "canonical_chain_claim")
+"""The two things verification does not do, which the statement must not say it does."""
+
 CHECKS = (
+    "statement-type",
     "predicate-type",
-    "block-hash",
+    "chain-and-block",
     "evidence-counts",
-    "canonical-chain-claim",
+    "replay-claims",
     "components-declared",
     "components-complete",
+    "subjects-cover-components",
 )
 """Every check this module makes, in the order it makes them.
 
@@ -77,12 +94,45 @@ def _whole_number(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+def _hex_quantity(value: Any, what: str) -> int:
+    """A verified hex quantity as the integer a statement writes it as."""
+    if not isinstance(value, str) or not value.startswith("0x"):
+        raise FormatError(f"{what} is not a hex quantity: {value!r}")
+    try:
+        return int(value, 16)
+    except ValueError:
+        raise FormatError(f"{what} is not a hex quantity: {value!r}") from None
+
+
+def _named(entry: dict[str, Any], what: str, seen: set[str]) -> str:
+    name = _member(entry, "name", what)
+    if not isinstance(name, str) or not visible(name):
+        raise FormatError(f"{what} names nothing: {name!r}")
+    if name in seen:
+        raise IntegrityError(
+            f"statement uses the name {name} twice; a reader matching a subject "
+            "by name cannot tell which digest was meant"
+        )
+    seen.add(name)
+    return name
+
+
 def predicate_type_of(statement: dict[str, Any]) -> str:
     """The type a statement declares, checked for shape before it is compared."""
     found = _member(_object(statement, "statement"), "predicateType", "statement")
     if not isinstance(found, str) or not visible(found):
         raise FormatError(f"statement predicateType names nothing: {found!r}")
     return found
+
+
+def _check_statement_type(statement: dict[str, Any]) -> None:
+    found = _member(statement, "_type", "statement")
+    if not isinstance(found, str) or found != IN_TOTO_STATEMENT_TYPE:
+        raise IntegrityError(
+            f"statement _type is {found!r} and this binds "
+            f"{IN_TOTO_STATEMENT_TYPE}; a predicate type is read inside an "
+            "envelope, and there is no envelope here"
+        )
 
 
 def _check_predicate_type(statement: dict[str, Any]) -> None:
@@ -94,14 +144,48 @@ def _check_predicate_type(statement: dict[str, Any]) -> None:
         )
 
 
-def _check_block_hash(predicate: dict[str, Any], report: dict[str, Any]) -> None:
-    chain = _object(_member(predicate, "chain", "statement predicate"), "chain")
+def _check_chain_and_block(
+    predicate: dict[str, Any], manifest: dict[str, Any], report: dict[str, Any]
+) -> None:
+    """The four fields naming which capture the statement is about.
+
+    The block hash alone would leave the other three free: a statement pinning the
+    right hash while naming another chain, another height and another state root
+    reads as though all four were corroborated, and one of them was.
+    """
+    chain = _object(_member(predicate, "chain", "statement predicate"), "statement chain")
+
     found = _member(chain, "block_hash", "statement chain")
     expected = report["block_hash"]
     if not isinstance(found, str) or found.lower() != expected:
         raise IntegrityError(
             f"statement pins block {found!r} and the fixture verifies to "
             f"{expected}; the statement describes a different capture"
+        )
+
+    chain_id = _member(chain, "chain_id", "statement chain")
+    expected_chain = _hex_quantity(manifest["chain_id"], "manifest chain_id")
+    if not _whole_number(chain_id) or chain_id != expected_chain:
+        raise IntegrityError(
+            f"statement names chain {chain_id!r} and the fixture is chain "
+            f"{expected_chain}"
+        )
+
+    number = _member(chain, "block_number", "statement chain")
+    expected_number = _hex_quantity(report["block_number"], "verified block number")
+    if not _whole_number(number) or number != expected_number:
+        raise IntegrityError(
+            f"statement names block number {number!r} and the verified header is "
+            f"block {expected_number}"
+        )
+
+    state_root = _member(chain, "state_root", "statement chain")
+    expected_root = report["state_root"]
+    if not isinstance(state_root, str) or state_root.lower() != expected_root:
+        raise IntegrityError(
+            f"statement names state root {state_root!r} and the verified header "
+            f"has {expected_root}; every proof in this fixture was checked "
+            "against the header's root, not the statement's"
         )
 
 
@@ -142,17 +226,23 @@ def _check_evidence_counts(predicate: dict[str, Any], report: dict[str, Any]) ->
             )
 
 
-def _check_canonical_chain_claim(
-    predicate: dict[str, Any], report: dict[str, Any]
-) -> None:
-    replay = _object(_member(predicate, "replay", "statement predicate"), "replay")
-    claimed = _member(replay, "canonical_chain_claim", "statement replay")
-    if claimed is not False:
-        raise IntegrityError(
-            f"statement records canonical_chain_claim as {claimed!r}; a "
-            "self-consistent header is not proof that it belongs to Ethereum's "
-            "canonical chain, and verification claims nothing about it"
-        )
+def _check_replay_claims(predicate: dict[str, Any], report: dict[str, Any]) -> None:
+    """Both of the two things a replay does not establish.
+
+    `canonical_chain_claim` is the one that matters most: a self-consistent header
+    is not proof that it belongs to Ethereum's canonical chain. `reaches_network`
+    is the same shape of claim pointed the other way, and a statement saying
+    verification went to a node would have a reader believe the records were
+    corroborated live. Neither happened, so neither may be said.
+    """
+    replay = _object(_member(predicate, "replay", "statement predicate"), "statement replay")
+    for field in REPLAY_CLAIMS:
+        claimed = _member(replay, field, "statement replay")
+        if claimed is not False:
+            raise IntegrityError(
+                f"statement records {field} as {claimed!r}; verification reads "
+                "recorded bytes offline and claims neither"
+            )
     if report["header_bound"]["canonical_chain_claim"] is not False:
         raise IntegrityError(
             "the verified report claims the canonical chain, which no Lazarus "
@@ -165,13 +255,14 @@ def _declared_components(predicate: dict[str, Any]) -> dict[str, dict[str, Any]]
     if not isinstance(subjects, list) or not subjects:
         raise FormatError("statement fixture_subjects must be a non-empty array")
     found: dict[str, dict[str, Any]] = {}
+    names: set[str] = set()
     for index, entry in enumerate(subjects):
-        entry = _object(entry, f"statement fixture subject {index + 1}")
-        path = _member(entry, "path", f"statement fixture subject {index + 1}")
+        what = f"statement fixture subject {index + 1}"
+        entry = _object(entry, what)
+        _named(entry, what, names)
+        path = _member(entry, "path", what)
         if not isinstance(path, str) or not visible(path):
-            raise FormatError(
-                f"statement fixture subject {index + 1} path names nothing: {path!r}"
-            )
+            raise FormatError(f"{what} path names nothing: {path!r}")
         if path in found:
             raise IntegrityError(
                 f"statement names {path} twice; one file cannot carry two digests"
@@ -180,9 +271,7 @@ def _declared_components(predicate: dict[str, Any]) -> dict[str, dict[str, Any]]
     return found
 
 
-def _check_components(
-    predicate: dict[str, Any], manifest: dict[str, Any]
-) -> None:
+def _check_components(predicate: dict[str, Any], manifest: dict[str, Any]) -> None:
     """Both directions, and the digests in between.
 
     A component the statement names and the fixture lacks is a statement about a
@@ -226,6 +315,39 @@ def _check_components(
             )
 
 
+def _check_subjects(statement: dict[str, Any], manifest: dict[str, Any]) -> None:
+    """The list an in-toto reader actually reads.
+
+    `predicate.fixture_subjects` is where the detail lives, but a policy engine
+    handed this statement matches on `subject`. A component described in the
+    predicate and absent from the subject list is bound here and invisible there.
+    """
+    subjects = _member(statement, "subject", "statement")
+    if not isinstance(subjects, list) or not subjects:
+        raise FormatError("statement subject must be a non-empty array")
+    digests: set[str] = set()
+    names: set[str] = set()
+    for index, entry in enumerate(subjects):
+        what = f"statement subject {index + 1}"
+        entry = _object(entry, what)
+        _named(entry, what, names)
+        digest = _object(_member(entry, "digest", what), f"{what} digest")
+        claimed = digest.get("sha256")
+        if not isinstance(claimed, str) or not visible(claimed):
+            raise FormatError(f"{what} has no sha256 digest: {claimed!r}")
+        digests.add(claimed.lower())
+    uncovered = sorted(
+        entry["path"]
+        for entry in manifest["components"]
+        if entry["sha256"] not in digests
+    )
+    if uncovered:
+        raise IntegrityError(
+            "statement subject list does not cover components the fixture holds: "
+            + ", ".join(uncovered)
+        )
+
+
 def bind(
     statement: dict[str, Any],
     manifest: dict[str, Any],
@@ -245,9 +367,11 @@ def bind(
     predicate = _object(
         _member(statement, "predicate", "statement"), "statement predicate"
     )
+    _check_statement_type(statement)
     _check_predicate_type(statement)
-    _check_block_hash(predicate, report)
+    _check_chain_and_block(predicate, manifest, report)
     _check_evidence_counts(predicate, report)
-    _check_canonical_chain_claim(predicate, report)
+    _check_replay_claims(predicate, report)
     _check_components(predicate, manifest)
+    _check_subjects(statement, manifest)
     return list(CHECKS)

@@ -8,19 +8,31 @@ while saying something the records do not support.
 import copy
 import unittest
 
-from lazarus_lib.binding import CHECKS, EVIDENCE_CLASSES, STATE_FIXTURE_TYPE, bind
+from lazarus_lib.binding import (
+    CHECKS,
+    EVIDENCE_CLASSES,
+    IN_TOTO_STATEMENT_TYPE,
+    REPLAY_CLAIMS,
+    STATE_FIXTURE_TYPE,
+    bind,
+)
 from lazarus_lib.errors import FormatError, IntegrityError
 
 BLOCK_HASH = "0x" + "41" * 32
+BLOCK_NUMBER = 13097494
+STATE_ROOT = "0x" + "0f" * 32
+CHAIN_ID = 1
 
 
 def sample_manifest():
     return {
+        "chain_id": hex(CHAIN_ID),
+        "block": {"number": hex(BLOCK_NUMBER), "hash": BLOCK_HASH},
         "components": [
             {"path": "header.json", "bytes": 17204, "sha256": "a" * 64},
             {"path": "plan.json", "bytes": 1418, "sha256": "b" * 64},
             {"path": "proofs.jsonl", "bytes": 8688, "sha256": "c" * 64},
-        ]
+        ],
     }
 
 
@@ -29,6 +41,8 @@ def sample_report():
     return {
         "fixture_digest": "d" * 64,
         "block_hash": BLOCK_HASH,
+        "block_number": hex(BLOCK_NUMBER),
+        "state_root": STATE_ROOT,
         "evidence_counts": {"proof_backed": 2, "header_bound": 1, "recorded_rpc": 4},
         "proof_backed": {
             "accounts_included": 1,
@@ -47,10 +61,10 @@ def sample_statement():
         "predicateType": STATE_FIXTURE_TYPE,
         "predicate": {
             "chain": {
-                "chain_id": 1,
-                "block_number": 13097494,
+                "chain_id": CHAIN_ID,
+                "block_number": BLOCK_NUMBER,
                 "block_hash": BLOCK_HASH,
-                "state_root": "0x" + "0f" * 32,
+                "state_root": STATE_ROOT,
             },
             "evidence": {
                 "proof_backed": 2,
@@ -79,6 +93,12 @@ def sample_statement():
                 },
             ],
         },
+        "subject": [
+            {"name": "header.json", "digest": {"sha256": "a" * 64}},
+            {"name": "plan.json", "digest": {"sha256": "b" * 64}},
+            {"name": "proofs.jsonl", "digest": {"sha256": "c" * 64}},
+            {"name": "goldfinch-block-13097494", "digest": {"sha256": "d" * 64}},
+        ],
     }
 
 
@@ -257,7 +277,7 @@ class BlockTests(unittest.TestCase):
             bound(statement)
 
 
-class CanonicalChainTests(unittest.TestCase):
+class ReplayClaimTests(unittest.TestCase):
     def test_a_statement_claiming_the_canonical_chain_is_refused(self):
         statement = sample_statement()
         statement["predicate"]["replay"]["canonical_chain_claim"] = True
@@ -346,6 +366,19 @@ class ComponentTests(unittest.TestCase):
             bound(statement)
         self.assertIn("twice", str(caught.exception))
 
+    def test_one_path_under_two_names_is_refused(self):
+        """The duplicate-name rule fires first when a whole entry is repeated,
+        so the path rule needs an entry that differs everywhere else."""
+        statement = sample_statement()
+        entry = copy.deepcopy(statement["predicate"]["fixture_subjects"][0])
+        entry["name"] = "the same file again"
+        entry["digest"] = {"sha256": "e" * 64}
+        statement["predicate"]["fixture_subjects"].append(entry)
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("header.json twice", str(caught.exception))
+        self.assertIn("two digests", str(caught.exception))
+
     def test_a_path_that_names_nothing_is_refused(self):
         for value in ("", "   ", None, 12345, "​"):
             statement = sample_statement()
@@ -399,6 +432,238 @@ class ShapeTests(unittest.TestCase):
         with self.assertRaises(IntegrityError) as caught:
             bound(statement)
         self.assertIn("different capture", str(caught.exception))
+
+
+
+
+class StatementTypeTests(unittest.TestCase):
+    """The envelope, not the predicate.
+
+    A predicate type says how to read `predicate`. The statement type says the
+    document is the kind of thing that has one.
+    """
+
+    def test_a_document_that_is_not_a_statement_is_refused(self):
+        statement = sample_statement()
+        statement["_type"] = "https://example.invalid/receipt/v1"
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("no envelope", str(caught.exception))
+
+    def test_a_document_with_no_type_is_refused(self):
+        statement = sample_statement()
+        del statement["_type"]
+        with self.assertRaises(FormatError):
+            bound(statement)
+
+    def test_a_type_of_the_wrong_shape_is_refused(self):
+        for value in (None, "", "   ", 12345, [], {}, True, "​"):
+            statement = sample_statement()
+            statement["_type"] = value
+            with self.subTest(statement_type=repr(value)), self.assertRaises(
+                IntegrityError
+            ):
+                bound(statement)
+
+    def test_the_type_it_binds_is_the_in_toto_one(self):
+        self.assertEqual(IN_TOTO_STATEMENT_TYPE, "https://in-toto.io/Statement/v1")
+
+
+class ChainTests(unittest.TestCase):
+    """The block hash is not the whole of which capture this is.
+
+    A statement pinning the right hash while naming another chain, another height
+    or another state root reads as though all four were corroborated.
+    """
+
+    def test_another_chain_is_refused(self):
+        statement = sample_statement()
+        statement["predicate"]["chain"]["chain_id"] = 137
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("137", str(caught.exception))
+
+    def test_another_block_number_is_refused(self):
+        statement = sample_statement()
+        statement["predicate"]["chain"]["block_number"] = BLOCK_NUMBER + 1
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn(str(BLOCK_NUMBER), str(caught.exception))
+
+    def test_another_state_root_is_refused(self):
+        """Every proof in the fixture was checked against the header's root."""
+        statement = sample_statement()
+        statement["predicate"]["chain"]["state_root"] = "0x" + "ab" * 32
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("state root", str(caught.exception))
+
+    def test_a_state_root_in_the_other_case_still_binds(self):
+        statement = sample_statement()
+        statement["predicate"]["chain"]["state_root"] = STATE_ROOT.upper().replace(
+            "0X", "0x"
+        )
+        self.assertEqual(bound(statement), list(CHECKS))
+
+    def test_a_chain_field_left_out_is_refused(self):
+        for field in ("chain_id", "block_number", "block_hash", "state_root"):
+            statement = sample_statement()
+            del statement["predicate"]["chain"][field]
+            with self.subTest(field=field), self.assertRaises(FormatError):
+                bound(statement)
+
+    def test_a_boolean_chain_id_is_refused(self):
+        """`True` equals 1 and this fixture is chain 1."""
+        statement = sample_statement()
+        statement["predicate"]["chain"]["chain_id"] = True
+        with self.assertRaises(IntegrityError):
+            bound(statement)
+
+    def test_chain_fields_of_the_wrong_shape_are_refused(self):
+        for field in ("chain_id", "block_number", "block_hash", "state_root"):
+            for value in (None, "", "   ", [], {}, 1.5, "​"):
+                statement = sample_statement()
+                statement["predicate"]["chain"][field] = value
+                with self.subTest(field=field, value=repr(value)), self.assertRaises(
+                    IntegrityError
+                ):
+                    bound(statement)
+
+    def test_a_chain_that_is_not_an_object_is_refused(self):
+        for value in (None, [], "mainnet", 1):
+            statement = sample_statement()
+            statement["predicate"]["chain"] = value
+            with self.subTest(chain=value), self.assertRaises(FormatError):
+                bound(statement)
+
+    def test_a_manifest_chain_id_that_is_not_a_quantity_is_refused(self):
+        for value in (None, "one", "", 1):
+            manifest = sample_manifest()
+            manifest["chain_id"] = value
+            with self.subTest(chain_id=value), self.assertRaises(FormatError):
+                bound(manifest=manifest)
+
+    def test_a_report_block_number_that_is_not_a_quantity_is_refused(self):
+        for value in (None, "twelve", "", 12):
+            report = sample_report()
+            report["block_number"] = value
+            with self.subTest(block_number=value), self.assertRaises(FormatError):
+                bound(report=report)
+
+
+class NetworkClaimTests(unittest.TestCase):
+    """The other half of the replay block.
+
+    `canonical_chain_claim` overstates what a header proves. `reaches_network`
+    overstates where the bytes came from: a statement saying verification went to
+    a node has a reader believe the records were corroborated live.
+    """
+
+    def test_a_statement_claiming_verification_reached_a_node_is_refused(self):
+        statement = sample_statement()
+        statement["predicate"]["replay"]["reaches_network"] = True
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("reaches_network", str(caught.exception))
+
+    def test_a_network_claim_that_is_not_a_boolean_is_refused(self):
+        for value in (0, 1, "false", None, [], "no"):
+            statement = sample_statement()
+            statement["predicate"]["replay"]["reaches_network"] = value
+            with self.subTest(claim=value), self.assertRaises(IntegrityError):
+                bound(statement)
+
+    def test_either_claim_left_out_is_refused(self):
+        for field in REPLAY_CLAIMS:
+            statement = sample_statement()
+            del statement["predicate"]["replay"][field]
+            with self.subTest(field=field), self.assertRaises(FormatError):
+                bound(statement)
+
+
+class SubjectTests(unittest.TestCase):
+    """The list an in-toto reader actually reads."""
+
+    def test_a_component_absent_from_the_subject_list_is_refused(self):
+        statement = sample_statement()
+        statement["subject"] = [
+            entry for entry in statement["subject"] if entry["name"] != "plan.json"
+        ]
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("plan.json", str(caught.exception))
+
+    def test_a_subject_list_matched_by_digest_rather_than_name_binds(self):
+        """The names in the subject list are labels; the digests carry it."""
+        statement = sample_statement()
+        for index, entry in enumerate(statement["subject"]):
+            entry["name"] = "component-%d" % index
+        self.assertEqual(bound(statement), list(CHECKS))
+
+    def test_a_subject_digest_in_the_other_case_still_covers(self):
+        statement = sample_statement()
+        for entry in statement["subject"]:
+            entry["digest"]["sha256"] = entry["digest"]["sha256"].upper()
+        self.assertEqual(bound(statement), list(CHECKS))
+
+    def test_two_subjects_under_one_name_are_refused(self):
+        """A reader matching by name cannot tell which digest was meant."""
+        statement = sample_statement()
+        statement["subject"].append(
+            {"name": "plan.json", "digest": {"sha256": "e" * 64}}
+        )
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("twice", str(caught.exception))
+
+    def test_a_subject_naming_nothing_is_refused(self):
+        for value in (None, "", "   ", 12345, [], "​"):
+            statement = sample_statement()
+            statement["subject"][0]["name"] = value
+            with self.subTest(name=repr(value)), self.assertRaises(FormatError):
+                bound(statement)
+
+    def test_a_subject_with_no_digest_is_refused(self):
+        statement = sample_statement()
+        del statement["subject"][0]["digest"]
+        with self.assertRaises(FormatError):
+            bound(statement)
+
+    def test_a_subject_digest_that_names_nothing_is_refused(self):
+        for value in (None, "", "   ", 12345, [], "​"):
+            statement = sample_statement()
+            statement["subject"][0]["digest"]["sha256"] = value
+            with self.subTest(sha256=repr(value)), self.assertRaises(FormatError):
+                bound(statement)
+
+    def test_no_subject_list_at_all_is_refused(self):
+        statement = sample_statement()
+        del statement["subject"]
+        with self.assertRaises(FormatError):
+            bound(statement)
+
+    def test_an_empty_subject_list_is_refused(self):
+        for value in ([], None, {}, "header.json"):
+            statement = sample_statement()
+            statement["subject"] = value
+            with self.subTest(subject=value), self.assertRaises(FormatError):
+                bound(statement)
+
+    def test_a_fixture_subject_naming_nothing_is_refused(self):
+        for value in (None, "", "   ", 12345, [], "​"):
+            statement = sample_statement()
+            statement["predicate"]["fixture_subjects"][0]["name"] = value
+            with self.subTest(name=repr(value)), self.assertRaises(FormatError):
+                bound(statement)
+
+    def test_two_fixture_subjects_under_one_name_are_refused(self):
+        statement = sample_statement()
+        entry = copy.deepcopy(statement["predicate"]["fixture_subjects"][0])
+        entry["path"] = "other.json"
+        statement["predicate"]["fixture_subjects"].append(entry)
+        with self.assertRaises(IntegrityError) as caught:
+            bound(statement)
+        self.assertIn("twice", str(caught.exception))
 
 
 if __name__ == "__main__":

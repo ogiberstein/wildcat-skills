@@ -86,6 +86,8 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
     return {
         "fixture_digest": manifest["fixture_digest"],
         "block_hash": header_report["hash"],
+        "block_number": header_report["number"],
+        "state_root": header_report["state_root"],
         "evidence_counts": counts,
         "proof_backed": {
             "accounts_included": account_included,
