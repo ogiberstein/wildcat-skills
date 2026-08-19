@@ -1,0 +1,253 @@
+"""Whether a statement describes this fixture, and whether it claims more.
+
+Something else writes the statement. Ariadne's `capture-state-fixture` is the
+one this was built against, but nothing here imports it, runs it, or assumes it
+produced the document: a statement is JSON somebody handed over, and it gets the
+treatment every other document from outside gets.
+
+The check that matters is the evidence one, and it is worth saying exactly why it
+cannot be skipped.
+
+Lazarus recomputes the three counts from the proof and RPC records and refuses a
+manifest that disagrees with them. Ariadne reads the counts from the manifest and
+does not re-derive them, deliberately: re-deriving would mean reimplementing
+Lazarus's judgement about which records were checked against the state root, and
+a capture that arrived at a larger number would perform the upgrade it exists to
+prevent. Both choices are right on their own.
+
+The consequence is a gap neither tool can close alone. Edit one integer in a
+manifest, recompute the fixture digest so the document is entirely
+self-consistent, and `lazarus verify` refuses it while `ariadne
+capture-state-fixture` accepts it and writes a statement that verifies clean,
+reporting six proof-backed records where two exist. Four recorded RPC responses
+presented as proved state.
+
+So the numbers a statement is held to here come from `verify_fixture`, never from
+the manifest. The manifest is the part a producer can edit; the verified report is
+what the records actually support.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from .errors import FormatError, IntegrityError
+from .text import visible
+
+STATE_FIXTURE_TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
+"""The predicate this binding understands.
+
+Named rather than accepted from the statement, because a binding that took
+whichever type it was handed would bind a fixture to a document making claims in
+a vocabulary nothing here has read.
+"""
+
+EVIDENCE_CLASSES = ("proof_backed", "header_bound", "recorded_rpc")
+"""The three classes, spelled as this plugin spells them everywhere else."""
+
+CHECKS = (
+    "predicate-type",
+    "block-hash",
+    "evidence-counts",
+    "canonical-chain-claim",
+    "components-declared",
+    "components-complete",
+)
+"""Every check this module makes, in the order it makes them.
+
+The names go into the release document, so a reader knows which questions were
+asked rather than inferring them from the release existing.
+"""
+
+
+def _object(value: Any, what: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise FormatError(f"{what} must be an object, got {type(value).__name__}")
+    return value
+
+
+def _member(node: dict[str, Any], key: str, what: str) -> Any:
+    if key not in node:
+        raise FormatError(f"{what} has no {key}")
+    return node[key]
+
+
+def _whole_number(value: Any) -> bool:
+    """`True` is an integer in Python and one record if nothing looks."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def predicate_type_of(statement: dict[str, Any]) -> str:
+    """The type a statement declares, checked for shape before it is compared."""
+    found = _member(_object(statement, "statement"), "predicateType", "statement")
+    if not isinstance(found, str) or not visible(found):
+        raise FormatError(f"statement predicateType names nothing: {found!r}")
+    return found
+
+
+def _check_predicate_type(statement: dict[str, Any]) -> None:
+    found = predicate_type_of(statement)
+    if found != STATE_FIXTURE_TYPE:
+        raise IntegrityError(
+            f"statement is a {found} and this binds {STATE_FIXTURE_TYPE}; a "
+            "binding cannot speak for claims in a vocabulary it has not read"
+        )
+
+
+def _check_block_hash(predicate: dict[str, Any], report: dict[str, Any]) -> None:
+    chain = _object(_member(predicate, "chain", "statement predicate"), "chain")
+    found = _member(chain, "block_hash", "statement chain")
+    expected = report["block_hash"]
+    if not isinstance(found, str) or found.lower() != expected:
+        raise IntegrityError(
+            f"statement pins block {found!r} and the fixture verifies to "
+            f"{expected}; the statement describes a different capture"
+        )
+
+
+def _check_evidence_counts(predicate: dict[str, Any], report: dict[str, Any]) -> None:
+    """The rule this module exists for.
+
+    Compared against the recomputed counts rather than the manifest's, and in
+    both directions. A statement claiming fewer records than the fixture holds is
+    wrong too: it describes a fixture nobody has, and the next reader cannot tell
+    which of the two is the mistake.
+    """
+    evidence = _object(_member(predicate, "evidence", "statement predicate"), "evidence")
+    verified = report["evidence_counts"]
+    unknown = sorted(set(evidence) - set(EVIDENCE_CLASSES))
+    if unknown:
+        raise IntegrityError(
+            "statement counts evidence in classes this fixture does not have: "
+            + ", ".join(unknown)
+        )
+    for name in EVIDENCE_CLASSES:
+        if name not in evidence:
+            raise IntegrityError(
+                f"statement has no {name} count; a class left out reads as "
+                "nothing of that kind rather than as nobody having said"
+            )
+        claimed = evidence[name]
+        if not _whole_number(claimed):
+            raise IntegrityError(
+                f"statement {name} count is {claimed!r} rather than a whole "
+                "number of records"
+            )
+        if claimed != verified[name]:
+            direction = "more" if claimed > verified[name] else "fewer"
+            raise IntegrityError(
+                f"statement claims {claimed} {name} record(s) and the fixture "
+                f"verifies to {verified[name]}: {direction} than the records "
+                "support"
+            )
+
+
+def _check_canonical_chain_claim(
+    predicate: dict[str, Any], report: dict[str, Any]
+) -> None:
+    replay = _object(_member(predicate, "replay", "statement predicate"), "replay")
+    claimed = _member(replay, "canonical_chain_claim", "statement replay")
+    if claimed is not False:
+        raise IntegrityError(
+            f"statement records canonical_chain_claim as {claimed!r}; a "
+            "self-consistent header is not proof that it belongs to Ethereum's "
+            "canonical chain, and verification claims nothing about it"
+        )
+    if report["header_bound"]["canonical_chain_claim"] is not False:
+        raise IntegrityError(
+            "the verified report claims the canonical chain, which no Lazarus "
+            "build establishes"
+        )
+
+
+def _declared_components(predicate: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    subjects = _member(predicate, "fixture_subjects", "statement predicate")
+    if not isinstance(subjects, list) or not subjects:
+        raise FormatError("statement fixture_subjects must be a non-empty array")
+    found: dict[str, dict[str, Any]] = {}
+    for index, entry in enumerate(subjects):
+        entry = _object(entry, f"statement fixture subject {index + 1}")
+        path = _member(entry, "path", f"statement fixture subject {index + 1}")
+        if not isinstance(path, str) or not visible(path):
+            raise FormatError(
+                f"statement fixture subject {index + 1} path names nothing: {path!r}"
+            )
+        if path in found:
+            raise IntegrityError(
+                f"statement names {path} twice; one file cannot carry two digests"
+            )
+        found[path] = entry
+    return found
+
+
+def _check_components(
+    predicate: dict[str, Any], manifest: dict[str, Any]
+) -> None:
+    """Both directions, and the digests in between.
+
+    A component the statement names and the fixture lacks is a statement about a
+    file nobody has. A component the fixture holds and the statement omits is a
+    file the statement's own subject list does not cover, which is the silent
+    absence this plugin refuses everywhere else.
+    """
+    declared = _declared_components(predicate)
+    held = {entry["path"]: entry for entry in manifest["components"]}
+
+    absent = sorted(set(declared) - set(held))
+    if absent:
+        raise IntegrityError(
+            "statement names components the fixture does not hold: "
+            + ", ".join(absent)
+        )
+    missing = sorted(set(held) - set(declared))
+    if missing:
+        raise IntegrityError(
+            "statement does not name components the fixture holds: "
+            + ", ".join(missing)
+        )
+
+    for path in sorted(held):
+        entry = declared[path]
+        digest = _object(
+            _member(entry, "digest", f"statement fixture subject {path}"),
+            f"statement fixture subject {path} digest",
+        )
+        claimed = digest.get("sha256")
+        if claimed != held[path]["sha256"]:
+            raise IntegrityError(
+                f"statement digests {path} as {claimed!r} and the fixture holds "
+                f"{held[path]['sha256']}"
+            )
+        size = _member(entry, "bytes", f"statement fixture subject {path}")
+        if not _whole_number(size) or size != held[path]["bytes"]:
+            raise IntegrityError(
+                f"statement sizes {path} at {size!r} and the fixture holds "
+                f"{held[path]['bytes']} bytes"
+            )
+
+
+def bind(
+    statement: dict[str, Any],
+    manifest: dict[str, Any],
+    report: dict[str, Any],
+) -> list[str]:
+    """Check a statement against a verified fixture; return the checks made.
+
+    `report` is what `verify_fixture` returned, not what the manifest claims. The
+    caller has to have verified the fixture, because everything the evidence check
+    is worth depends on the counts having been recomputed from the records.
+
+    Raises on the first disagreement rather than collecting them. A statement that
+    disagrees about the block it pins is not a document whose component list is
+    worth reading, and a release is refused whole.
+    """
+    statement = _object(statement, "statement")
+    predicate = _object(
+        _member(statement, "predicate", "statement"), "statement predicate"
+    )
+    _check_predicate_type(statement)
+    _check_block_hash(predicate, report)
+    _check_evidence_counts(predicate, report)
+    _check_canonical_chain_claim(predicate, report)
+    _check_components(predicate, manifest)
+    return list(CHECKS)
