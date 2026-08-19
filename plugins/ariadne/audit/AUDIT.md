@@ -1,7 +1,7 @@
 # Ariadne audit log
 
 <!-- marketplace-context:start -->
-> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 One section per round. A round with no findings is still a round and still gets
@@ -572,3 +572,63 @@ Leads not pursued: `capture/foundry.py` still defines its own `CaptureError`, so
 caller catching one does not catch the other. The dataset capture's is now an alias of
 the shared class and Foundry's is not, because its `confined` does something different
 and touching it buys nothing here.
+
+## Ariadne state-fixture predicate, step 5, round 1 -- 2026-08-19
+
+Reviewed: the reconciliation, by re-deriving it rather than rereading the diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | low | `plugins/ariadne/AGENTS.md` | The runtime contract said `capture` writes only where `--out` points and every other subcommand prints, naming one of three capture subcommands. Accurate when written, narrowed silently when `capture-dataset` arrived, and narrower again now | fixed in this round: all three named, with what they have in common |
+
+It is the document that tells an agent what the tool writes, so a reader could take
+the sentence as covering the subcommand it names and conclude the other two were not
+spoken for.
+
+Checked and found sound:
+
+- The ledger digest recomputed from the header matches the stored row, checked against
+  the contract's own computation as well as by hand.
+- Every version agrees: the ledger at `ariadne-v2.1.0`, the skill metadata at 2.1.0,
+  the plugin manifest and the marketplace entry both at 1.2.0.
+- All twelve Ariadne marketplace-context blocks carry the ledger's frontier sentence,
+  as do the audit record-status block and the root selection table row. The old
+  sentence appears nowhere.
+- The tool reports three registered types, and no document still claims two.
+
+Two probe defects, recorded rather than hidden. The digest check stripped backticks
+from one ledger field where the contract strips them from four, so the digest appeared
+not to match until it was compared against the contract's own computation. The
+frontier-surface check looked for the word Ariadne near a context block rather than for
+the Ariadne context block, so ten of Lazarus's and Pandects's own frontier sentences
+read as disagreements. Neither was a defect in the run.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`.
+
+Leads not pursued: the root README's Lazarus row says an Ariadne state-fixture
+predicate remains unimplemented, which this run makes false. That sentence is governed
+by Lazarus's own ledger, and the versioning contract reserves a frontier sentence to a
+completed frontier job for that skill. Changing it from here would be this run editing
+another skill's held frontier, so it is left for the run that closes it.
+
+## Ariadne state-fixture predicate, step 5, round 2 -- 2026-08-19
+
+Reviewed: the run's output as a stranger meets it -- every command any Ariadne document
+prints, run as written.
+
+No findings.
+
+Nineteen commands across the plugin README, the runtime contract, the examples README,
+six documents under `docs/` and the skill. All nineteen exit 0 or 1, and the 1s are the
+two the documents say exit 1.
+
+A third probe defect belongs here, because it bears on what a clean round is worth. The
+probe split command lines on whitespace rather than with `shlex`, so a quoted
+`--first-capture-reason` fragmented into positional arguments and two documented
+commands read as broken. Across these two rounds the probes were wrong three times and
+the deliverable once. A probe with that history is weak evidence when it finally comes
+back clean, so this round rests on the nineteen commands actually running rather than
+on the absence of a finding.
+
+Leads not pursued: the Lazarus frontier sentence carried from round 1.

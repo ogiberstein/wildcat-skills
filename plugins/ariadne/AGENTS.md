@@ -1,7 +1,7 @@
 # Ariadne runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 Ariadne contains one Agent Skill. Select from this table, then read the chosen
@@ -44,8 +44,10 @@ as clean when it exited 1.
 
 ## Network and side effects
 
-Ariadne reaches no network of its own. `capture` writes only where `--out`
-points, and every other subcommand prints.
+Ariadne reaches no network of its own. The three capture subcommands --
+`capture`, `capture-dataset` and `capture-state-fixture` -- write only where
+`--out` points, and every other subcommand prints. Each reads a directory that
+already exists and runs nothing in it.
 
 `replay` is the one subcommand that executes anything, and it does so only with
 `--allow-execution`, a `--project` to run in, and a statement that verifies. It

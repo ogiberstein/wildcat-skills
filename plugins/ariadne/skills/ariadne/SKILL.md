@@ -9,7 +9,7 @@ description: >
   new kind of artefact needs a predicate of its own. Ariadne neither signs nor
   verifies signatures; those operations belong to cosign.
 metadata:
-  version: "1.1.0"
+  version: "2.1.0"
 ---
 
 # Ariadne
@@ -28,7 +28,7 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 
 **Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
 
-**Current frontier.** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+**Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
 A release publishes a claim. The evidence behind it sits somewhere else, joined
@@ -54,8 +54,8 @@ did not check them. What it never does is print an author it has not verified.
 
 **Research and data.** A dataset or a chain-state fixture needs the same thread
 as a contract release: the sources read, the block boundary, what was covered
-and what was not. The core is artefact-neutral so those predicates cost a module
-rather than a fork.
+and what was not. Both have a predicate now, each one a module rather than a
+fork, which is what an artefact-neutral core is for.
 
 ## The commands
 

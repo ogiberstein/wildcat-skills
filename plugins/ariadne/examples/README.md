@@ -1,11 +1,13 @@
 # Example attestations
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
-Two statements over the fixture project in `../tests/fixtures/forge-project`,
-produced by `ariadne capture` and committed as they came out.
+Three statements produced by a capture and committed as they came out. Two are
+Solidity releases over the fixture project in `../tests/fixtures/forge-project`; the
+third is a state fixture over the Lazarus fixture in
+`../../lazarus/examples/goldfinch-v0`.
 
 The build records, digests and deltas in them came from the compiler. The test
 and fuzz dispositions did not: capture takes those from whoever runs it, and
@@ -18,6 +20,7 @@ that no longer exists.
 | --- | --- |
 | `escrow-v1.1.0.json` | A clean release: tests and fuzz passed, an audit covering the released commit, a deployment |
 | `escrow-v1.1.0-with-gaps.json` | The same release with a fuzz campaign that timed out and an audit covering an earlier revision |
+| `goldfinch-v0-fixture.json` | A Lazarus state fixture: the pinned block with its state root, eleven components, and the three evidence counts read from the manifest rather than recomputed |
 
 The second one is why both are here. A format whose only examples are clean
 releases teaches producers to make their releases look clean. Both verify, and
@@ -40,6 +43,19 @@ that `verify` exits 1 on each and names the gate.
 | --- | --- | --- |
 | `escrow-v1.1.0-claim-repointed.json` | A claim points at bytes the statement does not cover | 1 |
 | `escrow-v1.1.0-with-gaps-reason-removed.json` | The timed-out campaign keeps its disposition and loses its reason | 3 |
+| `goldfinch-v0-fixture-state-root-removed.json` | The state root goes and the proof-backed count stays | the evidence check |
+
+The third tamper is the rule the state-fixture predicate exists for. Two records are
+counted as proved against a state root the statement no longer carries, so the count
+describes work that could not have happened. Gate 2 still passes, which is the point:
+the pin is intact and the claim about it is not.
+
+```bash
+python3 ../scripts/ariadne.py verify goldfinch-v0-fixture.json
+```
+
+Seven gate lines and three checks, exit 0, with the evidence line reading `2
+proof_backed, 1 header_bound, 4 recorded_rpc` -- the counts Lazarus wrote.
 
 ## What tampering the gates do not catch
 
@@ -59,3 +75,10 @@ author from a signature it did not check.
 The gates refuse the shapes that let a careless statement read as a careful
 one. They do not, and cannot, refuse a producer willing to lie in a document
 they signed.
+
+The state fixture has its own version of this, worth naming because it is the thing
+that predicate cares most about. A producer who moved four recorded responses into
+the proof-backed column would verify clean: the counts come from the manifest, and
+nothing here cross-checks a count against the components beside it. What refuses that
+is the capture path, which reads the counts from what Lazarus wrote rather than taking
+them from a caller, and a statement written by hand does not go through it.
