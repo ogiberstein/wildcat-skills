@@ -281,7 +281,9 @@
         ],
         "properties": {
           "chain_id": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1,
+            "description": "A chain id identifies a chain, so it is a number. The verifier refused nothing here until a sweep found that ' ' and 'null' and true all satisfied its presence test and named no chain."
           },
           "address": {
             "type": "string"

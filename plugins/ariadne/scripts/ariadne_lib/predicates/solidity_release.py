@@ -325,7 +325,28 @@ def gate_deployments(statement):
         if absent:
             faults.append("%s is missing %s" % (label, ", ".join(absent)))
             continue
-        if not entry["confirmed_against_chain"]:
+        # A chain id identifies a chain, so it has to be a number. `" "` and
+        # `"null"` and `true` all satisfied a presence test and named no chain.
+        chain_id = entry["chain_id"]
+        if not isinstance(chain_id, int) or isinstance(chain_id, bool) or chain_id < 1:
+            faults.append(
+                "%s chain_id must be a whole number, not %r" % (label, chain_id)
+            )
+            continue
+        # The field records a decision somebody made, so only the two booleans are
+        # in its vocabulary. Anything else was read for truthiness: `"null"` and
+        # `" "` are truthy, so a deployment carrying either was counted as
+        # confirmed and the line below told a reader every deployment had been
+        # checked against a chain. Nothing here has ever spoken to a node.
+        confirmed = entry["confirmed_against_chain"]
+        if confirmed is not True and confirmed is not False:
+            faults.append(
+                "%s confirmed_against_chain must be true or false, not %r; the "
+                "field records a decision and anything else is read as a yes"
+                % (label, confirmed)
+            )
+            continue
+        if not confirmed:
             unconfirmed += 1
 
     if faults:

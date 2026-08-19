@@ -67,6 +67,7 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-gate5-solidity-first-release-unnamed-current.json` | A first release carrying a current side with no name and a digest the statement does not cover, which gate 5 skipped before this fixture existed |
 | `fail-check-audits-solidity-without-covered-revision.json` | An audit report attached to a release without naming the revision it covered |
 | `fail-check-deployments-solidity-without-confirmation.json` | A deployment address printed without saying whether anything confirmed it against a chain |
+| `fail-check-deployments-solidity-confirmation-is-not-a-boolean.json` | `"null"` where the confirmation belongs. The field records a decision, and a value read for truthiness turned a deployment nobody checked into one the report counted as confirmed |
 | `pass-dataset-release.json` | A complete dataset release: two released files with record counts, one input digested and one recorded absent with its reason, a coverage interval with a gap, and a comparison against the previous release |
 | `pass-dataset-first-release.json` | The same shape with a null baseline, its reason, and an empty gap list that asserts the producer looked |
 | `fail-gate2-dataset-producer-without-parameters.json` | A producer named with a version but no digest over the parameters it was given |
