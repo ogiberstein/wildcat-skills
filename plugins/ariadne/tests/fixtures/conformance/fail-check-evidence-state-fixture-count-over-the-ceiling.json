@@ -84,23 +84,15 @@
     "evidence": {
       "header_bound": 1,
       "proof_backed": 2,
-      "recorded_rpc": 4
+      "recorded_rpc": 100001
     },
     "replay": {
       "reaches_network": false,
       "canonical_chain_claim": false
     },
     "deltas": {
-      "baseline": {
-        "name": "goldfinch-v0"
-      },
-      "reason": "first preservation release of this fixture; there is no earlier capture of this block to compare against",
-      "current": {
-        "name": "goldfinch-v1",
-        "digest": {
-          "sha256": "16a3720dea5844b5c3bba456053906d388a26674d6cae7f14b5b4e454262eab9"
-        }
-      }
+      "baseline": null,
+      "reason": "first preservation release of this fixture; there is no earlier capture of this block to compare against"
     },
     "claims": [
       {

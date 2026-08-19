@@ -86,6 +86,10 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-check-evidence-state-fixture-class-absent.json` | An evidence class left out, which reads as nothing of that kind having been captured rather than as nobody having said |
 | `fail-check-evidence-state-fixture-count-is-a-boolean.json` | A count of `true`, which is an integer in Python and would read as one record |
 | `fail-check-replay-state-fixture-canonical-chain-claim.json` | A fixture claiming its pinned block is on the canonical chain, which nothing in either tool establishes |
+| `fail-gate2-state-fixture-unset-block-hash.json` | The all-zero hash, which matches the shape and identifies nothing |
+| `fail-gate2-state-fixture-component-path-leaves-the-fixture.json` | A component path with a `..` segment, which resolves outside the fixture a reader has |
+| `fail-check-evidence-state-fixture-count-over-the-ceiling.json` | A count above the ceiling Lazarus's own manifest schema sets |
+| `fail-check-replay-state-fixture-zero-is-not-false.json` | `0` where `false` belongs. The field records a decision and `0` is not in its vocabulary |
 
 ## Running them
 
@@ -100,6 +104,50 @@ The whole set runs under:
 ```bash
 python3 -m unittest discover -s tests -t .
 ```
+
+## What passing the whole set proves
+
+One example per rule family, not one per rule. A verifier that passes every fixture
+here has been shown each *kind* of refusal: a required field absent, a value of the
+wrong type, a value that satisfies the shape and identifies nothing, a digest the
+statement does not cover, a path that resolves outside the tree, a field the type does
+not define, and each numbered gate and named check breached on its own.
+
+It has not been shown every field. The state-fixture predicate makes 31
+distinguishable refusals and ships 14 fixtures, chosen so that each family appears and
+the rules distinctive to the type appear on their own: the unset hash, the count
+ceiling taken from Lazarus, `0` in place of `false`, and a proof-backed count with no
+state root. An implementation that checked `block_number` and forgot `chain_id` would
+pass everything here.
+
+That is a deliberate limit rather than an omission. A fixture per rule would triple
+this directory and teach a reader no more, because the fixtures are read as examples
+and the rules are written down in each predicate's document. The unit suites are where
+every field is exercised: `tests/test_state_fixture.py` and its siblings, which is
+where a rule with no fixture is still held.
+
+Minimality is part of the teaching, and it holds for the state-fixture set rather
+than for the directory. Twelve of its fourteen breaching fixtures differ from
+`pass-state-fixture.json` in exactly one leaf, so a reader diffing the pair sees the
+rule and nothing else. A test holds them there.
+
+The two exceptions are both gate 5, and both for the same reason: a comparison
+against a baseline has to name a current side, so no single change reaches that
+branch. `fail-gate5-state-fixture-unnamed-current.json` differs in two leaves and
+`fail-gate5-state-fixture-baseline-without-digest.json` in four.
+
+The older core fixtures are written against `pass-minimal.json` instead, which is
+the smallest statement that holds rather than a near sibling, so they differ by up
+to eight leaves. That is a different and equally deliberate choice: a core gate is
+demonstrated on the least statement that can carry the breach, not on a full release
+with one thing changed.
+
+One warning for anyone diffing these files with a tool. Two of the fixtures change
+only a value's type -- `header_bound` from `1` to `true`, and `reaches_network` from
+`false` to `0` -- and a comparison written in Python will call those pairs equal,
+because `True == 1` and `0 == False`. The rules they breach exist because of that
+same equality. A differ that ignores types reports these fixtures as identical to
+the one they breach against.
 
 ## What the gates do not catch
 

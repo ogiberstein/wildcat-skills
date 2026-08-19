@@ -31,7 +31,7 @@
     "chain": {
       "chain_id": 1,
       "block_number": 13097494,
-      "block_hash": "0x41119192a8acdaae5ab06ca8f1d5943fd7ca2fb0a14323642dd6daf74eed2cfc",
+      "block_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "state_root": "0x0f7edccdfc1d09f4ecb7d32b8954b475184ab6ccc68c721a070e73368a705730"
     },
     "capture": {
@@ -91,16 +91,8 @@
       "canonical_chain_claim": false
     },
     "deltas": {
-      "baseline": {
-        "name": "goldfinch-v0"
-      },
-      "reason": "first preservation release of this fixture; there is no earlier capture of this block to compare against",
-      "current": {
-        "name": "goldfinch-v1",
-        "digest": {
-          "sha256": "16a3720dea5844b5c3bba456053906d388a26674d6cae7f14b5b4e454262eab9"
-        }
-      }
+      "baseline": null,
+      "reason": "first preservation release of this fixture; there is no earlier capture of this block to compare against"
     },
     "claims": [
       {

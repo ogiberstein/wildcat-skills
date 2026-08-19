@@ -58,7 +58,7 @@
       },
       {
         "name": "the capture plan",
-        "path": "plan.json",
+        "path": "../outside.jsonl",
         "digest": {
           "sha256": "6da5edf73d691a9ac070ed27d315c2b250e11fca28d6997a023e7e0d5d51d693"
         },
@@ -91,16 +91,8 @@
       "canonical_chain_claim": false
     },
     "deltas": {
-      "baseline": {
-        "name": "goldfinch-v0"
-      },
-      "reason": "first preservation release of this fixture; there is no earlier capture of this block to compare against",
-      "current": {
-        "name": "goldfinch-v1",
-        "digest": {
-          "sha256": "16a3720dea5844b5c3bba456053906d388a26674d6cae7f14b5b4e454262eab9"
-        }
-      }
+      "baseline": null,
+      "reason": "first preservation release of this fixture; there is no earlier capture of this block to compare against"
     },
     "claims": [
       {
