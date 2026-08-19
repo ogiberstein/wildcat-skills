@@ -553,6 +553,18 @@ class ChainTests(unittest.TestCase):
             with self.subTest(chain_id=value), self.assertRaises(FormatError):
                 bound(manifest=manifest)
 
+    def test_a_hex_quantity_that_is_not_a_number_is_refused(self):
+        """0x and then something that is not hex. The prefix check passes and
+        the conversion is where it goes wrong."""
+        for value in ("0x", "0xzz", "0x 1", "0x1.5"):
+            manifest = sample_manifest()
+            manifest["chain_id"] = value
+            with self.subTest(chain_id=value), self.assertRaises(
+                FormatError
+            ) as caught:
+                bound(manifest=manifest)
+            self.assertIn("hex quantity", str(caught.exception))
+
     def test_a_report_block_number_that_is_not_a_quantity_is_refused(self):
         for value in (None, "twelve", "", 12):
             report = sample_report()
