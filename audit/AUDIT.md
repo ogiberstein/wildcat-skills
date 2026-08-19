@@ -2175,3 +2175,31 @@ step. The single error is `ForgeReports`, unchanged and environmental.
 
 Leads not pursued: the `load_state` lead from round 1 stands. `as_dict` guards the
 reads this file makes; it does not make `load_state` validate the state it returns.
+
+## Receipted lint rounds, step 1, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. Every sweep from rounds 1 and 2 was re-run against the fixed tree and came
+back clean: 676 malformed state shapes with nothing raised, 42 mode-and-receipt pairs
+all returning a boolean, and the source-level assertion that no chained read uses a
+container default.
+
+Two checks were new to this round.
+
+**Backward compatibility against real data rather than a fixture.** The state and
+ledger of the Ariadne run archived earlier today were copied to a scratch directory and
+read with the new controller. `status` reports its five shipped steps, `verify` passes
+48 ledger entries with the chain intact, `config get solidity` answers `"auto"`, and the
+classifier reads that run's waiver as a non-Solidity round. That run's state was written
+before any of this existed.
+
+**The command line rather than the function.** A fresh run defaults to `"auto"`,
+accepts `false`, and refuses `"maybe"` with a message naming the three modes.
+
+The three bundled lints ran and each exited 0: `phylax`, `ephoros`, `hypomnema`. Both
+suites pass: 24 repository tests and 194 of 195 Hexaemeron tests. The single error is
+`ForgeReports`, environmental and unchanged.
+
+Leads not pursued: the `load_state` lead stands from round 1.
