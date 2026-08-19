@@ -1692,3 +1692,42 @@ tests, 2 skipped, 62 of them new in this step.
 Leads not pursued: the two probes above are one-off scripts rather than committed
 tests. Step 3 owns the fixture and gate-completeness contract, so the guards land
 there rather than here.
+
+## Ariadne dataset predicate, step 3, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The step ships fixtures, tests and prose, and no Solidity, so the
+suite waiver covers the Pashov pair. The three bundled lints ran against the
+changed tree and each exited 0: `phylax`, `ephoros`, `hypomnema`.
+
+The step adds four completeness tests, so the review asked whether they catch what
+they claim. Three adversarial probes were run and all three failed as they should:
+
+- A new unnumbered check added to a predicate with no fixture fails
+  `test_every_named_check_has_a_breaching_fixture`.
+- A fixture edited to breach coverage and the field-shape check at once fails
+  `test_every_check_breaching_fixture_fails_the_check_it_is_named_for`.
+- A fixture whose name misspells its check fails
+  `test_every_fixture_follows_the_naming_convention`, because the name is
+  recovered by matching against the checks the registered predicates return
+  rather than by parsing the filename.
+
+The tree was restored after each probe and `git status` came back empty.
+
+Both new passing fixtures were also verified through the command line rather than
+only the harness. `pass-dataset-release.json` prints seven numbered gates and
+three checks, all passing, with no unchecked line, and exits 0.
+`fail-check-coverage-dataset-no-gaps-block.json` fails the coverage check alone
+and exits 1.
+
+Both suites pass on the committed tree: 24 repository tests and 381 ariadne
+tests, 2 skipped.
+
+Leads not pursued: `test_predicate_robustness.py` sweeps eighteen shapes at the
+top level and one declared field at a time. It does not sweep nested fields two
+levels down, so a gate indexing into a gap entry's contents without a type check
+would not be caught by it. The gap-entry case is covered by the hand-written
+tests in `test_dataset.py`; a general recursive sweep is a larger piece of work
+than this step.
