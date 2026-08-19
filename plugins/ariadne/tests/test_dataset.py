@@ -453,6 +453,43 @@ class InputsTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("the reason is the record", found.detail)
 
+    def test_an_input_passed_without_a_digest_fails(self):
+        """`passed` was a one-word way around this check: it asserted the input was
+        read while recording nothing about what was read, and the tally called it
+        recorded absent."""
+        body = predicate()
+        body["inputs"][0] = {
+            "name": "goldfinch capture",
+            "locator": "alexandria://goldfinch/2024-01",
+            "disposition": "passed",
+        }
+        found = named("inputs", body)
+        self.assertFalse(found.passed)
+        self.assertIn("passed with no digest", found.detail)
+
+    def test_an_input_passed_with_a_digest_is_the_ordinary_case(self):
+        body = predicate()
+        body["inputs"][0]["disposition"] = "passed"
+        found = named("inputs", body)
+        self.assertTrue(found.passed, found.detail)
+        self.assertIn("1 digested", found.detail)
+
+    def test_every_absence_disposition_needs_a_reason(self):
+        for disposition in dataset.INPUT_DISPOSITIONS:
+            body = predicate()
+            body["inputs"][0] = {
+                "name": "goldfinch capture",
+                "locator": "alexandria://goldfinch/2024-01",
+                "disposition": disposition,
+            }
+            with self.subTest(disposition=disposition):
+                found = named("inputs", body)
+                self.assertFalse(found.passed)
+                self.assertIn("the reason is the record", found.detail)
+
+    def test_passed_is_not_an_absence_disposition(self):
+        self.assertNotIn("passed", dataset.INPUT_DISPOSITIONS)
+
     def test_a_disposition_outside_the_vocabulary_fails(self):
         body = predicate()
         body["inputs"][0] = {

@@ -63,8 +63,11 @@ accident.
 **Inputs.** `--input name=<n>,locator=<l>` with either `file=<path>` to digest, or
 `disposition=<state>,reason=<why>` when the input cannot be digested. A locator on
 its own is refused, because it records nothing about what was read or whether it
-could be read at all. Passing no inputs writes an empty array, which says the
-question was asked.
+could be read at all. `disposition=passed` is refused too: an input that was read
+has a digest, and `passed` without one was a single word that got around the check.
+The dispositions this field accepts are `failed`, `skipped`, `timed_out` and
+`redacted`. Passing no inputs writes an empty array, which says the question was
+asked.
 
 **Record counts for anything that is not line-delimited.**
 `--record-count <path>=<n>`. A file whose count is neither derivable nor stated is

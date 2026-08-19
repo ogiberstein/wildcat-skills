@@ -83,13 +83,12 @@
           },
           "disposition": {
             "enum": [
-              "passed",
               "failed",
               "skipped",
               "timed_out",
               "redacted"
             ],
-            "description": "Present instead of a digest when the input could not be digested. Anything but passed needs a reason."
+            "description": "Present instead of a digest when the input could not be digested. `passed` is not available here: an input that was read carries a digest. Every value on this list needs a reason."
           },
           "reason": {
             "type": "string"

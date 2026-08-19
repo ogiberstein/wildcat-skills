@@ -212,7 +212,12 @@ class DatasetSchemaDriftTests(unittest.TestCase):
         self.assertEqual(sorted(commands), sorted(core_predicate.COMMAND_FIELDS))
         self.assertEqual(
             self.properties["inputs"]["items"]["properties"]["disposition"]["enum"],
-            list(core_predicate.DISPOSITIONS),
+            list(dataset.INPUT_DISPOSITIONS),
+        )
+        self.assertNotIn(
+            "passed",
+            self.properties["inputs"]["items"]["properties"]["disposition"]["enum"],
+            "an input that was read carries a digest, not a passed disposition",
         )
 
     def test_the_schema_is_committed_as_readable_json(self):

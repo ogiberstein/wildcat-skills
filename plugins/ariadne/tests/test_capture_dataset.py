@@ -357,6 +357,23 @@ class InputTests(unittest.TestCase):
     def test_a_release_derived_from_nothing_records_an_empty_list(self):
         self.assertEqual(grab()["predicate"]["inputs"], [])
 
+    def test_an_input_claiming_passed_without_a_digest_does_not_verify(self):
+        """The capture takes inputs from the caller verbatim, so the predicate is
+        what stops this reaching a reader."""
+        document = grab(
+            inputs=[
+                {
+                    "name": "goldfinch capture",
+                    "locator": "alexandria://goldfinch/2024-01",
+                    "disposition": "passed",
+                }
+            ]
+        )
+        found = report(document)
+        self.assertFalse(found.ok)
+        failed = [g.name for g in found.gates if not g.passed]
+        self.assertEqual(failed, ["inputs"])
+
     def test_an_input_recorded_absent_survives_and_verifies(self):
         entry = {
             "name": "subgraph backfill",

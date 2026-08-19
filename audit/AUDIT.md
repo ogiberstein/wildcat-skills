@@ -1816,3 +1816,27 @@ Both suites pass: 24 repository tests and 429 ariadne tests, 2 skipped.
 Leads not pursued: the byte-budget lead stands from round 1. `parameters_digest`
 over an empty parameter set is a real digest of an empty mapping rather than a
 fabrication, so it is left as it is and documented.
+
+## Ariadne dataset predicate, step 4, round 4 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R4-01 | high | `plugins/ariadne/scripts/ariadne_lib/predicates/dataset.py` | The inputs check accepted `"disposition": "passed"` with no digest. That is a single word around the rule the check exists for: it asserted the input was read while recording nothing about what was read, and the tally then counted it as recorded absent, which contradicts the disposition it carries. A statement built this way verified clean and exited 0. | fixed in this round |
+
+`passed` is no longer available as an input disposition. An input that was read
+carries a digest; the four remaining values describe an absence and each needs a
+reason. The rule is enforced in three places: the gate, the published schema's
+enum, and the command line where the caller can still fix the invocation. The
+drift test asserts `passed` is absent from that enum with the reason written next
+to the assertion.
+
+This is the fourth consecutive round to find something, and all four are the same
+family: a field that satisfies a shape check while carrying no evidence. Rounds 1
+and 2 were absences dropped from the walk, round 3 was a fabricated producer, and
+this is an absence dressed as a result.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 434 ariadne
+tests, 2 skipped.
+
+Leads not pursued: the byte-budget lead stands from round 1.

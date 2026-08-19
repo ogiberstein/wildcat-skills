@@ -27,7 +27,7 @@ timestamps records them as integers or uses a different dimension.
 
 from .. import deltas as deltas_module
 from .. import digests
-from ..core_predicate import DISPOSITIONS, NEEDS_REASON, check_side, missing
+from ..core_predicate import NEEDS_REASON, check_side, missing
 from ..gates import Gate
 
 TYPE = "https://ariadne.wildcat.finance/dataset/v1"
@@ -65,6 +65,16 @@ BOTH_SIDED = ("changed",)
 carries what it was and what it became."""
 
 INPUT_FIELDS = frozenset({"name", "locator", "digest", "disposition", "reason"})
+
+INPUT_DISPOSITIONS = NEEDS_REASON
+"""What an input may say instead of carrying a digest.
+
+`passed` is not on this list. An input that was read has a digest, so `passed`
+with no digest is a one-word way around the rule this check exists for: it would
+assert the input was read while recording nothing about what was read. The
+remaining dispositions are the ones that describe an absence, and each needs a
+reason.
+"""
 GAP_FIELDS = frozenset({"start", "end", "reason"})
 
 
@@ -416,20 +426,25 @@ def gate_inputs(statement):
                 "records nothing about what was read" % label
             )
             continue
-        if disposition not in DISPOSITIONS:
+        if disposition == "passed":
             faults.append(
-                "%s has disposition %r, outside %s"
-                % (label, disposition, ", ".join(DISPOSITIONS))
+                "%s is passed with no digest; an input that was read has one, and "
+                "passed without it records nothing about what was read" % label
             )
             continue
-        if disposition in NEEDS_REASON:
-            reason = entry.get("reason")
-            if not isinstance(reason, str) or not reason.strip():
-                faults.append(
-                    "%s is %s with no reason; the reason is the record"
-                    % (label, disposition)
-                )
-                continue
+        if disposition not in INPUT_DISPOSITIONS:
+            faults.append(
+                "%s has disposition %r, outside %s"
+                % (label, disposition, ", ".join(INPUT_DISPOSITIONS))
+            )
+            continue
+        reason = entry.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            faults.append(
+                "%s is %s with no reason; the reason is the record"
+                % (label, disposition)
+            )
+            continue
         absent += 1
 
     if faults:

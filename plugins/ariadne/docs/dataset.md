@@ -69,9 +69,15 @@ most easily use to mislead: an interval printed with no gaps reads as complete.
 
 ## The inputs check
 
-An input carries a digest, or a disposition from the core vocabulary with a
-reason. An input with neither fails: a locator on its own records nothing about
-what was read, and nothing about whether it could be read at all.
+An input carries a digest, or a disposition describing an absence with a reason.
+An input with neither fails: a locator on its own records nothing about what was
+read, and nothing about whether it could be read at all.
+
+`passed` is not available as a disposition here. An input that was read has a
+digest, so `passed` without one was a single word that got around this check
+entirely, asserting the input was read while recording nothing about it. The
+dispositions this field accepts are `failed`, `skipped`, `timed_out` and
+`redacted`, and each needs a reason.
 
 ## What this predicate does not do
 

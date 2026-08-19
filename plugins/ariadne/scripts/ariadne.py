@@ -209,13 +209,18 @@ def dataset_input(value):
             "--input needs file=<path> to digest, or disposition=<state> with a "
             "reason; a locator alone records nothing about what was read"
         )
+    if found["disposition"] == "passed":
+        raise argparse.ArgumentTypeError(
+            "--input disposition=passed needs file=<path> to digest; an input that "
+            "was read has a digest, and passed without one records nothing about "
+            "what was read"
+        )
     out["disposition"] = found["disposition"]
-    if found["disposition"] != "passed":
-        if "reason" not in found:
-            raise argparse.ArgumentTypeError(
-                "--input disposition=%s needs a reason" % found["disposition"]
-            )
-        out["reason"] = found["reason"]
+    if "reason" not in found:
+        raise argparse.ArgumentTypeError(
+            "--input disposition=%s needs a reason" % found["disposition"]
+        )
+    out["reason"] = found["reason"]
     return out
 
 
