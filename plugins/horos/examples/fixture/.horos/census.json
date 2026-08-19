@@ -13,6 +13,12 @@
       "suffix": ".json"
     },
     {
+      "boundary_bytes": 94,
+      "bytes": 198,
+      "files": 4,
+      "suffix": "(no suffix)"
+    },
+    {
       "boundary_bytes": 0,
       "bytes": 138,
       "files": 1,
@@ -43,12 +49,6 @@
       "suffix": ".map"
     },
     {
-      "boundary_bytes": 0,
-      "bytes": 25,
-      "files": 1,
-      "suffix": "(no suffix)"
-    },
-    {
       "boundary_bytes": 17,
       "bytes": 17,
       "files": 1,
@@ -63,6 +63,6 @@
   ],
   "schema": 1,
   "tool": "horos",
-  "total_bytes": 50927,
-  "total_files": 16
+  "total_bytes": 51100,
+  "total_files": 19
 }
