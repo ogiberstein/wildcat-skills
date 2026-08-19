@@ -143,8 +143,17 @@ def write_release(
                 f"{copied['fixture_digest']} and the original to "
                 f"{report['fixture_digest']}"
             )
-        (staged / STATEMENT_NAME).write_bytes(statement_bytes)
-        (staged / RELEASE_NAME).write_bytes(dumps(release) + b"\n")
+        _write_owner_only(staged / STATEMENT_NAME, statement_bytes)
+        _write_owner_only(staged / RELEASE_NAME, dumps(release) + b"\n")
+        if destination.exists() or destination.is_symlink():
+            # Checked again because the copy takes time and the name was free
+            # when the run began. This narrows the window rather than closing
+            # it: between here and the rename the name is still unheld, and
+            # rename replaces an empty directory. Nothing else -- a file, a
+            # symlink, a directory holding anything -- can be replaced, so what
+            # a lost race costs is an empty directory, and a process that can
+            # win it can rewrite the finished release anyway.
+            raise FormatError(f"release output appeared while it was built: {destination}")
         os.replace(staged, destination)
     except BaseException:
         shutil.rmtree(staged, ignore_errors=True)
@@ -204,4 +213,18 @@ def _copy_fixture(source: Path, target: Path, manifest: dict[str, Any]) -> None:
         )
         written = target / normalised
         written.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        written.write_bytes(data)
+        _write_owner_only(written, data)
+
+
+def _write_owner_only(path: Path, data: bytes) -> None:
+    """Write a new file the owner can read and nobody else can.
+
+    The same mode `atomic_write_confined` uses for a fixture component. A release
+    is not published by being written; whoever wants to hand it over opens it up
+    deliberately.
+    """
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "wb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())

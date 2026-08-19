@@ -579,6 +579,180 @@ class CopyTests(unittest.TestCase):
             self.assertEqual(mode & (stat.S_IWGRP | stat.S_IWOTH), 0)
 
 
+class ReproducibleTests(unittest.TestCase):
+    def test_two_runs_over_one_fixture_and_statement_agree(self):
+        """A release nobody can rebuild is a release nobody can check."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            first = prepared.release()
+            again = prepared.root / "release-again"
+            second = write_release(prepared.fixture, prepared.statement, again)
+            self.assertEqual(first, second)
+            self.assertEqual(
+                (prepared.out / RELEASE_NAME).read_bytes(),
+                (again / RELEASE_NAME).read_bytes(),
+            )
+            for relative in ("manifest.json",) + COMPONENTS:
+                with self.subTest(component=relative):
+                    self.assertEqual(
+                        (prepared.out / FIXTURE_DIRECTORY / relative).read_bytes(),
+                        (again / FIXTURE_DIRECTORY / relative).read_bytes(),
+                    )
+
+
+class DigestIdentityTests(unittest.TestCase):
+    """The claim the digest function's docstring makes, held to.
+
+    A field added to the schema and not to the identity is a digest that quietly
+    stops covering part of the document. This is the test that makes that a
+    failure rather than a discovery.
+    """
+
+    def test_the_digest_covers_every_field_the_schema_requires(self):
+        from lazarus_lib.schemas import _schema
+
+        required = set(_schema("release", 1)["required"]) - {"release_digest"}
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            document = prepared.release()
+            for field in sorted(required):
+                edited = copy.deepcopy(document)
+                edited[field] = "changed"
+                with self.subTest(field=field):
+                    self.assertNotEqual(
+                        release_digest(edited),
+                        document["release_digest"],
+                        "%s is required by the schema and not covered by the digest"
+                        % field,
+                    )
+
+    def test_the_digest_does_not_cover_itself(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            document = prepared.release()
+            edited = copy.deepcopy(document)
+            edited["release_digest"] = "f" * 64
+            self.assertEqual(release_digest(edited), release_digest(document))
+
+
+class RenameWindowTests(unittest.TestCase):
+    """What a lost race costs, recorded rather than assumed.
+
+    The output name is free when a run begins and the copy takes time. Between
+    the last check and the rename the name is still unheld. Rename replaces an
+    empty directory and nothing else, so these tests record where the boundary
+    sits.
+    """
+
+    def race(self, prepared, prepare):
+        from lazarus_lib import release as module
+
+        original = module.os.replace
+
+        def racing(source, target, *arguments, **keywords):
+            path = Path(target)
+            if not path.exists() and not path.is_symlink():
+                prepare(path)
+            return original(source, target, *arguments, **keywords)
+
+        module.os.replace = racing
+        try:
+            return prepared.release()
+        finally:
+            module.os.replace = original
+
+    def test_a_directory_holding_anything_is_not_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+
+            def prepare(path):
+                path.mkdir()
+                (path / "someone-elses.txt").write_bytes(b"mine")
+
+            with self.assertRaises(OSError):
+                self.race(prepared, prepare)
+            self.assertTrue((prepared.out / "someone-elses.txt").is_file())
+            self.assertEqual(prepared.staged(), [])
+
+    def test_a_file_in_the_way_is_not_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            with self.assertRaises(OSError):
+                self.race(prepared, lambda path: path.write_bytes(b"mine"))
+            self.assertEqual(prepared.out.read_bytes(), b"mine")
+            self.assertEqual(prepared.staged(), [])
+
+    def test_a_symlink_in_the_way_is_not_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            with self.assertRaises(OSError):
+                self.race(
+                    prepared, lambda path: path.symlink_to(prepared.root / "nowhere")
+                )
+            self.assertTrue(prepared.out.is_symlink())
+            self.assertEqual(prepared.staged(), [])
+
+    def test_an_output_that_appears_during_the_copy_is_refused(self):
+        """The check before the rename, which the long part of the run makes
+        worth making."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            from lazarus_lib import release as module
+
+            original = module._copy_fixture
+
+            def slow(source, target, manifest):
+                original(source, target, manifest)
+                prepared.out.mkdir()
+
+            module._copy_fixture = slow
+            try:
+                with self.assertRaises(FormatError) as caught:
+                    prepared.release()
+            finally:
+                module._copy_fixture = original
+            self.assertIn("appeared while it was built", str(caught.exception))
+            self.assertTrue(prepared.out.is_dir())
+            self.assertEqual(prepared.staged(), [])
+
+
+class StagedNameTests(unittest.TestCase):
+    def test_a_staged_name_taken_by_something_else_is_refused(self):
+        for kind in ("symlink", "file", "directory"):
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = Prepared(directory)
+                staged = prepared.root / (".%s.staged" % prepared.out.name)
+                if kind == "symlink":
+                    staged.symlink_to(prepared.root / "nowhere")
+                elif kind == "file":
+                    staged.write_bytes(b"not a staging directory")
+                else:
+                    staged.mkdir()
+                with self.subTest(kind=kind):
+                    with self.assertRaises(FormatError) as caught:
+                        prepared.release()
+                    self.assertIn("staged", str(caught.exception))
+                    self.assertTrue(staged.exists() or staged.is_symlink())
+                    self.assertFalse(prepared.out.exists())
+
+
+class ModeTests(unittest.TestCase):
+    def test_nothing_in_a_release_is_readable_by_anybody_else(self):
+        """A release is not published by being written. Whoever hands it over
+        opens it up deliberately."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            for path in [prepared.out] + sorted(prepared.out.rglob("*")):
+                mode = stat.S_IMODE(path.stat().st_mode)
+                with self.subTest(path=path.name):
+                    self.assertEqual(
+                        mode & (stat.S_IRWXG | stat.S_IRWXO),
+                        0,
+                        "%s is %s" % (path, oct(mode)),
+                    )
+
+
 class CommandTests(unittest.TestCase):
     def run_cli(self, *arguments):
         return subprocess.run(
