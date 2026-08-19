@@ -163,3 +163,35 @@ class ContributorCheckTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PhaseSkillInventoryTests(unittest.TestCase):
+    """The README counts how many phase skills ship an executable check.
+
+    It said four while five did. A prose count goes stale the next time one is added, and
+    this run added one, so the count is derived here rather than trusted.
+    """
+
+    PHASES = ("protasis", "elenchus", "phylax", "ephoros", "metron", "hypomnema")
+    WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+
+    def test_the_readme_counts_the_checks_that_exist(self):
+        root = Path(__file__).resolve().parents[1]
+        with_script = [
+            name for name in self.PHASES
+            if (root / "skills" / name / "scripts" / f"{name}.py").is_file()
+        ]
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        expected = (
+            f"six more skills holding each phase to a standard, "
+            f"{self.WORDS[len(with_script)]} of them with an executable check:"
+        )
+        self.assertIn(expected, readme,
+                      f"{len(with_script)} phase skills ship a check: {with_script}")
+
+    def test_every_named_phase_skill_exists(self):
+        root = Path(__file__).resolve().parents[1]
+        for name in self.PHASES:
+            with self.subTest(skill=name):
+                self.assertTrue((root / "skills" / name / "SKILL.md").is_file())
+
