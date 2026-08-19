@@ -210,6 +210,13 @@ class GateFiveTests(unittest.TestCase):
         self.assertFalse(found.passed)
         self.assertIn("against a null baseline", found.detail)
 
+    def test_a_null_current_side_against_a_baseline_fails(self):
+        body = predicate()
+        body["deltas"]["current"] = None
+        found = gate(5, body)
+        self.assertFalse(found.passed)
+        self.assertIn("current side is not an object", found.detail)
+
     def test_a_current_side_outside_the_statement_fails(self):
         """The current side is meant to be this release, not some other pair."""
         body = predicate()
@@ -347,6 +354,24 @@ class NullBaselineCurrentSideTests(unittest.TestCase):
 
     def test_a_current_side_that_is_not_an_object_fails(self):
         found = gate(5, self.first_release("v1.0.0"))
+        self.assertFalse(found.passed)
+        self.assertIn("current side is not an object", found.detail)
+
+    def test_a_null_current_side_fails(self):
+        """`"current": null` is a side that is there, not a side left out.
+
+        A producer emitting the key with nothing in it has said a current side
+        exists and then identified nothing, which is the shape the absent case
+        is not. Membership rather than a truthiness test is what separates them,
+        and a mutation probe found no test holding that line.
+        """
+        body = predicate()
+        body["deltas"] = {
+            "baseline": None,
+            "reason": "first tagged release; nothing to compare against",
+            "current": None,
+        }
+        found = gate(5, body)
         self.assertFalse(found.passed)
         self.assertIn("current side is not an object", found.detail)
 
