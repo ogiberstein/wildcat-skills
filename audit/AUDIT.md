@@ -1969,3 +1969,93 @@ repository tests and 463 ariadne tests, 2 skipped.
 
 Leads not pursued: S4-R6-06, S4-R8-08 and S4-R8-09 above, the byte-budget lead from
 round 1, and the constraint-level drift lead from round 5.
+
+## Ariadne dataset predicate, step 5, round 1 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | low | `plugins/ariadne/scripts/ariadne_lib/registry.py` | The module docstring said "It is empty at this point in the build, and `ariadne predicates` says so." That was already false before this run, since the Solidity release predicate was registered, and the dataset predicate made it doubly so. A shipped file that describes its own state wrongly is the drift this plugin's own document tests exist to catch, and no test reached a docstring. | fixed in this round |
+
+The step reconciles prose, so the review looked for the failure a prose test cannot
+see: a paraphrase that says the same stale thing in different words. The repository
+was swept for claims about how many predicates are registered and which remain
+unimplemented, across Markdown, Python and JSON. One shipped file was wrong, and it
+is fixed above.
+
+Two hits were left alone on purpose. The committed study says "its registry holds one
+predicate", which is its problem statement describing the state the run started from
+and is correct as a historical record. The Fiat run artefacts under `.hexaemeron/` are
+not shipped.
+
+The three bundled lints ran against the changed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. No Solidity ships in this step, so the suite waiver covers the
+Pashov pair.
+
+The ledger was checked against the contract rather than only by the suite. The
+recomputed frontier digest
+`ec925d3f57001ac32eb6d40ffdd7d43f130e360283ef40eb8fbbda724f262c2f` is over
+`open|state-fixture-predicate|<current frontier>|<next Fiat job>` with its trailing
+newline, the new row sits on the evolution axis with the counter moving 0.1.0 to
+1.1.0, and the frontier revision changes because the held target was met.
+
+The demo path from the study was run end to end against the committed tree: seven
+numbered gates, three checks, no unchecked line, exit 0.
+
+Both suites pass: 24 repository tests and 463 ariadne tests, 2 skipped.
+
+Leads not pursued: nothing tests a docstring against the state it describes, which is
+how S5-R1-01 survived. A check for it would have to decide which sentences are claims
+about the code, and that is a larger piece of work than this step.
+
+## Ariadne dataset predicate, step 5, round 2 -- 2026-08-19
+
+Round 1 found one docstring describing a state long gone. This round generalised the
+search rather than assuming it was the only one, and found two more.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R2-01 | low | `plugins/ariadne/tests/test_cli.py` | The module docstring said "The two subcommands that exist at this point". There are six. | fixed in this round |
+| S5-R2-02 | low | `plugins/ariadne/scripts/ariadne.py` | The `capture` subcommand's `kind` argument was helped by "the predicate to capture; one so far". A reader meeting it now takes it as a claim about the registry, which holds two. | fixed in this round |
+
+Both docstrings now describe what they do rather than how many of something there
+are, and `test_cli.py` says why the count is left out. A sentence that counts
+something goes stale the next time one is added, which is what produced all three of
+these findings across two rounds.
+
+The search covered every Python file under the plugin for phrases that date a
+sentence: "one so far", "two so far", "at this point", "for now", "not yet",
+"currently". A re-sweep after the fixes returns nothing.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Both suites pass: 24 repository tests and 463 ariadne tests,
+2 skipped.
+
+Leads not pursued: the lead from round 1 stands. Nothing tests a docstring against the
+state it describes, and a check for it would have to decide which sentences are
+claims about the code.
+
+## Ariadne dataset predicate, step 5, round 3 -- 2026-08-19
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No finding. The step's own subject was checked against the contract rather than only
+by the suite that guards it.
+
+- Fourteen marketplace-context blocks across the plugin and the portable entrypoint
+  carry one distinct frontier sentence between them, and the root selection table's
+  cell is that same sentence.
+- The ledger's frontier digest recomputes from
+  `open|state-fixture-predicate|<current frontier>|<next Fiat job>` with its trailing
+  newline. The new row sits on the evolution axis at `ariadne-v1.1.0`.
+- The skill metadata, both plugin manifests and the marketplace entry all read 1.1.0.
+- The landing README's next-job line carries the required prefix and suffix with a
+  topic that ends in a full stop, which is what the repository contract reads.
+- The demo path from the study runs end to end and exits 0.
+
+The three bundled lints ran across every Python and Markdown file in the plugin and
+each exited 0: `phylax`, `ephoros`, `hypomnema`. Both suites pass: 24 repository tests
+and 463 ariadne tests, 2 skipped.
+
+Leads not pursued: the docstring lead from rounds 1 and 2 stands, and the three
+findings left open in step 4 stay open with their patches recorded.
