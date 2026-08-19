@@ -7,9 +7,9 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 
 **Try something else when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
 
-**Current frontier.** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
+**Current frontier.** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
 
-**Next Fiat job.** Use /hexaemeron:fiat to implement the dataset predicate with its schema, gates, conformance fixtures and capture path while keeping signing and signature verification external. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to implement the state-fixture predicate with its schema, gates, conformance fixtures and capture path, and close the gate 5 hole the dataset run recorded against the Solidity release predicate, which a new predicate would inherit. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 Release evidence another person can check.
@@ -29,9 +29,9 @@ when either baseline cannot be identified, and replay separates what must match
 byte for byte from what cannot.
 
 The core is artefact-neutral. A contract release is the first and sharpest case
-rather than the only one, and a dataset, a chain-state fixture and a
-grounded-agent release each get a predicate beside it rather than a tool of
-their own.
+rather than the only one; a dataset release has its own predicate beside it, and a
+chain-state fixture and a grounded-agent release each get one rather than a tool
+of their own.
 
 ## How it works
 
@@ -134,6 +134,11 @@ fixture, so work on a copy if you want the fixture left alone.
 
 ```bash
 python3 scripts/ariadne.py predicates
+python3 scripts/ariadne.py capture-dataset --release <dir> --name <release> \
+  --coverage-dimension block --coverage-start <n> --coverage-end <n> \
+  --producer-tool <tool> --producer-version <v> --producer-command <argv0> \
+  --out release.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py capture solidity-release --project <dir> \
@@ -151,10 +156,9 @@ field by field, the conformance set, and the capture flags.
 
 ## Where it stops
 
-The registry holds one predicate. The dataset, chain-state fixture and
-grounded-agent predicates are specified and not implemented here, so a statement
-of one of those types verifies its core gates and is told which gates went
-unchecked.
+The registry holds two predicates. The chain-state fixture and grounded-agent
+predicates are specified and not implemented here, so a statement of one of those
+types verifies its core gates and is told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each is a deliberate boundary: the first needs a node, the

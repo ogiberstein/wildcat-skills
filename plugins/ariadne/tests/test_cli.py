@@ -1,4 +1,9 @@
-"""The two subcommands that exist at this point, and their exit codes."""
+"""Every subcommand the parser offers, and the exit codes they use.
+
+The count is not stated here on purpose. A docstring naming it goes stale the next
+time one is added, which is how registry.py came to say the registry was empty and
+test_cli.py came to say there were two subcommands when there were six.
+"""
 
 import contextlib
 import io
@@ -35,13 +40,21 @@ class PredicatesTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("https://ariadne.wildcat.finance/solidity-release/v1", out)
 
+    def test_predicates_lists_the_dataset_predicate(self):
+        code, out, _ = run(["predicates"])
+        self.assertEqual(code, 0)
+        self.assertIn("https://ariadne.wildcat.finance/dataset/v1", out)
+
     def test_predicates_json_carries_the_type_and_summary(self):
         code, out, _ = run(["predicates", "--json"])
         self.assertEqual(code, 0)
         found = json.loads(out)
         self.assertEqual(
             [entry["type"] for entry in found],
-            ["https://ariadne.wildcat.finance/solidity-release/v1"],
+            [
+                "https://ariadne.wildcat.finance/dataset/v1",
+                "https://ariadne.wildcat.finance/solidity-release/v1",
+            ],
         )
         self.assertTrue(all(entry["summary"] for entry in found))
 

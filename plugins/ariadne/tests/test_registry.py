@@ -1,4 +1,4 @@
-"""The predicate registry, including the state it is in at this point: empty."""
+"""The predicate registry, and the predicates the package ships."""
 
 import unittest
 
@@ -73,14 +73,20 @@ class RegistryTests(unittest.TestCase):
 
 class DefaultRegistryTests(unittest.TestCase):
     def test_the_default_registry_holds_the_predicates_that_ship(self):
-        """One so far. Importing the package is what registers it, so this also
-        asserts that the side effect happened."""
-        from ariadne_lib import predicates  # noqa: F401
+        """Importing the package is what registers them, so this also asserts
+        that the side effect happened. Derived from the modules rather than a
+        literal list, so a third predicate does not need this test edited."""
+        from ariadne_lib import predicates
 
-        self.assertEqual(
-            [type_uri for type_uri, _ in registry.DEFAULT.entries()],
-            ["https://ariadne.wildcat.finance/solidity-release/v1"],
+        shipped = sorted(
+            module.TYPE
+            for module in vars(predicates).values()
+            if getattr(module, "TYPE", None) and getattr(module, "SUMMARY", None)
         )
+        self.assertEqual(
+            [type_uri for type_uri, _ in registry.DEFAULT.entries()], shipped
+        )
+        self.assertTrue(len(shipped) >= 2)
 
 
 if __name__ == "__main__":

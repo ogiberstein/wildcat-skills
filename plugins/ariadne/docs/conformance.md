@@ -1,7 +1,7 @@
 # Conformance fixtures
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
+> **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
 <!-- marketplace-context:end -->
 
 `tests/fixtures/conformance/` holds statements for checking an implementation
@@ -15,9 +15,10 @@ nowhere on purpose. A verifier meeting it should check the core gates, report
 that gates 2 and 5 belong to a predicate it does not know, and not describe the
 run as clean.
 
-The `solidity` and `gate2`/`gate5` fixtures use the Solidity release type, which
-this build does register, so they exercise the predicate's own gates as well as
-the core ones.
+The `solidity` and `dataset` fixtures use the two types this build registers, so
+they exercise each predicate's own gates as well as the core ones. Gates 2 and 5
+mean different things for a dataset release than for a contract release, so each
+type carries its own breaching fixtures for them.
 
 ## The naming convention
 
@@ -25,11 +26,20 @@ The suite reads the names, so they have to be right:
 
 - `pass-<what>.json` verifies clean. Every gate holds.
 - `fail-gate<n>-<what>.json` breaches gate `n` and no other gate.
+- `fail-check-<check>-<what>.json` breaches a check that carries no gate number,
+  and no other check.
 
-A test asserts that each core gate has at least one breaching fixture, so a gate
-added later cannot ship without one. Another asserts each breaching fixture
-fails exactly the gate its name claims, which catches a fixture that breaks two
-things at once and would pass for the wrong reason.
+Gates 2 and 5 are numbered. The other checks a predicate adds carry no number,
+so they need the third form: coverage and inputs on a dataset release, audits and
+deployments on a contract release, and the field-shape check on either. Without
+it those checks shipped with no fixture at all.
+
+Four completeness tests hold the set together. Each core gate has a breaching
+fixture. Each registered predicate has a passing fixture, and a breaching fixture
+of its own type for every numbered gate it owns. Every unnumbered check any
+registered predicate exposes has one too. A fifth test asserts that each
+breaching fixture fails exactly the gate or check its name claims, which catches
+a fixture that breaks two things at once and would pass for the wrong reason.
 
 ## What is here
 
@@ -53,6 +63,15 @@ things at once and would pass for the wrong reason.
 | `fail-gate2-source-without-commit.json` | A source record with a tree digest and no commit |
 | `fail-gate5-baseline-without-digest.json` | A comparison against a release named but not identified |
 | `fail-gate5-content-against-null-baseline.json` | Added functions listed against a baseline the statement says does not exist |
+| `fail-check-audits-solidity-without-covered-revision.json` | An audit report attached to a release without naming the revision it covered |
+| `fail-check-deployments-solidity-without-confirmation.json` | A deployment address printed without saying whether anything confirmed it against a chain |
+| `pass-dataset-release.json` | A complete dataset release: two released files with record counts, one input digested and one recorded absent with its reason, a coverage interval with a gap, and a comparison against the previous release |
+| `pass-dataset-first-release.json` | The same shape with a null baseline, its reason, and an empty gap list that asserts the producer looked |
+| `fail-gate2-dataset-producer-without-parameters.json` | A producer named with a version but no digest over the parameters it was given |
+| `fail-gate5-dataset-baseline-without-digest.json` | A dataset comparison against a release named but not identified |
+| `fail-check-coverage-dataset-no-gaps-block.json` | A coverage interval with no gaps block, which reads as complete without saying so |
+| `fail-check-inputs-dataset-locator-only.json` | An input with a locator and neither a digest nor a reason for not having one |
+| `fail-check-predicate-fields-dataset-unknown-field.json` | A dataset predicate carrying a field the type does not define |
 
 ## Running them
 

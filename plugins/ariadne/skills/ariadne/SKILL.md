@@ -9,7 +9,7 @@ description: >
   new kind of artefact needs a predicate of its own. Ariadne neither signs nor
   verifies signatures; those operations belong to cosign.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Ariadne
@@ -28,7 +28,7 @@ Ariadne binds an artefact digest to the build, test, review and deployment evide
 
 **Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
 
-**Current frontier.** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
+**Current frontier.** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
 <!-- marketplace-context:end -->
 
 A release publishes a claim. The evidence behind it sits somewhere else, joined
@@ -66,6 +66,14 @@ python3 scripts/ariadne.py capture solidity-release \
   --project <dir> --previous <dir> --previous-name v1.0.0 \
   --repository <url> --commit <40-hex> --out release.json
 
+python3 scripts/ariadne.py capture-dataset \
+  --release <dir> --name goldfinch-credit-events-v2 \
+  --coverage-dimension block --coverage-start 11370000 --coverage-end 15000000 \
+  --gap 'start=12000000,end=12000100,reason=<why this range is not described>' \
+  --producer-tool tabularium --producer-version 0.3.0 \
+  --producer-command python3 --producer-command scripts/tabularium.py \
+  --previous <dir> --previous-name goldfinch-credit-events-v1 --out release.json
+
 python3 scripts/ariadne.py inspect <statement-or-envelope.json>
 
 python3 scripts/ariadne.py verify <statement-or-envelope.json>
@@ -73,9 +81,10 @@ python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py replay <statement.json> [--allow-execution --project <dir>]
 ```
 
-`predicates` lists the predicate types this build understands. One is
-registered, `https://ariadne.wildcat.finance/solidity-release/v1`, and a
-statement of any other type still parses and still gets its core gates.
+`predicates` lists the predicate types this build understands. Two are
+registered, `https://ariadne.wildcat.finance/solidity-release/v1` and
+`https://ariadne.wildcat.finance/dataset/v1`, and a statement of any other type
+still parses and still gets its core gates.
 
 `capture` reads a Foundry project's build output into a release statement that
 `verify` accepts unedited. It does not decide whether your tests passed: a
@@ -83,6 +92,17 @@ result arrives as a stated disposition, and leaving it out records `skipped`
 with a reason saying nothing was supplied.
 [`docs/capturing-a-release.md`](../../docs/capturing-a-release.md) has the
 flags.
+
+`capture-dataset` reads a dataset release directory into a dataset statement. It
+digests every file, counts the records in line-delimited JSON, and refuses a file
+whose count is neither derivable nor stated rather than guessing one. Coverage, inputs and the
+producer come from the caller, because a directory of records does not say which
+interval it was meant to describe, what it was built from, or what built it. None
+of the three has a default: one would put this tool's own name in the field gate 2
+reads as what made the files. With `--previous` it
+identifies both sides of the comparison and records no record-level differences,
+because telling which records changed needs a record identity it does not have.
+[`docs/capturing-a-dataset.md`](../../docs/capturing-a-dataset.md) has the flags.
 
 `inspect` reads either a bare in-toto statement or a DSSE envelope wrapping
 one, and reports the predicate type, whether that type is registered here, the
@@ -184,6 +204,27 @@ reaches a network, so that last field always says nothing did.
 by field, and `schemas/solidity-release-v1.json` ships for producers that are not
 this tool.
 
+Type URI: `https://ariadne.wildcat.finance/solidity-release/v1`.
+
+## The dataset predicate
+
+The second shape. Its subject is a released data file, and it carries the
+producer with its version and argv, the inputs with a digest or a recorded
+reason for not having one, every released file with its digest and record count,
+the interval the release claims to describe with the gaps inside it, and the
+record-level differences against the previous release.
+
+Two checks are its own. Coverage refuses an interval with no `gaps` key, a gap
+outside the bounds, a gap without a reason and a pair of gaps that overlap, so an
+interval printed with no gaps cannot read as complete. Inputs refuses an input
+carrying neither a digest nor a disposition, because a locator alone records
+nothing about what was read. Coverage bounds are whole numbers.
+
+[`docs/dataset.md`](../../docs/dataset.md) describes it field by field, and
+`schemas/dataset-v1.json` ships for producers that are not this tool.
+
+Type URI: `https://ariadne.wildcat.finance/dataset/v1`.
+
 ## Examples
 
 [`examples/`](../../examples) holds two attestations over the fixture project:
@@ -199,10 +240,9 @@ fails a named gate.
 
 Named so the edge is visible rather than implied.
 
-The registry holds one predicate. The dataset, chain-state fixture and
-grounded-agent predicates are specified and not implemented here, so a statement
-of one of those types verifies its core gates and is told which gates went
-unchecked.
+The registry holds two predicates. The chain-state fixture and grounded-agent
+predicates are specified and not implemented here, so a statement of one of those
+types verifies its core gates and is told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each of those is a deliberate boundary rather than an

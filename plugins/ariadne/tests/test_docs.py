@@ -13,6 +13,7 @@ from . import support  # noqa: F401  (sets sys.path)
 
 import ariadne  # noqa: E402
 from ariadne_lib import core_predicate, gates, registry  # noqa: E402
+from ariadne_lib.predicates import dataset  # noqa: E402
 from ariadne_lib.predicates import solidity_release as release  # noqa: E402
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,7 +23,22 @@ README = os.path.join(PLUGIN, "README.md")
 CONTRACT = os.path.join(PLUGIN, "AGENTS.md")
 CONFORMANCE = os.path.join(PLUGIN, "docs", "conformance.md")
 PREDICATE_DOC = os.path.join(PLUGIN, "docs", "solidity-release.md")
+DATASET_DOC = os.path.join(PLUGIN, "docs", "dataset.md")
+
+DOCUMENTED = ((release, PREDICATE_DOC), (dataset, DATASET_DOC))
+"""Each shipped predicate and the document that describes its fields."""
 EXAMPLES = os.path.join(PLUGIN, "examples")
+
+POLICY_CITATION = re.compile(r"(?m)^Policy: \[[^\]]+\]\([^)]+\)$")
+"""The one link a ledger has to point outside the plugin.
+
+`tests/test_evolution_contract.py` at the repository root requires every
+governed ledger to cite `plugins/hexaemeron/skills/VERSIONING.md` by a relative
+path that resolves to that file. The versioning contract is shared by twelve
+plugins and is not copied into each, so that citation cannot both satisfy the
+repository contract and stay inside this plugin. The exemption is this one line;
+every other link in the ledger is held to the rule below.
+"""
 
 
 def read(path):
@@ -94,18 +110,23 @@ class VocabularyTests(unittest.TestCase):
 
 
 class PredicateTests(unittest.TestCase):
-    def test_the_registered_type_is_the_one_the_documents_quote(self):
+    def test_every_registered_type_is_one_the_documents_quote(self):
         registered = [type_uri for type_uri, _ in registry.DEFAULT.entries()]
-        self.assertEqual(registered, [release.TYPE])
-        for path in (SKILL, PREDICATE_DOC):
-            self.assertIn(release.TYPE, read(path))
+        self.assertEqual(registered, sorted(module.TYPE for module, _ in DOCUMENTED))
+        skill = read(SKILL)
+        for module, doc in DOCUMENTED:
+            with self.subTest(predicate=module.TYPE):
+                self.assertIn(module.TYPE, skill)
+                self.assertIn(module.TYPE, read(doc))
 
-    def test_the_predicate_document_names_every_field(self):
-        text = read(PREDICATE_DOC)
-        for field in release.PREDICATE_FIELDS:
-            self.assertIn(
-                "`%s`" % field, text, "the predicate document omits %s" % field
-            )
+    def test_each_predicate_document_names_every_field(self):
+        for module, doc in DOCUMENTED:
+            text = read(doc)
+            for field in module.PREDICATE_FIELDS:
+                with self.subTest(predicate=module.TYPE, field=field):
+                    self.assertIn(
+                        "`%s`" % field, text, "%s omits %s" % (doc, field)
+                    )
 
 
 class FixtureTests(unittest.TestCase):
@@ -143,7 +164,10 @@ class ContractTests(unittest.TestCase):
                 if not name.endswith(".md"):
                     continue
                 path = os.path.join(directory, name)
-                for link in re.findall(r"\]\((\.[^)]+)\)", read(path)):
+                text = read(path)
+                if name == "EVOLUTION.md":
+                    text = POLICY_CITATION.sub("", text)
+                for link in re.findall(r"\]\((\.[^)]+)\)", text):
                     target = os.path.normpath(os.path.join(directory, link))
                     with self.subTest(document=os.path.relpath(path, PLUGIN)):
                         self.assertTrue(

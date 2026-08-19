@@ -1,7 +1,7 @@
 # Ariadne audit log
 
 <!-- marketplace-context:start -->
-> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The dataset predicate is the first unimplemented predicate; state-fixture and grounded-agent predicates also remain unimplemented.
+> **Record status.** This is a historical audit record; findings and dispositions below are preserved as evidence. Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The state-fixture and grounded-agent predicates remain unimplemented; the dataset predicate now ships with its schema, gates, conformance fixtures and capture path.
 <!-- marketplace-context:end -->
 
 One section per round. A round with no findings is still a round and still gets
