@@ -2966,3 +2966,74 @@ accepted on the strength of a green run.
 
 Leads not pursued: the three carried from earlier rounds, each named in
 `ACCEPTED_BY_THE_SCHEMA` or in a round log with the keyword that would close it.
+
+## Goldfinch preservation release, step 1, round 1 -- 2026-08-19
+
+Reviewed: the release document type, swept as a format other tools will write
+against rather than read as a diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| L1-R1-01 | medium | `plugins/lazarus/schemas/release-v1.json`, `scripts/lazarus_lib/paths.py` | Every string field in a release took a value that satisfies its length check and renders as empty. Whitespace is one kind and a legal POSIX filename; U+200B and its neighbours are the other, because `str.strip` does not treat them as whitespace | fixed in this round: `lazarus_lib/text.py`, wired into the path helper and the release semantics |
+
+The second kind is the one worth naming. `component` and `component` followed by
+a zero-width space are two different files that look identical in any listing, in
+any terminal, in any review. It has been recorded as a lead twice in this
+marketplace and closed nowhere, and it is closed here for Lazarus because it
+turned up in a format being written rather than one being read. The Ariadne side
+stays open and is named in that plugin's own rounds.
+
+The sweep was seventeen hollow values through each of sixteen leaves, 272
+substitutions, plus every block replaced by each of them and every block removed.
+Nothing raised outside `FormatError` and `PathError`, which is the contract the
+command line depends on to exit 1 rather than print a traceback. Every block
+replacement and removal was refused. Thirty-two values were accepted and each was
+read; the rest of those are legitimate, being a zero count and the required
+`false`.
+
+`text.py` answers one question and is applied to identifiers rather than to
+prose, so a reason field explaining a skipped capture may still say whatever a
+person needs to write. Non-Latin text stays visible, asserted in four scripts,
+because refusing most of the world's names would be a worse defect than the one
+being fixed.
+
+Two errors of my own, recorded because they cost the round time and because a
+round that only lists the code's faults is not a record of what happened. I
+asserted on one string replacement and not the next, so an import silently did
+not land and seventy-nine tests failed with a `NameError` until I read one. And
+the module inventory test refused `text.py` before I had named it, which is that
+contract working rather than a fault.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
+
+Leads not pursued: the previous run's audit record is split across two files, and
+the split is mine. Fourteen sections sit in this file and six in
+`plugins/ariadne/audit/AUDIT.md`, so a reader of either sees part of one run.
+Nothing is lost. It belongs to a different plugin and a finished run, and it is
+on this run's ledger as `previous_run_audit_split` rather than fixed from here.
+
+## Goldfinch preservation release, step 1, round 2 -- 2026-08-19
+
+Reviewed: what round 1's change reaches, since it touched a path helper the
+manifest also uses.
+
+No findings.
+
+The question worth asking of a stricter rule is whether it refuses anything real,
+and it does not. All eleven components the shipped Goldfinch fixture holds are
+still accepted. 1734 generated paths -- three prefixes by seventeen segments by
+two separators by seventeen segments -- were compared against a rule written out
+independently rather than by reusing the module, with zero disagreements.
+
+Checked and found sound:
+
+- Fourteen filenames anybody might write are accepted, including ones carrying
+  spaces, dates, French accents, Japanese and Cyrillic.
+- The shipped example still verifies to the same fixture digest and the same
+  three counts.
+- `validate schemas` passes with the re-pinned digest, and the existing offline
+  demonstration still exits 0.
+
+Leads not pursued: the split audit record carried from round 1.

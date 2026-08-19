@@ -28,7 +28,15 @@ def parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("validate", help="validate a versioned format")
     validate.add_argument(
         "kind",
-        choices=("schemas", "plan", "header", "rpc-records", "proof-records", "manifest"),
+        choices=(
+            "schemas",
+            "plan",
+            "header",
+            "rpc-records",
+            "proof-records",
+            "manifest",
+            "release",
+        ),
     )
     validate.add_argument("path", nargs="?", type=Path)
 

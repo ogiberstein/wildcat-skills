@@ -108,6 +108,7 @@ class ScaffoldTests(unittest.TestCase):
                 "rpc.py",
                 "schemas.py",
                 "scrub.py",
+                "text.py",
                 "server.py",
                 "trieproof.py",
                 "verifier.py",

@@ -9,6 +9,7 @@ import secrets
 import stat
 
 from .errors import PathError, ResourceLimitError
+from .text import visible
 
 MAX_FIXTURE_ENTRIES = 8192
 
@@ -23,6 +24,14 @@ def validate_relative_path(value: str) -> str:
         raise PathError(f"absolute component path is forbidden: {value}")
     if any(part in ("", ".", "..") for part in path.parts):
         raise PathError(f"component path is not normalised: {value}")
+    if any(not visible(part) for part in path.parts):
+        # A segment with nothing visible in it names a file whose name renders as
+        # nothing. Whitespace is the obvious case and a legal POSIX filename;
+        # U+200B and its neighbours are the quieter one, because `str.strip` does
+        # not treat them as whitespace, so `a` and `a\u200b` are two files that
+        # look identical in any listing. A space inside a name is untouched:
+        # "a b" stays valid.
+        raise PathError(f"component path segment names nothing: {value!r}")
     normalised = path.as_posix()
     if normalised != value:
         raise PathError(f"component path is not slash-normalised: {value}")
