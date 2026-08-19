@@ -1,0 +1,8 @@
+{
+  "note": "past the ceiling regardless of history",
+  "measurements": {
+    "harvest.usdc.wall_clock": 1400,
+    "harvest.usdc.round_trips": 300,
+    "release.digest.throughput": 50
+  }
+}

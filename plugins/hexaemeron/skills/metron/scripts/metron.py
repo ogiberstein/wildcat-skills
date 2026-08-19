@@ -35,7 +35,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 MAX_BYTES = 4 * 1024 * 1024
@@ -196,6 +198,207 @@ def load_measurements(path: str, what: str) -> dict:
     return dict(values)
 
 
+class Verdict:
+    """One budget's outcome, with the numbers it was reached from."""
+
+    def __init__(self, budget: dict, verdict: str, run=None, baseline=None,
+                 margin=None, detail: str = ""):
+        self.budget = budget
+        self.verdict = verdict
+        self.run = run
+        self.baseline = baseline
+        self.margin = margin
+        self.detail = detail
+
+    @property
+    def name(self) -> str:
+        return self.budget["name"] if isinstance(self.budget, dict) else str(self.budget)
+
+    @property
+    def failed(self) -> bool:
+        return self.verdict in FAILING
+
+    def line(self) -> str:
+        mark = "FAIL" if self.failed else "ok"
+        return f"{mark:4} {self.verdict:12} {self.name}  {self.detail}"
+
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "verdict": self.verdict,
+            "run": self.run,
+            "baseline": self.baseline,
+            "margin": self.margin,
+            "detail": self.detail,
+        }
+
+
+def worse(value: float, than: float, direction: str) -> bool:
+    """Whether `value` is on the bad side of `than` for this budget's direction."""
+    if direction == "higher_is_better":
+        return value < than
+    return value > than
+
+
+def drift(value: float, baseline: float, direction: str):
+    """How far `value` moved from `baseline`, as a fraction, and which way.
+
+    Returns the fraction of the baseline moved and True when the move is a
+    regression. A baseline of zero has no fraction to be a proportion of, so the
+    caller is told there is none rather than being handed a division.
+    """
+    if baseline == 0:
+        return None, worse(value, baseline, direction)
+    moved = abs(value - baseline) / abs(baseline)
+    return moved, worse(value, baseline, direction)
+
+
+def compare(budgets: list[dict], run: dict, baseline: dict) -> list[Verdict]:
+    """One verdict per declared budget, plus one per undeclared measurement.
+
+    Declared order first, so the report reads the way the budget file does, then any
+    name the run carried that no budget declares.
+    """
+    verdicts: list[Verdict] = []
+    for budget in budgets:
+        name = budget["name"]
+        if name not in run:
+            verdicts.append(
+                Verdict(budget, "unmeasured",
+                        detail="the run carries no value for this budget")
+            )
+            continue
+        value = run[name]
+        unit = " " + budget["unit"]
+        if worse(value, budget["limit"], budget["direction"]):
+            verdicts.append(
+                Verdict(budget, "over-budget", run=value,
+                        baseline=baseline.get(name),
+                        detail=f"{value}{unit} against a limit of {budget['limit']}{unit}")
+            )
+            continue
+        if name not in baseline:
+            verdicts.append(
+                Verdict(budget, "neutral", run=value,
+                        detail=f"{value}{unit}, inside the limit; no baseline to compare")
+            )
+            continue
+        before = baseline[name]
+        moved, regressed = drift(value, before, budget["direction"])
+        variance = budget["variance"]
+        if moved is None:
+            # A zero baseline admits no proportion. Any move off it in the wrong
+            # direction is a regression, and any other move is reported plainly.
+            if regressed and value != before:
+                verdicts.append(
+                    Verdict(budget, "regressed", run=value, baseline=before,
+                            detail=f"{before}{unit} to {value}{unit}; a zero baseline "
+                                   "admits no variance")
+                )
+            else:
+                verdicts.append(
+                    Verdict(budget, "neutral", run=value, baseline=before,
+                            detail=f"{before}{unit} to {value}{unit}")
+                )
+            continue
+        moved_pct = f"{moved * 100:.1f}%"
+        allowed = f"{variance * 100:.1f}%"
+        if moved <= variance:
+            verdicts.append(
+                Verdict(budget, "neutral", run=value, baseline=before, margin=moved,
+                        detail=f"{before}{unit} to {value}{unit}, {moved_pct} inside "
+                               f"{allowed}; another sample")
+            )
+        elif regressed:
+            verdicts.append(
+                Verdict(budget, "regressed", run=value, baseline=before, margin=moved,
+                        detail=f"{before}{unit} to {value}{unit}, {moved_pct} worse, "
+                               f"past {allowed}")
+            )
+        else:
+            verdicts.append(
+                Verdict(budget, "improved", run=value, baseline=before, margin=moved,
+                        detail=f"{before}{unit} to {value}{unit}, {moved_pct} better, "
+                               f"past {allowed}")
+            )
+
+    declared = {budget["name"] for budget in budgets}
+    for name in sorted(set(run) - declared):
+        verdicts.append(
+            Verdict({"name": name}, "undeclared", run=run[name],
+                    detail="the run measures this and no budget declares it")
+        )
+    return verdicts
+
+
+def report(verdicts: list[Verdict], style: str) -> str:
+    if style == "json":
+        return json.dumps(
+            {
+                "verdicts": [v.to_dict() for v in verdicts],
+                "failed": [v.name for v in verdicts if v.failed],
+                "ok": not any(v.failed for v in verdicts),
+            },
+            indent=2,
+        )
+    lines = [v.line() for v in verdicts]
+    failed = [v for v in verdicts if v.failed]
+    if failed:
+        lines.append(
+            f"{len(failed)} of {len(verdicts)} budget(s) failed: "
+            + ", ".join(v.name for v in failed)
+        )
+    else:
+        lines.append(f"{len(verdicts)} budget(s), none failed")
+    return "\n".join(lines)
+
+
+def append_ledger(path: str, entry: dict) -> None:
+    """One JSON object per line, appended.
+
+    A line at a time rather than a rewritten document, so a run recorded while
+    another is being read cannot truncate what was already there. SKILL.md asks for
+    a ledger that keeps the reverted attempts too, and an append-only file is the
+    shape that cannot lose one.
+    """
+    where = Path(path)
+    if where.parent and not where.parent.exists():
+        raise BudgetError(f"cannot write the ledger: {where.parent} does not exist")
+    try:
+        with where.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, sort_keys=True) + "\n")
+    except OSError as error:
+        raise BudgetError(f"cannot write the ledger {path}: {error}")
+
+
+def write_atomically(path: str, body: str) -> None:
+    """Replace a file's contents, or leave them alone.
+
+    The baseline is what every later comparison is measured against, so a write that
+    dies partway is worse than one that never started: the previous value is gone and
+    nothing says so. A temporary file in the same directory keeps the replace on one
+    filesystem.
+    """
+    where = Path(path)
+    directory = str(where.parent) if str(where.parent) else "."
+    handle = tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=directory, prefix=".metron-", suffix=".tmp",
+        delete=False,
+    )
+    try:
+        with handle:
+            handle.write(body)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(handle.name, path)
+    except BaseException:
+        try:
+            os.unlink(handle.name)
+        except OSError:
+            pass
+        raise
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Metron budget check.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -217,18 +420,49 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def promote_needs_baseline(args) -> None:
+    if getattr(args, "promote", False) and not args.baseline:
+        raise BudgetError("--promote needs --baseline to say which file to write")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        load_budgets(args.budgets)
-        load_measurements(args.run, "run")
-        if args.baseline:
-            load_measurements(args.baseline, "baseline")
+        if args.command == "record":
+            promote_needs_baseline(args)
+        budgets = load_budgets(args.budgets)
+        run = load_measurements(args.run, "run")
+        baseline = load_measurements(args.baseline, "baseline") if args.baseline else {}
+        verdicts = compare(budgets, run, baseline)
+        if args.command == "record":
+            append_ledger(
+                args.ledger,
+                {
+                    "run": args.run,
+                    "note": args.note,
+                    "measurements": run,
+                    "verdicts": [v.to_dict() for v in verdicts],
+                },
+            )
+            if args.promote:
+                try:
+                    write_atomically(
+                        args.baseline,
+                        json.dumps({"measurements": run}, indent=2, sort_keys=True) + "\n",
+                    )
+                except OSError as error:
+                    raise BudgetError(f"cannot write the baseline {args.baseline}: {error}")
     except BudgetError as error:
         print(f"metron: error: {error}", file=sys.stderr)
         return 2
-    print("metron: budgets and measurements read; the comparison arrives in step 2")
-    return 0
+
+    if args.command == "record":
+        promoted = " and promoted to baseline" if args.promote else ""
+        print(f"metron: recorded {len(run)} measurement(s) in {args.ledger}{promoted}")
+        return 0
+
+    print(report(verdicts, args.format))
+    return 1 if any(v.failed for v in verdicts) else 0
 
 
 if __name__ == "__main__":
