@@ -50,6 +50,20 @@ class Links(unittest.TestCase):
     def test_it_ignores_an_image(self):
         self.assertEqual([], codes("![diagram](missing.png)"))
 
+    def test_clean_pointer_check_does_not_establish_record_correctness(self):
+        self.assertEqual(
+            [],
+            codes(
+                "See [the decision](decision.md).",
+                siblings=("decision.md",),
+            ),
+        )
+
+    def test_missing_pointer_recovers_when_target_is_restored(self):
+        source = "See [the decision](decision.md)."
+        self.assertIn("H001", codes(source))
+        self.assertEqual([], codes(source, siblings=("decision.md",)))
+
 
 class Superseding(unittest.TestCase):
     def test_it_flags_a_successor_that_does_not_exist(self):

@@ -684,6 +684,246 @@
       "path": "plugins/berean/tests/test_promote.py",
       "selector": "test_an_active_release_rolls_back_by_record",
       "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "brevitas-structure-p": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_valid_finding",
+      "claim": "A valid finding satisfies the mechanical structure budget.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-m": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_over_budget_finding",
+      "claim": "An over-budget finding is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-s": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_two_sections",
+      "claim": "A report whose structure disagrees with the selected mode is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-o": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_clean_structure_does_not_establish_factual_accuracy",
+      "claim": "A structurally clean draft does not establish factual accuracy.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-r": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_over_budget_finding_recovers_after_compression",
+      "claim": "Removing the excess connective line clears the same structure check.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-p": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_source_evidence_survives",
+      "claim": "Protected source tokens survive the checked draft.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-m": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_missing_source_evidence",
+      "claim": "A draft missing protected source evidence is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-s": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_source_subject_mismatch_is_refused",
+      "claim": "A draft whose numeric subject differs from the source is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-o": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_token_survival_does_not_establish_semantic_equivalence",
+      "claim": "Protected-token survival is kept narrower than semantic equivalence.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-r": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_missing_source_evidence_recovers_when_restored",
+      "claim": "Restoring the exact missing source evidence clears the preservation check.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-p": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_it_allows_a_link_that_resolves",
+      "claim": "A recognised relative pointer to an existing target passes.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-m": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_it_flags_a_link_to_nothing",
+      "claim": "A recognised pointer to an absent target is refused.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-s": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_it_flags_a_successor_that_does_not_exist",
+      "claim": "A supersession record naming an absent successor is refused.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-o": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_clean_pointer_check_does_not_establish_record_correctness",
+      "claim": "Pointer resolution is kept narrower than record correctness.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-r": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_missing_pointer_recovers_when_target_is_restored",
+      "claim": "Restoring the named target clears the same pointer check.",
+      "evidence_class": "checked"
+    },
+    "hex-eval-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_positive_cases",
+      "claim": "The owning plugin records bounded positive cases for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_missing_evidence_cases",
+      "claim": "The owning plugin records missing-evidence refusals for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_subject_mismatch_cases",
+      "claim": "The owning plugin records subject-mismatch refusals for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_overclaim_cases",
+      "claim": "The owning plugin records the nearest tempting overclaim for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_recovery_cases",
+      "claim": "The owning plugin records bounded recovery for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "imprimatur-p": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_licensed_scope_qualifier_is_preserved",
+      "claim": "A licensed legal scope qualifier remains present in clean exact input.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-m": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_missing_gate_evidence_is_refused",
+      "claim": "A gated term without its required referent is refused.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-s": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_subject_mode_mismatch_is_refused",
+      "claim": "The same text is not silently reclassified across different selected modes.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-o": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_clean_lint_does_not_establish_truth",
+      "claim": "A clean lint remains narrower than factual verification.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-r": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_failure_recovers_without_erasing_the_term",
+      "claim": "Supplying the referent clears the gate without deleting the licensed term.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-p": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_valid_pass_appends_exactly_one_line",
+      "claim": "A valid complete ranking appends one pass record.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-m": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_missing_field_is_refused",
+      "claim": "A ranking record missing required evidence is refused.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-s": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_show_marks_an_axis_that_moved_under_an_unchanged_held_job",
+      "claim": "Score drift under an unchanged held job remains visible.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-o": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_rank_only_pass_is_recorded_with_no_run",
+      "claim": "Rank-only output cannot silently claim a Fiat dispatch.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-r": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_show_reports_no_drift_when_the_held_job_changed_too",
+      "claim": "A refreshed held job and score are reported as a new subject rather than stale drift.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-p": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_park_stores_the_reason_byte_for_byte",
+      "claim": "A park records its human-supplied reason without paraphrase.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-m": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_an_empty_reason_is_refused",
+      "claim": "A park with no human-supplied reason is refused.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-s": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_moved_held_job_is_reported_stale_rather_than_cleared",
+      "claim": "A park bound to an earlier held job remains visibly stale rather than clearing itself.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-o": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_deleted_ledger_reads_as_unknown_not_resolved",
+      "claim": "Unreadable state remains unknown and is not promoted to resolved.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-r": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_park_unpark_park_replays_to_one_standing_park",
+      "claim": "Explicit unpark and later park records replay to one current standing state.",
+      "evidence_class": "checked"
+    },
+    "sapheneia-eval-p": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_positive_cases",
+      "claim": "Sapheneia records bounded positive interaction cases without diagnosing the reader.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-m": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_missing_evidence_cases",
+      "claim": "Sapheneia records refusal when activation, state or an explicit stop instruction is missing.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-s": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_subject_mismatch_cases",
+      "claim": "Sapheneia records refusal when activation or deactivation evidence belongs to another session.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-o": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_overclaim_cases",
+      "claim": "Sapheneia records diagnostic and universal-format overclaims as refusals.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-r": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_recovery_cases",
+      "claim": "Sapheneia records bounded correction and explicit deactivation recovery paths.",
+      "evidence_class": "recorded"
     }
   },
   "rows": [
@@ -887,15 +1127,41 @@
       "promise_id": "brevitas-evidence-preservation",
       "skill_path": "plugins/brevitas/skills/brevitas/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic checker",
+        "prompt": "Check protected source evidence with the selected Brevitas mode.",
+        "corpus": "plugins/brevitas/tests/test_brevitas.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "brevitas-evidence-p",
+        "M": "brevitas-evidence-m",
+        "S": "brevitas-evidence-s",
+        "O": "brevitas-evidence-o",
+        "R": "brevitas-evidence-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "brevitas-structure-check",
       "skill_path": "plugins/brevitas/skills/brevitas/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic checker",
+        "prompt": "Check a draft against the selected Brevitas structure mode.",
+        "corpus": "plugins/brevitas/tests/test_brevitas.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "brevitas-structure-p",
+        "M": "brevitas-structure-m",
+        "S": "brevitas-structure-s",
+        "O": "brevitas-structure-o",
+        "R": "brevitas-structure-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "elenchus-fixed-and-guarded",
@@ -1029,36 +1295,81 @@
       "promise_id": "hexaemeron-fizz-convert-properties",
       "skill_path": "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md",
       "group": "vendored",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Fizz Convert result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no conversion result is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "hexaemeron-fizz-harness-campaign",
       "skill_path": "plugins/hexaemeron/skills/fizz/SKILL.md",
       "group": "vendored",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Fizz harness and campaign result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no harness campaign is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "hexaemeron-fizz-sync-drift",
       "skill_path": "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md",
       "group": "vendored",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Fizz Sync result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no harness sync is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "hexaemeron-solidity-audit-report",
       "skill_path": "plugins/hexaemeron/skills/solidity-auditor/SKILL.md",
       "group": "vendored",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Solidity Auditor result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no audit report is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "hexaemeron-x-ray-preaudit",
       "skill_path": "plugins/hexaemeron/skills/x-ray/SKILL.md",
       "group": "vendored",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify an X-Ray result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no pre-audit result is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "horos-boundary-check",
@@ -1128,22 +1439,57 @@
       "promise_id": "hypomnema-pointer-gate",
       "skill_path": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic checker",
+        "prompt": "Check first-party record pointers under the Hypomnema parser boundary.",
+        "corpus": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "hypomnema-pointer-p",
+        "M": "hypomnema-pointer-m",
+        "S": "hypomnema-pointer-s",
+        "O": "hypomnema-pointer-o",
+        "R": "hypomnema-pointer-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "hypomnema-record-placement",
       "skill_path": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Review record placement against the canonical Hypomnema contract.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; forward model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "imprimatur-prose-gate",
       "skill_path": "plugins/hexaemeron/skills/imprimatur/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "labelled-prose-v1 mixed human and model-assisted corpus",
+        "prompt": "Run the exact prose through the selected Imprimatur mode and thresholds.",
+        "corpus": "plugins/hexaemeron/skills/imprimatur/evals/labelled-prose-v1",
+        "disposition": "Mechanical cases pass; the provisional holdout failed its recorded agreement and structural-coverage gates."
+      },
+      "cases": {
+        "P": "imprimatur-p",
+        "M": "imprimatur-m",
+        "S": "imprimatur-s",
+        "O": "imprimatur-o",
+        "R": "imprimatur-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "janus-bounded-conformance",
@@ -1200,22 +1546,57 @@
       "promise_id": "kronos-fiat-dispatch",
       "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Decide whether a ranked Kronos job may enter Fiat under the authority boundary.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; user authority remains external evidence."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "kronos-frontier-ranking",
       "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic scoreboard checker",
+        "prompt": "Record and inspect a complete Kronos ranking pass.",
+        "corpus": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "kronos-rank-p",
+        "M": "kronos-rank-m",
+        "S": "kronos-rank-s",
+        "O": "kronos-rank-o",
+        "R": "kronos-rank-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "kronos-parked-lane",
       "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic parked-state checker",
+        "prompt": "Record and replay a Kronos park or unpark event.",
+        "corpus": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "kronos-park-p",
+        "M": "kronos-park-m",
+        "S": "kronos-park-s",
+        "O": "kronos-park-o",
+        "R": "kronos-park-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "lazarus-exact-replay",
@@ -1541,15 +1922,33 @@
       "promise_id": "sapheneia-deactivation",
       "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Decide whether Sapheneia may deactivate under its canonical stop contract.",
+        "corpus": "plugins/sapheneia/tests/fixtures/promise-machine/cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "sapheneia-eval-p", "M": "sapheneia-eval-m", "S": "sapheneia-eval-s", "O": "sapheneia-eval-o", "R": "sapheneia-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "sapheneia-session-shape",
       "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Shape an active Sapheneia reply under the canonical interaction contract.",
+        "corpus": "plugins/sapheneia/tests/fixtures/promise-machine/cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "sapheneia-eval-p", "M": "sapheneia-eval-m", "S": "sapheneia-eval-s", "O": "sapheneia-eval-o", "R": "sapheneia-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     },
     {
       "promise_id": "tabularium-compound-witness",
@@ -1603,8 +2002,17 @@
       "promise_id": "vulgate-register-rewrite",
       "skill_path": "plugins/hexaemeron/skills/vulgate/SKILL.md",
       "group": "prompt",
-      "cases": null,
-      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Rewrite a source passage under Vulgate while holding all content constant.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model content parity remains unknown."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
     }
   ]
 }
