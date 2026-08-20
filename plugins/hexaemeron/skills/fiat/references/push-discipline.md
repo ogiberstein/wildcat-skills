@@ -144,6 +144,18 @@ run-level title and body, and apply the same provenance markers:
 gh pr create --base <recorded base> --head <run branch> ...
 ```
 
+**Carry the unfinished forward.** Before that pull request merges, its body has
+to name everything this run found and did not finish: an audit lead left
+unpursued, a finding accepted rather than fixed, a boundary the run would not
+cross, a claim it could not verify, a fix that belongs to another skill's held
+job. Put them under a heading a reader can find, `## Carried forward`, one line
+each, with where the evidence lives. This is the last thing the run writes into
+the repository, and the next study over the same target reads it as prior art
+under `protasis` item 2, so an item missing here is an item the next run
+rediscovers from nothing. A run that finished everything says that under the
+same heading rather than dropping it: an absent section cannot be told apart
+from an unasked question.
+
 Wait for required checks, merge without bypassing them, and verify the merge
 commit. Then delete the run branch and every step branch where policy permits:
 this is the one place branch cleanup happens, and by now nothing is stacked on
