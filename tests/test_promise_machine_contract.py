@@ -270,6 +270,50 @@ class PromiseInventoryTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM026", [item["code"] for item in report["findings"]])
 
+    def test_inventory_does_not_claim_copy_checks_it_did_not_run(self):
+        completed = run_cli("inventory", "--json")
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertEqual(report["counts"]["copies"], 0)
+        checked = run_cli("check", "--only", "inventory,structure")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("0 copy/copies", checked.stdout)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
+    def test_symlinked_router_directory_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "repo"
+            target.mkdir()
+            plugin = make_plugin(target)
+            write_skill(plugin)
+            router_root = target / ".agents" / "skills"
+            router_root.mkdir(parents=True)
+            outside = Path(directory) / "outside" / "router"
+            outside.mkdir(parents=True)
+            (outside / "SKILL.md").write_text(
+                "---\nname: router\ndescription: fixture\n---\n", encoding="utf-8"
+            )
+            (router_root / "router").symlink_to(outside, target_is_directory=True)
+            completed = run_cli("inventory", "--root", target, "--json")
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM025", [item["code"] for item in report["findings"]])
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
+    def test_symlinked_overlay_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "repo"
+            target.mkdir()
+            plugin = make_plugin(target)
+            write_skill(plugin)
+            outside = Path(directory) / "outside.md"
+            outside.write_text("# Outside\n", encoding="utf-8")
+            (plugin / "PROMISES.md").symlink_to(outside)
+            completed = run_cli("inventory", "--root", target, "--json")
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM025", [item["code"] for item in report["findings"]])
+
 
 class PromiseStructureTests(unittest.TestCase):
     def test_repository_structure_is_clean_before_contract_population(self):
@@ -365,6 +409,50 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM038", [item["code"] for item in report["findings"]])
+
+    def test_exception_keywords_without_structured_attribution_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            fields = {
+                "Promise": "The named check accepted the subject.",
+                "Evidence": "example record",
+                "Evidence classes": "checked",
+                "Boundary": "No claim beyond the named rule.",
+                "Authorises": "Use of the checked result.",
+                "Consequence": "1",
+                "Refuses": "Use of a failed result.",
+                "Recovery": "Repair and rerun.",
+                "Exceptions": (
+                    "Authority is absent, scope is unknown, no record exists and expiry never applies."
+                ),
+            }
+            write_skill(plugin, fields=fields)
+            completed = run_cli(
+                "check", "--root", target, "--only", "inventory,structure", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM038", [item["code"] for item in report["findings"]])
+
+    def test_vendored_instruction_cannot_author_its_own_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            skill = write_skill(plugin, "upstream")
+            (skill / "EVOLUTION.md").unlink()
+            (skill / "LICENSE").write_text("fixture licence\n", encoding="utf-8")
+            (skill / "NOTICE.md").write_text(
+                "This skill is vendored verbatim.\n\n- Upstream: https://example.invalid\n"
+                "- Release tag: v1\n- Vendored: today\n",
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "check", "--root", target, "--only", "inventory,structure", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM029", [item["code"] for item in report["findings"]])
 
 
 if __name__ == "__main__":

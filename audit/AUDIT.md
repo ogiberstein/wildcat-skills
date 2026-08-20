@@ -5144,3 +5144,31 @@ Zero findings.
 
 The local directory-replacement race recorded in round 1, under the same
 caller-owned-checkout boundary.
+
+## Promise Machine, step 2, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes the standard-library
+checker and its Python and Markdown fixtures. The review covered manifest and
+recursive skill discovery, ownership classification, bounded reads, child-path
+confinement, declaration parsing, exception attribution, deterministic reports
+and the distinction between discovered and checked artefacts.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | `scripts/promise_machine.py` | Inventory and inventory-only checks reported 14 copies although neither command read a copy | fixed in JSON and text output; guarded against future evidence overstatement |
+| S2-R1-02 | high | `scripts/promise_machine.py` | A symlinked child router could be followed outside the repository without a finding | fixed by explicit child enumeration and confinement; guarded |
+| S2-R1-03 | high | `scripts/promise_machine.py` | A symlinked promise overlay was silently omitted instead of refused | fixed by explicit fixed-path inspection; guarded |
+| S2-R1-04 | medium | `scripts/promise_machine.py` | Exception prose containing the four attribution words passed without structured authority, scope, record or expiry values | fixed by labelled non-empty attribution parsing; guarded |
+| S2-R1-05 | high | `scripts/promise_machine.py` | A vendored instruction could author its own Promise Machine contract while the structure check skipped it | fixed by refusing contracts in vendored instructions and requiring a first-party overlay; guarded |
+
+### Leads not pursued
+
+A local process can replace a regular directory after discovery, and an unreadable
+caller-owned directory may stop Python's filesystem walk before a coded report is
+formed. The checker runs inside the caller's checkout under the caller's filesystem
+permissions and claims no hostile multi-user synchronisation or recovery from a
+checkout the caller cannot read.
