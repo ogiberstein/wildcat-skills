@@ -3,8 +3,9 @@
 Emits one JSON object so a before-and-after pair can be compared without
 reading prose, per `plugins/hexaemeron/skills/metron/SKILL.md`. It asserts
 nothing: a machine-specific threshold in a test would fail on a different
-machine rather than on a regression. The scoped figures are null until the
-scoped check exists, and `scope_status` says why.
+machine rather than on a regression. Either side reports a null median and a
+status naming the refusal when its check could not run, so the scoped figures
+stay null until the scoped check exists.
 
     python3 plugins/horos/tests/benchmark_scope.py --root . --scope plugins/alexandria --runs 5
 """
