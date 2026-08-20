@@ -5743,3 +5743,18 @@ ephoros and hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the
 two recorded environment failures.
 
 Leads not pursued: none
+
+## Protasis amendment contract, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: refusal-drift reviewed, the new rule
+reuses the contract's existing three-part refusal report rather than
+defining a second shape; field-mismatch reviewed, the block's four fields
+match the study's item 1 and the wish; ledger-arithmetic reviewed, the
+evolution suite passes over the new generation row. Phylax, ephoros,
+hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two recorded
+environment failures.
+
+Leads not pursued: none
