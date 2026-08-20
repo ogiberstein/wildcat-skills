@@ -4302,3 +4302,29 @@ around exists. Step 2's ungoverned-report sentence is in the loop as quoted. The
 frontier digest matches the ledger, and the diff carries no credential.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. The finding came from walking
+the study's risk register against the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | a skill could be recorded as a scored candidate and reported ungoverned in the same pass, and `show` printed both | fixed in aaf172a |
+
+Reproduced before it was believed: a pass naming protasis as a candidate scored
+from its ledger and in `ungoverned` as having none recorded cleanly, and the
+rendered output asserted each. Ungoverned means no ledger, and the held-job hash
+on a scored candidate is computed out of one, so the two cannot both hold.
+
+The register's other entries were checked and hold. The `rank_only` and `run`
+contradiction is refused on the combination rather than on either alone, and a
+pass carrying `rank_only` beside an explicit null run is still accepted, since
+a null run is the absence the flag asserts. Both fields are read with a default
+in `show`, held by a case over a `v0.4.0`-shaped line, which is the fault this
+audit found twice in the previous run.
+
+Leads not pursued: the ungoverned list is not deduplicated, so a name repeated
+in it prints twice. Accepted: it is a report of what the walk found, repetition
+in it is the caller's own output rather than a contradiction, and refusing it
+would be a rule about tidiness rather than about meaning.
