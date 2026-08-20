@@ -136,3 +136,11 @@ that earned its entry; leave those paths unread unless the task demands
 one. The boundary is fail-open: what it omits is merely unproven. It never
 applies during security review; during any audit, review or incident work,
 read as if no boundary exists.
+
+The root suite checks that this file's boundary still describes the tracked
+tree, so a change that adds or alters a classified file fails it until the
+boundary is regenerated:
+
+```bash
+python3 plugins/horos/skills/horos/scripts/horos.py scan . --write
+```

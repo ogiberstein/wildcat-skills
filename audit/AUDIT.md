@@ -4631,3 +4631,212 @@ resolves: `docs/commons/janus.md` exists on this branch at the pinned digest.
 The edited README scores 100/100 under imprimatur with no defects.
 
 Leads not pursued: none.
+## Scoped entry, step 1, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over
+`plugins tests` and the documented doc set. Horos 183/183 with three expected
+failures, root 35/35 with one, verified before this receipt. The look went at
+the measurement record rather than the fixtures, since the fixtures were each
+run in isolation and print the failure they claim: `out/` as a hard entry at 0
+bytes and 0 files, `check` exit 1 beside an ignored build directory, `check`
+exit 2 on a descendant, and the root boundary against a fresh tracked scan.
+Both findings are the risk register's first class, a record that reads as
+more than it measured. Fixes are committed on the step branch rather than a
+side branch, because four later steps chain from it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | plugins/horos/tests/benchmark_scope.py | the record's `root` field was `os.path.relpath(root, root)`, always `"."`, so a run against a different root recorded the same value as a run against the repository | fixed in b6e7ed2 |
+| S1-R1-02 | low | plugins/horos/tests/benchmark_scope.py | a refused check still reported a median, so `--root plugins/horos` recorded `0.014 ms` beside exit 2; a duration for a check that classified nothing reads as a fast check | fixed in b6e7ed2 |
+
+Leads not pursued: the scaffold test bounds its build-order assertion to a
+300-character window after the `Build order:` line, which is a positional
+assumption rather than a parse; it fails rather than passes if the line moves,
+so it was left as it is.
+
+## Scoped entry, step 1, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+183/183 with three expected failures, root 35/35 with one, verified before this
+receipt. The round audited the tree with round 1's fix applied. The fix is
+eleven lines and does one thing on both sides of the record: a refused check
+reports a null median and the refusal reason instead of a duration. Re-ran the
+benchmark against both a working root and a rootless one to see each branch
+taken, and re-ran each fixture in isolation to confirm the fix moved none of
+them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the benchmark's module docstring still
+describes the null-median treatment as the scope side's alone, which is now
+under-description rather than error, since both sides carry a status field. It
+goes to the prose phase with the rest of this step's wording rather than
+opening a third round for a docstring.
+
+## Scoped entry, step 2, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 35/35 with one, verified before this
+receipt. Three of the five new guards were seen failing on the unfixed
+classifier and all eleven pass on the fixed one.
+
+The review went at the paths the change could break rather than the ones it
+fixes. The pruning is safe because the dropped entry covers no tracked file, so
+the walk has nothing to classify under it, and that was already the behaviour
+for a matched directory. Two edges were run rather than reasoned about. An
+empty tracked universe, a repository with nothing committed, produces an empty
+boundary and zero walked files, which is the fail-open position stated in the
+skill. The widened universe still separates the two cases correctly: with
+`--include-untracked`, an untracked-but-not-ignored `dist/` binds at one file
+while an ignored `out/` stays out, so the flag still means what it says.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: two. A directory that will be dropped is
+still walked in full before the drop, so the count that decides it is paid for
+and discarded; measured against Metron's rule the full-tree check sits at 55.5
+ms against 52.1 ms at step 1 on a tree that also grew, which is noise rather
+than a regression, and short-circuiting it would put a universe prefix scan in
+front of every directory to save that. Separately, `check .` now names this
+file's own classifier source as drifted, because the marker rule excludes it
+and its byte count moved: that is the held frontier defect showing itself
+during unrelated work, evidence for the marker self-exclusion job rather than
+for this one.
+
+## Scoped entry, step 3, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 38/38 clean, verified before this
+receipt. `check .` exits 0 for the first time in this run, 87 entries, the
+evidence copy included, none binding zero tracked files. The guard was seen
+failing three ways before it passed: as step 1's expected failure on the
+evidence copy, against a hand-removed entry, and on its own source, because a
+fixture spelling the generated-marker literal put this guard inside the
+boundary. The round then went looking for claims the earlier steps had not
+earned, which is where the finding is.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/horos/docs/scoped-entry/runbook.md | step 2's exit claimed a fresh scan takes this repository's hard entries from 93 to 87. Running the pre-fix classifier over a pristine worktree of the same commit gives 87 with no phantom entry: the 93 came from the maintainer's own checkout, which carries a stale worktree under `.claude/worktrees/` and a `plugins/pandects/out/` directory. The number described a checkout and was written as a property of the repository | fixed in 84bb99e, and pull request 256's body corrected in place |
+
+Leads not pursued: step 2's commit message carries the same wrong figure and
+keeps it. That commit is named in the run's sealed ledger as step 2's
+implementation, so rewording it would leave the ledger pointing at a commit
+that no longer exists; the corrected account lives in the runbook, the pull
+request body and this row. Separately, `plugins/horos/**` has no CI workflow of
+its own, so this plugin's 188 tests run locally and nowhere else; adding one is
+an ask-first change under this run's boundaries and is recorded on pull request
+256 rather than made here.
+
+## Scoped entry, step 3, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 38/38 clean, `check .` exit 0, all
+verified before this receipt. The round audited the tree with round 1's
+correction applied and re-read every remaining quantitative claim in this
+run's two documents against the tree rather than against the earlier prose:
+the entry count, the census rows, the suite counts, the baseline median, and
+the audit references. The 87 figure now carries the checkout it was measured
+in. The three mutations that pin the guard ran again in this round as part of
+the root suite; the three ways the guard was seen failing belong to the step
+rather than to this round, and are recorded there.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Scoped entry, step 4, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+206/206, root 38/38, verified before this receipt. Two mutations were run
+against the committed step before the suite was trusted: making the committed
+slice ignore the scope fails five of the nineteen cases, and pruning the
+ancestor chain instead of walking it fails six. The round then went at the
+control the risk register names rather than at the happy path, and found it
+half-built.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | plugins/horos/skills/horos/scripts/horos.py | the escape control only inspected the given path, so a symlink as the final component was refused while a symlink in the middle was not. `git -C` resolves symlinks before answering, so `check bridge/sub` reported the far repository as its own worktree and the check would have been answered from that tree's boundary | fixed in 312bf0a, with two guards seen failing without it |
+
+Leads not pursued: `check_scope` slices the candidate document by scope
+although the scan it came from was already scope-limited, so that slice can
+never remove anything; it is a redundant call rather than a wrong one, and
+removing it would leave the two documents sliced by different code paths.
+
+## Scoped entry, step 4, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+206/206, root 38/38, `check .` exit 0, verified before this receipt. The round
+audited the tree with round 1's escape fix applied, and asked the question
+round 1 had not: whether the evidence the study demands for this step actually
+exists yet. It did not.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | medium | plugins/horos/tests/benchmark_scope.py | the benchmark still called `check_tree`, which knows nothing of ancestor resolution, so every scoped run recorded exit 2 and a null median while the check itself worked. Criterion 12's measurement did not exist, and the record said `unavailable` rather than being wrong, which is why round 1 read past it | fixed in fad07e3 |
+
+The fix also replaced the placeholder `tracked_files_inspected_outside_scope`
+null with counters taken from the same scoped walk the check performs, of which
+`classified_outside_scope` is the one that carries the claim. First measured
+numbers, five runs each: full tree 59.6 ms; `plugins/alexandria` 24.4 ms over
+210 classified files with 0 outside; `plugins/brevitas` 15.9 ms over 21
+classified files with 0 outside. The heavier scope costs more than a third of
+the whole tree because its weight is a content-addressed store, and digest
+verification reads whole files by design.
+
+Leads not pursued: the escape rule reads the process's working directory, so a
+caller that changes directory between resolving a path and checking it would be
+answered against the new one; every entry point here resolves and checks in one
+call, and threading a base directory through the command would add a parameter
+no caller has asked for.
+
+## Scoped entry, step 4, round 3 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+207/207, root 38/38, `check .` exit 0, benchmark re-run at 24.1 ms for the
+`plugins/alexandria` scope with 0 classified outside it, all verified before
+this receipt. The round audited the tree with both earlier fixes applied and
+re-checked the two things those fixes touched: the escape rule still refuses
+all four escape shapes and admits every legitimate relative path. The
+sibling case, `../two` from inside another scope, was run and then pinned as a
+test in 5deb3e3 rather than left as a reasoned assumption; and the benchmark's
+counters now come from the walk rather than from a constant.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
+
+## Scoped entry, step 5, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0, imprimatur
+100.0/100 on both changed documents, brevitas clean, `git diff --check` clean.
+Horos 212/212, root 38/38, the demonstration's own five cases and the seven
+evolution-contract cases each run on their own as well, all verified before
+this receipt.
+
+This round's job was the assembled path rather than new code, so all fourteen
+success criteria were re-derived from commands rather than from the earlier
+rounds' word. The two that could only be checked by hand were the ledger
+arithmetic and the demonstration's pinned output. Recomputing the frontier
+digest with the contract's own helpers gives
+`13eaade4077f194fe1296e041265d2a46e2db26ccd73e64d580a8637673869d9`, identical
+to the row above it, with the revision held and the axis reading generation:
+the held job was not spent. The demonstration was run from a temporary copy of
+the example and its README compared line by line. One correction came out of
+writing it: the README is itself a tracked file above the scope, so it moved
+`listed outside scope` from 0 to 1, and the pinned value now matches what the
+tool prints rather than what it printed before the file existed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: `plugins/horos/**` still has no CI workflow,
+so this plugin's 212 tests run locally and in no gate; `lazarus.yml` and
+`pandects.yml` cover `tests/**`, which is why step 3 drew checks and steps 2
+and 4 drew none. Adding `horos.yml` is an ask-first change under this run's
+boundaries and is recorded on pull requests 256 and 261 rather than made here.
