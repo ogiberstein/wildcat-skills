@@ -3785,3 +3785,32 @@ installed plugin is behind the checkout. The lint outcomes are therefore
 recorded in this entry rather than as structured receipt fields. Out of scope
 here: it is a Fiat concern, not a Protasis one, and this run's topic does not
 touch the controller.
+
+## Protasis discipline cores, step 2, round 1 -- 2026-08-20
+
+Reviewed: the contract growth in `plugins/hexaemeron/skills/protasis/SKILL.md`,
+which is the whole of this step's diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/hexaemeron/skills/protasis/SKILL.md | The frontmatter description enumerates what the contract holds and still listed only the four original commitments after five study items and a step field were added. That text decides whether the skill triggers, so an understated list costs a run that should have been held to the disciplines. | fixed in 70f5b66 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 303/303,
+imprimatur 100.0 clean before and after the fix.
+
+The risk register's four concerns: path handling, hostile document content and
+a miscount reported as clean all belong to the checker, which step 3 builds, and
+have no surface in a prose change. The fourth is the ledger, and the check is
+that this step leaves it alone. The diff is one file and the version in
+frontmatter is untouched, so the single ledger write stays step 4's.
+
+One judgement worth recording rather than filing. Item 9 asks for each boundary,
+what is worth taking at it, and the control that closes it, which follows the
+same three-part shape phylax uses. The line between citing and restating is
+whether the text carries the rules or the question, and this carries the
+question: no STRIDE table, no always/ask-first/never list, no control catalogue.
+Phylax remains the only place those live. Recorded because the next person to
+grow this contract will stand at the same line.
+
+Leads not pursued: none.
