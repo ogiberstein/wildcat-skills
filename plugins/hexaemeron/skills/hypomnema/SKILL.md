@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Hypomnema
@@ -43,12 +43,14 @@ Check for decision records already in the tree, the numbering and naming they
 use, the headings they carry, and any tooling that generates them. Where the
 evidence conflicts, say so rather than quietly picking one.
 
-Two conventions already run in this marketplace and its applications. Each
+Three conventions already run in this marketplace and its applications. Each
 governed skill records its own decisions in an `EVOLUTION.md` ledger, so a
 decision about one skill belongs there and not in a second document. The
-application generates its changelog from conventional commits through
-release-please, so the commit message is the changelog entry, and hand-editing
-the generated file loses at the next release.
+marketplace's cross-cutting decisions live under `docs/decisions/` as numbered
+records in the shape below, ADR-001 onward. The application generates its
+changelog from conventional commits through release-please, so the commit
+message is the changelog entry, and hand-editing the generated file loses at
+the next release.
 
 ## Write the record when reversing gets expensive
 
