@@ -4236,3 +4236,48 @@ is read back by the byte-for-byte case and the newline case, both of which read
 the file rather than the output.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. This step resumed after a halt:
+the root README had been replaced in this checkout by another process, taking
+`tests/test_marketplace_prose.py` red, and the file's owner restored it. Nothing
+in this run touched it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/hexaemeron/skills/kronos/SKILL.md | phase-only mode restates its own stop condition, and that restatement omitted the park clause, so a loop following it could finish over a standing park | fixed in 4bc12a9 |
+| S3-R1-02 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | `show` dropped the parked flag the record carries, so a parked candidate outscoring the selected one read as a contradiction of the tie-break | fixed in 4bc12a9 |
+
+S3-R1-02 surfaced in the demo path itself: protasis printed at 81 above elenchus
+at 60 with nothing saying why the lower score won. The record held the flag all
+along; only the display lost it.
+
+S3-R1-01 came from reading the phase-only section against the new stop text.
+Inheritance was the answer to a similar gap in the previous run, and it is not
+the answer here: this section writes its own stopping rule out in full, so a
+clause missing from it is missing, not inherited.
+
+The ledger row was checked by hand as well as by the suite: the header names one
+version with the row, generation moves alone, the recomputed digest matches, the
+prior revision and digest are retained byte for byte, the status stays mature
+with no next job, and the frontmatter agrees.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what the new mark could have broken. With nothing parked the
+selected mark still stands alone, and a `kronos-v0.3.0` line carrying no parked
+field at all renders and exits 0, because the flag is read with `get` rather than
+indexed. That second case is the one that would have broken every scoreboard
+written before this run.
+
+Leads not pursued: none.

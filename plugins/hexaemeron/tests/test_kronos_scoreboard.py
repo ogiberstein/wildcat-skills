@@ -472,6 +472,25 @@ class ScoreboardTest(unittest.TestCase):
     def test_a_non_boolean_parked_flag_is_refused(self):
         self.assertRefused(self.document([self.candidate(parked="yes")]), "K004")
 
+    def test_show_marks_a_parked_candidate(self):
+        """Otherwise a parked candidate outscoring the selected one reads as a bug."""
+        self.run_park("alpha")
+        candidates = [
+            self.candidate("alpha", parked=True),
+            self.candidate("beta", impact=10, parked=False),
+        ]
+        self.run_record(self.document(candidates, selected="beta"))
+        _, out = self.run_show()
+        marked = [line for line in out.splitlines() if line.lstrip().startswith("P")]
+        self.assertEqual(len(marked), 1)
+        self.assertIn("alpha", marked[0])
+
+    def test_phase_only_mode_stops_on_a_standing_park_too(self):
+        """Its stop condition is restated, so the park clause has to be in it."""
+        skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        section = skill.split("## Phase-only mode", 1)[1].split("## Loop", 1)[0]
+        self.assertIn("park", section)
+
     # -- the skill and the script agree ---------------------------------
 
     def test_every_field_the_script_accepts_is_named_in_the_skill(self):

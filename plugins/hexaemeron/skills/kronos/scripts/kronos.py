@@ -423,7 +423,15 @@ def show(args: argparse.Namespace) -> int:
         run = entry.get("run") or "no run recorded"
         print(f"pass {entry['pass']}  {entry['mode']}  {entry['scope']}  ({run})")
         for candidate in sorted(entry["candidates"], key=lambda c: -c["total"]):
-            mark = "*" if candidate["skill"] == entry["selected"] else " "
+            # A parked candidate outscoring the selected one is the normal case
+            # once anything is parked. Without the mark the output reads as
+            # though it contradicts its own tie-break.
+            if candidate["skill"] == entry["selected"]:
+                mark = "*"
+            elif candidate.get("parked"):
+                mark = "P"
+            else:
+                mark = " "
             axes = " ".join(f"{name}={candidate[name]}" for name, _ in AXES)
             print(f"  {mark} {candidate['total']:3d}  {candidate['skill']:<24} {axes}")
             print(f"      {candidate['basis']}")

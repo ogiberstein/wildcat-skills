@@ -7,7 +7,7 @@ description: >-
   Use only when the user explicitly asks for Kronos or for a repeated ranked
   Fiat frontier loop. Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Kronos
@@ -44,10 +44,12 @@ rescan all six phase ledgers from disk and no others, rerank from scratch and
 repeat. A replacement held job may re-enter the ranking.
 
 Unless the user supplies an iteration cap, stop only when none of the six
-phase ledgers remains eligible. If the user requests a bounded batch, stop
-after that many completed Fiat iterations or sooner if the phase market is
-exhausted. The scope limits which skill owns a selected frontier; Fiat may
-still change any file genuinely required by that exact held job.
+phase ledgers remains eligible and no park stands against one of them. If the
+user requests a bounded batch, stop after that many completed Fiat iterations or
+sooner if the phase market is exhausted, and report any park still standing
+rather than letting the cap bury it. The scope limits which skill owns a
+selected frontier; Fiat may still change any file genuinely required by that
+exact held job.
 
 ## Loop
 
@@ -73,8 +75,10 @@ still change any file genuinely required by that exact held job.
    - work it unblocks or shapes in other in-scope skills: 15.
    Show the score and one-sentence basis for every candidate. Do not invent
    work to fill the list.
-4. Select the highest score. Break a tie by impact, then readiness, then the
-   order in which the ledgers were found.
+4. Select the highest score among candidates with no standing park. Break a tie
+   by impact, then readiness, then the order in which the ledgers were found. A
+   parked candidate is still scored and still reported; it is only barred from
+   selection, because the loop already knows why it stalled.
 5. When the runtime provides a durable goal facility, create one goal whose
    objective is to repeat steps 1-8 until no eligible frontier remains. When
    it does not, keep the same loop in the current run. Never create one goal
@@ -105,11 +109,19 @@ still change any file genuinely required by that exact held job.
    its new held job, and a skill whose ledger has appeared since the last pass
    enters for the first time. Read the scoreboard back before reranking. Where
    it reports drift, an earlier pass scored the same held job differently, and
-   the new score either has a reason or is the one to correct.
+   the new score either has a reason or is the one to correct. Run `parked`
+   before concluding that no eligible frontier remains: a standing park is a job
+   the loop set down rather than finished.
 
-Stop successfully when no eligible ledger remains. If Fiat halts on a genuine
-external blocker, preserve the durable goal and report that blocker; do not
-skip to a lower-scoring job to make the loop look busy.
+Stop successfully when no eligible ledger remains and no park stands. If Fiat
+halts on a genuine external blocker, park the job: record the blocker verbatim
+against it, then continue with the next-ranked candidate. Never skip to a
+lower-scoring job without parking the one above it. A skip nobody recorded is
+how the loop comes to look busy while the thing that mattered goes missing.
+
+A park is a claim the loop records, not one it judges. It never expires, and
+nothing releases it but a person. While one stands the loop is not complete,
+however empty the rest of the market looks.
 
 ## Scoreboard
 
@@ -149,6 +161,41 @@ The scoreboard records a judgement; it does not make one. Every score and basis
 is still the ranking's own work, and a loop that skips the writer leaves a
 shorter file and no other trace.
 
+## Parked lane
+
+A blocked job goes in `.kronos/parked.jsonl` beside the scoreboard, through the
+same script:
+
+```text
+python3 "<this skill dir>/scripts/kronos.py" park \
+  --scoreboard-dir <scope root>/.kronos --skill <name> \
+  --ledger <that skill's EVOLUTION.md> --reason "<the halt, as Fiat gave it>"
+python3 "<this skill dir>/scripts/kronos.py" unpark \
+  --scoreboard-dir <scope root>/.kronos --skill <name> --reason "<why>"
+python3 "<this skill dir>/scripts/kronos.py" parked \
+  --scoreboard-dir <scope root>/.kronos
+```
+
+`park` stores the reason byte for byte beside the skill's held-job hash at that
+moment. Pass Fiat's halt reason through unaltered; a summary of it is not the
+thing a maintainer needs later to judge whether the blocker still stands.
+`unpark` releases a park and carries its own reason. Neither rewrites a record;
+both append, so the history of what was blocked and why survives the release.
+
+`parked` prints what stands and exits 3 while any does, 0 when none does, and 1
+on a refusal. The 3 is not an error. It is what stops step 8 declaring the loop
+complete, so run it before saying no eligible frontier remains.
+
+A park whose skill now shows a different held job is reported as stale: the job
+it named has moved on, and whether the park still applies is a person's call. A
+ledger that cannot be read is reported as unknown and the park stands, because
+an unreadable file is not evidence a blocker cleared.
+
+Parks and the scoreboard stay separate files on purpose. The scoreboard is
+history, where each line is what was true at that pass; the parked lane is
+current state that changes. Reading one as the other is how a line stops meaning
+what it says.
+
 ## Hard rules
 
 - Never edit, implement, audit, or rewrite a target itself. Fiat owns the work.
@@ -158,3 +205,7 @@ shorter file and no other trace.
 - Never alter a held Next Fiat job before its exact frontier job completes.
 - Never continue merely because the loop can continue. No eligible frontier
   means the goal is complete.
+- Never select a parked candidate, and never drop one from the ranking.
+- Never summarise, shorten or reword a halt reason on the way into a park.
+- Never release a park on the loop's own judgement, and never call the loop
+  complete while one stands.
