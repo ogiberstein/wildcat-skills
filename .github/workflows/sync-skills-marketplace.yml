@@ -17,6 +17,14 @@ jobs:
     if: github.repository == 'wildcat-finance/skills-marketplace'
     runs-on: ubuntu-latest
     steps:
+      # Only main and tags. GitHub refuses any push made with an App token,
+      # which `github.token` is, that creates or updates a file under
+      # `.github/workflows/`, and there is no `permissions:` key that grants it:
+      # the Workflows permission exists for fine-grained tokens and GitHub Apps,
+      # not for GITHUB_TOKEN. Mirroring every branch therefore fails whenever a
+      # branch carries a new workflow file, and one rejected ref fails the whole
+      # push. Widening this back needs a token with Workflows permission first,
+      # not a change here.
       - name: Mirror public repository
         env:
           DESTINATION_REPOSITORY: ${{ github.repository }}
@@ -25,5 +33,5 @@ jobs:
           git clone --bare https://github.com/wildcat-finance/skills.git source.git
           git -C source.git push --force --prune \
             "https://x-access-token:${DESTINATION_TOKEN}@github.com/${DESTINATION_REPOSITORY}.git" \
-            "refs/heads/*:refs/heads/*" \
+            "refs/heads/main:refs/heads/main" \
             "refs/tags/*:refs/tags/*"
