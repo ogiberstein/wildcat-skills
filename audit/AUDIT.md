@@ -4418,3 +4418,21 @@ resolve from `docs/janus-commons-spec/`. Nothing landed under `plugins/` or
 `.agents/`, so the versioning and evolution contracts see no new surface.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+Non-Solidity round under the run's suite waiver. phylax exit 0, ephoros exit
+0, hypomnema exit 0 over `README.md`, the only file this step changes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went at the study's remaining risks. The README edit adds two lines
+inside the Commons bullet and moves nothing else, so every exact sentence and
+section ordering `tests/test_marketplace_prose.py` asserts still holds; the
+full root suite ran against this tree, 34 tests, all green. The new pointer
+resolves: `docs/commons/janus.md` exists on this branch at the pinned digest.
+The edited README scores 100/100 under imprimatur with no defects.
+
+Leads not pursued: none.
