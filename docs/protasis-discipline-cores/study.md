@@ -77,8 +77,8 @@ document shape, not an implementation of a published standard.
 ## 3. Constraints and non-goals
 
 - Starting ref `main` at `2b92c6f`.
-- Python 3.11, stdlib only. Adding a dependency is an ask-first boundary and
-  this run does not need one.
+- Stdlib only, on the 3.14.6 interpreter assumption 1 states. Adding a
+  dependency is an ask-first boundary and this run does not need one.
 - The five discipline cores are cited, never restated. Content rules live in
   exactly one skill under the v3.3.1 architecture, and with phase-only Kronos
   evolving all six ledgers a restated manifest would go stale continuously.
