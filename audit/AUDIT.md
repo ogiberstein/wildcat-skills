@@ -3232,3 +3232,161 @@ and seventy-four statements reached.
 The three bundled lints ran against the changed tree and each exited 0:
 `phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
 waiver recorded at init covers the Pashov trio.
+
+## Goldfinch preservation release, step 3, round 1 -- 2026-08-19
+
+Reviewed: the release command, which verifies a fixture, binds a statement to it,
+and writes a directory holding both.
+
+Six findings.
+
+Twenty rules were mutated and five survived, which is five rules nothing pinned:
+
+- An output that is a dangling symlink. `exists` follows the link and says no, so
+  the name reads as free while a rename onto it would replace the link.
+- The comparison between the copy's digest and the original's. The test that
+  broke the copy broke its verification too, so it raised before reaching the
+  comparison. Reaching it takes a second fixture that verifies cleanly to a
+  different digest.
+- Validation of the document before it is returned. Nothing built a document the
+  schema refuses, so removing the check changed no result.
+- The check refusing a statement that is not an object. This one was removed
+  rather than tested. The binding already refuses a non-object, in the words it
+  uses for every other shape it will not read, and two authorities on one
+  question is one too many.
+- One read of the directory rather than two, which is the decision the module
+  docstring leads with. Verification and binding both need the manifest, and
+  reading it twice reads two states.
+
+A sweep then asked the release's own question fifty-eight times: after a refusal,
+is anything left behind? Eighteen malformed statements, thirteen output paths,
+fourteen fixture paths and thirteen statement paths. Nothing raised outside the
+plugin's own errors or the operating system's, and no output or staging directory
+survived a refusal. A component removed, added, edited or replaced by a symlink
+between capture and release is refused, naming which. A component whose mode
+changed is released, because a mode is not evidence.
+
+The sixth finding was in the probe, and it is the same class caught in step 2
+round 3: the case that edits a component replaced a string the file does not
+contain, so it reported a release written where it should have reported a
+refusal. It now refuses to run unless the edit changes bytes.
+
+## Goldfinch preservation release, step 3, round 2 -- 2026-08-19
+
+Reviewed: the window the release cannot close, what two runs agree on, and what
+the digest actually covers.
+
+Three findings.
+
+The release was written with mixed modes: directories at 0700 and files at 0644,
+inside a plugin whose fixture writer uses 0600 throughout. The directory gated
+it, so nothing was exposed, but one artefact with two rules about who may read it
+is a rule nobody can state. Everything a release holds is 0600 or 0700 now. A
+release is not published by being written; whoever hands it over opens it up
+deliberately.
+
+The digest function's docstring claims that a field added to the schema and not
+to the digest identity would be a test failure. Nothing tested that. It does now,
+by comparing the identity against the schema's own list of required fields, one
+field at a time.
+
+The third is a limit rather than a fix, and it is worth stating plainly. The
+output name is free when a run begins, and the copy takes time. The name is
+checked again after the copy, which narrows the window, and the comment says it
+does not close it: between the last check and the rename the name is still
+unheld. What a lost race costs is now recorded rather than assumed. Rename
+replaces an empty directory and nothing else -- a file, a symlink, or a directory
+holding anything survives, the release refuses, and the staged copy is removed --
+and a process that can win that window can rewrite the finished release anyway.
+
+Checked and found sound: two runs over one fixture and statement produce
+byte-identical releases, down to the fixture copy. A release nobody can rebuild
+is a release nobody can check.
+
+## Goldfinch preservation release, step 3, round 3 -- 2026-08-19
+
+Reviewed: which statements the tests reach, whether a release touches what it
+reads, and the shipped fixture released end to end.
+
+Two findings, both about a statement handed over from inside the fixture it
+describes.
+
+The case already refused itself twice over, and neither refusal named the reason.
+An unlisted file fails verification. A listed one would have to carry its own
+digest, which no file can, so the reader gets a digest mismatch and a while to
+work out why. The reason is the one the release document is already held to: the
+fixture digest would cover the statement made about the fixture. The release says
+that now, before it reads anything.
+
+The second was in the check written for the first. It skipped silently when a
+path would not resolve, which is the quiet failure this plugin refuses everywhere
+else. A symlink loop is the case that gets there, and `pathlib` reports that one
+as a `RuntimeError` rather than as the `OSError` the kernel gave it.
+
+Checked and found sound:
+
+- Seventy-five of seventy-five statements reached.
+- A release leaves the fixture and the statement byte for byte and mode for mode
+  as it found them.
+- The shipped `goldfinch-v0` fixture releases, reads back with every digest and
+  count agreeing, and still verifies after the release directory is moved
+  elsewhere.
+
+## Goldfinch preservation release, step 3, round 4 -- 2026-08-19
+
+Reviewed: the document the command produces, against the schema meant to
+describe it.
+
+Two findings.
+
+Four hundred and eighty-three hostile values went through every leaf of a
+release the command had just produced. Two came back accepted where they should
+not have: a fixture path of `.` and a statement path of `.`.
+
+The cause is in `paths.py` rather than in the release. `PurePosixPath(".")` has
+no parts at all, so every part-based check in the path rule ran over nothing and
+the value came back unchanged as though it named a file. It names the directory
+itself. Both the manifest and the release document read paths through that
+helper, so a manifest component could be declared as `.` too; it failed later, on
+a read that found a directory, which is a refusal that explains nothing.
+
+Checked and found sound, and worth writing down because it looks like a finding
+until the line is drawn: `validate` accepts a release whose digest no longer
+covers it. That is the same line `validate manifest` draws, measured rather than
+assumed -- a manifest carrying a wrong fixture digest passes it too. `validate`
+answers whether a document is well formed; `verify` answers whether its digests
+hold. The release digest is checked by `verify-release`, which is the next step.
+
+Also sound: no field can be added to or removed from a release without the
+schema refusing it, at the top level and inside each of the four blocks. All
+twelve test classes pass alone in their own process, and the suite passes under
+three shuffled orders.
+
+The second finding was in the probe. Its class list was read out of the source
+with a string split, which picked up a helper class that is not a test case and
+reported it as a class failing alone.
+
+## Goldfinch preservation release, step 3, round 5 -- 2026-08-19
+
+Reviewed: the shared path rule the previous round's fix touched, and then every
+instrument built for this step.
+
+No findings.
+
+The path rule was compared against a rule written out separately, leaning on
+`posixpath` rather than on `pathlib` parts, which is where `.` slipped through.
+Seven thousand five hundred and eighty-one paths -- five prefixes by
+twenty-two segments by three separators by twenty-two segments, plus each segment
+alone and with a separator at either end. No disagreements, and nothing raised
+outside a path error.
+
+Then the earlier instruments, all against the finished step: twenty-three
+mutants, none surviving; fifty-eight hostile paths and statements, none leaving
+an output or a staging directory behind; seventy-five of seventy-five statements
+reached; four hundred and eighty-three substitutions through a produced release,
+accepted only where a filename is legitimate; twelve classes passing alone and
+the suite passing under three shuffled orders.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
