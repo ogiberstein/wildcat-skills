@@ -530,6 +530,104 @@ class PromiseIdentityTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM043", [item["code"] for item in report["findings"]])
 
+    def test_body_text_cannot_supply_frontmatter_identity_or_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            skill = plugin / "skills" / "example"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "---\ndescription: fixture\n---\n\n# Example\n\n"
+                "name: example\n\n  version: \"0.0.0\"\n",
+                encoding="utf-8",
+            )
+            (skill / "EVOLUTION.md").write_text(
+                "# Evolution\n\n- Current version: `example-v0.0.0`\n",
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "check", "--root", target, "--only", "identity,versions", "--json"
+            )
+        report = json.loads(completed.stdout)
+        codes = [item["code"] for item in report["findings"]]
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM023", codes)
+        self.assertIn("PM046", codes)
+
+    def test_duplicate_skill_metadata_versions_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            skill = plugin / "skills" / "example"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "---\nname: example\ndescription: fixture\nmetadata:\n"
+                "  version: \"0.0.0\"\n  version: \"0.0.0\"\n---\n",
+                encoding="utf-8",
+            )
+            (skill / "EVOLUTION.md").write_text(
+                "# Evolution\n\n- Current version: `example-v0.0.0`\n",
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "check", "--root", target, "--only", "versions", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM046", [item["code"] for item in report["findings"]])
+
+    def test_package_marketplace_version_mismatch_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            write_skill(plugin)
+            marketplace = target / ".claude-plugin" / "marketplace.json"
+            marketplace.parent.mkdir()
+            marketplace.write_text(
+                json.dumps(
+                    {
+                        "name": "fixture",
+                        "plugins": [
+                            {
+                                "name": "example",
+                                "source": "./plugins/example",
+                                "version": "9.9.9",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "check", "--root", target, "--only", "versions", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM045", [item["code"] for item in report["findings"]])
+
+    def test_body_version_example_does_not_version_the_router(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            write_skill(plugin)
+            (target / "AGENTS.md").write_text("# Root runtime\n", encoding="utf-8")
+            (plugin / "AGENTS.md").write_text(
+                "# Plugin runtime\n\n`skills/example/SKILL.md`\n", encoding="utf-8"
+            )
+            router = target / ".agents" / "skills" / "promise-machine" / "SKILL.md"
+            router.parent.mkdir(parents=True)
+            router.write_text(
+                "---\nname: promise-machine\ndescription: fixture\n---\n\n"
+                "# Promise Machine\n\n[Root](../../../AGENTS.md)\n"
+                "[Example](../../../plugins/example/AGENTS.md)\n\n"
+                "An unrelated example may contain:\n\n  version: \"1.0.0\"\n",
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "check", "--root", target, "--only", "routers", "--json"
+            )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
