@@ -6,6 +6,8 @@ import sys
 
 from berean_lib import BereanError
 from berean_lib import answers as answers_lib
+from berean_lib import canonical as canonical_lib
+from berean_lib import evals as evals_lib
 from berean_lib import corpus as corpus_lib
 from berean_lib import citations as citations_lib
 from berean_lib import jsonio
@@ -88,6 +90,38 @@ def cmd_promotion_chain(args):
     return 0
 
 
+def cmd_run_evals(args):
+    report_document, results = evals_lib.run(args.release)
+    print(f"corpus digest  {report_document['corpus_digest']}")
+    print(f"cases digest   {report_document['cases_sha256']}")
+    print(f"answers digest {report_document['answers_digest']}")
+    for case, passed, reason in results:
+        state = "pass" if passed else "fail"
+        print(f"{state}  {case['id']}: {reason}")
+    print(f"{report_document['passed']} of {report_document['cases']} case(s) passed")
+    if args.out:
+        evals_lib.write_report(report_document, args.out)
+        print(f"report written to {args.out}")
+    return 0 if report_document["failed"] == 0 else 1
+
+
+def cmd_export_cases(args):
+    import os
+
+    from berean_lib import release as release_module
+
+    document = release_module.load(args.release)
+    if document["evals"] is None:
+        raise BereanError("the release declares no evaluation files")
+    cases_document = jsonio.load(
+        os.path.join(args.release, document["evals"]["cases"]), "eval cases"
+    )
+    exported = evals_lib.export(cases_document)
+    jsonio.write_canonical(args.out, exported, canonical_lib.dumps)
+    print(f"{len(exported['evals'])} case(s) exported to {args.out}")
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="berean", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -145,6 +179,20 @@ def build_parser():
     chain = commands.add_parser("promotion-chain", help="print and check the promotion chain")
     chain.add_argument("release", help="the release directory")
     chain.set_defaults(handler=cmd_promotion_chain)
+
+    run_evals = commands.add_parser(
+        "run-evals", help="grade the release's cases; digests first, mismatch refuses"
+    )
+    run_evals.add_argument("release", help="the release directory")
+    run_evals.add_argument("--out", help="where to land the report")
+    run_evals.set_defaults(handler=cmd_run_evals)
+
+    export = commands.add_parser(
+        "export-cases", help="emit the cases in the Agent Skills shape"
+    )
+    export.add_argument("release", help="the release directory")
+    export.add_argument("--out", required=True, help="where the exported cases land")
+    export.set_defaults(handler=cmd_export_cases)
 
     return parser
 
