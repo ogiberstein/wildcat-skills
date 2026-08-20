@@ -45,7 +45,7 @@ candidate without dropping it from the ranking.
 **Exit.** `plugins/hexaemeron/skills/kronos/scripts/kronos.py` supports
 `park --scoreboard-dir <dir> --skill <name> --ledger <path> --reason <text>`,
 `unpark --scoreboard-dir <dir> --skill <name> --reason <text>` and
-`parked --scoreboard-dir <dir>`; `parked` exits 2 while any park stands and 0
+`parked --scoreboard-dir <dir>`; `parked` exits 3 while any park stands and 0
 when none does, keeping 1 for a refusal; and `record` accepts `parked` on a
 candidate, applies the tie-break to unparked candidates only, and refuses a pass
 whose flags disagree with the standing parks. Proved by
@@ -60,7 +60,7 @@ reason byte for byte; a reason carrying a newline that leaves the file one line
 per record; an empty reason refused; an oversized reason refused; a park whose
 ledger cannot be read refused; an unpark with no standing park refused; a second
 park for an already parked skill refused; park, unpark, park again replaying to
-one standing park; `parked` exiting 2 with a park standing and 0 without; a
+one standing park; `parked` exiting 3 with a park standing and 0 without; a
 stale park reported as stale when the ledger's identity hash has moved; a
 deleted ledger reported as unknown rather than resolved; a pass selecting the
 highest unparked candidate accepted; a pass selecting a parked candidate
@@ -93,7 +93,7 @@ byte, with status still `mature` and next job still `None -- mature`. Proved by
 `test_evolution_contract.py` and `test_version_propagation.py` live, by
 `python3 plugins/hexaemeron/tests/run_tests.py`, and by the demo path: park a
 skill against this checkout's real ledger, record a pass that selects the
-next-ranked candidate, see `parked` exit 2, unpark, and see it exit 0.
+next-ranked candidate, see `parked` exit 3, unpark, and see it exit 0.
 
 **Files.** `plugins/hexaemeron/skills/kronos/SKILL.md`,
 `plugins/hexaemeron/skills/kronos/EVOLUTION.md`.
@@ -108,3 +108,27 @@ documents. ephoros: none beyond what step 2 emits. metron: none, no performance
 claim. elenchus: none, no failure in hand. hypomnema: the three decisions the
 study named as expensive to reverse are recorded here in the ledger row, which
 is where a decision about a governed skill lives.
+
+## Amendment, 2026-08-20, during step 2
+
+**What changed.** Step 2 also edits the field list in `SKILL.md`'s Scoreboard
+section, and `SKILL.md` joins its Files.
+
+**Why.** `parked` is a new candidate field, so it has to join `CANDIDATE_FIELDS`
+or `score` refuses it with K003. The field-drift guard shipped in
+`kronos-v0.3.0` then requires the Scoreboard section to name every field the
+script accepts, and it failed on the unnamed `parked` exactly as intended.
+Leaving that to step 3 would end step 2 with a red suite, and no step may hand
+the next a broken tree.
+
+**Which steps it touches.** Step 2 only. Step 3 still owns the loop wiring, the
+stop text, the version bump and the ledger row, and its entry state is unchanged:
+the lane shipped and both suites green.
+
+**Re-confirmation.** Step 3's entry and exit both still hold. Its exit rests on
+the two suites, the evolution-contract and version-propagation cases, and the
+demo path, none of which this amendment touches.
+
+**Also amended.** `parked` exits 3 rather than 2 while a park stands. Argparse
+already spends 2 on a bad invocation, so a caller could not tell a standing park
+from a mistyped command. Step 2's exit condition reads 3.

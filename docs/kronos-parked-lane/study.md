@@ -44,14 +44,14 @@ A working prototype means all of this holds:
 - `kronos.py park` appends a park carrying the skill, its held-job identity
   hash computed from the ledger, and the halt reason byte for byte as given.
 - `kronos.py unpark` appends a release carrying its own reason.
-- `kronos.py parked` prints the standing parks and exits non-zero while any
+- `kronos.py parked` prints the standing parks and exits 3 while any
   stands, so a loop cannot call itself complete over one.
 - A pass whose candidates carry `parked: true` is accepted with the highest
   unparked candidate selected, and still refused when the selection is not the
   highest unparked one.
 - `python3 plugins/hexaemeron/tests/run_tests.py` passes with the new cases.
 - The demo path: park a skill, record a pass that selects the next-ranked
-  candidate, see `parked` exit non-zero, unpark, and see it exit 0.
+  candidate, see `parked` exit 3, unpark, and see it exit 0.
 
 ## 2. Prior art
 

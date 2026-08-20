@@ -4186,3 +4186,53 @@ text appears in `SKILL.md` byte for byte. The halt-record shape cited from
 The diff carries no credential and no account data.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. Both findings came from walking
+the study's risk register against the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | a halt reason carrying a newline printed at the left margin, so it could forge the summary line telling a reader whether anything still stands | fixed in 00cf4d2 |
+| S2-R1-02 | low | plugins/hexaemeron/tests/test_kronos_scoreboard.py | nothing held the record format backward compatible, so a scoreboard written under v0.3.0 could stop reading without a test noticing | fixed in 00cf4d2 |
+
+S2-R1-01 was reproduced before it was believed: a park whose reason held a
+newline and the text `0 park(s) standing; the loop is not complete` printed that
+line at the margin, under the real summary saying 1. The exit code stayed 3
+throughout, so the mechanical gate never lied; the report a person reads did.
+The reason is stored byte for byte by requirement, so the display indents
+continuation lines rather than editing what was recorded.
+
+The replay was checked against the register's other cases: park after unpark, a
+second park for a parked skill, and an unpark with nothing standing all resolve
+to something defined and tested. A stale park still blocks completion, and an
+unreadable ledger reads as unknown rather than as cleared, which is the one that
+would have quietly emptied the lane.
+
+Leads not pursued: a reason may still carry terminal control characters, which
+render as whatever the terminal does with them. Accepted: stripping them on
+display would make the printed reason differ from the recorded one, which is the
+property the verbatim requirement exists to protect, and the reason arrives from
+a Fiat halt inside the same loop rather than from outside it.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what round 1's fix could have broken. The forged line now
+sits indented under its park and the real summary still reads 1, an ordinary
+single-line reason renders exactly as before, and a second park in the same file
+prints its own reason line rather than folding into the first.
+
+One property the fix touches without being about it: the reason on disk is
+unchanged, so the display change cannot drift from the record. The stored value
+is read back by the byte-for-byte case and the newline case, both of which read
+the file rather than the output.
+
+Leads not pursued: none.
