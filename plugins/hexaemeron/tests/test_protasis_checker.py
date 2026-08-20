@@ -278,3 +278,150 @@ class Fixtures(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+COMPLETE_STUDY = (FIXTURES / "complete-study.md").read_text(encoding="utf-8")
+
+
+def study_findings(source):
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "study.md"
+        path.write_text(source, encoding="utf-8")
+        return protasis.check_study(path)
+
+
+def study_codes(source):
+    return sorted(f.code for f in study_findings(source))
+
+
+def without_item(number):
+    """The complete study with one item's heading and body removed."""
+    lines = COMPLETE_STUDY.splitlines()
+    kept, skipping = [], False
+    for line in lines:
+        match = protasis.ITEM.match(line)
+        if match:
+            skipping = int(match.group("n")) == number
+        if not skipping:
+            kept.append(line)
+    return "\n".join(kept) + "\n"
+
+
+def with_answer(number, answer):
+    """The complete study with one item's body replaced."""
+    lines = COMPLETE_STUDY.splitlines()
+    out, skipping = [], False
+    for line in lines:
+        match = protasis.ITEM.match(line)
+        if match:
+            if skipping:
+                skipping = False
+            if int(match.group("n")) == number:
+                out.append(line)
+                out.append("")
+                out.append(answer)
+                skipping = True
+                continue
+        if not skipping:
+            out.append(line)
+    return "\n".join(out) + "\n"
+
+
+class StudyItems(unittest.TestCase):
+    def test_a_complete_study_is_clean(self):
+        self.assertEqual(study_codes(COMPLETE_STUDY), [])
+
+    def test_each_of_the_twelve_items_is_required(self):
+        for number in protasis.ITEMS:
+            with self.subTest(item=number):
+                found = study_codes(without_item(number))
+                self.assertIn("S001", found)
+
+    def test_the_finding_names_the_missing_item(self):
+        found = study_findings(without_item(5))
+        self.assertEqual(len(found), 1)
+        self.assertIn("Risk register seed", found[0].message)
+
+    def test_a_duplicate_item_earns_no_verdict(self):
+        source = COMPLETE_STUDY + "\n## 10. The budget, or its absence\n\nAgain.\n"
+        found = study_codes(source)
+        self.assertIn("S004", found)
+        self.assertNotIn("S002", found)
+
+    def test_an_item_heading_inside_a_fence_is_not_an_item(self):
+        source = without_item(12) + "\n```markdown\n## 12. Decisions and their homes\n```\n"
+        self.assertEqual(study_codes(source), ["S001"])
+
+
+class StudyAnswers(unittest.TestCase):
+    def test_an_empty_answer_is_a_finding(self):
+        for number in protasis.ANSWERED:
+            with self.subTest(item=number):
+                self.assertIn("S002", study_codes(with_answer(number, "")))
+
+    def test_a_bare_none_is_a_finding(self):
+        for answer in ("None.", "none", "N/A.", "TBD", "No."):
+            with self.subTest(answer=answer):
+                self.assertIn("S002", study_codes(with_answer(9, answer)))
+
+    def test_a_stated_none_with_its_reason_passes(self):
+        source = with_answer(9, "None, and here is why: the diff is markdown.")
+        self.assertEqual(study_codes(source), [])
+
+    def test_content_passes(self):
+        source = with_answer(11, "A failing suite stops the step; the guard is a test.")
+        self.assertEqual(study_codes(source), [])
+
+    def test_a_comment_is_not_content(self):
+        source = with_answer(8, "<!-- filled in later -->")
+        self.assertIn("S002", study_codes(source))
+
+    def test_the_first_seven_are_presence_only(self):
+        source = with_answer(3, "")
+        self.assertEqual(study_codes(source), [])
+
+    def test_an_allow_comment_suppresses_the_answer_check(self):
+        source = with_answer(10, "").replace(
+            "## 10. The budget, or its absence",
+            "## 10. The budget, or its absence <!-- protasis: allow measured upstream -->")
+        self.assertEqual(study_codes(source), [])
+
+    def test_a_trailing_section_does_not_answer_for_the_last_item(self):
+        source = with_answer(12, "") + "\n# Appendix\n\nWords that are not item 12.\n"
+        self.assertIn("S002", study_codes(source))
+
+
+class StudyDocuments(unittest.TestCase):
+    def test_a_document_with_no_item_is_a_finding(self):
+        self.assertEqual(study_codes("# Title\n\nProse only.\n"), ["S003"])
+
+    def test_a_missing_path_is_reported_not_raised(self):
+        found = protasis.check_study(Path("does-not-exist-4c1a.md"))
+        self.assertEqual([f.code for f in found], ["S000"])
+
+    def test_a_directory_is_reported_not_raised(self):
+        with tempfile.TemporaryDirectory() as directory:
+            found = protasis.check_study(Path(directory))
+        self.assertEqual([f.code for f in found], ["S000"])
+
+    def test_the_incomplete_fixture_names_both_faults(self):
+        found = protasis.check_study(FIXTURES / "incomplete-study.md")
+        self.assertEqual(sorted(f.code for f in found), ["S001", "S002"])
+
+    def test_the_run_that_shipped_this_mode_passes_its_own_study(self):
+        study = REPO / "docs" / "protasis-study-schema-check-study.md"
+        self.assertEqual([f.code for f in protasis.check_study(study)], [])
+
+    def test_study_mode_is_selected_by_flag(self):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = protasis.main(["--study", str(FIXTURES / "complete-study.md")])
+        self.assertEqual(code, 0)
+        with redirect_stdout(io.StringIO()):
+            code = protasis.main(["--study", str(FIXTURES / "incomplete-study.md")])
+        self.assertEqual(code, 1)
+
+    def test_the_runbook_mode_is_unchanged_by_the_flagless_call(self):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = protasis.main([str(FIXTURES / "complete-runbook.md")])
+        self.assertEqual(code, 0)

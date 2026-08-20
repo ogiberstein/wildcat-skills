@@ -5644,3 +5644,55 @@ Root suite 104/104; hexaemeron suite 470/472 with the same two
 environmental failures recorded for step 1.
 
 Leads not pursued: none
+
+## Protasis study schema check, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The step commits the study and runbook, byte-identical to the
+run's working copies. Phylax, ephoros and hypomnema exit 0 over the tree.
+Reviewed against the risk register: no checker code exists yet, so the
+unearned-verdict concerns do not arise this step. Root suite 104/104;
+hexaemeron 470/472 with the two recorded environment failures.
+
+Leads not pursued: none
+
+## Protasis study schema check, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The round worked the risk register's four unearned-verdict
+concerns directly against the code: a fenced item heading is not an item
+(backtick and tilde probed), a duplicate number returns S004 and no answer
+verdict, a bare none in five spellings is refused whole-answer only, and
+the heading form the check reads is the one every committed study uses.
+Further probes: an item 13 is ignored as unmandated, a subsection stays in
+its item's body, a CRLF document scans identically. Phylax, ephoros and
+hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two recorded
+environment failures and 20 new study cases passing.
+
+Leads not pursued: an answer asserting none with filler words but no
+reason ("None whatsoever at all.") passes as content. Distinguishing a
+reason from filler is answer quality, which the checker's stated boundary
+leaves to the reviewer; tightening it mechanically would refuse honest
+long-form answers.
+
+## Protasis study schema check, step 3, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+One fault surfaced and was fixed before this round closed: the first cut
+of the new held-job text used a word the prose lint refuses without a
+concrete referent, caught by the root suite's shipped-prose gate; the
+sentence was rewritten and the frontier digest recomputed over the final
+line, which is the order the versioning contract demands. Reviewed
+against the register: the evolution row's arithmetic, digest and header
+agreement are held by the evolution suite; the mechanical-subset section
+cites both modes without restating either. Phylax, ephoros and hypomnema
+exit 0. Demo path clean over the run's own study. Root 104/104;
+hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: none
