@@ -5172,3 +5172,20 @@ caller-owned directory may stop Python's filesystem walk before a coded report i
 formed. The checker runs inside the caller's checkout under the caller's filesystem
 permissions and claims no hostile multi-user synchronisation or recovery from a
 checkout the caller cannot read.
+
+## Promise Machine, step 2, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected checker derives 14 plugins, 28 canonical skills, 23 governed
+skills, five vendored skills and 20 routers without claiming copy validation.
+The five focused guards, all 67 root tests and the Phylax, Ephoros and Hypomnema
+gates pass. Vendored instructions remain unchanged.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The caller-owned checkout limits recorded in round 1 remain unchanged.
