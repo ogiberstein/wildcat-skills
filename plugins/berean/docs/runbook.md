@@ -151,14 +151,18 @@ a time-domain disagreement against a frozen corpus and preserved Goldfinch
 mainnet reads, and the demo proves the whole path offline.
 **Entry.** Step 5's exit state.
 **Exit.** `python3 plugins/berean/scripts/berean.py verify-release
-plugins/berean/examples/goldfinch-demo-v0` exits 0; the tamper tests prove
+plugins/berean/examples/goldfinch-demo-v0/release` exits 0; the tamper tests prove
 a mutated corpus byte, read record and promotion record each exit 1;
 `python3 plugins/berean/examples/goldfinch-demo-v0/demo.py` exits 0 with no
 network; both suites green; the lint set from the study's Always list exits
 clean.
-**Files.** `plugins/berean/examples/goldfinch-demo-v0/` (corpus files,
+**Files.** `plugins/berean/examples/goldfinch-demo-v0/` (`README.md`,
+`demo.py`, `rebuild.py`, and the release under `release/`: corpus files,
 `corpus-manifest.json`, `reads.jsonl`, answer documents, eval cases and
-results, `release.json`, `promotions.jsonl`, `README.md`, `demo.py`),
+results, `release.json`, `promotions.jsonl`). Corrected during the step:
+the release sits under `release/` because the components gate refuses
+undeclared files beside `release.json`, and the browsing files belong
+beside the release rather than inside it.
 `plugins/berean/docs/influences.md`, `plugins/berean/tests/test_examples.py`,
 reconciled `plugins/berean/README.md` and
 `plugins/berean/skills/berean/SKILL.md`.
