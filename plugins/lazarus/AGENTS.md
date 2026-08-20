@@ -4,12 +4,18 @@
 > **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 <!-- marketplace-context:end -->
 
-Lazarus contains one Agent Skill. Select it from this table, then read the
-chosen `SKILL.md` in full.
+## Promise Machine binding
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `lazarus` | `skills/lazarus/SKILL.md` | Capture, verify, replay or release a finite historical Ethereum fixture |
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
+Lazarus contains one Agent Skill. Select `lazarus` to capture, verify, replay or
+release a finite historical Ethereum fixture, then read
+`skills/lazarus/SKILL.md` in full.
 
 `skills/lazarus/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
@@ -19,13 +25,13 @@ add a sibling browsing README.
 The canonical skill may name host tools. A local agent must map them to
 equivalent capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+| Instruction term | Required capability | Preserve |
+| --- | --- | --- |
+| `Read` | Read the named file completely or at the stated range | Named range and byte content |
+| `Write` or `Edit` | Create or patch the named file | Intended path and patch scope |
+| `Bash` | Execute the command in a shell and inspect its exit status | Argument order and exit status |
+| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern | Pattern and matched paths |
+| `AskUserQuestion` | Ask the stated question through structured UI or concise text | Literal question and answer |
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent

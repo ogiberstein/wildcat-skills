@@ -209,3 +209,29 @@ believe rather than profiled gets named as a belief.
 
 End with one action: the next thing worth measuring, the budget that needs a
 threshold, or the reverted idea somebody should stop suggesting.
+
+## Promise Machine contract
+
+### metron-budget-verdict
+
+- Promise: A budget verdict establishes that a named workload was measured against a stated threshold with a fixed command, environment, inputs, repetitions and aggregation rule.
+- Evidence: The benchmark identity, environment, input fixture, warm-up and repetition policy, raw or preserved measurements, aggregation method, variance and threshold comparison.
+- Evidence classes: measured, recorded
+- Boundary: The verdict applies only to the recorded workload and measurement method; it does not generalise to other machines, inputs, workloads or correctness.
+- Authorises: Accepting or refusing the measured subject against the named budget without strengthening the result beyond its measurement boundary.
+- Consequence: 1
+- Refuses: A missing baseline, changed method, mean-only latency, result inside unexplained noise, unbounded workload or comparison across unlike environments.
+- Recovery: Freeze one reproducible method, establish the baseline and variance, rerun the exact workload and compare it to the stated threshold.
+- Exceptions: none
+
+### metron-change-decision
+
+- Promise: A keep decision establishes that one isolated change improved the named measurement beyond variance while the correctness gates remained green; otherwise the attempted change is reverted and recorded.
+- Evidence: Before and after measurements taken the same way, isolated change diff, variance, correctness-suite results, budget results and the attempt-ledger verdict.
+- Evidence classes: measured, checked, recorded
+- Boundary: The decision proves the measured effect of the isolated change on the named workload, not its effect on unmeasured workloads or the reason for the movement unless separately isolated.
+- Authorises: Keeping the change only when both the measured improvement and correctness gates pass, or recording and abandoning it otherwise.
+- Consequence: 2
+- Refuses: Several unisolated edits, an unmeasured optimisation, a neutral or noisy result, a red or weakened correctness gate, or a speed gain bought by removing a guarantee.
+- Recovery: Revert the candidate, restore the baseline, isolate one hypothesis, repeat the same measurement and record the new verdict whether kept or rejected.
+- Exceptions: none

@@ -1,15 +1,21 @@
 # Janus runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Janus.** Janus tests a contract hook at the threshold it controls: what it may observe and change before a host action, what it may change after, and what it must never touch. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness, Pandects for the economic laws a hook-driven transition must preserve, and Ariadne to carry a manifest revision and its conformance result with a release. **Current frontier:** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
+> **Marketplace context: Janus.** Janus tests a contract hook at the threshold it controls: what it can observe and change before a host action, what changes are allowed after, and what it must never touch. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness, Pandects for the economic laws a hook-driven transition must preserve, and Ariadne to carry a manifest revision and its conformance result with a release. **Current frontier:** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 <!-- marketplace-context:end -->
 
-Janus contains one Agent Skill. Select from this table, then read the chosen
-`SKILL.md` in full.
+## Promise Machine binding
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `janus` | `skills/janus/SKILL.md` | State and enforce what a hook may observe and change around a host action, or add a host adapter and its manifest to the suite |
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
+Janus contains one Agent Skill. Select `janus` to state and enforce what a hook
+may observe and change around a host action, or to add a host adapter and its
+manifest, then read `skills/janus/SKILL.md` in full.
 
 `skills/janus/SKILL.md` is the only canonical instruction document. Do not add a
 sibling browsing README.
@@ -19,12 +25,12 @@ sibling browsing README.
 The canonical skill was written for hosts that name their tools. A local agent
 must map those names to equivalent capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
+| Instruction term | Required capability | Preserve |
+| --- | --- | --- |
+| `Read` | Read the named file completely or at the stated range | Named range and byte content |
+| `Write` or `Edit` | Create or patch the named file | Intended path and patch scope |
+| `Bash` | Execute the command in a shell and inspect its exit status | Argument order and exit status |
+| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern | Pattern and matched paths |
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files, and exit codes when using an equivalent

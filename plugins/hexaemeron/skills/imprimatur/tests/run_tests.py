@@ -54,6 +54,7 @@ TRUE_POSITIVES = [
     ("not because but", "Not because it failed, but because it never ran.", "not_x_but_y"),
     ("em dash", "The market cleared — eventually.", "em_dash"),
     ("apology theatre", "I apologise for the confusion in the last message.", "apology_theatre"),
+    ("generic title case", "## Evidence Changes Everything", "title_case_heading"),
     ("gated no referent", "This approach is orthogonal to the framing.", "mathematical"),
     ("intensifier no number", "The rate is materially different this quarter.", "intensifier"),
 ]
@@ -119,6 +120,10 @@ FALSE_POSITIVES = [
         "## The three passes\n\nEach pass runs in order.",
     ),
     (
+        "suite product headings",
+        "# Wildcat Labs Skills\n\n## The Promise Machine\n",
+    ),
+    (
         "genuine enumeration",
         "Preserve scope, risk, and uncertainty in every rewrite.",
     ),
@@ -134,6 +139,59 @@ for label, text in FALSE_POSITIVES:
 
 
 # ------------------------------------------------------------------- behaviour
+
+def test_promise_machine_licensed_scope_qualifier_is_preserved() -> bool:
+    text = (
+        "Broadly, the Borrower may not vary the terms; clause 7.3 permits "
+        "variation on 30 days' notice."
+    )
+    return build(text)["defects"] == 0 and text.startswith("Broadly,")
+
+
+def test_promise_machine_missing_gate_evidence_is_refused() -> bool:
+    return "mathematical" in families("This approach is orthogonal to the framing.")
+
+
+def test_promise_machine_subject_mode_mismatch_is_refused() -> bool:
+    text = 'He said "load-bearing" again.'
+    return build(text)["defects"] == 0 and build(text, strict=True)["defects"] > 0
+
+
+def test_promise_machine_clean_lint_does_not_establish_truth() -> bool:
+    report = build("The Moon is made of cheese.")
+    return report["defects"] == 0 and "factual_accuracy" not in report
+
+
+def test_promise_machine_failure_recovers_without_erasing_the_term() -> bool:
+    bad = "This approach is orthogonal to the framing."
+    repaired = "The two libraries are orthogonal in the sense that neither imports the other."
+    return (
+        build(bad)["defects"] > 0
+        and build(repaired)["defects"] == 0
+        and "orthogonal" in repaired
+    )
+
+
+check(
+    "promise-machine/licensed scope qualifier is preserved",
+    test_promise_machine_licensed_scope_qualifier_is_preserved(),
+)
+check(
+    "promise-machine/missing gate evidence is refused",
+    test_promise_machine_missing_gate_evidence_is_refused(),
+)
+check(
+    "promise-machine/subject mode mismatch is refused",
+    test_promise_machine_subject_mode_mismatch_is_refused(),
+)
+check(
+    "promise-machine/clean lint does not establish truth",
+    test_promise_machine_clean_lint_does_not_establish_truth(),
+)
+check(
+    "promise-machine/failure recovers without erasing the term",
+    test_promise_machine_failure_recovers_without_erasing_the_term(),
+)
 
 # Evidence must not bleed across sentences.
 bleed = "This approach is orthogonal to the framing. The `verifyToken` helper is fine."

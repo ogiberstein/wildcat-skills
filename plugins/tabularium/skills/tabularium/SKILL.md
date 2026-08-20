@@ -197,3 +197,41 @@ invent a separate protocol generation without new primary evidence.
 
 If a build, verification, source check or test did not run, say so plainly and
 do not describe it as successful.
+
+## Promise Machine contract
+
+### tabularium-release-build
+
+- Promise: A successful `build` writes venue-qualified canonical events and coverage whose rows deterministically map one-to-one from the validated preserved source under the named adapter and mapping versions.
+- Evidence: The preserved source and capture manifest, source digest and count checks, adapter and mapping rules, complete native records, ordered selectors, canonical JSONL and coverage manifest.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: The release reports the preserved source's declared boundary and unsupported collections; it does not prove source completeness, canonical-chain status, repayment completion, identity or creditworthiness.
+- Authorises: Creation of a new immutable versioned event release for offline verification.
+- Consequence: 2
+- Refuses: Aliasing or rewriting source evidence, flattening venue meaning, accepting duplicate or missing selectors, hiding unsupported records or changing published release bytes.
+- Recovery: Correct the source capture or mapping in a new versioned release, rebuild into a fresh directory and verify it.
+- Exceptions: none
+
+### tabularium-release-verification
+
+- Promise: A successful `verify` recomputes the named release's source, capture and canonical digests, counts, schema and mapping versions, selectors and expected JSONL from local files.
+- Evidence: The complete release directory, coverage manifest, source and capture bytes, adapter implementation, rebuilt canonical records and zero-exit verification report.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: Verification establishes internal consistency and implemented mapping only; it does not authenticate a publisher, independently prove the chain boundary or turn venue records into a counterparty verdict.
+- Authorises: With separate publisher authority, publication or downstream use of the exact verified release with its coverage and unsupported records visible.
+- Consequence: 3
+- Refuses: Publication after a digest, path, count, version, selector or rebuild mismatch, or description of an unsigned release as authentic or chain-proved.
+- Recovery: Inspect the named mismatch, preserve published bytes, build a superseding release when interpretation changes and rerun offline verification.
+- Exceptions: none
+
+### tabularium-compound-witness
+
+- Promise: A successful `compound-witness` followed by `verify-compound-witness` reproduces the ordered calls, relevant proxy writes and signed-principal transition for the one named verified Alexandria transaction witness.
+- Evidence: The verified Alexandria release and component digests, pinned Comet commit, implementation and code bindings, emitted facts and witness manifest, and passing witness verification.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: The Phase 0 witness is non-canonical and covers one transaction and method; it is not a coverage-v2 row, interval release, canonical mapping or independent chain proof.
+- Authorises: Use of the checked facts as bounded implementation evidence while Phase 1 canonical mapping remains absent.
+- Consequence: 1
+- Refuses: Generalising to another transaction, implementation, layout, call shape or interval, or publishing the witness as canonical Tabularium credit events.
+- Recovery: Repair or recapture the Alexandria witness, update the named implementation method deliberately and rerun both witness commands.
+- Exceptions: none

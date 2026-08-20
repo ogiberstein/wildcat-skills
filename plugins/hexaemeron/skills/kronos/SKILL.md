@@ -238,3 +238,41 @@ what it says.
 - Never summarise, shorten or reword a halt reason on the way into a park.
 - Never release a park on the loop's own judgement, and never call the loop
   complete while one stands.
+
+## Promise Machine contract
+
+### kronos-frontier-ranking
+
+- Promise: A successful scoreboard `record` establishes that all eligible in-scope ledgers were represented, each total matches its four declared axes, the recorded selection follows the tie-break and held-job digests came from disk.
+- Evidence: The selected scope and mode, current evolution ledgers, candidate scores and bases, recomputed totals and held-job hashes, append-only scoreboard line and successful `show` result.
+- Evidence classes: checked, recorded, inferred
+- Boundary: The checker validates the ranking record and arithmetic; it does not make subjective scores objective, rank mature, vendored, parked or out-of-scope work, or establish global priority.
+- Authorises: Selection of the recorded highest eligible held job for rank-only hand-off or a separately authorised Fiat dispatch.
+- Consequence: 1
+- Refuses: A changed or unreadable held job, inconsistent total, wrong tie-break, incomplete candidate universe, parked selection or rank-only record naming a run.
+- Recovery: Rescan the complete allowed scope, correct the score or basis, reread the scoreboard drift and record a new pass without rewriting history.
+- Exceptions: none
+
+### kronos-fiat-dispatch
+
+- Promise: A full or phase-only loop dispatches the selected held job to Fiat only when the user explicitly authorised Kronos execution and the candidate remains eligible and unparked at dispatch.
+- Evidence: The user's explicit Kronos request, current ranking record, selected ledger and held-job digest, empty standing park for that job and the newly initialised Fiat run receipt.
+- Evidence classes: checked, recorded, inferred
+- Boundary: Dispatch establishes why this eligible job entered Fiat; it does not prove the ranking globally optimal, the job complete or Fiat's later receipts true.
+- Authorises: Starting one Fiat delivery for the selected held job and reranking from disk only after that run reaches a terminal recorded state.
+- Consequence: 3
+- Refuses: Implicit activation, self-selection, a mature or vendored frontier, a standing park, a lower-ranked skip with no park or continuation after no eligible frontier remains.
+- Recovery: Return to rank-only output, correct scope or eligibility, obtain explicit authority, or park the exact Fiat blocker and rerank the remaining candidates.
+- Exceptions: none
+
+### kronos-parked-lane
+
+- Promise: A successful `park` or `unpark` append records the exact held-job digest and human-supplied reason while `parked` reports the current standing state without rewriting history.
+- Evidence: The readable skill ledger, recomputed held-job hash, exact halt or release reason, append-only parked record and `parked` exit status.
+- Evidence classes: checked, recorded
+- Boundary: A park records a person's blocking claim; it does not judge the claim, expire itself, follow a changed held job automatically or prove the blocker cleared.
+- Authorises: Excluding a standing parked job from selection, or restoring it only after a human-authored unpark record.
+- Consequence: 2
+- Refuses: Selecting a parked job, paraphrasing its halt reason, auto-expiry, autonomous release or declaring the loop complete while any park stands.
+- Recovery: Preserve the park, ask the responsible person whether stale or unknown state still applies and append an explicit unpark record only on their direction.
+- Exceptions: none

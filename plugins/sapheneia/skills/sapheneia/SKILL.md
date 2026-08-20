@@ -170,3 +170,29 @@ Before every user-facing turn, check:
 
 Do not claim that this shape works for every autistic or ADHD reader. It is a
 default contract that yields immediately to the person using it.
+
+## Promise Machine contract
+
+### sapheneia-session-shape
+
+- Promise: While activated, each agent reply exposes the immediate action or result, literal ask, boundary, working state, evidence status and one next action when work remains, subject to the reader's stated preference.
+- Evidence: The user's activation and preferences, the exact reply, visible task state and the completed five-question pre-send check.
+- Evidence classes: recorded, checked
+- Boundary: The reply shape does not diagnose the reader, establish that one format works for every AuDHD person, change another skill's facts or override higher-priority instructions.
+- Authorises: Sending the checked reply and carrying the same interaction contract across topic changes and context compaction.
+- Consequence: 0
+- Refuses: Hidden state, implied obligation, invented urgency, diagnosis from communication style or an unlabelled change to scope.
+- Recovery: Restate the action, boundary, evidence and next step explicitly, apply the reader's correction and check the revised reply before sending.
+- Exceptions: none
+
+### sapheneia-deactivation
+
+- Promise: Sapheneia stops only after an explicit recognised deactivation from the user and one confirmation that default response shape has resumed.
+- Evidence: The recorded user instruction matching a named stop phrase and the agent's confirmation.
+- Evidence classes: recorded, checked
+- Boundary: A topic change, terse reply, delay or context compaction is not deactivation and supplies no evidence about diagnosis, mood or intent.
+- Authorises: Returning subsequent interaction to the default response style while leaving other active skill contracts unchanged.
+- Consequence: 0
+- Refuses: Silent deactivation, inference from user behaviour or removal of another skill's required substance or format.
+- Recovery: Keep Sapheneia active until the user gives an explicit stop instruction, then confirm the state change once.
+- Exceptions: none

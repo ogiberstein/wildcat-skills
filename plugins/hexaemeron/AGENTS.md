@@ -4,6 +4,15 @@
 > **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop, and every skill it uses answers on its own: fuzzing, audit-readiness and security review, prose lint and voice, and the specification, debugging, hardening, telemetry, measurement and record-keeping skills the loop holds each phase to. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 <!-- marketplace-context:end -->
 
+## Promise Machine binding
+
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
 Hexaemeron contains several Agent Skills. Select from this table, then read the
 chosen `SKILL.md` in full. Do not start `fiat` merely because another
 Hexaemeron skill matches a task.
@@ -26,6 +35,26 @@ Hexaemeron skill matches a task.
 | `metron` | `skills/metron/SKILL.md` | Baseline something slow, change one thing, re-measure, and keep or revert on the numbers |
 | `hypomnema` | `skills/hypomnema/SKILL.md` | Record the reason behind a decision, and put each kind of record where it will be found |
 
+## Vendored Promise Machine overlays
+
+Before selecting `fizz`, `fizz-convert`, `fizz-sync`, `x-ray` or
+`solidity-auditor`, read its declaration in [PROMISES.md](PROMISES.md) and
+recompute the SHA-256 of the exact canonical `SKILL.md`. The path and digest
+must match before the Wildcat promise is available. A mismatch blocks the
+overlay and requires review of the upstream change; it never authorises an
+edit to the vendored instruction.
+
+From this distribution repository, check the complete binding with:
+
+```bash
+python3 scripts/promise_machine.py check --only contracts,overlays
+```
+
+A standalone installation without the repository checker performs the same
+local path and digest comparison before it relies on an overlay. The overlay
+states what the Wildcat suite accepts from the vendored operation; the
+unchanged upstream file still controls how that operation runs.
+
 The first-party `fiat`, `imprimatur`, `vulgate`, and `kronos` directories each
 carry an `EVOLUTION.md` ledger governed by `skills/VERSIONING.md`. Read the
 selected skill's ledger before proposing a frontier run. A `mature` frontier
@@ -37,17 +66,17 @@ Kronos is terminal by design and excludes itself from its candidate set.
 Some canonical skills were written for hosts that name their tools. A local
 agent must map those names to equivalent capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `ToolSearch` | Inspect the runtime's available tools before choosing one |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
-| `TodoWrite` | Maintain a durable plan with the same states and transitions |
-| `Agent` or `Task` | Run the supplied role prompt in an isolated agent context |
-| background or parallel calls | Start independent work concurrently and wait at the named barrier |
+| Instruction term | Required capability | Preserve |
+| --- | --- | --- |
+| `Read` | Read the named file completely or at the stated range | Named range and byte content |
+| `Write` or `Edit` | Create or patch the named file | Intended path and patch scope |
+| `Bash` | Execute the command in a shell and inspect its exit status | Argument order and exit status |
+| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern | Pattern and matched paths |
+| `ToolSearch` | Inspect the runtime's available tools before choosing one | Available set and selection reason |
+| `AskUserQuestion` | Ask the stated question through structured UI or concise text | Literal question and answer |
+| `TodoWrite` | Maintain a durable plan with the same states and transitions | Step text and status |
+| `Agent` or `Task` | Run the supplied role prompt in an isolated agent context | Role prompt and isolation boundary |
+| background or parallel calls | Start independent work concurrently and wait at the named barrier | Arguments and wait barrier |
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, wait barriers, output files, and stop conditions when

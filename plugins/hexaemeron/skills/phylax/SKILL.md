@@ -367,3 +367,29 @@ Name what you could not check and why.
 
 End with one action: the boundary that still needs a control, the review a
 dependency needs, or the approval a widened trust boundary is waiting on.
+
+## Promise Machine contract
+
+### phylax-mechanical-gate
+
+- Promise: A zero-exit Phylax lint establishes that the bounded parser found none of its specified external-input, subprocess, fetch, secret, path and model-output patterns in the selected first-party paths.
+- Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
+- Evidence classes: checked
+- Boundary: A clean lint covers only the rules and languages implemented by the parser; it is not a security review, a dependency audit, a privacy assessment or evidence that a control works against hostile input.
+- Authorises: Passing the mechanical Phylax gate for the exact paths and checker version recorded.
+- Consequence: 1
+- Refuses: Unsafe paths, unreadable or oversized input, an unexplained suppression, a non-zero result or any claim about a rule the parser does not implement.
+- Recovery: Correct the input or control, add a narrowly reasoned suppression only when the rule is inapplicable and rerun the same bounded lint.
+- Exceptions: none
+
+### phylax-boundary-review
+
+- Promise: A completed boundary review establishes that every trust boundary introduced by the step is named, paired with a control and classified as verified or merely asserted, with unresolved exposure left visible.
+- Evidence: The step diff, boundary inventory, hostile-input tests where available, dependency and lockfile review, sample output review, unresolved-gap list and reviewer conclusion.
+- Evidence classes: checked, inferred, recorded
+- Boundary: The review is scoped to the introduced boundaries and available evidence; it does not establish whole-system security or convert an asserted control into a verified one.
+- Authorises: Proceeding with the reviewed step only to the consequence level supported by its verified controls and explicitly accepted open gaps.
+- Consequence: 2
+- Refuses: An unnamed boundary, unvalidated external data, data-built shell strings, unsafe host or path handling, exposed credentials, unreviewed dependency drift or model output used directly as authority.
+- Recovery: Name the missing boundary, add and exercise its control, review the affected dependency or data path and repeat the boundary review.
+- Exceptions: none

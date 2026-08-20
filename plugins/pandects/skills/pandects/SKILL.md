@@ -248,3 +248,53 @@ means.
   corpus.
 - Decide whether a law is true. The checker decides whether something is a law
   at all, which is a lower bar and the one worth enforcing mechanically.
+
+## Promise Machine contract
+
+### pandects-law-contract
+
+- Promise: A successful `pandects.py check` establishes that every discovered catalogue entry has the six required executable-law parts.
+- Evidence: The law registry, Solidity component and broken-specimen references, reduced counterexample, applicability, justified bound, judgement interface and zero-exit checker diagnostics.
+- Evidence classes: checked
+- Boundary: The check establishes that an entry has the law contract; it does not establish that the law is true, applies to a target or catches its specimen.
+- Authorises: Treating the entry as structurally eligible for the separate specimen, rendering and campaign checks.
+- Consequence: 1
+- Refuses: Admitting an entry missing executable judgement, a broken specimen, reduction, applicability, observables or justified bounds.
+- Recovery: Supply the named missing part and rerun `check` before any dependent operation.
+- Exceptions: none
+
+### pandects-catalogue-render
+
+- Promise: A successful `pandects.py render` followed by the catalogue-byte regression check reproduces `docs/catalogue.md` from the checked authored registry.
+- Evidence: The checked law registry, deterministic render output, committed catalogue bytes and passing byte-comparison test.
+- Evidence classes: checked, recomputed
+- Boundary: Rendering establishes agreement with the registry; it does not establish law truth, applicability to a target or specimen coverage.
+- Authorises: Publication of the regenerated catalogue as a derived view of the checked law records.
+- Consequence: 1
+- Refuses: Hand-editing the rendered catalogue, publishing drifted bytes or using rendering as evidence that a law holds.
+- Recovery: Correct the authored registry, rerun `check` and `render`, then rerun the exact catalogue comparison.
+- Exceptions: none
+
+### pandects-broken-specimen
+
+- Promise: A green `forge test` establishes the shipped diagonal relation: each law fails its named broken specimen and holds against the other shipped specimens under the deterministic harness.
+- Evidence: The exact law and specimen Solidity, reduced replay, compiled harness and complete passing Foundry test result.
+- Evidence classes: checked, recomputed
+- Boundary: The diagonal establishes the named fixture relation only; it is not a formal proof, a verdict on another protocol or evidence that a search engine explored a target.
+- Authorises: Presenting the law as demonstrated to catch its shipped defect and using the specimen as a regression oracle.
+- Consequence: 1
+- Refuses: Calling a law proven to catch a defect when its diagonal test did not run, failed or was replaced by a tautological campaign result.
+- Recovery: Reduce the failing relation, correct the law or specimen without weakening the oracle and rerun the full diagonal.
+- Exceptions: none
+
+### pandects-search-record
+
+- Promise: A successful `pandects.py run` records the engine that actually ran, its argv, configuration, determinism, sequence length, disposition and corpus digest.
+- Evidence: The executed engine command, captured configuration, search output, timeout or result status and generated search-record JSON.
+- Evidence classes: measured, recorded, checked
+- Boundary: The record establishes what the named campaign searched and reported; it does not decide law truth, cover an absent engine, prove universal safety or make a non-applicable law fit a target.
+- Authorises: Reporting the bounded campaign result or attaching its command record to an Ariadne release statement.
+- Consequence: 3
+- Refuses: Inventing an engine result, treating timeout as pass or fail, hiding zero succession calls, or presenting target-specific applicability as universal credit law.
+- Recovery: Correct the adapter or applicability record, run the intended engine with explicit settings and preserve a new search record.
+- Exceptions: none

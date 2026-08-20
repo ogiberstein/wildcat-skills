@@ -5100,3 +5100,512 @@ so this plugin's 212 tests run locally and in no gate; `lazarus.yml` and
 `pandects.yml` cover `tests/**`, which is why step 3 drew checks and steps 2
 and 4 drew none. Adding `horos.yml` is an ask-first change under this run's
 boundaries and is recorded on pull requests 256 and 261 rather than made here.
+
+## Promise Machine, step 1, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite was waived because this step changes Markdown policy,
+runtime contracts and a standard-library Python checker. Phylax, Ephoros and
+Hypomnema each exited 0 against the changed tree. The manual review covered the
+law identity and field schema, fixed copy destinations, bounded reads, path and
+symlink confinement, atomic replacement, empty discovery, component selection,
+JSON/text finding parity and the generated-copy decision record.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | high | `scripts/promise_machine.py` | `check --only copies` removed a missing-law finding and returned success without an authored source to compare | fixed and guarded on the audit branch |
+| S1-R1-02 | medium | `scripts/promise_machine.py` | `check --only law` still ran plugin discovery and could fail on an unrelated empty plugin tree | fixed and guarded on the audit branch |
+| S1-R1-03 | high | `audit/AUDIT.md` | The first audit-log write replaced the shared historical ledger instead of appending this round | parent bytes restored before receipt; this section is appended |
+
+### Leads not pursued
+
+Replacement of a plugin directory by another local process
+between discovery and atomic rename. The command operates in the caller-owned
+checkout under the caller's filesystem permissions, writes fixed destinations
+and claims no hostile multi-user synchronisation boundary.
+
+## Promise Machine, step 1, round 2 -- 2026-08-20
+
+### Review scope
+
+The fixed non-Solidity tree has no open finding. The root law and 14 copies
+match, the missing-source copy check refuses with `PM001`, and law-only checking
+does not depend on a plugin tree. The 11 focused Promise Machine tests and all
+49 root tests pass. Phylax, Ephoros and Hypomnema each exit 0.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The local directory-replacement race recorded in round 1, under the same
+caller-owned-checkout boundary.
+
+## Promise Machine, step 2, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes the standard-library
+checker and its Python and Markdown fixtures. The review covered manifest and
+recursive skill discovery, ownership classification, bounded reads, child-path
+confinement, declaration parsing, exception attribution, deterministic reports
+and the distinction between discovered and checked artefacts.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | `scripts/promise_machine.py` | Inventory and inventory-only checks reported 14 copies although neither command read a copy | fixed in JSON and text output; guarded against future evidence overstatement |
+| S2-R1-02 | high | `scripts/promise_machine.py` | A symlinked child router could be followed outside the repository without a finding | fixed by explicit child enumeration and confinement; guarded |
+| S2-R1-03 | high | `scripts/promise_machine.py` | A symlinked promise overlay was silently omitted instead of refused | fixed by explicit fixed-path inspection; guarded |
+| S2-R1-04 | medium | `scripts/promise_machine.py` | Exception prose containing the four attribution words passed without structured authority, scope, record or expiry values | fixed by labelled non-empty attribution parsing; guarded |
+| S2-R1-05 | high | `scripts/promise_machine.py` | A vendored instruction could author its own Promise Machine contract while the structure check skipped it | fixed by refusing contracts in vendored instructions and requiring a first-party overlay; guarded |
+
+### Leads not pursued
+
+A local process can replace a regular directory after discovery, and an unreadable
+caller-owned directory may stop Python's filesystem walk before a coded report is
+formed. The checker runs inside the caller's checkout under the caller's filesystem
+permissions and claims no hostile multi-user synchronisation or recovery from a
+checkout the caller cannot read.
+
+## Promise Machine, step 2, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected checker derives 14 plugins, 28 canonical skills, 23 governed
+skills, five vendored skills and 20 routers without claiming copy validation.
+The five focused guards, all 67 root tests and the Phylax, Ephoros and Hypomnema
+gates pass. Vendored instructions remain unchanged.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The caller-owned checkout limits recorded in round 1 remain unchanged.
+
+## Promise Machine, step 3, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived. The review covered the sole-router
+cardinality, confined one-hop links, runtime-to-canonical resolution, canonical
+logical ids, frontmatter authority, package and skill version layers, host-set
+equality and the Horos Codex exposure.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | high | `scripts/promise_machine.py` | Full-document regexes let body prose supply a missing skill name or version, and accepted the first of duplicate metadata versions | fixed with bounded frontmatter parsing and exact multiplicity; guarded |
+| S3-R1-02 | high | `scripts/promise_machine.py` | Package-version counts compared the two plugin manifests but ignored the root Claude marketplace version | fixed by comparing all three package surfaces before counting a package version; guarded |
+| S3-R1-03 | medium | `scripts/promise_machine.py` | The router version check scanned body prose and falsely refused an indented version example outside frontmatter | fixed by limiting router identity and version checks to frontmatter; guarded |
+
+### Leads not pursued
+
+Runtime contracts identify canonical paths in their selection prose, but the
+checker does not interpret natural-language request predicates. The sole router
+and plugin contracts remain agent instructions; exact semantic request routing
+is demonstrated manually rather than represented as a second policy language.
+
+## Promise Machine, step 3, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected identity check reports one portable router, 28 unique canonical
+skills, 14 package versions, 23 governed skill versions and matching 14-plugin
+host sets. The four focused frontmatter and version guards, all 74 root tests
+and the Phylax, Ephoros and Hypomnema gates pass.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The natural-language routing boundary recorded in round 1 remains unchanged.
+
+## Promise Machine, step 3, publication correction -- 2026-08-20
+
+### Review scope
+
+Publication CI exposed four plugin-local scaffold tests that still addressed
+portable mirrors removed by this step. The Alexandria, Brevitas, Lazarus and
+Sapheneia guards now reach those plugins through the sole Promise Machine
+router and then verify the runtime contract's canonical-skill link. Lazarus
+keeps its invocation aliases at the runtime-contract layer.
+
+### Findings
+
+S3-CI-01, high, affected the Alexandria, Brevitas, Lazarus and Sapheneia test
+directories. Their plugin-local scaffold guards still opened four deleted
+portable mirrors, so the published Lazarus matrix failed despite the root suite
+passing. The guards are fixed and exercised in all four affected plugin suites.
+
+### Evidence
+
+The 255 Alexandria tests, 15 Brevitas tests, 364 Lazarus tests and four
+Sapheneia tests pass. The 74-test root suite also passes. Lazarus was exercised
+in a fresh environment built from its committed `requirements.lock`, matching
+the dependency boundary used by CI.
+
+## Promise Machine, step 4, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity audit suite remained waived because the step changes Markdown
+declarations, Python contract checks and packaging guards. The review compared
+all 43 standalone promises with their canonical commands and existing refusal
+boundaries, then exercised absent-contract and declaration-identity mutations.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | `scripts/promise_machine.py` | The documented `contracts` component was only an alias for the earlier optional structure pass, so an absent standalone declaration still passed | fixed by requiring a contract for every non-Hexaemeron first-party skill and guarding an absent section |
+| S4-R1-02 | high | `plugins/pandects/skills/pandects/SKILL.md` | `pandects-law-contract` said `pandects.py check` established generated catalogue-byte equality, although that relation belongs to the separate renderer regression | fixed by narrowing the law check and adding a separate render promise |
+| S4-R1-03 | medium | `tests/test_promise_machine_contract.py` | The population guard collected expected promise ids from every level-three heading in a skill, so an id moved outside the contract section could satisfy the repository-specific assertion | fixed by confining exact id-set comparison to the contract section |
+
+### Leads not pursued
+
+This round does not claim behavioural conformance from the new Markdown.
+Executable, prompt and transformation evidence receives its own coverage and
+negative-evidence work in the following runbook steps.
+
+## Promise Machine, step 4, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected contracts component requires all 13 standalone first-party
+declarations while leaving the next step's Hexaemeron population explicit.
+The exact contract-section id sets contain 43 promises. Pandects now gives
+structural law checking and catalogue rendering separate evidence and
+consequences. The absent-section mutation, 75 root tests, 116 Pandects Python
+tests and the Pandects Foundry suite pass.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The behavioural-conformance boundary recorded in round 1 remains unchanged.
+
+## Promise Machine, step 5, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes first-party
+Markdown contracts, a standard-library checker and its Python tests. The
+review compared all 18 Hexaemeron declarations with their canonical
+instructions and checked the five vendored overlays against their unchanged
+upstream bytes. It also inspected overlay discovery, confinement, bounded
+reads, suite-wide identifier uniqueness, exact coverage, digest drift,
+first-party rejection and the runtime digest-check instruction.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The checker reports 61 canonical first-party promises and five digest-bound
+vendored overlays. All 44 focused Promise Machine tests, 80 root tests and 451
+Hexaemeron tests pass. A one-byte mutation of a vendored instruction is
+refused with `PM057`; the five vendored instruction paths have no diff.
+Imprimatur, Brevitas, Phylax, Ephoros, Hypomnema and Horos are clean.
+
+### Leads not pursued
+
+The declarations state evidence contracts but do not yet prove every skill's
+runtime implementation conforms to them. Executable, prompt, transformation
+and vendored conformance are the explicit subjects of the next two runbook
+steps, so treating that work as a finding here would duplicate their scope.
+
+## Promise Machine, step 6, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes a standard-library
+checker, JSON coverage records and Python tests. The review traced every selected
+P/M/S/O/R/X reference to its exact selector, checked evidence reuse and
+inapplicability rules, inspected the Berean and Janus preservation boundaries and
+the Lazarus-to-Berean-to-Ariadne handoffs, and compared judgement-held promises
+with the narrower mechanical gates beside them.
+
+### Findings
+
+FINDING
+[High] S6-R1-01: Three judgement-held promises cited mechanical parser tests.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: The Ephoros, Phylax and Protasis review rows borrowed evidence from narrower mechanical gates.
+Impact: The coverage map overstated what those tests established.
+Fix: Added 15 labelled review cases that record P/M/S/O/R judgements without presenting them as checked runtime proof.
+END
+
+FINDING
+[Medium] S6-R1-02: Evidence references could not state their base class.
+Location: `scripts/promise_machine.py`
+Mechanism: The schema accepted only a path, selector and claim.
+Impact: Recorded judgement cases were indistinguishable from executable checks.
+Fix: Added a validated optional `evidence_class` field and refusal tests for unsupported classes.
+END
+
+### Evidence
+
+The executable coverage gate reports 50 selected promises out of 66 discovered,
+with no finding. The 25 focused coverage and labelled-case checks, all 90 root
+tests and all 467 Hexaemeron tests pass. The Phylax, Ephoros and Hypomnema gates
+are clean.
+
+### Leads not pursued
+
+Recorded review cases establish that each decision path has been named and kept
+inside its boundary; they do not turn a human review judgement into runtime
+proof. The remaining prompt, transformation and vendored rows stay visibly
+pending for runbook step 8.
+
+## Promise Machine, step 6, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected coverage map keeps executable tests, recorded review cases and
+inapplicability reasons distinct. All exact references resolve; incompatible
+P/M/S/O/R paths remain separate; the required preservation and handoff records
+remain explicit; and the full law, copy and executable-coverage checks are clean.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+All 90 root tests and all 467 Hexaemeron tests pass. The Phylax, Ephoros and
+Hypomnema gates are clean.
+
+### Leads not pursued
+
+The recorded-judgement and later-runbook boundaries from round 1 remain
+unchanged.
+
+## Promise Machine, step 7, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes Python and JSON
+coverage records and tests, not Solidity. The review compared all 16 prompt,
+transformation and vendored rows with their canonical evidence classes, traced
+each P/M/S/O/R/X reference to its owning test or labelled corpus, checked
+evaluation provenance and confirmed that the five vendored instructions remain
+byte-exact.
+
+### Findings
+
+FINDING
+[High] S7-R1-01: Vulgate cases used an evidence class its promise does not accept.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: Generic Hexaemeron cases were marked `recorded`, while Vulgate declares only `checked` and `inferred` evidence.
+Impact: A recognised class could pass even when the owning promise excluded it.
+Fix: Added Vulgate-specific inferred references and made the gate reject explicit classes absent from the canonical declaration.
+END
+
+FINDING
+[Medium] S7-R1-02: Evaluation corpora could use checkout-specific absolute paths.
+Location: `scripts/promise_machine.py`
+Mechanism: Confinement accepted an absolute path when it happened to resolve inside the current checkout.
+Impact: A locally clean record could fail to identify the same corpus in another checkout.
+Fix: Required confined repository-relative corpus paths and added missing, absolute and overclaimed-provenance refusal cases.
+END
+
+### Evidence
+
+The prompt and vendored coverage gate reports all 16 selected promises with no
+finding. The 17 focused coverage checks pass, including evidence-class and
+evaluation-corpus mutations. Vulgate stays `unknown` for cross-model content
+parity and its labelled evidence is `inferred`, not `recorded` or `proved`.
+
+### Leads not pursued
+
+Labelled cases describe expected decisions and do not establish that a future
+model will follow them. The coverage rows name `not-run` wherever no model,
+campaign, conversion, sync, pre-audit or audit was executed.
+
+## Promise Machine, step 7, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected gate derives every accepted evidence class from the owning
+canonical declaration, requires explicit classes for prompt and vendored
+references, and confines evaluation corpora to resolving repository-relative
+paths. All 16 selected rows retain model, prompt, corpus and disposition
+records with status limited to `recorded` or `unknown`.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+All 17 focused coverage checks, 21 Brevitas tests, 60 Imprimatur checks, nine
+Sapheneia tests, 474 Hexaemeron tests and 97 root tests pass. The Phylax,
+Ephoros, Hypomnema and Horos gates are clean. The five vendored instruction
+files remain unchanged.
+
+### Leads not pursued
+
+The forward-testing and no-execution limits recorded in round 1 remain
+unchanged.
+
+## Promise Machine, step 8, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes the root Python
+checker, JSON inventories, package manifests, prose and Imprimatur's Markdown
+heading rule, not Solidity. The review compared all 29 level-2 and level-3
+bindings with their canonical declarations and result surfaces, checked package
+and skill version separation, recomputed the unchanged frontier digest for the
+Imprimatur generation, and inspected the new default full-check path.
+
+### Findings
+
+FINDING
+[High] S8-R1-01: A runtime field map was not bound to the result surface bytes.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: The gate checked that each schema, writer or contract existed, but a later change to that source could leave its field map green.
+Impact: A stale map could misstate where a consequential result carries its subject, evidence, unknowns or transition.
+Fix: Added a required source SHA-256, recomputation in the root checker and a source-drift refusal test.
+END
+
+FINDING
+[Medium] S8-R1-02: Runtime source hashing had no read bound.
+Location: `scripts/promise_machine.py`
+Mechanism: A coverage entry could point the checker at any regular repository file and read all of it into memory.
+Impact: A malformed or hostile entry could turn the structural gate into an avoidable memory sink.
+Fix: Hash sources in 64 KiB chunks, stop above 1 MiB and guard the limit with an oversized-source test.
+END
+
+### Evidence
+
+The full checker reports 14 plugins, 28 canonical skills, 66 promises, 29
+digest-bound runtime bindings and zero findings. The focused runtime mutations
+refuse an absent binding, a repository escape, source drift and an oversized
+source.
+
+### Leads not pursued
+
+The inventory binds existing domain formats; it does not replace them with a
+generic result envelope or claim that a structural field map proves the domain
+result. Berean's Wildcat-grounded release and Janus's second adapter remain held
+frontier work.
+
+## Promise Machine, step 8, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected checker now derives the high-consequence set from canonical
+declarations, requires exactly one complete runtime map for each member, confines
+its source, recomputes the reviewed source digest through a bounded read and
+refuses stale or extra entries. The package release still leaves every unrelated
+skill frontier untouched.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The Promise Machine full check is clean across all 66 promises. All 91 focused
+contract, evolution, version and marketplace tests, all 104 root tests, all 474
+Hexaemeron tests and all 62 Imprimatur checks pass. The Phylax, Ephoros,
+Hypomnema and Horos gates are clean.
+
+### Leads not pursued
+
+The digest proves which result surface the map reviewed, not that a domain
+operation ran or its assertion is true. Those claims remain with the exact
+command, gate or observation named by the owning promise.
+
+## Promise Machine, step 8, publication gate repair -- 2026-08-20
+
+### Failure
+
+FINDING
+[High] S8-PG-01: Lazarus's scaffold test still equated package and skill versions.
+Location: `plugins/lazarus/tests/test_scaffold.py`
+Mechanism: The test compared both host manifest versions with canonical skill metadata instead of the marketplace package entry.
+Impact: The planned `lazarus` package release failed on Python 3.11 and 3.13 despite preserving `lazarus-v1.1.0` correctly.
+Fix: Compare both host manifests with the marketplace package version and guard its independence from skill and writer versions.
+END
+
+### Evidence
+
+The failure reproduced with the exact Lazarus scaffold test. The corrected test
+passes on the full Lazarus suite and preserves the checked-in fixture's
+`tool_version` separately.
+
+### Boundary
+
+This repair changes no Lazarus command, result format, canonical skill version,
+frontier digest or held job. It corrects a stale test of the distribution layer.
+
+## Promise Machine, step 8, publication gate repair follow-up -- 2026-08-20
+
+### Failure
+
+FINDING
+[High] S8-PG-02: Four plugin suites retained the same package/skill version assumption.
+Location: `plugins/alexandria/tests/test_scaffold.py`, `plugins/berean/tests/test_scaffold.py`, `plugins/probitas/tests/test_manifests.py` and `plugins/tabularium/tests/test_scaffold.py`
+Mechanism: Three tests pinned the preceding package version and the Probitas test required package and canonical skill versions to be equal.
+Impact: The complete Step 10 demonstration stopped in Alexandria, while Probitas would have rejected the intended package-only release despite its held skill frontier.
+Fix: Bind package assertions to the release version and marketplace surfaces, and make Probitas's package-versus-skill independence explicit.
+END
+
+### Evidence
+
+The failure reproduced in Alexandria's full suite. The corrected Alexandria,
+Berean, Probitas and Tabularium suites pass 255, 151, 276 and 134 tests. Their
+host manifests carry the release package versions while their canonical skill
+versions and evolution ledgers remain unchanged.
+
+### Boundary
+
+This follow-up changes test expectations only. It does not change a command,
+result format, promise, canonical skill version, frontier digest or held job.
+
+## Promise Machine, step 9, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because Step 9 adds one Markdown evidence
+record and changes no executable or Solidity file. The review compared every
+recorded count with its command result, checked the installed package and skill
+versions independently, inspected the Codex resolver entries, and confirmed
+that both unavailable host observations were reported as unknowns.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The Promise Machine inventory and full check are clean, the checker completes
+in 0.10 seconds, and the root suite passes 104 tests. Every plugin suite named
+in the runbook passes, including Berean's 151 tests, Janus's 14 Python and 24
+Foundry tests, and Pandects's 116 Python and 79 Foundry tests. The Phylax,
+Ephoros and Hypomnema tree checks exit clean. The new evidence document passes
+Imprimatur and Brevitas.
+
+### Leads not pursued
+
+Codex computer control cannot inspect the Codex app, so the picker screenshot
+was not taken. Claude Code's expired OAuth token prevented the model-backed
+slash invocation. The evidence record names both limits and retains the
+resolver, package and host-neutral transcripts that did run; it does not infer
+either missing result.

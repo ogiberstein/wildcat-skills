@@ -193,3 +193,53 @@ Read the [study](../../docs/study.md) for the selected construction and the
 A digest can establish that bytes match a manifest. It does not establish who
 published them, that an indexer captured a complete chain history, or that a
 reported block is canonical. Those claims require separate evidence.
+
+## Promise Machine contract
+
+### alexandria-raw-release
+
+- Promise: A successful `ingest` followed by `verify` preserves the named local source bytes and binds them to the canonical manifest, release identity, declared capture boundary, coverage and gaps.
+- Evidence: The capture plan, copied objects, canonical manifest, printed release id and a passing `alexandria.py verify` result for the same release directory.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: The result does not establish publisher identity, source completeness, chain finality or any fact outside the declared capture scope.
+- Authorises: Retention or hand-off of the verified raw release as a bounded preservation artefact.
+- Consequence: 2
+- Refuses: Installing, moving or describing a release as verified when a source path, digest, byte count, scope, coverage declaration or tree-membership check is absent or fails.
+- Recovery: Inspect the named verification failure, repair the plan or source set, ingest into a new output directory and rerun verification.
+- Exceptions: none
+
+### alexandria-derived-view
+
+- Promise: A successful `derive` followed by `verify` reproduces every emitted credit event and observation from a verified raw release under the named registered mapping and reconciles its selectors and counts.
+- Evidence: The verified raw release, adapter and mapping versions, derived JSONL, coverage records and a passing verification that reruns the mapping.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: The view preserves venue and evidence classes; it does not infer default, full repayment, current balance, source completeness or universal event meaning.
+- Authorises: Use of the verified derived release as bounded input to Tabularium or an explicitly archive-backed Probitas collection.
+- Consequence: 2
+- Refuses: Using rows whose source selectors do not resolve, whose counts conflict, whose mapping is unknown or whose raw release did not verify.
+- Recovery: Inspect the failed selector, mapping or count, correct the adapter or source release without changing published evidence, derive a new release and verify it.
+- Exceptions: none
+
+### alexandria-address-query
+
+- Promise: A successful `index` and `query` returns only rows from verified derived partitions whose identities and logical digest match the disposable index.
+- Evidence: The verified derived releases, SQLite schema and logical digest checks, partition identities and the exact query result for the requested address.
+- Evidence classes: checked, recomputed
+- Boundary: SQLite is not release evidence, and zero rows does not mean a clean history unless complete declared coverage spans every requested address, venue, chain and time boundary with no unsupported records.
+- Authorises: Presentation or downstream use of the source-bound query result with its coverage and gaps kept visible.
+- Consequence: 1
+- Refuses: Querying a mutable or mismatched index, collapsing conflicting rows, or presenting an uncovered zero-row result as absence of activity.
+- Recovery: Rebuild the disposable index from verified releases, rerun the query and report any remaining coverage gap instead of a clean result.
+- Exceptions: none
+
+### alexandria-compound-method-proof
+
+- Promise: A successful Compound Phase 0 `check` binds the fixed registry and captured transaction witness to the named Comet revision, proxy implementation, code, old-state reads, calls and ordered writes under the implemented method.
+- Evidence: The pinned registry, captured input, built release and passing `compound_v3_phase0.py check` result, including the proof-checked state relation and separately labelled provider records.
+- Evidence classes: recorded, checked, recomputed, proved: EIP-1186 state relation
+- Boundary: The result covers the fixed corpus and implemented method only; it is not an interval history, independent canonical-chain proof, canonical Tabularium mapping or proof of receipts, logs or traces.
+- Authorises: Use of the checked Phase 0 witness as bounded method evidence for the named transactions.
+- Consequence: 1
+- Refuses: Generalising the witness to another deployment, transaction, interval, implementation, layout or evidence class.
+- Recovery: Inspect the named registry, implementation, state, call, write or selector mismatch, recapture under an amended fixed plan and rerun the check.
+- Exceptions: none

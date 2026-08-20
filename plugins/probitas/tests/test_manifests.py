@@ -58,10 +58,12 @@ class TestManifests(unittest.TestCase):
         self.assertEqual(claude["name"], "probitas")
         self.assertEqual(codex["name"], "probitas")
 
-    def test_versions_agree_across_manifests_and_skill(self):
+    def test_package_versions_agree_without_moving_the_skill(self):
         claude, codex = load(CLAUDE_MANIFEST), load(CODEX_MANIFEST)
         self.assertEqual(claude["version"], codex["version"])
-        self.assertEqual(
+        self.assertEqual(claude["version"], "0.1.1")
+        self.assertEqual(skill_frontmatter()["metadata"]["version"], "0.1.0")
+        self.assertNotEqual(
             skill_frontmatter()["metadata"]["version"], claude["version"]
         )
 

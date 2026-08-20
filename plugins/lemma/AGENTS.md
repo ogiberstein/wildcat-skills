@@ -4,6 +4,15 @@
 > **Marketplace context: Lemma.** Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text. It does not embed, index, retrieve or answer; Berean is the adjacent unbuilt release discipline for a grounded protocol agent. **Current frontier:** Callable-surface ABI validation does not independently check return types or state mutability.
 <!-- marketplace-context:end -->
 
+## Promise Machine binding
+
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
 Lemma contains one Agent Skill, `chunk`. Its canonical instructions are in
 `skills/chunk/SKILL.md`; read that file in full before chunking Solidity or
 Markdown.

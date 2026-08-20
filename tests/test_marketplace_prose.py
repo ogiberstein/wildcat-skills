@@ -94,6 +94,23 @@ def root_readme_frontier(name):
 
 
 class MarketplaceProseTests(unittest.TestCase):
+    def test_wildcat_labs_identity_contains_the_promise_machine_architecture(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(readme.startswith("# Wildcat Labs Skills\n\n## The Promise Machine\n"))
+        self.assertIn("shared architecture", readme)
+        self.assertFalse(readme.startswith("# The Promise Machine"))
+
+        marketplace = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
+        self.assertIn("Wildcat Labs Skills", marketplace["description"])
+        self.assertIn("Promise Machine", marketplace["description"])
+
+        for name in PLUGINS:
+            runtime = ROOT / "plugins" / name / "AGENTS.md"
+            with self.subTest(plugin=name):
+                text = runtime.read_text(encoding="utf-8")
+                self.assertIn("## Promise Machine binding", text)
+                self.assertIn("promise-machine/v1", text)
+
     def test_marketplace_names_exactly_the_shipped_plugins(self):
         self.assertEqual(set(marketplace_entries()), set(PLUGINS))
 

@@ -172,3 +172,53 @@ invents a zero value or leaves loopback to answer a miss.
 - Hold a private key, sign a transaction or make an Ariadne publisher claim.
 - Claim proof-backed status for any value that did not pass the offline trie
   and code checks.
+
+## Promise Machine contract
+
+### lazarus-fixture-capture
+
+- Promise: A successful `capture` atomically writes a finite fixed-block fixture only after resolving the expected block, collecting the declared requests and proofs, closing the block bracket and passing complete local verification.
+- Evidence: The explicit plan, opening and closing headers, exact sanitised RPC records, EIP-1186 proofs, manifest, limits and the in-process successful verification result.
+- Evidence classes: recorded, checked, recomputed, proved: EIP-1186 account and storage relation
+- Boundary: Only account and storage values and code with the named proof relation are proof-backed; headers remain externally unanchored and calls, receipts, logs and traces remain recorded RPC evidence.
+- Authorises: Installation of the verified fixture as a durable finite historical test input.
+- Consequence: 2
+- Refuses: Finalising after a required request, proof, block bracket, limit, credential-sanitisation or verification failure, or retaining raw provider errors as evidence.
+- Recovery: Inspect the stable failure, amend the finite plan or provider input, discard the temporary output and perform a fresh capture.
+- Exceptions: none
+
+### lazarus-fixture-verification
+
+- Promise: A successful `verify` recomputes the fixture's schemas, canonical manifest, component digests, header hash, state proofs, response values and evidence-class counts from local bytes.
+- Evidence: The fixture tree, registered schema bytes, manifest, header, proof and RPC records, recomputed hashes and the complete verification report.
+- Evidence classes: checked, recomputed, proved: EIP-1186 account and storage relation
+- Boundary: Verification does not prove canonical-chain membership, receipts or logs against `receiptsRoot`, trace portability or facts outside the finite manifest.
+- Authorises: Use of the verified fixture and its separately counted evidence classes in the named offline test or preservation workflow.
+- Consequence: 1
+- Refuses: Calling a component proof-backed when its trie or code check failed, or using a missing, extra, escaped, changed or schema-unknown component.
+- Recovery: Inspect the named component or proof failure, restore the captured bytes or recapture the finite plan and rerun verification.
+- Exceptions: none
+
+### lazarus-exact-replay
+
+- Promise: A running `replay` verifies the fixture before binding to loopback and answers only exact recorded method-and-parameter keys without provider fallback.
+- Evidence: The in-process verification result, recomputed request-key table, loopback binding, exact response record and stable miss response for an absent request.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: Replay is not arbitrary EVM execution, an archive service or permission to answer writes, subscriptions, unsupported methods or unrecorded variants.
+- Authorises: Supplying the exact verified responses to a local application test within the loopback replay session.
+- Consequence: 2
+- Refuses: Binding beyond loopback, leaving the fixture for a miss, inventing a zero, accepting a near-match or serving a write method.
+- Recovery: Use the emitted capture-plan fragment to extend the finite plan, capture and verify a new fixture, then restart replay.
+- Exceptions: none
+
+### lazarus-preservation-release
+
+- Promise: A successful `release` followed by `verify-release` binds the verified fixture bytes to a separately supplied statement whose evidence counts do not exceed those recomputed from the fixture.
+- Evidence: The verified fixture, supplied statement, binding document, release-tree digests, recomputed evidence counts and passing release verification.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: The release is unsigned, reaches no network and does not establish publisher identity, canonical-chain status or any statement claim beyond the binding checked here.
+- Authorises: With separate publisher authority, publication or archival hand-off of the exact preservation release as inspectable evidence.
+- Consequence: 3
+- Refuses: Writing or publishing when the fixture or statement fails, the binding mismatches, the statement upgrades evidence counts or signature identity is merely assumed.
+- Recovery: Repair or replace the statement, recapture the fixture when its evidence is insufficient, build a new release directory and verify it before publication.
+- Exceptions: none

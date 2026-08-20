@@ -4,12 +4,18 @@
 > **Marketplace context: Pandects.** Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample. Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release. **Current frontier:** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 
-Pandects contains one Agent Skill. Select from this table, then read the chosen
-`SKILL.md` in full.
+## Promise Machine binding
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `pandects` | `skills/pandects/SKILL.md` | Check a credit protocol against executable laws, or write a new law for the corpus |
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
+Pandects contains one Agent Skill. Select `pandects` to check a credit protocol
+against executable laws or write a new law for the corpus, then read
+`skills/pandects/SKILL.md` in full.
 
 `skills/pandects/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
@@ -19,13 +25,13 @@ add a sibling browsing README.
 The canonical skill was written for hosts that name their tools. A local agent
 must map those names to equivalent capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+| Instruction term | Required capability | Preserve |
+| --- | --- | --- |
+| `Read` | Read the named file completely or at the stated range | Named range and byte content |
+| `Write` or `Edit` | Create or patch the named file | Intended path and patch scope |
+| `Bash` | Execute the command in a shell and inspect its exit status | Argument order and exit status |
+| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern | Pattern and matched paths |
+| `AskUserQuestion` | Ask the stated question through structured UI or concise text | Literal question and answer |
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent local

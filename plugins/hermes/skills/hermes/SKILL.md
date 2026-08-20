@@ -180,3 +180,41 @@ That accepted state becomes the baseline for the next class. Never run two class
 - If someone asks to bundle changes, run them in sequence.
 - If the gas saving cannot be quantified, reject it.
 - If a state-sensitive unchecked change lacks the targeted proof, reject it whatever the gas number says.
+
+## Promise Machine contract
+
+### hermes-sealed-baseline
+
+- Promise: A successful `baseline` seals a green, clean Foundry baseline with the named gas measurements, configuration, seed, source revision, protected layouts and method identifiers.
+- Evidence: The run directory, baseline snapshot, full test log, Foundry version, canonical configuration, Git and source records, storage layouts and method maps.
+- Evidence classes: checked, measured, recorded
+- Boundary: The baseline describes one repository state and environment; it does not establish that a later candidate preserves behaviour or improves gas.
+- Authorises: Evaluation of one declared optimisation class against the sealed baseline and fixed measurement set.
+- Consequence: 1
+- Refuses: Beginning a candidate comparison from a dirty tree, red suite, missing snapshot, unresolved protected set or changed exclusions.
+- Recovery: Restore a clean green repository, re-derive the protected and measured sets and take a fresh baseline.
+- Exceptions: none
+
+### hermes-candidate-acceptance
+
+- Promise: A successful `verify` with `result.json` status `accepted` establishes measured savings for every named target, no deterministic regression, passing pinned and unpinned behaviour suites, preserved protected layouts and selectors, and the required unchecked-arithmetic evidence for one declared class.
+- Evidence: The sealed baseline, candidate Solidity diff, gas snapshot comparison, gas report, both full test runs, layout and selector comparisons, targeted property result when required and accepted `result.json`.
+- Evidence classes: checked, measured, recomputed, recorded
+- Boundary: Acceptance covers one candidate, repository state, toolchain, measurement set and optimisation class; it is not a general security proof or permission to combine another change.
+- Authorises: Retaining and reviewing that exact gas candidate as a repository mutation with its complete evidence directory.
+- Consequence: 2
+- Refuses: Acceptance after any gate fails, a target lacks a saving, the measurement set moves, a protected interface changes or sensitive unchecked arithmetic lacks its named property evidence.
+- Recovery: Remove only the rejected candidate, return to the sealed green state, correct prerequisite tests separately and start a new Hermes run.
+- Exceptions: none
+
+### hermes-baseline-promotion
+
+- Promise: A successful `promote` advances the Hermes baseline only to the exact candidate already accepted by the same run record.
+- Evidence: The accepted `result.json`, matching run directory, candidate snapshot and promotion command result.
+- Evidence classes: checked, recorded
+- Boundary: Promotion changes the local measurement baseline; it does not publish code, accept another optimisation class or validate unrecorded edits.
+- Authorises: Using the promoted accepted snapshot as the baseline for the next separately declared optimisation class.
+- Consequence: 2
+- Refuses: Promotion of a rejected, changed, missing or differently scoped candidate record.
+- Recovery: Restore the accepted run directory or take a fresh baseline from the intended repository state.
+- Exceptions: none

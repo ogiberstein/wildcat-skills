@@ -253,6 +253,8 @@ def scan_structural(text: str, lex: dict) -> list[dict]:
             sys.stderr.write(f"imprimatur: bad regex {name}: {exc}\n")
             continue
         for m in pattern.finditer(text):
+            if m.group(0).strip() in spec.get("allow_exact", []):
+                continue
             ln, cl = line_col(text, m.start())
             hits.append(
                 {

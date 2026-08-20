@@ -198,3 +198,29 @@ diff suggests, and saying which is which is the whole point of the record.
 
 End with one action: the decision still needing a record, the convention
 conflict somebody has to resolve, or the runbook an alert is waiting on.
+
+## Promise Machine contract
+
+### hypomnema-pointer-gate
+
+- Promise: A zero-exit Hypomnema lint establishes that the bounded checker found no unresolved relative links, absent superseding records or missing alert runbooks in the selected first-party documents.
+- Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
+- Evidence classes: checked
+- Boundary: A clean lint proves only that the recognised pointers resolve at check time; it does not prove that records are correct, complete, current or placed well.
+- Authorises: Passing the mechanical record-pointer gate for the exact paths and checker version recorded.
+- Consequence: 1
+- Refuses: Unsafe, unreadable or oversized paths, unresolved recognised pointers, an unexplained suppression or a claim about documents excluded from the run.
+- Recovery: Restore or correct the target, mark supersession accurately, add the missing runbook and rerun the same bounded lint.
+- Exceptions: none
+
+### hypomnema-record-placement
+
+- Promise: A completed record-placement review establishes that each expensive-to-reverse decision introduced by the step has a reasoned record in the repository's established location, with rejected alternatives and resolvable pointers.
+- Evidence: The step diff, decision inventory, authored or superseded records, alternatives and reasons, pointer-gate result and unresolved-decision list.
+- Evidence classes: checked, inferred, recorded
+- Boundary: The review covers the decisions identified in the named step; it does not prove that every future reader agrees with them or that an unidentified decision was documented.
+- Authorises: Treating the recorded choices as the current project decisions until superseded through the same convention.
+- Consequence: 2
+- Refuses: A costly choice with no reason, a second record scheme, deletion of superseded history, an absent target or a decision placed where the repository's readers will not find it.
+- Recovery: Identify the missing choice, write the reason and rejected alternatives in the established location, repair its pointers and repeat the review.
+- Exceptions: none

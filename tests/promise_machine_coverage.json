@@ -1,0 +1,2456 @@
+{
+  "contract": "promise-machine/v1",
+  "schema": "promise-machine-coverage/v1",
+  "handoffs": [
+    {
+      "producer": "lazarus-fixture-verification",
+      "consumer": "berean-answer-evidence",
+      "path": "plugins/berean/tests/test_examples.py",
+      "selector": "test_the_copied_reads_match_the_lazarus_fixture_byte_for_byte",
+      "preserves": ["block", "evidence-class", "subject"],
+      "refuses": "answer-truth"
+    },
+    {
+      "producer": "berean-release-promotion",
+      "consumer": "ariadne-capture-statement",
+      "path": "plugins/ariadne/tests/test_gates.py",
+      "selector": "test_a_payload_asserting_its_own_verification_fails",
+      "preserves": ["answer-digest", "evidence-class", "subject"],
+      "refuses": "answer-truth"
+    }
+  ],
+  "runtime": {
+    "alexandria-derived-view": {
+      "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
+      "sha256": "59e92f0716b34c18705069d1bca86d48df3bc3485b06f5c4a8c7dbaa2bc88947",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release_id and kind",
+        "scope": "coverage and components",
+        "evidence_references": "objects, sources and corrections",
+        "evidence_classes": "component evidence_class values joined to the canonical Evidence classes field",
+        "unknowns": "coverage gaps and unsupported components",
+        "transition": "successful derive and verify status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "alexandria-raw-release": {
+      "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
+      "sha256": "59e92f0716b34c18705069d1bca86d48df3bc3485b06f5c4a8c7dbaa2bc88947",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release_id, source and chain",
+        "scope": "coverage, capture and finality",
+        "evidence_references": "objects and components",
+        "evidence_classes": "component evidence_class values joined to the canonical Evidence classes field",
+        "unknowns": "coverage gaps, corrections and unsupported components",
+        "transition": "successful ingest and verify status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "ariadne-replay-command": {
+      "source": "plugins/ariadne/scripts/ariadne.py",
+      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "statement subject digest and replay project",
+        "scope": "recorded command, arguments and exact replay mode",
+        "evidence_references": "statement predicate command and produced artefact digest",
+        "evidence_classes": "replay disposition joined to the canonical Evidence classes field",
+        "unknowns": "redacted arguments, unchecked predicates and non-deterministic records",
+        "transition": "allow-execution authority and replay exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "ariadne-verify-statement": {
+      "source": "plugins/ariadne/scripts/ariadne.py",
+      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "in-toto subject name and digest",
+        "scope": "predicate type and complete gate set",
+        "evidence_references": "predicate materials, claims and gate report",
+        "evidence_classes": "gate dispositions joined to the canonical Evidence classes field",
+        "unknowns": "unchecked predicates, unsigned status and skipped records",
+        "transition": "zero-exit gate result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "berean-release-promotion": {
+      "source": "plugins/berean/schemas/promotion-record-v1.json",
+      "sha256": "16ceae02a2f87bb44dcb718743708747e703ed254ddde85dc7c6135fbe11ecb7",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release_digest",
+        "scope": "action, previous_release_digest and thresholds",
+        "evidence_references": "evaluation_report_digest and record chain",
+        "evidence_classes": "evaluation disposition joined to the canonical Evidence classes field",
+        "unknowns": "failed cases, ungrounded questions and recorded refusal conditions",
+        "transition": "operator, action and result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "elenchus-fixed-and-guarded": {
+      "source": "plugins/hexaemeron/skills/elenchus/scripts/elenchus.py",
+      "sha256": "9069e2a4266bf349c963aaad6e22cf2966d14bb34d05d025b72c9e77017d39c5",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "baseline and fixed commit identities",
+        "scope": "reproduction command and named regression guard",
+        "evidence_references": "detached-parent and fixed-tree reports",
+        "evidence_classes": "runner category joined to the canonical Evidence classes field",
+        "unknowns": "inconclusive, zero-test and infrastructure outcomes",
+        "transition": "fixed-and-guarded verdict joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "ephoros-observability-review": {
+      "source": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "sha256": "381440b736200a933464b18e2a99469b9bc80229951ea3e7b837a3986c5425e4",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "reviewed step and build identity",
+        "scope": "named on-call questions and unattended path",
+        "evidence_references": "structured events, metrics, correlations, exercises and review record",
+        "evidence_classes": "review disposition joined to the canonical Evidence classes field",
+        "unknowns": "unexercised failure modes and missing operational evidence",
+        "transition": "review acceptance joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "fiat-final-integration": {
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "sha256": "25aed7debc2ff69842b8dbece31dff08afaab2649d57d69ede24a65c80ba1afc",
+      "bindings": {
+        "promise_id": "coverage key joined to controller phase and canonical promise heading",
+        "subject": "run branch, base, integration head and merge commit",
+        "scope": "ordered step PR stack and one base merge",
+        "evidence_references": "ledger receipts, green checks, PR URLs and commits",
+        "evidence_classes": "receipt kind joined to the canonical Evidence classes field",
+        "unknowns": "carried-forward work and any unrun external check",
+        "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "fiat-receipted-delivery": {
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "sha256": "25aed7debc2ff69842b8dbece31dff08afaab2649d57d69ede24a65c80ba1afc",
+      "bindings": {
+        "promise_id": "coverage key joined to controller phase and canonical promise heading",
+        "subject": "topic, run branch, step branch and head commit",
+        "scope": "current step and phase",
+        "evidence_references": "append-only ledger receipt payload and previous hash",
+        "evidence_classes": "receipt kind joined to the canonical Evidence classes field",
+        "unknowns": "unrun checks and receipt assertions not independently proved",
+        "transition": "single next controller directive joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hermes-baseline-promotion": {
+      "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
+      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "candidate commit, target set and sealed run directory",
+        "scope": "declared optimisation class and promoted baseline",
+        "evidence_references": "accepted result.json, snapshots, layouts and selector maps",
+        "evidence_classes": "accepted status joined to the canonical Evidence classes field",
+        "unknowns": "unmeasured targets and recorded fuzz-statistic changes",
+        "transition": "promotion command and accepted status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hermes-candidate-acceptance": {
+      "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
+      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "baseline commit, candidate commit and named targets",
+        "scope": "one optimisation class and six gates",
+        "evidence_references": "result.json, command logs, snapshots, layouts, selectors and property report",
+        "evidence_classes": "gate statuses joined to the canonical Evidence classes field",
+        "unknowns": "unmeasured behaviour and non-regression-neutral fuzz statistics",
+        "transition": "accepted status and zero exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hexaemeron-fizz-convert-properties": {
+      "source": "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md",
+      "sha256": "59cd4b4ef5dc56315782a7d25222afb286a24e63e438530cbd0044293ea54af7",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "target repository, PROPERTIES.md entry and harness assertion",
+        "scope": "selected pending properties and unchanged harness boundary",
+        "evidence_references": "conversion record, compilation and named tests",
+        "evidence_classes": "vendored operation record joined to overlay Evidence classes",
+        "unknowns": "unconverted properties and unrun campaigns",
+        "transition": "successful conversion gates joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "hexaemeron-fizz-harness-campaign": {
+      "source": "plugins/hexaemeron/skills/fizz/SKILL.md",
+      "sha256": "62a60df4cec160511b8ef36433eef7c8805d0b4a398491293eb4542ab73539bd",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "target repository revision, generated harness and campaign",
+        "scope": "selected contracts, properties, engine settings and corpus",
+        "evidence_references": "generated files, compilation, campaign logs and violations",
+        "evidence_classes": "vendored operation record joined to overlay Evidence classes",
+        "unknowns": "unreached states, skipped engines and unresolved properties",
+        "transition": "successful generation and campaign gates joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "hexaemeron-fizz-sync-drift": {
+      "source": "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md",
+      "sha256": "e969cd8a447941989715840e24aa6a915c0fd795effabd912b3c627598a95e16",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "target source revision, prior snapshot and reconciled harness",
+        "scope": "added, removed and changed callable surface",
+        "evidence_references": "drift report, quarantined properties, regenerated stubs and tests",
+        "evidence_classes": "vendored operation record joined to overlay Evidence classes",
+        "unknowns": "semantically stale properties and unrun campaigns",
+        "transition": "successful sync gates joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "hexaemeron-solidity-audit-report": {
+      "source": "plugins/hexaemeron/skills/solidity-auditor/SKILL.md",
+      "sha256": "1c1cf4e99d042e7aadc56b622d97a07d3286f4786838a05510697c814d1e983f",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "audited repository revision and Solidity scope",
+        "scope": "enumerated source, threat model and review roles",
+        "evidence_references": "source citations, raw role results and final finding report",
+        "evidence_classes": "audit observations joined to overlay Evidence classes",
+        "unknowns": "unreviewed code, unavailable tools and inconclusive leads",
+        "transition": "completed audit report joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "horos-boundary-scan": {
+      "source": "plugins/horos/skills/horos/scripts/horos.py",
+      "sha256": "8145f8b035b01f06c41cec470637e8670a0bd0caf4688bcd7cd4d490361d707c",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "repository root and tracked-tree identity",
+        "scope": "walked files and applied classification rules",
+        "evidence_references": "boundary entries and per-file evidence",
+        "evidence_classes": "classification rule joined to the canonical Evidence classes field",
+        "unknowns": "omitted paths and fail-open unproven classifications",
+        "transition": "atomic scan write and zero exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hypomnema-record-placement": {
+      "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "sha256": "c62f0cce2534ea935ba85b26958f851c9e162de28729a0530c31d157726a7542",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "named decision and changed repository surface",
+        "scope": "decision inventory and selected record homes",
+        "evidence_references": "authored records, alternatives, reasons and pointer-gate result",
+        "evidence_classes": "review disposition joined to the canonical Evidence classes field",
+        "unknowns": "unresolved decisions and intentionally absent records",
+        "transition": "accepted record placement joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "janus-bounded-conformance": {
+      "source": "plugins/janus/scripts/janus.py",
+      "sha256": "46f586289cf3def05130fb7870e1f60bb27b1b85a41c2f43630d74a45685d80d",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "hook, host adapter and manifest revision",
+        "scope": "recorder coverage, search settings and explored sequences",
+        "evidence_references": "complete deltas, hostile-hook guards and Foundry results",
+        "evidence_classes": "bounded conformance result joined to the canonical Evidence classes field",
+        "unknowns": "unrecorded effects, other hosts and executions outside the bounded search",
+        "transition": "conformance verdict joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "kronos-fiat-dispatch": {
+      "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py",
+      "sha256": "8b2a9a3eef62c506c7fecb2ca22268a7e4402d51576e69ee678ab926f47df8d5",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "selected plugin, skill and held job hash",
+        "scope": "eligible candidate set, mode and score inputs",
+        "evidence_references": "ledgers, recomputed scores and append-only scoreboard",
+        "evidence_classes": "selection record joined to the canonical Evidence classes field",
+        "unknowns": "excluded, mature, parked and unevidenced candidates",
+        "transition": "explicit Fiat dispatch joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "kronos-parked-lane": {
+      "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py",
+      "sha256": "8b2a9a3eef62c506c7fecb2ca22268a7e4402d51576e69ee678ab926f47df8d5",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "parked plugin, skill and held job hash",
+        "scope": "named lane, parking reason and review boundary",
+        "evidence_references": "current ledgers, score inputs and scoreboard record",
+        "evidence_classes": "parking record joined to the canonical Evidence classes field",
+        "unknowns": "unresolved blocker and future eligibility",
+        "transition": "park action joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "lazarus-exact-replay": {
+      "source": "plugins/lazarus/scripts/lazarus.py",
+      "sha256": "0ae280084dd2934e902b11826c12aff8247989616126c1771ae6af65e38307b2",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "verified fixture identity and exact request key",
+        "scope": "captured method and parameters with loopback-only service",
+        "evidence_references": "manifest, request-key table and response record",
+        "evidence_classes": "response evidence_class joined to the canonical Evidence classes field",
+        "unknowns": "uncaptured requests and recorded-only RPC relations",
+        "transition": "verified replay binding joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "lazarus-fixture-capture": {
+      "source": "plugins/lazarus/schemas/manifest-v1.json",
+      "sha256": "53acaefd6ddaf5648dc9d16345fc13c64c3bd7786851271ef922b67b9f423c14",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "fixture digest, chain id, block number and block hash",
+        "scope": "plan subjects, limits and opening and closing headers",
+        "evidence_references": "files, request records, proofs and manifest digests",
+        "evidence_classes": "record evidence classes joined to the canonical Evidence classes field",
+        "unknowns": "recorded-only RPC results and external canonical-chain provenance",
+        "transition": "in-process verification status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "lazarus-preservation-release": {
+      "source": "plugins/lazarus/schemas/release-v1.json",
+      "sha256": "f7b8ce3eb37c40d79a23bdff1d88dd0e6e163c2d72ec67575b3b4e7023d5415d",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release digest, fixture digest and statement digest",
+        "scope": "release member set and verified evidence counts",
+        "evidence_references": "fixture, Ariadne statement and binding document",
+        "evidence_classes": "fixture and statement relations joined to the canonical Evidence classes field",
+        "unknowns": "unsigned publisher identity and recorded-only RPC evidence",
+        "transition": "verify-release status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "metron-change-decision": {
+      "source": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "sha256": "575ac79da8d176d1466942c30fde70b33f59fc6e8cb07cfb7666241cda461394",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "named workload, implementation and isolated change",
+        "scope": "measurement method, environment and budget",
+        "evidence_references": "before and after samples, variance and correctness results",
+        "evidence_classes": "measured verdict joined to the canonical Evidence classes field",
+        "unknowns": "noise, unmeasured workloads and unexplained environmental changes",
+        "transition": "keep or revert decision joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "pandects-search-record": {
+      "source": "plugins/pandects/scripts/pandects.py",
+      "sha256": "33b3a2f58f986f8833aa7f89a75314ce6a4d4e46fa5032852feb8b70012fe15e",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "target revision, adapter and law identifiers",
+        "scope": "engine, command, configuration, seed and sequence bounds",
+        "evidence_references": "captured search output and generated search-record JSON",
+        "evidence_classes": "campaign status joined to the canonical Evidence classes field",
+        "unknowns": "absent engines, unavailable values and timed-out campaigns",
+        "transition": "bounded campaign result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "phylax-boundary-review": {
+      "source": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "sha256": "abd7a080c09d22d64d1cc80f4299604f3678f35df507d9b60a3bc756bc5b1019",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "reviewed step, source tree and external-input boundary",
+        "scope": "named inputs, subprocesses, hosts, secrets and output paths",
+        "evidence_references": "boundary inventory, controls, hostile cases and test results",
+        "evidence_classes": "review disposition joined to the canonical Evidence classes field",
+        "unknowns": "unreviewed capabilities and unavailable adversarial evidence",
+        "transition": "review acceptance joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "probitas-dossier-verification": {
+      "source": "plugins/probitas/scripts/probitas.py",
+      "sha256": "82679d551c7150e2dc2dd8bbc007662d6fc7f2dcc9a537cd3d359bd8aa53d41c",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "dossier bytes, evidence digest and declared entity addresses",
+        "scope": "venue coverage rows and five verification gates",
+        "evidence_references": "evidence records, citations, figures and source hashes",
+        "evidence_classes": "provenance tier and gate result joined to the canonical Evidence classes field",
+        "unknowns": "unchecked venues, unsupported claims and explicit gaps",
+        "transition": "five passing gates and zero exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "tabularium-release-build": {
+      "source": "plugins/tabularium/scripts/tabularium.py",
+      "sha256": "733c4c67e327fa5cf5818e50aa612d8bd8dc23a276a53d46cd5e5d037dc54d0f",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release directory, source digest and adapter version",
+        "scope": "venue, chain, capture boundary and mapped selectors",
+        "evidence_references": "source, capture, events and coverage manifest digests",
+        "evidence_classes": "source and mapping relations joined to the canonical Evidence classes field",
+        "unknowns": "unsupported entities, known gaps and unsigned publisher identity",
+        "transition": "atomic build and verification status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "tabularium-release-verification": {
+      "source": "plugins/tabularium/scripts/tabularium.py",
+      "sha256": "733c4c67e327fa5cf5818e50aa612d8bd8dc23a276a53d46cd5e5d037dc54d0f",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release directory, source digest and adapter version",
+        "scope": "venue, capture boundary, paths and one-to-one source selectors",
+        "evidence_references": "rebuilt event bytes, manifest digests and mapping provenance",
+        "evidence_classes": "verification result joined to the canonical Evidence classes field",
+        "unknowns": "publisher identity, chain proof and unmapped source entities",
+        "transition": "zero-exit verification joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    }
+  },
+  "evidence": {
+    "alexandria-p": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_documented_build_and_verify_commands_run_exactly",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "alexandria-m": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_build_refuses_existing_output",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "alexandria-s": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_source_pin_tamper_fails_before_ingest",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "alexandria-o": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_compound_plan_does_not_treat_logs_as_complete_credit_history",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "alexandria-r": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_cli_failure_is_controlled",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "ariadne-p": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_both_examples_verify_with_nothing_unchecked",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "ariadne-m": {
+      "path": "plugins/ariadne/tests/test_gates.py",
+      "selector": "test_a_missing_claims_block_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "ariadne-s": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_the_unhappy_example_says_its_audit_covered_another_revision",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "ariadne-o": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_every_example_records_its_deployment_as_unconfirmed",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "ariadne-r": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_every_tampered_copy_fails_the_gate_it_is_meant_to",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "hermes-p": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_accepts_and_promotes_a_fully_verified_candidate",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "hermes-m": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_rejects_full_suite_failure_at_gate_four",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "hermes-s": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_rejects_changed_invariant_snapshot_rows",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "hermes-o": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_records_changed_fuzz_statistics_without_calling_them_a_regression",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "hermes-r": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_rejects_any_gas_regression_at_gate_three",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "elenchus-p": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_runner_categories_distinguish_all_three_outcomes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "elenchus-m": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_legacy_no_report_is_inconclusive",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "elenchus-s": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_oversized_and_stale_reports_are_rejected_before_parsing",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "elenchus-o": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_diagnostic_poisoning_and_exit_code_do_not_change_the_report",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "elenchus-r": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_legacy_cli_is_nonfatal_by_default_and_fails_when_required",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "ephoros-p": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_it_allows_a_stable_name_with_fields",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "ephoros-m": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_it_flags_an_f_string_message",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "ephoros-s": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_a_bare_pragma_does_not_suppress",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "ephoros-o": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_it_ignores_print_which_is_not_telemetry",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "ephoros-r": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_a_stated_reason_suppresses",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "ephoros-review-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_positive",
+      "claim": "The named review case records acceptance only when every on-call question has bounded, exercised and reviewed evidence.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_missing",
+      "claim": "The named review case refuses unattended operation when an introduced external call lacks operational evidence.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_subject_mismatch",
+      "claim": "The named review case refuses observability evidence from a different build.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_overclaim",
+      "claim": "The named review case refuses to promote a clean mechanical lint into a complete observability judgement.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_recovery",
+      "claim": "The named review case records a recovery that supplies new operational evidence before review repeats.",
+      "evidence_class": "recorded"
+    },
+    "fiat-p": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_push_advances_steps_then_the_stack_integrates",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "fiat-m": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_done_out_of_order_rejected",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "fiat-s": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_state_edit_detected_by_verify",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "fiat-o": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_verify_preserves_receipt_assertions_without_proving_them",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "fiat-r": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_halt_blocks_progress_and_resume_restores",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "horos-p": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_check_passes_on_a_fresh_boundary",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "horos-m": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_a_missing_boundary_is_a_distinct_failure",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "horos-s": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_a_changed_entry_drifts_and_is_named",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "horos-o": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_the_boundary_file_never_classifies_itself",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "horos-r": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_write_creates_the_boundary_and_leaves_no_temporary",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "lazarus-p": {
+      "path": "plugins/lazarus/tests/test_goldfinch.py",
+      "selector": "test_fixture_verifies_with_expected_evidence_and_provenance",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "lazarus-m": {
+      "path": "plugins/lazarus/tests/test_verifier.py",
+      "selector": "test_missing_or_extra_proof_targets_fail",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "lazarus-s": {
+      "path": "plugins/lazarus/tests/test_verifier.py",
+      "selector": "test_proved_rpc_selector_must_name_the_fixture_block",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "lazarus-o": {
+      "path": "plugins/lazarus/tests/test_preservation_release.py",
+      "selector": "test_it_claims_nothing_about_the_canonical_chain",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "lazarus-r": {
+      "path": "plugins/lazarus/tests/test_goldfinch.py",
+      "selector": "test_demo_command_runs_the_complete_application_check",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "metron-p": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_an_improvement_past_the_variance_is_reported_and_passes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "metron-m": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_a_run_reporting_only_one_budget_fails_on_the_rest",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "metron-s": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_a_move_inside_the_variance_is_another_sample",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "metron-o": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_no_baseline_entry_is_neutral_rather_than_a_failure",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "metron-r": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_the_ledger_keeps_the_reverted_attempt",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "pandects-p": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_law_with_every_part_passes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "pandects-m": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_missing_component_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "pandects-s": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_component_whose_id_disagrees_with_the_catalogue_fails",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "pandects-o": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_law_reverting_to_signal_a_violation_fails",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "pandects-r": {
+      "path": "plugins/pandects/tests/test_search_record.py",
+      "selector": "test_a_timed_out_campaign_is_recorded_rather_than_dropped",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "phylax-p": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_it_allows_an_argument_list",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "phylax-m": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_it_flags_a_shell_invocation",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "phylax-s": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_a_bare_pragma_without_a_reason_does_not_suppress",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "phylax-o": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_findings_do_not_repeat_secret_material_in_text_or_json",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "phylax-r": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_a_stated_reason_suppresses_the_finding",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "phylax-review-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_positive",
+      "claim": "The named review case records acceptance only when each introduced boundary is named, controlled and evidence-classified.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_missing",
+      "claim": "The named review case refuses an external-data boundary without a confinement control or hostile-input evidence.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_subject_mismatch",
+      "claim": "The named review case refuses dependency evidence from a different revision.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_overclaim",
+      "claim": "The named review case refuses to promote a clean mechanical lint into whole-system security evidence.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_recovery",
+      "claim": "The named review case records recovery through a newly named and exercised boundary control.",
+      "evidence_class": "recorded"
+    },
+    "probitas-p": {
+      "path": "plugins/probitas/tests/test_demo.py",
+      "selector": "test_it_exits_zero",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "probitas-m": {
+      "path": "plugins/probitas/tests/test_evidence.py",
+      "selector": "test_missing_source_raises",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "probitas-s": {
+      "path": "plugins/probitas/tests/test_gates.py",
+      "selector": "test_an_invented_transaction_hash_fails",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "probitas-o": {
+      "path": "plugins/probitas/tests/test_gates.py",
+      "selector": "test_a_rating_with_no_rubric_fails",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "probitas-r": {
+      "path": "plugins/probitas/tests/test_registry.py",
+      "selector": "test_an_adapter_returning_no_coverage_is_a_bug_not_a_silence",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "protasis-p": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_a_complete_step_is_clean",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "protasis-m": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_each_required_field_is_required",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "protasis-s": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_a_fenced_block_under_a_later_field_does_not_count",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "protasis-o": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_an_exit_with_no_command_is_a_finding",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "protasis-r": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_this_runs_own_runbook_is_clean",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "protasis-study-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_positive",
+      "claim": "The named study case records readiness only after the full content contract and evidence-bearing criteria are present.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_missing",
+      "claim": "The named study case refuses hidden assumptions and untestable success language.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_subject_mismatch",
+      "claim": "The named study case refuses current-state evidence from a different repository revision.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_overclaim",
+      "claim": "The named study case refuses to present content readiness as implementation or correctness evidence.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_recovery",
+      "claim": "The named study case records recovery by gathering current evidence and repeating the complete review.",
+      "evidence_class": "recorded"
+    },
+    "tabularium-p": {
+      "path": "plugins/tabularium/tests/test_release.py",
+      "selector": "test_committed_release_verifies_offline_and_without_rewrites",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "tabularium-m": {
+      "path": "plugins/tabularium/tests/test_verify.py",
+      "selector": "test_missing_artifact_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "tabularium-s": {
+      "path": "plugins/tabularium/tests/test_verify.py",
+      "selector": "test_altered_source_bytes_fail_the_declared_digest",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "tabularium-o": {
+      "path": "plugins/tabularium/tests/test_verify.py",
+      "selector": "test_indexed_block_must_match_source_metadata",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "tabularium-r": {
+      "path": "plugins/tabularium/tests/test_release.py",
+      "selector": "test_documented_demo_rebuilds_and_compares_in_a_fresh_directory",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "chunk-markdown-p": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_byte_exact",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "chunk-markdown-m": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_summary_fail_loud",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "chunk-markdown-s": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_heading_path",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "chunk-markdown-o": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_exclusions",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "chunk-markdown-r": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_short_document_survives",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "chunk-solidity-p": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_chunks",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "chunk-solidity-m": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_compile_errors_raise",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "chunk-solidity-s": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_source_path_canonicality",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "chunk-solidity-o": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_empty_selection",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "chunk-solidity-r": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_cli_integration",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "janus-manifest-p": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_the_honest_manifest_validates",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "janus-manifest-m": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_each_fixture_fails_with_its_named_code",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "janus-manifest-s": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_markdown_names_each_gate_and_hook",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "janus-manifest-o": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_wildcard_is_rejected_everywhere_it_could_hide",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "janus-manifest-r": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_validate_command_exit_code",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "janus-bounded-p": {
+      "path": "plugins/janus/harness/test/WildcatConformance.t.sol",
+      "selector": "test_gate1_and_gate2_honest_deposit",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "janus-bounded-m": {
+      "path": "plugins/janus/harness/test/StateDeltaRecorder.t.sol",
+      "selector": "test_ending_without_beginning_reverts",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "janus-bounded-s": {
+      "path": "plugins/janus/harness/test/WildcatConformance.t.sol",
+      "selector": "test_gate7_adapter_names_its_scope",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "janus-bounded-o": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_empty_findings_report_states_context_not_safety",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "janus-bounded-r": {
+      "path": "plugins/janus/harness/test/HostileHooks.t.sol",
+      "selector": "test_storage_mutation_hook_caught_by_gate1",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "janus-report-p": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_report_command_writes_both_outputs",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "janus-report-m": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_the_sample_findings_load",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "janus-report-s": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_markdown_cells_survive_a_pipe_or_newline",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "janus-report-o": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_empty_findings_report_states_context_not_safety",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "janus-report-r": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_sarif_round_trips_as_json",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-corpus-p": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_build_then_verify_is_clean",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-corpus-m": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_an_empty_tree_is_refused",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-corpus-s": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_a_one_byte_edit_fails_corpus_bytes",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-corpus-o": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_an_unpinned_extra_file_fails_corpus_complete",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-corpus-r": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_write_stages_and_lands_whole",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-answer-p": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_classified_answer_passes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-answer-m": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_an_evidence_free_document_sentence_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-answer-s": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_mismatched_span_fails_answer_citations",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-answer-o": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_user_supplied_fact_carries_no_evidence",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-answer-r": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_clean_refusal_passes",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-evaluation-p": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_the_fixture_corpus_grades_clean_and_reproduces_its_report",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-evaluation-m": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_a_release_without_evals_refuses",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-evaluation-s": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_a_cases_digest_mismatch_refuses_to_grade",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-evaluation-o": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_an_accepted_answer_fails_a_rejected_case",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-evaluation-r": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_a_drifted_corpus_refuses_to_grade",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-promotion-p": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_clean_report_promotes_and_the_release_is_active",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-promotion-m": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_failed_report_does_not_promote",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-promotion-s": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_report_for_another_corpus_does_not_promote",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-promotion-o": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_pinned_pass_over_a_failing_case_does_not_promote",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-promotion-r": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_an_active_release_rolls_back_by_record",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "brevitas-structure-p": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_valid_finding",
+      "claim": "A valid finding satisfies the mechanical structure budget.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-m": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_over_budget_finding",
+      "claim": "An over-budget finding is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-s": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_two_sections",
+      "claim": "A report whose structure disagrees with the selected mode is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-o": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_clean_structure_does_not_establish_factual_accuracy",
+      "claim": "A structurally clean draft does not establish factual accuracy.",
+      "evidence_class": "checked"
+    },
+    "brevitas-structure-r": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_over_budget_finding_recovers_after_compression",
+      "claim": "Removing the excess connective line clears the same structure check.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-p": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_source_evidence_survives",
+      "claim": "Protected source tokens survive the checked draft.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-m": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_missing_source_evidence",
+      "claim": "A draft missing protected source evidence is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-s": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_source_subject_mismatch_is_refused",
+      "claim": "A draft whose numeric subject differs from the source is refused.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-o": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_token_survival_does_not_establish_semantic_equivalence",
+      "claim": "Protected-token survival is kept narrower than semantic equivalence.",
+      "evidence_class": "checked"
+    },
+    "brevitas-evidence-r": {
+      "path": "plugins/brevitas/tests/test_brevitas.py",
+      "selector": "test_missing_source_evidence_recovers_when_restored",
+      "claim": "Restoring the exact missing source evidence clears the preservation check.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-p": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_it_allows_a_link_that_resolves",
+      "claim": "A recognised relative pointer to an existing target passes.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-m": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_it_flags_a_link_to_nothing",
+      "claim": "A recognised pointer to an absent target is refused.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-s": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_it_flags_a_successor_that_does_not_exist",
+      "claim": "A supersession record naming an absent successor is refused.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-o": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_clean_pointer_check_does_not_establish_record_correctness",
+      "claim": "Pointer resolution is kept narrower than record correctness.",
+      "evidence_class": "checked"
+    },
+    "hypomnema-pointer-r": {
+      "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+      "selector": "test_missing_pointer_recovers_when_target_is_restored",
+      "claim": "Restoring the named target clears the same pointer check.",
+      "evidence_class": "checked"
+    },
+    "hex-eval-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_positive_cases",
+      "claim": "The owning plugin records bounded positive cases for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_missing_evidence_cases",
+      "claim": "The owning plugin records missing-evidence refusals for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_subject_mismatch_cases",
+      "claim": "The owning plugin records subject-mismatch refusals for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_overclaim_cases",
+      "claim": "The owning plugin records the nearest tempting overclaim for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "hex-eval-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_recovery_cases",
+      "claim": "The owning plugin records bounded recovery for each judgement-shaped promise.",
+      "evidence_class": "recorded"
+    },
+    "vulgate-eval-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_positive_cases",
+      "claim": "The labelled positive case supports an inferred content-parity judgement without claiming truth.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_missing_evidence_cases",
+      "claim": "The labelled case refuses a rewrite with no exact source or parity comparison.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_subject_mismatch_cases",
+      "claim": "The labelled case refuses source bytes from a different draft.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_overclaim_cases",
+      "claim": "The labelled case keeps register rewriting narrower than truth, authorship or argument improvement.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_recovery_cases",
+      "claim": "The labelled recovery restores lost content and repeats the complete comparison.",
+      "evidence_class": "inferred"
+    },
+    "imprimatur-p": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_licensed_scope_qualifier_is_preserved",
+      "claim": "A licensed legal scope qualifier remains present in clean exact input.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-m": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_missing_gate_evidence_is_refused",
+      "claim": "A gated term without its required referent is refused.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-s": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_subject_mode_mismatch_is_refused",
+      "claim": "The same text is not silently reclassified across different selected modes.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-o": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_clean_lint_does_not_establish_truth",
+      "claim": "A clean lint remains narrower than factual verification.",
+      "evidence_class": "checked"
+    },
+    "imprimatur-r": {
+      "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
+      "selector": "test_promise_machine_failure_recovers_without_erasing_the_term",
+      "claim": "Supplying the referent clears the gate without deleting the licensed term.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-p": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_valid_pass_appends_exactly_one_line",
+      "claim": "A valid complete ranking appends one pass record.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-m": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_missing_field_is_refused",
+      "claim": "A ranking record missing required evidence is refused.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-s": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_show_marks_an_axis_that_moved_under_an_unchanged_held_job",
+      "claim": "Score drift under an unchanged held job remains visible.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-o": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_rank_only_pass_is_recorded_with_no_run",
+      "claim": "Rank-only output cannot silently claim a Fiat dispatch.",
+      "evidence_class": "checked"
+    },
+    "kronos-rank-r": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_show_reports_no_drift_when_the_held_job_changed_too",
+      "claim": "A refreshed held job and score are reported as a new subject rather than stale drift.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-p": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_park_stores_the_reason_byte_for_byte",
+      "claim": "A park records its human-supplied reason without paraphrase.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-m": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_an_empty_reason_is_refused",
+      "claim": "A park with no human-supplied reason is refused.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-s": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_moved_held_job_is_reported_stale_rather_than_cleared",
+      "claim": "A park bound to an earlier held job remains visibly stale rather than clearing itself.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-o": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_a_deleted_ledger_reads_as_unknown_not_resolved",
+      "claim": "Unreadable state remains unknown and is not promoted to resolved.",
+      "evidence_class": "checked"
+    },
+    "kronos-park-r": {
+      "path": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+      "selector": "test_park_unpark_park_replays_to_one_standing_park",
+      "claim": "Explicit unpark and later park records replay to one current standing state.",
+      "evidence_class": "checked"
+    },
+    "sapheneia-eval-p": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_positive_cases",
+      "claim": "Sapheneia records bounded positive interaction cases without diagnosing the reader.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-m": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_missing_evidence_cases",
+      "claim": "Sapheneia records refusal when activation, state or an explicit stop instruction is missing.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-s": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_subject_mismatch_cases",
+      "claim": "Sapheneia records refusal when activation or deactivation evidence belongs to another session.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-o": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_overclaim_cases",
+      "claim": "Sapheneia records diagnostic and universal-format overclaims as refusals.",
+      "evidence_class": "recorded"
+    },
+    "sapheneia-eval-r": {
+      "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
+      "selector": "test_labelled_recovery_cases",
+      "claim": "Sapheneia records bounded correction and explicit deactivation recovery paths.",
+      "evidence_class": "recorded"
+    }
+  },
+  "rows": [
+    {
+      "promise_id": "alexandria-address-query",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "alexandria-compound-method-proof",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "alexandria-derived-view",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "alexandria-raw-release",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-capture-statement",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-inspect-statement",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-replay-command",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-verify-statement",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-answer-evidence",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["answer-truth-refused", "read-class", "source-class", "subject", "time-domain"],
+      "cases": {
+        "P": "berean-answer-p",
+        "M": "berean-answer-m",
+        "S": "berean-answer-s",
+        "O": "berean-answer-o",
+        "R": "berean-answer-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-corpus-binding",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["corpus-digest", "source-class", "subject"],
+      "cases": {
+        "P": "berean-corpus-p",
+        "M": "berean-corpus-m",
+        "S": "berean-corpus-s",
+        "O": "berean-corpus-o",
+        "R": "berean-corpus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-evaluation-report",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["answer-digest", "answer-truth-refused", "corpus-digest", "time-domain"],
+      "cases": {
+        "P": "berean-evaluation-p",
+        "M": "berean-evaluation-m",
+        "S": "berean-evaluation-s",
+        "O": "berean-evaluation-o",
+        "R": "berean-evaluation-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-release-promotion",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["answer-digest", "answer-truth-refused", "corpus-digest", "evaluation-digest"],
+      "cases": {
+        "P": "berean-promotion-p",
+        "M": "berean-promotion-m",
+        "S": "berean-promotion-s",
+        "O": "berean-promotion-o",
+        "R": "berean-promotion-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "brevitas-evidence-preservation",
+      "skill_path": "plugins/brevitas/skills/brevitas/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic checker",
+        "prompt": "Check protected source evidence with the selected Brevitas mode.",
+        "corpus": "plugins/brevitas/tests/test_brevitas.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "brevitas-evidence-p",
+        "M": "brevitas-evidence-m",
+        "S": "brevitas-evidence-s",
+        "O": "brevitas-evidence-o",
+        "R": "brevitas-evidence-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "brevitas-structure-check",
+      "skill_path": "plugins/brevitas/skills/brevitas/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic checker",
+        "prompt": "Check a draft against the selected Brevitas structure mode.",
+        "corpus": "plugins/brevitas/tests/test_brevitas.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "brevitas-structure-p",
+        "M": "brevitas-structure-m",
+        "S": "brevitas-structure-s",
+        "O": "brevitas-structure-o",
+        "R": "brevitas-structure-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "elenchus-fixed-and-guarded",
+      "skill_path": "plugins/hexaemeron/skills/elenchus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "elenchus-p",
+        "M": "elenchus-m",
+        "S": "elenchus-s",
+        "O": "elenchus-o",
+        "R": "elenchus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ephoros-mechanical-gate",
+      "skill_path": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ephoros-p",
+        "M": "ephoros-m",
+        "S": "ephoros-s",
+        "O": "ephoros-o",
+        "R": "ephoros-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ephoros-observability-review",
+      "skill_path": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ephoros-review-p",
+        "M": "ephoros-review-m",
+        "S": "ephoros-review-s",
+        "O": "ephoros-review-o",
+        "R": "ephoros-review-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "fiat-final-integration",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "fiat-p",
+        "M": "fiat-m",
+        "S": "fiat-s",
+        "O": "fiat-o",
+        "R": "fiat-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "fiat-receipted-delivery",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "fiat-p",
+        "M": "fiat-m",
+        "S": "fiat-s",
+        "O": "fiat-o",
+        "R": "fiat-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-baseline-promotion",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-p",
+        "M": "hermes-m",
+        "S": "hermes-s",
+        "O": "hermes-o",
+        "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-candidate-acceptance",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-p",
+        "M": "hermes-m",
+        "S": "hermes-s",
+        "O": "hermes-o",
+        "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-sealed-baseline",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-p",
+        "M": "hermes-m",
+        "S": "hermes-s",
+        "O": "hermes-o",
+        "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hexaemeron-fizz-convert-properties",
+      "skill_path": "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md",
+      "group": "vendored",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Fizz Convert result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no conversion result is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "hexaemeron-fizz-harness-campaign",
+      "skill_path": "plugins/hexaemeron/skills/fizz/SKILL.md",
+      "group": "vendored",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Fizz harness and campaign result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no harness campaign is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "hexaemeron-fizz-sync-drift",
+      "skill_path": "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md",
+      "group": "vendored",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Fizz Sync result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no harness sync is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "hexaemeron-solidity-audit-report",
+      "skill_path": "plugins/hexaemeron/skills/solidity-auditor/SKILL.md",
+      "group": "vendored",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify a Solidity Auditor result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no audit report is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "hexaemeron-x-ray-preaudit",
+      "skill_path": "plugins/hexaemeron/skills/x-ray/SKILL.md",
+      "group": "vendored",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Classify an X-Ray result under its digest-bound overlay.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; no pre-audit result is claimed."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "horos-boundary-check",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "horos-boundary-scan",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "horos-census",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "horos-skeleton-map",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hypomnema-pointer-gate",
+      "skill_path": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic checker",
+        "prompt": "Check first-party record pointers under the Hypomnema parser boundary.",
+        "corpus": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "hypomnema-pointer-p",
+        "M": "hypomnema-pointer-m",
+        "S": "hypomnema-pointer-s",
+        "O": "hypomnema-pointer-o",
+        "R": "hypomnema-pointer-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "hypomnema-record-placement",
+      "skill_path": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Review record placement against the canonical Hypomnema contract.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; forward model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "imprimatur-prose-gate",
+      "skill_path": "plugins/hexaemeron/skills/imprimatur/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "labelled-prose-v1 mixed human and model-assisted corpus",
+        "prompt": "Run the exact prose through the selected Imprimatur mode and thresholds.",
+        "corpus": "plugins/hexaemeron/skills/imprimatur/evals/labelled-prose-v1",
+        "disposition": "Mechanical cases pass; the provisional holdout failed its recorded agreement and structural-coverage gates."
+      },
+      "cases": {
+        "P": "imprimatur-p",
+        "M": "imprimatur-m",
+        "S": "imprimatur-s",
+        "O": "imprimatur-o",
+        "R": "imprimatur-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "janus-bounded-conformance",
+      "skill_path": "plugins/janus/skills/janus/SKILL.md",
+      "group": "executable",
+      "preserves": ["adapter", "bounded-search", "cross-host-refused", "manifest", "recorder", "safety-refused", "unknown-effect-refused"],
+      "cases": {
+        "P": "janus-bounded-p",
+        "M": "janus-bounded-m",
+        "S": "janus-bounded-s",
+        "O": "janus-bounded-o",
+        "R": "janus-bounded-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "janus-manifest-validation",
+      "skill_path": "plugins/janus/skills/janus/SKILL.md",
+      "group": "executable",
+      "preserves": ["adapter", "manifest"],
+      "cases": {
+        "P": "janus-manifest-p",
+        "M": "janus-manifest-m",
+        "S": "janus-manifest-s",
+        "O": "janus-manifest-o",
+        "R": "janus-manifest-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "janus-report-rendering",
+      "skill_path": "plugins/janus/skills/janus/SKILL.md",
+      "group": "executable",
+      "preserves": ["adapter", "bounded-search", "manifest", "recorder", "safety-refused"],
+      "cases": {
+        "P": "janus-report-p",
+        "M": "janus-report-m",
+        "S": "janus-report-s",
+        "O": "janus-report-o",
+        "R": "janus-report-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "kronos-fiat-dispatch",
+      "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-run",
+        "prompt": "Decide whether a ranked Kronos job may enter Fiat under the authority boundary.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R cases recorded; user authority remains external evidence."
+      },
+      "cases": {
+        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "kronos-frontier-ranking",
+      "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic scoreboard checker",
+        "prompt": "Record and inspect a complete Kronos ranking pass.",
+        "corpus": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "kronos-rank-p",
+        "M": "kronos-rank-m",
+        "S": "kronos-rank-s",
+        "O": "kronos-rank-o",
+        "R": "kronos-rank-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "kronos-parked-lane",
+      "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "recorded",
+        "model": "not-applicable: deterministic parked-state checker",
+        "prompt": "Record and replay a Kronos park or unpark event.",
+        "corpus": "plugins/hexaemeron/tests/test_kronos_scoreboard.py",
+        "disposition": "Checked P/M/S/O/R cases; X is unsupported by the canonical declaration."
+      },
+      "cases": {
+        "P": "kronos-park-p",
+        "M": "kronos-park-m",
+        "S": "kronos-park-s",
+        "O": "kronos-park-o",
+        "R": "kronos-park-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "lazarus-exact-replay",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lazarus-fixture-capture",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lazarus-fixture-verification",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lazarus-preservation-release",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lemma-chunk-validation",
+      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "chunk-solidity-p",
+        "M": "chunk-solidity-m",
+        "S": "chunk-solidity-s",
+        "O": "chunk-solidity-o",
+        "R": "chunk-solidity-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lemma-markdown-chunks",
+      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "chunk-markdown-p",
+        "M": "chunk-markdown-m",
+        "S": "chunk-markdown-s",
+        "O": "chunk-markdown-o",
+        "R": "chunk-markdown-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lemma-solidity-chunks",
+      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "chunk-solidity-p",
+        "M": "chunk-solidity-m",
+        "S": "chunk-solidity-s",
+        "O": "chunk-solidity-o",
+        "R": "chunk-solidity-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "metron-budget-verdict",
+      "skill_path": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "metron-p",
+        "M": "metron-m",
+        "S": "metron-s",
+        "O": "metron-o",
+        "R": "metron-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "metron-change-decision",
+      "skill_path": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "metron-p",
+        "M": "metron-m",
+        "S": "metron-s",
+        "O": "metron-o",
+        "R": "metron-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-broken-specimen",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-catalogue-render",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-law-contract",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-search-record",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "phylax-boundary-review",
+      "skill_path": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "phylax-review-p",
+        "M": "phylax-review-m",
+        "S": "phylax-review-s",
+        "O": "phylax-review-o",
+        "R": "phylax-review-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "phylax-mechanical-gate",
+      "skill_path": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "phylax-p",
+        "M": "phylax-m",
+        "S": "phylax-s",
+        "O": "phylax-o",
+        "R": "phylax-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "probitas-dossier-rendering",
+      "skill_path": "plugins/probitas/skills/probitas/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "probitas-p",
+        "M": "probitas-m",
+        "S": "probitas-s",
+        "O": "probitas-o",
+        "R": "probitas-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "probitas-dossier-verification",
+      "skill_path": "plugins/probitas/skills/probitas/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "probitas-p",
+        "M": "probitas-m",
+        "S": "probitas-s",
+        "O": "probitas-o",
+        "R": "probitas-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "probitas-evidence-collection",
+      "skill_path": "plugins/probitas/skills/probitas/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "probitas-p",
+        "M": "probitas-m",
+        "S": "probitas-s",
+        "O": "probitas-o",
+        "R": "probitas-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "protasis-runbook-readiness",
+      "skill_path": "plugins/hexaemeron/skills/protasis/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "protasis-p",
+        "M": "protasis-m",
+        "S": "protasis-s",
+        "O": "protasis-o",
+        "R": "protasis-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "protasis-study-readiness",
+      "skill_path": "plugins/hexaemeron/skills/protasis/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "protasis-study-p",
+        "M": "protasis-study-m",
+        "S": "protasis-study-s",
+        "O": "protasis-study-o",
+        "R": "protasis-study-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "sapheneia-deactivation",
+      "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Decide whether Sapheneia may deactivate under its canonical stop contract.",
+        "corpus": "plugins/sapheneia/tests/fixtures/promise-machine/cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "sapheneia-eval-p", "M": "sapheneia-eval-m", "S": "sapheneia-eval-s", "O": "sapheneia-eval-o", "R": "sapheneia-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "sapheneia-session-shape",
+      "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Shape an active Sapheneia reply under the canonical interaction contract.",
+        "corpus": "plugins/sapheneia/tests/fixtures/promise-machine/cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "sapheneia-eval-p", "M": "sapheneia-eval-m", "S": "sapheneia-eval-s", "O": "sapheneia-eval-o", "R": "sapheneia-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    },
+    {
+      "promise_id": "tabularium-compound-witness",
+      "skill_path": "plugins/tabularium/skills/tabularium/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "tabularium-p",
+        "M": "tabularium-m",
+        "S": "tabularium-s",
+        "O": "tabularium-o",
+        "R": "tabularium-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "tabularium-release-build",
+      "skill_path": "plugins/tabularium/skills/tabularium/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "tabularium-p",
+        "M": "tabularium-m",
+        "S": "tabularium-s",
+        "O": "tabularium-o",
+        "R": "tabularium-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "tabularium-release-verification",
+      "skill_path": "plugins/tabularium/skills/tabularium/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "tabularium-p",
+        "M": "tabularium-m",
+        "S": "tabularium-s",
+        "O": "tabularium-o",
+        "R": "tabularium-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "vulgate-register-rewrite",
+      "skill_path": "plugins/hexaemeron/skills/vulgate/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Rewrite a source passage under Vulgate while holding all content constant.",
+        "corpus": "plugins/hexaemeron/tests/fixtures/promise-machine/evaluation-cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model content parity remains unknown."
+      },
+      "cases": {
+        "P": "vulgate-eval-p", "M": "vulgate-eval-m", "S": "vulgate-eval-s", "O": "vulgate-eval-o", "R": "vulgate-eval-r",
+        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+      }
+    }
+  ]
+}

@@ -269,3 +269,17 @@ saying so costs nothing while claiming otherwise costs the next person's day.
 
 End with one action: the command to rerun, the question that unblocks you, or
 the review the fix now needs.
+
+## Promise Machine contract
+
+### elenchus-fixed-and-guarded
+
+- Promise: A fixed-and-guarded result establishes that the reported failure was reproduced, localised to a causal mechanism, repaired at that mechanism and covered by a regression test observed to fail on the unfixed parent and pass on the fixed tree.
+- Evidence: The reproduction command and output, causal account, minimal case where useful, fix diff, detached-parent guard report, fixed-tree report and both relevant suite results.
+- Evidence classes: checked, inferred
+- Boundary: The result covers the reproduced failure and named guard; it does not prove the surrounding system defect-free or turn an inconclusive, zero-test or infrastructure-failed comparison into a guard.
+- Authorises: Closing the named failure and relying on the regression test for that mechanism within the tested environment.
+- Consequence: 2
+- Refuses: A symptom-only patch, an unreproduced cause, a guard that never failed without the fix, narrowed fuzz bounds, unrelated changes or a stale, malformed, oversized, mixed or empty report.
+- Recovery: Preserve the failure, restore a faithful reproducer, isolate the mechanism, add or repair the guard report and rerun both the unfixed-parent and fixed-tree suites.
+- Exceptions: none

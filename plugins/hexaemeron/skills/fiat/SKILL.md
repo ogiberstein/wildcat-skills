@@ -407,3 +407,29 @@ hand over: topic, the run branch and the base it landed on, the step list with
 each stacked PR URL and the order the stack merged in, the integration PR and
 its merge SHA, audit rounds per step with the closing state of each, and where
 the study and runbook live.
+
+## Promise Machine contract
+
+### fiat-receipted-delivery
+
+- Promise: A successful `hexctl verify` establishes that the controller state and append-only ledger agree and that every recorded phase transition occurred in the required order with the required receipt shape.
+- Evidence: The exact study and runbook receipts, step branches and commits, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
+- Evidence classes: checked, recorded
+- Boundary: Controller verification proves receipt order and integrity, not the truth of a test summary, audit judgement, external check, implementation claim or user authority merely written into a receipt.
+- Authorises: Advancing only to the single next controller directive and reporting the recorded workflow state without strengthening any underlying receipt.
+- Consequence: 2
+- Refuses: Skipping a phase, reconstructing progress from chat, accepting a malformed or missing receipt, or describing an unrun check as complete.
+- Recovery: Inspect `hexctl status`, repair the current phase's real evidence without editing ledger history, submit the required receipt and rerun `hexctl verify`.
+- Exceptions: none
+
+### fiat-final-integration
+
+- Promise: A successful integration receipt establishes that every stacked step was merged in controller order, the run branch passed its required gates and exactly one recorded merge landed the run on the named base under the user's delivery authority.
+- Evidence: The user's explicit Fiat request, green step and integration checks, stacked PR URLs and head commits, merge-step receipts, integration PR and merge commit, final controller state and verified ledger.
+- Evidence classes: checked, recorded
+- Boundary: Integration establishes the recorded repository transition; it does not prove the software defect-free, make audit judgements independent or authorise a deployment, financial action or another repository.
+- Authorises: Publication of the complete run to the named base and a final report limited to the merged artefacts and recorded evidence.
+- Consequence: 3
+- Refuses: Direct step merges to the base, bypassed gates, a second base merge, deletion that closes a stacked PR prematurely or integration without explicit delivery authority.
+- Recovery: Leave the stack open, restore the required branch or check, retarget and merge in controller order, or halt with the exact blocker before any base mutation.
+- Exceptions: none

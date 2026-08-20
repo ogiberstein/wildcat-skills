@@ -9,7 +9,7 @@ description: >-
   any prose that ships, when checking whether a draft reads as
   machine-written, or when the user names a term to ban.
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Imprimatur
@@ -111,3 +111,17 @@ Attribution, licence, and the list of deviations are in `NOTICE.md`.
 - Never claim a draft is undetectable, human-passing, or clean because the score is high. The score counts known markers and nothing else.
 - Never let the lint's own vocabulary leak into prose. Words like "defect", "gated", and "pass" belong in reports, not in the writing being fixed.
 - Do not report the lint as run when it was not.
+
+## Promise Machine contract
+
+### imprimatur-prose-gate
+
+- Promise: A successful Imprimatur run establishes that the exact prose crossed the configured hard, gated and structural pattern thresholds and that every reported defect was cleared or evidenced under the checker rules.
+- Evidence: The exact input bytes, lexicon and allowlist, selected mode and threshold, defect and signal output, labelled-corpus provenance and zero exit status.
+- Evidence classes: checked, recorded
+- Boundary: The gate does not establish human authorship, factual accuracy, sound reasoning, an intended voice or absence of every machine-writing pattern.
+- Authorises: Presentation or hand-off of the checked prose as Imprimatur-clean at the named checker version and threshold.
+- Consequence: 0
+- Refuses: Calling prose clean when the gate did not run or failed, hiding a hard hit with a synonym, treating a cadence signal as a defect or deleting a scope-bearing qualifier to clear a word.
+- Recovery: Read the named defect, rewrite the sentence without weakening evidence or uncertainty and rerun the exact gate.
+- Exceptions: none

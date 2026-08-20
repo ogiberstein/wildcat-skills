@@ -1,0 +1,21 @@
+{
+  "schema": "promise-machine-labelled-cases/v1",
+  "cases": {
+    "sapheneia-session-shape": {
+      "evaluation": {"model": "not-run", "prompt": "Shape an active Sapheneia reply under the canonical interaction contract.", "corpus": "this labelled fixture", "disposition": "Expected P/M/S/O/R decisions recorded; cross-model behaviour remains unknown."},
+      "P": {"disposition": "accept", "scenario": "The reply names the immediate action, literal ask, boundary, working state, evidence and one next action while respecting the reader's stated preference.", "boundary": "Acceptance covers the exact reply and active session state."},
+      "M": {"disposition": "refuse", "scenario": "The reply hides the working state or leaves an implied obligation and no next action while work remains.", "boundary": "Missing interaction-state evidence blocks the shaped reply."},
+      "S": {"disposition": "refuse", "scenario": "The activation and preference record belongs to another user session.", "boundary": "Sapheneia state does not transfer between subjects."},
+      "O": {"disposition": "refuse", "scenario": "The reply shape is presented as a diagnosis or as a format that works for every AuDHD reader.", "boundary": "Interaction structure supplies no diagnostic evidence and preference wins."},
+      "R": {"disposition": "recover", "scenario": "Restate the action, boundary, evidence and next step, apply the reader's correction and check the revised reply.", "boundary": "Recovery revises the exact reply without changing another skill's facts."}
+    },
+    "sapheneia-deactivation": {
+      "evaluation": {"model": "not-run", "prompt": "Decide whether Sapheneia may deactivate under its canonical stop contract.", "corpus": "this labelled fixture", "disposition": "Expected P/M/S/O/R decisions recorded; cross-model behaviour remains unknown."},
+      "P": {"disposition": "accept", "scenario": "The user gives an explicit recognised stop instruction and the agent confirms that default response shape has resumed.", "boundary": "Acceptance changes only Sapheneia's response shape for later replies."},
+      "M": {"disposition": "refuse", "scenario": "A topic change or terse reply is treated as deactivation without an explicit stop instruction.", "boundary": "Behavioural inference cannot supply the missing instruction."},
+      "S": {"disposition": "refuse", "scenario": "The stop phrase belongs to another user or an earlier session.", "boundary": "Deactivation authority is bound to the active session subject."},
+      "O": {"disposition": "refuse", "scenario": "A delay, terse message or stop instruction is used to infer diagnosis, mood or intent.", "boundary": "Deactivation carries no diagnostic meaning."},
+      "R": {"disposition": "recover", "scenario": "Keep Sapheneia active until the current user gives an explicit stop instruction, then confirm the change once.", "boundary": "Recovery does not remove another active skill contract."}
+    }
+  }
+}

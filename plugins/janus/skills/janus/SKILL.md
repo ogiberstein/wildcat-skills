@@ -120,3 +120,41 @@ its own instructions before writing anything into it.
 
 If a build, a test, a validation, or a report did not run, say so plainly and
 do not describe its result.
+
+## Promise Machine contract
+
+### janus-manifest-validation
+
+- Promise: A successful `janus.py validate` establishes that each named hook manifest satisfies the shipped schema and enumerates the threshold, effects, rollback, gas and liveness fields the format requires.
+- Evidence: The exact manifest bytes, shipped JSON schema, stdlib validator diagnostics and zero exit status.
+- Evidence classes: checked
+- Boundary: Schema acceptance does not establish that a hook obeys the manifest, that the manifest matches a host, or that its permitted effects are safe.
+- Authorises: Use of the validated manifest as input to the matching host-adapter conformance harness.
+- Consequence: 1
+- Refuses: Running or reporting conformance from a malformed, incomplete, escaped or schema-unknown manifest.
+- Recovery: Repair the named manifest field, validate the complete manifest set again and then restart the harness run.
+- Exceptions: none
+
+### janus-bounded-conformance
+
+- Promise: A green harness run establishes that observed hook behaviour stayed within the validated manifest for the named host adapter, manifest revision, recorder coverage and bounded deterministic or stateful search.
+- Evidence: The validated manifest, adapter identity, compiled harness, search configuration, complete recorded storage, call, value and gas deltas, hostile-hook guards and passing Foundry results.
+- Evidence classes: checked, measured, recorded
+- Boundary: The result is bounded conformance, not hook safety, complete exit liveness, coverage of unrecorded effects, another adapter or every possible execution.
+- Authorises: Reporting the exact hook and adapter as conformant under the recorded search and using that bounded result in an authorised security or release decision.
+- Consequence: 3
+- Refuses: A verdict on an unknown delta, absent hostile-hook guard, failed gate, incomplete recorder, unnamed search or cross-host generalisation.
+- Recovery: Inspect the violating trace or unknown effect, repair the hook, manifest, adapter or recorder without weakening a gate and rerun the full bounded search.
+- Exceptions: none
+
+### janus-report-rendering
+
+- Promise: A successful `janus.py report` renders the supplied finding records into Markdown and SARIF without adding, removing or strengthening a conformance result.
+- Evidence: The exact findings JSON, deterministic reporter output, linked manifest rule and trace for each violation and successful render status.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: Rendering establishes format and trace linkage only; it does not validate a manifest, execute a harness, complete a recorder or create a conformance verdict.
+- Authorises: Publication or hand-off of the rendered report only with the originating harness scope and result intact.
+- Consequence: 1
+- Refuses: Reporting an absent run, dropping a violation, changing adapter scope or presenting a rendered sample as observed conformance evidence.
+- Recovery: Restore the originating findings record, rerun the reporter and attach the validated manifest and harness receipt separately.
+- Exceptions: none

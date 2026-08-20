@@ -174,3 +174,41 @@ narrative asserts something the evidence does not support: cut the sentence or
 find the record. A gate 2 failure means coverage is incomplete, which is a
 collection problem rather than a writing one. Never edit `verify` to make a
 dossier pass.
+
+## Promise Machine contract
+
+### probitas-evidence-collection
+
+- Promise: A successful `collect` writes evidence only for declared entity addresses and separately labelled inferred addresses, with one source reference per record and explicit coverage or gap for every registered venue.
+- Evidence: The exact entity and address inputs, venue registry, adapter responses or verified Alexandria index, evidence schema, source references and emitted `evidence.json`.
+- Evidence classes: recorded, checked
+- Boundary: Collection does not establish human identity, source completeness, default, full repayment, current balance, creditworthiness or a Wildcat decision.
+- Authorises: Rendering a dossier from the collected evidence while keeping address provenance, venue scope and gaps separate.
+- Consequence: 1
+- Refuses: Feeding inferred addresses into conclusions, omitting an unqueried venue, admitting an unsourced record or treating an archive gap as clean history.
+- Recovery: Correct the declared inputs or source adapter, collect again and retain any unresolved venue or interval as an explicit gap.
+- Exceptions: none
+
+### probitas-dossier-rendering
+
+- Promise: A successful `render` derives the dossier's factual tables from the evidence file and places coverage and unknowns before narrative conclusions.
+- Evidence: The validated evidence JSON, deterministic rendered sections, exact figures and source references, and the emitted dossier bytes.
+- Evidence classes: recorded, recomputed
+- Boundary: Rendering does not validate later human narrative, infer identity, create a rating or decide whether a counterparty should receive a market.
+- Authorises: Completion of narrative sections using only the same evidence and submission of the dossier to `verify`.
+- Consequence: 1
+- Refuses: Introducing a figure, hash, market, identity claim or venue conclusion absent from the evidence file.
+- Recovery: Remove the unsupported narrative or obtain a source record through a fresh collection, rerender and rerun verification.
+- Exceptions: none
+
+### probitas-dossier-verification
+
+- Promise: A successful `verify` establishes that the exact dossier and evidence file pass address provenance, coverage, total sourcing, visible negative space and rating-rubric gates.
+- Evidence: The dossier bytes, evidence JSON, reconstructed allowed figures and hashes, five named gate results and zero exit status.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: Verification establishes dossier conformance, not factual completeness beyond recorded coverage, personal identity, a credit score, underwriting approval or a Wildcat Labs verdict.
+- Authorises: With the decision-maker's separate authority, release of the sourced dossier for an independent lending decision.
+- Consequence: 3
+- Refuses: Shipping a dossier after any gate fails, hiding a gap, allowing inferred-address evidence into a conclusion or presenting the document as Wildcat approval.
+- Recovery: Fix the evidence or dossier named by the failed gate, preserve unresolved gaps and rerun all five gates before release.
+- Exceptions: none

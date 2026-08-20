@@ -34,6 +34,22 @@ PLUGINS = ROOT / "plugins"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 
 UNGOVERNED = {"fizz", "fizz-convert", "fizz-sync", "x-ray", "solidity-auditor"}
+DELIVERY_PACKAGE_VERSIONS = {
+    "alexandria": "0.2.1",
+    "ariadne": "1.2.1",
+    "berean": "0.1.1",
+    "brevitas": "0.2.1",
+    "hermes": "0.1.1",
+    "hexaemeron": "1.5.1",
+    "horos": "0.1.1",
+    "janus": "0.1.1",
+    "lazarus": "1.1.1",
+    "lemma": "0.1.1",
+    "pandects": "0.1.1",
+    "probitas": "0.1.1",
+    "sapheneia": "0.1.1",
+    "tabularium": "0.3.1",
+}
 
 
 def marketplace_versions():
@@ -69,11 +85,11 @@ class PluginVersionPropagationTests(unittest.TestCase):
                     f"{name} is not listed with a version in the marketplace",
                 )
                 codex = directory / ".codex-plugin" / "plugin.json"
-                if codex.is_file():
-                    self.assertIsNotNone(
-                        manifest_version(codex),
-                        f"{name} Codex manifest states no version",
-                    )
+                self.assertTrue(codex.is_file(), f"{name} has no Codex manifest")
+                self.assertIsNotNone(
+                    manifest_version(codex),
+                    f"{name} Codex manifest states no version",
+                )
 
     def test_the_three_manifests_agree(self):
         for name, directory in plugin_dirs():
@@ -93,6 +109,18 @@ class PluginVersionPropagationTests(unittest.TestCase):
                         f"{claude}. A host that reads only one of these gets a "
                         f"different answer from a host that reads the other.",
                     )
+
+    def test_promise_machine_delivery_versions_are_exact_and_current(self):
+        self.assertEqual(set(self.marketplace), set(DELIVERY_PACKAGE_VERSIONS))
+        for name, directory in plugin_dirs():
+            expected = DELIVERY_PACKAGE_VERSIONS[name]
+            actual = {
+                "marketplace": self.marketplace[name],
+                "claude": manifest_version(directory / ".claude-plugin" / "plugin.json"),
+                "codex": manifest_version(directory / ".codex-plugin" / "plugin.json"),
+            }
+            with self.subTest(plugin=name):
+                self.assertEqual(actual, {key: expected for key in actual})
 
     def test_a_codex_manifest_exists_wherever_codex_metadata_ships(self):
         """A plugin shipping a .codex-plugin directory must put a manifest in it.
