@@ -1063,18 +1063,42 @@ class VerifiedReleaseTests(unittest.TestCase):
     def test_a_fixture_reached_through_a_symlinked_segment_is_refused(self):
         """`list_fixture_files` refuses a symlinked fixture root and
         `read_confined_bytes` refuses a symlinked component. Neither sees the
-        segments in between."""
+        segments in between, and O_NOFOLLOW applies only to the last one.
+
+        The symlink is buried a level down on purpose. At the top of the release
+        it would be refused for being an unaccounted symlink, which would leave
+        the confinement rule untested while looking tested.
+        """
         with tempfile.TemporaryDirectory() as directory:
             prepared = self.released(directory)
             outside = prepared.root / "outside"
             shutil.move(str(prepared.out / FIXTURE_DIRECTORY), str(outside))
-            (prepared.out / "through").symlink_to(outside.parent)
+            nest = prepared.out / "nest"
+            nest.mkdir()
+            (nest / "through").symlink_to(outside.parent)
             document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
-            document["fixture"]["path"] = "through/outside"
+            document["fixture"]["path"] = "nest/through/outside"
             document["release_digest"] = release_digest(document)
             (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
-            with self.assertRaises(PathError):
+            with self.assertRaises(PathError) as caught:
                 verify_release(prepared.out)
+            self.assertIn("symlink", str(caught.exception))
+
+    def test_the_same_fixture_reached_without_a_symlink_verifies(self):
+        """Without this the test above would pass for a fixture that simply is
+        not there, rather than for one reached the wrong way."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            nest = prepared.out / "nest"
+            nest.mkdir()
+            shutil.move(
+                str(prepared.out / FIXTURE_DIRECTORY), str(nest / "carried")
+            )
+            document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["fixture"]["path"] = "nest/carried"
+            document["release_digest"] = release_digest(document)
+            (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+            self.assertEqual(verify_release(prepared.out)["checks"], list(CHECKS))
 
     def test_a_release_that_is_not_there_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -255,9 +255,9 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
 def _read_inside(root: Path, relative: str, what: str) -> bytes:
     """One file from inside a release, through no-follow descriptors."""
     try:
-        return read_confined_bytes(
-            root, validate_relative_path(relative), max_bytes=MAX_JSON_BYTES
-        )
+        # read_confined_bytes normalises the path itself, and doing it here as
+        # well would be a second authority saying the same thing.
+        return read_confined_bytes(root, relative, max_bytes=MAX_JSON_BYTES)
     except PathError as error:
         # Not nested: read_confined_bytes speaks about fixture components, and a
         # release document is not one. The cause is kept on the exception.
