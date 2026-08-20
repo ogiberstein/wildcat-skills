@@ -144,8 +144,10 @@ run-level title and body, and apply the same provenance markers:
 gh pr create --base <recorded base> --head <run branch> ...
 ```
 
-**Carry the unfinished forward.** Before that pull request merges, its body has
-to name everything this run found and did not finish: an audit lead left
+**Carry the unfinished forward.** The run-level body lives at
+`.hexaemeron/run-pr.md`, written in the prose phase, and the integration pull
+request is opened from it. Before the receipt will take it, that file has to
+name everything this run found and did not finish: an audit lead left
 unpursued, a finding accepted rather than fixed, a boundary the run would not
 cross, a claim it could not verify, a fix that belongs to another skill's held
 job. Put them under a heading a reader can find, `## Carried forward`, one line
@@ -155,6 +157,13 @@ under `protasis` item 2, so an item missing here is an item the next run
 rediscovers from nothing. A run that finished everything says that under the
 same heading rather than dropping it: an absent section cannot be told apart
 from an unasked question.
+
+`done integrate` refuses without it, and names which of the three faults it
+found: the file unreadable, the heading absent, or the heading standing empty.
+Reading stops at the next heading, so a later section cannot stand in for this
+one. What passes is recorded on the receipt as the line count and the digest of
+the body, so the ledger holds what the run published rather than a promise that
+it did.
 
 Wait for required checks, merge without bypassing them, and verify the merge
 commit. Then delete the run branch and every step branch where policy permits:

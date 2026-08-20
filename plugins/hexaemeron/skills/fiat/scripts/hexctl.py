@@ -35,6 +35,13 @@ STATE_DIR_NAME = ".hexaemeron"
 STATE_FILE = "state.json"
 LEDGER_FILE = "ledger.jsonl"
 
+# The run-level pull request body the prose phase writes and the integrate
+# phase opens the integration pull request from. It is the last thing a run
+# writes into the repository, so it is where the work a run gave up on has to
+# be named: the next study over the same target reads it as prior art.
+RUN_PR_FILE = "run-pr.md"
+CARRIED_FORWARD_HEADING = "## Carried forward"
+
 # ``issue`` remains accepted only so runs created by older controllers can
 # advance directly into implementation without losing their ledger history.
 STEP_PHASES = ["issue", "implement", "audit", "prose", "push"]
@@ -261,6 +268,10 @@ def state_path(base_dir: str) -> str:
 
 def ledger_path(base_dir: str) -> str:
     return os.path.join(state_root(base_dir), LEDGER_FILE)
+
+
+def run_pr_path(base_dir: str) -> str:
+    return os.path.join(state_root(base_dir), RUN_PR_FILE)
 
 
 def load_state(base_dir: str) -> dict:
@@ -621,6 +632,66 @@ def ledger_frontier_digest(text: str) -> str | None:
 def _label_parts(label: str, skill: str) -> tuple[int, int, int] | None:
     match = re.fullmatch(rf"{re.escape(skill)}-v(\d+)\.(\d+)\.(\d+)", label)
     return tuple(int(g) for g in match.groups()) if match else None
+
+
+def carried_forward_lines(text: str) -> list[str] | None:
+    """The lines under the carried-forward heading, or None when it is absent.
+
+    Reading stops at the next heading, so a later section cannot stand in for
+    this one.
+    """
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() != CARRIED_FORWARD_HEADING:
+            continue
+        said = []
+        for candidate in lines[index + 1:]:
+            if candidate.startswith("#"):
+                break
+            if candidate.strip():
+                said.append(candidate.strip())
+        return said
+    return None
+
+
+def carried_forward_fault(path: str) -> str | None:
+    """Why this run has not said what it leaves unfinished, or None.
+
+    A run that gives up on something records it in the body of the last pull
+    request it lands, because that is what the next study reads. A run that
+    finished everything still writes the section: an absent heading cannot be
+    told apart from a question nobody asked.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError as exc:
+        return (f"the run-level pull request body {path} cannot be read "
+                f"({exc}); the prose phase writes it and the integration pull "
+                f"request is opened from it")
+
+    said = carried_forward_lines(text)
+    if said is None:
+        return (f"{path} has no '{CARRIED_FORWARD_HEADING}' section; name every "
+                f"lead left unpursued, finding accepted rather than fixed, "
+                f"boundary refused and claim left unverified, or say plainly "
+                f"that this run leaves none")
+    if not said:
+        return (f"{path} carries a '{CARRIED_FORWARD_HEADING}' heading with "
+                f"nothing under it; say what is unfinished, or say that "
+                f"nothing is")
+    return None
+
+
+def carried_forward_record(path: str) -> dict:
+    """What the receipt keeps about the section, once it has passed."""
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    return {
+        "path": os.path.join(STATE_DIR_NAME, RUN_PR_FILE),
+        "lines": len(carried_forward_lines(text) or []),
+        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+    }
 
 
 def frontier_close_fault(path: str, before: dict) -> str | None:
@@ -1205,12 +1276,16 @@ def done_integrate(args, state: dict) -> None:
             "--closed-issue-url does not match the recorded task_issue "
             f"({expected_issue})"
         )
+    carried = carried_forward_fault(run_pr_path(args.dir))
+    if carried:
+        die(carried)
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
         "base": state["base"],
         "pr_url": args.pr_url,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
+        "carried_forward": carried_forward_record(run_pr_path(args.dir)),
     }
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
