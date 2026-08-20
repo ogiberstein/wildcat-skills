@@ -33,6 +33,12 @@ is committed at [docs/study.md](./docs/study.md).
   against the tree by `check`, which fails on hard drift and reports
   candidate drift; advisory findings live beside it in
   `.horos/candidates.json`;
+- one `check` that answers either question: at the repository root, whether
+  the whole boundary is current; at any directory inside it, whether the
+  boundary covering that subtree is current, resolved from the nearest
+  ancestor boundary and reported as having evaluated nothing outside the
+  scope. On this repository the scoped answer costs 24 ms against 60 ms;
+  [examples/scoped-entry/](./examples/scoped-entry/README.md) runs both;
 - a filetype census at `.horos/census.json` from the same walk, so
   walk-worthiness and the next extractor are decided from a recorded
   breakdown;

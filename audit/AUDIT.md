@@ -4572,3 +4572,33 @@ counters now come from the walk rather than from a constant.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Scoped entry, step 5, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0, imprimatur
+100.0/100 on both changed documents, brevitas clean, `git diff --check` clean.
+Horos 212/212, root 38/38, the demonstration's own five cases and the seven
+evolution-contract cases each run on their own as well, all verified before
+this receipt.
+
+This round's job was the assembled path rather than new code, so all fourteen
+success criteria were re-derived from commands rather than from the earlier
+rounds' word. The two that could only be checked by hand were the ledger
+arithmetic and the demonstration's pinned output. Recomputing the frontier
+digest with the contract's own helpers gives
+`13eaade4077f194fe1296e041265d2a46e2db26ccd73e64d580a8637673869d9`, identical
+to the row above it, with the revision held and the axis reading generation:
+the held job was not spent. The demonstration was run from a temporary copy of
+the example and its README compared line by line. One correction came out of
+writing it: the README is itself a tracked file above the scope, so it moved
+`listed outside scope` from 0 to 1, and the pinned value now matches what the
+tool prints rather than what it printed before the file existed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: `plugins/horos/**` still has no CI workflow,
+so this plugin's 212 tests run locally and in no gate; `lazarus.yml` and
+`pandects.yml` cover `tests/**`, which is why step 3 drew checks and steps 2
+and 4 drew none. Adding `horos.yml` is an ask-first change under this run's
+boundaries and is recorded on pull requests 256 and 261 rather than made here.
