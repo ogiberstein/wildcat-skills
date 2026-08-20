@@ -4509,3 +4509,22 @@ rather than to this round, and are recorded there.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Scoped entry, step 4, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+206/206, root 38/38, verified before this receipt. Two mutations were run
+against the committed step before the suite was trusted: making the committed
+slice ignore the scope fails five of the nineteen cases, and pruning the
+ancestor chain instead of walking it fails six. The round then went at the
+control the risk register names rather than at the happy path, and found it
+half-built.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | plugins/horos/skills/horos/scripts/horos.py | the escape control only inspected the given path, so a symlink as the final component was refused while a symlink in the middle was not. `git -C` resolves symlinks before answering, so `check bridge/sub` reported the far repository as its own worktree and the check would have been answered from that tree's boundary | fixed in 312bf0a, with two guards seen failing without it |
+
+Leads not pursued: `check_scope` slices the candidate document by scope
+although the scan it came from was already scope-limited, so that slice can
+never remove anything; it is a redundant call rather than a wrong one, and
+removing it would leave the two documents sliced by different code paths.
