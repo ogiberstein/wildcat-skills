@@ -70,7 +70,7 @@ still change any file genuinely required by that exact held job.
    - material user or protocol impact: 40;
    - evidenced urgency or defect severity: 25;
    - readiness of inputs and acceptance conditions: 20;
-   - leverage for other in-scope skills: 15.
+   - work it unblocks or shapes in other in-scope skills: 15.
    Show the score and one-sentence basis for every candidate. Do not invent
    work to fill the list.
 4. Select the highest score. Break a tie by impact, then readiness, then the
