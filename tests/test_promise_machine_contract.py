@@ -1057,6 +1057,36 @@ class PromiseCoverageTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM064", [item["code"] for item in report["findings"]])
 
+    def test_unsupported_evidence_class_is_refused(self):
+        def mutate(document):
+            document["evidence"]["p"]["evidence_class"] = "anecdotal"
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM064", [item["code"] for item in report["findings"]])
+
+    def test_duplicate_json_key_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, _ = write_coverage_fixture(target)
+            coverage_path.write_text(
+                '{"contract":"promise-machine/v1",'
+                '"contract":"promise-machine/v1"}',
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "coverage",
+                "--check",
+                "--root",
+                target,
+                "--group",
+                "executable",
+                "--json",
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM061", [item["code"] for item in report["findings"]])
+
     def test_selected_pending_row_is_refused(self):
         def mutate(document):
             document["rows"][0]["cases"] = None

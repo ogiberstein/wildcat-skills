@@ -145,6 +145,36 @@
       "selector": "test_a_stated_reason_suppresses",
       "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
     },
+    "ephoros-review-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_positive",
+      "claim": "The named review case records acceptance only when every on-call question has bounded, exercised and reviewed evidence.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_missing",
+      "claim": "The named review case refuses unattended operation when an introduced external call lacks operational evidence.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_subject_mismatch",
+      "claim": "The named review case refuses observability evidence from a different build.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_overclaim",
+      "claim": "The named review case refuses to promote a clean mechanical lint into a complete observability judgement.",
+      "evidence_class": "recorded"
+    },
+    "ephoros-review-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_ephoros_review_recovery",
+      "claim": "The named review case records a recovery that supplies new operational evidence before review repeats.",
+      "evidence_class": "recorded"
+    },
     "fiat-p": {
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
       "selector": "test_push_advances_steps_then_the_stack_integrates",
@@ -295,6 +325,36 @@
       "selector": "test_a_stated_reason_suppresses_the_finding",
       "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
     },
+    "phylax-review-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_positive",
+      "claim": "The named review case records acceptance only when each introduced boundary is named, controlled and evidence-classified.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_missing",
+      "claim": "The named review case refuses an external-data boundary without a confinement control or hostile-input evidence.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_subject_mismatch",
+      "claim": "The named review case refuses dependency evidence from a different revision.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_overclaim",
+      "claim": "The named review case refuses to promote a clean mechanical lint into whole-system security evidence.",
+      "evidence_class": "recorded"
+    },
+    "phylax-review-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_phylax_review_recovery",
+      "claim": "The named review case records recovery through a newly named and exercised boundary control.",
+      "evidence_class": "recorded"
+    },
     "probitas-p": {
       "path": "plugins/probitas/tests/test_demo.py",
       "selector": "test_it_exits_zero",
@@ -344,6 +404,36 @@
       "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
       "selector": "test_this_runs_own_runbook_is_clean",
       "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "protasis-study-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_positive",
+      "claim": "The named study case records readiness only after the full content contract and evidence-bearing criteria are present.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_missing",
+      "claim": "The named study case refuses hidden assumptions and untestable success language.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_subject_mismatch",
+      "claim": "The named study case refuses current-state evidence from a different repository revision.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_overclaim",
+      "claim": "The named study case refuses to present content readiness as implementation or correctness evidence.",
+      "evidence_class": "recorded"
+    },
+    "protasis-study-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_cases.py",
+      "selector": "test_protasis_study_recovery",
+      "claim": "The named study case records recovery by gathering current evidence and repeating the complete review.",
+      "evidence_class": "recorded"
     },
     "tabularium-p": {
       "path": "plugins/tabularium/tests/test_release.py",
@@ -844,11 +934,11 @@
       "skill_path": "plugins/hexaemeron/skills/ephoros/SKILL.md",
       "group": "executable",
       "cases": {
-        "P": "ephoros-p",
-        "M": "ephoros-m",
-        "S": "ephoros-s",
-        "O": "ephoros-o",
-        "R": "ephoros-r",
+        "P": "ephoros-review-p",
+        "M": "ephoros-review-m",
+        "S": "ephoros-review-s",
+        "O": "ephoros-review-o",
+        "R": "ephoros-review-r",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."
@@ -1340,11 +1430,11 @@
       "skill_path": "plugins/hexaemeron/skills/phylax/SKILL.md",
       "group": "executable",
       "cases": {
-        "P": "phylax-p",
-        "M": "phylax-m",
-        "S": "phylax-s",
-        "O": "phylax-o",
-        "R": "phylax-r",
+        "P": "phylax-review-p",
+        "M": "phylax-review-m",
+        "S": "phylax-review-s",
+        "O": "phylax-review-o",
+        "R": "phylax-review-r",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."
@@ -1436,11 +1526,11 @@
       "skill_path": "plugins/hexaemeron/skills/protasis/SKILL.md",
       "group": "executable",
       "cases": {
-        "P": "protasis-p",
-        "M": "protasis-m",
-        "S": "protasis-s",
-        "O": "protasis-o",
-        "R": "protasis-r",
+        "P": "protasis-study-p",
+        "M": "protasis-study-m",
+        "S": "protasis-study-s",
+        "O": "protasis-study-o",
+        "R": "protasis-study-r",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."

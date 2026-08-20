@@ -1675,7 +1675,12 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
                         )
                     )
                 continue
-            if set(case) != {"path", "selector", "claim"} or not all(
+            evidence_keys = {"path", "selector", "claim"}
+            allowed_evidence_keys = (
+                frozenset(evidence_keys),
+                frozenset(evidence_keys | {"evidence_class"}),
+            )
+            if set(case) not in allowed_evidence_keys or not all(
                 isinstance(case.get(key), str) and case[key].strip()
                 for key in ("path", "selector", "claim")
             ):
@@ -1684,8 +1689,23 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
                         "PM064",
                         "coverage",
                         case_path,
-                        "evidence reference must contain only non-empty path, selector and claim",
-                        "cite one exact existing test selector and its bounded interpretation",
+                        "evidence reference must contain non-empty path, selector and claim, with at most one evidence class",
+                        "cite one exact existing selector, its bounded interpretation and an optional base evidence class",
+                        promise_id=promise_id,
+                    )
+                )
+                continue
+            if "evidence_class" in case and (
+                not isinstance(case["evidence_class"], str)
+                or case["evidence_class"] not in SUPPORTED_EVIDENCE_CLASSES
+            ):
+                findings.append(
+                    Finding(
+                        "PM064",
+                        "coverage",
+                        case_path,
+                        f"coverage evidence class is unsupported: {case['evidence_class']!r}",
+                        "use one base evidence class from the Promise Machine law",
                         promise_id=promise_id,
                     )
                 )

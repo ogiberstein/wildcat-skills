@@ -5327,3 +5327,35 @@ The declarations state evidence contracts but do not yet prove every skill's
 runtime implementation conforms to them. Executable, prompt, transformation
 and vendored conformance are the explicit subjects of the next two runbook
 steps, so treating that work as a finding here would duplicate their scope.
+
+## Promise Machine, step 6, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes a standard-library
+checker, JSON coverage records and Python tests. The review traced every selected
+P/M/S/O/R/X reference to its exact selector, checked evidence reuse and
+inapplicability rules, inspected the Berean and Janus preservation boundaries and
+the Lazarus-to-Berean-to-Ariadne handoffs, and compared judgement-held promises
+with the narrower mechanical gates beside them.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S6-R1-01 | high | `tests/promise_machine_coverage.json` | The Ephoros observability review, Phylax boundary review and Protasis study-readiness promises cited mechanical parser tests, so the coverage map overstated what those tests established | fixed with 15 distinct labelled review cases that record positive, missing, subject-mismatch, overclaim and recovery judgements without presenting them as checked runtime proof |
+| S6-R1-02 | medium | `scripts/promise_machine.py` | Evidence references could not state their base evidence class, leaving recorded judgement cases indistinguishable from executable checks | fixed with an optional, validated `evidence_class` field and refusal tests for unsupported classes |
+
+### Evidence
+
+The executable coverage gate reports 50 selected promises out of 66 discovered,
+with no finding. The 25 focused coverage and labelled-case checks, all 90 root
+tests and all 467 Hexaemeron tests pass. The Phylax, Ephoros and Hypomnema gates
+are clean.
+
+### Leads not pursued
+
+Recorded review cases establish that each decision path has been named and kept
+inside its boundary; they do not turn a human review judgement into runtime
+proof. The remaining prompt, transformation and vendored rows stay visibly
+pending for runbook step 8.
