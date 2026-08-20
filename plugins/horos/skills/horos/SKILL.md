@@ -171,3 +171,53 @@ reason.
 [../../examples/fixture/](../../examples/fixture/) holds one file per rule
 class and its committed boundary; [../../examples/README.md](../../examples/README.md)
 shows the demo commands and the mutation that makes `check` fail.
+
+## Promise Machine contract
+
+### horos-boundary-scan
+
+- Promise: A successful `scan --write` records every tracked path that the current hard rules classify as a token sink, with category, byte count and the evidence that earned the entry.
+- Evidence: The walked tracked-file universe, hard classification rules, file evidence, canonical `.horos/boundary.json` bytes and atomic write result.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: Classification is fail-open and may omit sinks; candidates do not bind, untracked files are excluded unless requested and no boundary applies during security review.
+- Authorises: Committing the generated reading boundary and adoption stanza for non-security repository reading.
+- Consequence: 2
+- Refuses: Listing an unevidenced path as a hard exclusion, treating an empty directory as covered or using the boundary to hide audit, review or incident scope.
+- Recovery: Inspect the classification evidence, amend the repository-specific rule or source marker, rerun the scan and review the resulting diff.
+- Exceptions: none
+
+### horos-boundary-check
+
+- Promise: A successful `check` establishes that the committed hard boundary equals the current re-derived classification for the stated root or subtree.
+- Evidence: The nearest confined boundary, current tracked-file walk, applicable attributes, recomputed entries, scope counters and zero-drift result.
+- Evidence classes: checked, recomputed
+- Boundary: A scoped pass says nothing about outside-scope drift, candidate findings never change the exit code and a clean boundary does not prove omitted files are cheap to read.
+- Authorises: Leaving listed hard-boundary paths unread by default within the checked non-security scope.
+- Consequence: 0
+- Refuses: Trusting a stale, forged, missing or out-of-scope boundary, or applying any boundary during security review.
+- Recovery: Read the drifted paths as ordinary inputs, rerun `scan --write` for an authorised update and check the intended root again.
+- Exceptions: none
+
+### horos-census
+
+- Promise: A successful `scan --census` counts the files and bytes by suffix from the same walk as the boundary and records how many bytes already sit inside it.
+- Evidence: The walked universe, suffix roll-up, boundary membership counts and canonical census output or `.horos/census.json` bytes.
+- Evidence classes: measured, recomputed
+- Boundary: The census measures file bytes under the selected walk; it does not measure model tokens, reading time, semantic importance or untracked content unless included.
+- Authorises: Choosing the next extractor or classification investigation from the recorded weight distribution, and writing the census when requested.
+- Consequence: 1
+- Refuses: Presenting suffix bytes as token counts or a scoped census as a whole-repository measurement.
+- Recovery: Select the intended root and trackedness mode, rerun the census and keep its scope beside any conclusion.
+- Exceptions: none
+
+### horos-skeleton-map
+
+- Promise: A successful `map` emits the supported source file's recognised declaration skeleton and explicitly counts every region the extractor did not understand.
+- Evidence: The exact source bytes, suffix-selected extractor, verbatim declaration slices, line locations and confession ranges.
+- Evidence classes: checked, recomputed
+- Boundary: A skeleton is an orientation aid, not the full file, an execution trace, a parser proof or evidence about meaning inside confessed regions.
+- Authorises: Using the map to choose bounded follow-up reads of the same source file.
+- Consequence: 0
+- Refuses: Mapping an unsupported suffix, importing or executing the source, or treating omitted and confessed regions as absent behaviour.
+- Recovery: Read the source directly or add and validate an extractor before relying on a map for that language.
+- Exceptions: none

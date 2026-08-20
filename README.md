@@ -106,6 +106,8 @@ state, evidence and unknowns visible from turn to turn.
 
 [Tabularium](./plugins/tabularium) preserves on-chain credit events in a form
 another person can rebuild after the endpoint that served them is gone.
+Its checked-in releases include the reproducible
+[`goldfinch-v0`](./plugins/tabularium/examples/goldfinch-v0) specimen.
 
 
 ## Who these are for

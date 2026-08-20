@@ -145,3 +145,53 @@ python3 scripts/berean.py export-cases examples/goldfinch-demo-v0/release --out 
 
 If a build, verification, evaluation or test did not run, say so plainly and
 do not describe it as successful.
+
+## Promise Machine contract
+
+### berean-corpus-binding
+
+- Promise: A successful corpus build or verification binds every manifest entry to the exact local file bytes and binds the sorted listing to one corpus digest.
+- Evidence: The corpus tree, `berean-corpus/v1` manifest, per-file byte counts and SHA-256 digests, recomputed corpus digest and passing `verify-corpus` result.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: The binding establishes corpus identity and path confinement; it does not establish document truth, completeness, retrieval quality or answer correctness.
+- Authorises: Use of the verified corpus identity as the document boundary for citation checks and a Berean release.
+- Consequence: 1
+- Refuses: Citation or evaluation against a missing, escaped, symlinked, changed or unpinned corpus file.
+- Recovery: Restore the declared bytes or build a new corpus manifest, then rerun corpus verification before any dependent check.
+- Exceptions: none
+
+### berean-answer-evidence
+
+- Promise: A successful `check-answer` establishes that every factual sentence in the recorded answer has an allowed source class and that each citation, chain read, conflict or refusal satisfies the named release rules.
+- Evidence: The `berean-answer/v1` record, verified release and corpus, byte-exact citation slices, recomputed Lazarus request keys, time-domain conflicts and refusal rules.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: The check establishes rule conformance for a recorded answer; it does not establish factual truth, model quality, canonical-chain status or proof-backed status for a recorded RPC read.
+- Authorises: Retention or presentation of the checked answer with its source classes, time domains, conflicts and refusals unchanged.
+- Consequence: 1
+- Refuses: An unclassified assertion, mismatched citation, blockless live value, silent conflict choice, evidence-class upgrade or answer outside the release boundary.
+- Recovery: Correct or refuse the affected sentence, restore the pinned evidence and rerun `check-answer` against the same release.
+- Exceptions: none
+
+### berean-evaluation-report
+
+- Promise: A successful `run-evals` recomputes the named evaluation cases against the verified release and records their grader results without running a model.
+- Evidence: The pinned evaluation corpus, verified release digest, recorded answer fixtures, named graders, per-case outcomes and emitted evaluation report.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: The report establishes performance on the named recorded cases and thresholds only; it does not establish factual truth, live behaviour, general model quality or performance on another corpus.
+- Authorises: Comparison of the release against its declared evaluation thresholds and preservation of the resulting report.
+- Consequence: 1
+- Refuses: Grading against an unpinned corpus, substituting live model output, hiding a failed or correct-refusal case, or extending the result beyond the named cases.
+- Recovery: Restore the pinned cases or answer records, correct the release boundary and rerun the complete evaluation.
+- Exceptions: none
+
+### berean-release-promotion
+
+- Promise: A successful `promote` or `rollback` appends a record binding the selected release digest to the exact evaluation report, thresholds, result and operator-requested transition.
+- Evidence: A verified release, pinned evaluation report, declared thresholds, promotion or rollback record, record-chain verification and the operator's explicit command.
+- Evidence classes: checked, recorded
+- Boundary: The record proves that declared release gates authorised the transition; it does not establish answer truth, model quality, publisher identity or any unstated approval.
+- Authorises: Activation or restoration of only the named release digest under the operator's recorded release authority.
+- Consequence: 3
+- Refuses: Activation without a passing bound report, mutation of prior records, threshold substitution, digest mismatch or description of promotion as factual approval.
+- Recovery: Inspect the promotion chain, correct the release or evaluation evidence, append a new promotion or rollback record and recheck the chain.
+- Exceptions: none

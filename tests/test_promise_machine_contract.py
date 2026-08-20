@@ -316,12 +316,96 @@ class PromiseInventoryTests(unittest.TestCase):
 
 
 class PromiseStructureTests(unittest.TestCase):
-    def test_repository_structure_is_clean_before_contract_population(self):
-        completed = run_cli("check", "--only", "inventory,structure", "--json")
+    def test_standalone_contract_population_is_complete(self):
+        expected = {
+            "plugins/alexandria/skills/alexandria/SKILL.md": {
+                "alexandria-raw-release",
+                "alexandria-derived-view",
+                "alexandria-address-query",
+                "alexandria-compound-method-proof",
+            },
+            "plugins/ariadne/skills/ariadne/SKILL.md": {
+                "ariadne-capture-statement",
+                "ariadne-inspect-statement",
+                "ariadne-verify-statement",
+                "ariadne-replay-command",
+            },
+            "plugins/berean/skills/berean/SKILL.md": {
+                "berean-corpus-binding",
+                "berean-answer-evidence",
+                "berean-evaluation-report",
+                "berean-release-promotion",
+            },
+            "plugins/brevitas/skills/brevitas/SKILL.md": {
+                "brevitas-structure-check",
+                "brevitas-evidence-preservation",
+            },
+            "plugins/hermes/skills/hermes/SKILL.md": {
+                "hermes-sealed-baseline",
+                "hermes-candidate-acceptance",
+                "hermes-baseline-promotion",
+            },
+            "plugins/horos/skills/horos/SKILL.md": {
+                "horos-boundary-scan",
+                "horos-boundary-check",
+                "horos-census",
+                "horos-skeleton-map",
+            },
+            "plugins/janus/skills/janus/SKILL.md": {
+                "janus-manifest-validation",
+                "janus-bounded-conformance",
+                "janus-report-rendering",
+            },
+            "plugins/lazarus/skills/lazarus/SKILL.md": {
+                "lazarus-fixture-capture",
+                "lazarus-fixture-verification",
+                "lazarus-exact-replay",
+                "lazarus-preservation-release",
+            },
+            "plugins/lemma/skills/chunk/SKILL.md": {
+                "lemma-solidity-chunks",
+                "lemma-markdown-chunks",
+                "lemma-chunk-validation",
+            },
+            "plugins/pandects/skills/pandects/SKILL.md": {
+                "pandects-law-contract",
+                "pandects-broken-specimen",
+                "pandects-search-record",
+            },
+            "plugins/probitas/skills/probitas/SKILL.md": {
+                "probitas-evidence-collection",
+                "probitas-dossier-rendering",
+                "probitas-dossier-verification",
+            },
+            "plugins/sapheneia/skills/sapheneia/SKILL.md": {
+                "sapheneia-session-shape",
+                "sapheneia-deactivation",
+            },
+            "plugins/tabularium/skills/tabularium/SKILL.md": {
+                "tabularium-release-build",
+                "tabularium-release-verification",
+                "tabularium-compound-witness",
+            },
+        }
+        for path, promise_ids in expected.items():
+            with self.subTest(path=path):
+                text = (ROOT / path).read_text(encoding="utf-8")
+                self.assertEqual(text.splitlines().count("## Promise Machine contract"), 1)
+                self.assertEqual(
+                    {
+                        line.removeprefix("### ")
+                        for line in text.splitlines()
+                        if line.startswith("### ")
+                        and line.removeprefix("### ") in promise_ids
+                    },
+                    promise_ids,
+                )
+
+        completed = run_cli("check", "--only", "structure,contracts", "--json")
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 0)
+        self.assertEqual(report["counts"]["promises"], 42)
 
     def test_missing_contract_fixture_is_refused(self):
         completed = run_cli(

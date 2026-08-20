@@ -1404,6 +1404,7 @@ def parse_only(raw: str):
         "copies",
         "inventory",
         "structure",
+        "contracts",
         "identity",
         "routers",
         "versions",
@@ -1475,6 +1476,7 @@ def main(argv=None):
         inventory_components = {
             "inventory",
             "structure",
+            "contracts",
             "identity",
             "routers",
             "versions",
@@ -1484,7 +1486,7 @@ def main(argv=None):
             inventory, inventory_findings = discover_inventory(root)
             findings.extend(inventory_findings)
             plugins = [root / path for path in inventory.plugins]
-        if "structure" in only and inventory is not None:
+        if only & {"structure", "contracts"} and inventory is not None:
             promises, structure_findings = check_structure(root, inventory)
             findings.extend(structure_findings)
         if "identity" in only and inventory is not None:

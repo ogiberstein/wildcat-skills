@@ -296,3 +296,53 @@ Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each of those is a deliberate boundary rather than an
 omission: the first needs a node, the second needs key custody this tool
 declines, and the third needs a workflow that owns neither.
+
+## Promise Machine contract
+
+### ariadne-capture-statement
+
+- Promise: A successful capture command writes an in-toto statement whose subjects, predicate fields and preserved absences are derived from the named local artefact and caller-supplied boundary.
+- Evidence: The capture command, local input bytes, computed subject and component digests, registered predicate schema and the emitted statement that `verify` accepts unedited.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: Capture records caller-supplied claims and local bytes; it does not decide that tests passed, establish chain facts, verify a publisher or turn a producer assertion into truth.
+- Authorises: Use of the statement as a derived evidence-binding artefact for later inspection, verification or external signing.
+- Consequence: 1
+- Refuses: Inventing a result, coverage boundary, evidence count, producer, digest or earlier release that the inputs do not establish.
+- Recovery: Supply the missing input or explicit absence reason, correct the local artefact or boundary and rerun the relevant capture command.
+- Exceptions: none
+
+### ariadne-inspect-statement
+
+- Promise: A successful `inspect` identifies the statement or envelope's predicate registration, subjects, digests and signature-verification status without implying an unchecked author.
+- Evidence: The bounded parsed bytes, in-toto or DSSE structure, predicate registry lookup and the inspection output.
+- Evidence classes: recorded, checked
+- Boundary: Inspection reports document contents and registration only; it does not run predicate gates, verify a signature, authenticate an actor or establish the assertions' truth.
+- Authorises: Presentation of the bounded inspection result with unsigned or unchecked status visible.
+- Consequence: 0
+- Refuses: Naming a signer, publisher or verified predicate result when the corresponding external verification or gate run did not occur.
+- Recovery: Obtain external signature evidence or run `verify` for predicate gates, then report each result as a separate relation.
+- Exceptions: none
+
+### ariadne-verify-statement
+
+- Promise: A successful `verify` establishes that the named statement passed every applicable core and registered-predicate gate, while unknown-predicate gates remain explicitly unchecked.
+- Evidence: The exact statement or envelope bytes, bounded parser result, subject digests and the complete named gate report from `ariadne.py verify`.
+- Evidence classes: checked, recomputed
+- Boundary: Verification establishes the declared evidence binding only; it does not authenticate a publisher, prove underlying claim truth, confirm a deployment or make unchecked gates pass.
+- Authorises: With separate release authority, attaching the verified statement to the exact subject digest as inspectable release evidence.
+- Consequence: 3
+- Refuses: Publication as a complete or authenticated attestation when a gate failed, was unchecked, or no external signature verifier established identity.
+- Recovery: Inspect the failed or unchecked gate, repair or extend the predicate evidence, rerun verification and obtain external signature verification when identity matters.
+- Exceptions: none
+
+### ariadne-replay-command
+
+- Promise: A successful execution-enabled `replay` runs only commands marked exact through argument-vector execution and compares their declared outputs without invoking a shell.
+- Evidence: The verified statement, replay plan, explicit `--allow-execution` authority, executed argv records and exact output-digest comparisons.
+- Evidence classes: checked, recomputed, recorded
+- Boundary: Replay covers only eligible exact commands in the named project and does not make nondeterministic, redacted, path-bearing or hostile commands safe.
+- Authorises: Execution of the accepted replay plan in the caller-selected project and reporting of its exact output comparisons.
+- Consequence: 2
+- Refuses: Executing by default, using a shell, running an ineligible program name, or describing a plan-only run as execution evidence.
+- Recovery: Review the printed plan, remove or correct the unsafe command record, choose a controlled project and rerun with explicit execution authority.
+- Exceptions: none

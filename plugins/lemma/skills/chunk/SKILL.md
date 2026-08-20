@@ -101,3 +101,41 @@ Preserve these distinctions downstream:
 Read [`INVARIANTS.md`](../../INVARIANTS.md) when changing the chunkers, judging a
 guarantee, or investigating unexpected output. Run the two bundled test files
 after any code change.
+
+## Promise Machine contract
+
+### lemma-solidity-chunks
+
+- Promise: A successful Solidity chunk run emits schema-valid JSONL whose chunks resolve to the named standard-JSON sources and preserve separate quotation, model and embedding text.
+- Evidence: The exact compiler inputs, selected includes, compiler identity and output, source locations, chunk records and successful built-in validation before write.
+- Evidence classes: checked, recomputed
+- Boundary: The output does not establish source truth, retrieval quality, semantic completeness, independent ABI return or mutability validation, or correctness under another compiler.
+- Authorises: Use of the generated JSONL as source-linked retrieval material for the pinned Solidity compilation inputs.
+- Consequence: 1
+- Refuses: Writing or using partial output after compiler, source-location, schema, include or expected-version failure.
+- Recovery: Correct the pinned input, include set or compiler selection, remove the failed output and rerun the chunker.
+- Exceptions: none
+
+### lemma-markdown-chunks
+
+- Promise: A successful Markdown chunk run emits schema-valid JSONL whose chunks resolve to the selected document tree and preserve source locations, exclusions and synthesised-text labels.
+- Evidence: The exact Markdown tree, navigation or manifest, exclusion set, GitBook anchor method, chunk records and successful built-in validation before write.
+- Evidence classes: checked, recomputed
+- Boundary: The output does not establish document truth, corpus completeness outside the selected tree, compatibility with another renderer, retrieval quality or answer correctness.
+- Authorises: Use of the generated JSONL as source-linked retrieval material for the named Markdown corpus.
+- Consequence: 1
+- Refuses: Including excluded or escaped content, hiding a synthesised chunk as quotation, or using partial output after parsing or validation failure.
+- Recovery: Correct the root, navigation, manifest or exclusions, remove the failed output and rerun the chunker.
+- Exceptions: none
+
+### lemma-chunk-validation
+
+- Promise: A successful direct schema validation establishes that every supplied record satisfies Lemma's `Chunk` shape and field invariants.
+- Evidence: The exact JSONL records, `schema.py` contract, per-record validation and zero validation failures.
+- Evidence classes: checked
+- Boundary: Schema validation does not reproduce chunks without their source input or establish that locations, text and digests match an unavailable corpus.
+- Authorises: Structural inspection or hand-off of the existing JSONL with its source-verification status stated separately.
+- Consequence: 0
+- Refuses: Rechunking without source input or describing schema-valid records as source-verified when their corpus was not checked.
+- Recovery: Obtain the named source input and rerun the appropriate chunker, or report the result as schema-only validation.
+- Exceptions: none

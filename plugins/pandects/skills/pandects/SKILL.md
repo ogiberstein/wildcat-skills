@@ -248,3 +248,41 @@ means.
   corpus.
 - Decide whether a law is true. The checker decides whether something is a law
   at all, which is a lower bar and the one worth enforcing mechanically.
+
+## Promise Machine contract
+
+### pandects-law-contract
+
+- Promise: A successful `pandects.py check` establishes that every discovered catalogue entry has the six required executable-law parts and that generated catalogue prose matches its authored records.
+- Evidence: The law registry, Solidity component and broken-specimen references, reduced counterexample, applicability, justified bound, judgement interface and checker diagnostics.
+- Evidence classes: checked
+- Boundary: The check establishes that an entry has the law contract; it does not establish that the law is true, applies to a target or catches its specimen.
+- Authorises: Listing or rendering the checked entry as a Pandects law with its applicability and bound intact.
+- Consequence: 1
+- Refuses: Admitting or publishing an entry missing executable judgement, a broken specimen, reduction, applicability, observables or justified bounds.
+- Recovery: Supply the named missing part, rerun `check`, regenerate the catalogue with `render` and compare the committed bytes.
+- Exceptions: none
+
+### pandects-broken-specimen
+
+- Promise: A green `forge test` establishes the shipped diagonal relation: each law fails its named broken specimen and holds against the other shipped specimens under the deterministic harness.
+- Evidence: The exact law and specimen Solidity, reduced replay, compiled harness and complete passing Foundry test result.
+- Evidence classes: checked, recomputed
+- Boundary: The diagonal establishes the named fixture relation only; it is not a formal proof, a verdict on another protocol or evidence that a search engine explored a target.
+- Authorises: Presenting the law as demonstrated to catch its shipped defect and using the specimen as a regression oracle.
+- Consequence: 1
+- Refuses: Calling a law proven to catch a defect when its diagonal test did not run, failed or was replaced by a tautological campaign result.
+- Recovery: Reduce the failing relation, correct the law or specimen without weakening the oracle and rerun the full diagonal.
+- Exceptions: none
+
+### pandects-search-record
+
+- Promise: A successful `pandects.py run` records the engine that actually ran, its argv, configuration, determinism, sequence length, disposition and corpus digest.
+- Evidence: The executed engine command, captured configuration, search output, timeout or result status and generated search-record JSON.
+- Evidence classes: measured, recorded, checked
+- Boundary: The record establishes what the named campaign searched and reported; it does not decide law truth, cover an absent engine, prove universal safety or make a non-applicable law fit a target.
+- Authorises: Reporting the bounded campaign result or attaching its command record to an Ariadne release statement.
+- Consequence: 3
+- Refuses: Inventing an engine result, treating timeout as pass or fail, hiding zero succession calls, or presenting target-specific applicability as universal credit law.
+- Recovery: Correct the adapter or applicability record, run the intended engine with explicit settings and preserve a new search record.
+- Exceptions: none
