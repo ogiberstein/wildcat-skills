@@ -3750,3 +3750,293 @@ before it counts anything, which is the habit this run bought.
 The three bundled lints ran against the changed tree and each exited 0:
 `phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
 waiver recorded at init covers the Pashov trio.
+
+## Protasis discipline cores, step 1, round 1 -- 2026-08-20
+
+Reviewed: the two committed spec documents, `docs/protasis-discipline-cores/study.md`
+and `docs/protasis-discipline-cores/runbook.md`, as the whole of this step's diff.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio. Root suite 24/24, plugin suite
+303/303, imprimatur clean over both documents.
+
+The risk register names four concerns. Three of them (path handling, hostile
+document content, a miscount reported as clean) belong to the checker and have
+no surface in a step that commits two documents. The fourth is the ledger, and
+the check here is that this step does not touch it: the diff is confined to
+`docs/`, and `EVOLUTION.md` is step 4's business alone.
+
+Two things the step corrected before it was receipted, both found by running the
+stated exit rather than by reading it. The runbook's exit commands named
+`python3 -m unittest discover -s plugins/hexaemeron/tests -t .`, which cannot
+load: the directory is not an importable package and `AGENTS.md` documents
+`python3 plugins/hexaemeron/tests/run_tests.py` instead. The study also assumed
+Python 3.11 where the interpreter is 3.14.6. Both were wrong on the page, which
+is the cheapest place for them to be wrong, and both are now stated as the
+commands and the version that actually hold.
+
+Leads not pursued: the installed Fiat controller's `audit-round` accepts only
+`--findings`, `--log` and `--fixes-commit`, while this repository's
+`fiat-v4.4.1` ledger records that the receipt takes the three lint exits. The
+installed plugin is behind the checkout. The lint outcomes are therefore
+recorded in this entry rather than as structured receipt fields. Out of scope
+here: it is a Fiat concern, not a Protasis one, and this run's topic does not
+touch the controller.
+
+## Protasis discipline cores, step 2, round 1 -- 2026-08-20
+
+Reviewed: the contract growth in `plugins/hexaemeron/skills/protasis/SKILL.md`,
+which is the whole of this step's diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/hexaemeron/skills/protasis/SKILL.md | The frontmatter description enumerates what the contract holds and still listed only the four original commitments after five study items and a step field were added. That text decides whether the skill triggers, so an understated list costs a run that should have been held to the disciplines. | fixed in 70f5b66 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 303/303,
+imprimatur 100.0 clean before and after the fix.
+
+The risk register's four concerns: path handling, hostile document content and
+a miscount reported as clean all belong to the checker, which step 3 builds, and
+have no surface in a prose change. The fourth is the ledger, and the check is
+that this step leaves it alone. The diff is one file and the version in
+frontmatter is untouched, so the single ledger write stays step 4's.
+
+One judgement worth recording rather than filing. Item 9 asks for each boundary,
+what is worth taking at it, and the control that closes it, which follows the
+same three-part shape phylax uses. The line between citing and restating is
+whether the text carries the rules or the question, and this carries the
+question: no STRIDE table, no always/ask-first/never list, no control catalogue.
+Phylax remains the only place those live. Recorded because the next person to
+grow this contract will stand at the same line.
+
+Leads not pursued: none.
+
+## Protasis discipline cores, step 2, round 2 -- 2026-08-20
+
+Reviewed: the same file with round 1's fix applied.
+
+No findings.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Root suite 24/24, plugin suite 303/303, imprimatur
+100.0 clean.
+
+Round 1's fix was checked rather than assumed: the description now names both
+the discipline questions and the gates a step declares, the study still holds
+twelve numbered items, Disciplines is still the last field of the schema, and
+the checklist still covers both additions. A fix to trigger text is the kind
+that can quietly contradict the body it advertises, so the check compares the
+two rather than reading the diff.
+
+## Protasis discipline cores, step 3, round 1 -- 2026-08-20
+
+Reviewed: the checker, its tests, its four fixtures, and the README count that
+an existing test derives.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | The step cap stopped scanning and discarded the fact that it had, so five hundred sound steps followed by a broken one returned clean at exit 0. The cap turned a broken runbook into a passing one. | fixed in bf4fd43 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 332/332.
+
+The finding came from probing the risk register rather than reading the code.
+The register's third entry says a checker that finds nothing and exits 0 is
+worse than no checker, and names an empty step set as the way in. P003 already
+covered that door. The cap was the other one, and it was open. The fix keeps the
+bound, because a document from outside the process gets bounded, and returns the
+dropped count so P004 can report what went unchecked.
+
+Two more register entries were probed and are sound. Regex cost is not a denial
+surface: a 200,000 character step heading finishes in 0.7 ms and an unterminated
+allow comment of the same size in 2.4 ms, both linear enough at a 2 MiB read cap.
+Path handling refuses anything that is not a regular file, which covers device
+and directory arguments, and the argument list is documented as the trust
+boundary rather than pretended away.
+
+Also worth recording from this step, though it was caught by the suite rather
+than by the audit: P002 was first written to search the whole step for a command,
+which lets any field carrying backticks answer for the exit. Since
+`**Files.** `a.py`` is close to universal, the code would never have fired on a
+real runbook. It now searches the exit's own field span. Both that fix and this
+round's fix are guarded by tests seen to fail on the unfixed tree.
+
+Leads not pursued: the README states "124 controller, contract and practice-check
+tests, 55 lint tests" while the plugin suite ran 303 before this run and 332
+after. That prose was already stale by roughly 180 tests before this run touched
+it, no test derives it, and correcting it is outside what this step asks for.
+
+## Protasis discipline cores, step 3, round 2 -- 2026-08-20
+
+Reviewed: the checker with round 1's fix applied, probing what that fix might
+have exposed rather than re-reading it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | The last tracked step's body ran to the next non-step heading, so where the cap had dropped steps their fields sat inside that span and donated themselves upward. A broken step at the cap boundary passed while missing five of six fields. | fixed in 6a8bca8 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 333/333.
+
+How it surfaced. Round 1 removed an early break, so the question for this round
+was what that changed downstream. Four probes: eight times the cap finishes in
+16 ms and reports P004 exactly once rather than once per dropped step; a
+document exactly at the cap stays clean; one step past it reports; and a broken
+step inside the cap alongside overflow reported no P001 at all, which is where
+it came apart. Shrinking the cap to two steps isolated it in one document.
+
+The defect predates round 1. The old code broke out of the scan at the cap and
+produced the same span, so the donation happened identically; round 1 only made
+the boundary reachable by a probe. Recorded that way rather than as a regression,
+because a reader deciding whether to trust earlier releases needs to know it was
+always there.
+
+Leads not pursued: none new. The README test-count staleness from round 1 still
+stands and is still outside this step.
+
+## Protasis discipline cores, step 3, round 3 -- 2026-08-20
+
+Reviewed: the twice-fixed checker, probing what round 2's boundary change might
+have broken.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | Round 2 let any same-level heading end the last step, and that scan does not track code fences, so a runbook quoting a step heading inside an example truncated its own last step and reported the fields below it missing. | fixed in 8cb3ef9 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 334/334.
+
+Six probes this round: an h1 between steps, an h3 inside a step, a fenced step
+heading inside an exit, a last step that genuinely ends the document, a
+suppressed step at the cap boundary, and a step whose six fields are all present
+but empty. The third came apart. The sixth reports P002 and is correct: a field
+with no text names no command, and the module documents that it reads presence
+rather than quality.
+
+Unlike round 2's finding, this one is a regression from the round before it, and
+the entry says so. Round 2 widened the boundary rule without carrying over the
+fence tracking the step scan has always had. The irony is worth keeping: the
+document that broke it is this skill's own contract, which quotes a step heading
+a few lines from where it states the schema.
+
+Leads not pursued: none new.
+
+## Protasis discipline cores, step 3, round 4 -- 2026-08-20
+
+Reviewed: the thrice-fixed checker, probing fence and line-ending variants.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | medium | plugins/hexaemeron/skills/protasis/scripts/protasis.py | Fences matched backticks only, so a runbook using tilde fences had its examples read as content: a quoted step heading became a step with no fields and the document collected six findings it had not earned. | fixed in 2226614 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+Eight probes: tilde fences, backticks nested inside a tilde block, a four
+backtick run, an indented fence, a field label inside a fence, CRLF line
+endings, trailing spaces on a step heading, and a file with no final newline.
+Only the tilde case came apart, and it is the one that produces findings a
+document has not earned. A checker that cries wolf gets switched off, so this
+was worth a round even at medium.
+
+The fix carries a second change the previous three rounds argued for. Fence
+state was tracked separately at three sites and one of them shipped without any
+tracking, which was round 3's finding; the tilde gap then had to be fixed at all
+three. They now share one generator. The duplication was the defect rather than
+the place it happened to surface, and rounds 3 and 4 are the same underlying
+fault twice.
+
+Leads not pursued: full CommonMark fence semantics remain unimplemented, and
+deliberately. Info strings, fences indented past three spaces and fences inside
+list items are all legal and all unhandled. The contract states the runbook
+shape and the study traded tolerance of an unconventional shape away on purpose.
+What was fixed here is the case a real runbook in this repository would hit.
+
+## Protasis discipline cores, step 3, round 5 -- 2026-08-20
+
+Reviewed: the checker after round 4's fix and the refactor that came with it.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+The refactor moved three separate fence trackers onto one generator, which is
+the kind of change that pays for a round of its own. Six probes: cost at 400 and
+3000 steps, the exit span still bounding correctly with a later field carrying
+backticks, an allow comment inside a fence, a document made only of fences, and
+the three real runbook-shaped documents this repository now holds. Cost is 3 ms
+and 7 ms, so replacing the early break with a full scan did not turn the check
+quadratic. Everything else answered as it should.
+
+Four rounds found four things and the fifth found nothing, which is where the
+loop closes. Worth naming what the four had in common: every one was the checker
+reporting a verdict it had not earned. Two said clean over a broken document, one
+truncated a document and blamed it for the missing fields, one invented findings
+against a document that used a legal fence. None was a crash, and none would have
+been caught by reading the diff. They came from asking what the code would say
+about a document built to embarrass it.
+
+## Protasis discipline cores, step 4, round 1 -- 2026-08-20
+
+Reviewed: the ledger row, the frontmatter version, and the demo path, by
+recomputing every claim rather than reading it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | low | plugins/hexaemeron/skills/protasis/EVOLUTION.md | The row claimed 37 cases where the file holds 34. The inflated count came from reading a subTest loop as six cases where unittest reports one. A ledger is what a stranger reads instead of running the suite. | fixed in cb14cd3 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24 including all seven
+evolution-contract checks, plugin suite 337/337, imprimatur 100.0 on both files.
+
+What was recomputed. The header digest against the four-field canonical line;
+exactly one new row for this run; the evolution axis holding generation and epoch
+while incrementing evolution; the new digest differing from the row before it;
+the frontmatter version matching the ledger; the twelve study items the row
+claims actually present in the contract; all five finding codes present in the
+module; and the case count, which is where it came apart. The digest was then
+rechecked after the correction, since editing a row near a hashed block invites
+exactly that mistake.
+
+The frontier does not close mature, and the reason is on the record rather than
+asserted. The runbook schema is executable and the study contract beside it is
+not, and step 2 widened that gap from seven items to twelve. This run's own study
+named the study check as a non-goal and a successor before any of it was built,
+so the next job is evidenced rather than invented to keep a ledger open.
+
+Leads not pursued: the README test-count staleness first logged in step 3 round 1
+still stands.
+
+## Protasis discipline cores, step 4, round 2 -- 2026-08-20
+
+Reviewed: the corrected ledger row, every number in it recomputed.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+Seven claims recomputed and all seven hold: 34 cases against a suite that
+reports 34, seven study items becoming twelve against twelve numbered items in
+the contract, five codes against P000 through P004 in the module, a sixth step
+field against six labels in the schema block, and five audit rounds with four
+faults against five logged round headings and four finding rows in this run's own
+sections.
+
+Two of this round's first measurements were wrong, and in the same way: one read
+the header line because it also contains the version string, and one counted
+`S3-R` finding ids across the whole file, catching entries from earlier runs.
+Both were probe faults rather than content faults, and both are worth recording,
+because a probe that reads the wrong line reports either a false pass or a false
+finding depending on which way it lands. This run has now had three of them: two
+here and the shell quoting that fed three lint tools one concatenated path in
+step 1. The probe checks its own premise, or its verdict is worth nothing.
+
+Six findings across the run, one of them in the ledger and four in the checker,
+and every one was a verdict stated with more confidence than the evidence carried.
+None was a crash.
