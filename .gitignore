@@ -2,9 +2,12 @@ __pycache__/
 *.py[cod]
 .DS_Store
 
-# Foundry build output inside plugins that carry Solidity
+# Foundry build output inside plugins that carry Solidity, at the plugin root
+# or inside a nested harness directory.
 plugins/*/out/
 plugins/*/cache/
+plugins/*/harness/out/
+plugins/*/harness/cache/
 
 # Fuzzing and audit output. Depth-independent, because an engine writes these
 # beside wherever it was invoked from rather than at the plugin root: a Medusa

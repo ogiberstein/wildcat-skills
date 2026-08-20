@@ -4436,3 +4436,39 @@ resolves: `docs/commons/janus.md` exists on this branch at the pinned digest.
 The edited README scores 100/100 under imprimatur with no defects.
 
 Leads not pursued: none.
+
+# Run: build the Janus hook-conformance suite against the Wildcat v2.5 hooks
+
+## Step 1, round 1 -- 2026-08-20
+
+Scaffold step. The security_suite receipt lists the bundled Pashov ids; this
+round applies them proportionately to what the step actually ships.
+`solidity-auditor` was run over the step's Solidity, its own exclude pattern
+skipping `*.t.sol`. The two remaining files are `harness/src/Vm.sol` (a
+cheatcode interface declaration with no logic) and `harness/src/JanusBase.sol`
+(an abstract test base of pure `require` assertions). Neither holds state,
+makes an external call, moves value, uses assembly, delegatecall, payable, or
+selfdestruct. `foundry.toml` leaves `ffi` unset (default false) and scopes
+`fs_permissions` to read `./manifests` and `./examples` and read-write `./out`.
+
+`x-ray` and `fizz` are deferred with reason, not run: x-ray produces a
+pre-audit readiness report over a protocol's entry points, state transitions
+and value flow, and this step ships none of those; fizz builds an invariant
+fuzz suite over shipped contracts, and the harness gates and invariants arrive
+in steps 4 and 5. Both apply there, against the Wildcat host model, the gate
+engine and the hostile hooks, and are recorded when they run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The risk-register look went at the one boundary this step opens, the harness
+filesystem and cheatcode surface (phylax). It is closed: no `ffi`, no network,
+`fs_permissions` scoped to the plugin's own directories, no absolute paths.
+`forge build` and `forge test` pass; the repository packaging suite passes at
+thirteen plugins; the Janus Python suite passes; every shipped document lints
+100/100. One `forge lint` advisory remains, `screaming-snake-case-const` on the
+`vm` constant in `JanusBase.sol`; it is kept lowercase deliberately, matching
+the ecosystem-standard `forge-std` cheatcode handle, and is not a defect.
+
+Leads not pursued: none.
