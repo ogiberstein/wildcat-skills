@@ -71,6 +71,11 @@ class JsonTests(unittest.TestCase):
         with self.assertRaises(BereanError):
             jsonio.loads('{"a": 1.5}')
 
+    def test_nan_and_infinity_constants_are_refused(self):
+        for text in ('{"a": NaN}', '{"a": Infinity}', '{"a": -Infinity}'):
+            with self.assertRaises(BereanError):
+                jsonio.loads(text)
+
     def test_depth_over_the_ceiling_is_refused(self):
         text = "[" * 40 + "]" * 40
         with self.assertRaises(BereanError):

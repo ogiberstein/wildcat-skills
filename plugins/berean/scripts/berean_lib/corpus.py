@@ -135,7 +135,11 @@ def verify(document, root):
     drifted = []
     for relative in sorted(set(pinned) & on_disk):
         entry = pinned[relative]
-        data = digests.read_file(paths.resolve(root, relative, "corpus path"))
+        try:
+            data = digests.read_file(paths.resolve(root, relative, "corpus path"))
+        except BereanError as error:
+            drifted.append(f"{relative} ({error})")
+            continue
         if len(data) != entry["bytes"] or digests.of_bytes(data) != entry["sha256"]:
             drifted.append(relative)
     if drifted:

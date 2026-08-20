@@ -100,6 +100,17 @@ class VerifyTests(unittest.TestCase):
             make_tree(root, {"extra.md": b"stray\n"})
             self.assertEqual(failures(corpus.verify(document, root)), ["corpus-complete"])
 
+    def test_a_pinned_path_swapped_for_a_symlink_fails_corpus_bytes(self):
+        with tempfile.TemporaryDirectory() as root:
+            document = self.build(root)
+            target = os.path.join(root, "b.md")
+            os.remove(target)
+            os.symlink(os.path.join(root, "guide", "a.md"), target)
+            checks = corpus.verify(document, root)
+            self.assertEqual(failures(checks), ["corpus-bytes"])
+            detail = [c.detail for c in checks if c.name == "corpus-bytes"][0]
+            self.assertIn("symlink", detail)
+
     def test_a_tampered_listing_digest_fails_the_shape(self):
         with tempfile.TemporaryDirectory() as root:
             document = self.build(root)

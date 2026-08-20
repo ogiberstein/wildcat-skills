@@ -39,7 +39,12 @@ def loads(text, what="document"):
     if len(text.encode("utf-8")) > MAX_JSON_BYTES:
         raise BereanError(f"{what} over the {MAX_JSON_BYTES} byte ceiling")
     try:
-        value = json.loads(text, object_pairs_hook=_no_duplicates, parse_float=_refuse_float)
+        value = json.loads(
+            text,
+            object_pairs_hook=_no_duplicates,
+            parse_float=_refuse_float,
+            parse_constant=_refuse_float,
+        )
     except BereanError:
         raise
     except ValueError as error:
