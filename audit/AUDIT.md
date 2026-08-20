@@ -4011,3 +4011,32 @@ so the next job is evidenced rather than invented to keep a ledger open.
 
 Leads not pursued: the README test-count staleness first logged in step 3 round 1
 still stands.
+
+## Protasis discipline cores, step 4, round 2 -- 2026-08-20
+
+Reviewed: the corrected ledger row, every number in it recomputed.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+Seven claims recomputed and all seven hold: 34 cases against a suite that
+reports 34, seven study items becoming twelve against twelve numbered items in
+the contract, five codes against P000 through P004 in the module, a sixth step
+field against six labels in the schema block, and five audit rounds with four
+faults against five logged round headings and four finding rows in this run's own
+sections.
+
+Two of this round's first measurements were wrong, and in the same way: one read
+the header line because it also contains the version string, and one counted
+`S3-R` finding ids across the whole file, catching entries from earlier runs.
+Both were probe faults rather than content faults, and both are worth recording,
+because a probe that reads the wrong line reports either a false pass or a false
+finding depending on which way it lands. This run has now had three of them: two
+here and the shell quoting that fed three lint tools one concatenated path in
+step 1. The probe checks its own premise, or its verdict is worth nothing.
+
+Six findings across the run, one of them in the ledger and four in the checker,
+and every one was a verdict stated with more confidence than the evidence carried.
+None was a crash.
