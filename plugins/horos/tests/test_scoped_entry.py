@@ -148,6 +148,16 @@ class ScopedEntryTests(unittest.TestCase):
         self.assertIsNone(resolved)
         self.assertIn("leaves the worktree", reason)
 
+    def test_a_sibling_scope_reached_by_a_relative_path_is_admitted(self):
+        cwd = os.getcwd()
+        os.chdir(os.path.join(self.root, "plugins", "one"))
+        try:
+            code, text = self.check("../two")
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(code, 0, text)
+        self.assertIn("scope: plugins/two", text)
+
     def test_a_missing_boundary_exits_two(self):
         os.remove(os.path.join(self.root, horos.BOUNDARY_RELPATH))
         resolved, reason = horos.resolve_boundary_root(
