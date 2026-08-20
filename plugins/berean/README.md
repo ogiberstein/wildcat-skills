@@ -51,9 +51,11 @@ records to the promotion chain; nothing edits a published release in place.
 
 Chain evidence arrives as preserved read records in the Lazarus record
 shape, held by recomputed request keys. The shipped reference release under
-`examples/goldfinch-demo-v0` answers, refuses and discloses a time-domain
-disagreement against a frozen demonstration corpus and preserved Goldfinch
-mainnet reads at block 13097494, entirely offline.
+[`examples/goldfinch-demo-v0`](./examples/goldfinch-demo-v0) answers,
+refuses and discloses a time-domain disagreement against a frozen
+demonstration corpus and preserved Goldfinch mainnet reads at block
+13097494, entirely offline. Its `reads.jsonl` is the Lazarus goldfinch
+fixture's records copied byte for byte, held by a drift test.
 
 ## What it ships
 
@@ -91,8 +93,8 @@ evaluation that release passed.
 ## Run it
 
 ```text
-python3 scripts/berean.py verify-release examples/goldfinch-demo-v0
-python3 scripts/berean.py run-evals examples/goldfinch-demo-v0
+python3 scripts/berean.py verify-release examples/goldfinch-demo-v0/release
+python3 scripts/berean.py run-evals examples/goldfinch-demo-v0/release
 python3 examples/goldfinch-demo-v0/demo.py
 ```
 
@@ -113,6 +115,11 @@ python3 -m unittest discover -s plugins/berean/tests -t plugins/berean
   plugin was built from.
 - [`docs/design.md`](./docs/design.md), the decisions behind the formats and
   the deferred Ariadne binding.
+- [`docs/release-policy.md`](./docs/release-policy.md) and
+  [`docs/answers.md`](./docs/answers.md), the lifecycle and vocabulary
+  records.
+- [`docs/influences.md`](./docs/influences.md), what shaped each component
+  and where the public kit's boundary sits.
 - [`docs/study.md`](./docs/study.md) and [`docs/runbook.md`](./docs/runbook.md),
   the delivery record.
 
