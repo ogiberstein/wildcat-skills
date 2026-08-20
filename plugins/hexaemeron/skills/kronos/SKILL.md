@@ -89,7 +89,12 @@ still change any file genuinely required by that exact held job.
    reaching `done` is.
 8. Require the completed frontier run to update that skill's ledger under
    `VERSIONING.md`: evolution advances once and the held job is replaced, or
-   the frontier becomes mature. Then rescan the entire scope from disk --
+   the frontier becomes mature. Require it mechanically rather than by reading:
+   start the run with `hexctl init --frontier <that skill's EVOLUTION.md>`, and
+   `done integrate` refuses until the ledger carries exactly one new valid row.
+   A loop that ranks by held job cannot afford to take an unchanged ledger for a
+   closed one, because the next pass would rank the same job again. Then rescan
+   the entire scope from disk --
    every plugin and every governed skill, not only those ranked in the
    previous pass -- rerank from scratch, and repeat. A skill whose frontier
    was replaced re-enters the ranking carrying its new held job, and a skill

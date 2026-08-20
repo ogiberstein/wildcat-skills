@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "4.6.1"
+  version: "4.7.1"
 ---
 
 # Fiat
@@ -170,6 +170,26 @@ without pretending that it changes Fiat or another skill.
    evidenced next job or set `Frontier status` to `mature` and `Next Fiat
    job` to `None -- mature`. A normal Fiat delivery does not touch skill
    versions or frontier text.
+
+**Make step 4 mechanical.** Name the ledger at `init` and the controller holds
+the run to it:
+
+```text
+hexctl init --topic "<topic>" --base <ref> \
+  --frontier plugins/<plugin>/skills/<skill>/EVOLUTION.md
+```
+
+`init` records that file's digest and row count, and `done integrate` refuses
+until it carries exactly one new row valid under the versioning contract: the
+axis arithmetic, the digest recomputed over the frontier line the row describes,
+the header and the row naming the same version, a generation holding the prior
+revision and digest, and a mature status carrying no next job. Each refusal names
+which of those failed.
+
+Pass it whenever the run is meant to advance a frontier. Leave it off for
+ordinary delivery, where there is no ledger row to owe. If the job turns out not
+to close after all, `hexctl halt --reason ...` puts that on the ledger; the gate
+refuses a silent finish, not a recorded stop.
 
 ## Preflight (new runs only)
 
