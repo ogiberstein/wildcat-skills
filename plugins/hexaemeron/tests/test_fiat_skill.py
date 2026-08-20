@@ -85,10 +85,14 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("Wildcat-Origin: shoggoth", self.push_discipline)
 
     def test_provenance_is_verified_without_reclassifying_human_work(self):
-        self.assertIn("Read the pull\nrequest back from GitHub", self.push_discipline)
-        self.assertIn("same `gh pr create` command", self.push_discipline)
-        self.assertIn("pre-existing human commit", self.push_discipline)
-        self.assertIn("pre-existing human pull\nrequest", self.push_discipline)
+        # Flattened: these assert what the instruction says, and a reflow of the
+        # same sentence is not a change to it. Pinning the line breaks made an
+        # edit that only rewrapped the paragraph look like a removed rule.
+        flat = " ".join(self.push_discipline.split())
+        self.assertIn("Read the pull request back from GitHub", flat)
+        self.assertIn("same `gh pr create` command", flat)
+        self.assertIn("pre-existing human commit", flat)
+        self.assertIn("pre-existing human pull request", flat)
 
     def test_publish_phase_merges_and_closes_its_own_work(self):
         flat = " ".join(self.push_discipline.split())
@@ -122,6 +126,95 @@ class FiatSkillContractTests(unittest.TestCase):
                       self.fiat)
         self.assertIn("Never merge into the base more than once in a run", self.fiat)
         self.assertIn("nothing merges while the steps run", fiat.lower())
+
+
+class StackBringDownTests(unittest.TestCase):
+    """The order the stack comes down in, and why deleting early is fatal.
+
+    A run merged step 1 with --delete-branch. GitHub did not retarget the pull
+    request stacked on it; it closed it, and a closed pull request whose base ref
+    is gone can be neither reopened nor retargeted. The instructions' own
+    recovery path was unreachable from the state the instructions produced.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.push_discipline = PUSH_DISCIPLINE.read_text(encoding="utf-8")
+        cls.flat = " ".join(cls.push_discipline.split())
+
+    def test_the_next_pull_request_is_retargeted_before_the_merge(self):
+        self.assertIn("gh pr edit <next pr> --base <run branch>", self.push_discipline)
+        self.assertIn("before this", self.flat)
+        # Retargeting must come first in the numbered procedure.
+        bring_down = self.push_discipline.split("## Bringing the stack down")[1]
+        retarget = bring_down.index("gh pr edit <next pr>")
+        merge = bring_down.index("Merge that step's pull request")
+        self.assertLess(retarget, merge)
+
+    def test_step_merges_do_not_delete_branches(self):
+        self.assertIn("Do not pass", self.flat)
+        self.assertIn("--delete-branch", self.push_discipline)
+        self.assertIn("do not delete the branch here", self.flat)
+
+    def test_the_closed_pull_request_failure_mode_is_written_down(self):
+        self.assertIn("GitHub closes", self.flat)
+        self.assertIn("neither reopened nor retargeted", self.flat)
+
+    def test_cleanup_belongs_to_integrate(self):
+        integration = self.push_discipline.split("## The integration pull request")[1]
+        self.assertIn("delete the run branch and every step branch", " ".join(integration.split()))
+        self.assertIn("one place branch cleanup happens", " ".join(integration.split()))
+
+
+class OriginLabelTests(unittest.TestCase):
+    """The provenance label, and not trusting a query that failed.
+
+    A run reported the label missing and created one that already existed: the
+    check ran moments after a rate-limit error, so an empty result read as an
+    empty repository. A gh query shaped `list | grep -q` cannot tell absence from
+    failure.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.flat = " ".join(PUSH_DISCIPLINE.read_text(encoding="utf-8").split())
+
+    def test_the_label_is_created_when_absent(self):
+        self.assertIn("gh label create origin:ai", self.flat)
+
+    def test_the_label_is_read_back_rather_than_assumed(self):
+        self.assertIn("Read it back", self.flat)
+        self.assertIn("rather than trusting that `gh pr create` applied it", self.flat)
+
+    def test_a_failed_query_is_not_an_answer(self):
+        self.assertIn("A failed query is not an answer", self.flat)
+        self.assertIn("Check the exit status separately from the match", self.flat)
+
+
+class BaseSyncTests(unittest.TestCase):
+    """A run inherits every mistake in the ref it was cut from.
+
+    A session began with the local base a hundred and forty-six commits behind
+    the remote. Nothing in the loop said to sync it, so the study would have
+    cited a starting ref that was already history.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fiat = FIAT.read_text(encoding="utf-8")
+        cls.flat = " ".join(cls.fiat.split())
+
+    def test_the_base_is_synced_before_any_branch_is_cut(self):
+        self.assertIn("Sync the base first", self.fiat)
+        self.assertIn("git merge --ff-only origin/<base>", self.fiat)
+        self.assertIn("bring the base up to date before anything is cut from it", self.flat)
+
+    def test_the_sync_is_fast_forward_only_and_refuses_a_dirty_tree(self):
+        self.assertIn("Fast-forward only", self.fiat)
+        self.assertIn("If the tree is dirty, stop", self.flat)
+
+    def test_the_starting_sha_reaches_the_study(self):
+        self.assertIn("state the starting SHA in the study's constraints", self.flat)
 
 
 class ContributorCheckTests(unittest.TestCase):

@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "4.4.1"
+  version: "4.5.1"
 ---
 
 # Fiat
@@ -117,14 +117,36 @@ the second.
    state. If the phase is not `done`, this is a resume: enter the loop and
    treat the state file as canonical.
 4. Otherwise: say exactly `Let there be light.` and nothing else before it,
-   run the read-only preflight checks below, then `hexctl init --topic
-   "<topic>" --base <ref>`, record the post-init receipts, and enter the loop.
+   run the read-only preflight checks below, then bring the base up to date
+   before anything is cut from it, then `hexctl init --topic "<topic>" --base
+   <ref>`, record the post-init receipts, and enter the loop.
    `--base` defaults to `main`; honour any branch, repo, or commit the user
    named as the starting point. `init` also names the run branch, printed and
    held in state: one integration branch for the whole run, cut from the base.
    Create it before the first step (`git checkout -b <run branch> <base>`) and
    push it. Pass `--run-branch <name>` only when the user wants a different
    name than the topic slug.
+
+**Sync the base first.** A run inherits every mistake in the ref it was cut
+from, and a local checkout that has been sitting is the normal case rather than
+the exception:
+
+```text
+git fetch origin
+git status --short                     # must be clean
+git checkout <base> && git merge --ff-only origin/<base>
+git rev-parse HEAD                     # record this; it is the run's real start
+```
+
+Fast-forward only. If the base will not fast-forward, the local branch has
+commits the remote does not, and that is a question for the user rather than
+something to merge or rebase past on the way to starting work. If the tree is
+dirty, stop: uncommitted work belongs to whoever left it there, and it would
+otherwise ride into the first step's commit under this run's provenance. Cut the
+run branch from the synced base, and state the starting SHA in the study's
+constraints so the spec and the branch agree about where the run began. Skipping
+this is how a study cites a starting ref that is a hundred commits behind the
+work it is about to build on.
 
 ## Frontier maturity gate
 

@@ -51,10 +51,36 @@ reference. Include one only when the user independently supplied a relevant
 issue.
 
 Before opening the pull request, make sure the target repository has the
-`origin:ai` label. Append `<!-- wildcat-origin: shoggoth -->` to the prepared
-body, then apply `origin:ai` in the same `gh pr create` command. Read the pull
-request back from GitHub and confirm that both markers persisted before
-receipting the push phase.
+`origin:ai` label, and create it when it does not:
+
+```text
+gh label list --repo <owner/repo> --search origin:ai
+gh label create origin:ai --repo <owner/repo> \
+  --color ededed --description "Opened by an agent, not a person"
+```
+
+Creating it is additive and reversible, and a first Fiat run against a fresh
+repository will always be the one that needs it. Append
+`<!-- wildcat-origin: shoggoth -->` to the prepared body, then apply `origin:ai`
+in the same `gh pr create` command. Read the pull request back from GitHub and
+confirm that both markers persisted before receipting the push phase.
+
+Read it back, rather than trusting that `gh pr create` applied it. A label
+silently missing is the common failure here, not a label that does not exist:
+the marker is what tells a reader the pull request is agent-authored, and one
+that reads as human is worse than one that is merely unlabelled.
+
+**A failed query is not an answer.** `gh label list | grep -q origin:ai` reports
+the same thing when the label is absent and when the call was rate-limited,
+unauthenticated or offline, so a command shaped that way will invent a missing
+label and then create one that already exists. Check the exit status separately
+from the match, and on a failed call say the check could not be completed rather
+than reporting what it did not find. This holds for every gh query in the loop,
+not only the label.
+
+If the label genuinely cannot be created, because the account lacks the
+permission or the repository forbids it, say so out loud and record the reason
+rather than opening the pull request unlabelled and silent.
 
 Extra labels are additive. Do not remove or rename either provenance marker.
 Do not amend a pre-existing human commit or relabel a pre-existing human pull
@@ -75,13 +101,22 @@ The receipt refuses a `--merge-commit` here. Merges belong to `integrate`.
 `next` returns `merge-step` once per step, in step order, starting at the
 bottom. For each one:
 
-1. Merge that step's pull request into the run branch with the repository's
-   permitted merge method, without bypassing a gate.
-2. Verify the merge commit, then delete the merged step branch where policy
-   permits. GitHub retargets the next step's pull request onto the run branch
-   when its base branch goes; confirm that it did, and retarget it by hand
-   (`gh pr edit <pr> --base <run branch>`) if it did not.
-3. Receipt it before touching the next one:
+1. Retarget the next step's pull request onto the run branch first, before this
+   one merges or its branch goes:
+
+   ```text
+   gh pr edit <next pr> --base <run branch>
+   ```
+
+   Do this even though the stack currently points at this step's branch. Once
+   the step below has landed in the run branch, the run branch already contains
+   it, so the next pull request's diff against the run branch is exactly that
+   step and nothing more.
+2. Merge that step's pull request into the run branch with the repository's
+   permitted merge method, without bypassing a gate. Do not pass
+   `--delete-branch`, and do not delete the branch here. Branch cleanup is the
+   integrate phase's last act, once the whole stack has landed.
+3. Verify the merge commit, then receipt it before touching the next one:
 
    ```text
    hexctl done merge-step --step <n> --merge-commit <sha>
@@ -89,6 +124,15 @@ bottom. For each one:
 
 The controller refuses these out of order, so a resumed run always knows how
 far down the stack it got.
+
+**Why the order is retarget, then merge, and never delete.** Deleting a merged
+step's branch does not retarget the pull request stacked on it. GitHub closes
+that pull request instead, and a closed pull request whose base ref no longer
+exists can be neither reopened nor retargeted: `reopenPullRequest` and
+`updatePullRequest` both refuse it. The stack is then stuck in a state its own
+recovery instructions cannot reach, and the way out is to push the deleted
+branch back at its old head, reopen, retarget, and merge. Retargeting first
+costs one command per step and cannot produce that state at all.
 
 ## The integration pull request
 
@@ -100,10 +144,13 @@ run-level title and body, and apply the same provenance markers:
 gh pr create --base <recorded base> --head <run branch> ...
 ```
 
-Wait for required checks, merge without bypassing them, verify the merge
-commit, and delete the run branch where policy permits. If a `task_issue`
-receipt exists, close that exact issue now with a short comment linking the
-merged pull request. This is the only merge into the base in the whole run.
+Wait for required checks, merge without bypassing them, and verify the merge
+commit. Then delete the run branch and every step branch where policy permits:
+this is the one place branch cleanup happens, and by now nothing is stacked on
+any of them, so deleting cannot close a pull request that still has work to do.
+If a `task_issue` receipt exists, close that exact issue now with a short
+comment linking the merged pull request. This is the only merge into the base in
+the whole run.
 
 ```text
 hexctl done integrate --pr-url <url> --merge-commit <sha> \

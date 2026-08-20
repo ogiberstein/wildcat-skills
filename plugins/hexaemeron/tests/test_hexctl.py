@@ -1141,3 +1141,102 @@ class SolidityConfigTests(HexctlCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class StaleControllerTests(unittest.TestCase):
+    """A run driven by an installed plugin older than the repository it edits.
+
+    A marketplace plugin is installed from a published copy, so a repository that
+    also holds Fiat's source can be a whole evolution ahead of the controller
+    driving the run. Every rule the newer one enforces then goes unenforced, and
+    the receipt cannot show it: a flag the controller does not accept looks
+    exactly like a rule nobody wrote. This shipped after a run recorded its lint
+    results as prose because the installed `audit-round` was a version behind the
+    flags its own ledger documented.
+    """
+
+    def _repo(self, directory, version):
+        path = os.path.join(
+            directory, "plugins", "hexaemeron", "skills", "fiat"
+        )
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "EVOLUTION.md"), "w", encoding="utf-8") as fh:
+            fh.write(f"- Current version: `{version}`\n")
+        return directory
+
+    def test_ledger_version_reads_the_declared_version(self):
+        module = hexctl_module()
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "EVOLUTION.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("# Ledger\n\n- Current version: `fiat-v4.4.1`\n- Frontier status: `open`\n")
+            self.assertEqual(module.ledger_version(path), "fiat-v4.4.1")
+
+    def test_ledger_version_is_none_when_absent_or_unreadable(self):
+        module = hexctl_module()
+        with tempfile.TemporaryDirectory() as directory:
+            missing = os.path.join(directory, "nope.md")
+            self.assertIsNone(module.ledger_version(missing))
+            empty = os.path.join(directory, "empty.md")
+            with open(empty, "w", encoding="utf-8") as fh:
+                fh.write("# Ledger\n\nno version line here\n")
+            self.assertIsNone(module.ledger_version(empty))
+
+    def test_a_newer_checked_in_copy_is_reported(self):
+        module = hexctl_module()
+        running = module.ledger_version(
+            os.path.join(os.path.dirname(HEXCTL), os.pardir, "EVOLUTION.md")
+        )
+        self.assertIsNotNone(running)
+        with tempfile.TemporaryDirectory() as directory:
+            self._repo(directory, "fiat-v99.9.9")
+            found = module.stale_controller(directory)
+        self.assertIsNotNone(found)
+        self.assertEqual(found[0], running)
+        self.assertEqual(found[1], "fiat-v99.9.9")
+        self.assertIn("EVOLUTION.md", found[2])
+
+    def test_matching_versions_are_silent(self):
+        module = hexctl_module()
+        running = module.ledger_version(
+            os.path.join(os.path.dirname(HEXCTL), os.pardir, "EVOLUTION.md")
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            self._repo(directory, running)
+            self.assertIsNone(module.stale_controller(directory))
+
+    def test_a_target_without_fiat_is_silent(self):
+        module = hexctl_module()
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertIsNone(module.stale_controller(directory))
+
+    def test_the_plugins_own_source_tree_is_not_compared_against_itself(self):
+        """Running Fiat on the repository that holds it must not warn.
+
+        The candidate it would find is the very ledger it just read, so a naive
+        comparison is silent only by luck of the versions matching. It is skipped
+        by identity instead.
+        """
+        module = hexctl_module()
+        target = os.path.realpath(os.path.join(HERE, "..", "..", ".."))
+        own = os.path.join(target, "plugins", "hexaemeron", "skills", "fiat", "EVOLUTION.md")
+        if not os.path.isfile(own):
+            self.skipTest("not running from the plugin's own checkout")
+        self.assertIsNone(module.stale_controller(target))
+
+    def test_init_warns_on_stderr_without_failing_the_run(self):
+        module_dir = tempfile.mkdtemp()
+        try:
+            self._repo(module_dir, "fiat-v99.9.9")
+            done = subprocess.run(
+                [sys.executable, HEXCTL, "--dir", module_dir, "init",
+                 "--topic", "stale probe", "--base", "main"],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertIn("warning", done.stderr)
+            self.assertIn("fiat-v99.9.9", done.stderr)
+            self.assertIn("initialised", done.stdout)
+        finally:
+            import shutil
+            shutil.rmtree(module_dir, ignore_errors=True)
