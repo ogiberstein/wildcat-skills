@@ -5213,3 +5213,20 @@ Runtime contracts identify canonical paths in their selection prose, but the
 checker does not interpret natural-language request predicates. The sole router
 and plugin contracts remain agent instructions; exact semantic request routing
 is demonstrated manually rather than represented as a second policy language.
+
+## Promise Machine, step 3, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected identity check reports one portable router, 28 unique canonical
+skills, 14 package versions, 23 governed skill versions and matching 14-plugin
+host sets. The four focused frontmatter and version guards, all 74 root tests
+and the Phylax, Ephoros and Hypomnema gates pass.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The natural-language routing boundary recorded in round 1 remains unchanged.
