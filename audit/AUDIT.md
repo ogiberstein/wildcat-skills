@@ -3869,3 +3869,31 @@ Leads not pursued: the README states "124 controller, contract and practice-chec
 tests, 55 lint tests" while the plugin suite ran 303 before this run and 332
 after. That prose was already stale by roughly 180 tests before this run touched
 it, no test derives it, and correcting it is outside what this step asks for.
+
+## Protasis discipline cores, step 3, round 2 -- 2026-08-20
+
+Reviewed: the checker with round 1's fix applied, probing what that fix might
+have exposed rather than re-reading it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | The last tracked step's body ran to the next non-step heading, so where the cap had dropped steps their fields sat inside that span and donated themselves upward. A broken step at the cap boundary passed while missing five of six fields. | fixed in 3f7c8d1 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 333/333.
+
+How it surfaced. Round 1 removed an early break, so the question for this round
+was what that changed downstream. Four probes: eight times the cap finishes in
+16 ms and reports P004 exactly once rather than once per dropped step; a
+document exactly at the cap stays clean; one step past it reports; and a broken
+step inside the cap alongside overflow reported no P001 at all, which is where
+it came apart. Shrinking the cap to two steps isolated it in one document.
+
+The defect predates round 1. The old code broke out of the scan at the cap and
+produced the same span, so the donation happened identically; round 1 only made
+the boundary reachable by a probe. Recorded that way rather than as a regression,
+because a reader deciding whether to trust earlier releases needs to know it was
+always there.
+
+Leads not pursued: none new. The README test-count staleness from round 1 still
+stands and is still outside this step.
