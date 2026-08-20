@@ -4368,3 +4368,27 @@ next job, and the frontmatter agrees. The description change is carried by
 passes over the edited one.
 
 Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went at whether the amended text broke the guards that were already
+holding it, and at whether the three shipped mechanisms compose. All four prose
+guards pass together: the field list, the phase-only park clause, the rank-only
+section's own content, and the one requiring step 6 rather than step 4 to carry
+the loop's recording, which the new wording could have moved.
+
+The three mechanisms were then run against each other in one pass: a phase-only
+rank-only ranking with a parked candidate scoring above the selection, an
+ungoverned skill, and `parked` reporting the block. The parked candidate carried
+its `P` and stayed out of selection, the pass rendered as `(rank-only)`, and
+`parked` exited 3, which the amended section now says means a park stands rather
+than a failure.
+
+Leads not pursued: none.
