@@ -501,7 +501,8 @@ contract, verifier and evaluation corpus for them.
 What remains:
 
 - `janus`, a conformance suite for what contract hooks may observe and change
-  before and after a host action.
+  before and after a host action. The suite remains unbuilt, and its full
+  specification now lives at [docs/commons/janus.md](./docs/commons/janus.md).
 
 These are tools we wanted and then needed. Their formats, datasets, properties,
 fixtures and tests become more useful when other teams can inspect, run and
