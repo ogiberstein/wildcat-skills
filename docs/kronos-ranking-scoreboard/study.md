@@ -53,9 +53,9 @@ A working prototype means all of this holds:
 
 **In this skill.** `plugins/hexaemeron/skills/kronos/SKILL.md` step 3 defines
 the four axes and their caps: material impact 40, evidenced urgency 25,
-readiness of inputs 20, work unblocked elsewhere 15. Step 4 defines the
-tie-break: impact, then readiness, then discovery order. Step 8 defines the
-rescan. Kronos has no `scripts/` directory today; it is prose and one
+readiness of inputs 20, work unblocked elsewhere 15. The tie-break in step 4
+runs impact, then readiness, then discovery order, and step 8 is the rescan.
+Kronos has no `scripts/` directory today. It is prose and one
 `agents/openai.yaml`.
 
 **The identity hash already exists.** `plugins/hexaemeron/skills/VERSIONING.md`
@@ -67,10 +67,10 @@ defines a canonical line per ledger:
 
 with its final newline, hashed with SHA-256, and stores that digest in every
 history row. `tests/test_evolution_contract.py:111` recomputes it and asserts
-it matches the latest row. That is the held-job identity hash this study needs,
-already specified, already tested, and already comparable against the ledger's
-own recorded digest. Defining a second hash would mean two ways of naming the
-same thing.
+it matches the latest row. That is the held-job identity hash this study needs.
+It is specified, it is tested, and a scoreboard line carrying it can be checked
+against the ledger's own recorded digest. Defining a second hash would leave
+two ways of naming one thing.
 
 **The checker pattern.** Six sibling skills ship a stdlib-only script with
 numbered diagnostic codes, exit 0 clean, 1 findings, 2 bad invocation, a stated
