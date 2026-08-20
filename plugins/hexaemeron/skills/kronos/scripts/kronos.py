@@ -26,6 +26,8 @@ changed. This appends each pass to a file so that movement is visible.
   K013  an unpark with no standing park to release
   K014  a parked flag that disagrees with the standing parks
   K015  a pass in which every candidate is parked
+  K016  a rank-only pass that names a Fiat run
+  K017  an ungoverned list that is too long or holds something that is not a name
 
 Exit 0 clean, 1 a refusal, 2 bad invocation, and 3 from `parked` alone while a
 park stands. That last is not an error in the tool. It is the loop's reason not
@@ -70,7 +72,9 @@ CANDIDATE_FIELDS = frozenset(
     {"skill", "ledger", "basis", "total", "parked"} | {name for name, _ in AXES}
 )
 CANDIDATE_REQUIRED = ("skill", "ledger", "basis") + tuple(name for name, _ in AXES)
-PASS_FIELDS = frozenset({"scope", "mode", "candidates", "selected", "run"})
+PASS_FIELDS = frozenset(
+    {"scope", "mode", "candidates", "selected", "run", "rank_only", "ungoverned"}
+)
 PASS_REQUIRED = ("scope", "mode", "candidates", "selected")
 MODES = ("full", "phase-only")
 
@@ -80,6 +84,7 @@ MAX_LEDGER_BYTES = 1024 * 1024
 MAX_SCOREBOARD_BYTES = 16 * 1024 * 1024
 MAX_CANDIDATES = 200
 MAX_REASON_BYTES = 4096
+MAX_UNGOVERNED = 200
 STANDS = 3
 
 LEDGER_FIELDS = ("Frontier status", "Frontier revision", "Current frontier", "Next Fiat job")
@@ -309,6 +314,27 @@ def record(args: argparse.Namespace) -> int:
     if run is not None and not isinstance(run, str):
         raise Refusal("K002", f"run is {run!r}, which is neither a string nor absent")
 
+    rank_only = document.get("rank_only", False)
+    if not isinstance(rank_only, bool):
+        raise Refusal("K004", f"rank_only is {rank_only!r}, not a boolean")
+    # A rank-only pass stops after selection, so there is no run for it to name.
+    # Recording both would leave the file saying the ranking was and was not acted on.
+    if rank_only and run is not None:
+        raise Refusal("K016", f"a rank-only pass names run {run!r}, but it launched none")
+
+    ungoverned = document.get("ungoverned", [])
+    if not isinstance(ungoverned, list):
+        raise Refusal("K017", f"ungoverned is {ungoverned!r}, not a list")
+    if len(ungoverned) > MAX_UNGOVERNED:
+        raise Refusal("K017", f"{len(ungoverned)} ungoverned names, over the {MAX_UNGOVERNED} cap")
+    for name in ungoverned:
+        if not isinstance(name, str) or not name.strip():
+            raise Refusal("K017", f"ungoverned holds {name!r}, which is not a name")
+        # Ungoverned means no ledger, and a scored candidate was scored from one.
+        # A name in both leaves the record asserting each about the same skill.
+        if name in names:
+            raise Refusal("K017", f"{name} is reported ungoverned and scored in the same pass")
+
     previous = existing_passes(scoreboard)
     entry = {
         "pass": len(previous) + 1,
@@ -316,12 +342,15 @@ def record(args: argparse.Namespace) -> int:
         "mode": document["mode"],
         "selected": document["selected"],
         "run": run,
+        "rank_only": rank_only,
+        "ungoverned": list(ungoverned),
         "candidates": scored,
     }
     append_line(scoreboard, entry)
     parked_note = f", {len(scored) - len(unparked)} parked" if len(unparked) != len(scored) else ""
+    kind = "rank-only pass" if rank_only else "pass"
     print(
-        f"pass {entry['pass']} recorded: {len(scored)} candidate(s){parked_note}, "
+        f"{kind} {entry['pass']} recorded: {len(scored)} candidate(s){parked_note}, "
         f"selected {entry['selected']}"
     )
     return 0
@@ -420,8 +449,8 @@ def show(args: argparse.Namespace) -> int:
     passes = existing_passes(scoreboard)
     moved = drift(passes)
     for entry in passes:
-        run = entry.get("run") or "no run recorded"
-        print(f"pass {entry['pass']}  {entry['mode']}  {entry['scope']}  ({run})")
+        note = "rank-only" if entry.get("rank_only") else (entry.get("run") or "no run recorded")
+        print(f"pass {entry['pass']}  {entry['mode']}  {entry['scope']}  ({note})")
         for candidate in sorted(entry["candidates"], key=lambda c: -c["total"]):
             # A parked candidate outscoring the selected one is the normal case
             # once anything is parked. Without the mark the output reads as
@@ -437,6 +466,8 @@ def show(args: argparse.Namespace) -> int:
             print(f"      {candidate['basis']}")
             for name, before, after in moved.get((entry["pass"], candidate["skill"]), []):
                 print(f"      drift: {name} {before} -> {after}, held job unchanged")
+        for name in entry.get("ungoverned", []):
+            print(f"    ungoverned: {name}")
     print(f"{len(passes)} pass(es), {len(moved)} with drift")
     return 0
 

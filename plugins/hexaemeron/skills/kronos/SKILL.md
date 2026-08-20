@@ -143,7 +143,10 @@ python3 "<this skill dir>/scripts/kronos.py" show \
 
 `record` reads the pass on stdin as one JSON object: `scope`, `mode` of `full`
 or `phase-only`, `selected`, an optional `run` naming the Fiat run this pass
-launched, and `candidates`. Each candidate carries `skill`, `ledger`, the four
+launched, an optional `rank_only` saying the pass stopped after selection, an
+optional `ungoverned` listing the in-scope skills found carrying no ledger, and
+`candidates`. A `rank_only` pass naming a `run` is refused: it launched none.
+Each candidate carries `skill`, `ledger`, the four
 axis scores under the names `impact`, `urgency`, `readiness` and `unblocks`, a
 one-sentence `basis`, an optional `total` for the arithmetic the ranking did in
 chat, which is refused when it disagrees with the axes, and an optional `parked`
