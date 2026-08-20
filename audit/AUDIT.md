@@ -4392,3 +4392,26 @@ its `P` and stayed out of selection, the pass rendered as `(rank-only)`, and
 than a failure.
 
 Leads not pursued: none.
+
+## Scoped entry, step 1, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over
+`plugins tests` and the documented doc set. Horos 183/183 with three expected
+failures, root 35/35 with one, verified before this receipt. The look went at
+the measurement record rather than the fixtures, since the fixtures were each
+run in isolation and print the failure they claim: `out/` as a hard entry at 0
+bytes and 0 files, `check` exit 1 beside an ignored build directory, `check`
+exit 2 on a descendant, and the root boundary against a fresh tracked scan.
+Both findings are the risk register's first class, a record that reads as
+more than it measured. Fixes are committed on the step branch rather than a
+side branch, because four later steps chain from it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | plugins/horos/tests/benchmark_scope.py | the record's `root` field was `os.path.relpath(root, root)`, always `"."`, so a run against a different root recorded the same value as a run against the repository | fixed in b6e7ed2 |
+| S1-R1-02 | low | plugins/horos/tests/benchmark_scope.py | a refused check still reported a median, so `--root plugins/horos` recorded `0.014 ms` beside exit 2; a duration for a check that classified nothing reads as a fast check | fixed in b6e7ed2 |
+
+Leads not pursued: the scaffold test bounds its build-order assertion to a
+300-character window after the `Build order:` line, which is a positional
+assumption rather than a parse; it fails rather than passes if the line moves,
+so it was left as it is.
