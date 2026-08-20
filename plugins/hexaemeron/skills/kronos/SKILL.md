@@ -133,8 +133,9 @@ python3 "<this skill dir>/scripts/kronos.py" show \
 or `phase-only`, `selected`, an optional `run` naming the Fiat run this pass
 launched, and `candidates`. Each candidate carries `skill`, `ledger`, the four
 axis scores under the names `impact`, `urgency`, `readiness` and `unblocks`, a
-one-sentence `basis`, and an optional `total` for the arithmetic the ranking
-did in chat, which is refused when it disagrees with the axes.
+one-sentence `basis`, an optional `total` for the arithmetic the ranking did in
+chat, which is refused when it disagrees with the axes, and an optional `parked`
+naming whether that candidate has a standing park.
 
 It computes each candidate's held-job hash from that ledger on disk rather than
 taking one from the caller, so a recorded line can be checked against the digest
