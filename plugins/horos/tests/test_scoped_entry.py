@@ -59,7 +59,6 @@ class PhantomEntryTests(unittest.TestCase):
     """Criterion 4: a directory holding no tracked file is not a hard entry."""
 
     @unittest.skipIf(GIT is None, "git unavailable")
-    @unittest.expectedFailure
     def test_an_ignored_directory_earns_no_hard_entry(self):
         tmp, root = repository()
         self.addCleanup(tmp.cleanup)
@@ -75,7 +74,6 @@ class MachineIndependentCheckTests(unittest.TestCase):
     """Criterion 5: check answers the same whatever untracked state is present."""
 
     @unittest.skipIf(GIT is None, "git unavailable")
-    @unittest.expectedFailure
     def test_check_is_clean_beside_an_ignored_build_directory(self):
         tmp, root = repository()
         self.addCleanup(tmp.cleanup)
