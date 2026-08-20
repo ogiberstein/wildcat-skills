@@ -5728,3 +5728,18 @@ new generation row. Phylax, ephoros, hypomnema and the study check exit
 failures.
 
 Leads not pursued: none
+
+## Protasis amendment contract, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check exits 0 over the study. Per the register:
+refusal-drift not applicable, no contract text changed this step;
+field-mismatch reviewed, the study's item 1 and item 4 name the same four
+fields; ledger-arithmetic not applicable, no row cut this step. Phylax,
+ephoros and hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the
+two recorded environment failures.
+
+Leads not pursued: none
