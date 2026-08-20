@@ -4,12 +4,18 @@
 > **Marketplace context: Probitas.** Probitas builds a sourced record of what a counterparty did across lending venues from addresses they declared, without identifying a person or issuing a Wildcat verdict. Use Alexandria for archived lending inputs and Tabularium when the job is publishing a reusable credit-event release rather than assessing one counterparty. **Current frontier:** Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented.
 <!-- marketplace-context:end -->
 
-Probitas contains one Agent Skill. Select from this table, then read the chosen
-`SKILL.md` in full.
+## Promise Machine binding
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `probitas` | `skills/probitas/SKILL.md` | Build a sourced dossier on what a counterparty did across on-chain lending venues |
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
+Probitas contains one Agent Skill. Select `probitas` to build a sourced dossier
+on what a counterparty did across on-chain lending venues, then read
+`skills/probitas/SKILL.md` in full.
 
 `skills/probitas/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
@@ -19,13 +25,13 @@ add a sibling browsing README.
 The canonical skill was written for hosts that name their tools. A local agent
 must map those names to equivalent capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+| Instruction term | Required capability | Preserve |
+| --- | --- | --- |
+| `Read` | Read the named file completely or at the stated range | Named range and byte content |
+| `Write` or `Edit` | Create or patch the named file | Intended path and patch scope |
+| `Bash` | Execute the command in a shell and inspect its exit status | Argument order and exit status |
+| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern | Pattern and matched paths |
+| `AskUserQuestion` | Ask the stated question through structured UI or concise text | Literal question and answer |
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent local

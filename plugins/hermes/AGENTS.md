@@ -4,6 +4,15 @@
 > **Marketplace context: Hermes.** Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate. Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review. **Current frontier:** No complete, reproducible live Wildcat evidence bundle is published.
 <!-- marketplace-context:end -->
 
+## Promise Machine binding
+
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
 Hermes is one Agent Skill. Its canonical instructions are in
 `skills/hermes/SKILL.md`; read that file in full before working on Solidity gas
 usage. It is the only instruction copy; do not add a sibling browsing README.

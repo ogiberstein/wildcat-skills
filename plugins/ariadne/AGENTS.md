@@ -4,12 +4,18 @@
 > **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
-Ariadne contains one Agent Skill. Select from this table, then read the chosen
-`SKILL.md` in full.
+## Promise Machine binding
 
-| Skill | Canonical instructions | Select when |
-| --- | --- | --- |
-| `ariadne` | `skills/ariadne/SKILL.md` | Read or write an evidence statement binding an artefact to the record behind it |
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
+Ariadne contains one Agent Skill. Select `ariadne` to read or write an evidence
+statement binding an artefact to the record behind it, then read
+`skills/ariadne/SKILL.md` in full.
 
 `skills/ariadne/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
@@ -19,13 +25,13 @@ add a sibling browsing README.
 The canonical skill was written for hosts that name their tools. A local agent
 must map those names to equivalent capabilities:
 
-| Instruction term | Required capability |
-| --- | --- |
-| `Read` | Read the named file completely or at the stated range |
-| `Write` or `Edit` | Create or patch the named file |
-| `Bash` | Execute the command in a shell and inspect its exit status |
-| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern |
-| `AskUserQuestion` | Ask the stated question through structured UI or concise text |
+| Instruction term | Required capability | Preserve |
+| --- | --- | --- |
+| `Read` | Read the named file completely or at the stated range | Named range and byte content |
+| `Write` or `Edit` | Create or patch the named file | Intended path and patch scope |
+| `Bash` | Execute the command in a shell and inspect its exit status | Argument order and exit status |
+| `Glob`, `Grep`, or `find` | Enumerate or search files with the stated pattern | Pattern and matched paths |
+| `AskUserQuestion` | Ask the stated question through structured UI or concise text | Literal question and answer |
 
 Tool names describe capabilities, not mandatory API identifiers. Preserve the
 arguments, ordering, output files and exit codes when using an equivalent local

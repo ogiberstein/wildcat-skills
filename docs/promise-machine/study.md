@@ -4,7 +4,8 @@
 
 Assuming, unless corrected:
 
-1. The target is `wildcat-finance/skills` at `main` commit `9c7692d`. The
+1. The implementation run targets `wildcat-finance/skills` from `main` commit
+   `d577b88`, the merge of the reviewed study and runbook. The
    tracked tree is clean and matches `origin/main`; the only untracked paths
    are this provisional study and runbook.
 2. The repository and suite retain the public name **Wildcat Labs Skills**. In
@@ -48,7 +49,9 @@ Assuming, unless corrected:
 15. Fiat does not start from a red affected-plugin baseline. At the original
     study ref `2b4d96f`, Berean's shipped corpus files were absent and its suite
     was red. PR #282 repaired that pre-existing defect through Elenchus and
-    merged as `9c7692d`; that green descendant is the exact Fiat entry ref.
+    merged as `9c7692d`; that green descendant is the Step 1 entry ref. PR #283
+    then committed the study and runbook as `d577b88`, the Fiat implementation
+    run base.
 
 Corrections to the intake's historical observations:
 
@@ -193,7 +196,7 @@ substitute for its pinned bytes.
 
 PR #282 preserved that diagnosis, restored the deterministic corpus bytes,
 unignored Berean corpora without widening the rule for fuzzer output and added
-a packaging regression test. At Fiat entry ref `9c7692d`, the root suite passes
+a packaging regression test. At green baseline ref `9c7692d`, the root suite passes
 38 tests, Berean passes its complete 151-test suite and offline demonstration,
 and Janus passes 14 Python tests and 24 Foundry tests. The historical failure
 remains evidence for the Promise Machine design; it is no longer an entry
@@ -239,6 +242,8 @@ The relevant merged deliveries were read before this rewrite:
 - PR #282 repaired Berean's corpus packaging, added the 151st plugin test and
   restored its offline demonstration. The repair closes only the packaging
   blocker; it does not complete Berean's Wildcat-grounded release frontier.
+- PR #283 committed this study and runbook without implementing the remaining
+  nine steps. Its merge commit `d577b88` is the implementation run base.
 
 ### Filesystem-derived inventory
 
@@ -306,9 +311,11 @@ between two discovered entries.
 
 ### Constraints
 
-- Historical study ref: `2b4d96f` on `main`. Fiat entry ref: `9c7692d`, the
-  merged PR #282 descendant that repairs Berean's ignored corpus packaging and
-  passes the root, Berean, Janus Python and Janus Foundry baselines.
+- Historical study ref: `2b4d96f` on `main`. Green Step 1 entry ref:
+  `9c7692d`, the merged PR #282 descendant that repairs Berean's ignored corpus
+  packaging and passes the root, Berean, Janus Python and Janus Foundry
+  baselines. Fiat implementation run base: `d577b88`, the merged PR #283
+  descendant containing the reviewed study and runbook.
 - Standard-library Python only; adding a dependency is ask-first and unnecessary.
 - Discover canonical and nested skills from the filesystem. A hand-maintained
   list may classify evidence. It must not define the universe it claims to cover.
@@ -577,7 +584,7 @@ The initial cross-skill invariants are explicit:
 - [Claude Code skills](https://code.claude.com/docs/en/skills)
 - [Claude Code plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Agent Skills specification](https://agentskills.io/specification)
-- Git history through `9c7692d`, including the Berean and Janus delivery stacks,
+- Git history through `d577b88`, including the Berean and Janus delivery stacks,
   the Horos reading-boundary work and the version-propagation, plugin-currency
   and marketplace-mirror changes, plus Berean repair PR #282.
 
@@ -794,7 +801,7 @@ The checker and fixtures must prove:
     cross-host validity.
 28. Every install-local copy reports `promise-machine/v1` and is byte-identical
     to the root law; no plugin or router invents a private law version.
-29. The recorded Fiat entry ref passes the root suite, Berean's complete suite
+29. The recorded Fiat implementation base passes the root suite, Berean's complete suite
     including the packaging guard, Janus's 14-test Python suite and Janus's
     24-test Foundry suite before Step 1; a manifest with absent pinned corpus
     bytes cannot satisfy this criterion.
