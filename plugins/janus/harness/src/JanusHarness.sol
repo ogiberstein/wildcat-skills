@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {StateDeltaRecorder} from "./StateDeltaRecorder.sol";
 import {HostAdapter} from "./HostAdapter.sol";
+import {Vm} from "./Vm.sol";
 
 /// @dev The gate engine. It drives one action through a host adapter, records
 ///      the delta around it, and offers the checks a conformance test uses to
@@ -11,12 +12,24 @@ import {HostAdapter} from "./HostAdapter.sol";
 ///      accessor is the hook address, which is how gate 1 tells the hook's own
 ///      calls apart from the host's.
 abstract contract JanusHarness is StateDeltaRecorder {
+  Vm private constant _hvm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+
+  error NoSequencesExercised();
+
   struct DriveResult {
     bool reverted;
     bytes revertData;
     Delta delta;
     uint256 valueBefore;
     uint256 valueAfter;
+  }
+
+  /// @dev One conformance finding, the unit the reports render.
+  struct Finding {
+    uint256 gate;
+    string action;
+    string hook;
+    string detail;
   }
 
   /// @dev Drive an action and record the state delta around it. A revert is
@@ -40,54 +53,44 @@ abstract contract JanusHarness is StateDeltaRecorder {
     result.valueAfter = adapter.valueSnapshot();
   }
 
-  /// @dev The transitive closure of the hook's causal effects: a call is the
-  ///      hook's if its accessor is the hook, or the accessor is a target the
-  ///      hook already reached. Attributing by the immediate accessor alone
-  ///      would only see the hook's direct callees, and a hook could launder a
-  ///      forbidden call one hop through a permitted target. Iterating to a
-  ///      fixpoint over (accessor, target) pairs closes that hole with no need
-  ///      for frame depth.
+  /// @dev The hook's causal subtree, by call-frame depth. The recorder lists
+  ///      account accesses in DFS pre-order, so the calls the hook made are the
+  ///      contiguous run after the host-to-hook entry frame with a strictly
+  ///      greater depth, up to where the depth returns to the entry. Depth is
+  ///      the field that tells the hook's descendants apart from the host's own
+  ///      sibling calls: attributing by the immediate accessor would miss a
+  ///      laundered call one hop out, while attributing by a naive
+  ///      accessor-closure would wrongly sweep in the host's base-action calls
+  ///      once a hook merely read host state.
   function _hookAttributed(
     Delta memory delta,
     address hookAddr
   ) internal pure returns (bool[] memory attributed) {
     uint256 n = delta.calls.length;
     attributed = new bool[](n);
-    bool changed = true;
-    while (changed) {
-      changed = false;
-      for (uint256 i; i < n; ++i) {
-        if (attributed[i]) continue;
-        address acc = delta.calls[i].accessor;
-        bool causal = acc == hookAddr;
-        if (!causal) {
-          for (uint256 k; k < n; ++k) {
-            if (attributed[k] && delta.calls[k].target == acc) {
-              causal = true;
-              break;
-            }
-          }
-        }
-        if (causal) {
-          attributed[i] = true;
-          changed = true;
-        }
+    for (uint256 i; i < n; ++i) {
+      if (delta.calls[i].target != hookAddr) continue; // a host-to-hook entry
+      uint64 entryDepth = delta.calls[i].depth;
+      for (uint256 j = i + 1; j < n; ++j) {
+        if (delta.calls[j].depth <= entryDepth) break; // subtree closed
+        attributed[j] = true;
       }
     }
   }
 
-  /// @dev The number of external calls the hook caused, directly or through a
-  ///      target it reached.
+  /// @dev The number of state-changing calls the hook caused. Static calls are
+  ///      reads, not effects, so they do not count.
   function _hookCallCount(Delta memory delta, address hookAddr) internal pure returns (uint256 n) {
     bool[] memory attributed = _hookAttributed(delta, hookAddr);
     for (uint256 i; i < attributed.length; ++i) {
-      if (attributed[i]) ++n;
+      if (attributed[i] && _isStateChanging(delta.calls[i].kind)) ++n;
     }
   }
 
-  /// @dev Gate 1: every call the hook caused targets an allowed address. A call
-  ///      anywhere in the hook's causal subtree to a target outside `allowed`
-  ///      is an effect the manifest did not enumerate, so it is forbidden.
+  /// @dev Gate 1, calls: every state-changing call the hook caused, anywhere in
+  ///      its causal subtree, targets an allowed address. A static call is a
+  ///      read and is never an effect, so a hook may read any address; only a
+  ///      call that could change state is enumerated.
   function _gate1_hookCallsWithinAllowed(
     Delta memory delta,
     address hookAddr,
@@ -95,21 +98,39 @@ abstract contract JanusHarness is StateDeltaRecorder {
   ) internal pure returns (bool) {
     bool[] memory attributed = _hookAttributed(delta, hookAddr);
     for (uint256 i; i < delta.calls.length; ++i) {
-      if (!attributed[i]) continue;
-      bool ok;
-      for (uint256 j; j < allowed.length; ++j) {
-        if (delta.calls[i].target == allowed[j]) {
-          ok = true;
-          break;
-        }
-      }
-      if (!ok) return false;
+      if (!attributed[i] || !_isStateChanging(delta.calls[i].kind)) continue;
+      if (!_inSet(delta.calls[i].target, allowed)) return false;
     }
     return true;
   }
 
-  /// @dev The fresh value the hook caused to move, across its whole causal
-  ///      subtree, counting only kinds that move fresh value.
+  /// @dev Gate 1, storage: the hook may write only storage the manifest lists.
+  ///      A write to any account outside `allowedWriteAccounts` that the hook
+  ///      caused, meaning the written account is one its subtree made a
+  ///      state-changing call into, is a storage effect the manifest did not
+  ///      enumerate. The hook's own storage (its address) is passed in when the
+  ///      manifest permits hook-scope writes.
+  function _gate1_hookStorageWithinScopes(
+    Delta memory delta,
+    address hookAddr,
+    address[] memory allowedWriteAccounts
+  ) internal pure returns (bool) {
+    bool[] memory attributed = _hookAttributed(delta, hookAddr);
+    for (uint256 w; w < delta.writes.length; ++w) {
+      address acct = delta.writes[w].account;
+      if (_inSet(acct, allowedWriteAccounts)) continue;
+      // A write the hook caused: the written account is one its subtree called.
+      for (uint256 i; i < delta.calls.length; ++i) {
+        if (attributed[i] && _isStateChanging(delta.calls[i].kind) && delta.calls[i].target == acct) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /// @dev The fresh value the hook caused to move, across its causal subtree,
+  ///      counting only kinds that move fresh value.
   function _hookValueMoved(Delta memory delta, address hookAddr) internal pure returns (uint256 v) {
     bool[] memory attributed = _hookAttributed(delta, hookAddr);
     for (uint256 i; i < delta.calls.length; ++i) {
@@ -117,10 +138,120 @@ abstract contract JanusHarness is StateDeltaRecorder {
     }
   }
 
+  function _isStateChanging(Vm.AccountAccessKind kind) internal pure returns (bool) {
+    return kind != Vm.AccountAccessKind.StaticCall;
+  }
+
+  function _inSet(address needle, address[] memory set) private pure returns (bool) {
+    for (uint256 i; i < set.length; ++i) {
+      if (set[i] == needle) return true;
+    }
+    return false;
+  }
+
   /// @dev Whether a recording captured any effect at all. A gate for an action
   ///      expected to do something must assert this, so it cannot pass
   ///      vacuously on an action that reverted or did nothing.
   function _deltaHasEffects(Delta memory delta) internal pure returns (bool) {
     return delta.writes.length > 0 || delta.calls.length > 0;
+  }
+
+  /// @dev A conformance run must have exercised at least one sequence; a run
+  ///      that drove nothing is a failure, not a vacuous pass.
+  function _requireExercised(uint256 sequences) internal pure {
+    if (sequences == 0) revert NoSequencesExercised();
+  }
+
+  /// @dev Render a findings set to the report interchange JSON and write it
+  ///      through the scoped filesystem cheatcode. The Python reporter renders
+  ///      the human and SARIF outputs from this file.
+  function _writeFindings(
+    string memory path,
+    string memory host,
+    string memory manifest,
+    uint256 sequences,
+    Finding[] memory findings
+  ) internal {
+    _hvm.writeFile(path, _findingsJson(host, manifest, sequences, findings));
+  }
+
+  function _findingsJson(
+    string memory host,
+    string memory manifest,
+    uint256 sequences,
+    Finding[] memory findings
+  ) internal pure returns (string memory json) {
+    string memory arr = "[";
+    for (uint256 i; i < findings.length; ++i) {
+      arr = string.concat(
+        arr,
+        i == 0 ? "" : ",",
+        '{"gate":',
+        _uintToString(findings[i].gate),
+        ',"action":"',
+        _escape(findings[i].action),
+        '","hook":"',
+        _escape(findings[i].hook),
+        '","detail":"',
+        _escape(findings[i].detail),
+        '"}'
+      );
+    }
+    arr = string.concat(arr, "]");
+    json = string.concat(
+      '{"host":"',
+      host,
+      '","manifest":"',
+      manifest,
+      '","sequences":',
+      _uintToString(sequences),
+      ',"findings":',
+      arr,
+      "}"
+    );
+  }
+
+  /// @dev Escape a string for embedding in a JSON string literal, so a field
+  ///      carrying a quote, backslash, or control character cannot end the
+  ///      literal early and inject or hide a field. The reporter parses the
+  ///      result, so an unescaped quote would let one field rewrite another.
+  function _escape(string memory input) internal pure returns (string memory) {
+    bytes memory b = bytes(input);
+    bytes memory out;
+    for (uint256 i; i < b.length; ++i) {
+      bytes1 c = b[i];
+      if (c == '"') {
+        out = abi.encodePacked(out, '\\"');
+      } else if (c == "\\") {
+        out = abi.encodePacked(out, "\\\\");
+      } else if (uint8(c) < 0x20) {
+        // Control characters, including newline and tab, as \u00XX.
+        out = abi.encodePacked(out, "\\u00", _hexNibble(uint8(c) >> 4), _hexNibble(uint8(c) & 0x0f));
+      } else {
+        out = abi.encodePacked(out, c);
+      }
+    }
+    return string(out);
+  }
+
+  function _hexNibble(uint8 nibble) private pure returns (bytes1) {
+    return bytes1(nibble < 10 ? 48 + nibble : 87 + nibble);
+  }
+
+  function _uintToString(uint256 value) internal pure returns (string memory) {
+    if (value == 0) return "0";
+    uint256 temp = value;
+    uint256 digits;
+    while (temp != 0) {
+      digits++;
+      temp /= 10;
+    }
+    bytes memory buffer = new bytes(digits);
+    while (value != 0) {
+      digits -= 1;
+      buffer[digits] = bytes1(uint8(48 + (value % 10)));
+      value /= 10;
+    }
+    return string(buffer);
   }
 }

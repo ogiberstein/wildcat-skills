@@ -26,6 +26,7 @@ abstract contract StateDeltaRecorder {
     address accessor;
     Vm.AccountAccessKind kind;
     uint256 value;
+    uint64 depth;
   }
 
   struct Delta {
@@ -84,7 +85,8 @@ abstract contract StateDeltaRecorder {
           target: a.account,
           accessor: a.accessor,
           kind: a.kind,
-          value: a.value
+          value: a.value,
+          depth: a.depth
         });
       }
       for (uint256 j; j < a.storageAccesses.length; ++j) {
