@@ -486,15 +486,15 @@ carries the shared credit laws. `lazarus` preserves and replays a finite slice
 of historical state. Another protocol, auditor, researcher or agent builder
 should be able to use each one without needing to use Wildcat. `alexandria`
 now keeps the heterogeneous raw record and serves a reviewed address view to
-`probitas` without making either one own the other's claims.
+`probitas` without making either one own the other's claims. The conformance
+suite for hooks was the next, and [`janus`](./plugins/janus) now states what a
+hook may observe and change around a host action and checks a hook against that
+manifest, with the Wildcat v2.5 seam as its first host adapter.
 
-What remains, listed alphabetically:
+What remains:
 
 - `berean`, a release manifest and evaluation corpus for agents that must
   support answers with exact documents and chain state.
-- `janus`, a conformance suite for what contract hooks may observe and change
-  before and after a host action. The suite remains unbuilt, and its full
-  specification now lives at [docs/commons/janus.md](./docs/commons/janus.md).
 
 These are tools we wanted and then needed. Their formats, datasets, properties,
 fixtures and tests become more useful when other teams can inspect, run and
