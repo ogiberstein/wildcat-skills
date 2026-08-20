@@ -4631,6 +4631,266 @@ resolves: `docs/commons/janus.md` exists on this branch at the pinned digest.
 The edited README scores 100/100 under imprimatur with no defects.
 
 Leads not pursued: none.
+
+# Run: build the Janus hook-conformance suite against the Wildcat v2.5 hooks
+
+## Step 1, round 1 -- 2026-08-20
+
+Scaffold step. The security_suite receipt lists the bundled Pashov ids; this
+round applies them proportionately to what the step actually ships.
+`solidity-auditor` was run over the step's Solidity, its own exclude pattern
+skipping `*.t.sol`. The two remaining files are `harness/src/Vm.sol` (a
+cheatcode interface declaration with no logic) and `harness/src/JanusBase.sol`
+(an abstract test base of pure `require` assertions). Neither holds state,
+makes an external call, moves value, uses assembly, delegatecall, payable, or
+selfdestruct. `foundry.toml` leaves `ffi` unset (default false) and scopes
+`fs_permissions` to read `./manifests` and `./examples` and read-write `./out`.
+
+`x-ray` and `fizz` are deferred with reason, not run: x-ray produces a
+pre-audit readiness report over a protocol's entry points, state transitions
+and value flow, and this step ships none of those; fizz builds an invariant
+fuzz suite over shipped contracts, and the harness gates and invariants arrive
+in steps 4 and 5. Both apply there, against the Wildcat host model, the gate
+engine and the hostile hooks, and are recorded when they run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The risk-register look went at the one boundary this step opens, the harness
+filesystem and cheatcode surface (phylax). It is closed: no `ffi`, no network,
+`fs_permissions` scoped to the plugin's own directories, no absolute paths.
+`forge build` and `forge test` pass; the repository packaging suite passes at
+thirteen plugins; the Janus Python suite passes; every shipped document lints
+100/100. One `forge lint` advisory remains, `screaming-snake-case-const` on the
+`vm` constant in `JanusBase.sol`; it is kept lowercase deliberately, matching
+the ecosystem-standard `forge-std` cheatcode handle, and is not a defect.
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+Python and JSON step: the JSON manifest schema, the stdlib validator, and its
+fixtures. No Solidity ships, so `x-ray` and `solidity-auditor` have nothing to
+review this step; the review surface is the validator, an untrusted-JSON
+boundary. The three bundled lints ran clean over the changed files (phylax 0,
+ephoros 0, hypomnema 0), and the validator was read against the risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/janus/scripts/janus.py | The validator scanned effect free-text for wildcards but did not enforce the `scope` and `kind` enumerations the schema documents, so a manifest with an unrecognised storage scope or call kind validated. Gate 1 promises effects are enumerated; an unrecognised enum value slipping through is a fail-open hole. | fixed in ae61738509855e47ba687299fb0705e609d2f478 |
+
+The fix adds code J015: an unrecognised `scope` or `kind` is rejected, fail
+closed, with a fixture. The validator otherwise fails closed correctly: it uses
+`json.load` with no `eval` or code execution, raises on the first broken rule,
+and returns invalid on any parse or rule failure. Gate 1's "omitted list is
+forbidden" is enforced through the required-keys check (J006) and the non-list
+check (J008); wildcards are refused in every free-text field (J009).
+
+Leads not pursued: none.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fix applied. The bundled lints re-ran clean
+(phylax 0), the Janus validator suite passes with the J015 fixture, and the
+repository suite passes. The look checked that the enum enforcement did not
+narrow a legitimate manifest: the honest Wildcat manifest still validates, and
+the J015 path fires only on a scope or kind outside the documented sets.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+Solidity step shipping the state-delta recorder, the trust root of the suite,
+where a missed effect is a false pass. The vendored `solidity-auditor` was run
+over `StateDeltaRecorder.sol`, `HostAdapter.sol` and `Vm.sol`, focused on the
+one property that matters: the recorder must never miss an effect that occurred.
+`x-ray` and `fizz` are deferred with reason: x-ray produces a protocol
+readiness report and this ships a test-harness library, and fizz's invariant
+suite lands in step 5 with the gate engine and the hostile hooks.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/janus/harness/src/StateDeltaRecorder.sol | CREATE and SELFDESTRUCT account accesses carry a target and moved value, and the recorder dropped both, so a hook could move value invisibly by deploying with an endowment or sweeping its balance. The one false-pass vector. | fixed in 13dfd3f546aa8db06a42025ee7383dbdd1b2112b |
+| S3-R1-02 | low | plugins/janus/harness/src/StateDeltaRecorder.sol | A second `_beginRecording` while one was open reset Foundry's state-diff buffer and silently dropped everything recorded so far; only the missing-begin direction failed closed. | fixed in 13dfd3f546aa8db06a42025ee7383dbdd1b2112b |
+| S3-R1-03 | low | plugins/janus/harness/src/StateDeltaRecorder.sol | `_valueMoved` summed delegatecall value, which is inherited from the enclosing call and double-counts. An over-count is a false-fail rather than a false-pass, but it made the measure unreliable. | fixed in 13dfd3f546aa8db06a42025ee7383dbdd1b2112b |
+
+The auditor verified as sound, and this review confirms: the two-pass count and
+fill predicates are byte-identical so the index counters cannot over- or
+under-flow; reverted accesses are correctly dropped as non-persisted; the flat
+access array means nesting and reentrant frames cannot hide a write or call;
+the taken flag plus the RecordingNotStarted revert prevent a silent clean
+delta; and the Vm struct and enum layout matches the Foundry cheatcode ABI. One
+documented assumption (L-2): correctness of the drop-reverted logic rests on
+Foundry never marking a persisted effect reverted, which errs toward false-fail
+rather than false-pass. Attribution of an effect to the hook and comparison
+against a manifest are the gate engine's job, not the recorder's.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. The three fixes are additive and
+narrow: `_reachesAccount` now includes create and selfdestruct, `_beginRecording`
+guards the already-open case, and `_valueMoved` sums only value-moving kinds.
+Re-review confirmed the count and fill predicates stayed identical (both now
+call `_reachesAccount`), so the index counters remain in bounds, and the new
+`_movesValue` filter is applied only in the value sum, not in the calls list, so
+no target is dropped. All seven harness tests pass, including the create-endowment
+and double-begin cases. The repository and Janus Python suites pass.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
+
+## Step 4, round 1 -- 2026-08-20
+
+Solidity step shipping the Wildcat host model, the honest hook, the adapter and
+the gate engine, the fidelity core. The vendored `solidity-auditor` reviewed
+all five files against two properties: fidelity to the real v2.5 seam, and no
+false pass. Fidelity was verified against the checked-out v2-protocol source at
+the anchor commit and confirmed on every cited mechanic (the hook call
+primitive and its bubble, the value-return `>= 0x40` contract and bounds, the
+hook-before-effects ordering and the queueWithdrawal expiry exception, the
+global reentrancy guard, and onExecuteWithdrawal never being hook-gated).
+`x-ray` and `fizz` are deferred with reason: the harness is not a protocol to
+x-ray, and the invariant suite lands in step 5 with the hostile hooks.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | plugins/janus/harness/src/JanusHarness.sol | Gate 1 and the value measure attributed a hook's effects by the immediate `accessor`, so they saw only the hook's direct callees. A hook could launder a forbidden call or value movement one hop through a permitted or reachable non-hook accessor and be reported conformant. | fixed in 657c1f1a4746cf0f69ba4eca9e45b056173e5ca1 |
+| S4-R1-02 | medium | plugins/janus/harness/src/JanusHarness.sol | `_hookValueMoved` shared the immediate-accessor limitation and did not filter by value-moving kind, so a delegatecall's inherited value was double-counted. | fixed in 657c1f1a4746cf0f69ba4eca9e45b056173e5ca1 |
+| S4-R1-03 | medium | plugins/janus/harness/src/JanusHarness.sol | Honest-path gates could pass vacuously on an empty or reverted delta; nothing forced a drive expected to have effects to have produced any. | fixed in 657c1f1a4746cf0f69ba4eca9e45b056173e5ca1 |
+
+The fix attributes effects by the transitive closure of the hook's causal
+subtree, iterated to a fixpoint over the recorded (accessor, target) pairs, and
+a new test launders a call through an allowed forwarder to show gate 1 now
+catches it. The auditor confirmed `_drive`'s revert handling sound (a caught,
+fully-reverted action yields an effect-free delta and a conserved value
+snapshot, so a reverting hook is never mis-attributed effects). One documented
+fidelity note (low): the model's setAPR omits the market's own
+reserve-ratio-versus-liquidity reverts, which guard the returned value
+independently of hook honesty and cannot pass a hook here that the real market
+would reject on the seam.
+
+Leads not pursued: none.
+
+## Step 4, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. The transitive attribution is a
+strict strengthening: the honest hook makes no calls, so its closure stays
+empty and it still clears gate 1; the laundering test confirms a forbidden call
+one hop past an allowed forwarder is now caught. The re-review checked the
+fixpoint terminates (it only ever sets bits true, bounded by the call count)
+and that the value sum's new kind filter does not drop a real Call or Create
+value. All fifteen harness tests pass, and the repository and Janus Python
+suites pass.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
+
+## Step 5, round 1 -- 2026-08-20
+
+Solidity step shipping the five hostile reference hooks and the completed gate
+engine. This is the round where invariant fuzzing applies: `fizz`'s stateful
+approach is realised as a Foundry invariant that keeps the reentry hook in the
+loop over 2048 calls. The vendored `solidity-auditor` reviewed the hostile
+hooks, the engine, and the tests for two properties: no false pass, and each
+hostile hook genuinely exercising the class it claims. `x-ray` is deferred with
+reason: the harness is not a protocol to profile.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | high | plugins/janus/harness/src/JanusHarness.sol | The accessor-closure attribution swept the host's own base-action calls into the hook's set once a hook merely read host state, wrongly failing a legitimate hook. A false fail, not a false pass, but it broke soundness for real hooks that read host state. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-02 | medium | plugins/janus/harness/src/JanusHarness.sol | No gate validated storage writes; the storage-mutation hook only exercised the call allowlist, so a hook-caused write to non-permitted storage was ungated. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-03 | medium | plugins/janus/harness/src/JanusHarness.sol | The findings JSON was concatenated with no escaping, so a field carrying a quote could inject or hide a finding (a detail overrode a gate number in the auditor's proof). | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-04 | low | plugins/janus/harness/test/HostileHooks.t.sol | The reentry invariant asserted only that no deposit landed; a re-entering deposit would revert on a balance underflow even if the guard were removed, so it did not isolate gate 6. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-05 | low | plugins/janus/harness/test/HostileHooks.t.sol | The stale-auth exit test did not pin the revert reason. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+
+The depth-subtree attribution resolves the earlier laundering finding and this
+round's over-attribution together: it captures the hook's descendant calls
+without the host's siblings, and gate 1 now enforces state-changing calls only,
+so a read is never an effect. Gate 1 also refuses a hook-caused write to an
+account outside its permitted write scopes. The auditor confirmed no false pass
+among the five hostile hooks as tested, that the attribution terminates and
+does not under-attribute, and that the sequence guard and the invariant target
+restriction are correct.
+
+Accepted limitations, recorded rather than fixed:
+
+- The one value-returning hook can return an adversarial but in-bounds rate,
+  and no gate constrains the returned value beyond the market's own `<= 10000`
+  bound. Constraining it needs a rate-band field the manifest format does not
+  carry. Left as a documented gap; a hook cannot exceed the market's bound, so
+  the exposure is policy griefing, not an out-of-bound write or value theft.
+- The gas gate is exercised on deposit; a hook cheap on deposit and grief-heavy
+  on another action is not covered by the hostile set, though the gate itself
+  reads a per-action budget and applies to any action driven.
+
+Leads not pursued: the two accepted limitations above, both needing a manifest
+extension out of this step's scope.
+
+## Step 5, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes. The depth-subtree attribution is a
+strict correction: the honest hook and the host-reading hook both clear gate 1
+now, the laundering and storage-mutation hooks are still caught, and the
+injection regression shows an escaped field cannot rewrite another. The
+strengthened invariant runs 2048 calls with every block confirmed to be the
+reentrancy guard. All 24 harness tests pass, and the repository and Janus
+Python suites pass. The two accepted limitations from round 1 stand as
+recorded; no new issue surfaced.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: the two accepted limitations recorded in round 1.
+
+## Step 6, round 1 -- 2026-08-20
+
+Python, prose and deletion step: the report subcommand, the sample findings,
+the README retirement of the anchor, and the removal of the delivered spec. No
+Solidity ships, so x-ray and solidity-auditor have nothing to review; the three
+bundled lints ran clean over the changed files (phylax 0, ephoros 0, hypomnema
+0) and the reporter was read against the risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S6-R1-01 | low | plugins/janus/scripts/janus.py | A finding field carrying a pipe or a newline would malform the human report's Markdown table, opening a spurious column or splitting the row. | fixed in fde7c12cd9f53078548357bccc4714219a99814b |
+
+The SARIF output was already safe, serialized through `json.dump` rather than
+concatenated. `load_findings` fails closed on a missing key or a non-list
+findings value. The clean-run report states the manifest and the sequence
+count and explicitly does not claim safety, matching the liveness caveat. The
+anchor retirement leaves only historical, point-in-time references to
+`docs/commons/janus.md` in the audit log and the two committed run specs, which
+the repository treats as records of what was written rather than live links.
+
+Leads not pursued: none.
+
+## Step 6, round 2 -- 2026-08-20
+
+Against the tree with round 1's fix. The cell escaping is confined to the
+Markdown renderer and does not touch the SARIF path; a test confirms a pipe in
+a field is escaped rather than dropped and the row keeps its four columns. The
+Janus Python suite and the repository suite pass. The demo path runs end to
+end: forge test, manifest validation, and the report to Markdown and SARIF.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
 ## Scoped entry, step 1, round 1 -- 2026-08-20
 
 Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0 over

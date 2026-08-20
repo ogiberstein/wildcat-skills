@@ -37,6 +37,7 @@ class PortableSkillTests(unittest.TestCase):
             "hermes",
             "hexaemeron",
             "horos",
+            "janus",
             "lazarus",
             "lemma",
             "pandects",
@@ -141,6 +142,7 @@ class PortableSkillTests(unittest.TestCase):
         skills += list(
             (ROOT / "plugins" / "hexaemeron" / "skills" / "fizz" / "skills").glob("*/SKILL.md")
         )
+        skills += list((ROOT / "plugins" / "janus" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "lemma" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "lazarus" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "pandects" / "skills").glob("*/SKILL.md"))

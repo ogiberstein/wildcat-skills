@@ -7,22 +7,25 @@ the canonical `SKILL.md` it names.
 
 ## Marketplace boundaries
 
-The thirteen plugins form one marketplace, not thirteen competing descriptions
+The fourteen plugins form one marketplace, not fourteen competing descriptions
 of the same job. Alexandria preserves lending inputs; Tabularium interprets
 preserved venue records; Probitas assembles a counterparty dossier. Lazarus
 preserves the finite historical Ethereum state and exact RPC traffic a test
 needs, while Ariadne binds a released artefact digest to its evidence. Berean
 holds a protocol agent's recorded answers to pinned corpora and preserved
 chain reads; it neither chunks documents nor preserves chain state itself.
-Pandects supplies
-reviewed credit laws, Hermes measures a single gas-optimisation class,
+Pandects supplies reviewed credit laws, Hermes measures a single
+gas-optimisation class,
 Hexaemeron controls a receipted delivery loop and holds each of its phases to a
 named skill, while Lemma stops after producing
-source-linked chunks. Sapheneia shapes the agent's own replies for AuDHD
-readers without changing another skill's facts or gates. Brevitas controls the
-volume and structure of engineering prose after vocabulary and register passes.
-If a request crosses one of those boundaries, hand it to the named sibling
-rather than broadening the selected skill.
+source-linked chunks. Horos decides what an agent does not read. Janus checks
+what a contract hook may observe and change around a host action, where
+Pandects supplies the economic laws such a transition must preserve. Sapheneia
+shapes the agent's own replies for AuDHD readers without changing another
+skill's facts or gates. Brevitas controls the volume and structure of
+engineering prose after vocabulary and register passes. If a request crosses one
+of those boundaries, hand it to the named sibling rather than broadening the
+selected skill.
 
 ## Repository map
 
@@ -40,6 +43,10 @@ rather than broadening the selected skill.
 - Hexaemeron is under `plugins/hexaemeron/`. Read
   `plugins/hexaemeron/AGENTS.md` before running one of its skills or changing
   that plugin.
+- Horos is under `plugins/horos/`. Read `plugins/horos/AGENTS.md` before
+  running its skill or changing that plugin.
+- Janus is under `plugins/janus/`. Read `plugins/janus/AGENTS.md` before
+  running its skill or changing that plugin.
 - Lemma is under `plugins/lemma/`. Read `plugins/lemma/AGENTS.md` before
   running its skill or changing that plugin.
 - Lazarus is under `plugins/lazarus/`. Read `plugins/lazarus/AGENTS.md` before

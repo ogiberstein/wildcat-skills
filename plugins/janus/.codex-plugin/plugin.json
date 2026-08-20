@@ -1,0 +1,30 @@
+{
+  "name": "janus",
+  "version": "0.1.0",
+  "description": "A conformance suite for what a contract hook may observe and change before and after a host action.",
+  "author": {
+    "name": "Wildcat Labs",
+    "url": "https://wildcat.finance"
+  },
+  "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/janus",
+  "repository": "https://github.com/wildcat-finance/skills",
+  "keywords": [
+    "solidity",
+    "hooks",
+    "conformance",
+    "foundry",
+    "invariants",
+    "security",
+    "wildcat"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Janus",
+    "shortDescription": "A conformance suite for what a contract hook may observe and change before and after a host action.",
+    "longDescription": "A host protocol calls a hook around an action, and the interface says only which function runs. It does not say whether the hook may move value, write host state, consume all remaining gas, change an authorisation result, or leave a user unable to exit. Janus makes that boundary machine-readable: a host adapter exposes the actions, state and economic roles, and a manifest declares what a hook may observe and change at each threshold, its rollback rule, its gas budget, and the liveness a user's exit depends on. A stateful Foundry harness drives ordinary and hostile sequences, records the real storage writes, call targets, value movements and gas across each threshold, and fails when the observed delta exceeds the manifest. The first host adapter is Wildcat's v2.5 market-to-hook seam; the format is host-neutral, and passing the Wildcat suite makes no claim about another protocol's callback model.",
+    "developerName": "Wildcat Labs",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Use $janus to check a contract hook against a conformance manifest for what it may observe and change around a host action."
+  }
+}
