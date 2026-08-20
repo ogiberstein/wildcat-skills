@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from dataclasses import asdict, dataclass
@@ -61,6 +62,9 @@ SUPPORTED_EVIDENCE_CLASSES = {
     "unknown",
 }
 PROMISE_ID = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+OVERLAY_PATH = Path("plugins/hexaemeron/PROMISES.md")
+OVERLAY_HEADING = "# Hexaemeron Promise Machine overlays"
+OVERLAY_FIELDS = ("Path", "SHA-256", *REQUIRED_FIELDS)
 
 
 @dataclass(frozen=True)
@@ -821,6 +825,7 @@ def check_structure(
     inventory: Inventory,
     *,
     require_standalone_contracts: bool = False,
+    require_hexaemeron_contracts: bool = False,
 ):
     findings: list[Finding] = []
     promises: list[tuple[str, str]] = []
@@ -849,7 +854,12 @@ def check_structure(
         parsed, parsed_findings = parse_contract(
             skill,
             root,
-            required=require_standalone_contracts and skill.plugin != "hexaemeron",
+            required=(
+                require_standalone_contracts and skill.plugin != "hexaemeron"
+            )
+            or (
+                require_hexaemeron_contracts and skill.plugin == "hexaemeron"
+            ),
         )
         promises.extend(parsed)
         findings.extend(parsed_findings)
@@ -870,6 +880,324 @@ def check_structure(
                     )
                 )
     return len(promises), findings
+
+
+def check_overlays(root: Path, inventory: Inventory):
+    findings: list[Finding] = []
+    expected_overlay = OVERLAY_PATH.as_posix()
+    discovered = set(inventory.overlays)
+    if expected_overlay not in discovered:
+        findings.append(
+            Finding(
+                "PM050",
+                "structural",
+                expected_overlay,
+                "required Hexaemeron vendored-promise overlay is absent",
+                "add the fixed first-party overlay for every vendored skill",
+            )
+        )
+    for unexpected in sorted(discovered - {expected_overlay}):
+        findings.append(
+            Finding(
+                "PM051",
+                "identity",
+                unexpected,
+                "promise overlay exists outside the fixed Hexaemeron boundary",
+                "remove the unexpected overlay or record a new first-party boundary in the law",
+            )
+        )
+
+    if expected_overlay not in discovered:
+        return 0, findings
+
+    path = root / OVERLAY_PATH
+    loaded, read_findings = read_markdown(
+        path, root, missing_code="PM050", unsafe_code="PM025"
+    )
+    findings.extend(read_findings)
+    if loaded is None:
+        return 0, findings
+    _, text = loaded
+    lines = text.splitlines()
+    if lines.count(OVERLAY_HEADING) != 1:
+        findings.append(
+            Finding(
+                "PM052",
+                "structural",
+                expected_overlay,
+                f"overlay heading must occur once: {OVERLAY_HEADING}",
+                "restore the single Hexaemeron overlay heading",
+            )
+        )
+
+    heading_index = lines.index(OVERLAY_HEADING) if OVERLAY_HEADING in lines else 0
+    section_end = next(
+        (
+            index
+            for index in range(heading_index + 1, len(lines))
+            if lines[index].startswith("# ") or lines[index].startswith("## ")
+        ),
+        len(lines),
+    )
+    blocks = [
+        index
+        for index in range(heading_index + 1, section_end)
+        if lines[index].startswith("### ")
+    ]
+    if not blocks:
+        findings.append(
+            Finding(
+                "PM052",
+                "structural",
+                expected_overlay,
+                "overlay contains no vendored promise block",
+                "add one digest-bound block for every vendored skill",
+            )
+        )
+        return 0, findings
+
+    skills = {item.path: item for item in inventory.skills}
+    vendored = {item.path for item in inventory.skills if item.governance == "vendored"}
+    canonical_ids: set[str] = set()
+    for skill in inventory.skills:
+        if skill.governance != "first-party":
+            continue
+        parsed, _ = parse_contract(skill, root)
+        canonical_ids.update(promise_id for promise_id, _ in parsed)
+    seen_paths: dict[str, list[str]] = {}
+    seen_ids: set[str] = set()
+    for offset, block_start in enumerate(blocks):
+        block_end = blocks[offset + 1] if offset + 1 < len(blocks) else len(lines)
+        promise_id = lines[block_start][4:].strip()
+        if not PROMISE_ID.fullmatch(promise_id):
+            findings.append(
+                Finding(
+                    "PM032",
+                    "structural",
+                    expected_overlay,
+                    "overlay promise id is not a stable lowercase hyphenated identifier",
+                    "use a lowercase identifier made of letters, digits and hyphens",
+                    promise_id=promise_id or None,
+                )
+            )
+        if promise_id in seen_ids or promise_id in canonical_ids:
+            findings.append(
+                Finding(
+                    "PM035",
+                    "identity",
+                    expected_overlay,
+                    "overlay promise id is duplicated across the suite",
+                    "give every suite promise one unique stable promise id",
+                    promise_id=promise_id or None,
+                )
+            )
+        seen_ids.add(promise_id)
+
+        fields: dict[str, list[str]] = {}
+        for line in lines[block_start + 1 : block_end]:
+            match = re.fullmatch(r"- \*\*([^*]+):\*\*\s*(.*)", line)
+            if match is None:
+                match = re.fullmatch(r"- ([^:]+):\s*(.*)", line)
+            if match is not None:
+                fields.setdefault(match.group(1).strip(), []).append(match.group(2).strip())
+        unknown = sorted(set(fields) - set(OVERLAY_FIELDS))
+        if unknown:
+            findings.append(
+                Finding(
+                    "PM053",
+                    "structural",
+                    expected_overlay,
+                    f"overlay declaration contains unknown fields: {unknown!r}",
+                    "use only Path, SHA-256 and the nine promise fields",
+                    promise_id=promise_id or None,
+                )
+            )
+        for field in OVERLAY_FIELDS:
+            values = fields.get(field, [])
+            if len(values) != 1 or not values[0]:
+                findings.append(
+                    Finding(
+                        "PM054",
+                        "structural",
+                        expected_overlay,
+                        f"overlay field must occur once and be non-empty: {field}",
+                        f"provide exactly one non-empty {field} field",
+                        promise_id=promise_id or None,
+                    )
+                )
+
+        declared_paths = fields.get("Path", [])
+        if len(declared_paths) == 1:
+            declared = declared_paths[0].strip("`")
+            seen_paths.setdefault(declared, []).append(promise_id)
+            skill = skills.get(declared)
+            if skill is None:
+                findings.append(
+                    Finding(
+                        "PM055",
+                        "identity",
+                        expected_overlay,
+                        f"overlay path is not a discovered canonical skill: {declared!r}",
+                        "bind the block to one discovered vendored SKILL.md path",
+                        promise_id=promise_id or None,
+                    )
+                )
+            elif skill.governance != "vendored":
+                findings.append(
+                    Finding(
+                        "PM055",
+                        "identity",
+                        expected_overlay,
+                        f"overlay path belongs to a {skill.governance} skill: {declared!r}",
+                        "put first-party promises in the canonical SKILL.md itself",
+                        promise_id=promise_id or None,
+                    )
+                )
+            target = root / declared
+            if (
+                Path(declared).is_absolute()
+                or ".." in Path(declared).parts
+                or target.is_symlink()
+                or not confined(target, root)
+                or not target.is_file()
+            ):
+                findings.append(
+                    Finding(
+                        "PM055",
+                        "identity",
+                        expected_overlay,
+                        f"overlay path is unsafe or absent: {declared!r}",
+                        "use the confined regular path of the vendored SKILL.md",
+                        promise_id=promise_id or None,
+                    )
+                )
+            digests = fields.get("SHA-256", [])
+            if len(digests) == 1:
+                digest = digests[0].strip("`")
+                if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                    findings.append(
+                        Finding(
+                            "PM056",
+                            "structural",
+                            expected_overlay,
+                            "overlay SHA-256 is not 64 lowercase hexadecimal characters",
+                            "record the full lowercase SHA-256 of the vendored instruction bytes",
+                            promise_id=promise_id or None,
+                        )
+                    )
+                elif target.is_file() and not target.is_symlink() and confined(target, root):
+                    target_loaded, target_findings = read_markdown(
+                        target, root, missing_code="PM055", unsafe_code="PM055"
+                    )
+                    findings.extend(target_findings)
+                    actual = (
+                        hashlib.sha256(target_loaded[0]).hexdigest()
+                        if target_loaded is not None
+                        else ""
+                    )
+                    if actual != digest:
+                        findings.append(
+                            Finding(
+                                "PM057",
+                                "drift",
+                                declared,
+                                f"vendored instruction digest is {actual}; overlay records {digest}",
+                                "review the upstream change and update the first-party overlay deliberately",
+                                promise_id=promise_id or None,
+                            )
+                        )
+
+        evidence_values = fields.get("Evidence classes", [])
+        if len(evidence_values) == 1:
+            classes = [
+                item.strip().strip("`").split(":", 1)[0].strip()
+                for item in re.split(r"[,;]", evidence_values[0])
+                if item.strip()
+            ]
+            unsupported = sorted(set(classes) - SUPPORTED_EVIDENCE_CLASSES)
+            if not classes or unsupported:
+                findings.append(
+                    Finding(
+                        "PM036",
+                        "structural",
+                        expected_overlay,
+                        f"unsupported evidence classes: {unsupported or ['<empty>']!r}",
+                        "use a recognised base evidence class from the law",
+                        promise_id=promise_id or None,
+                    )
+                )
+        consequences = fields.get("Consequence", [])
+        if len(consequences) == 1 and consequences[0] not in {"0", "1", "2", "3"}:
+            findings.append(
+                Finding(
+                    "PM037",
+                    "structural",
+                    expected_overlay,
+                    f"unsupported consequence level: {consequences[0]!r}",
+                    "use consequence level 0, 1, 2 or 3",
+                    promise_id=promise_id or None,
+                )
+            )
+        exceptions = fields.get("Exceptions", [])
+        if len(exceptions) == 1 and exceptions[0].lower() != "none":
+            required = ("authority", "scope", "record", "expiry")
+            absent = [
+                item
+                for item in required
+                if re.search(
+                    rf"(?:^|;)\s*{item}\s*(?::|=)\s*[^;\s].*?(?=;|$)",
+                    exceptions[0],
+                    re.IGNORECASE,
+                )
+                is None
+            ]
+            if absent:
+                findings.append(
+                    Finding(
+                        "PM038",
+                        "structural",
+                        expected_overlay,
+                        f"exception omits required attribution: {absent!r}",
+                        "name authority, scope, record and expiry, or declare none",
+                        promise_id=promise_id or None,
+                    )
+                )
+
+    for declared, owners in sorted(seen_paths.items()):
+        if len(owners) > 1:
+            findings.append(
+                Finding(
+                    "PM058",
+                    "identity",
+                    expected_overlay,
+                    f"vendored path has multiple overlays: {declared!r} -> {owners!r}",
+                    "retain exactly one promise block for each vendored path",
+                )
+            )
+    declared_set = set(seen_paths)
+    for missing in sorted(vendored - declared_set):
+        findings.append(
+            Finding(
+                "PM059",
+                "structural",
+                missing,
+                "vendored skill has no digest-bound Promise Machine overlay",
+                "add one first-party overlay block for the vendored path",
+            )
+        )
+    for extra in sorted(declared_set - vendored):
+        if extra in skills:
+            continue
+        findings.append(
+            Finding(
+                "PM055",
+                "identity",
+                expected_overlay,
+                f"overlay does not belong to the vendored inventory: {extra!r}",
+                "remove the block or correct its path to a discovered vendored skill",
+            )
+        )
+    return len(blocks), findings
 
 
 def check_identity(inventory: Inventory):
@@ -1424,6 +1752,7 @@ def parse_only(raw: str):
         "inventory",
         "structure",
         "contracts",
+        "overlays",
         "identity",
         "routers",
         "versions",
@@ -1496,6 +1825,7 @@ def main(argv=None):
             "inventory",
             "structure",
             "contracts",
+            "overlays",
             "identity",
             "routers",
             "versions",
@@ -1505,13 +1835,18 @@ def main(argv=None):
             inventory, inventory_findings = discover_inventory(root)
             findings.extend(inventory_findings)
             plugins = [root / path for path in inventory.plugins]
-        if only & {"structure", "contracts"} and inventory is not None:
+        if only & {"structure", "contracts", "overlays"} and inventory is not None:
             promises, structure_findings = check_structure(
                 root,
                 inventory,
                 require_standalone_contracts="contracts" in only,
+                require_hexaemeron_contracts="overlays" in only,
             )
             findings.extend(structure_findings)
+        if "overlays" in only and inventory is not None:
+            overlay_promises, overlay_findings = check_overlays(root, inventory)
+            promises += overlay_promises
+            findings.extend(overlay_findings)
         if "identity" in only and inventory is not None:
             findings.extend(check_identity(inventory))
         if "routers" in only and inventory is not None:

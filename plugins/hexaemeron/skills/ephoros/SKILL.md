@@ -242,3 +242,29 @@ asserted, and saying which is which costs a sentence.
 
 End with one action: the alert still needing a threshold, the question with no
 signal behind it, or the sampled output someone should read.
+
+## Promise Machine contract
+
+### ephoros-mechanical-gate
+
+- Promise: A zero-exit Ephoros lint establishes that the bounded parser found none of its specified formatted-log, unbounded-metric-label or mean-duration patterns in the selected Python paths.
+- Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
+- Evidence classes: checked
+- Boundary: A clean lint covers only the three implemented Python rules; it does not prove useful observability, safe output, correct alerting or conformance of another language.
+- Authorises: Passing the mechanical Ephoros gate for the exact paths and checker version recorded.
+- Consequence: 1
+- Refuses: Unreadable or oversized input, an unexplained suppression, a non-zero result or any broader observability claim.
+- Recovery: Repair the offending signal or add a narrowly reasoned suppression when the rule is inapplicable, then rerun the same bounded lint.
+- Exceptions: none
+
+### ephoros-observability-review
+
+- Promise: A completed observability review establishes that the step's on-call questions have bounded signals, correlation and user-symptom alerts, and that emitted samples were checked for sensitive or unbounded data.
+- Evidence: The question-to-signal map, event and metric definitions, trace correlation, alert test, sampled output, staleness signal for long jobs and unresolved-gap list.
+- Evidence classes: checked, inferred, recorded
+- Boundary: The review covers the named step and exercised signals; it does not prove future telemetry availability, alert thresholds under every workload or absence of sensitive data outside the samples reviewed.
+- Authorises: Operating the reviewed step with the recorded signals and escalating through the named runbooks.
+- Consequence: 2
+- Refuses: A new unattended path with no signal, unbounded labels, mean-only duration, missing correlation, untested alerts, absent runbooks or sensitive values in emitted output.
+- Recovery: Write the unanswered on-call question, add or bound the missing signal, exercise the alert, inspect real output and repeat the review.
+- Exceptions: none

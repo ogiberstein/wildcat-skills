@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -78,6 +79,53 @@ def write_skill(plugin, name="example", *, promise_id="example-check", fields=No
     )
     (directory / "EVOLUTION.md").write_text("# Evolution\n", encoding="utf-8")
     return directory
+
+
+def write_vendored_skill(plugin, name="upstream"):
+    directory = plugin / "skills" / name
+    directory.mkdir(parents=True)
+    skill = directory / "SKILL.md"
+    skill.write_text(
+        "---\n"
+        f"name: {name}\n"
+        "description: A vendored fixture skill.\n"
+        "---\n\n"
+        f"# {name}\n",
+        encoding="utf-8",
+    )
+    (directory / "NOTICE.md").write_text(
+        "# Notice\n\n"
+        "This directory is vendored verbatim.\n\n"
+        "- Upstream: https://example.invalid/upstream\n"
+        "- Release tag: v0.0.0\n"
+        "- Vendored: 2026-08-20\n",
+        encoding="utf-8",
+    )
+    (directory / "LICENSE").write_text("Fixture licence.\n", encoding="utf-8")
+    return skill
+
+
+def write_overlay(root, skill, *, promise_id="hexaemeron-upstream-run", digest=None):
+    digest = digest or hashlib.sha256(skill.read_bytes()).hexdigest()
+    path = skill.relative_to(root).as_posix()
+    overlay = root / "plugins" / "hexaemeron" / "PROMISES.md"
+    overlay.write_text(
+        "# Hexaemeron Promise Machine overlays\n\n"
+        f"### {promise_id}\n\n"
+        f"- Path: `{path}`\n"
+        f"- SHA-256: `{digest}`\n"
+        "- Promise: The named vendored operation completed.\n"
+        "- Evidence: The digest-matched instruction and operation record.\n"
+        "- Evidence classes: checked, recorded\n"
+        "- Boundary: The result covers only the named operation.\n"
+        "- Authorises: Use of the recorded result inside its boundary.\n"
+        "- Consequence: 1\n"
+        "- Refuses: A stale digest or failed operation.\n"
+        "- Recovery: Reconcile the instruction and rerun the operation.\n"
+        "- Exceptions: none\n",
+        encoding="utf-8",
+    )
+    return overlay
 
 
 class PromiseLawTests(unittest.TestCase):
@@ -407,8 +455,114 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 43)
+        self.assertEqual(report["counts"]["promises"], 61)
 
+    def test_hexaemeron_contract_population_is_complete(self):
+        expected = {
+            "elenchus": {"elenchus-fixed-and-guarded"},
+            "ephoros": {"ephoros-mechanical-gate", "ephoros-observability-review"},
+            "fiat": {"fiat-receipted-delivery", "fiat-final-integration"},
+            "hypomnema": {"hypomnema-pointer-gate", "hypomnema-record-placement"},
+            "imprimatur": {"imprimatur-prose-gate"},
+            "kronos": {
+                "kronos-frontier-ranking",
+                "kronos-fiat-dispatch",
+                "kronos-parked-lane",
+            },
+            "metron": {"metron-budget-verdict", "metron-change-decision"},
+            "phylax": {"phylax-mechanical-gate", "phylax-boundary-review"},
+            "protasis": {"protasis-study-readiness", "protasis-runbook-readiness"},
+            "vulgate": {"vulgate-register-rewrite"},
+        }
+        for skill, promise_ids in expected.items():
+            path = ROOT / "plugins" / "hexaemeron" / "skills" / skill / "SKILL.md"
+            with self.subTest(skill=skill):
+                text = path.read_text(encoding="utf-8")
+                self.assertEqual(text.splitlines().count("## Promise Machine contract"), 1)
+                contract = text.split("## Promise Machine contract", 1)[1]
+                contract = contract.split("\n## ", 1)[0]
+                self.assertEqual(
+                    {
+                        line.removeprefix("### ")
+                        for line in contract.splitlines()
+                        if line.startswith("### ")
+                    },
+                    promise_ids,
+                )
+
+
+class PromiseOverlayTests(unittest.TestCase):
+    def test_repository_overlay_population_is_complete_and_digest_bound(self):
+        expected = {
+            "plugins/hexaemeron/skills/fizz/SKILL.md":
+                "62a60df4cec160511b8ef36433eef7c8805d0b4a398491293eb4542ab73539bd",
+            "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md":
+                "59cd4b4ef5dc56315782a7d25222afb286a24e63e438530cbd0044293ea54af7",
+            "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md":
+                "e969cd8a447941989715840e24aa6a915c0fd795effabd912b3c627598a95e16",
+            "plugins/hexaemeron/skills/x-ray/SKILL.md":
+                "b23bb94517805c1b8ce717d0e1e0282b0b5c14c7b16f4c32e73940292d3d4a41",
+            "plugins/hexaemeron/skills/solidity-auditor/SKILL.md":
+                "1c1cf4e99d042e7aadc56b622d97a07d3286f4786838a05510697c814d1e983f",
+        }
+        text = (ROOT / "plugins" / "hexaemeron" / "PROMISES.md").read_text(
+            encoding="utf-8"
+        )
+        for path, digest in expected.items():
+            with self.subTest(path=path):
+                self.assertIn(f"- Path: `{path}`", text)
+                self.assertIn(f"- SHA-256: `{digest}`", text)
+
+        completed = run_cli("check", "--only", "contracts,overlays", "--json")
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["counts"]["promises"], 66)
+        self.assertEqual(report["counts"]["overlays"], 1)
+
+    def test_one_byte_vendored_mutation_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target, "hexaemeron")
+            skill = write_vendored_skill(plugin)
+            write_overlay(target, skill)
+            clean = run_cli("check", "--root", target, "--only", "overlays", "--json")
+            skill.write_bytes(skill.read_bytes() + b"x")
+            drifted = run_cli(
+                "check", "--root", target, "--only", "overlays", "--json"
+            )
+        self.assertEqual(clean.returncode, 0, clean.stdout + clean.stderr)
+        report = json.loads(drifted.stdout)
+        self.assertEqual(drifted.returncode, 1)
+        self.assertIn("PM057", [item["code"] for item in report["findings"]])
+
+    def test_missing_overlay_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target, "hexaemeron")
+            write_vendored_skill(plugin)
+            completed = run_cli(
+                "check", "--root", target, "--only", "overlays", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM050", [item["code"] for item in report["findings"]])
+
+    def test_overlay_cannot_bind_a_first_party_skill(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target, "hexaemeron")
+            skill = write_skill(plugin) / "SKILL.md"
+            write_overlay(target, skill)
+            completed = run_cli(
+                "check", "--root", target, "--only", "overlays", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM055", [item["code"] for item in report["findings"]])
+
+
+class PromiseStructureValidationTests(unittest.TestCase):
     def test_contract_component_refuses_an_absent_section(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)

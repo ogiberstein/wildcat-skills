@@ -114,3 +114,17 @@ Before returning rewritten text, verify:
    tone changed.
 6. Read it aloud: would a person say this sentence to a colleague? If a
    sentence would embarrass its speaker out loud, rewrite it.
+
+## Promise Machine contract
+
+### vulgate-register-rewrite
+
+- Promise: A completed Vulgate pass rewrites the named prose into the selected plain register while preserving its claims, evidence, uncertainty, scope, logical relations and required structure.
+- Evidence: The exact source and rewritten bytes, selected register, protected facts and structure, line-by-line content comparison and completed rewrite checklist.
+- Evidence classes: checked, inferred
+- Boundary: The pass changes register only; it does not establish truth, improve the underlying argument, supply missing evidence, diagnose authorship or override another skill's required format.
+- Authorises: Presentation of the rewritten prose with its substantive content and evidence boundary unchanged.
+- Consequence: 0
+- Refuses: Added facts, deleted caveats, changed severity, softened refusal, invented quotation, moved attribution or a voice change that alters meaning.
+- Recovery: Restore the source claim and protected evidence, redo only the affected sentence and compare the complete rewrite with the original before hand-off.
+- Exceptions: none
