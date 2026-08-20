@@ -121,12 +121,19 @@ def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
             end = starts[position + 1][0] - 1
         else:
             end = len(lines)
+            tail_fence = False
             for index in range(line_number + 1, len(lines) + 1):
+                line = lines[index - 1]
+                if FENCE.match(line):
+                    tail_fence = not tail_fence
+                    continue
                 # Any heading of this level ends the last step, a further step
                 # heading included. Excluding step headings here let a step
                 # dropped by the cap donate its fields to the last tracked
-                # step, which then passed while missing its own.
-                if HEADING.match(lines[index - 1]):
+                # step, which then passed while missing its own. Fenced lines
+                # are not headings, or a runbook quoting a step heading in an
+                # example would truncate itself.
+                if not tail_fence and HEADING.match(line):
                     end = index - 1
                     break
         spans.append((line_number, title, line_number + 1, end))

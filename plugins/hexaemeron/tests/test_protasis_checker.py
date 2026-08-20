@@ -125,6 +125,18 @@ class Documents(unittest.TestCase):
         source = "# Title\n\n```markdown\n## Step 1: Example\n```\n"
         self.assertEqual(codes(source), ["P003"])
 
+    def test_a_fenced_heading_does_not_truncate_the_last_step(self):
+        """The guard for fence tracking in the end scan.
+
+        A runbook that quotes a step heading inside an example, which this
+        repository's own contract does, would otherwise cut its last step short
+        at the quote and report the fields below it missing.
+        """
+        source = COMPLETE_STEP.replace(
+            "**Exit.** Proved by `pytest`.",
+            "**Exit.** Proved by:\n\n```markdown\n## Step 99: quoted, not real\n```")
+        self.assertEqual(codes(source), [])
+
     def test_a_trailing_section_is_not_read_into_the_last_step(self):
         source = COMPLETE_STEP + "\n## Notes\n\n**Goal.** Not a step field.\n"
         self.assertEqual(codes(source), [])
