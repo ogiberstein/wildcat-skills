@@ -76,6 +76,9 @@ EFFECT_LISTS = ("permittedStorageWrites", "permittedCalls", "permittedValueMovem
 
 WILDCARDS = {"*", "any", "all", "ANY", "ALL", "*.*"}
 
+STORAGE_SCOPES = {"hook", "host", "external"}
+CALL_KINDS = {"call", "staticcall", "delegatecall"}
+
 LIVENESS_KEYS = {"withdrawal", "uninstall", "emergency"}
 
 
@@ -163,6 +166,22 @@ def validate_manifest_obj(manifest) -> None:
                             f"{where}.{name} contains the wildcard {value!r}; a manifest may "
                             "not say a hook can change anything",
                         )
+                # The scope and kind fields are enumerations. Enforce them here,
+                # not only in the schema, or an unrecognised scope or call kind
+                # would validate and the harness would meet it as an unknown
+                # effect at run time. Fail closed on the unrecognised value.
+                if name == "permittedStorageWrites" and effect.get("scope") not in STORAGE_SCOPES:
+                    raise ManifestError(
+                        "J015",
+                        f"{where}.{name} has scope {effect.get('scope')!r}; "
+                        f"must be one of {sorted(STORAGE_SCOPES)}",
+                    )
+                if name == "permittedCalls" and effect.get("kind") not in CALL_KINDS:
+                    raise ManifestError(
+                        "J015",
+                        f"{where}.{name} has kind {effect.get('kind')!r}; "
+                        f"must be one of {sorted(CALL_KINDS)}",
+                    )
 
         if not isinstance(threshold["extraDataAllowed"], bool):
             raise ManifestError("J006", f"{where}.extraDataAllowed must be a boolean")
