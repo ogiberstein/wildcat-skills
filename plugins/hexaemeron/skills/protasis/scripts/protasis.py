@@ -42,7 +42,9 @@ from pathlib import Path
 STEP = re.compile(r"^##\s+Step\s+(?P<n>\d+)\s*:\s*(?P<title>.*?)\s*$")
 FIELD = re.compile(r"^\*\*(?P<name>[A-Za-z]+)\.\*\*")
 HEADING = re.compile(r"^#{1,2}\s+")
-FENCE = re.compile(r"^\s*```")
+# Backtick or tilde, three or more, per CommonMark. The marker is captured so a
+# fence is closed only by its own kind: ``` inside a ~~~ block is content.
+FENCE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
 INLINE_CODE = re.compile(r"`[^`\n]+`")
 ALLOW = re.compile(r"<!--\s*protasis:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
 
@@ -65,6 +67,29 @@ class Finding:
 
     def __str__(self) -> str:
         return f"{self.path}:{self.line}: {self.code} {self.message}"
+
+
+def _scan(lines: list[str]):
+    """Yield (1-indexed number, line, inside_a_fence) for every line.
+
+    One tracker for all three scans. Keeping three copies is what let the tail
+    scan ship without fence tracking at all, so a runbook quoting a step heading
+    truncated itself.
+    """
+    open_mark: str | None = None
+    for number, line in enumerate(lines, start=1):
+        match = FENCE.match(line)
+        if match:
+            mark = match.group("mark")[0]
+            if open_mark is None:
+                open_mark = mark
+                yield number, line, True
+                continue
+            if mark == open_mark:
+                open_mark = None
+            yield number, line, True
+            continue
+        yield number, line, open_mark is not None
 
 
 def suppressed(lines: list[str], line: int) -> bool:
@@ -101,11 +126,7 @@ def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
     """
     starts: list[tuple[int, str]] = []
     dropped = 0
-    in_fence = False
-    for index, line in enumerate(lines, start=1):
-        if FENCE.match(line):
-            in_fence = not in_fence
-            continue
+    for index, line, in_fence in _scan(lines):
         if in_fence:
             continue
         match = STEP.match(line)
@@ -121,19 +142,15 @@ def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
             end = starts[position + 1][0] - 1
         else:
             end = len(lines)
-            tail_fence = False
-            for index in range(line_number + 1, len(lines) + 1):
-                line = lines[index - 1]
-                if FENCE.match(line):
-                    tail_fence = not tail_fence
+            # Any heading of this level ends the last step, a further step
+            # heading included. Excluding step headings here let a step dropped
+            # by the cap donate its fields to the last tracked step, which then
+            # passed while missing its own. Fenced lines are not headings, or a
+            # runbook quoting a step heading would truncate itself.
+            for index, line, in_fence in _scan(lines):
+                if index <= line_number or in_fence:
                     continue
-                # Any heading of this level ends the last step, a further step
-                # heading included. Excluding step headings here let a step
-                # dropped by the cap donate its fields to the last tracked
-                # step, which then passed while missing its own. Fenced lines
-                # are not headings, or a runbook quoting a step heading in an
-                # example would truncate itself.
-                if not tail_fence and HEADING.match(line):
+                if HEADING.match(line):
                     end = index - 1
                     break
         spans.append((line_number, title, line_number + 1, end))
@@ -157,12 +174,7 @@ def _field_span(body: list[str], name: str) -> list[str]:
         return []
 
     span = [body[start]]
-    in_fence = False
-    for line in body[start + 1:]:
-        if FENCE.match(line):
-            in_fence = not in_fence
-            span.append(line)
-            continue
+    for index, line, in_fence in _scan(body[start + 1:]):
         if not in_fence and FIELD.match(line):
             break
         span.append(line)

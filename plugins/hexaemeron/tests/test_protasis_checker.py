@@ -137,6 +137,31 @@ class Documents(unittest.TestCase):
             "**Exit.** Proved by:\n\n```markdown\n## Step 99: quoted, not real\n```")
         self.assertEqual(codes(source), [])
 
+    def test_a_tilde_fence_is_a_fence(self):
+        """The guard for backtick-only fence matching.
+
+        Tildes are a CommonMark fence, so a runbook using them had its examples
+        read as real content: a quoted step heading became a step with no fields
+        and the document collected findings it had not earned. A false positive
+        costs more trust than a miss.
+        """
+        source = COMPLETE_STEP.replace(
+            "**Exit.** Proved by `pytest`.",
+            "**Exit.** see\n\n~~~\n## Step 9: quoted, not real\n~~~")
+        self.assertEqual(codes(source), [])
+
+    def test_a_fence_is_closed_only_by_its_own_marker(self):
+        source = COMPLETE_STEP.replace(
+            "**Exit.** Proved by `pytest`.",
+            "**Exit.** see\n\n~~~\n```\n## Step 9: quoted\n```\n~~~")
+        self.assertEqual(codes(source), [])
+
+    def test_a_longer_fence_run_is_a_fence(self):
+        source = COMPLETE_STEP.replace(
+            "**Exit.** Proved by `pytest`.",
+            "**Exit.** see\n\n````\n## Step 9: quoted\n````")
+        self.assertEqual(codes(source), [])
+
     def test_a_trailing_section_is_not_read_into_the_last_step(self):
         source = COMPLETE_STEP + "\n## Notes\n\n**Goal.** Not a step field.\n"
         self.assertEqual(codes(source), [])
