@@ -65,14 +65,13 @@ loop, which rank-only never claims to do.
 
 **In the script.** `PASS_FIELDS` is `scope`, `mode`, `candidates`, `selected`
 and `run`; `MODES` is `full` and `phase-only`. `record` already accepts a `run`
-that is absent or null, so a pass with no run is representable today. It is not
-distinguishable: a rank-only pass and a pass whose run link was never filled in
-look identical.
+that is absent or null, so a pass with no run is representable today. What it is
+not is distinguishable. A rank-only pass and a pass whose run link was never
+filled in look identical.
 
 **The field-drift guard.** `kronos-v0.3.0` shipped a check that every field the
-script accepts is named in `SKILL.md`'s Scoreboard section. A new field and its
-documentation therefore land in the same step, which the runbook has to
-respect.
+script accepts is named in `SKILL.md`'s Scoreboard section. So a field and its
+documentation land together. The runbook has to respect that.
 
 **The parked lane.** `kronos-v0.4.0` bars parked candidates from selection and
 exits 3 from `parked` while any stands. Selection under rank-only is the same
