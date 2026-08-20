@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Hypomnema
@@ -81,6 +81,16 @@ the options that lost and the reason they lost.
 
 Records are not deleted when they stop being true. Write a new one, mark the
 old superseded, and leave the history where somebody can follow it.
+
+A shipped study is a ready-made source: it names a chosen design and the
+alternatives that lost, which is exactly the material above. Before the step
+that ships a study is receipted, that choice becomes a standing record or
+points at one -- an ADR under `docs/decisions/` when the choice cuts across
+the repository, the skill's `EVOLUTION.md` row when it belongs to one
+governed skill. The study itself is a run artefact, not a record: the next
+reader finds the code and the ledgers, and the option that lost survives only
+where a record holds it. Pointing is enough; writing the same decision into
+two homes is the drift the conventions above refuse.
 
 ## Comment the reason, never the mechanism
 
@@ -179,6 +189,8 @@ only checks that what you wrote down leads somewhere.
 Report the count, then name every item that failed.
 
 - [ ] Every expensive-to-reverse decision in this step has a record.
+- [ ] If this step ships a study, its chosen design and the alternatives that
+      lost are in a standing record, or point at the one that holds them.
 - [ ] Each record names the alternatives and why they lost.
 - [ ] Superseded records are marked, not deleted.
 - [ ] Records follow the convention already in the tree.
