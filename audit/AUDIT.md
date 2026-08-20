@@ -4165,3 +4165,119 @@ the section says steps 3 to 7 are unchanged and then narrows step 8's scope
 rather than replacing its instructions, so the read-back is inherited. Worth a
 sentence if a later reader trips on it, but writing one now would restate step 8
 in a second place, which is how the two drift.
+
+# Run: park a blocked Kronos job instead of stalling the loop
+
+## Step 1, round 1 -- 2026-08-20
+
+Two Markdown documents, no code. phylax exit 0, ephoros exit 0, hypomnema
+exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The risk register describes a lane step 2 has not built, so the look went at the
+documents' claims instead. The study leans on K006 refusing a selection the
+tie-break did not pick, and that refusal is at `kronos.py:232` reading as
+described, which matters because option A is rejected on it. The quoted stop
+text appears in `SKILL.md` byte for byte. The halt-record shape cited from
+`hexctl.py` is the one at `cmd_halt`. The frontier digest matches the ledger.
+The diff carries no credential and no account data.
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. Both findings came from walking
+the study's risk register against the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | a halt reason carrying a newline printed at the left margin, so it could forge the summary line telling a reader whether anything still stands | fixed in 00cf4d2 |
+| S2-R1-02 | low | plugins/hexaemeron/tests/test_kronos_scoreboard.py | nothing held the record format backward compatible, so a scoreboard written under v0.3.0 could stop reading without a test noticing | fixed in 00cf4d2 |
+
+S2-R1-01 was reproduced before it was believed: a park whose reason held a
+newline and the text `0 park(s) standing; the loop is not complete` printed that
+line at the margin, under the real summary saying 1. The exit code stayed 3
+throughout, so the mechanical gate never lied; the report a person reads did.
+The reason is stored byte for byte by requirement, so the display indents
+continuation lines rather than editing what was recorded.
+
+The replay was checked against the register's other cases: park after unpark, a
+second park for a parked skill, and an unpark with nothing standing all resolve
+to something defined and tested. A stale park still blocks completion, and an
+unreadable ledger reads as unknown rather than as cleared, which is the one that
+would have quietly emptied the lane.
+
+Leads not pursued: a reason may still carry terminal control characters, which
+render as whatever the terminal does with them. Accepted: stripping them on
+display would make the printed reason differ from the recorded one, which is the
+property the verbatim requirement exists to protect, and the reason arrives from
+a Fiat halt inside the same loop rather than from outside it.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what round 1's fix could have broken. The forged line now
+sits indented under its park and the real summary still reads 1, an ordinary
+single-line reason renders exactly as before, and a second park in the same file
+prints its own reason line rather than folding into the first.
+
+One property the fix touches without being about it: the reason on disk is
+unchanged, so the display change cannot drift from the record. The stored value
+is read back by the byte-for-byte case and the newline case, both of which read
+the file rather than the output.
+
+Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. This step resumed after a halt:
+the root README had been replaced in this checkout by another process, taking
+`tests/test_marketplace_prose.py` red, and the file's owner restored it. Nothing
+in this run touched it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/hexaemeron/skills/kronos/SKILL.md | phase-only mode restates its own stop condition, and that restatement omitted the park clause, so a loop following it could finish over a standing park | fixed in 4bc12a9 |
+| S3-R1-02 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | `show` dropped the parked flag the record carries, so a parked candidate outscoring the selected one read as a contradiction of the tie-break | fixed in 4bc12a9 |
+
+S3-R1-02 surfaced in the demo path itself: protasis printed at 81 above elenchus
+at 60 with nothing saying why the lower score won. The record held the flag all
+along; only the display lost it.
+
+S3-R1-01 came from reading the phase-only section against the new stop text.
+Inheritance was the answer to a similar gap in the previous run, and it is not
+the answer here: this section writes its own stopping rule out in full, so a
+clause missing from it is missing, not inherited.
+
+The ledger row was checked by hand as well as by the suite: the header names one
+version with the row, generation moves alone, the recomputed digest matches, the
+prior revision and digest are retained byte for byte, the status stays mature
+with no next job, and the frontmatter agrees.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what the new mark could have broken. With nothing parked the
+selected mark still stands alone, and a `kronos-v0.3.0` line carrying no parked
+field at all renders and exits 0, because the flag is read with `get` rather than
+indexed. That second case is the one that would have broken every scoreboard
+written before this run.
+
+Leads not pursued: none.

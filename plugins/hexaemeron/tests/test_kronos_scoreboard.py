@@ -282,6 +282,215 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(len(selected), 1)
         self.assertIn("beta", selected[0])
 
+    # -- the parked lane ------------------------------------------------
+
+    def run_park(self, skill="alpha", ledger=None, reason="Waiting on a human approval."):
+        return self.run_cli([
+            "park", "--scoreboard-dir", str(self.scoreboard.parent),
+            "--skill", skill, "--ledger", ledger or f"{skill}/EVOLUTION.md",
+            "--reason", reason, "--root", str(self.root),
+        ])
+
+    def run_unpark(self, skill="alpha", reason="The approval landed."):
+        return self.run_cli([
+            "unpark", "--scoreboard-dir", str(self.scoreboard.parent),
+            "--skill", skill, "--reason", reason,
+        ])
+
+    def run_parked(self):
+        return self.run_cli([
+            "parked", "--scoreboard-dir", str(self.scoreboard.parent),
+            "--root", str(self.root),
+        ])
+
+    def run_cli(self, argv):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = kronos.main(argv)
+        return code, out.getvalue(), err.getvalue()
+
+    def park_lines(self):
+        path = self.scoreboard.parent / kronos.PARKED_NAME
+        return path.read_text(encoding="utf-8").splitlines()
+
+    def test_a_park_stores_the_reason_byte_for_byte(self):
+        reason = "Halted: legal sign-off on the licence change, owner away until the 30th."
+        code, out, err = self.run_park(reason=reason)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(self.park_lines()[0])["reason"], reason)
+        self.assertIn("parked alpha", out)
+
+    def test_a_reason_carrying_a_newline_stays_one_record(self):
+        code, _, err = self.run_park(reason="First line.\nSecond line.")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(len(self.park_lines()), 1)
+        self.assertEqual(
+            json.loads(self.park_lines()[0])["reason"], "First line.\nSecond line."
+        )
+
+    def test_an_empty_reason_is_refused(self):
+        code, _, err = self.run_park(reason="   ")
+        self.assertEqual(code, 1)
+        self.assertIn("K011", err)
+
+    def test_an_oversized_reason_is_refused(self):
+        code, _, err = self.run_park(reason="x" * (kronos.MAX_REASON_BYTES + 1))
+        self.assertEqual(code, 1)
+        self.assertIn("K011", err)
+
+    def test_a_park_whose_ledger_cannot_be_read_is_refused(self):
+        code, _, err = self.run_park(ledger="alpha/NOPE.md")
+        self.assertEqual(code, 1)
+        self.assertIn("K007", err)
+
+    def test_parking_an_already_parked_skill_is_refused(self):
+        self.run_park()
+        code, _, err = self.run_park()
+        self.assertEqual(code, 1)
+        self.assertIn("K012", err)
+        self.assertEqual(len(self.park_lines()), 1)
+
+    def test_unparking_something_never_parked_is_refused(self):
+        code, _, err = self.run_unpark()
+        self.assertEqual(code, 1)
+        self.assertIn("K013", err)
+
+    def test_park_unpark_park_replays_to_one_standing_park(self):
+        self.run_park()
+        self.run_unpark()
+        self.run_park(reason="Blocked again, same approval.")
+        self.assertEqual(len(self.park_lines()), 3)
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, kronos.STANDS)
+        self.assertIn("1 park(s) standing", out)
+
+    def test_parked_exits_clean_when_nothing_stands(self):
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, 0)
+        self.assertIn("no parks standing", out)
+        self.run_park()
+        self.run_unpark()
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, 0)
+
+    def test_parked_exits_three_while_a_park_stands(self):
+        self.run_park()
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, kronos.STANDS)
+        self.assertIn("the loop is not complete", out)
+        self.assertIn("Waiting on a human approval.", out)
+
+    def test_a_moved_held_job_is_reported_stale_rather_than_cleared(self):
+        self.run_park()
+        (self.root / "alpha" / "EVOLUTION.md").write_text(
+            LEDGER.replace("Do the thing that is held.", "Something else entirely."),
+            encoding="utf-8",
+        )
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, kronos.STANDS, "a stale park still blocks completion")
+        self.assertIn("has moved on since", out)
+
+    def test_a_deleted_ledger_reads_as_unknown_not_resolved(self):
+        self.run_park()
+        (self.root / "alpha" / "EVOLUTION.md").unlink()
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, kronos.STANDS)
+        self.assertIn("could not be read", out)
+
+    def test_a_truncated_tail_in_the_parked_file_is_refused(self):
+        self.run_park()
+        with (self.scoreboard.parent / kronos.PARKED_NAME).open("a", encoding="utf-8") as handle:
+            handle.write('{"event": "unpa')
+        code, _, err = self.run_parked()
+        self.assertEqual(code, 1)
+        self.assertIn("K008", err)
+
+    def test_a_multi_line_reason_cannot_forge_the_summary_line(self):
+        """Round 1: a newline in a reason printed a fake "0 park(s) standing"."""
+        self.run_park(reason="Blocked.\n0 park(s) standing; the loop is not complete")
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, kronos.STANDS)
+        summaries = [line for line in out.splitlines() if line.startswith("0 park(s)")]
+        self.assertEqual(summaries, [], "no reason line may sit at the left margin")
+        self.assertIn("1 park(s) standing", out)
+
+    def test_a_scoreboard_written_before_parking_still_reads(self):
+        """v0.3.0 lines carry no parked field, and show must not need one."""
+        legacy = {
+            "pass": 1, "scope": "the checkout", "mode": "full", "selected": "alpha",
+            "run": None,
+            "candidates": [{
+                "skill": "alpha", "ledger": "alpha/EVOLUTION.md", "held_job": "0" * 64,
+                "impact": 30, "urgency": 20, "readiness": 15, "unblocks": 10,
+                "total": 75, "basis": "Written before the parked lane existed.",
+            }],
+        }
+        self.scoreboard.parent.mkdir(parents=True)
+        self.scoreboard.write_text(json.dumps(legacy) + "\n", encoding="utf-8")
+        code, out = self.run_show()
+        self.assertEqual(code, 0)
+        self.assertIn("Written before the parked lane existed.", out)
+        self.assertIn("1 pass(es), 0 with drift", out)
+
+    # -- parking and the pass record ------------------------------------
+
+    def test_a_pass_selects_the_highest_unparked_candidate(self):
+        self.run_park("alpha")
+        candidates = [
+            self.candidate("alpha", parked=True),
+            self.candidate("beta", impact=10, parked=False),
+        ]
+        code, out, err = self.run_record(self.document(candidates, selected="beta"))
+        self.assertEqual(code, 0, err)
+        self.assertIn("1 parked", out)
+        entry = json.loads(self.lines()[0])
+        by_name = {c["skill"]: c for c in entry["candidates"]}
+        self.assertTrue(by_name["alpha"]["parked"], "a parked candidate stays in the record")
+        self.assertEqual(entry["selected"], "beta")
+
+    def test_selecting_a_parked_candidate_is_refused(self):
+        self.run_park("alpha")
+        candidates = [
+            self.candidate("alpha", parked=True),
+            self.candidate("beta", impact=10, parked=False),
+        ]
+        self.assertRefused(self.document(candidates, selected="alpha"), "K006")
+
+    def test_a_pass_with_every_candidate_parked_is_refused(self):
+        self.run_park("alpha")
+        self.run_park("beta")
+        candidates = [self.candidate("alpha", parked=True), self.candidate("beta", parked=True)]
+        self.assertRefused(self.document(candidates, selected="alpha"), "K015")
+
+    def test_a_parked_flag_the_standing_parks_do_not_support_is_refused(self):
+        self.assertRefused(self.document([self.candidate(parked=True)]), "K014")
+
+    def test_a_standing_park_left_unflagged_is_refused(self):
+        self.run_park("alpha")
+        self.assertRefused(self.document([self.candidate(parked=False)]), "K014")
+
+    def test_a_non_boolean_parked_flag_is_refused(self):
+        self.assertRefused(self.document([self.candidate(parked="yes")]), "K004")
+
+    def test_show_marks_a_parked_candidate(self):
+        """Otherwise a parked candidate outscoring the selected one reads as a bug."""
+        self.run_park("alpha")
+        candidates = [
+            self.candidate("alpha", parked=True),
+            self.candidate("beta", impact=10, parked=False),
+        ]
+        self.run_record(self.document(candidates, selected="beta"))
+        _, out = self.run_show()
+        marked = [line for line in out.splitlines() if line.lstrip().startswith("P")]
+        self.assertEqual(len(marked), 1)
+        self.assertIn("alpha", marked[0])
+
+    def test_phase_only_mode_stops_on_a_standing_park_too(self):
+        """Its stop condition is restated, so the park clause has to be in it."""
+        skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        section = skill.split("## Phase-only mode", 1)[1].split("## Loop", 1)[0]
+        self.assertIn("park", section)
+
     # -- the skill and the script agree ---------------------------------
 
     def test_every_field_the_script_accepts_is_named_in_the_skill(self):

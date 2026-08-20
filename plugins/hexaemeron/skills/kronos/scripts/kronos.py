@@ -21,9 +21,17 @@ changed. This appends each pass to a file so that movement is visible.
   K008  an existing scoreboard line that cannot be read
   K009  more candidates than the check will track
   K010  a scoreboard directory that is not a real directory
+  K011  a halt reason that is empty or over the cap
+  K012  a park for a skill that is already parked
+  K013  an unpark with no standing park to release
+  K014  a parked flag that disagrees with the standing parks
+  K015  a pass in which every candidate is parked
 
-Exit 0 clean, 1 a refusal, 2 bad invocation. A refusal appends nothing: a pass
-is recorded whole or not at all.
+Exit 0 clean, 1 a refusal, 2 bad invocation, and 3 from `parked` alone while a
+park stands. That last is not an error in the tool. It is the loop's reason not
+to declare itself finished, which is why it needs a code of its own rather than
+the one argparse already spends on a bad invocation. A refusal appends nothing:
+a pass, a park and an unpark are each recorded whole or not at all.
 
 The held-job identity hash is not supplied by the caller. It is computed here
 from the candidate's ledger, as the SHA-256 of the canonical frontier line that
@@ -59,7 +67,7 @@ from pathlib import Path
 AXES = (("impact", 40), ("urgency", 25), ("readiness", 20), ("unblocks", 15))
 
 CANDIDATE_FIELDS = frozenset(
-    {"skill", "ledger", "basis", "total"} | {name for name, _ in AXES}
+    {"skill", "ledger", "basis", "total", "parked"} | {name for name, _ in AXES}
 )
 CANDIDATE_REQUIRED = ("skill", "ledger", "basis") + tuple(name for name, _ in AXES)
 PASS_FIELDS = frozenset({"scope", "mode", "candidates", "selected", "run"})
@@ -71,8 +79,13 @@ MAX_STDIN_BYTES = 1024 * 1024
 MAX_LEDGER_BYTES = 1024 * 1024
 MAX_SCOREBOARD_BYTES = 16 * 1024 * 1024
 MAX_CANDIDATES = 200
+MAX_REASON_BYTES = 4096
+STANDS = 3
 
 LEDGER_FIELDS = ("Frontier status", "Frontier revision", "Current frontier", "Next Fiat job")
+
+PARK_EVENTS = ("park", "unpark")
+PARKED_NAME = "parked.jsonl"
 
 
 class Refusal(Exception):
@@ -170,39 +183,81 @@ def tie_break(scored: list) -> str:
     return ordered[0][1]["skill"]
 
 
-def existing_passes(scoreboard: Path) -> list:
-    """Every line already recorded, refusing a tail that cannot be read."""
-    if not scoreboard.exists():
-        return []
-    text = read_capped(scoreboard, MAX_SCOREBOARD_BYTES, "K008")
-    if text and not text.endswith("\n"):
-        raise Refusal("K008", f"{scoreboard} does not end in a newline, so its last line is partial")
-    passes = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        if not line.strip():
-            raise Refusal("K008", f"{scoreboard} line {number} is blank")
-        try:
-            entry = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise Refusal("K008", f"{scoreboard} line {number} is not JSON: {exc}") from exc
-        if not isinstance(entry, dict) or "pass" not in entry:
-            raise Refusal("K008", f"{scoreboard} line {number} is not a pass record")
-        passes.append(entry)
-    return passes
+def checked_path(given: Path) -> Path:
+    """Resolve a write target, refusing a symlink at the file or its directory.
 
-
-def record(args: argparse.Namespace) -> int:
-    # Before resolving anything. A symlink at either the scoreboard or the
-    # directory holding it would put the file and its `*` gitignore somewhere
-    # the caller did not name, and resolve() erases the link on the way past.
-    given = Path(args.scoreboard)
+    Before resolving anything: a symlink at either end would put the file and
+    the `*` gitignore beside it somewhere the caller did not name, and resolve()
+    erases the link on the way past.
+    """
     holder = given.parent
     if given.is_symlink():
         raise Refusal("K010", f"{given} is a symlink")
     if holder.is_symlink() or (holder.exists() and not holder.is_dir()):
         raise Refusal("K010", f"{holder} is not a real directory")
+    return given.resolve()
 
-    scoreboard = given.resolve()
+
+def append_line(path: Path, entry: dict) -> None:
+    """Create the gitignored directory if needed, then append one JSON line."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    gitignore = path.parent / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text("*\n", encoding="utf-8")
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def json_lines(path: Path, marker: str) -> list:
+    """Every line already recorded, refusing a tail that cannot be read."""
+    if not path.exists():
+        return []
+    text = read_capped(path, MAX_SCOREBOARD_BYTES, "K008")
+    if text and not text.endswith("\n"):
+        raise Refusal("K008", f"{path} does not end in a newline, so its last line is partial")
+    entries = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            raise Refusal("K008", f"{path} line {number} is blank")
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise Refusal("K008", f"{path} line {number} is not JSON: {exc}") from exc
+        if not isinstance(entry, dict) or marker not in entry:
+            raise Refusal("K008", f"{path} line {number} is not a {marker} record")
+        entries.append(entry)
+    return entries
+
+
+def standing_parks(parked_file: Path) -> dict:
+    """Replay park and unpark records in order into the set that still stands."""
+    standing = {}
+    for entry in json_lines(parked_file, "event"):
+        if entry["event"] not in PARK_EVENTS:
+            raise Refusal("K008", f"{parked_file} carries event {entry['event']!r}")
+        if entry["event"] == "park":
+            standing[entry["skill"]] = entry
+        else:
+            standing.pop(entry["skill"], None)
+    return standing
+
+
+def checked_reason(reason) -> str:
+    if not isinstance(reason, str) or not reason.strip():
+        raise Refusal("K011", "the reason is empty")
+    size = len(reason.encode("utf-8"))
+    if size > MAX_REASON_BYTES:
+        raise Refusal("K011", f"the reason is {size} bytes, over the {MAX_REASON_BYTES} cap")
+    return reason
+
+
+def existing_passes(scoreboard: Path) -> list:
+    """Every pass already recorded, refusing a tail that cannot be read."""
+    return json_lines(scoreboard, "pass")
+
+
+def record(args: argparse.Namespace) -> int:
+    scoreboard = checked_path(Path(args.scoreboard))
     root = Path(args.root).resolve() if args.root else scoreboard.parent.parent
     raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)
     if len(raw) > MAX_STDIN_BYTES:
@@ -225,9 +280,28 @@ def record(args: argparse.Namespace) -> int:
     names = [c["skill"] for c in scored]
     if len(set(names)) != len(names):
         raise Refusal("K002", "two candidates name the same skill")
+
+    # A parked candidate keeps its score and its place in the record. It is only
+    # barred from being selected, because the loop already knows why it stalled.
+    standing = standing_parks(scoreboard.parent / PARKED_NAME)
+    for candidate, given in zip(scored, candidates):
+        claimed = given.get("parked", False)
+        if not isinstance(claimed, bool):
+            raise Refusal("K004", f"{candidate['skill']} parked is {claimed!r}, not a boolean")
+        if claimed != (candidate["skill"] in standing):
+            raise Refusal(
+                "K014",
+                f"{candidate['skill']} is marked parked={claimed}, "
+                f"but the standing parks say {candidate['skill'] in standing}",
+            )
+        candidate["parked"] = claimed
+
+    unparked = [c for c in scored if not c["parked"]]
+    if not unparked:
+        raise Refusal("K015", "every candidate is parked, so the pass selects nobody")
     if document["selected"] not in names:
         raise Refusal("K006", f"selected {document['selected']!r} is not among the candidates")
-    expected = tie_break(scored)
+    expected = tie_break(unparked)
     if document["selected"] != expected:
         raise Refusal("K006", f"selected {document['selected']!r}, but the tie-break picks {expected!r}")
 
@@ -244,14 +318,80 @@ def record(args: argparse.Namespace) -> int:
         "run": run,
         "candidates": scored,
     }
-    scoreboard.parent.mkdir(parents=True, exist_ok=True)
-    gitignore = scoreboard.parent / ".gitignore"
-    if not gitignore.exists():
-        gitignore.write_text("*\n", encoding="utf-8")
-    with scoreboard.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, sort_keys=True) + "\n")
-    print(f"pass {entry['pass']} recorded: {len(scored)} candidate(s), selected {entry['selected']}")
+    append_line(scoreboard, entry)
+    parked_note = f", {len(scored) - len(unparked)} parked" if len(unparked) != len(scored) else ""
+    print(
+        f"pass {entry['pass']} recorded: {len(scored)} candidate(s){parked_note}, "
+        f"selected {entry['selected']}"
+    )
     return 0
+
+
+def park(args: argparse.Namespace) -> int:
+    parked_file = checked_path(Path(args.scoreboard_dir) / PARKED_NAME)
+    root = Path(args.root).resolve() if args.root else parked_file.parent.parent
+    reason = checked_reason(args.reason)
+    ledger = resolved_under(root, args.ledger)
+    held = held_job_hash(ledger)
+    standing = standing_parks(parked_file)
+    if args.skill in standing:
+        raise Refusal("K012", f"{args.skill} is already parked; unpark it before parking it again")
+    entry = {
+        "event": "park",
+        "skill": args.skill,
+        "ledger": str(ledger.relative_to(root)),
+        "held_job": held,
+        "reason": reason,
+    }
+    append_line(parked_file, entry)
+    print(f"parked {args.skill} on its held job {held[:12]}")
+    return 0
+
+
+def unpark(args: argparse.Namespace) -> int:
+    parked_file = checked_path(Path(args.scoreboard_dir) / PARKED_NAME)
+    reason = checked_reason(args.reason)
+    standing = standing_parks(parked_file)
+    if args.skill not in standing:
+        raise Refusal("K013", f"{args.skill} is not parked, so there is nothing to release")
+    append_line(parked_file, {"event": "unpark", "skill": args.skill, "reason": reason})
+    print(f"released {args.skill}")
+    return 0
+
+
+def park_state(entry: dict, root: Path) -> str:
+    """Whether the held job a park named is still the one on disk."""
+    try:
+        ledger = resolved_under(root, entry["ledger"])
+        return "standing" if held_job_hash(ledger) == entry["held_job"] else "stale"
+    except Refusal:
+        # An unreadable ledger is not evidence that the blocker cleared.
+        return "unknown"
+
+
+def parked(args: argparse.Namespace) -> int:
+    parked_file = Path(args.scoreboard_dir) / PARKED_NAME
+    root = Path(args.root).resolve() if args.root else parked_file.resolve().parent.parent
+    standing = standing_parks(parked_file)
+    if not standing:
+        print("no parks standing")
+        return 0
+    for skill in sorted(standing):
+        entry = standing[skill]
+        state = park_state(entry, root)
+        note = {
+            "standing": "held job unchanged",
+            "stale": "held job has moved on since; a person decides whether the park still applies",
+            "unknown": "ledger could not be read, so the park stands",
+        }[state]
+        print(f"{skill}  {entry['held_job'][:12]}  {note}")
+        # Indented line by line. The reason is stored verbatim by requirement,
+        # and a newline inside one would otherwise let it forge the summary line
+        # that tells a reader whether anything still stands.
+        for number, line in enumerate(entry["reason"].splitlines() or [""]):
+            print(f"  {'reason: ' if number == 0 else '        '}{line}")
+    print(f"{len(standing)} park(s) standing; the loop is not complete")
+    return STANDS
 
 
 def drift(passes: list) -> dict:
@@ -283,7 +423,15 @@ def show(args: argparse.Namespace) -> int:
         run = entry.get("run") or "no run recorded"
         print(f"pass {entry['pass']}  {entry['mode']}  {entry['scope']}  ({run})")
         for candidate in sorted(entry["candidates"], key=lambda c: -c["total"]):
-            mark = "*" if candidate["skill"] == entry["selected"] else " "
+            # A parked candidate outscoring the selected one is the normal case
+            # once anything is parked. Without the mark the output reads as
+            # though it contradicts its own tie-break.
+            if candidate["skill"] == entry["selected"]:
+                mark = "*"
+            elif candidate.get("parked"):
+                mark = "P"
+            else:
+                mark = " "
             axes = " ".join(f"{name}={candidate[name]}" for name, _ in AXES)
             print(f"  {mark} {candidate['total']:3d}  {candidate['skill']:<24} {axes}")
             print(f"      {candidate['basis']}")
@@ -305,6 +453,25 @@ def main(argv=None) -> int:
     reader = sub.add_parser("show", help="print the recorded passes and any drift")
     reader.add_argument("--scoreboard", required=True, help="path to the scoreboard file")
     reader.set_defaults(handler=show)
+
+    parker = sub.add_parser("park", help="record a blocked held job and why")
+    parker.add_argument("--scoreboard-dir", required=True, help="the .kronos directory")
+    parker.add_argument("--skill", required=True, help="the blocked skill")
+    parker.add_argument("--ledger", required=True, help="that skill's EVOLUTION.md")
+    parker.add_argument("--reason", required=True, help="the halt reason, stored as given")
+    parker.add_argument("--root", help="checkout root the ledger must sit under")
+    parker.set_defaults(handler=park)
+
+    releaser = sub.add_parser("unpark", help="release a standing park")
+    releaser.add_argument("--scoreboard-dir", required=True, help="the .kronos directory")
+    releaser.add_argument("--skill", required=True, help="the parked skill")
+    releaser.add_argument("--reason", required=True, help="why it is released, stored as given")
+    releaser.set_defaults(handler=unpark)
+
+    lister = sub.add_parser("parked", help="print standing parks; exits 3 while any stands")
+    lister.add_argument("--scoreboard-dir", required=True, help="the .kronos directory")
+    lister.add_argument("--root", help="checkout root the ledgers sit under")
+    lister.set_defaults(handler=parked)
 
     args = parser.parse_args(argv)
     try:
