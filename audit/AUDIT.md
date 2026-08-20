@@ -4165,3 +4165,24 @@ the section says steps 3 to 7 are unchanged and then narrows step 8's scope
 rather than replacing its instructions, so the read-back is inherited. Worth a
 sentence if a later reader trips on it, but writing one now would restate step 8
 in a second place, which is how the two drift.
+
+# Run: park a blocked Kronos job instead of stalling the loop
+
+## Step 1, round 1 -- 2026-08-20
+
+Two Markdown documents, no code. phylax exit 0, ephoros exit 0, hypomnema
+exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The risk register describes a lane step 2 has not built, so the look went at the
+documents' claims instead. The study leans on K006 refusing a selection the
+tie-break did not pick, and that refusal is at `kronos.py:232` reading as
+described, which matters because option A is rejected on it. The quoted stop
+text appears in `SKILL.md` byte for byte. The halt-record shape cited from
+`hexctl.py` is the one at `cmd_halt`. The frontier digest matches the ledger.
+The diff carries no credential and no account data.
+
+Leads not pursued: none.
