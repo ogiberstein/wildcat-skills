@@ -4066,3 +4066,37 @@ recomputation the study says it is; the four axis caps match `SKILL.md` lines
 marketplace preflight forbids shipping.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. The lints found nothing, and
+both findings below came from walking the study's risk register against the
+code, one boundary at a time.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/hexaemeron/skills/kronos/scripts/kronos.py | `.kronos/` occupied by a symlink was written through, putting the scoreboard and its `*` gitignore in a directory the caller never named | fixed in 885bcb6 |
+| S2-R1-02 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | the `run` field was stored with no type check, so any JSON value reached the record | fixed in 885bcb6 |
+
+S2-R1-01 was reproduced before it was believed: a symlinked `.kronos` pointing
+at an empty directory, one `record` call, and both files appeared in the target.
+The study's boundary list states the control it needed, "refuse anything that is
+not a real directory", so this was a promise the code had not kept. Where the
+link points somewhere git watches, the `*` gitignore hides whatever sits beside
+it and the scoreboard dirties the tree, which is the failure option C was
+rejected for.
+
+The first fix was wrong and the guard test caught it. Checking
+`scoreboard.parent` after `Path(...).resolve()` never sees a symlink, because
+resolve follows it: the check ran against the target directory and passed. The
+mechanism was the resolve, not the check, so the guard now runs against the path
+as the caller gave it, and covers a symlinked scoreboard file as well as a
+symlinked directory.
+
+Four guard cases were run against the tree without the fix and all four failed,
+then against the fixed tree and all four passed.
+
+Leads not pursued: the scoreboard read cap of 16 MiB refuses an append once a
+file passes it, which stops recording rather than losing a line. Accepted: the
+cap is stated in the source, and 16 MiB of ranking passes is far past any real
+loop.
