@@ -5461,3 +5461,120 @@ files remain unchanged.
 
 The forward-testing and no-execution limits recorded in round 1 remain
 unchanged.
+
+## Promise Machine, step 8, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes the root Python
+checker, JSON inventories, package manifests, prose and Imprimatur's Markdown
+heading rule, not Solidity. The review compared all 29 level-2 and level-3
+bindings with their canonical declarations and result surfaces, checked package
+and skill version separation, recomputed the unchanged frontier digest for the
+Imprimatur generation, and inspected the new default full-check path.
+
+### Findings
+
+FINDING
+[High] S8-R1-01: A runtime field map was not bound to the result surface bytes.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: The gate checked that each schema, writer or contract existed, but a later change to that source could leave its field map green.
+Impact: A stale map could misstate where a consequential result carries its subject, evidence, unknowns or transition.
+Fix: Added a required source SHA-256, recomputation in the root checker and a source-drift refusal test.
+END
+
+FINDING
+[Medium] S8-R1-02: Runtime source hashing had no read bound.
+Location: `scripts/promise_machine.py`
+Mechanism: A coverage entry could point the checker at any regular repository file and read all of it into memory.
+Impact: A malformed or hostile entry could turn the structural gate into an avoidable memory sink.
+Fix: Hash sources in 64 KiB chunks, stop above 1 MiB and guard the limit with an oversized-source test.
+END
+
+### Evidence
+
+The full checker reports 14 plugins, 28 canonical skills, 66 promises, 29
+digest-bound runtime bindings and zero findings. The focused runtime mutations
+refuse an absent binding, a repository escape, source drift and an oversized
+source.
+
+### Leads not pursued
+
+The inventory binds existing domain formats; it does not replace them with a
+generic result envelope or claim that a structural field map proves the domain
+result. Berean's Wildcat-grounded release and Janus's second adapter remain held
+frontier work.
+
+## Promise Machine, step 8, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected checker now derives the high-consequence set from canonical
+declarations, requires exactly one complete runtime map for each member, confines
+its source, recomputes the reviewed source digest through a bounded read and
+refuses stale or extra entries. The package release still leaves every unrelated
+skill frontier untouched.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The Promise Machine full check is clean across all 66 promises. All 91 focused
+contract, evolution, version and marketplace tests, all 104 root tests, all 474
+Hexaemeron tests and all 62 Imprimatur checks pass. The Phylax, Ephoros,
+Hypomnema and Horos gates are clean.
+
+### Leads not pursued
+
+The digest proves which result surface the map reviewed, not that a domain
+operation ran or its assertion is true. Those claims remain with the exact
+command, gate or observation named by the owning promise.
+
+## Promise Machine, step 8, publication gate repair -- 2026-08-20
+
+### Failure
+
+FINDING
+[High] S8-PG-01: Lazarus's scaffold test still equated package and skill versions.
+Location: `plugins/lazarus/tests/test_scaffold.py`
+Mechanism: The test compared both host manifest versions with canonical skill metadata instead of the marketplace package entry.
+Impact: The planned `lazarus` package release failed on Python 3.11 and 3.13 despite preserving `lazarus-v1.1.0` correctly.
+Fix: Compare both host manifests with the marketplace package version and guard its independence from skill and writer versions.
+END
+
+### Evidence
+
+The failure reproduced with the exact Lazarus scaffold test. The corrected test
+passes on the full Lazarus suite and preserves the checked-in fixture's
+`tool_version` separately.
+
+### Boundary
+
+This repair changes no Lazarus command, result format, canonical skill version,
+frontier digest or held job. It corrects a stale test of the distribution layer.
+
+## Promise Machine, step 8, publication gate repair follow-up -- 2026-08-20
+
+### Failure
+
+FINDING
+[High] S8-PG-02: Four plugin suites retained the same package/skill version assumption.
+Location: `plugins/alexandria/tests/test_scaffold.py`, `plugins/berean/tests/test_scaffold.py`, `plugins/probitas/tests/test_manifests.py` and `plugins/tabularium/tests/test_scaffold.py`
+Mechanism: Three tests pinned the preceding package version and the Probitas test required package and canonical skill versions to be equal.
+Impact: The complete Step 10 demonstration stopped in Alexandria, while Probitas would have rejected the intended package-only release despite its held skill frontier.
+Fix: Bind package assertions to the release version and marketplace surfaces, and make Probitas's package-versus-skill independence explicit.
+END
+
+### Evidence
+
+The failure reproduced in Alexandria's full suite. The corrected Alexandria,
+Berean, Probitas and Tabularium suites pass 255, 151, 276 and 134 tests. Their
+host manifests carry the release package versions while their canonical skill
+versions and evolution ledgers remain unchanged.
+
+### Boundary
+
+This follow-up changes test expectations only. It does not change a command,
+result format, promise, canonical skill version, frontier digest or held job.

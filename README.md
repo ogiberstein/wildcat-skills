@@ -1,4 +1,13 @@
-# Wildcat Labs skills
+# Wildcat Labs Skills
+
+## The Promise Machine
+
+Every skill in this suite is governed by the
+[Promise Machine](./PROMISE_MACHINE.md): no skill may claim more than its
+evidence establishes or authorise a more consequential transition than that
+evidence warrants. Each skill still owns its narrow job and its own evidence;
+the Promise Machine is the shared architecture that keeps those boundaries
+intact when skills, hosts and releases compose.
 
 Agent skills written and used by [Wildcat Labs](https://wildcat.finance).
 

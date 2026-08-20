@@ -54,6 +54,7 @@ TRUE_POSITIVES = [
     ("not because but", "Not because it failed, but because it never ran.", "not_x_but_y"),
     ("em dash", "The market cleared — eventually.", "em_dash"),
     ("apology theatre", "I apologise for the confusion in the last message.", "apology_theatre"),
+    ("generic title case", "## Evidence Changes Everything", "title_case_heading"),
     ("gated no referent", "This approach is orthogonal to the framing.", "mathematical"),
     ("intensifier no number", "The rate is materially different this quarter.", "intensifier"),
 ]
@@ -117,6 +118,10 @@ FALSE_POSITIVES = [
     (
         "sentence case heading",
         "## The three passes\n\nEach pass runs in order.",
+    ),
+    (
+        "suite product headings",
+        "# Wildcat Labs Skills\n\n## The Promise Machine\n",
     ),
     (
         "genuine enumeration",

@@ -22,6 +22,7 @@ MARKER = (
 MAX_MARKDOWN_BYTES = 256 * 1024
 MAX_JSON_BYTES = 64 * 1024
 MAX_COVERAGE_BYTES = 512 * 1024
+MAX_RUNTIME_SOURCE_BYTES = 1024 * 1024
 REQUIRED_HEADINGS = (
     "# Promise Machine contract",
     "## Contract identity",
@@ -70,6 +71,16 @@ COVERAGE_PATH = Path("tests/promise_machine_coverage.json")
 COVERAGE_SCHEMA = "promise-machine-coverage/v1"
 COVERAGE_CODES = ("P", "M", "S", "O", "R", "X")
 EVALUATION_KEYS = {"status", "model", "prompt", "corpus", "disposition"}
+RUNTIME_BINDING_KEYS = {
+    "promise_id",
+    "subject",
+    "scope",
+    "evidence_references",
+    "evidence_classes",
+    "unknowns",
+    "transition",
+    "exception",
+}
 PROMPT_SKILLS = {
     "brevitas",
     "hypomnema",
@@ -168,6 +179,7 @@ class PromiseRecord:
     skill_path: str
     group: str
     evidence_classes: frozenset[str]
+    consequence: int
 
 
 def relative(path: Path, root: Path) -> str:
@@ -183,6 +195,21 @@ def confined(path: Path, root: Path) -> bool:
         return True
     except (OSError, ValueError):
         return False
+
+
+def bounded_sha256(path: Path, limit: int):
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with path.open("rb") as source:
+            while chunk := source.read(64 * 1024):
+                total += len(chunk)
+                if total > limit:
+                    return None, f"source exceeds the {limit}-byte limit"
+                digest.update(chunk)
+    except OSError as exc:
+        return None, f"source could not be read: {exc}"
+    return digest.hexdigest(), None
 
 
 def read_markdown(path: Path, root: Path, *, missing_code: str, unsafe_code: str):
@@ -910,7 +937,12 @@ def parse_contract(skill: SkillRecord, root: Path, *, required: bool = False):
                         promise_id=promise_id or None,
                     )
                 )
-        promises.append((promise_id, skill.path, frozenset(classes)))
+        consequence = (
+            int(consequences[0])
+            if len(consequences) == 1 and consequences[0] in {"0", "1", "2", "3"}
+            else -1
+        )
+        promises.append((promise_id, skill.path, frozenset(classes), consequence))
     return promises, findings
 
 
@@ -922,7 +954,7 @@ def check_structure(
     require_hexaemeron_contracts: bool = False,
 ):
     findings: list[Finding] = []
-    promises: list[tuple[str, str, frozenset[str]]] = []
+    promises: list[tuple[str, str, frozenset[str], int]] = []
     for skill in inventory.skills:
         if skill.governance == "vendored":
             loaded, read_findings = read_markdown(
@@ -958,7 +990,7 @@ def check_structure(
         promises.extend(parsed)
         findings.extend(parsed_findings)
     owners: dict[str, list[str]] = {}
-    for promise_id, path, _ in promises:
+    for promise_id, path, _, _ in promises:
         owners.setdefault(promise_id, []).append(path)
     for promise_id, paths in sorted(owners.items()):
         if len(paths) > 1:
@@ -1057,7 +1089,7 @@ def check_overlays(root: Path, inventory: Inventory):
         if skill.governance != "first-party":
             continue
         parsed, _ = parse_contract(skill, root)
-        canonical_ids.update(promise_id for promise_id, _, _ in parsed)
+        canonical_ids.update(promise_id for promise_id, _, _, _ in parsed)
     seen_paths: dict[str, list[str]] = {}
     seen_ids: set[str] = set()
     for offset, block_start in enumerate(blocks):
@@ -1302,8 +1334,10 @@ def promise_records(root: Path, inventory: Inventory):
         parsed, _ = parse_contract(skill, root)
         group = "prompt" if skill.name in PROMPT_SKILLS else "executable"
         records.extend(
-            PromiseRecord(promise_id, skill.path, group, evidence_classes)
-            for promise_id, _, evidence_classes in parsed
+            PromiseRecord(
+                promise_id, skill.path, group, evidence_classes, consequence
+            )
+            for promise_id, _, evidence_classes, consequence in parsed
         )
 
     loaded, _ = read_markdown(
@@ -1330,6 +1364,7 @@ def promise_records(root: Path, inventory: Inventory):
             promise_id = lines[block_start][4:].strip()
             declared = ""
             evidence_classes: frozenset[str] = frozenset()
+            consequence = -1
             for line in lines[block_start + 1 : block_end]:
                 match = re.fullmatch(r"- Path:\s*`?([^`]+?)`?\s*", line)
                 if match is not None:
@@ -1341,8 +1376,13 @@ def promise_records(root: Path, inventory: Inventory):
                         for item in re.split(r"[,;]", evidence_match.group(1))
                         if item.strip()
                     )
+                consequence_match = re.fullmatch(r"- Consequence:\s*([0-3])\s*", line)
+                if consequence_match is not None:
+                    consequence = int(consequence_match.group(1))
             records.append(
-                PromiseRecord(promise_id, declared, "vendored", evidence_classes)
+                PromiseRecord(
+                    promise_id, declared, "vendored", evidence_classes, consequence
+                )
             )
     return tuple(sorted(records, key=lambda item: item.promise_id))
 
@@ -1506,6 +1546,7 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
             )
     rows = document.get("rows")
     evidence_catalog = document.get("evidence")
+    runtime_catalog = document.get("runtime", {})
     if not isinstance(evidence_catalog, dict):
         findings.append(
             Finding(
@@ -1528,6 +1569,153 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
             )
         )
         return 0, 0, findings
+
+    required_runtime = {
+        record.promise_id for record in expected_records if record.consequence >= 2
+    }
+    if not isinstance(runtime_catalog, dict):
+        findings.append(
+            Finding(
+                "PM070",
+                "structural",
+                COVERAGE_PATH.as_posix(),
+                "runtime binding inventory is not an object",
+                "map every level-2 or level-3 promise to its result surface and binding fields",
+            )
+        )
+        runtime_catalog = {}
+    actual_runtime = set(runtime_catalog)
+    for promise_id in sorted(required_runtime - actual_runtime):
+        findings.append(
+            Finding(
+                "PM070",
+                "coverage",
+                COVERAGE_PATH.as_posix(),
+                "level-2 or level-3 promise has no runtime binding",
+                "name the existing result surface and all eight Promise Machine bindings",
+                promise_id=promise_id,
+            )
+        )
+    for promise_id in sorted(actual_runtime - required_runtime):
+        findings.append(
+            Finding(
+                "PM070",
+                "coverage",
+                COVERAGE_PATH.as_posix(),
+                "runtime binding does not belong to a discovered level-2 or level-3 promise",
+                "remove the stale binding or correct its promise id",
+                promise_id=promise_id,
+            )
+        )
+    for promise_id in sorted(required_runtime & actual_runtime):
+        binding = runtime_catalog[promise_id]
+        binding_path = f"{COVERAGE_PATH.as_posix()}#runtime.{promise_id}"
+        if not isinstance(binding, dict) or set(binding) != {
+            "source",
+            "sha256",
+            "bindings",
+        }:
+            findings.append(
+                Finding(
+                    "PM070",
+                    "structural",
+                    binding_path,
+                    "runtime binding must contain exactly source, sha256 and bindings",
+                    "name one digest-bound result schema, writer or contract and its field map",
+                    promise_id=promise_id,
+                )
+            )
+            continue
+        source = binding.get("source")
+        if not isinstance(source, str) or not source.strip():
+            findings.append(
+                Finding(
+                    "PM070",
+                    "structural",
+                    binding_path,
+                    "runtime binding source is absent",
+                    "name the existing result schema, writer or contract",
+                    promise_id=promise_id,
+                )
+            )
+        else:
+            source_path = Path(source)
+            source_target = root / source_path
+            if (
+                source_path.is_absolute()
+                or ".." in source_path.parts
+                or source_target.is_symlink()
+                or not confined(source_target, root)
+                or not source_target.is_file()
+            ):
+                findings.append(
+                    Finding(
+                        "PM070",
+                        "identity",
+                        binding_path,
+                        f"runtime binding source does not resolve inside the repository: {source!r}",
+                        "name a confined existing result schema, writer or contract",
+                        promise_id=promise_id,
+                    )
+                )
+            else:
+                digest = binding.get("sha256")
+                if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                    findings.append(
+                        Finding(
+                            "PM070",
+                            "structural",
+                            binding_path,
+                            "runtime binding source digest is absent or malformed",
+                            "record the full lowercase SHA-256 of the reviewed source bytes",
+                            promise_id=promise_id,
+                        )
+                    )
+                else:
+                    actual, digest_error = bounded_sha256(
+                        source_target, MAX_RUNTIME_SOURCE_BYTES
+                    )
+                    if digest_error is not None:
+                        findings.append(
+                            Finding(
+                                "PM070",
+                                "structural",
+                                binding_path,
+                                f"runtime binding {digest_error}",
+                                "name a bounded readable result surface inside the repository",
+                                promise_id=promise_id,
+                            )
+                        )
+                    elif actual != digest:
+                        findings.append(
+                            Finding(
+                                "PM071",
+                                "drift",
+                                binding_path,
+                                f"runtime binding source digest is {actual}; inventory records {digest}",
+                                "review the changed result surface and update its field map and digest together",
+                                promise_id=promise_id,
+                            )
+                        )
+        fields = binding.get("bindings")
+        if (
+            not isinstance(fields, dict)
+            or set(fields) != RUNTIME_BINDING_KEYS
+            or any(
+                not isinstance(fields.get(key), str) or not fields[key].strip()
+                for key in RUNTIME_BINDING_KEYS
+            )
+        ):
+            findings.append(
+                Finding(
+                    "PM070",
+                    "structural",
+                    binding_path,
+                    "runtime field map is absent, incomplete or contains unknown fields",
+                    "bind promise id, subject, scope, evidence references and classes, unknowns, transition and exception",
+                    promise_id=promise_id,
+                )
+            )
 
     seen: dict[str, int] = {}
     selected = 0
@@ -2441,6 +2629,7 @@ def parse_only(raw: str):
         "routers",
         "versions",
         "hosts",
+        "coverage",
     }
     unknown = sorted(set(requested) - allowed)
     if unknown or not requested:
@@ -2458,7 +2647,13 @@ def main(argv=None):
     sync_parser.add_argument("--json", action="store_true", help="emit canonical JSON")
 
     check_parser = subparsers.add_parser("check", help="check the law and plugin copies")
-    check_parser.add_argument("--only", default="law,copies")
+    check_parser.add_argument(
+        "--only",
+        default=(
+            "law,copies,inventory,structure,contracts,overlays,identity,routers,"
+            "versions,hosts,coverage"
+        ),
+    )
     check_parser.add_argument("--root", help=argparse.SUPPRESS)
     check_parser.add_argument("--json", action="store_true", help="emit canonical JSON")
 
@@ -2558,6 +2753,7 @@ def main(argv=None):
             "routers",
             "versions",
             "hosts",
+            "coverage",
         }
         if only & inventory_components:
             inventory, inventory_findings = discover_inventory(root)
@@ -2591,6 +2787,13 @@ def main(argv=None):
             stats["claude_plugins"] = claude_plugins
             stats["codex_plugins"] = codex_plugins
             findings.extend(host_findings)
+        if "coverage" in only and inventory is not None:
+            coverage_rows, coverage_selected, coverage_findings = check_coverage(
+                root, inventory, {"executable", "prompt", "vendored"}
+            )
+            stats["coverage_rows"] = coverage_rows
+            stats["coverage_selected"] = coverage_selected
+            findings.extend(coverage_findings)
         return report(
             "check",
             root,

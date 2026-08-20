@@ -1,5 +1,6 @@
 """The Lazarus shell keeps every host and document on one contract."""
 
+import json
 import re
 import unittest
 
@@ -18,19 +19,27 @@ class ScaffoldTests(unittest.TestCase):
         self.assertEqual(claude["description"], codex["description"])
         self.assertEqual(claude["license"], "MIT")
 
-    def test_the_host_manifests_follow_the_skill_and_not_the_writer(self):
+    def test_the_host_manifests_follow_the_package_and_not_the_skill_or_writer(self):
         """Two axes, kept apart on purpose.
 
-        The host manifests carry the skill's version, which moves when the
-        frontier advances. `__version__` is what Lazarus stamps into a manifest
-        as `tool_version`, so moving it rewrites the provenance of every fixture
-        already captured. They were one number until the skill's first evolution
-        advance, and that advance is what showed they are not one thing.
+        The host manifests carry the installable package version. The skill
+        version moves under its evolution ledger, while `__version__` is what
+        Lazarus stamps into a fixture as `tool_version`. A release may move the
+        package without rewriting either behavioural history or old provenance.
         """
-        skill = support.skill_version()
+        marketplace = json.loads(
+            (support.REPO_ROOT / ".claude-plugin/marketplace.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        entries = [entry for entry in marketplace["plugins"] if entry["name"] == "lazarus"]
+        self.assertEqual(len(entries), 1)
+        package = entries[0]["version"]
         for host in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             with self.subTest(host=host):
-                self.assertEqual(support.load_json(host)["version"], skill)
+                self.assertEqual(support.load_json(host)["version"], package)
+        self.assertNotEqual(package, support.skill_version())
+        self.assertNotEqual(package, __version__)
 
     def test_the_writer_version_is_the_one_the_fixture_records(self):
         """Pinned to the artefact it appears in rather than to a literal, so a
