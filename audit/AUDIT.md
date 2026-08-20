@@ -5277,3 +5277,22 @@ boundaries, then exercised absent-contract and declaration-identity mutations.
 This round does not claim behavioural conformance from the new Markdown.
 Executable, prompt and transformation evidence receives its own coverage and
 negative-evidence work in the following runbook steps.
+
+## Promise Machine, step 4, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected contracts component requires all 13 standalone first-party
+declarations while leaving the next step's Hexaemeron population explicit.
+The exact contract-section id sets contain 43 promises. Pandects now gives
+structural law checking and catalogue rendering separate evidence and
+consequences. The absent-section mutation, 75 root tests, 116 Pandects Python
+tests and the Pandects Foundry suite pass.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The behavioural-conformance boundary recorded in round 1 remains unchanged.
