@@ -284,6 +284,25 @@ def _refuse_unlisted(root: Path, release: dict[str, Any]) -> None:
         raise IntegrityError("release holds files it does not account for: " + ", ".join(extra))
 
 
+def _resolved(path: Path, what: str) -> Path:
+    """The absolute path, or a refusal saying it could not be worked out.
+
+    Every containment question below asks whether one path sits inside another,
+    which needs both resolved first. Letting a resolve failure through would
+    skip the question it was asked in aid of, which is the quiet failure this
+    plugin refuses everywhere else.
+
+    `pathlib` does not report a symlink loop the same way across versions: up to
+    Python 3.12 `resolve` raises `RuntimeError`, and from 3.13 it resolves the
+    loop to a path and raises nothing. So this catches both kinds and does not
+    depend on either happening.
+    """
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError) as error:
+        raise PathError(f"cannot resolve the {what}: {path} ({error})") from error
+
+
 def _refuse_overlap(source: Path, destination: Path) -> None:
     """Neither directory may sit inside the other.
 
@@ -291,8 +310,8 @@ def _refuse_overlap(source: Path, destination: Path) -> None:
     it records, and a fixture read from inside the release output would be read
     while it was being written.
     """
-    first = source.resolve()
-    second = destination.resolve()
+    first = _resolved(source, "fixture")
+    second = _resolved(destination, "release output")
     if first == second:
         raise FormatError("release output is the fixture directory")
     if second.is_relative_to(first):
@@ -316,15 +335,8 @@ def _refuse_statement_inside(source: Path, statement_path: str | Path) -> None:
     release document is held to.
     """
     handed = Path(statement_path)
-    try:
-        resolved = handed.resolve()
-        inside = source.resolve()
-    except (OSError, RuntimeError) as error:
-        # Skipping the check because the path could not be resolved would be the
-        # quiet failure this plugin refuses everywhere else. A symlink loop is
-        # the case that gets here, and pathlib reports that one as a RuntimeError
-        # rather than as the OSError the kernel gave it.
-        raise PathError(f"cannot resolve {handed}: {error}") from error
+    resolved = _resolved(handed, "statement")
+    inside = _resolved(source, "fixture")
     if resolved.is_relative_to(inside):
         raise FormatError(
             f"statement {handed} sits inside the fixture it describes; the "

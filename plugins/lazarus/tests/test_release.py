@@ -417,17 +417,49 @@ class RefusedReleaseTests(unittest.TestCase):
             error = self.refuse(prepared, FormatError, statement=inside)
             self.assertIn("sits inside", str(error))
 
-    def test_a_statement_path_that_cannot_be_resolved_is_refused(self):
-        """Skipping the containment check because the path would not resolve is
-        the quiet failure this plugin refuses everywhere else."""
+    def test_a_statement_path_through_a_symlink_loop_is_refused(self):
+        """Which refusal you get depends on the interpreter, and that is fine.
+
+        Up to Python 3.12 `Path.resolve` raises on a loop and the containment
+        check refuses it. From 3.13 it resolves the loop to a path instead, and
+        the read refuses it a moment later. Either way it is refused, which is
+        the claim; the branch that turns a resolve failure into a refusal is
+        covered directly below rather than by asking the operating system to
+        produce one.
+        """
         with tempfile.TemporaryDirectory() as directory:
             prepared = Prepared(directory)
             first = prepared.root / "loop-a"
             second = prepared.root / "loop-b"
             first.symlink_to(second)
             second.symlink_to(first)
-            error = self.refuse(prepared, PathError, statement=first / "statement.json")
-            self.assertIn("cannot resolve", str(error))
+            self.refuse(prepared, PathError, statement=first / "statement.json")
+
+    def test_a_path_the_interpreter_cannot_resolve_is_refused(self):
+        """The guard itself, without depending on what any interpreter does.
+
+        Skipping the containment check because a path would not resolve is the
+        quiet failure this plugin refuses everywhere else. `pathlib` reports a
+        loop as a `RuntimeError` on some versions and an `OSError` on others, so
+        both are put through it here.
+        """
+        for raised in (OSError(62, "Too many levels of symbolic links"),
+                       RuntimeError("Symlink loop from '/somewhere'")):
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = Prepared(directory)
+                original = Path.resolve
+
+                def refusing(self, *arguments, **keywords):
+                    raise raised
+
+                Path.resolve = refusing
+                try:
+                    with self.subTest(raised=type(raised).__name__):
+                        with self.assertRaises(PathError) as caught:
+                            prepared.release()
+                        self.assertIn("cannot resolve the", str(caught.exception))
+                finally:
+                    Path.resolve = original
 
     def test_a_statement_beside_the_fixture_is_read(self):
         """The rule is about being inside, not about being nearby."""
