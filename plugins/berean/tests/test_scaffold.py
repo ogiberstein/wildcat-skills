@@ -9,6 +9,8 @@ plugin's suite, before the root suite has to say so.
 import hashlib
 import json
 import re
+import shutil
+import subprocess
 import unittest
 
 from tests.support import PLUGIN_ROOT, REPO_ROOT
@@ -16,6 +18,33 @@ from tests.support import PLUGIN_ROOT, REPO_ROOT
 
 def read(path):
     return path.read_text(encoding="utf-8")
+
+
+GIT = shutil.which("git")
+
+
+@unittest.skipIf(
+    GIT is None or not (REPO_ROOT / ".git").is_dir(), "source checkout required"
+)
+class PackagingTests(unittest.TestCase):
+    def test_pinned_release_corpora_are_not_fuzzer_output(self):
+        paths = (
+            "plugins/berean/examples/goldfinch-demo-v0/release/corpus/terms.md",
+            "plugins/berean/tests/fixtures/conformance/pass-release/corpus/terms.md",
+        )
+        for path in paths:
+            # phylax: allow subprocess: fixed git argv in source checkout
+            completed = subprocess.run(
+                [GIT, "-C", str(REPO_ROOT), "check-ignore", "--quiet", "--", path],
+                capture_output=True,
+                check=False,
+            )
+            with self.subTest(path=path):
+                self.assertEqual(
+                    completed.returncode,
+                    1,
+                    "Berean's pinned corpus bytes must not match an output ignore rule",
+                )
 
 
 class ManifestTests(unittest.TestCase):
