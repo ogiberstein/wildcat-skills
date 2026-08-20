@@ -5554,3 +5554,27 @@ passes on the full Lazarus suite and preserves the checked-in fixture's
 
 This repair changes no Lazarus command, result format, canonical skill version,
 frontier digest or held job. It corrects a stale test of the distribution layer.
+
+## Promise Machine, step 8, publication gate repair follow-up -- 2026-08-20
+
+### Failure
+
+FINDING
+[High] S8-PG-02: Four plugin suites retained the same package/skill version assumption.
+Location: `plugins/alexandria/tests/test_scaffold.py`, `plugins/berean/tests/test_scaffold.py`, `plugins/probitas/tests/test_manifests.py` and `plugins/tabularium/tests/test_scaffold.py`
+Mechanism: Three tests pinned the preceding package version and the Probitas test required package and canonical skill versions to be equal.
+Impact: The complete Step 10 demonstration stopped in Alexandria, while Probitas would have rejected the intended package-only release despite its held skill frontier.
+Fix: Bind package assertions to the release version and marketplace surfaces, and make Probitas's package-versus-skill independence explicit.
+END
+
+### Evidence
+
+The failure reproduced in Alexandria's full suite. The corrected Alexandria,
+Berean, Probitas and Tabularium suites pass 255, 151, 276 and 134 tests. Their
+host manifests carry the release package versions while their canonical skill
+versions and evolution ledgers remain unchanged.
+
+### Boundary
+
+This follow-up changes test expectations only. It does not change a command,
+result format, promise, canonical skill version, frontier digest or held job.
