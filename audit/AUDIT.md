@@ -4144,3 +4144,24 @@ before any run existed, so every line would have carried a null. Both fixes have
 guards that were run against the unfixed SKILL.md first and failed there.
 
 Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The demo path was run again after the wiring changed, this time with `run`
+named and a stated `total` supplied, which is what step 6 now asks for. Two
+passes, drift marked on the unchanged held job, and the run carried through to
+the rendered output.
+
+Leads not pursued: phase-only mode narrows step 8 to the six phase ledgers and
+says nothing about the scoreboard read-back that step 8 also carries. Accepted:
+the section says steps 3 to 7 are unchanged and then narrows step 8's scope
+rather than replacing its instructions, so the read-back is inherited. Worth a
+sentence if a later reader trips on it, but writing one now would restate step 8
+in a second place, which is how the two drift.
