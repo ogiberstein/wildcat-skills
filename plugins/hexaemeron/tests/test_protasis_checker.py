@@ -155,6 +155,25 @@ class Documents(unittest.TestCase):
         found = codes(source)
         self.assertIn("P004", found)
 
+    def test_a_dropped_step_does_not_answer_for_the_last_tracked_one(self):
+        """The guard for span absorption past the cap.
+
+        The last tracked step's body ran to the next non-step heading, so a step
+        dropped by the cap donated its fields upward and the broken step above
+        it passed while missing five of six.
+        """
+        original = protasis.MAX_STEPS
+        try:
+            protasis.MAX_STEPS = 2
+            sound = COMPLETE_STEP.replace("Step 1:", "Step 1:")
+            broken = "## Step 2: Broken and last tracked\n\n**Goal.** only this.\n"
+            past = COMPLETE_STEP.replace("Step 1:", "Step 3:")
+            found = codes(sound + "\n" + broken + "\n" + past)
+        finally:
+            protasis.MAX_STEPS = original
+        self.assertEqual(found.count("P001"), 5, found)
+        self.assertIn("P004", found)
+
     def test_a_document_inside_the_cap_reports_no_truncation(self):
         capped = "\n".join(COMPLETE_STEP.replace("Step 1:", f"Step {n}:")
                            for n in range(1, protasis.MAX_STEPS + 1))

@@ -41,6 +41,7 @@ from pathlib import Path
 # "## Steps" is prose about steps, not a step.
 STEP = re.compile(r"^##\s+Step\s+(?P<n>\d+)\s*:\s*(?P<title>.*?)\s*$")
 FIELD = re.compile(r"^\*\*(?P<name>[A-Za-z]+)\.\*\*")
+HEADING = re.compile(r"^#{1,2}\s+")
 FENCE = re.compile(r"^\s*```")
 INLINE_CODE = re.compile(r"`[^`\n]+`")
 ALLOW = re.compile(r"<!--\s*protasis:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
@@ -121,8 +122,11 @@ def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
         else:
             end = len(lines)
             for index in range(line_number + 1, len(lines) + 1):
-                stripped = lines[index - 1]
-                if re.match(r"^#{1,2}\s+", stripped) and not STEP.match(stripped):
+                # Any heading of this level ends the last step, a further step
+                # heading included. Excluding step headings here let a step
+                # dropped by the cap donate its fields to the last tracked
+                # step, which then passed while missing its own.
+                if HEADING.match(lines[index - 1]):
                     end = index - 1
                     break
         spans.append((line_number, title, line_number + 1, end))
