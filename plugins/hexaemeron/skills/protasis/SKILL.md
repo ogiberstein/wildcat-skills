@@ -5,13 +5,14 @@ description: >-
   written: stated assumptions, testable success criteria, a chosen design with
   its trade named, the five discipline questions answered before any build, and
   steps that are discrete, green at both ends, sized for the audit loop and
-  explicit about the gates they incur. Use when a topic is about to enter the study or runbook
-  phase, when a requirement arrives vague or bundles several capabilities, or
-  when deciding whether a runbook is ready to build from. Do not use it to run
-  the controller or write a receipt, which belong to fiat, and do not use it to
-  record a decision after the fact, which belongs to hypomnema.
+  explicit about the gates they incur. Use when a topic is about to enter the
+  study or runbook phase, when a requirement arrives vague or bundles several
+  capabilities, or when deciding whether a runbook is ready to build from. Do
+  not use it to run the controller or write a receipt, which belong to fiat,
+  and do not use it to record a decision after the fact, which belongs to
+  hypomnema.
 metadata:
-  version: "1.1.0"
+  version: "2.1.0"
 ---
 
 # Protasis
