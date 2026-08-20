@@ -4040,3 +4040,128 @@ step 1. The probe checks its own premise, or its verdict is worth nothing.
 Six findings across the run, one of them in the ledger and four in the checker,
 and every one was a verdict stated with more confidence than the evidence carried.
 None was a crash.
+
+# Run: record each Kronos ranking pass in a durable scoreboard
+
+## Step 1, round 1 -- 2026-08-20
+
+Two Markdown documents, no code. The three bundled lints ran against both
+files, passed as separate arguments rather than one concatenated string, which
+is the shell-quoting fault the previous run recorded in this file.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0.
+
+The look the lints cannot do, against the study's risk register: the register's
+concerns are all about the writer step 2 builds, so none of them can be
+exercised by two documents. What a document can get wrong is a false claim, so
+the diff was checked against the tree instead. The frontier digest quoted in
+both files matches `plugins/hexaemeron/skills/kronos/EVOLUTION.md` byte for
+byte; the cited test at `tests/test_evolution_contract.py:111` is the digest
+recomputation the study says it is; the four axis caps match `SKILL.md` lines
+70 to 73. The diff carries no credential and no account data, which the
+marketplace preflight forbids shipping.
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. The lints found nothing, and
+both findings below came from walking the study's risk register against the
+code, one boundary at a time.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/hexaemeron/skills/kronos/scripts/kronos.py | `.kronos/` occupied by a symlink was written through, putting the scoreboard and its `*` gitignore in a directory the caller never named | fixed in 885bcb6 |
+| S2-R1-02 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | the `run` field was stored with no type check, so any JSON value reached the record | fixed in 885bcb6 |
+
+S2-R1-01 was reproduced before it was believed: a symlinked `.kronos` pointing
+at an empty directory, one `record` call, and both files appeared in the target.
+The study's boundary list states the control it needed, "refuse anything that is
+not a real directory", so this was a promise the code had not kept. Where the
+link points somewhere git watches, the `*` gitignore hides whatever sits beside
+it and the scoreboard dirties the tree, which is the failure option C was
+rejected for.
+
+The first fix was wrong and the guard test caught it. Checking
+`scoreboard.parent` after `Path(...).resolve()` never sees a symlink, because
+resolve follows it: the check ran against the target directory and passed. The
+mechanism was the resolve, not the check, so the guard now runs against the path
+as the caller gave it, and covers a symlinked scoreboard file as well as a
+symlinked directory.
+
+Four guard cases were run against the tree without the fix and all four failed,
+then against the fixed tree and all four passed.
+
+Leads not pursued: the scoreboard read cap of 16 MiB refuses an append once a
+file passes it, which stops recording rather than losing a line. Accepted: the
+cap is stated in the source, and 16 MiB of ranking passes is far past any real
+loop.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what round 1's fix could have broken and what it did not
+cover. Moving the K010 check ahead of the stdin read does not weaken the
+append-nothing property, since it refuses earlier rather than later. `show` has
+no such check, which is correct: it only reads, and reading through a link the
+caller named writes nothing anywhere.
+
+One property was assumed in round 1 and checked here instead. A basis holding a
+newline could have split one record across two lines and broken the file for
+every later read. It does not: `json.dumps` escapes it, the file kept one line,
+and `show` renders the text across two lines without the record changing.
+
+Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/hexaemeron/skills/kronos/SKILL.md | step 4 recorded the pass before Fiat was invoked, so the run link the record exists to carry could never be set | fixed in 251eb45 |
+| S3-R1-02 | low | plugins/hexaemeron/skills/kronos/SKILL.md | a refusal was documented for a `total` field the skill never documented as a field | fixed in 251eb45 |
+
+The ledger row was checked by hand rather than trusted to the suite that also
+checks it: the header names one version with the row, the axis arithmetic moves
+generation alone, the recomputed digest matches the row, the generation retains
+the prior revision and digest byte for byte, the status stays mature with no
+next job, and SKILL.md's frontmatter agrees with the header.
+
+S3-R1-01 came from reading the new text against the field it introduced. The
+wishlist entry asks for a link to the Fiat run a pass launched, and step 4 ran
+before any run existed, so every line would have carried a null. Both fixes have
+guards that were run against the unfixed SKILL.md first and failed there.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The demo path was run again after the wiring changed, this time with `run`
+named and a stated `total` supplied, which is what step 6 now asks for. Two
+passes, drift marked on the unchanged held job, and the run carried through to
+the rendered output.
+
+Leads not pursued: phase-only mode narrows step 8 to the six phase ledgers and
+says nothing about the scoreboard read-back that step 8 also carries. Accepted:
+the section says steps 3 to 7 are unchanged and then narrows step 8's scope
+rather than replacing its instructions, so the read-back is inherited. Worth a
+sentence if a later reader trips on it, but writing one now would restate step 8
+in a second place, which is how the two drift.
