@@ -5341,10 +5341,21 @@ with the narrower mechanical gates beside them.
 
 ### Findings
 
-| id | severity | file | finding | status |
-| --- | --- | --- | --- | --- |
-| S6-R1-01 | high | `tests/promise_machine_coverage.json` | The Ephoros observability review, Phylax boundary review and Protasis study-readiness promises cited mechanical parser tests, so the coverage map overstated what those tests established | fixed with 15 distinct labelled review cases that record positive, missing, subject-mismatch, overclaim and recovery judgements without presenting them as checked runtime proof |
-| S6-R1-02 | medium | `scripts/promise_machine.py` | Evidence references could not state their base evidence class, leaving recorded judgement cases indistinguishable from executable checks | fixed with an optional, validated `evidence_class` field and refusal tests for unsupported classes |
+FINDING
+[High] S6-R1-01: Three judgement-held promises cited mechanical parser tests.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: The Ephoros, Phylax and Protasis review rows borrowed evidence from narrower mechanical gates.
+Impact: The coverage map overstated what those tests established.
+Fix: Added 15 labelled review cases that record P/M/S/O/R judgements without presenting them as checked runtime proof.
+END
+
+FINDING
+[Medium] S6-R1-02: Evidence references could not state their base class.
+Location: `scripts/promise_machine.py`
+Mechanism: The schema accepted only a path, selector and claim.
+Impact: Recorded judgement cases were indistinguishable from executable checks.
+Fix: Added a validated optional `evidence_class` field and refusal tests for unsupported classes.
+END
 
 ### Evidence
 
