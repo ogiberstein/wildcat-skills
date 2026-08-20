@@ -1,0 +1,1 @@
+{"evidence":"recorded-rpc","method":"eth_getStorageAt","outcome":{"result":"0x0000000000000000000000000000000000000000000000000000000000000001"},"params":["0x8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b","0x0","0xf4240"],"request_key":"09f3801f03223a865535cddb4d7f369646bf1fd2c426dcce8b87e9889294f5fe","required":true,"schema_version":1}

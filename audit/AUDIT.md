@@ -4393,6 +4393,201 @@ than a failure.
 
 Leads not pursued: none.
 
+## Berean from its Commons specification, step 1, round 1 -- 2026-08-20
+
+Scope: `496f7a1..fe36843`, the plugin scaffold and its marketplace landing.
+The Solidity suite is waived for this run: the delivery is Python, JSON and
+Markdown with no contracts in any step. The mechanical part ran phylax,
+ephoros and hypomnema over the changed trees, all exit 0, with the root
+suite (34, at 13 plugins) and the berean suite (5) green on the tracked
+tree, which also puts every new shipped document through the in-process
+imprimatur gate.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The look beyond the lints checked the risk register's step 1 concerns: the
+frontier sentence is byte-identical across the eight berean surfaces and the
+root status row; the ledger digest reproduces from the header fields; the
+three manifests and the openai interface carry one description; the portable
+entry's links resolve at their depth; the Commons section moves berean from
+the remaining list without rewording the janus entry; and the preserved
+specification differs from the upload only in its header block, which
+`docs/design.md` records verbatim.
+
+Leads not pursued: brevitas B011 flags the runtime contract's selection and
+capability tables (1x3 and 5x2); the shipped template in every existing
+plugin carries the same shapes and the same flags, so the tables stay with
+the house form. Nothing else.
+
+## Berean from its Commons specification, step 2, round 1 -- 2026-08-20
+
+Scope: `c3bec0c..4438d2e`, the corpus and citation core. The suite waiver
+stands; the mechanical part ran phylax, ephoros and hypomnema over the
+changed trees, all exit 0, with the root suite (34) and berean suite (59 at
+review, 61 after fixes) green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B2-R1-01 | medium | `plugins/berean/scripts/berean_lib/jsonio.py` | NaN and Infinity reach `json.loads` through `parse_constant`, not `parse_float`, so a document carrying them passed the reader built to refuse non-finite numbers. | fixed in `c8c72d3` |
+| B2-R1-02 | low | `plugins/berean/scripts/berean_lib/corpus.py` | A pinned path swapped for a symlink between the walk and the drift read raised out of `verify` as a usage error instead of failing a named check. | fixed in `c8c72d3` |
+
+The look beyond the lints traced the risk register's concerns through the
+new code: traversal and backslash refusals sit in one place and both
+builders go through it; the staged write cannot leave a half manifest that
+later verifies, and a crashed staging file inside the corpus is itself a
+refusal; verification is set equality, so an unpinned extra file fails
+rather than passing as a superset; and citation digest and display text are
+checked separately so neither can vouch for the other.
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 2, round 2 -- 2026-08-20
+
+Scope: the step 2 tree with `c8c72d3` applied. Both fixes re-reviewed
+against the current tree: the constant hook refuses all three JSON
+constants with a guard test per spelling, and the drift loop reports a
+swapped symlink as a named `corpus-bytes` failure with the refusal in its
+detail. Lints phylax, ephoros and hypomnema exit 0; root suite 34 and
+berean suite 61 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 3, round 1 -- 2026-08-20
+
+Scope: `d1df164..cf9d9d2`, answer records, source classes and block-bound
+reads. The suite waiver stands; phylax, ephoros and hypomnema exit 0, root
+suite 34 and berean suite 95 green at review, 96 after the fix.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B3-R1-01 | low | `plugins/berean/scripts/berean_lib/answers.py` | Citation ids and read ids lived in separate namespaces, so one id naming both left a calculation's evidence reference resolving to two artefacts. | fixed in `2883291` |
+| B3-R1-02 | note | `plugins/berean/scripts/berean_lib/answers.py` | A dead constant and an unused import survived drafting. | fixed in `2883291` |
+
+The look traced the register's step 3 concerns: request keys are recomputed
+rather than trusted, an outcome is exactly a result or an error, reads files
+must arrive sorted and unique so one spelling exists, refusals are enforced
+empty, evidence nothing cites is refused, and the per-class evidence rules
+hold user-supplied facts to no artefact at all.
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 3, round 2 -- 2026-08-20
+
+Scope: the step 3 tree with `2883291` applied. The collision refusal
+re-reviewed against the current tree with its guard test; nothing new
+surfaced. Lints phylax, ephoros and hypomnema exit 0; root suite 34 and
+berean suite 96 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 4, round 1 -- 2026-08-20
+
+Scope: `9ea6e4e..2a68fc7`, release manifests, verifier gates and promotion
+records. The suite waiver stands; phylax, ephoros and hypomnema exit 0,
+root suite 34 and berean suite 121 green at review, 124 after fixes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B4-R1-01 | medium | `plugins/berean/scripts/berean_lib/release.py` | The contract allowlist scanned only top-level string params, so an address nested in a filter object (the `eth_getLogs` shape) escaped the gate. | fixed in `464bc6a` |
+| B4-R1-02 | low | `plugins/berean/scripts/berean_lib/promote.py` | `promote` digested the report bytes but parsed a second read of the file, so a swap between the two reads validated content the digest never covered. | fixed in `464bc6a` |
+
+The look traced the register through the new surface: the release digest
+is built from named identity fields; the promotion chain replays whole and
+refuses gaps, reorders and forged counts; a crashed staging file inside
+the release fails the components gate rather than hiding; the report binds
+by corpus, cases and answers digests rather than the release digest, which
+would have been a cycle; and every gate has a committed breach that fails
+it by name.
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 4, round 2 -- 2026-08-20
+
+Scope: the step 4 tree with `464bc6a` applied. The params walk and the
+digested-bytes parse re-reviewed with their guard tests; nothing new
+surfaced. Lints exit 0; root suite 34 and berean suite 124 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 5, round 1 -- 2026-08-20
+
+Scope: `1ac41c4..f5a5230`, the evaluation corpus and its graders. The suite
+waiver stands; phylax, ephoros and hypomnema exit 0, root suite 34 and
+berean suite 142 green at review, 143 after the fix.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B5-R1-01 | medium | `plugins/berean/scripts/berean_lib/promote.py` | Promotion checked the pinned report's digests and counts but never graded, so a report claiming a clean pass would promote a release whose cases fail when graded today. | fixed in `df5edc7` |
+
+The look traced the register through the graders: cases embed the answers
+they grade so broken answers never join a release's pinned set; the run
+parses the same bytes it digested; injection cases must name forbidden
+content and a boundary claim without a refusal expectation is refused;
+the rejected grader passes only on a named checker refusal, so the
+adversarial corpus cannot pass by accident.
+
+Leads not pursued: forbidden-content scanning covers sentence texts and
+not citation display text, deliberately, because a citation quoting a
+poisoned document is the disclosure the format wants; recorded in the
+grader beside the scan.
+
+## Berean from its Commons specification, step 5, round 2 -- 2026-08-20
+
+Scope: the step 5 tree with `df5edc7` applied. The re-grading promotion
+re-reviewed with its guard test; the lazy import that breaks the module
+cycle is one-directional and inside the function. Lints exit 0; root
+suite 34 and berean suite 143 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 6, round 1 -- 2026-08-20
+
+Scope: `23fcb9a..bdac6a4`, the reference release and the demonstration.
+The suite waiver stands; phylax, ephoros and hypomnema exit 0, root suite
+34 and berean suite 150 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B6-R1-01 | note | `plugins/berean/docs/runbook.md` | The runbook's step 6 file list put the README and demo inside the release directory, which the components gate refuses by design; the layout landed with the release under `release/` and the copy did not yet record the correction. | fixed in `07772a9` |
+
+The look held the reference release to the register: the copied reads are
+byte-identical to the Lazarus fixture and the drift test proves it; the
+corpus documents state that they are demonstration prose and make no claim
+about the live protocol beyond the preserved evidence; the corpus files
+carry no rolling marketplace prose, so a frontier refresh cannot move
+pinned bytes; the rebuild is deterministic and compared byte for byte; and
+the demo's three tamper stages name their refusing gates.
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 6, round 2 -- 2026-08-20
+
+Scope: the step 6 tree with `07772a9` applied. The corrected runbook copy
+re-read against the layout on disk; nothing new surfaced. Lints exit 0;
+root suite 34 and berean suite 150 green; the demo exits 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
 # Run: create the janus skill in the Wildcat Commons
 
 ## Step 1, round 1 -- 2026-08-20
