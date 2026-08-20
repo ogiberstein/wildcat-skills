@@ -4489,3 +4489,36 @@ berean suite 96 green.
 | -- | -- | -- | No findings. | clean |
 
 Leads not pursued: none.
+
+## Berean from its Commons specification, step 4, round 1 -- 2026-08-20
+
+Scope: `9ea6e4e..2a68fc7`, release manifests, verifier gates and promotion
+records. The suite waiver stands; phylax, ephoros and hypomnema exit 0,
+root suite 34 and berean suite 121 green at review, 124 after fixes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B4-R1-01 | medium | `plugins/berean/scripts/berean_lib/release.py` | The contract allowlist scanned only top-level string params, so an address nested in a filter object (the `eth_getLogs` shape) escaped the gate. | fixed in `464bc6a` |
+| B4-R1-02 | low | `plugins/berean/scripts/berean_lib/promote.py` | `promote` digested the report bytes but parsed a second read of the file, so a swap between the two reads validated content the digest never covered. | fixed in `464bc6a` |
+
+The look traced the register through the new surface: the release digest
+is built from named identity fields; the promotion chain replays whole and
+refuses gaps, reorders and forged counts; a crashed staging file inside
+the release fails the components gate rather than hiding; the report binds
+by corpus, cases and answers digests rather than the release digest, which
+would have been a cycle; and every gate has a committed breach that fails
+it by name.
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 4, round 2 -- 2026-08-20
+
+Scope: the step 4 tree with `464bc6a` applied. The params walk and the
+digested-bytes parse re-reviewed with their guard tests; nothing new
+surfaced. Lints exit 0; root suite 34 and berean suite 124 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
