@@ -2,7 +2,7 @@
   "counts": {
     "bytes_binary": 17,
     "bytes_content_addressed": 7844971,
-    "bytes_generated": 126422,
+    "bytes_generated": 133488,
     "bytes_lockfile": 54,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
@@ -610,7 +610,7 @@
       "path": "plugins/horos/examples/fixture/yarn.lock"
     },
     {
-      "bytes": 34316,
+      "bytes": 41382,
       "category": "generated",
       "evidence": "marker 'do not edit' in the first 4096 bytes",
       "grade": "hard",
