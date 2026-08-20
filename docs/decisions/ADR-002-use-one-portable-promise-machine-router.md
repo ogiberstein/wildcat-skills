@@ -1,6 +1,8 @@
-# ADR-002: use one portable Promise Machine router
+# ADR-002: Use one portable Promise Machine router
 
-Status: accepted on 20 August 2026.
+## Status
+
+Accepted, 2026-08-20.
 
 ## Context
 
