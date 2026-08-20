@@ -115,14 +115,13 @@ exact held job.
 
 Stop successfully when no eligible ledger remains and no park stands. If Fiat
 halts on a genuine external blocker, park the job: record the blocker verbatim
-against it, then continue with the next-ranked candidate. Do not skip to a
-lower-scoring job without parking the one above it, because a skip nobody
-recorded is how the loop comes to look busy while the thing that mattered goes
-missing.
+against it, then continue with the next-ranked candidate. Never skip to a
+lower-scoring job without parking the one above it. A skip nobody recorded is
+how the loop comes to look busy while the thing that mattered goes missing.
 
-A park is a claim the loop records, not one it judges. It never expires, nothing
-releases it but a person, and while one stands the loop is not complete however
-empty the rest of the market looks.
+A park is a claim the loop records, not one it judges. It never expires, and
+nothing releases it but a person. While one stands the loop is not complete,
+however empty the rest of the market looks.
 
 ## Scoreboard
 
