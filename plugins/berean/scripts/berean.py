@@ -9,7 +9,9 @@ from berean_lib import answers as answers_lib
 from berean_lib import corpus as corpus_lib
 from berean_lib import citations as citations_lib
 from berean_lib import jsonio
+from berean_lib import promote as promote_lib
 from berean_lib import reads as reads_lib
+from berean_lib import release as release_lib
 
 
 def report(checks):
@@ -56,6 +58,36 @@ def cmd_check_answer(args):
     )
 
 
+def cmd_verify_release(args):
+    return report(release_lib.verify(args.release))
+
+
+def cmd_promote(args):
+    record = promote_lib.promote(args.release, args.note)
+    print(f"promoted {record['release_digest']} on {record['evals']['cases']} case(s)")
+    return 0
+
+
+def cmd_rollback(args):
+    record = promote_lib.rollback(args.release, args.to, args.reason, args.note)
+    print(f"rolled back to {record['restored_digest']}")
+    return 0
+
+
+def cmd_promotion_chain(args):
+    import os
+
+    from berean_lib import canonical
+
+    document = release_lib.load(args.release)
+    chain_path = os.path.join(args.release, release_lib.PROMOTIONS_FILE)
+    chain = promote_lib.load_chain(chain_path) if os.path.exists(chain_path) else []
+    for record in chain:
+        print(canonical.dumps(record))
+    print(f"state: {promote_lib.state(chain, document)}")
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="berean", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -89,6 +121,30 @@ def build_parser():
         "--block-number", required=True, type=int, help="the declared block number"
     )
     answer.set_defaults(handler=cmd_check_answer)
+
+    verify_release = commands.add_parser(
+        "verify-release", help="run the release gates by name"
+    )
+    verify_release.add_argument("release", help="the release directory")
+    verify_release.set_defaults(handler=cmd_verify_release)
+
+    promote = commands.add_parser(
+        "promote", help="record a promotion on the release's own eval report"
+    )
+    promote.add_argument("release", help="the release directory")
+    promote.add_argument("--note", required=True, help="context for the record")
+    promote.set_defaults(handler=cmd_promote)
+
+    rollback = commands.add_parser("rollback", help="record a rollback to another release")
+    rollback.add_argument("release", help="the release directory")
+    rollback.add_argument("--to", required=True, help="the restored release digest")
+    rollback.add_argument("--reason", required=True, help="why the release stands down")
+    rollback.add_argument("--note", required=True, help="context for the record")
+    rollback.set_defaults(handler=cmd_rollback)
+
+    chain = commands.add_parser("promotion-chain", help="print and check the promotion chain")
+    chain.add_argument("release", help="the release directory")
+    chain.set_defaults(handler=cmd_promotion_chain)
 
     return parser
 
