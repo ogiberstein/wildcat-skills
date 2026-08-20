@@ -213,7 +213,7 @@ class PromiseInventoryTests(unittest.TestCase):
         self.assertEqual(report["counts"]["canonical_skills"], 28)
         self.assertEqual(report["counts"]["governed_skills"], 23)
         self.assertEqual(report["counts"]["vendored_skills"], 5)
-        self.assertEqual(report["counts"]["routers"], 20)
+        self.assertEqual(report["counts"]["routers"], 1)
 
     def test_nested_fizz_subsidiaries_are_discovered(self):
         completed = run_cli("inventory", "--json")
@@ -453,6 +453,82 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM029", [item["code"] for item in report["findings"]])
+
+
+class PromiseIdentityTests(unittest.TestCase):
+    def test_repository_identity_router_versions_and_hosts_are_clean(self):
+        completed = run_cli(
+            "check", "--only", "identity,routers,versions,hosts", "--json"
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["counts"]["canonical_skills"], 28)
+        self.assertEqual(report["counts"]["routers"], 1)
+        self.assertEqual(report["counts"]["claude_plugins"], 14)
+        self.assertEqual(report["counts"]["codex_plugins"], 14)
+        self.assertEqual(report["counts"]["package_versions"], 14)
+        self.assertEqual(report["counts"]["skill_versions"], 23)
+
+    def test_unresolved_router_fixture_is_refused(self):
+        completed = run_cli(
+            "check",
+            "--root",
+            FIXTURES / "unresolved-router",
+            "--only",
+            "routers",
+            "--json",
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM041", [item["code"] for item in report["findings"]])
+
+    def test_duplicate_canonical_fixture_is_refused(self):
+        completed = run_cli(
+            "check",
+            "--root",
+            FIXTURES / "duplicate-canonical",
+            "--only",
+            "identity",
+            "--json",
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM044", [item["code"] for item in report["findings"]])
+
+    def test_package_as_skill_version_fixture_is_refused(self):
+        completed = run_cli(
+            "check",
+            "--root",
+            FIXTURES / "package-as-skill-version",
+            "--only",
+            "versions",
+            "--json",
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM046", [item["code"] for item in report["findings"]])
+
+    def test_router_with_a_behavioural_version_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            write_skill(plugin)
+            router = target / ".agents" / "skills" / "promise-machine" / "SKILL.md"
+            router.parent.mkdir(parents=True)
+            router.write_text(
+                "---\nname: promise-machine\ndescription: fixture\n"
+                "metadata:\n  version: \"1.0.0\"\n---\n\n"
+                "# Promise Machine\n\n[Root](../../../AGENTS.md)\n",
+                encoding="utf-8",
+            )
+            (target / "AGENTS.md").write_text("# Runtime\n", encoding="utf-8")
+            completed = run_cli(
+                "check", "--root", target, "--only", "routers", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM043", [item["code"] for item in report["findings"]])
 
 
 if __name__ == "__main__":

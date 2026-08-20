@@ -1,9 +1,9 @@
 # Instructions for local agents
 
 This repository distributes agent skills. Do not treat a skill as active merely
-because its files are present in context. Match the user's request against the
-portable entries under `.agents/skills/`, load the selected entry, and follow
-the canonical `SKILL.md` it names.
+because its files are present in context. Match the user's request through the
+single portable router at `.agents/skills/promise-machine/SKILL.md`, then read
+the selected plugin runtime contract and the one canonical `SKILL.md` it names.
 
 ## Promise Machine contract
 
@@ -75,12 +75,10 @@ selected skill.
   plugin.
 - `.claude-plugin/` and `.codex-plugin/` files install the same canonical skill
   directories on their named hosts. They do not change the meaning of a skill.
-- `.agents/skills/` contains host-neutral entrypoints for agents that implement
-  the Agent Skills discovery convention. Each plugin has one. Hexaemeron's six
-  phase skills also have one each, because they are useful on their own and a
-  host that only reads this folder would otherwise never learn they exist. Every
-  such entry says what the skill does alone and what it does as part of the
-  suite, and hands off to the canonical `SKILL.md`.
+- `.agents/skills/promise-machine/SKILL.md` is the sole host-neutral entrypoint
+  for agents that implement the Agent Skills discovery convention. It carries
+  no behavioural version or domain promise. It routes through this root
+  contract and one plugin runtime contract to one canonical `SKILL.md`.
 
 ## Loading rules
 

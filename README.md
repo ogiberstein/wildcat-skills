@@ -56,9 +56,8 @@ before reading, so the budget goes to the code that matters.
 
 ### Janus
 
-[Janus](./plugins/janus) tests a contract hook at the threshold it controls:
-what it may observe and change before a host action, what it may change after,
-and what it must never touch. A host adapter and a JSON manifest state the
+[Janus](./plugins/janus) tests what a contract hook may observe or change
+around a host action, and what it must never touch. A host adapter and a JSON manifest state the
 permitted effects; a stateful Foundry harness records the real storage writes,
 call targets, value movements and gas across each threshold and fails when the
 delta exceeds the manifest. The first adapter is Wildcat's v2.5 market hooks.
@@ -224,11 +223,12 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the
-nineteen host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
-agent at this repository and include that directory in its project skill
-search path. Keep the repository layout intact: each entry routes to the
-canonical plugin instructions instead of copying them.
+Agents that support the open Agent Skills convention discover the single
+[Promise Machine router](./.agents/skills/promise-machine/SKILL.md). Point the
+agent at this repository and include `.agents/skills` in its project skill
+search path. The router reads the root and selected plugin runtime contracts
+before it loads one canonical skill; it does not copy their instructions or
+carry a separate behavioural version.
 
 A file-reading agent without automatic skill discovery should begin with
 [`AGENTS.md`](./AGENTS.md). That file identifies the entrypoints, path rules,
@@ -457,7 +457,7 @@ The mapping, release rules and evidence boundary live in
 ```text
 .claude-plugin/marketplace.json   one entry per plugin
 .agents/plugins/marketplace.json  the same set, host-neutral
-.agents/skills/<name>/SKILL.md    a portable entrypoint per plugin, and per phase skill
+.agents/skills/promise-machine/   the sole host-neutral suite router
 plugins/<name>/
 ├── .claude-plugin/plugin.json    host manifests; discovery and installation only
 ├── .codex-plugin/plugin.json
@@ -487,9 +487,10 @@ Every plugin has that shape. What each adds beyond it:
 
 Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
 
-Local agents load the same canonical directories through the portable
-entries. The portable layer translates discovery and tool vocabulary; it does
-not weaken a skill's checks or invent receipts for work that did not run.
+Local agents load the same canonical directories through the Promise Machine
+router. The portable layer changes discovery only; it does not weaken a
+skill's checks, broaden its promise or invent receipts for work that did not
+run.
 
 # Wildcat Commons
 

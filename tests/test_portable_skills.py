@@ -1,4 +1,4 @@
-"""Checks for the host-neutral Agent Skills entrypoints."""
+"""Checks for the single host-neutral Promise Machine router."""
 
 from pathlib import Path
 import json
@@ -7,6 +7,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PLUGINS = ROOT / "plugins"
+ROUTER = ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
+
+
+def canonical_skills(plugin):
+    return sorted(plugin.glob("skills/**/SKILL.md"))
 
 
 class PortableSkillTests(unittest.TestCase):
@@ -16,7 +22,7 @@ class PortableSkillTests(unittest.TestCase):
             (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
         )
         for name in sorted(entry["name"] for entry in marketplace["plugins"]):
-            plugin = ROOT / "plugins" / name
+            plugin = PLUGINS / name
             for host in (".claude-plugin", ".codex-plugin"):
                 manifest = json.loads(
                     (plugin / host / "plugin.json").read_text(encoding="utf-8")
@@ -28,134 +34,51 @@ class PortableSkillTests(unittest.TestCase):
                         "%s/tree/main/plugins/%s" % (repository, plugin.name),
                     )
 
-    def test_portable_entrypoints_exist_and_match_parent_name(self):
-        for name in (
-            "alexandria",
-            "ariadne",
-            "berean",
-            "brevitas",
-            "hermes",
-            "hexaemeron",
-            "horos",
-            "janus",
-            "lazarus",
-            "lemma",
-            "pandects",
-            "probitas",
-            "sapheneia",
-            "tabularium",
-        ):
-            path = ROOT / ".agents" / "skills" / name / "SKILL.md"
-            text = path.read_text(encoding="utf-8")
-            self.assertTrue(text.startswith("---\n"))
-            match = re.search(r"^name:\s*([^\n]+)$", text, re.MULTILINE)
-            self.assertIsNotNone(match)
-            self.assertEqual(match.group(1).strip(), name)
-            self.assertRegex(text, r"(?m)^description:\s*\S")
-
-    def test_every_portable_entrypoint_matches_its_directory(self):
-        """Covers skill-level entries too, which the plugin list above does not."""
+    def test_promise_machine_is_the_only_portable_entrypoint(self):
         entries = sorted((ROOT / ".agents" / "skills").glob("*/SKILL.md"))
-        self.assertTrue(entries)
-        for path in entries:
-            text = path.read_text(encoding="utf-8")
-            with self.subTest(entry=path.parent.name):
-                self.assertTrue(text.startswith("---\n"))
-                match = re.search(r"^name:\s*([^\n]+)$", text, re.MULTILINE)
+        self.assertEqual(entries, [ROUTER])
+        text = ROUTER.read_text(encoding="utf-8")
+        self.assertRegex(text, r"(?m)^name:\s*promise-machine$")
+        self.assertRegex(text, r"(?m)^description:\s*\S")
+        self.assertNotRegex(text, r"(?m)^\s*version:\s*")
+
+    def test_router_reaches_each_plugin_runtime_contract_once(self):
+        text = ROUTER.read_text(encoding="utf-8")
+        links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
+        resolved = [(ROUTER.parent / link).resolve() for link in links]
+        expected = {(ROOT / "AGENTS.md").resolve()}
+        expected.update((plugin / "AGENTS.md").resolve() for plugin in PLUGINS.iterdir() if plugin.is_dir())
+        self.assertEqual(set(resolved), expected)
+        self.assertEqual(len(resolved), len(expected))
+        for target in resolved:
+            self.assertTrue(target.is_file(), target)
+            self.assertTrue(target.is_relative_to(ROOT), target)
+
+    def test_plugin_runtime_contracts_resolve_every_canonical_skill(self):
+        for plugin in sorted(path for path in PLUGINS.iterdir() if path.is_dir()):
+            contract = (plugin / "AGENTS.md").read_text(encoding="utf-8")
+            linked = {
+                (plugin / relative).resolve()
+                for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract)
+            }
+            expected = {path.resolve() for path in canonical_skills(plugin)}
+            with self.subTest(plugin=plugin.name):
+                self.assertEqual(linked, expected)
+                for target in linked:
+                    self.assertTrue(target.is_file(), target)
+                    self.assertTrue(target.is_relative_to(plugin), target)
+
+    def test_canonical_skill_names_match_parent_directories_and_are_unique(self):
+        names = {}
+        for skill in sorted(PLUGINS.glob("*/skills/**/SKILL.md")):
+            text = skill.read_text(encoding="utf-8")
+            match = re.search(r"(?m)^name:\s*([^\n]+)$", text)
+            with self.subTest(skill=skill.relative_to(ROOT)):
                 self.assertIsNotNone(match)
-                self.assertEqual(match.group(1).strip(), path.parent.name)
-                self.assertRegex(text, r"(?m)^description:\s*\S")
-
-    def test_skill_level_entrypoints_reach_a_canonical_skill(self):
-        """An entry that is not a plugin must name a skill that exists."""
-        plugins = {p.name for p in (ROOT / "plugins").iterdir() if p.is_dir()}
-        for path in sorted((ROOT / ".agents" / "skills").glob("*/SKILL.md")):
-            name = path.parent.name
-            if name in plugins:
-                continue
-            canonical = sorted((ROOT / "plugins").glob(f"*/skills/{name}/SKILL.md"))
-            with self.subTest(entry=name):
-                self.assertEqual(len(canonical), 1, f"{name} has no single canonical skill")
-                self.assertIn(f"skills/{name}/SKILL.md", path.read_text(encoding="utf-8"))
-
-    def test_portable_entrypoint_links_resolve(self):
-        for path in (ROOT / ".agents" / "skills").glob("*/SKILL.md"):
-            text = path.read_text(encoding="utf-8")
-            links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
-            self.assertTrue(links, path)
-            for link in links:
-                self.assertTrue((path.parent / link).resolve().is_file(), link)
-
-    def test_plugin_runtime_contracts_point_to_canonical_skills(self):
-        hermes = ROOT / "plugins" / "hermes" / "skills" / "hermes" / "SKILL.md"
-        self.assertTrue(hermes.is_file())
-
-        ariadne = ROOT / "plugins" / "ariadne"
-        contract = (ariadne / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((ariadne / relative).is_file(), relative)
-
-        berean = ROOT / "plugins" / "berean"
-        contract = (berean / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((berean / relative).is_file(), relative)
-
-        brevitas = ROOT / "plugins" / "brevitas"
-        contract = (brevitas / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((brevitas / relative).is_file(), relative)
-
-        lemma = ROOT / "plugins" / "lemma"
-        contract = (lemma / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((lemma / relative).is_file(), relative)
-
-        lazarus = ROOT / "plugins" / "lazarus"
-        contract = (lazarus / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((lazarus / relative).is_file(), relative)
-
-        probitas = ROOT / "plugins" / "probitas"
-        contract = (probitas / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((probitas / relative).is_file(), relative)
-
-        tabularium = ROOT / "plugins" / "tabularium"
-        contract = (tabularium / "AGENTS.md").read_text(encoding="utf-8")
-        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
-            self.assertTrue((tabularium / relative).is_file(), relative)
-
-        hexa_root = ROOT / "plugins" / "hexaemeron"
-        contract = (hexa_root / "AGENTS.md").read_text(encoding="utf-8")
-        paths = re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract)
-        self.assertEqual(len(paths), 15)
-        for relative in paths:
-            self.assertTrue((hexa_root / relative).is_file(), relative)
-
-    def test_skill_names_match_canonical_parent_directories(self):
-        skills = list((ROOT / "plugins" / "alexandria" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "ariadne" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "berean" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "brevitas" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "hermes" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "hexaemeron" / "skills").glob("*/SKILL.md"))
-        skills += list(
-            (ROOT / "plugins" / "hexaemeron" / "skills" / "fizz" / "skills").glob("*/SKILL.md")
-        )
-        skills += list((ROOT / "plugins" / "janus" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "lemma" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "lazarus" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "pandects" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "probitas" / "skills").glob("*/SKILL.md"))
-        skills += list((ROOT / "plugins" / "sapheneia" / "skills").glob("*/SKILL.md"))
-        skills += list(
-            (ROOT / "plugins" / "tabularium" / "skills").glob("*/SKILL.md")
-        )
-        for path in skills:
-            text = path.read_text(encoding="utf-8")
-            match = re.search(r"^name:\s*([^\n]+)$", text, re.MULTILINE)
-            self.assertIsNotNone(match, path)
-            self.assertEqual(match.group(1).strip(), path.parent.name, path)
+                name = match.group(1).strip()
+                self.assertEqual(name, skill.parent.name)
+                self.assertNotIn(name, names, f"{name} also owned by {names.get(name)}")
+                names[name] = skill.relative_to(ROOT)
 
 
 if __name__ == "__main__":
