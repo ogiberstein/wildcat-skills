@@ -47,22 +47,25 @@ def main(argv=None):
     root = os.path.abspath(args.root)
     scope = os.path.join(root, args.scope)
 
-    full_median, full_code, _ = timed_check(root, args.runs)
+    full_median, full_code, full_text = timed_check(root, args.runs)
     scope_median, scope_code, scope_text = timed_check(scope, args.runs)
 
-    if scope_code == 2:
-        scope_status = "unavailable: " + scope_text.strip().splitlines()[0]
-        scope_report = None
-    else:
-        scope_status = "measured"
-        scope_report = round(scope_median, 3)
+    def report(median, code, text):
+        """A duration beside a refused check reads as a fast check. Null it."""
+        if code == 2:
+            return None, "unavailable: " + text.strip().splitlines()[0]
+        return round(median, 3), "measured"
+
+    full_report, full_status = report(full_median, full_code, full_text)
+    scope_report, scope_status = report(scope_median, scope_code, scope_text)
 
     record = {
         "runs": args.runs,
-        "root": os.path.relpath(root, root) or ".",
+        "root": args.root,
         "scope": args.scope,
-        "full_tree_median_ms": round(full_median, 3),
+        "full_tree_median_ms": full_report,
         "full_tree_exit": full_code,
+        "full_tree_status": full_status,
         "scope_median_ms": scope_report,
         "scope_exit": scope_code,
         "scope_status": scope_status,
