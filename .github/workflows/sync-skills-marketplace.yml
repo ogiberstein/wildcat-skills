@@ -5,8 +5,9 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
+# Nothing here uses GITHUB_TOKEN: the source clone is public and the push
+# carries a token with the Workflows permission, which GITHUB_TOKEN cannot hold.
+permissions: {}
 
 concurrency:
   group: sync-skills-marketplace
@@ -17,18 +18,24 @@ jobs:
     if: github.repository == 'wildcat-finance/skills-marketplace'
     runs-on: ubuntu-latest
     steps:
-      # Only main and tags. GitHub refuses any push made with an App token,
-      # which `github.token` is, that creates or updates a file under
-      # `.github/workflows/`, and there is no `permissions:` key that grants it:
-      # the Workflows permission exists for fine-grained tokens and GitHub Apps,
-      # not for GITHUB_TOKEN. Mirroring every branch therefore fails whenever a
-      # branch carries a new workflow file, and one rejected ref fails the whole
-      # push. Widening this back needs a token with Workflows permission first,
-      # not a change here.
+      # Only main and tags, and that is a choice rather than a limit now.
+      #
+      # The push carries MARKETPLACE_SYNC_TOKEN, a fine-grained token holding
+      # Contents and Workflows write on this repository. The Workflows
+      # permission is the one that matters: GitHub refuses any push that
+      # creates or updates a file under `.github/workflows/` unless the token
+      # holds it, and GITHUB_TOKEN never can, which is why mirroring main broke
+      # the moment main gained a workflow file.
+      #
+      # Widening back to `refs/heads/*` would work with this token, and would
+      # also restore every branch the narrowing left behind, which is why it
+      # stays as it is. `--prune` sweeps tags that no longer exist upstream; it
+      # cannot sweep branches, because a single-ref refspec gives it no pattern
+      # to sweep.
       - name: Mirror public repository
         env:
           DESTINATION_REPOSITORY: ${{ github.repository }}
-          DESTINATION_TOKEN: ${{ github.token }}
+          DESTINATION_TOKEN: ${{ secrets.MARKETPLACE_SYNC_TOKEN }}
         run: |
           git clone --bare https://github.com/wildcat-finance/skills.git source.git
           git -C source.git push --force --prune \
