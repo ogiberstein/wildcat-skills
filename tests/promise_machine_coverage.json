@@ -805,6 +805,36 @@
       "claim": "The owning plugin records bounded recovery for each judgement-shaped promise.",
       "evidence_class": "recorded"
     },
+    "vulgate-eval-p": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_positive_cases",
+      "claim": "The labelled positive case supports an inferred content-parity judgement without claiming truth.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-m": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_missing_evidence_cases",
+      "claim": "The labelled case refuses a rewrite with no exact source or parity comparison.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-s": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_subject_mismatch_cases",
+      "claim": "The labelled case refuses source bytes from a different draft.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-o": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_overclaim_cases",
+      "claim": "The labelled case keeps register rewriting narrower than truth, authorship or argument improvement.",
+      "evidence_class": "inferred"
+    },
+    "vulgate-eval-r": {
+      "path": "plugins/hexaemeron/tests/test_promise_evaluation_cases.py",
+      "selector": "test_labelled_recovery_cases",
+      "claim": "The labelled recovery restores lost content and repeats the complete comparison.",
+      "evidence_class": "inferred"
+    },
     "imprimatur-p": {
       "path": "plugins/hexaemeron/skills/imprimatur/tests/run_tests.py",
       "selector": "test_promise_machine_licensed_scope_qualifier_is_preserved",
@@ -2010,7 +2040,7 @@
         "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model content parity remains unknown."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
+        "P": "vulgate-eval-p", "M": "vulgate-eval-m", "S": "vulgate-eval-s", "O": "vulgate-eval-o", "R": "vulgate-eval-r",
         "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
       }
     }

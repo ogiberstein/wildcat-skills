@@ -1045,6 +1045,8 @@ class PromiseCoverageTests(unittest.TestCase):
             row = document["rows"][1]
             row["cases"] = dict(document["rows"][0]["cases"])
             row.pop("pending")
+            for evidence in document["evidence"].values():
+                evidence["evidence_class"] = "checked"
             row["evaluation"] = {
                 "status": "recorded",
                 "model": "not-run",
@@ -1120,6 +1122,14 @@ class PromiseCoverageTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM064", [item["code"] for item in report["findings"]])
 
+    def test_evidence_class_must_be_accepted_by_the_promise(self):
+        def mutate(document):
+            document["evidence"]["p"]["evidence_class"] = "recorded"
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM064", [item["code"] for item in report["findings"]])
+
     def test_duplicate_json_key_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)
@@ -1171,6 +1181,36 @@ class PromiseCoverageTests(unittest.TestCase):
             document["rows"][1]["evaluation"]["corpus"] = "tests/missing.json"
 
         completed, report = self.run_vendored_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM069", [item["code"] for item in report["findings"]])
+
+    def test_prompt_or_vendored_evaluation_corpus_must_be_repository_relative(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, document = write_coverage_fixture(target)
+            row = document["rows"][1]
+            row["cases"] = dict(document["rows"][0]["cases"])
+            row.pop("pending")
+            for evidence in document["evidence"].values():
+                evidence["evidence_class"] = "checked"
+            row["evaluation"] = {
+                "status": "recorded",
+                "model": "not-run",
+                "prompt": "Fixture prompt.",
+                "corpus": str((target / "tests" / "evidence.py").resolve()),
+                "disposition": "Fixture classifications recorded.",
+            }
+            coverage_path.write_text(json.dumps(document), encoding="utf-8")
+            completed = run_cli(
+                "coverage",
+                "--check",
+                "--root",
+                target,
+                "--group",
+                "vendored",
+                "--json",
+            )
+        report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM069", [item["code"] for item in report["findings"]])
 

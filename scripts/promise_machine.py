@@ -167,6 +167,7 @@ class PromiseRecord:
     promise_id: str
     skill_path: str
     group: str
+    evidence_classes: frozenset[str]
 
 
 def relative(path: Path, root: Path) -> str:
@@ -854,6 +855,7 @@ def parse_contract(skill: SkillRecord, root: Path, *, required: bool = False):
                     )
                 )
         evidence_values = fields.get("Evidence classes", [])
+        classes: list[str] = []
         if len(evidence_values) == 1:
             classes = [
                 item.strip().strip("`").split(":", 1)[0].strip()
@@ -908,7 +910,7 @@ def parse_contract(skill: SkillRecord, root: Path, *, required: bool = False):
                         promise_id=promise_id or None,
                     )
                 )
-        promises.append((promise_id, skill.path))
+        promises.append((promise_id, skill.path, frozenset(classes)))
     return promises, findings
 
 
@@ -920,7 +922,7 @@ def check_structure(
     require_hexaemeron_contracts: bool = False,
 ):
     findings: list[Finding] = []
-    promises: list[tuple[str, str]] = []
+    promises: list[tuple[str, str, frozenset[str]]] = []
     for skill in inventory.skills:
         if skill.governance == "vendored":
             loaded, read_findings = read_markdown(
@@ -956,7 +958,7 @@ def check_structure(
         promises.extend(parsed)
         findings.extend(parsed_findings)
     owners: dict[str, list[str]] = {}
-    for promise_id, path in promises:
+    for promise_id, path, _ in promises:
         owners.setdefault(promise_id, []).append(path)
     for promise_id, paths in sorted(owners.items()):
         if len(paths) > 1:
@@ -1055,7 +1057,7 @@ def check_overlays(root: Path, inventory: Inventory):
         if skill.governance != "first-party":
             continue
         parsed, _ = parse_contract(skill, root)
-        canonical_ids.update(promise_id for promise_id, _ in parsed)
+        canonical_ids.update(promise_id for promise_id, _, _ in parsed)
     seen_paths: dict[str, list[str]] = {}
     seen_ids: set[str] = set()
     for offset, block_start in enumerate(blocks):
@@ -1300,8 +1302,8 @@ def promise_records(root: Path, inventory: Inventory):
         parsed, _ = parse_contract(skill, root)
         group = "prompt" if skill.name in PROMPT_SKILLS else "executable"
         records.extend(
-            PromiseRecord(promise_id, skill.path, group)
-            for promise_id, _ in parsed
+            PromiseRecord(promise_id, skill.path, group, evidence_classes)
+            for promise_id, _, evidence_classes in parsed
         )
 
     loaded, _ = read_markdown(
@@ -1327,12 +1329,21 @@ def promise_records(root: Path, inventory: Inventory):
             block_end = blocks[offset + 1] if offset + 1 < len(blocks) else len(lines)
             promise_id = lines[block_start][4:].strip()
             declared = ""
+            evidence_classes: frozenset[str] = frozenset()
             for line in lines[block_start + 1 : block_end]:
                 match = re.fullmatch(r"- Path:\s*`?([^`]+?)`?\s*", line)
                 if match is not None:
                     declared = match.group(1).strip()
-                    break
-            records.append(PromiseRecord(promise_id, declared, "vendored"))
+                evidence_match = re.fullmatch(r"- Evidence classes:\s*(.+)", line)
+                if evidence_match is not None:
+                    evidence_classes = frozenset(
+                        item.strip().strip("`").split(":", 1)[0].strip()
+                        for item in re.split(r"[,;]", evidence_match.group(1))
+                        if item.strip()
+                    )
+            records.append(
+                PromiseRecord(promise_id, declared, "vendored", evidence_classes)
+            )
     return tuple(sorted(records, key=lambda item: item.promise_id))
 
 
@@ -1655,7 +1666,9 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
                 corpus_path = Path(evaluation["corpus"])
                 corpus_target = root / corpus_path
                 if (
-                    corpus_target.is_symlink()
+                    corpus_path.is_absolute()
+                    or ".." in corpus_path.parts
+                    or corpus_target.is_symlink()
                     or not confined(corpus_target, root)
                     or not corpus_target.exists()
                     or not (corpus_target.is_file() or corpus_target.is_dir())
@@ -1781,6 +1794,30 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
                         case_path,
                         f"coverage evidence class is unsupported: {case['evidence_class']!r}",
                         "use one base evidence class from the Promise Machine law",
+                        promise_id=promise_id,
+                    )
+                )
+                continue
+            if "evidence_class" in case and case["evidence_class"] not in record.evidence_classes:
+                findings.append(
+                    Finding(
+                        "PM064",
+                        "coverage",
+                        case_path,
+                        f"coverage evidence class {case['evidence_class']!r} is not accepted by the promise",
+                        f"use one of the promise's declared classes: {sorted(record.evidence_classes)!r}",
+                        promise_id=promise_id,
+                    )
+                )
+                continue
+            if record.group in {"prompt", "vendored"} and "evidence_class" not in case:
+                findings.append(
+                    Finding(
+                        "PM064",
+                        "coverage",
+                        case_path,
+                        "prompt or vendored evidence omits its base evidence class",
+                        "state one class accepted by the canonical promise declaration",
                         promise_id=promise_id,
                     )
                 )
