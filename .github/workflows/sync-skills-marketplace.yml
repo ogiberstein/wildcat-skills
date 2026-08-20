@@ -18,20 +18,20 @@ jobs:
     if: github.repository == 'wildcat-finance/skills-marketplace'
     runs-on: ubuntu-latest
     steps:
-      # Only main and tags, and that is a choice rather than a limit now.
+      # Every branch and tag, so the private mirror tracks the public
+      # repository exactly. With wildcard refspecs `--prune` sweeps both, which
+      # is what makes this a mirror rather than an append-only pile: a ref
+      # deleted upstream is deleted here on the next run.
       #
       # The push carries MARKETPLACE_SYNC_TOKEN, a fine-grained token holding
-      # Contents and Workflows write on this repository. The Workflows
-      # permission is the one that matters: GitHub refuses any push that
-      # creates or updates a file under `.github/workflows/` unless the token
-      # holds it, and GITHUB_TOKEN never can, which is why mirroring main broke
-      # the moment main gained a workflow file.
-      #
-      # Widening back to `refs/heads/*` would work with this token, and would
-      # also restore every branch the narrowing left behind, which is why it
-      # stays as it is. `--prune` sweeps tags that no longer exist upstream; it
-      # cannot sweep branches, because a single-ref refspec gives it no pattern
-      # to sweep.
+      # Contents and Workflows write on this repository. That is what makes
+      # full mirroring possible at all. GitHub refuses any push that creates or
+      # updates a file under `.github/workflows/` unless the token holds the
+      # Workflows permission, and GITHUB_TOKEN can never hold it, so under
+      # GITHUB_TOKEN every branch carrying a workflow file was rejected and one
+      # rejected ref failed the whole push. If this ever reverts to
+      # `github.token`, narrow the refspec back to `refs/heads/main` in the
+      # same change or the mirror starts failing every five minutes again.
       - name: Mirror public repository
         env:
           DESTINATION_REPOSITORY: ${{ github.repository }}
@@ -40,5 +40,5 @@ jobs:
           git clone --bare https://github.com/wildcat-finance/skills.git source.git
           git -C source.git push --force --prune \
             "https://x-access-token:${DESTINATION_TOKEN}@github.com/${DESTINATION_REPOSITORY}.git" \
-            "refs/heads/main:refs/heads/main" \
+            "refs/heads/*:refs/heads/*" \
             "refs/tags/*:refs/tags/*"
