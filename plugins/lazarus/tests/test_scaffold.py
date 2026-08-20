@@ -93,6 +93,7 @@ class ScaffoldTests(unittest.TestCase):
             package_files,
             {
                 "__init__.py",
+                "binding.py",
                 "canonical.py",
                 "capture.py",
                 "errors.py",

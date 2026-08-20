@@ -17,6 +17,10 @@ This is deliberately narrow. It answers whether anything is visible, not whether
 the text is sensible, and it is applied to identifiers rather than to prose. A
 reason field explaining why a capture was skipped may contain whatever a person
 needs to write; a path segment may not be invisible.
+
+`listed` is the same concern at the other end of the scale. A refusal that names
+every one of a hundred thousand paths is a refusal nobody reads, and the count is
+the part that was worth saying.
 """
 
 from __future__ import annotations
@@ -47,3 +51,19 @@ def visible(value: object) -> bool:
             continue
         return True
     return False
+
+
+MAX_LISTED = 8
+"""How many names a refusal spells out before it starts counting instead."""
+
+
+def listed(values: object, limit: int = MAX_LISTED) -> str:
+    """Names, up to a limit, then how many were not named.
+
+    The values are taken in the order given, so a caller that wants them sorted
+    sorts them first.
+    """
+    names = [str(value) for value in values]
+    if len(names) <= limit:
+        return ", ".join(names)
+    return "%s and %d more" % (", ".join(names[:limit]), len(names) - limit)

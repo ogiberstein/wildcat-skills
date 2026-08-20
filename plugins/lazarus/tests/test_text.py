@@ -10,7 +10,7 @@ file can see which one each test means.
 
 import unittest
 
-from lazarus_lib.text import INVISIBLE_CATEGORIES, visible
+from lazarus_lib.text import INVISIBLE_CATEGORIES, MAX_LISTED, listed, visible
 
 ZERO_WIDTH_SPACE = "​"
 ZERO_WIDTH_NON_JOINER = "‌"
@@ -94,6 +94,39 @@ class VisibleTests(unittest.TestCase):
         self.assertIn("Cf", INVISIBLE_CATEGORIES)
         self.assertIn("Cc", INVISIBLE_CATEGORIES)
         self.assertNotIn("Zs", INVISIBLE_CATEGORIES)
+
+
+class ListedTests(unittest.TestCase):
+    """The same concern at the other end of the scale."""
+
+    def test_a_short_list_is_spelled_out(self):
+        self.assertEqual(listed(["a", "b", "c"]), "a, b, c")
+
+    def test_an_empty_list_says_nothing(self):
+        self.assertEqual(listed([]), "")
+
+    def test_exactly_the_limit_is_spelled_out(self):
+        names = ["n%d" % index for index in range(MAX_LISTED)]
+        self.assertEqual(listed(names), ", ".join(names))
+        self.assertNotIn("more", listed(names))
+
+    def test_one_past_the_limit_starts_counting(self):
+        names = ["n%d" % index for index in range(MAX_LISTED + 1)]
+        self.assertEqual(listed(names), ", ".join(names[:MAX_LISTED]) + " and 1 more")
+
+    def test_a_long_list_stays_short_enough_to_read(self):
+        names = ["a-rather-long-component-path-%d.json" % index for index in range(100000)]
+        rendered = listed(names)
+        self.assertIn("and 99992 more", rendered)
+        self.assertLess(len(rendered), 500)
+
+    def test_the_order_given_is_the_order_named(self):
+        """A caller that wants them sorted sorts them first, and this must not
+        quietly do it for them."""
+        self.assertEqual(listed(["c", "a", "b"]), "c, a, b")
+
+    def test_values_that_are_not_strings_are_named_anyway(self):
+        self.assertEqual(listed([1, None, True]), "1, None, True")
 
 
 if __name__ == "__main__":

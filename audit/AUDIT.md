@@ -3037,3 +3037,198 @@ Checked and found sound:
   demonstration still exits 0.
 
 Leads not pursued: the split audit record carried from round 1.
+
+## Goldfinch preservation release, step 2, round 1 -- 2026-08-19
+
+Reviewed: the binding rule, which decides whether a statement describes this
+fixture and whether it claims more than the records support.
+
+Seven findings, all one shape: a field a producer writes and nothing reads.
+
+The rule the module exists for was sound. Fifteen mutants against it all died,
+including the one that compares the counts in a single direction, and the study's
+tamper is refused naming both numbers. What the mutation could not show was the
+half of the document nothing looked at. A sweep of twenty hostile values through
+every leaf of a statement -- 460 substitutions -- bound 162 of them.
+
+The seven, in the order they were closed:
+
+- `_type`. A predicate type says how to read a predicate; the statement type says
+  the document is the kind of thing that has one. Any value bound, so a bare
+  object carrying two strings was read as an attestation.
+- `chain_id`, `block_number` and `state_root`. The block hash was the only thing
+  pinned. A statement naming the right hash, another chain, another height and
+  another state root bound, and read as though all four had been corroborated.
+  Every proof in a fixture is checked against the header's state root, so a
+  statement naming a different one describes a verification nobody ran.
+- `reaches_network`. Its neighbour `canonical_chain_claim` was refused unless
+  exactly false and this one was not read, so a statement could say the records
+  had been corroborated live.
+- The in-toto `subject` list. The detail lives in `predicate.fixture_subjects`,
+  and `subject` is the array a policy engine matches on. A component described in
+  the predicate and absent from the subject list was bound here and invisible
+  there.
+- Subject names. Nothing required a name to name anything, and nothing refused
+  one name over two digests, which leaves a reader matching by name unable to
+  tell which was meant.
+
+The verified report now carries `block_number` and `state_root` alongside
+`block_hash`, all three from the header the proofs were checked against, so the
+binding compares against what verification established rather than against what a
+manifest claims.
+
+Checked and found sound: the counts come from `verify_fixture` and not from the
+manifest, which is the whole point of the step; a manifest carrying inflated
+counts changes nothing.
+
+Two further findings, one in a test and one in me. Mutation found a rule with no
+test that reached it: repeating a whole fixture subject now trips the
+duplicate-name rule first, so the duplicate-path rule needed an entry differing
+everywhere but the path. And the mutation probe writes the module in place and
+restores it afterwards, which it does not do when the runner is killed; a
+two-minute timeout left a mutation on disk. The probe now refuses to start unless
+the unmutated suite passes, and says so when it has put the file back.
+
+Leads not pursued: the previous run's split audit record, carried from step 1,
+is being fixed as its own change off `main` rather than from inside this run.
+
+## Goldfinch preservation release, step 2, round 2 -- 2026-08-19
+
+Reviewed: the two documents the binding is handed alongside the statement, and
+the study's pair measured live rather than in a sample.
+
+Two findings.
+
+A manifest whose component path is a list raised `TypeError` from inside a set,
+and a report whose count is `None` raised `TypeError` from inside a comparison.
+Forty-eight substitutions and eight removed keys ended in a traceback rather than
+a refusal. None of them can come out of `verify_manifest` or `verify_fixture`,
+which is the point: the caller who reaches them is the one who handed over the
+manifest read off disk instead of the verified one, and a traceback out of the
+middle of a comparison tells them nothing about which document was wrong. The
+module now names the fields it reads out of each and refuses what it cannot read.
+It is not a second verification, and the docstring says so.
+
+Names are compared in composed form now. Two Unicode spellings of one name bound
+together, which is the ambiguity the duplicate-name rule exists to refuse: a
+reader that normalises sees one name over two digests.
+
+Checked and found sound:
+
+- The Ariadne statement for the shipped `goldfinch-v0` fixture binds with every
+  check, against the real fixture rather than a sample.
+- The study's tamper is refused: six proof-backed records claimed where two
+  verify.
+- Understating is refused too, and says so: nought recorded RPC records claimed
+  where four verify.
+- A statement naming another chain, another height or another state root is
+  refused against the real fixture.
+
+## Goldfinch preservation release, step 2, round 3 -- 2026-08-19
+
+Reviewed: what the binding leaves behind, and whether two fixtures can be
+confused for each other.
+
+No findings in the module. One in the probe.
+
+None of eight calls -- the clean case and seven refusals -- changed any of their
+three inputs. A hundred calls agreed. The returned list is the caller's own, so
+a caller who appends to it changes nothing for the next.
+
+A second fixture was built rather than imagined: synthetic material written to a
+temporary directory, a manifest built over it, and a statement captured over it
+by Ariadne. Each statement binds against its own fixture. Each is refused by the
+other, naming both block hashes.
+
+Ariadne's own shipped statements were run through the same rule. The clean
+`goldfinch-v0` statement binds. The tampered one with its state root removed is
+refused, by the rule round 1 added.
+
+The finding was mine. The section that edits a component after a statement is
+written replaced a string the file does not contain, so it reported a clean
+result having tested nothing. It now refuses to run unless the edit changes
+bytes. With a real edit the fixture stops verifying, on a digest mismatch, which
+is where a release must stop -- and the statement still binds against the report
+taken before the edit, because the binding is handed a report rather than a
+directory. That is a constraint on the command in step 3, which has to verify and
+bind in one pass rather than accept a report from elsewhere.
+
+## Goldfinch preservation release, step 2, round 4 -- 2026-08-19
+
+Reviewed: what happens at the sizes nobody writes by hand.
+
+Three findings.
+
+A statement can be sixteen mebibytes, which is around a hundred and ten thousand
+fixture subjects. The binding read every one of them and then named every one of
+them in the refusal. The message for a statement describing two hundred thousand
+components ran to tens of megabytes of comma-separated paths: a refusal nobody
+reads, in a log nobody keeps.
+
+Both ends are bounded. A statement describing more components than a fixture can
+hold is refused with the limit named, and the limit is taken from the manifest's
+own `MAX_COMPONENTS` rather than restated, so the two cannot drift into a
+statement this accepts and no fixture can satisfy. The subject list gets a looser
+cap, because it legitimately names more than the components -- the capture itself
+is one. And a refusal spells out eight names, then counts.
+
+The verifier had the same message. Its proof-target list is bounded by the plan
+schema at a hundred thousand addresses, which is four megabytes of refusal.
+`listed` lives in `text.py` beside `visible` because they are one concern at two
+scales: whether the thing a person reads shows them anything.
+
+The third: the statement `_type` told shape and disagreement apart in one place
+and not the other. A caller catching a format problem should not have to catch an
+integrity one to learn a field was blank.
+
+Checked and found sound: exactly the limit is read rather than refused, since a
+fixture may hold that many.
+
+## Goldfinch preservation release, step 2, round 5 -- 2026-08-19
+
+Reviewed: which statements of the module the tests execute, and whether the names
+it publishes still match what it does.
+
+One finding in the module, three in the probe.
+
+Of a hundred and seventy-four executable statements, a hundred and seventy-three
+were reached. The one left was the conversion failure in the hex-quantity helper,
+where a value starts with `0x` and then is not a number. Nothing in a verified
+manifest or report can get there, which is why it went unnoticed, and it is
+reachable by the same caller mistake the rest of the guards exist for. It has a
+test now; the code did not change.
+
+The three in the probe are worth recording because two of them made it report a
+clean result. Its tracer matched any file whose name ends in `binding.py`, so it
+counted lines of the test file as coverage of the module and called three
+module-level constants reached that were not. Fixing that showed all seven
+constants unreached, because they run at import before the tracer is installed,
+so the probe reloads the module under trace. Its claim that the module imports
+nothing outside this package read relative imports wrongly, since `ast` records
+the leading dot as a level rather than in the name.
+
+Checked and found sound: eight check names over seven calls, each name distinct,
+in the order the calls are made; the module runs no subprocess, opens no file,
+and imports nothing outside this package and the standard library.
+
+## Goldfinch preservation release, step 2, round 6 -- 2026-08-19
+
+Reviewed: whether anything here passes for the wrong reason.
+
+No findings.
+
+Every one of the fourteen test classes passes alone in its own process, and the
+whole suite passes under five shuffled orders. The question is not idle: a test
+file in this marketplace was found last run passing only under discovery order,
+because another module's import supplied what it needed.
+
+Every instrument the five rounds before this one built was run again against the
+finished module. Thirty-seven mutants, none surviving. Six hundred and twenty
+substitutions through the statement and five hundred and forty through the two
+documents handed alongside it, none raising anything outside `LazarusError`. None
+of the three inputs changed by a call. A hundred and seventy-four of a hundred
+and seventy-four statements reached.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
