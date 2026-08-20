@@ -4420,3 +4420,25 @@ Leads not pursued: brevitas B011 flags the runtime contract's selection and
 capability tables (1x3 and 5x2); the shipped template in every existing
 plugin carries the same shapes and the same flags, so the tables stay with
 the house form. Nothing else.
+
+## Berean from its Commons specification, step 2, round 1 -- 2026-08-20
+
+Scope: `c3bec0c..4438d2e`, the corpus and citation core. The suite waiver
+stands; the mechanical part ran phylax, ephoros and hypomnema over the
+changed trees, all exit 0, with the root suite (34) and berean suite (59 at
+review, 61 after fixes) green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B2-R1-01 | medium | `plugins/berean/scripts/berean_lib/jsonio.py` | NaN and Infinity reach `json.loads` through `parse_constant`, not `parse_float`, so a document carrying them passed the reader built to refuse non-finite numbers. | fixed in `c8c72d3` |
+| B2-R1-02 | low | `plugins/berean/scripts/berean_lib/corpus.py` | A pinned path swapped for a symlink between the walk and the drift read raised out of `verify` as a usage error instead of failing a named check. | fixed in `c8c72d3` |
+
+The look beyond the lints traced the risk register's concerns through the
+new code: traversal and backslash refusals sit in one place and both
+builders go through it; the staged write cannot leave a half manifest that
+later verifies, and a crashed staging file inside the corpus is itself a
+refusal; verification is set equality, so an unpinned extra file fails
+rather than passing as a superset; and citation digest and display text are
+checked separately so neither can vouch for the other.
+
+Leads not pursued: none.
