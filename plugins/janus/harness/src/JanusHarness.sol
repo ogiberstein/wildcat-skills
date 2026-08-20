@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {StateDeltaRecorder} from "./StateDeltaRecorder.sol";
 import {HostAdapter} from "./HostAdapter.sol";
+import {Vm} from "./Vm.sol";
 
 /// @dev The gate engine. It drives one action through a host adapter, records
 ///      the delta around it, and offers the checks a conformance test uses to
@@ -11,12 +12,24 @@ import {HostAdapter} from "./HostAdapter.sol";
 ///      accessor is the hook address, which is how gate 1 tells the hook's own
 ///      calls apart from the host's.
 abstract contract JanusHarness is StateDeltaRecorder {
+  Vm private constant _hvm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+
+  error NoSequencesExercised();
+
   struct DriveResult {
     bool reverted;
     bytes revertData;
     Delta delta;
     uint256 valueBefore;
     uint256 valueAfter;
+  }
+
+  /// @dev One conformance finding, the unit the reports render.
+  struct Finding {
+    uint256 gate;
+    string action;
+    string hook;
+    string detail;
   }
 
   /// @dev Drive an action and record the state delta around it. A revert is
@@ -122,5 +135,77 @@ abstract contract JanusHarness is StateDeltaRecorder {
   ///      vacuously on an action that reverted or did nothing.
   function _deltaHasEffects(Delta memory delta) internal pure returns (bool) {
     return delta.writes.length > 0 || delta.calls.length > 0;
+  }
+
+  /// @dev A conformance run must have exercised at least one sequence; a run
+  ///      that drove nothing is a failure, not a vacuous pass.
+  function _requireExercised(uint256 sequences) internal pure {
+    if (sequences == 0) revert NoSequencesExercised();
+  }
+
+  /// @dev Render a findings set to the report interchange JSON and write it
+  ///      through the scoped filesystem cheatcode. The Python reporter renders
+  ///      the human and SARIF outputs from this file.
+  function _writeFindings(
+    string memory path,
+    string memory host,
+    string memory manifest,
+    uint256 sequences,
+    Finding[] memory findings
+  ) internal {
+    _hvm.writeFile(path, _findingsJson(host, manifest, sequences, findings));
+  }
+
+  function _findingsJson(
+    string memory host,
+    string memory manifest,
+    uint256 sequences,
+    Finding[] memory findings
+  ) internal pure returns (string memory json) {
+    string memory arr = "[";
+    for (uint256 i; i < findings.length; ++i) {
+      arr = string.concat(
+        arr,
+        i == 0 ? "" : ",",
+        '{"gate":',
+        _uintToString(findings[i].gate),
+        ',"action":"',
+        findings[i].action,
+        '","hook":"',
+        findings[i].hook,
+        '","detail":"',
+        findings[i].detail,
+        '"}'
+      );
+    }
+    arr = string.concat(arr, "]");
+    json = string.concat(
+      '{"host":"',
+      host,
+      '","manifest":"',
+      manifest,
+      '","sequences":',
+      _uintToString(sequences),
+      ',"findings":',
+      arr,
+      "}"
+    );
+  }
+
+  function _uintToString(uint256 value) internal pure returns (string memory) {
+    if (value == 0) return "0";
+    uint256 temp = value;
+    uint256 digits;
+    while (temp != 0) {
+      digits++;
+      temp /= 10;
+    }
+    bytes memory buffer = new bytes(digits);
+    while (value != 0) {
+      digits -= 1;
+      buffer[digits] = bytes1(uint8(48 + (value % 10)));
+      value /= 10;
+    }
+    return string(buffer);
   }
 }
