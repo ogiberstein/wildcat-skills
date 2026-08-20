@@ -4522,3 +4522,38 @@ surfaced. Lints exit 0; root suite 34 and berean suite 124 green.
 | -- | -- | -- | No findings. | clean |
 
 Leads not pursued: none.
+
+## Berean from its Commons specification, step 5, round 1 -- 2026-08-20
+
+Scope: `1ac41c4..f5a5230`, the evaluation corpus and its graders. The suite
+waiver stands; phylax, ephoros and hypomnema exit 0, root suite 34 and
+berean suite 142 green at review, 143 after the fix.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B5-R1-01 | medium | `plugins/berean/scripts/berean_lib/promote.py` | Promotion checked the pinned report's digests and counts but never graded, so a report claiming a clean pass would promote a release whose cases fail when graded today. | fixed in `df5edc7` |
+
+The look traced the register through the graders: cases embed the answers
+they grade so broken answers never join a release's pinned set; the run
+parses the same bytes it digested; injection cases must name forbidden
+content and a boundary claim without a refusal expectation is refused;
+the rejected grader passes only on a named checker refusal, so the
+adversarial corpus cannot pass by accident.
+
+Leads not pursued: forbidden-content scanning covers sentence texts and
+not citation display text, deliberately, because a citation quoting a
+poisoned document is the disclosure the format wants; recorded in the
+grader beside the scan.
+
+## Berean from its Commons specification, step 5, round 2 -- 2026-08-20
+
+Scope: the step 5 tree with `df5edc7` applied. The re-grading promotion
+re-reviewed with its guard test; the lazy import that breaks the module
+cycle is one-directional and inside the function. Lints exit 0; root
+suite 34 and berean suite 143 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
