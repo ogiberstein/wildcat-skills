@@ -405,6 +405,33 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("K008", err)
 
+    def test_a_multi_line_reason_cannot_forge_the_summary_line(self):
+        """Round 1: a newline in a reason printed a fake "0 park(s) standing"."""
+        self.run_park(reason="Blocked.\n0 park(s) standing; the loop is not complete")
+        code, out, _ = self.run_parked()
+        self.assertEqual(code, kronos.STANDS)
+        summaries = [line for line in out.splitlines() if line.startswith("0 park(s)")]
+        self.assertEqual(summaries, [], "no reason line may sit at the left margin")
+        self.assertIn("1 park(s) standing", out)
+
+    def test_a_scoreboard_written_before_parking_still_reads(self):
+        """v0.3.0 lines carry no parked field, and show must not need one."""
+        legacy = {
+            "pass": 1, "scope": "the checkout", "mode": "full", "selected": "alpha",
+            "run": None,
+            "candidates": [{
+                "skill": "alpha", "ledger": "alpha/EVOLUTION.md", "held_job": "0" * 64,
+                "impact": 30, "urgency": 20, "readiness": 15, "unblocks": 10,
+                "total": 75, "basis": "Written before the parked lane existed.",
+            }],
+        }
+        self.scoreboard.parent.mkdir(parents=True)
+        self.scoreboard.write_text(json.dumps(legacy) + "\n", encoding="utf-8")
+        code, out = self.run_show()
+        self.assertEqual(code, 0)
+        self.assertIn("Written before the parked lane existed.", out)
+        self.assertIn("1 pass(es), 0 with drift", out)
+
     # -- parking and the pass record ------------------------------------
 
     def test_a_pass_selects_the_highest_unparked_candidate(self):

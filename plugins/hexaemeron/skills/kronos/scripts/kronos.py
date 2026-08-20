@@ -385,7 +385,11 @@ def parked(args: argparse.Namespace) -> int:
             "unknown": "ledger could not be read, so the park stands",
         }[state]
         print(f"{skill}  {entry['held_job'][:12]}  {note}")
-        print(f"  reason: {entry['reason']}")
+        # Indented line by line. The reason is stored verbatim by requirement,
+        # and a newline inside one would otherwise let it forge the summary line
+        # that tells a reader whether anything still stands.
+        for number, line in enumerate(entry["reason"].splitlines() or [""]):
+            print(f"  {'reason: ' if number == 0 else '        '}{line}")
     print(f"{len(standing)} park(s) standing; the loop is not complete")
     return STANDS
 
