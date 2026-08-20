@@ -3,10 +3,10 @@
     "bytes_binary": 17,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 134192,
-    "bytes_lockfile": 54,
+    "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1149
+    "files_walked": 1156
   },
   "entries": [
     {
@@ -608,6 +608,20 @@
       "evidence": "lockfile name yarn.lock",
       "grade": "hard",
       "path": "plugins/horos/examples/fixture/yarn.lock"
+    },
+    {
+      "bytes": 54,
+      "category": "lockfile",
+      "evidence": "lockfile name yarn.lock",
+      "grade": "hard",
+      "path": "plugins/horos/examples/scoped-entry/packages/one/yarn.lock"
+    },
+    {
+      "bytes": 146,
+      "category": "lockfile",
+      "evidence": "lockfile name go.sum",
+      "grade": "hard",
+      "path": "plugins/horos/examples/scoped-entry/packages/two/go.sum"
     },
     {
       "bytes": 42086,
