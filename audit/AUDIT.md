@@ -4555,3 +4555,20 @@ caller that changes directory between resolving a path and checking it would be
 answered against the new one; every entry point here resolves and checks in one
 call, and threading a base directory through the command would add a parameter
 no caller has asked for.
+
+## Scoped entry, step 4, round 3 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+207/207, root 38/38, `check .` exit 0, benchmark re-run at 24.1 ms for the
+`plugins/alexandria` scope with 0 classified outside it, all verified before
+this receipt. The round audited the tree with both earlier fixes applied and
+re-checked the two things those fixes touched: the escape rule still refuses
+all four escape shapes and admits every legitimate relative path. The
+sibling case, `../two` from inside another scope, was run and then pinned as a
+test in 5deb3e3 rather than left as a reasoned assumption; and the benchmark's
+counters now come from the walk rather than from a constant.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
