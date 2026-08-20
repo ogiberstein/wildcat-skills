@@ -998,6 +998,82 @@ class PromiseCoverageTests(unittest.TestCase):
             },
         )
 
+    def test_repository_high_consequence_runtime_bindings_are_complete(self):
+        coverage = json.loads(
+            (ROOT / "tests" / "promise_machine_coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        expected_fields = {
+            "promise_id",
+            "subject",
+            "scope",
+            "evidence_references",
+            "evidence_classes",
+            "unknowns",
+            "transition",
+            "exception",
+        }
+        self.assertEqual(len(coverage["runtime"]), 29)
+        for promise_id, binding in coverage["runtime"].items():
+            with self.subTest(promise_id=promise_id):
+                self.assertEqual(set(binding), {"source", "bindings"})
+                self.assertEqual(set(binding["bindings"]), expected_fields)
+                self.assertTrue((ROOT / binding["source"]).is_file())
+
+    def test_high_consequence_promise_without_runtime_binding_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, document = write_coverage_fixture(target)
+            skill = target / "plugins/hexaemeron/skills/elenchus/SKILL.md"
+            skill.write_text(
+                skill.read_text(encoding="utf-8").replace(
+                    "- Consequence: 1", "- Consequence: 2"
+                ),
+                encoding="utf-8",
+            )
+            coverage_path.write_text(json.dumps(document), encoding="utf-8")
+            completed = run_cli(
+                "coverage", "--check", "--root", target, "--group", "executable", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM070", [item["code"] for item in report["findings"]])
+
+    def test_runtime_binding_source_must_be_confined(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, document = write_coverage_fixture(target)
+            skill = target / "plugins/hexaemeron/skills/elenchus/SKILL.md"
+            skill.write_text(
+                skill.read_text(encoding="utf-8").replace(
+                    "- Consequence: 1", "- Consequence: 2"
+                ),
+                encoding="utf-8",
+            )
+            document["runtime"] = {
+                "example-check": {
+                    "source": "../outside.json",
+                    "bindings": {
+                        "promise_id": "promise id",
+                        "subject": "subject",
+                        "scope": "scope",
+                        "evidence_references": "evidence references",
+                        "evidence_classes": "evidence classes",
+                        "unknowns": "unknowns",
+                        "transition": "transition",
+                        "exception": "exception",
+                    },
+                }
+            }
+            coverage_path.write_text(json.dumps(document), encoding="utf-8")
+            completed = run_cli(
+                "coverage", "--check", "--root", target, "--group", "executable", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM070", [item["code"] for item in report["findings"]])
+
     def test_repository_prompt_and_vendored_coverage_is_complete(self):
         completed = run_cli(
             "coverage", "--check", "--group", "prompt,vendored", "--json"

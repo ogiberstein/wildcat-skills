@@ -19,6 +19,385 @@
       "refuses": "answer-truth"
     }
   ],
+  "runtime": {
+    "alexandria-derived-view": {
+      "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release_id and kind",
+        "scope": "coverage and components",
+        "evidence_references": "objects, sources and corrections",
+        "evidence_classes": "component evidence_class values joined to the canonical Evidence classes field",
+        "unknowns": "coverage gaps and unsupported components",
+        "transition": "successful derive and verify status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "alexandria-raw-release": {
+      "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release_id, source and chain",
+        "scope": "coverage, capture and finality",
+        "evidence_references": "objects and components",
+        "evidence_classes": "component evidence_class values joined to the canonical Evidence classes field",
+        "unknowns": "coverage gaps, corrections and unsupported components",
+        "transition": "successful ingest and verify status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "ariadne-replay-command": {
+      "source": "plugins/ariadne/scripts/ariadne.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "statement subject digest and replay project",
+        "scope": "recorded command, arguments and exact replay mode",
+        "evidence_references": "statement predicate command and produced artefact digest",
+        "evidence_classes": "replay disposition joined to the canonical Evidence classes field",
+        "unknowns": "redacted arguments, unchecked predicates and non-deterministic records",
+        "transition": "allow-execution authority and replay exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "ariadne-verify-statement": {
+      "source": "plugins/ariadne/scripts/ariadne.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "in-toto subject name and digest",
+        "scope": "predicate type and complete gate set",
+        "evidence_references": "predicate materials, claims and gate report",
+        "evidence_classes": "gate dispositions joined to the canonical Evidence classes field",
+        "unknowns": "unchecked predicates, unsigned status and skipped records",
+        "transition": "zero-exit gate result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "berean-release-promotion": {
+      "source": "plugins/berean/schemas/promotion-record-v1.json",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release_digest",
+        "scope": "action, previous_release_digest and thresholds",
+        "evidence_references": "evaluation_report_digest and record chain",
+        "evidence_classes": "evaluation disposition joined to the canonical Evidence classes field",
+        "unknowns": "failed cases, ungrounded questions and recorded refusal conditions",
+        "transition": "operator, action and result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "elenchus-fixed-and-guarded": {
+      "source": "plugins/hexaemeron/skills/elenchus/scripts/elenchus.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "baseline and fixed commit identities",
+        "scope": "reproduction command and named regression guard",
+        "evidence_references": "detached-parent and fixed-tree reports",
+        "evidence_classes": "runner category joined to the canonical Evidence classes field",
+        "unknowns": "inconclusive, zero-test and infrastructure outcomes",
+        "transition": "fixed-and-guarded verdict joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "ephoros-observability-review": {
+      "source": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "reviewed step and build identity",
+        "scope": "named on-call questions and unattended path",
+        "evidence_references": "structured events, metrics, correlations, exercises and review record",
+        "evidence_classes": "review disposition joined to the canonical Evidence classes field",
+        "unknowns": "unexercised failure modes and missing operational evidence",
+        "transition": "review acceptance joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "fiat-final-integration": {
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "bindings": {
+        "promise_id": "coverage key joined to controller phase and canonical promise heading",
+        "subject": "run branch, base, integration head and merge commit",
+        "scope": "ordered step PR stack and one base merge",
+        "evidence_references": "ledger receipts, green checks, PR URLs and commits",
+        "evidence_classes": "receipt kind joined to the canonical Evidence classes field",
+        "unknowns": "carried-forward work and any unrun external check",
+        "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "fiat-receipted-delivery": {
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "bindings": {
+        "promise_id": "coverage key joined to controller phase and canonical promise heading",
+        "subject": "topic, run branch, step branch and head commit",
+        "scope": "current step and phase",
+        "evidence_references": "append-only ledger receipt payload and previous hash",
+        "evidence_classes": "receipt kind joined to the canonical Evidence classes field",
+        "unknowns": "unrun checks and receipt assertions not independently proved",
+        "transition": "single next controller directive joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hermes-baseline-promotion": {
+      "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "candidate commit, target set and sealed run directory",
+        "scope": "declared optimisation class and promoted baseline",
+        "evidence_references": "accepted result.json, snapshots, layouts and selector maps",
+        "evidence_classes": "accepted status joined to the canonical Evidence classes field",
+        "unknowns": "unmeasured targets and recorded fuzz-statistic changes",
+        "transition": "promotion command and accepted status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hermes-candidate-acceptance": {
+      "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "baseline commit, candidate commit and named targets",
+        "scope": "one optimisation class and six gates",
+        "evidence_references": "result.json, command logs, snapshots, layouts, selectors and property report",
+        "evidence_classes": "gate statuses joined to the canonical Evidence classes field",
+        "unknowns": "unmeasured behaviour and non-regression-neutral fuzz statistics",
+        "transition": "accepted status and zero exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hexaemeron-fizz-convert-properties": {
+      "source": "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "target repository, PROPERTIES.md entry and harness assertion",
+        "scope": "selected pending properties and unchanged harness boundary",
+        "evidence_references": "conversion record, compilation and named tests",
+        "evidence_classes": "vendored operation record joined to overlay Evidence classes",
+        "unknowns": "unconverted properties and unrun campaigns",
+        "transition": "successful conversion gates joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "hexaemeron-fizz-harness-campaign": {
+      "source": "plugins/hexaemeron/skills/fizz/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "target repository revision, generated harness and campaign",
+        "scope": "selected contracts, properties, engine settings and corpus",
+        "evidence_references": "generated files, compilation, campaign logs and violations",
+        "evidence_classes": "vendored operation record joined to overlay Evidence classes",
+        "unknowns": "unreached states, skipped engines and unresolved properties",
+        "transition": "successful generation and campaign gates joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "hexaemeron-fizz-sync-drift": {
+      "source": "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "target source revision, prior snapshot and reconciled harness",
+        "scope": "added, removed and changed callable surface",
+        "evidence_references": "drift report, quarantined properties, regenerated stubs and tests",
+        "evidence_classes": "vendored operation record joined to overlay Evidence classes",
+        "unknowns": "semantically stale properties and unrun campaigns",
+        "transition": "successful sync gates joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "hexaemeron-solidity-audit-report": {
+      "source": "plugins/hexaemeron/skills/solidity-auditor/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the digest-bound vendored overlay",
+        "subject": "audited repository revision and Solidity scope",
+        "scope": "enumerated source, threat model and review roles",
+        "evidence_references": "source citations, raw role results and final finding report",
+        "evidence_classes": "audit observations joined to overlay Evidence classes",
+        "unknowns": "unreviewed code, unavailable tools and inconclusive leads",
+        "transition": "completed audit report joined to overlay Authorises",
+        "exception": "overlay Exceptions field"
+      }
+    },
+    "horos-boundary-scan": {
+      "source": "plugins/horos/skills/horos/scripts/horos.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "repository root and tracked-tree identity",
+        "scope": "walked files and applied classification rules",
+        "evidence_references": "boundary entries and per-file evidence",
+        "evidence_classes": "classification rule joined to the canonical Evidence classes field",
+        "unknowns": "omitted paths and fail-open unproven classifications",
+        "transition": "atomic scan write and zero exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "hypomnema-record-placement": {
+      "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "named decision and changed repository surface",
+        "scope": "decision inventory and selected record homes",
+        "evidence_references": "authored records, alternatives, reasons and pointer-gate result",
+        "evidence_classes": "review disposition joined to the canonical Evidence classes field",
+        "unknowns": "unresolved decisions and intentionally absent records",
+        "transition": "accepted record placement joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "janus-bounded-conformance": {
+      "source": "plugins/janus/scripts/janus.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "hook, host adapter and manifest revision",
+        "scope": "recorder coverage, search settings and explored sequences",
+        "evidence_references": "complete deltas, hostile-hook guards and Foundry results",
+        "evidence_classes": "bounded conformance result joined to the canonical Evidence classes field",
+        "unknowns": "unrecorded effects, other hosts and executions outside the bounded search",
+        "transition": "conformance verdict joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "kronos-fiat-dispatch": {
+      "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "selected plugin, skill and held job hash",
+        "scope": "eligible candidate set, mode and score inputs",
+        "evidence_references": "ledgers, recomputed scores and append-only scoreboard",
+        "evidence_classes": "selection record joined to the canonical Evidence classes field",
+        "unknowns": "excluded, mature, parked and unevidenced candidates",
+        "transition": "explicit Fiat dispatch joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "kronos-parked-lane": {
+      "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "parked plugin, skill and held job hash",
+        "scope": "named lane, parking reason and review boundary",
+        "evidence_references": "current ledgers, score inputs and scoreboard record",
+        "evidence_classes": "parking record joined to the canonical Evidence classes field",
+        "unknowns": "unresolved blocker and future eligibility",
+        "transition": "park action joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "lazarus-exact-replay": {
+      "source": "plugins/lazarus/scripts/lazarus.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "verified fixture identity and exact request key",
+        "scope": "captured method and parameters with loopback-only service",
+        "evidence_references": "manifest, request-key table and response record",
+        "evidence_classes": "response evidence_class joined to the canonical Evidence classes field",
+        "unknowns": "uncaptured requests and recorded-only RPC relations",
+        "transition": "verified replay binding joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "lazarus-fixture-capture": {
+      "source": "plugins/lazarus/schemas/manifest-v1.json",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "fixture digest, chain id, block number and block hash",
+        "scope": "plan subjects, limits and opening and closing headers",
+        "evidence_references": "files, request records, proofs and manifest digests",
+        "evidence_classes": "record evidence classes joined to the canonical Evidence classes field",
+        "unknowns": "recorded-only RPC results and external canonical-chain provenance",
+        "transition": "in-process verification status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "lazarus-preservation-release": {
+      "source": "plugins/lazarus/schemas/release-v1.json",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release digest, fixture digest and statement digest",
+        "scope": "release member set and verified evidence counts",
+        "evidence_references": "fixture, Ariadne statement and binding document",
+        "evidence_classes": "fixture and statement relations joined to the canonical Evidence classes field",
+        "unknowns": "unsigned publisher identity and recorded-only RPC evidence",
+        "transition": "verify-release status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "metron-change-decision": {
+      "source": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "named workload, implementation and isolated change",
+        "scope": "measurement method, environment and budget",
+        "evidence_references": "before and after samples, variance and correctness results",
+        "evidence_classes": "measured verdict joined to the canonical Evidence classes field",
+        "unknowns": "noise, unmeasured workloads and unexplained environmental changes",
+        "transition": "keep or revert decision joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "pandects-search-record": {
+      "source": "plugins/pandects/scripts/pandects.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "target revision, adapter and law identifiers",
+        "scope": "engine, command, configuration, seed and sequence bounds",
+        "evidence_references": "captured search output and generated search-record JSON",
+        "evidence_classes": "campaign status joined to the canonical Evidence classes field",
+        "unknowns": "absent engines, unavailable values and timed-out campaigns",
+        "transition": "bounded campaign result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "phylax-boundary-review": {
+      "source": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "reviewed step, source tree and external-input boundary",
+        "scope": "named inputs, subprocesses, hosts, secrets and output paths",
+        "evidence_references": "boundary inventory, controls, hostile cases and test results",
+        "evidence_classes": "review disposition joined to the canonical Evidence classes field",
+        "unknowns": "unreviewed capabilities and unavailable adversarial evidence",
+        "transition": "review acceptance joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "probitas-dossier-verification": {
+      "source": "plugins/probitas/scripts/probitas.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "dossier bytes, evidence digest and declared entity addresses",
+        "scope": "venue coverage rows and five verification gates",
+        "evidence_references": "evidence records, citations, figures and source hashes",
+        "evidence_classes": "provenance tier and gate result joined to the canonical Evidence classes field",
+        "unknowns": "unchecked venues, unsupported claims and explicit gaps",
+        "transition": "five passing gates and zero exit joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "tabularium-release-build": {
+      "source": "plugins/tabularium/scripts/tabularium.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release directory, source digest and adapter version",
+        "scope": "venue, chain, capture boundary and mapped selectors",
+        "evidence_references": "source, capture, events and coverage manifest digests",
+        "evidence_classes": "source and mapping relations joined to the canonical Evidence classes field",
+        "unknowns": "unsupported entities, known gaps and unsigned publisher identity",
+        "transition": "atomic build and verification status joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
+    "tabularium-release-verification": {
+      "source": "plugins/tabularium/scripts/tabularium.py",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading",
+        "subject": "release directory, source digest and adapter version",
+        "scope": "venue, capture boundary, paths and one-to-one source selectors",
+        "evidence_references": "rebuilt event bytes, manifest digests and mapping provenance",
+        "evidence_classes": "verification result joined to the canonical Evidence classes field",
+        "unknowns": "publisher identity, chain proof and unmapped source entities",
+        "transition": "zero-exit verification joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    }
+  },
   "evidence": {
     "alexandria-p": {
       "path": "plugins/alexandria/tests/test_demo.py",

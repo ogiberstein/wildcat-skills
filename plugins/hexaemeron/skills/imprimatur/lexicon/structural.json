@@ -53,7 +53,11 @@
       "note": "Headings In Title Case Like This.",
       "severity": "medium",
       "regex": "^#{1,6}\\s+(?:[A-Z][a-z']+\\s+){2,}[A-Z][a-z']+\\s*$",
-      "case_sensitive": true
+      "case_sensitive": true,
+      "allow_exact": [
+        "# Wildcat Labs Skills",
+        "## The Promise Machine"
+      ]
     },
     "unrequested_tldr": {
       "note": "Only permitted when the user asked for one.",
