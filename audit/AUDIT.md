@@ -5678,3 +5678,21 @@ reason ("None whatsoever at all.") passes as content. Distinguishing a
 reason from filler is answer quality, which the checker's stated boundary
 leaves to the reviewer; tightening it mechanically would refuse honest
 long-form answers.
+
+## Protasis study schema check, step 3, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+One fault surfaced and was fixed before this round closed: the first cut
+of the new held-job text used a word the prose lint refuses without a
+concrete referent, caught by the root suite's shipped-prose gate; the
+sentence was rewritten and the frontier digest recomputed over the final
+line, which is the order the versioning contract demands. Reviewed
+against the register: the evolution row's arithmetic, digest and header
+agreement are held by the evolution suite; the mechanical-subset section
+cites both modes without restating either. Phylax, ephoros and hypomnema
+exit 0. Demo path clean over the run's own study. Root 104/104;
+hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: none
