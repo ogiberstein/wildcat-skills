@@ -40,23 +40,62 @@ abstract contract JanusHarness is StateDeltaRecorder {
     result.valueAfter = adapter.valueSnapshot();
   }
 
-  /// @dev The number of external calls the hook itself initiated.
-  function _hookCallCount(Delta memory delta, address hookAddr) internal pure returns (uint256 n) {
-    for (uint256 i; i < delta.calls.length; ++i) {
-      if (delta.calls[i].accessor == hookAddr) ++n;
+  /// @dev The transitive closure of the hook's causal effects: a call is the
+  ///      hook's if its accessor is the hook, or the accessor is a target the
+  ///      hook already reached. Attributing by the immediate accessor alone
+  ///      would only see the hook's direct callees, and a hook could launder a
+  ///      forbidden call one hop through a permitted target. Iterating to a
+  ///      fixpoint over (accessor, target) pairs closes that hole with no need
+  ///      for frame depth.
+  function _hookAttributed(
+    Delta memory delta,
+    address hookAddr
+  ) internal pure returns (bool[] memory attributed) {
+    uint256 n = delta.calls.length;
+    attributed = new bool[](n);
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      for (uint256 i; i < n; ++i) {
+        if (attributed[i]) continue;
+        address acc = delta.calls[i].accessor;
+        bool causal = acc == hookAddr;
+        if (!causal) {
+          for (uint256 k; k < n; ++k) {
+            if (attributed[k] && delta.calls[k].target == acc) {
+              causal = true;
+              break;
+            }
+          }
+        }
+        if (causal) {
+          attributed[i] = true;
+          changed = true;
+        }
+      }
     }
   }
 
-  /// @dev Gate 1: every call the hook made targets an allowed address. A call
-  ///      the hook made to anything outside `allowed` is an effect the manifest
-  ///      did not enumerate, so it is forbidden.
+  /// @dev The number of external calls the hook caused, directly or through a
+  ///      target it reached.
+  function _hookCallCount(Delta memory delta, address hookAddr) internal pure returns (uint256 n) {
+    bool[] memory attributed = _hookAttributed(delta, hookAddr);
+    for (uint256 i; i < attributed.length; ++i) {
+      if (attributed[i]) ++n;
+    }
+  }
+
+  /// @dev Gate 1: every call the hook caused targets an allowed address. A call
+  ///      anywhere in the hook's causal subtree to a target outside `allowed`
+  ///      is an effect the manifest did not enumerate, so it is forbidden.
   function _gate1_hookCallsWithinAllowed(
     Delta memory delta,
     address hookAddr,
     address[] memory allowed
   ) internal pure returns (bool) {
+    bool[] memory attributed = _hookAttributed(delta, hookAddr);
     for (uint256 i; i < delta.calls.length; ++i) {
-      if (delta.calls[i].accessor != hookAddr) continue;
+      if (!attributed[i]) continue;
       bool ok;
       for (uint256 j; j < allowed.length; ++j) {
         if (delta.calls[i].target == allowed[j]) {
@@ -69,10 +108,19 @@ abstract contract JanusHarness is StateDeltaRecorder {
     return true;
   }
 
-  /// @dev The ETH value the hook itself moved.
+  /// @dev The fresh value the hook caused to move, across its whole causal
+  ///      subtree, counting only kinds that move fresh value.
   function _hookValueMoved(Delta memory delta, address hookAddr) internal pure returns (uint256 v) {
+    bool[] memory attributed = _hookAttributed(delta, hookAddr);
     for (uint256 i; i < delta.calls.length; ++i) {
-      if (delta.calls[i].accessor == hookAddr) v += delta.calls[i].value;
+      if (attributed[i] && _movesValue(delta.calls[i].kind)) v += delta.calls[i].value;
     }
+  }
+
+  /// @dev Whether a recording captured any effect at all. A gate for an action
+  ///      expected to do something must assert this, so it cannot pass
+  ///      vacuously on an action that reverted or did nothing.
+  function _deltaHasEffects(Delta memory delta) internal pure returns (bool) {
+    return delta.writes.length > 0 || delta.calls.length > 0;
   }
 }

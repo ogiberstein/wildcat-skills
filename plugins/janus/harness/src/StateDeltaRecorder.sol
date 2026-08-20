@@ -114,7 +114,7 @@ abstract contract StateDeltaRecorder {
   /// @dev Whether a kind moves fresh value. A delegatecall inherits the
   ///      enclosing call's value, so summing it would double-count; a
   ///      staticcall can move none. Create and selfdestruct do move value.
-  function _movesValue(Vm.AccountAccessKind kind) private pure returns (bool) {
+  function _movesValue(Vm.AccountAccessKind kind) internal pure returns (bool) {
     return
       kind == Vm.AccountAccessKind.Call ||
       kind == Vm.AccountAccessKind.CallCode ||

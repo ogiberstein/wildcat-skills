@@ -74,6 +74,48 @@ contract ReentryProbe is IWildcatHook {
   }
 }
 
+/// @dev A neutral call sink and a one-hop forwarder, to build a laundering
+///      path the hook routes a forbidden call through.
+contract Sink {
+  function ping() external {}
+}
+
+contract Forwarder {
+  function forward(address sink) external {
+    Sink(sink).ping();
+  }
+}
+
+/// @dev A hook that, on deposit, calls an allowed forwarder which calls a
+///      forbidden sink. Its direct callee is permitted, so only causal-subtree
+///      attribution catches the laundered call.
+contract LaunderProbe is IWildcatHook {
+  address immutable fwd;
+  address immutable sink;
+
+  constructor(address fwd_, address sink_) {
+    fwd = fwd_;
+    sink = sink_;
+  }
+
+  function onDeposit(address, uint256, MarketState calldata, bytes calldata) external override {
+    Forwarder(fwd).forward(sink);
+  }
+
+  function onQueueWithdrawal(address, uint32, uint256, MarketState calldata, bytes calldata) external override {}
+
+  function onTransfer(address, address, address, uint256, MarketState calldata, bytes calldata) external override {}
+
+  function onSetAnnualInterestAndReserveRatioBips(
+    uint16 a,
+    uint16 r,
+    MarketState calldata,
+    bytes calldata
+  ) external pure override returns (uint16, uint16) {
+    return (a, r);
+  }
+}
+
 contract WildcatConformanceTest is JanusBase, JanusHarness {
   string constant MANIFEST = "manifests/wildcat-open-term.json";
 
@@ -107,6 +149,8 @@ contract WildcatConformanceTest is JanusBase, JanusHarness {
     uint256 hookAssetBefore = asset.balanceOf(address(honest));
     DriveResult memory r = _drive(adapter, "deposit", lender, _depositParams(100));
     assertTrue(!r.reverted, "honest deposit does not revert");
+
+    assertTrue(_deltaHasEffects(r.delta), "the drive produced observable effects, so the gate is not vacuous");
 
     address[] memory allowed = new address[](0); // the honest hook calls nothing
     assertTrue(
@@ -147,6 +191,25 @@ contract WildcatConformanceTest is JanusBase, JanusHarness {
     DriveResult memory e = _drive(adapter, "executeWithdrawal", lender, abi.encode(lender, uint32(1000)));
     assertTrue(!e.reverted, "gate3: the queued withdrawal executes");
     assertEq(asset.balanceOf(lender), uint256(1_000_000), "gate3: the lender recovered its assets");
+  }
+
+  function test_gate1_catches_a_call_laundered_through_an_allowed_forwarder() external {
+    Sink sink = new Sink();
+    Forwarder fwd = new Forwarder();
+    LaunderProbe probe = new LaunderProbe(address(fwd), address(sink));
+    model.setHook(address(probe));
+
+    DriveResult memory r = _drive(adapter, "deposit", lender, _depositParams(100));
+    assertTrue(!r.reverted, "the laundering deposit itself does not revert");
+
+    // The forwarder is permitted; the sink it calls is not. Immediate-accessor
+    // attribution would miss the sink call; the causal subtree catches it.
+    address[] memory allowed = new address[](1);
+    allowed[0] = address(fwd);
+    assertTrue(
+      !_gate1_hookCallsWithinAllowed(r.delta, address(probe), allowed),
+      "gate1: a forbidden call laundered one hop through an allowed target is caught"
+    );
   }
 
   function test_gate7_adapter_names_its_scope() external view {
