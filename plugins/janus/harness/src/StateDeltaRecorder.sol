@@ -23,6 +23,7 @@ abstract contract StateDeltaRecorder {
 
   struct CallObs {
     address target;
+    address accessor;
     Vm.AccountAccessKind kind;
     uint256 value;
   }
@@ -79,7 +80,12 @@ abstract contract StateDeltaRecorder {
       Vm.AccountAccess memory a = accesses[i];
       if (a.reverted) continue;
       if (_reachesAccount(a.kind)) {
-        delta.calls[c++] = CallObs({target: a.account, kind: a.kind, value: a.value});
+        delta.calls[c++] = CallObs({
+          target: a.account,
+          accessor: a.accessor,
+          kind: a.kind,
+          value: a.value
+        });
       }
       for (uint256 j; j < a.storageAccesses.length; ++j) {
         Vm.StorageAccess memory s = a.storageAccesses[j];
