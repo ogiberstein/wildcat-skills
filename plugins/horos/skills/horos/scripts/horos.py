@@ -533,12 +533,37 @@ def resolve_universe(root, include_untracked=False):
     return label, {p for p in paths if p}
 
 
-def scan_tree(root, census=False, include_untracked=False):
+def _inside_scope(relpath, scope):
+    """True when a root-relative path lies at or under the scope."""
+    if scope is None:
+        return True
+    return relpath == scope or relpath.startswith(scope + "/")
+
+
+def _leads_to_scope(relpath, scope):
+    """True when a directory is the scope, inside it, or an ancestor of it.
+
+    An ancestor is walked but never classified: its `.gitattributes` scopes the
+    files below it, so skipping it would make a scoped check disagree with a
+    whole-tree one about the same file.
+    """
+    if scope is None:
+        return True
+    return _inside_scope(relpath, scope) or scope.startswith(relpath + "/")
+
+
+def scan_tree(root, census=False, include_untracked=False, scope=None):
     """Walk the tree and return entries plus the counts a quiet run reports.
 
     With census=True the same walk also tallies every file by suffix, so the
     census can never describe a different tree than the boundary does; the
-    result gains a "census" key and nothing else changes."""
+    result gains a "census" key and nothing else changes.
+
+    With scope set to a root-relative directory, only files at or under it are
+    classified. The walk still begins at root, because the attribute files
+    above the scope decide how the files inside it classify; those are read and
+    counted separately. Whole subtrees outside the scope are pruned unvisited.
+    """
     root = os.path.abspath(root)
     universe_label, universe = resolve_universe(root, include_untracked)
     scopes = {}
@@ -547,14 +572,18 @@ def scan_tree(root, census=False, include_untracked=False):
     candidates = []
     walked = 0
     skipped_unreadable = 0
+    outside_scope_listed = 0
+    attribute_files_above_scope = 0
 
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         relative_dir = os.path.relpath(dirpath, root)
+        posix_dir = "." if relative_dir == "." else relative_dir.replace(os.sep, "/")
         if ".gitattributes" in filenames:
-            scope_key = "." if relative_dir == "." else relative_dir.replace(os.sep, "/")
             rules = parse_attribute_file(os.path.join(dirpath, ".gitattributes"))
             if rules:
-                scopes[scope_key] = rules
+                scopes[posix_dir] = rules
+            if scope is not None and not _inside_scope(posix_dir, scope):
+                attribute_files_above_scope += 1
         keep = []
         for dirname in sorted(dirnames):
             if dirname in SKIPPED_DIR_NAMES:
@@ -564,6 +593,12 @@ def scan_tree(root, census=False, include_untracked=False):
                 continue
             relpath = dirname if relative_dir == "." else f"{relative_dir}/{dirname}"
             relpath = relpath.replace(os.sep, "/")
+            if not _leads_to_scope(relpath, scope):
+                continue
+            if not _inside_scope(relpath, scope):
+                # On the path down to the scope: walk it, classify nothing.
+                keep.append(dirname)
+                continue
             named_category = None
             if dirname in VENDORED_DIR_NAMES:
                 named_category = "vendored"
@@ -619,6 +654,13 @@ def scan_tree(root, census=False, include_untracked=False):
             relpath = relpath.replace(os.sep, "/")
             if universe is not None and relpath not in universe:
                 continue
+            if not _inside_scope(relpath, scope):
+                # Listed by a directory the walk had to visit, and dropped
+                # before any stat or read. Whole subtrees outside the scope are
+                # pruned unvisited, so this counts only what the ancestor chain
+                # put in front of the walk, never the tree's outside total.
+                outside_scope_listed += 1
+                continue
             walked += 1
             matched = match_attribute_scopes(scopes, relpath)
             if matched is not None:
@@ -660,6 +702,9 @@ def scan_tree(root, census=False, include_untracked=False):
     entries.sort(key=lambda entry: entry["path"])
     candidates.sort(key=lambda entry: entry["path"])
     counts = {"files_walked": walked, "files_skipped_unreadable": skipped_unreadable}
+    if scope is not None:
+        counts["files_outside_scope_listed"] = outside_scope_listed
+        counts["attribute_files_above_scope"] = attribute_files_above_scope
     for entry in entries:
         key = "bytes_" + entry["category"]
         counts[key] = counts.get(key, 0) + entry["bytes"]
@@ -669,6 +714,8 @@ def scan_tree(root, census=False, include_untracked=False):
         "counts": counts,
         "universe": universe_label,
     }
+    if scope is not None:
+        result["scope"] = scope
     if tally is not None:
         result["census"] = tally
     return result
@@ -799,6 +846,139 @@ def diff_documents(committed, fresh):
     return drifted
 
 
+def git_worktree_root(path):
+    """The worktree root git reports for a path, or None when git cannot say."""
+    try:
+        completed = subprocess.run(  # phylax: allow subprocess: fixed argv, no shell, cwd pinned by -C
+            ["git", "-C", path, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    top = completed.stdout.decode("utf-8", errors="replace").strip()
+    return os.path.realpath(top) if top else None
+
+
+def _within(path, ancestor):
+    return path == ancestor or path.startswith(ancestor + os.sep)
+
+
+def resolve_boundary_root(target):
+    """Find the one boundary that governs a path.
+
+    Returns ((boundary root, scope), None) or (None, reason). The search walks
+    upward from the target to the nearest committed boundary and stops at the
+    worktree root git reports, so a boundary planted above a repository cannot
+    capture a check made inside it. The target is resolved once, up front, and
+    no symlink is followed during the search; a symlink that leaves the
+    worktree is refused rather than resolved into a different tree.
+    """
+    given = os.path.abspath(target)
+    resolved = os.path.realpath(given)
+    if not os.path.isabs(target):
+        # A relative path means "inside the repository I am working in", so
+        # anything that resolves out of it is refused rather than answered
+        # from another tree's boundary. This covers `..`, a symlinked final
+        # component and a symlinked intermediate one alike, which a check on
+        # the given path alone does not: `git -C` resolves symlinks before it
+        # answers, so a path with a symlink in the middle would otherwise
+        # report the far repository as its own worktree.
+        here = git_worktree_root(os.getcwd())
+        if here is not None and not _within(resolved, here):
+            return None, f"path leaves the worktree at {here}"
+    elif os.path.islink(given):
+        parent_root = git_worktree_root(os.path.dirname(given))
+        if parent_root is not None and not _within(resolved, parent_root):
+            return None, f"symlink leaves the worktree at {parent_root}"
+    if not os.path.isdir(resolved):
+        return None, f"not a directory: {target}"
+    limit = git_worktree_root(resolved)
+    current = resolved
+    while True:
+        if os.path.isfile(os.path.join(current, BOUNDARY_RELPATH)):
+            scope = os.path.relpath(resolved, current).replace(os.sep, "/")
+            return (current, scope), None
+        if limit is not None and current == limit:
+            return None, f"no boundary between {resolved} and the worktree root {limit}"
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None, f"no boundary at or above {resolved}"
+        current = parent
+
+
+def entries_under(document, scope, key="entries"):
+    """The slice of a boundary document that lies at or under the scope."""
+    return [
+        entry for entry in document.get(key, [])
+        if _inside_scope(entry["path"].rstrip("/"), scope)
+    ]
+
+
+def check_scope(boundary_root, scope, out=None):
+    """Admit a descendant scope against the one boundary above it.
+
+    Exit 0 admits the scope, 1 means hard drift inside it. A green scoped check
+    says nothing about the rest of the repository, and the output says so in
+    those words: a local pass read as a global one is the failure this phrasing
+    exists to prevent.
+    """
+    out = out if out is not None else sys.stdout
+    try:
+        committed = load_boundary(boundary_root)
+    except FileNotFoundError:
+        print(f"horos: no boundary at {BOUNDARY_RELPATH}; run scan --write", file=out)
+        return 2
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"horos: unreadable boundary: {error}", file=out)
+        return 2
+    include_untracked = committed.get("universe") == "tracked+untracked"
+    result = scan_tree(boundary_root, include_untracked=include_untracked, scope=scope)
+    fresh = boundary_document(result)
+    drifted = diff_documents(
+        {"entries": entries_under(committed, scope)},
+        {"entries": entries_under(fresh, scope)},
+    )
+    candidate_count = len(entries_under(candidates_document(result), scope))
+    print(f"boundary root: {boundary_root}", file=out)
+    print(f"scope: {scope}", file=out)
+    for path, reason in drifted:
+        print(f"drift: {path}: {reason}", file=out)
+    print(f"hard boundary: {'drifted' if drifted else 'matches'}", file=out)
+    print(f"candidates: {candidate_count} findings, advisory", file=out)
+    print("outside-scope drift: not evaluated", file=out)
+    counts = result["counts"]
+    print(
+        "counters: classified {}, listed outside scope {}, "
+        "attribute files above scope {}".format(
+            counts["files_walked"],
+            counts["files_outside_scope_listed"],
+            counts["attribute_files_above_scope"],
+        ),
+        file=out,
+    )
+    return 1 if drifted else 0
+
+
+def check_scope_or_tree(target, out=None):
+    """Check whatever the path names: the whole tree, or one scope inside it.
+
+    This is the whole of the `check` command, so the dispatch a caller gets is
+    the dispatch the tests drive.
+    """
+    out = out if out is not None else sys.stdout
+    resolved, reason = resolve_boundary_root(target)
+    if resolved is None:
+        print(f"horos: {reason}", file=out)
+        return 2
+    boundary_root, scope = resolved
+    if scope == ".":
+        return check_tree(boundary_root, out=out)
+    return check_scope(boundary_root, scope, out=out)
+
+
 def check_tree(root, out=None):
     out = out if out is not None else sys.stdout
     try:
@@ -890,7 +1070,7 @@ def main(argv=None):
         return 2
 
     if args.command == "check":
-        return check_tree(args.root)
+        return check_scope_or_tree(args.root)
 
     result = scan_tree(
         args.root, census=args.census, include_untracked=args.include_untracked

@@ -13,14 +13,14 @@
       "suffix": "(no suffix)"
     },
     {
-      "boundary_bytes": 51380,
-      "bytes": 2850716,
+      "boundary_bytes": 59150,
+      "bytes": 2868678,
       "files": 291,
       "suffix": ".py"
     },
     {
       "boundary_bytes": 0,
-      "bytes": 2290718,
+      "bytes": 2294133,
       "files": 294,
       "suffix": ".md"
     },
@@ -141,6 +141,6 @@
   ],
   "schema": 1,
   "tool": "horos",
-  "total_bytes": 24206162,
+  "total_bytes": 24227539,
   "total_files": 1157
 }

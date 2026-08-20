@@ -40,13 +40,36 @@ boundary or the new one, never half. `--json` prints the same canonical
 bytes instead of writing them.
 
 ```bash
-python3 scripts/horos.py check <root>
+python3 scripts/horos.py check <path>
 ```
 
 re-derives the classification and compares it with the committed boundary.
 Exit 0 means the boundary matches the tree. Drift names every path, in both
 directions: a new sink the boundary lacks, and a committed entry the tree no
 longer evidences.
+
+`<path>` may be the repository root or any directory inside it. For a
+descendant, Horos walks upward to the nearest `.horos/boundary.json`, stops at
+the worktree root git reports, classifies only that subtree, and compares it
+with the matching slice of the committed boundary:
+
+```text
+boundary root: /path/to/repo
+scope: plugins/alexandria
+hard boundary: matches
+candidates: 12 findings, advisory
+outside-scope drift: not evaluated
+counters: classified 210, listed outside scope 3, attribute files above scope 0
+```
+
+Exit 1 means hard drift inside the scope, and every drifted path is named.
+Exit 2 means no usable ancestor boundary, or a path that resolves out of the
+worktree. Candidate drift never changes the exit code. A scoped pass is not a
+whole-repository pass, which is why the output says so in those words: the
+release-time answer is still `check` at the root. The walk begins at the
+boundary root even for a scope, because a `.gitattributes` above the scope
+decides how the files inside it classify; those reads are counted rather than
+hidden, and nothing outside the scope is stat'd, read or classified.
 
 ```bash
 python3 scripts/horos.py scan <root> --census [--write]
@@ -103,7 +126,11 @@ confessions and every file oracle-parsed, recorded at
 
 1. Entering a repository, look for `.horos/boundary.json`. If it exists, run
    `check` before trusting it; a stale or forged boundary fails by name. If
-   it does not exist and the repository is large, offer a scan.
+   it does not exist and the repository is large, offer a scan. Entering one
+   directory of a large repository to work in it, run `check` on that
+   directory instead: the answer covers the files about to be read, costs a
+   fraction of the whole tree, and says plainly that it evaluated nothing
+   outside the scope. Before a release, check the root.
 2. Treat every path inside a checked boundary as unread-by-default. The entry
    itself carries what a reader needs: category, size, evidence.
 3. Before opening a file over a few hundred lines in a language the

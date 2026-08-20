@@ -4509,3 +4509,66 @@ rather than to this round, and are recorded there.
 | --- | --- | --- | --- | --- |
 
 Zero findings. Leads not pursued: none.
+
+## Scoped entry, step 4, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+206/206, root 38/38, verified before this receipt. Two mutations were run
+against the committed step before the suite was trusted: making the committed
+slice ignore the scope fails five of the nineteen cases, and pruning the
+ancestor chain instead of walking it fails six. The round then went at the
+control the risk register names rather than at the happy path, and found it
+half-built.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | plugins/horos/skills/horos/scripts/horos.py | the escape control only inspected the given path, so a symlink as the final component was refused while a symlink in the middle was not. `git -C` resolves symlinks before answering, so `check bridge/sub` reported the far repository as its own worktree and the check would have been answered from that tree's boundary | fixed in 312bf0a, with two guards seen failing without it |
+
+Leads not pursued: `check_scope` slices the candidate document by scope
+although the scan it came from was already scope-limited, so that slice can
+never remove anything; it is a redundant call rather than a wrong one, and
+removing it would leave the two documents sliced by different code paths.
+
+## Scoped entry, step 4, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+206/206, root 38/38, `check .` exit 0, verified before this receipt. The round
+audited the tree with round 1's escape fix applied, and asked the question
+round 1 had not: whether the evidence the study demands for this step actually
+exists yet. It did not.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | medium | plugins/horos/tests/benchmark_scope.py | the benchmark still called `check_tree`, which knows nothing of ancestor resolution, so every scoped run recorded exit 2 and a null median while the check itself worked. Criterion 12's measurement did not exist, and the record said `unavailable` rather than being wrong, which is why round 1 read past it | fixed in fad07e3 |
+
+The fix also replaced the placeholder `tracked_files_inspected_outside_scope`
+null with counters taken from the same scoped walk the check performs, of which
+`classified_outside_scope` is the one that carries the claim. First measured
+numbers, five runs each: full tree 59.6 ms; `plugins/alexandria` 24.4 ms over
+210 classified files with 0 outside; `plugins/brevitas` 15.9 ms over 21
+classified files with 0 outside. The heavier scope costs more than a third of
+the whole tree because its weight is a content-addressed store, and digest
+verification reads whole files by design.
+
+Leads not pursued: the escape rule reads the process's working directory, so a
+caller that changes directory between resolving a path and checking it would be
+answered against the new one; every entry point here resolves and checks in one
+call, and threading a base directory through the command would add a parameter
+no caller has asked for.
+
+## Scoped entry, step 4, round 3 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+207/207, root 38/38, `check .` exit 0, benchmark re-run at 24.1 ms for the
+`plugins/alexandria` scope with 0 classified outside it, all verified before
+this receipt. The round audited the tree with both earlier fixes applied and
+re-checked the two things those fixes touched: the escape rule still refuses
+all four escape shapes and admits every legitimate relative path. The
+sibling case, `../two` from inside another scope, was run and then pinned as a
+test in 5deb3e3 rather than left as a reasoned assumption; and the benchmark's
+counters now come from the walk rather than from a constant.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
