@@ -4122,3 +4122,25 @@ every later read. It does not: `json.dumps` escapes it, the file kept one line,
 and `show` renders the text across two lines without the record changing.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/hexaemeron/skills/kronos/SKILL.md | step 4 recorded the pass before Fiat was invoked, so the run link the record exists to carry could never be set | fixed in 251eb45 |
+| S3-R1-02 | low | plugins/hexaemeron/skills/kronos/SKILL.md | a refusal was documented for a `total` field the skill never documented as a field | fixed in 251eb45 |
+
+The ledger row was checked by hand rather than trusted to the suite that also
+checks it: the header names one version with the row, the axis arithmetic moves
+generation alone, the recomputed digest matches the row, the generation retains
+the prior revision and digest byte for byte, the status stays mature with no
+next job, and SKILL.md's frontmatter agrees with the header.
+
+S3-R1-01 came from reading the new text against the field it introduced. The
+wishlist entry asks for a link to the Fiat run a pass launched, and step 4 ran
+before any run existed, so every line would have carried a null. Both fixes have
+guards that were run against the unfixed SKILL.md first and failed there.
+
+Leads not pursued: none.
