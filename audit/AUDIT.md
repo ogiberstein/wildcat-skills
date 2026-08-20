@@ -3750,3 +3750,38 @@ before it counts anything, which is the habit this run bought.
 The three bundled lints ran against the changed tree and each exited 0:
 `phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
 waiver recorded at init covers the Pashov trio.
+
+## Protasis discipline cores, step 1, round 1 -- 2026-08-20
+
+Reviewed: the two committed spec documents, `docs/protasis-discipline-cores/study.md`
+and `docs/protasis-discipline-cores/runbook.md`, as the whole of this step's diff.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio. Root suite 24/24, plugin suite
+303/303, imprimatur clean over both documents.
+
+The risk register names four concerns. Three of them (path handling, hostile
+document content, a miscount reported as clean) belong to the checker and have
+no surface in a step that commits two documents. The fourth is the ledger, and
+the check here is that this step does not touch it: the diff is confined to
+`docs/`, and `EVOLUTION.md` is step 4's business alone.
+
+Two things the step corrected before it was receipted, both found by running the
+stated exit rather than by reading it. The runbook's exit commands named
+`python3 -m unittest discover -s plugins/hexaemeron/tests -t .`, which cannot
+load: the directory is not an importable package and `AGENTS.md` documents
+`python3 plugins/hexaemeron/tests/run_tests.py` instead. The study also assumed
+Python 3.11 where the interpreter is 3.14.6. Both were wrong on the page, which
+is the cheapest place for them to be wrong, and both are now stated as the
+commands and the version that actually hold.
+
+Leads not pursued: the installed Fiat controller's `audit-round` accepts only
+`--findings`, `--log` and `--fixes-commit`, while this repository's
+`fiat-v4.4.1` ledger records that the receipt takes the three lint exits. The
+installed plugin is behind the checkout. The lint outcomes are therefore
+recorded in this entry rather than as structured receipt fields. Out of scope
+here: it is a Fiat concern, not a Protasis one, and this run's topic does not
+touch the controller.
