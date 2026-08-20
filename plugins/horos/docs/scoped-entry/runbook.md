@@ -49,13 +49,17 @@ tracked file, so `check` answers the same on every machine.
 **Entry.** Step 1's green exit. `check .` exits 1 with 7 drifted paths, 6 of
 them ignored local directories.
 
-**Exit.** A fresh scan of this repository emits no phantom entry, taking its
-hard entries from 93 to 87; step 1's fixtures for criteria 4 and 5 pass with
-their markers removed, so a checkout carrying an ignored build directory exits
-0; census attribution is unchanged for every entry that does cover tracked
-files. This repository's own `check .` still exits 1 at this step, for the
-tracked evidence copy the committed boundary predates, and step 3 owns that
-refresh.
+**Exit.** No scan emits a phantom entry, and step 1's fixtures for criteria 4
+and 5 pass with their markers removed, so a checkout carrying an ignored build
+directory exits 0; census attribution is unchanged for every entry that does
+cover tracked files. The count depends on the checkout rather than the
+repository: a pristine clone produces 87 hard entries either side of the fix,
+because it carries no ignored build products, while the maintainer's own
+checkout produced 93 with six binding nothing, five under a stale worktree
+under `.claude/worktrees/` and one at `plugins/pandects/out/`. That difference
+is the defect, so the fixture rather than a repository count is the criterion.
+This repository's own `check .` still exits 1 at this step, for the tracked
+evidence copy the committed boundary predates, and step 3 owns that refresh.
 
 **Files.** `plugins/horos/skills/horos/scripts/horos.py`, classifier tests,
 fixtures, and `.horos/boundary.json` only if a real entry changed.

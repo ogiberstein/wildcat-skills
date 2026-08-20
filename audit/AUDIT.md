@@ -4466,3 +4466,46 @@ file's own classifier source as drifted, because the marker rule excludes it
 and its byte count moved: that is the held frontier defect showing itself
 during unrelated work, evidence for the marker self-exclusion job rather than
 for this one.
+
+## Scoped entry, step 3, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 38/38 clean, verified before this
+receipt. `check .` exits 0 for the first time in this run, 87 entries, the
+evidence copy included, none binding zero tracked files. The guard was seen
+failing three ways before it passed: as step 1's expected failure on the
+evidence copy, against a hand-removed entry, and on its own source, because a
+fixture spelling the generated-marker literal put this guard inside the
+boundary. The round then went looking for claims the earlier steps had not
+earned, which is where the finding is.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/horos/docs/scoped-entry/runbook.md | step 2's exit claimed a fresh scan takes this repository's hard entries from 93 to 87. Running the pre-fix classifier over a pristine worktree of the same commit gives 87 with no phantom entry: the 93 came from the maintainer's own checkout, which carries a stale worktree under `.claude/worktrees/` and a `plugins/pandects/out/` directory. The number described a checkout and was written as a property of the repository | fixed in 84bb99e, and pull request 256's body corrected in place |
+
+Leads not pursued: step 2's commit message carries the same wrong figure and
+keeps it. That commit is named in the run's sealed ledger as step 2's
+implementation, so rewording it would leave the ledger pointing at a commit
+that no longer exists; the corrected account lives in the runbook, the pull
+request body and this row. Separately, `plugins/horos/**` has no CI workflow of
+its own, so this plugin's 188 tests run locally and nowhere else; adding one is
+an ask-first change under this run's boundaries and is recorded on pull request
+256 rather than made here.
+
+## Scoped entry, step 3, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 38/38 clean, `check .` exit 0, all
+verified before this receipt. The round audited the tree with round 1's
+correction applied and re-read every remaining quantitative claim in this
+run's two documents against the tree rather than against the earlier prose:
+the entry count, the census rows, the suite counts, the baseline median, and
+the audit references. The 87 figure now carries the checkout it was measured
+in. The three mutations that pin the guard ran again in this round as part of
+the root suite; the three ways the guard was seen failing belong to the step
+rather than to this round, and are recorded there.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
