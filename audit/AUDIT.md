@@ -5609,3 +5609,38 @@ was not taken. Claude Code's expired OAuth token prevented the model-backed
 slash invocation. The evidence record names both limits and retains the
 resolver, package and host-neutral transcripts that did run; it does not infer
 either missing result.
+
+## Protasis audit-record source, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The step adds two committed documents, byte-identical to the
+run's `.hexaemeron` study and runbook. Phylax, ephoros and hypomnema lints
+exit 0 over the tree. The diff was reviewed against the risk register's
+concerns: no contract prose changed this step, so wording drift against the
+audit loop's file definition and the ledger arithmetic do not yet arise.
+Root suite 104/104. Hexaemeron suite 470/472: the two failures are
+`test_elenchus_checker` requiring a `forge` binary and node v26.6.0 that
+this container does not have (node v22.22.2, no Foundry, install blocked by
+network policy); both fail identically on base `b26181b`, so they are
+environmental rather than introduced.
+
+Leads not pursued: none
+
+## Protasis audit-record source, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The diff was reviewed against the risk register's three
+concerns. Item 2's wording names the audit file exactly as the audit loop
+defines it (`config audit.log_path`, default `audit/AUDIT.md`). The
+checklist line asks for what item 2 states and nothing more, including the
+plain statement where there was nothing to read. The ledger row holds the
+generation arithmetic, revision and digest, proved by the evolution suite.
+Phylax, ephoros, hypomnema and the protasis runbook check all exit 0.
+Root suite 104/104; hexaemeron suite 470/472 with the same two
+environmental failures recorded for step 1.
+
+Leads not pursued: none
