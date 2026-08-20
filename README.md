@@ -57,7 +57,9 @@ for quotation separate from text prepared for a model or embedder.
 
 [Lazarus](./plugins/lazarus) preserves the finite part of historical Ethereum
 state and RPC evidence that one application test needs, then replays only the
-requests in that fixture.
+requests in that fixture. It also writes a preservation release: the fixture, an
+Ariadne statement about it, and a document binding the two, which a stranger can
+read back years later without either tool's authors.
 
 
 ### Pandects
@@ -117,7 +119,7 @@ The short map of what each plugin does and what is honestly left to build.
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
 | [Horos](./plugins/horos) | Classifying a repository's token sinks with evidence and emitting the reading boundary agents respect. | The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains. |
 | [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | Callable-surface ABI validation does not independently check return types or state mutability. |
-| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state and replaying exact requests without fallback. | Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented. |
+| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state, replaying exact requests without fallback, and releasing the fixture with a statement a stranger can check. | Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot. |
 | [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records. |
 | [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
 | [Sapheneia](./plugins/sapheneia) | Shaping the agent's own replies so an AuDHD reader can see the action, boundaries, state and evidence. | Cross-model behaviour has not yet been held against a published AuDHD task corpus. |

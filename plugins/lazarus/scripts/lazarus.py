@@ -28,7 +28,15 @@ def parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("validate", help="validate a versioned format")
     validate.add_argument(
         "kind",
-        choices=("schemas", "plan", "header", "rpc-records", "proof-records", "manifest"),
+        choices=(
+            "schemas",
+            "plan",
+            "header",
+            "rpc-records",
+            "proof-records",
+            "manifest",
+            "release",
+        ),
     )
     validate.add_argument("path", nargs="?", type=Path)
 
@@ -59,6 +67,30 @@ def parser() -> argparse.ArgumentParser:
     )
     replay.add_argument("fixture", type=Path)
     replay.add_argument("--port", type=int, default=DEFAULT_REPLAY_PORT)
+
+    verify_release_command = commands.add_parser(
+        "verify-release",
+        help="re-verify a release: its fixture, its statement and its document",
+    )
+    verify_release_command.add_argument("release", type=Path)
+
+    release = commands.add_parser(
+        "release",
+        help="write a fixture, a statement about it, and the document binding them",
+    )
+    release.add_argument("fixture", type=Path)
+    release.add_argument(
+        "--statement",
+        required=True,
+        type=Path,
+        help="a statement about this fixture, written by something else",
+    )
+    release.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="a directory that does not exist yet and is not inside the fixture",
+    )
     return root
 
 
@@ -102,6 +134,32 @@ def run(argv: list[str] | None = None) -> int:
         report = capture_fixture(args.plan, args.rpc_url, args.out)
         print(f"fixture: {report['fixture_digest']}")
         print(f"block: {report['block_hash']}")
+        return 0
+    if args.command == "verify-release":
+        from lazarus_lib.release import verify_release
+
+        report = verify_release(args.release)
+        print(f"release: {report['release_digest']}")
+        print(f"fixture: {report['fixture_digest']}")
+        print(f"block: {report['block_hash']}")
+        print(f"statement: {report['predicate_type']}")
+        print(f"proof-backed: {report['evidence_counts']['proof_backed']}")
+        print(f"header-bound: {report['evidence_counts']['header_bound']}")
+        print(f"recorded-rpc: {report['evidence_counts']['recorded_rpc']}")
+        print("checks: " + ", ".join(report["checks"]))
+        return 0
+    if args.command == "release":
+        from lazarus_lib.release import write_release
+
+        document = write_release(args.fixture, args.statement, args.out)
+        print(f"release: {document['release_digest']}")
+        print(f"fixture: {document['fixture']['fixture_digest']}")
+        print(f"statement: {document['statement']['predicate_type']}")
+        counts = document["verified"]["evidence_counts"]
+        print(f"proof-backed: {counts['proof_backed']}")
+        print(f"header-bound: {counts['header_bound']}")
+        print(f"recorded-rpc: {counts['recorded_rpc']}")
+        print("checks: " + ", ".join(document["binding"]["checks"]))
         return 0
     if args.command == "replay":
         from lazarus_lib.server import serve_fixture

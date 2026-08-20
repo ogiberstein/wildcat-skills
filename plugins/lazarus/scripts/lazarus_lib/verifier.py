@@ -15,12 +15,21 @@ from .paths import read_confined_bytes
 from .proofs import verify_proof_record
 from .records import loads_proof_records, loads_rpc_records, request_key
 from .schemas import validate_document
+from .text import listed
 
 
 REQUIRED_COMPONENTS = {"plan.json", "header.json", "rpc.jsonl", "proofs.jsonl"}
 
 
 def verify_fixture(root: str | Path) -> dict[str, Any]:
+    """Verify a whole fixture offline and account for its evidence.
+
+    The report carries the manifest its numbers were computed from. A caller that
+    needs both -- binding a statement to the fixture needs the component list and
+    the recomputed counts together -- must take the manifest from here rather
+    than reading the directory a second time. Two reads are two states, and
+    nothing after the first would notice a component changing between them.
+    """
     manifest = verify_manifest(root)
     paths = {item["path"] for item in manifest["components"]}
     missing = sorted(REQUIRED_COMPONENTS - paths)
@@ -48,9 +57,9 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
         extra_targets = sorted(set(proofs) - set(targets))
         detail = []
         if missing_targets:
-            detail.append("missing " + ", ".join(missing_targets))
+            detail.append("missing " + listed(missing_targets))
         if extra_targets:
-            detail.append("extra " + ", ".join(extra_targets))
+            detail.append("extra " + listed(extra_targets))
         raise IntegrityError("proof targets do not match the capture plan: " + "; ".join(detail))
     state_root = hash32_bytes(header_report["state_root"], label="state root")
     account_included = 0
@@ -84,8 +93,11 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
     if counts != manifest["evidence_counts"]:
         raise IntegrityError("manifest evidence counts do not match verified contents")
     return {
+        "manifest": manifest,
         "fixture_digest": manifest["fixture_digest"],
         "block_hash": header_report["hash"],
+        "block_number": header_report["number"],
+        "state_root": header_report["state_root"],
         "evidence_counts": counts,
         "proof_backed": {
             "accounts_included": account_included,

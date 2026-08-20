@@ -9,6 +9,7 @@ import secrets
 import stat
 
 from .errors import PathError, ResourceLimitError
+from .text import visible
 
 MAX_FIXTURE_ENTRIES = 8192
 
@@ -21,8 +22,21 @@ def validate_relative_path(value: str) -> str:
     path = PurePosixPath(value)
     if path.is_absolute() or value.startswith("/"):
         raise PathError(f"absolute component path is forbidden: {value}")
+    if not path.parts:
+        # "." has no parts at all, so every part-based check below passes
+        # vacuously and it comes back unchanged as though it named a file. It
+        # names the directory itself.
+        raise PathError(f"component path names no file: {value!r}")
     if any(part in ("", ".", "..") for part in path.parts):
         raise PathError(f"component path is not normalised: {value}")
+    if any(not visible(part) for part in path.parts):
+        # A segment with nothing visible in it names a file whose name renders as
+        # nothing. Whitespace is the obvious case and a legal POSIX filename;
+        # U+200B and its neighbours are the quieter one, because `str.strip` does
+        # not treat them as whitespace, so `a` and `a\u200b` are two files that
+        # look identical in any listing. A space inside a name is untouched:
+        # "a b" stays valid.
+        raise PathError(f"component path segment names nothing: {value!r}")
     normalised = path.as_posix()
     if normalised != value:
         raise PathError(f"component path is not slash-normalised: {value}")
@@ -53,6 +67,43 @@ def list_fixture_files(
         elif not stat.S_ISDIR(details.st_mode):
             raise PathError(f"non-regular fixture entry is forbidden: {relative}")
     return files
+
+
+def confined_directory(root: str | Path, relative: str) -> Path:
+    """A directory inside another, reached without following a symlink.
+
+    `list_fixture_files` refuses a fixture root that is itself a symlink, and
+    `read_confined_bytes` refuses a symlinked component. Neither sees the
+    segments in between: a fixture declared at `a/b`, where `a` is a symlink and
+    `b` is a real directory, verifies against bytes that live outside the tree
+    that named it. This walks every segment with no-follow descriptors and hands
+    back the path only once each one has been proven a real directory.
+    """
+    normalised = validate_relative_path(relative)
+    parts = PurePosixPath(normalised).parts
+    directory_flags = (
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    )
+    try:
+        current = os.open(Path(root), directory_flags)
+    except OSError as exc:
+        raise PathError(f"directory root is unavailable: {root}") from exc
+    try:
+        for part in parts:
+            following = os.open(part, directory_flags, dir_fd=current)
+            os.close(current)
+            current = following
+            if not stat.S_ISDIR(os.fstat(current).st_mode):
+                raise PathError(f"not a directory: {relative}")
+    except OSError as exc:
+        if exc.errno in (errno.ELOOP, errno.ENOTDIR):
+            raise PathError(
+                f"a segment of {relative} is a symlink or not a directory"
+            ) from exc
+        raise PathError(f"directory is unavailable: {relative}") from exc
+    finally:
+        os.close(current)
+    return Path(root) / normalised
 
 
 def read_confined_bytes(

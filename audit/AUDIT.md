@@ -3142,3 +3142,611 @@ back clean, so this round rests on the nineteen commands actually running rather
 on the absence of a finding.
 
 Leads not pursued: the Lazarus frontier sentence carried from round 1.
+
+## Goldfinch preservation release, step 1, round 1 -- 2026-08-19
+
+Reviewed: the release document type, swept as a format other tools will write
+against rather than read as a diff.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| L1-R1-01 | medium | `plugins/lazarus/schemas/release-v1.json`, `scripts/lazarus_lib/paths.py` | Every string field in a release took a value that satisfies its length check and renders as empty. Whitespace is one kind and a legal POSIX filename; U+200B and its neighbours are the other, because `str.strip` does not treat them as whitespace | fixed in this round: `lazarus_lib/text.py`, wired into the path helper and the release semantics |
+
+The second kind is the one worth naming. `component` and `component` followed by
+a zero-width space are two different files that look identical in any listing, in
+any terminal, in any review. It has been recorded as a lead twice in this
+marketplace and closed nowhere, and it is closed here for Lazarus because it
+turned up in a format being written rather than one being read. The Ariadne side
+stays open and is named in that plugin's own rounds.
+
+The sweep was seventeen hollow values through each of sixteen leaves, 272
+substitutions, plus every block replaced by each of them and every block removed.
+Nothing raised outside `FormatError` and `PathError`, which is the contract the
+command line depends on to exit 1 rather than print a traceback. Every block
+replacement and removal was refused. Thirty-two values were accepted and each was
+read; the rest of those are legitimate, being a zero count and the required
+`false`.
+
+`text.py` answers one question and is applied to identifiers rather than to
+prose, so a reason field explaining a skipped capture may still say whatever a
+person needs to write. Non-Latin text stays visible, asserted in four scripts,
+because refusing most of the world's names would be a worse defect than the one
+being fixed.
+
+Two errors of my own, recorded because they cost the round time and because a
+round that only lists the code's faults is not a record of what happened. I
+asserted on one string replacement and not the next, so an import silently did
+not land and seventy-nine tests failed with a `NameError` until I read one. And
+the module inventory test refused `text.py` before I had named it, which is that
+contract working rather than a fault.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
+
+Leads not pursued: the previous run's audit record is split across two files, and
+the split is mine. Fourteen sections sit in this file and six in
+`plugins/ariadne/audit/AUDIT.md`, so a reader of either sees part of one run.
+Nothing is lost. It belongs to a different plugin and a finished run, and it is
+on this run's ledger as `previous_run_audit_split` rather than fixed from here.
+
+## Goldfinch preservation release, step 1, round 2 -- 2026-08-19
+
+Reviewed: what round 1's change reaches, since it touched a path helper the
+manifest also uses.
+
+No findings.
+
+The question worth asking of a stricter rule is whether it refuses anything real,
+and it does not. All eleven components the shipped Goldfinch fixture holds are
+still accepted. 1734 generated paths -- three prefixes by seventeen segments by
+two separators by seventeen segments -- were compared against a rule written out
+independently rather than by reusing the module, with zero disagreements.
+
+Checked and found sound:
+
+- Fourteen filenames anybody might write are accepted, including ones carrying
+  spaces, dates, French accents, Japanese and Cyrillic.
+- The shipped example still verifies to the same fixture digest and the same
+  three counts.
+- `validate schemas` passes with the re-pinned digest, and the existing offline
+  demonstration still exits 0.
+
+Leads not pursued: the split audit record carried from round 1.
+
+## Goldfinch preservation release, step 2, round 1 -- 2026-08-19
+
+Reviewed: the binding rule, which decides whether a statement describes this
+fixture and whether it claims more than the records support.
+
+Seven findings, all one shape: a field a producer writes and nothing reads.
+
+The rule the module exists for was sound. Fifteen mutants against it all died,
+including the one that compares the counts in a single direction, and the study's
+tamper is refused naming both numbers. What the mutation could not show was the
+half of the document nothing looked at. A sweep of twenty hostile values through
+every leaf of a statement -- 460 substitutions -- bound 162 of them.
+
+The seven, in the order they were closed:
+
+- `_type`. A predicate type says how to read a predicate; the statement type says
+  the document is the kind of thing that has one. Any value bound, so a bare
+  object carrying two strings was read as an attestation.
+- `chain_id`, `block_number` and `state_root`. The block hash was the only thing
+  pinned. A statement naming the right hash, another chain, another height and
+  another state root bound, and read as though all four had been corroborated.
+  Every proof in a fixture is checked against the header's state root, so a
+  statement naming a different one describes a verification nobody ran.
+- `reaches_network`. Its neighbour `canonical_chain_claim` was refused unless
+  exactly false and this one was not read, so a statement could say the records
+  had been corroborated live.
+- The in-toto `subject` list. The detail lives in `predicate.fixture_subjects`,
+  and `subject` is the array a policy engine matches on. A component described in
+  the predicate and absent from the subject list was bound here and invisible
+  there.
+- Subject names. Nothing required a name to name anything, and nothing refused
+  one name over two digests, which leaves a reader matching by name unable to
+  tell which was meant.
+
+The verified report now carries `block_number` and `state_root` alongside
+`block_hash`, all three from the header the proofs were checked against, so the
+binding compares against what verification established rather than against what a
+manifest claims.
+
+Checked and found sound: the counts come from `verify_fixture` and not from the
+manifest, which is the whole point of the step; a manifest carrying inflated
+counts changes nothing.
+
+Two further findings, one in a test and one in me. Mutation found a rule with no
+test that reached it: repeating a whole fixture subject now trips the
+duplicate-name rule first, so the duplicate-path rule needed an entry differing
+everywhere but the path. And the mutation probe writes the module in place and
+restores it afterwards, which it does not do when the runner is killed; a
+two-minute timeout left a mutation on disk. The probe now refuses to start unless
+the unmutated suite passes, and says so when it has put the file back.
+
+Leads not pursued: the previous run's split audit record, carried from step 1,
+is being fixed as its own change off `main` rather than from inside this run.
+
+## Goldfinch preservation release, step 2, round 2 -- 2026-08-19
+
+Reviewed: the two documents the binding is handed alongside the statement, and
+the study's pair measured live rather than in a sample.
+
+Two findings.
+
+A manifest whose component path is a list raised `TypeError` from inside a set,
+and a report whose count is `None` raised `TypeError` from inside a comparison.
+Forty-eight substitutions and eight removed keys ended in a traceback rather than
+a refusal. None of them can come out of `verify_manifest` or `verify_fixture`,
+which is the point: the caller who reaches them is the one who handed over the
+manifest read off disk instead of the verified one, and a traceback out of the
+middle of a comparison tells them nothing about which document was wrong. The
+module now names the fields it reads out of each and refuses what it cannot read.
+It is not a second verification, and the docstring says so.
+
+Names are compared in composed form now. Two Unicode spellings of one name bound
+together, which is the ambiguity the duplicate-name rule exists to refuse: a
+reader that normalises sees one name over two digests.
+
+Checked and found sound:
+
+- The Ariadne statement for the shipped `goldfinch-v0` fixture binds with every
+  check, against the real fixture rather than a sample.
+- The study's tamper is refused: six proof-backed records claimed where two
+  verify.
+- Understating is refused too, and says so: nought recorded RPC records claimed
+  where four verify.
+- A statement naming another chain, another height or another state root is
+  refused against the real fixture.
+
+## Goldfinch preservation release, step 2, round 3 -- 2026-08-19
+
+Reviewed: what the binding leaves behind, and whether two fixtures can be
+confused for each other.
+
+No findings in the module. One in the probe.
+
+None of eight calls -- the clean case and seven refusals -- changed any of their
+three inputs. A hundred calls agreed. The returned list is the caller's own, so
+a caller who appends to it changes nothing for the next.
+
+A second fixture was built rather than imagined: synthetic material written to a
+temporary directory, a manifest built over it, and a statement captured over it
+by Ariadne. Each statement binds against its own fixture. Each is refused by the
+other, naming both block hashes.
+
+Ariadne's own shipped statements were run through the same rule. The clean
+`goldfinch-v0` statement binds. The tampered one with its state root removed is
+refused, by the rule round 1 added.
+
+The finding was mine. The section that edits a component after a statement is
+written replaced a string the file does not contain, so it reported a clean
+result having tested nothing. It now refuses to run unless the edit changes
+bytes. With a real edit the fixture stops verifying, on a digest mismatch, which
+is where a release must stop -- and the statement still binds against the report
+taken before the edit, because the binding is handed a report rather than a
+directory. That is a constraint on the command in step 3, which has to verify and
+bind in one pass rather than accept a report from elsewhere.
+
+## Goldfinch preservation release, step 2, round 4 -- 2026-08-19
+
+Reviewed: what happens at the sizes nobody writes by hand.
+
+Three findings.
+
+A statement can be sixteen mebibytes, which is around a hundred and ten thousand
+fixture subjects. The binding read every one of them and then named every one of
+them in the refusal. The message for a statement describing two hundred thousand
+components ran to tens of megabytes of comma-separated paths: a refusal nobody
+reads, in a log nobody keeps.
+
+Both ends are bounded. A statement describing more components than a fixture can
+hold is refused with the limit named, and the limit is taken from the manifest's
+own `MAX_COMPONENTS` rather than restated, so the two cannot drift into a
+statement this accepts and no fixture can satisfy. The subject list gets a looser
+cap, because it legitimately names more than the components -- the capture itself
+is one. And a refusal spells out eight names, then counts.
+
+The verifier had the same message. Its proof-target list is bounded by the plan
+schema at a hundred thousand addresses, which is four megabytes of refusal.
+`listed` lives in `text.py` beside `visible` because they are one concern at two
+scales: whether the thing a person reads shows them anything.
+
+The third: the statement `_type` told shape and disagreement apart in one place
+and not the other. A caller catching a format problem should not have to catch an
+integrity one to learn a field was blank.
+
+Checked and found sound: exactly the limit is read rather than refused, since a
+fixture may hold that many.
+
+## Goldfinch preservation release, step 2, round 5 -- 2026-08-19
+
+Reviewed: which statements of the module the tests execute, and whether the names
+it publishes still match what it does.
+
+One finding in the module, three in the probe.
+
+Of a hundred and seventy-four executable statements, a hundred and seventy-three
+were reached. The one left was the conversion failure in the hex-quantity helper,
+where a value starts with `0x` and then is not a number. Nothing in a verified
+manifest or report can get there, which is why it went unnoticed, and it is
+reachable by the same caller mistake the rest of the guards exist for. It has a
+test now; the code did not change.
+
+The three in the probe are worth recording because two of them made it report a
+clean result. Its tracer matched any file whose name ends in `binding.py`, so it
+counted lines of the test file as coverage of the module and called three
+module-level constants reached that were not. Fixing that showed all seven
+constants unreached, because they run at import before the tracer is installed,
+so the probe reloads the module under trace. Its claim that the module imports
+nothing outside this package read relative imports wrongly, since `ast` records
+the leading dot as a level rather than in the name.
+
+Checked and found sound: eight check names over seven calls, each name distinct,
+in the order the calls are made; the module runs no subprocess, opens no file,
+and imports nothing outside this package and the standard library.
+
+## Goldfinch preservation release, step 2, round 6 -- 2026-08-19
+
+Reviewed: whether anything here passes for the wrong reason.
+
+No findings.
+
+Every one of the fourteen test classes passes alone in its own process, and the
+whole suite passes under five shuffled orders. The question is not idle: a test
+file in this marketplace was found last run passing only under discovery order,
+because another module's import supplied what it needed.
+
+Every instrument the five rounds before this one built was run again against the
+finished module. Thirty-seven mutants, none surviving. Six hundred and twenty
+substitutions through the statement and five hundred and forty through the two
+documents handed alongside it, none raising anything outside `LazarusError`. None
+of the three inputs changed by a call. A hundred and seventy-four of a hundred
+and seventy-four statements reached.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
+
+## Goldfinch preservation release, step 3, round 1 -- 2026-08-19
+
+Reviewed: the release command, which verifies a fixture, binds a statement to it,
+and writes a directory holding both.
+
+Six findings.
+
+Twenty rules were mutated and five survived, which is five rules nothing pinned:
+
+- An output that is a dangling symlink. `exists` follows the link and says no, so
+  the name reads as free while a rename onto it would replace the link.
+- The comparison between the copy's digest and the original's. The test that
+  broke the copy broke its verification too, so it raised before reaching the
+  comparison. Reaching it takes a second fixture that verifies cleanly to a
+  different digest.
+- Validation of the document before it is returned. Nothing built a document the
+  schema refuses, so removing the check changed no result.
+- The check refusing a statement that is not an object. This one was removed
+  rather than tested. The binding already refuses a non-object, in the words it
+  uses for every other shape it will not read, and two authorities on one
+  question is one too many.
+- One read of the directory rather than two, which is the decision the module
+  docstring leads with. Verification and binding both need the manifest, and
+  reading it twice reads two states.
+
+A sweep then asked the release's own question fifty-eight times: after a refusal,
+is anything left behind? Eighteen malformed statements, thirteen output paths,
+fourteen fixture paths and thirteen statement paths. Nothing raised outside the
+plugin's own errors or the operating system's, and no output or staging directory
+survived a refusal. A component removed, added, edited or replaced by a symlink
+between capture and release is refused, naming which. A component whose mode
+changed is released, because a mode is not evidence.
+
+The sixth finding was in the probe, and it is the same class caught in step 2
+round 3: the case that edits a component replaced a string the file does not
+contain, so it reported a release written where it should have reported a
+refusal. It now refuses to run unless the edit changes bytes.
+
+## Goldfinch preservation release, step 3, round 2 -- 2026-08-19
+
+Reviewed: the window the release cannot close, what two runs agree on, and what
+the digest actually covers.
+
+Three findings.
+
+The release was written with mixed modes: directories at 0700 and files at 0644,
+inside a plugin whose fixture writer uses 0600 throughout. The directory gated
+it, so nothing was exposed, but one artefact with two rules about who may read it
+is a rule nobody can state. Everything a release holds is 0600 or 0700 now. A
+release is not published by being written; whoever hands it over opens it up
+deliberately.
+
+The digest function's docstring claims that a field added to the schema and not
+to the digest identity would be a test failure. Nothing tested that. It does now,
+by comparing the identity against the schema's own list of required fields, one
+field at a time.
+
+The third is a limit rather than a fix, and it is worth stating plainly. The
+output name is free when a run begins, and the copy takes time. The name is
+checked again after the copy, which narrows the window, and the comment says it
+does not close it: between the last check and the rename the name is still
+unheld. What a lost race costs is now recorded rather than assumed. Rename
+replaces an empty directory and nothing else -- a file, a symlink, or a directory
+holding anything survives, the release refuses, and the staged copy is removed --
+and a process that can win that window can rewrite the finished release anyway.
+
+Checked and found sound: two runs over one fixture and statement produce
+byte-identical releases, down to the fixture copy. A release nobody can rebuild
+is a release nobody can check.
+
+## Goldfinch preservation release, step 3, round 3 -- 2026-08-19
+
+Reviewed: which statements the tests reach, whether a release touches what it
+reads, and the shipped fixture released end to end.
+
+Two findings, both about a statement handed over from inside the fixture it
+describes.
+
+The case already refused itself twice over, and neither refusal named the reason.
+An unlisted file fails verification. A listed one would have to carry its own
+digest, which no file can, so the reader gets a digest mismatch and a while to
+work out why. The reason is the one the release document is already held to: the
+fixture digest would cover the statement made about the fixture. The release says
+that now, before it reads anything.
+
+The second was in the check written for the first. It skipped silently when a
+path would not resolve, which is the quiet failure this plugin refuses everywhere
+else. A symlink loop is the case that gets there, and `pathlib` reports that one
+as a `RuntimeError` rather than as the `OSError` the kernel gave it.
+
+Checked and found sound:
+
+- Seventy-five of seventy-five statements reached.
+- A release leaves the fixture and the statement byte for byte and mode for mode
+  as it found them.
+- The shipped `goldfinch-v0` fixture releases, reads back with every digest and
+  count agreeing, and still verifies after the release directory is moved
+  elsewhere.
+
+## Goldfinch preservation release, step 3, round 4 -- 2026-08-19
+
+Reviewed: the document the command produces, against the schema meant to
+describe it.
+
+Two findings.
+
+Four hundred and eighty-three hostile values went through every leaf of a
+release the command had just produced. Two came back accepted where they should
+not have: a fixture path of `.` and a statement path of `.`.
+
+The cause is in `paths.py` rather than in the release. `PurePosixPath(".")` has
+no parts at all, so every part-based check in the path rule ran over nothing and
+the value came back unchanged as though it named a file. It names the directory
+itself. Both the manifest and the release document read paths through that
+helper, so a manifest component could be declared as `.` too; it failed later, on
+a read that found a directory, which is a refusal that explains nothing.
+
+Checked and found sound, and worth writing down because it looks like a finding
+until the line is drawn: `validate` accepts a release whose digest no longer
+covers it. That is the same line `validate manifest` draws, measured rather than
+assumed -- a manifest carrying a wrong fixture digest passes it too. `validate`
+answers whether a document is well formed; `verify` answers whether its digests
+hold. The release digest is checked by `verify-release`, which is the next step.
+
+Also sound: no field can be added to or removed from a release without the
+schema refusing it, at the top level and inside each of the four blocks. All
+twelve test classes pass alone in their own process, and the suite passes under
+three shuffled orders.
+
+The second finding was in the probe. Its class list was read out of the source
+with a string split, which picked up a helper class that is not a test case and
+reported it as a class failing alone.
+
+## Goldfinch preservation release, step 3, round 5 -- 2026-08-19
+
+Reviewed: the shared path rule the previous round's fix touched, and then every
+instrument built for this step.
+
+No findings.
+
+The path rule was compared against a rule written out separately, leaning on
+`posixpath` rather than on `pathlib` parts, which is where `.` slipped through.
+Seven thousand five hundred and eighty-one paths -- five prefixes by
+twenty-two segments by three separators by twenty-two segments, plus each segment
+alone and with a separator at either end. No disagreements, and nothing raised
+outside a path error.
+
+Then the earlier instruments, all against the finished step: twenty-three
+mutants, none surviving; fifty-eight hostile paths and statements, none leaving
+an output or a staging directory behind; seventy-five of seventy-five statements
+reached; four hundred and eighty-three substitutions through a produced release,
+accepted only where a filename is legitimate; twelve classes passing alone and
+the suite passing under three shuffled orders.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
+
+## Goldfinch preservation release, step 4, round 1 -- 2026-08-20
+
+Reviewed: `verify-release`, which reads a release back and checks every claim it
+makes about itself.
+
+Three findings.
+
+Fifteen rules were mutated and four survived. Two of those trace to one test that
+passed for the wrong reason, and it is the more interesting half of the round.
+
+The test for a fixture reached through a symlinked segment put the symlink at the
+top of the release, where a different rule refuses it for being an unaccounted
+symlink. So the rule under test never ran, while the test read as though it
+covered it. Removing the no-follow flag from the directory walk left the suite
+green, and so did replacing the confined walk with plain path joining. The
+symlink is buried a level down now, and a companion test proves the same fixture
+reached without a symlink still verifies, so the test cannot pass for a fixture
+that is simply absent.
+
+The third: the read helper normalised a path and then handed it to a reader that
+normalises it again.
+
+Two mutants were dropped rather than caught, because no test can tell them apart
+from the original. After the count comparison passes, the document's counts and
+the fixture's are the same numbers, so reporting either is the same value.
+
+A sweep then edited a release every way there is. One byte flipped at the start,
+the middle and the end of each of its seven files. Each file truncated, emptied
+and doubled. Each file replaced by each other file, forty-two pairs. And every
+one of twenty document fields changed with the digest restamped, so each change
+had to be caught on its merits rather than by the digest. Everything was refused
+except setting a path to the value it already had.
+
+## Goldfinch preservation release, step 4, round 2 -- 2026-08-20
+
+Reviewed: what the write says against what the read says, and whether a release
+is a document or a layout.
+
+No defects. Two properties nothing pinned.
+
+The write and the read compute the same seven claims about one release by
+different routes, and nothing compared them.
+
+The reader honours the paths the document names, and nothing said so. A release
+whose fixture sits at `state` and whose statement is `attestation.json` verifies,
+as does one with the fixture a level down, and the unaccounted-file rule follows
+the document rather than the word `fixture`. A reader that looked for its own
+names regardless would be reading a layout, and the two path fields in the
+document would be decoration.
+
+Checked and found sound:
+
+- 114 of 114 statements reached.
+- Neither of two releases accepts the other's fixture, statement or document,
+  with a companion test proving both verify on their own, so the three refusals
+  cannot be passing for a pair that never verified.
+
+## Goldfinch preservation release, step 4, round 3 -- 2026-08-20
+
+Reviewed: whether anything here passes for the wrong reason, and the whole path
+through the commands.
+
+No findings.
+
+All seventeen test classes pass alone in their own process, and the suite passes
+under three shuffled orders.
+
+On the shipped `goldfinch-v0` fixture, five commands run in sequence and each
+exits 0: verify the fixture, release it, verify the release, validate the
+document, and verify the fixture copy on its own. Then three tampers, one at a
+time, each exiting 1 and naming what disagreed: a proved count raised in the
+statement, a byte changed in a recorded RPC component, and the block the document
+records.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
+
+## Goldfinch preservation release, step 5, round 1 -- 2026-08-20
+
+Reviewed: every surface this step touched, against what the code does, and
+whether the guards against a stale release actually bite.
+
+Two findings, both in the probe.
+
+The surfaces agree. Nine files state the new frontier and none states the old
+one. The ledger label, the skill frontmatter, both host manifests and the
+marketplace entry all read 1.1.0. The eight check names appear in three places --
+the documentation table, the binding's own tuple, and the shipped release
+document -- in the same order in each. No link is broken across six documents,
+every command the prose promises exists in the command line, and a clean
+worktree checkout verifies both the fixture and the release and passes the suite.
+
+The guards bite. Six drifts, six caught, each one failing the suite rather than
+shipping quietly: a byte in the release's fixture copy, a count in its statement,
+the block its document records, the document's own digest, a check name the
+binding makes, and a manifest rewritten by a later writer. That last one is the
+recapture case the runbook asked for, and it fails seven tests.
+
+The findings in the probe are worth recording because one of them made it report
+a clean pass. Its edit to the release digest searched for a string with a space
+after the colon, and canonical JSON has no space there, so it changed nothing and
+would have counted a drift as caught having tested nothing. That is the fourth
+edit in this run to miss its target, which is why the probe now refuses to count
+a no-op.
+
+The second: two earlier runs of it were killed at the two-minute mark with a
+tracked file mutated, and a restore that lives in a `finally` block does not run
+when the runner is killed. It now refuses to start on a dirty tree and says what
+is outstanding, rather than measuring a baseline that is already wrong.
+
+## Goldfinch preservation release, step 5, round 2 -- 2026-08-20
+
+Reviewed: whether the shipped release stands on its own, and whether the
+statement it ships survives its own author's gates.
+
+One finding, in the probe.
+
+Carried into another directory the release verifies. With the checked-in fixture
+renamed out of reach it still verifies, which is the property that matters:
+nothing inside a release reaches back to where it was made.
+
+Ariadne's own `verify` passes every gate over the shipped statement -- the seven
+core gates and the three named checks -- reporting two proof-backed records, one
+header-bound and four recorded RPC. A release shipping a statement its own
+author would refuse would be a strange thing to archive.
+
+The release and the statement agree on the predicate type, the block, the three
+counts, the canonical-chain claim and the component list. The demonstration
+prints all nine things its docstring promises and leaves nothing behind in the
+repository.
+
+The finding was mine: the probe called `ariadne verify` with a flag it does not
+take, so the first run reported exit 2 and a usage message rather than an
+answer.
+
+## Goldfinch preservation release, step 5, round 3 -- 2026-08-20
+
+Reviewed: everything once more, after the merge brought the base branch in.
+
+One finding, in the probe.
+
+Thirty-eight test classes across seven modules each pass alone in their own
+process. The suite passes under three shuffled orders, at three hundred and
+sixty-two tests. Both demonstrations exit 0.
+
+The merged audit record holds a hundred and fifty-seven sections and no conflict
+markers: twenty from the previous run's state-fixture predicate, sixteen from
+this one, and the rest from every run before them. The Ariadne plugin's own build
+record still stands at four hundred and sixty-six lines, which is what the
+separate change to un-split that record was for.
+
+The finding was mine again. The probe ran the root suite from the plugins
+directory rather than the repository root, so `unittest` could not import the
+start directory and the probe printed an `ImportError` as though the suite were
+broken. Run from the root it passes, as it has all along. That makes five edits
+or invocations in this run that missed their target and reported the miss as a
+result, which is the argument for every one of these probes checking its own
+premise before it counts anything.
+
+## Goldfinch preservation release, step 5, round 4 -- 2026-08-20
+
+Reviewed: the same sweep, with the probe run from where it should have been run.
+
+No findings.
+
+Thirty-eight classes alone, three shuffled orders at three hundred and sixty-two
+tests, the root suite at twenty-four, both demonstrations exiting 0, and the
+merged audit record at a hundred and fifty-seven sections with no conflict
+markers.
+
+Worth naming what this step's four findings had in common: every one of them was
+in the measuring apparatus and none in the work. The shipped release, the
+statement beside it, the ledger and the marketplace prose held under every check
+made of them. What kept failing was the probe -- an edit for a string the file
+does not contain, a search for a space canonical JSON does not have, a flag a
+command does not take, a suite run from the wrong directory. Each surfaced as a
+finding rather than as a clean pass because the probe checks its own premise
+before it counts anything, which is the habit this run bought.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.

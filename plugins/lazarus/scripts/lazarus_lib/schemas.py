@@ -35,6 +35,10 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
         "manifest-v1.json",
         "53acaefd6ddaf5648dc9d16345fc13c64c3bd7786851271ef922b67b9f423c14",
     ),
+    ("release", 1): (
+        "release-v1.json",
+        "f7b8ce3eb37c40d79a23bdff1d88dd0e6e163c2d72ec67575b3b4e7023d5415d",
+    ),
 }
 
 
@@ -87,9 +91,45 @@ def validate_document(kind: str, document: Any) -> Any:
         "rpc-record": _validate_rpc_record,
         "proof-record": _validate_proof_record,
         "manifest": _validate_manifest,
+        "release": _validate_release,
     }[kind]
     semantic(document)
     return document
+
+
+def _validate_release(release: dict[str, Any]) -> None:
+    """What a release document must hold that JSON Schema cannot say.
+
+    Both paths are read by whoever opens the release, so they get the same
+    treatment a component path gets: relative, normalised, no backslash and no
+    traversal. And the two must differ, because a release whose statement and
+    fixture resolve to one path describes itself.
+    """
+    from .paths import validate_relative_path
+    from .text import visible
+
+    for field in ("predicate_type",):
+        if not visible(release["statement"][field]):
+            raise FormatError(
+                f"release statement {field} shows a reader nothing: "
+                f"{release['statement'][field]!r}"
+            )
+    for index, check in enumerate(release["binding"]["checks"]):
+        if not visible(check):
+            raise FormatError(
+                f"release binding check {index + 1} shows a reader nothing: "
+                f"{check!r}"
+            )
+
+    fixture = validate_relative_path(release["fixture"]["path"])
+    statement = validate_relative_path(release["statement"]["path"])
+    if fixture == statement:
+        raise FormatError("release fixture and statement are the same path")
+    if statement.split("/")[0] == fixture:
+        raise FormatError(
+            "release statement sits inside the fixture it describes; the fixture "
+            "digest would cover the statement made about it"
+        )
 
 
 def _require_unique(values: list[str], label: str) -> None:

@@ -1,7 +1,7 @@
 # Lazarus runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
+> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 <!-- marketplace-context:end -->
 
 Lazarus contains one Agent Skill. Select it from this table, then read the
@@ -9,7 +9,7 @@ chosen `SKILL.md` in full.
 
 | Skill | Canonical instructions | Select when |
 | --- | --- | --- |
-| `lazarus` | `skills/lazarus/SKILL.md` | Capture, verify or replay a finite historical Ethereum fixture |
+| `lazarus` | `skills/lazarus/SKILL.md` | Capture, verify, replay or release a finite historical Ethereum fixture |
 
 `skills/lazarus/SKILL.md` is the only canonical instruction document. Do not
 add a sibling browsing README.
@@ -37,8 +37,9 @@ local tool. A non-zero exit means the requested operation did not succeed.
   that file defines it differently.
 - `$PLUGIN_ROOT` means this `plugins/lazarus/` directory.
 - The command path is `$PLUGIN_ROOT/scripts/lazarus.py`. The current build
-  implements format validation, finite capture, manifest construction and
-  offline verification and exact loopback replay.
+  implements format validation, finite capture, manifest construction, offline
+  verification, exact loopback replay, and writing and reading back a
+  preservation release.
 - Names such as `lazarus:lazarus`, `/lazarus:lazarus` and `$lazarus` are
   logical aliases. Load the canonical path from the table above.
 
@@ -52,7 +53,11 @@ and fixture verification reach no network. `build-manifest` writes only
 safe paths, canonical manifest bytes, component sizes and SHA-256 digests,
 then verifies the header, EIP-1186 account and storage proofs, proved response
 fields and captured code. `replay` verifies before binding loopback.
-It has no provider, proxy or fallback.
+It has no provider, proxy or fallback. `release` verifies its fixture, holds the
+statement it is handed to what that verification recomputed, and writes its
+output whole or not at all, into a directory that must not exist and must not
+sit inside the fixture. `verify-release` reads a release back and writes
+nothing. Neither reaches a network, and neither signs anything.
 
 ## What this skill must refuse
 
@@ -69,6 +74,11 @@ It has no provider, proxy or fallback.
   block hash needs an external provenance record.
 - No proof claim for an account, storage slot or code blob unless the current
   `verify` command checked it against the captured header state root.
+- No release over a statement whose counts the fixture does not verify to, in
+  either direction, and no release built on counts read from a manifest rather
+  than recomputed from the records.
+- No release described as checked unless `verify-release` ran over the bytes on
+  disk and exited 0.
 
 If capture, verification, replay or a test did not run, say so plainly and do
 not describe its result as successful.
