@@ -13,7 +13,6 @@ written at all is the evaluation corpus's job, not this module's.
 from . import BereanError
 from . import citations as citations_lib
 from . import jsonio
-from . import reads as reads_lib
 from .corpus import Check
 
 FORMAT = "berean-answer/v1"
@@ -34,7 +33,6 @@ READ_FIELDS = ("id", "chain_id", "block_number", "request_key")
 REFUSAL_FIELDS = ("boundary", "detail")
 DISCREPANCY_FIELDS = ("subject", "document_evidence", "chain_evidence", "note")
 MAX_SENTENCES = 500
-_ID_KINDS = {"document": "citation", "chain_read": "read"}
 
 
 def validate(answer):
@@ -67,6 +65,12 @@ def validate(answer):
 
     citation_ids = _collect_ids(answer["citations"], "citation", _validate_citation)
     read_ids = _collect_ids(answer["reads"], "read", _validate_read)
+    shared = citation_ids & read_ids
+    if shared:
+        raise BereanError(
+            f"id used for both a citation and a read: {', '.join(sorted(shared))}; "
+            "a calculation's evidence must resolve to one artefact"
+        )
 
     used = set()
     for index, sentence in enumerate(answer["sentences"]):

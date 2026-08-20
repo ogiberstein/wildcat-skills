@@ -228,6 +228,12 @@ class HygieneTests(AnswerFixture):
         bad["citations"].append(self.citation("Version 3 keeps it set.", "c1"))
         self.assertEqual(failures(self.check(bad)), ["answer-shape"])
 
+    def test_a_shared_citation_and_read_id_fails_the_shape(self):
+        bad = self.answer()
+        bad["reads"][0]["id"] = "c1"
+        bad["sentences"][1]["evidence"] = ["c1"]
+        self.assertEqual(failures(self.check(bad)), ["answer-shape"])
+
     def test_an_undeclared_field_fails_the_shape(self):
         bad = self.answer()
         bad["model"] = "gpt"
