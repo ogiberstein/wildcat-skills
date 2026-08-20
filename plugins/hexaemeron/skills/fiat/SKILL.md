@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "4.5.1"
+  version: "4.6.1"
 ---
 
 # Fiat
@@ -186,11 +186,20 @@ without pretending that it changes Fiat or another skill.
    the repository from the current directory and the user's named target;
    never substitute an organisation or clone a different repository merely
    because its name looks related.
-3. The prose masks ship inside this plugin: the `imprimatur` lint (a script
+3. If `init` warns that this controller is older than a Fiat checked into the
+   target repository, act on it before the run gets going: update the plugin,
+   refresh through the host's own boundary, and re-resolve the paths, per
+   [plugin-currency.md](references/plugin-currency.md). Where the update cannot
+   happen, record the `controller_version` receipt that reference specifies and
+   say so out loud. Do not run the loop under a controller you have noticed is
+   behind and said nothing more about: the rules it does not enforce leave no
+   trace, because a flag it rejects is indistinguishable from a rule nobody
+   wrote.
+4. The prose masks ship inside this plugin: the `imprimatur` lint (a script
    at `$PLUGIN_ROOT/skills/imprimatur/scripts/imprimatur.py`) and the
    `vulgate` voice mask (rules at `$PLUGIN_ROOT/skills/vulgate/SKILL.md`).
    Nothing to resolve.
-4. The security suite is vendored in this plugin: the Pashov `x-ray`,
+5. The security suite is vendored in this plugin: the Pashov `x-ray`,
    `solidity-auditor`, and `fizz` skills sit under `$PLUGIN_ROOT/skills/`.
    After init, record the bundled ids:
    `hexctl record security_suite
@@ -198,10 +207,10 @@ without pretending that it changes Fiat or another skill.
    If the run will produce no Solidity and no suite applies, record a waiver
    instead: `hexctl record security_suite '"waived: <reason>"'` -- and say so
    out loud. Never claim a tool ran when it did not.
-5. If the user supplied a task issue or a higher-priority target-repository
+6. If the user supplied a task issue or a higher-priority target-repository
    rule required one, record its URL after init with `hexctl record task_issue
    '"<url>"'`. Do not invent an issue otherwise.
-6. Nothing else.
+7. Nothing else.
 
 ## Branches, stacks, and the one merge
 
