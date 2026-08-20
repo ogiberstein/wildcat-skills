@@ -269,18 +269,27 @@ or internal. Hence the second repository:
 
 - `wildcat-finance/skills` is public and holds the work.
 - `wildcat-finance/skills-marketplace` is private. A scheduled job in that
-  repository force-pushes every branch and tag from the public one into it every
-  five minutes.
+  repository force-pushes every branch and tag from the public one into it. Its
+  cron asks for every five minutes; GitHub's scheduler has been delivering closer
+  to every twenty, so treat the interval as observed rather than declared.
 
 So the mirror is the publishing pipeline, and there is nothing to package or
 upload: organisation sync packages each plugin itself during distribution, which
 is why nobody installing needs access to a separate source repository. To
 release, merge to `main`, let the mirror run, and let organisation sync read it.
-Confirm the mirror caught up before expecting anything downstream:
+Compare the two heads rather than waiting a fixed time, because a merge that
+lands a minute after a mirror run waits for the next one:
 
 ```bash
 gh api repos/wildcat-finance/skills/commits/main --jq '.sha'
 gh api repos/wildcat-finance/skills-marketplace/commits/main --jq '.sha'
+```
+
+The job also takes a manual trigger, which is the way to release without waiting
+for the schedule:
+
+```bash
+gh workflow run sync-skills-marketplace.yml --repo wildcat-finance/skills-marketplace
 ```
 
 Two constraints follow from that route rather than from taste. Plugin sources in

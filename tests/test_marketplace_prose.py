@@ -133,7 +133,7 @@ class MarketplaceProseTests(unittest.TestCase):
         publishing step at all, so an operator who guessed wrong either ran an
         update that does nothing or waited for a sync that was never involved.
         """
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        readme = s_readme = (ROOT / "README.md").read_text(encoding="utf-8")
         flat = " ".join(readme.split())
         self.assertIn("## Publish", readme)
         # Both routes, named.
@@ -142,7 +142,11 @@ class MarketplaceProseTests(unittest.TestCase):
         # The constraint that forces the second repository.
         self.assertIn("has to be private", flat)
         self.assertIn("wildcat-finance/skills-marketplace", readme)
-        self.assertIn("every five minutes", flat)
+        # Measured, not declared: the cron says five minutes and GitHub has
+        # been delivering closer to twenty, so the section must not promise
+        # an interval somebody would wait on.
+        self.assertIn("observed rather than declared", flat)
+        self.assertIn("gh workflow run sync-skills-marketplace.yml", s_readme)
         # Nothing is packaged by hand.
         self.assertIn("nothing to package or upload", flat)
         # The relative-source rule that keeps sync able to package.
