@@ -86,6 +86,37 @@ class PromoteTests(PromoteFixture):
         self.assertNotIn("jsonio.load(report_path", source)
         self.assertIn("jsonio.loads(report_text", source)
 
+    def test_a_pinned_pass_over_a_failing_case_does_not_promote(self):
+        cases_path = os.path.join(self.directory, "evals", "cases.json")
+        with open(cases_path, encoding="utf-8") as handle:
+            cases_document = json.loads(handle.read())
+        for case in cases_document["cases"]:
+            if case["id"] == "c-stale":
+                case["answer"]["discrepancies"] = []
+        with open(cases_path, "w", encoding="utf-8") as handle:
+            handle.write(canonical.dumps(cases_document) + "\n")
+        release_path = os.path.join(self.directory, "release.json")
+        with open(release_path, encoding="utf-8") as handle:
+            document = json.loads(handle.read())
+        document["evals"]["cases_sha256"] = digests.of_file(cases_path)
+        document["release_digest"] = release.release_digest(document)
+        with open(release_path, "w", encoding="utf-8") as handle:
+            handle.write(canonical.dumps(document) + "\n")
+        with open(os.path.join(self.directory, "evals", "report.json"), encoding="utf-8") as handle:
+            pinned = json.loads(handle.read())
+        pinned["cases_sha256"] = document["evals"]["cases_sha256"]
+        with open(os.path.join(self.directory, "evals", "report.json"), "w", encoding="utf-8") as handle:
+            handle.write(canonical.dumps(pinned) + "\n")
+        document["evals"]["report_sha256"] = digests.of_file(
+            os.path.join(self.directory, "evals", "report.json")
+        )
+        document["release_digest"] = release.release_digest(document)
+        with open(release_path, "w", encoding="utf-8") as handle:
+            handle.write(canonical.dumps(document) + "\n")
+        with self.assertRaises(BereanError) as caught:
+            promote.promote(self.directory, "hopeful")
+        self.assertIn("refusing to promote", str(caught.exception))
+
     def test_a_tampered_report_does_not_promote(self):
         report_path = os.path.join(self.directory, "evals", "report.json")
         with open(report_path, "ab") as handle:

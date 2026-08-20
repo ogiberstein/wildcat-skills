@@ -191,6 +191,17 @@ def promote(directory, note):
         raise BereanError("the eval report grades other cases than the release declares")
     if report["answers_digest"] != answers_digest(document):
         raise BereanError("the eval report grades other answers than the release pins")
+    # Promotion re-earns its evidence: the cases are graded again now, and
+    # the fresh report must agree with the pinned one field for field. A
+    # pinned report is a claim; the grading is the check. Imported here
+    # because evals imports this module's report contract.
+    from . import evals as evals_lib
+
+    fresh, _ = evals_lib.run(directory)
+    if fresh != report:
+        raise BereanError(
+            "grading the cases now does not reproduce the pinned report; refusing to promote"
+        )
     chain_path = os.path.join(directory, release_lib.PROMOTIONS_FILE)
     existing = load_chain(chain_path) if os.path.exists(chain_path) else []
     record = {
