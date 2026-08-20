@@ -1,8 +1,8 @@
 # ADR-003: Bind vendored promises with digests
 
-- Status: Accepted
-- Date: 2026-08-20
-- Promise Machine contract: `promise-machine/v1`
+## Status
+
+Accepted, 2026-08-20. Promise Machine contract: `promise-machine/v1`.
 
 ## Context
 
@@ -27,7 +27,7 @@ skills and byte drift. A runtime that selects a vendored skill reads its block
 and compares the recorded digest before relying on the overlay. Digest drift
 blocks the Wildcat promise; it does not authorise editing the upstream file.
 
-## Alternatives rejected
+## Alternatives
 
 - Editing vendored instructions would create an unattributed local fork and
   make upstream comparison unreliable.

@@ -5772,3 +5772,25 @@ applicable, no row cut this step. Phylax and ephoros exit 0. Root
 104/104; hexaemeron 490/492 with the two recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema first records, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings open. One fault surfaced and was fixed before the step's
+commit: ADR-006's first consequences sentence used a metaphor the prose
+lint refuses; the sentence was rewritten with the fact intact. Per the
+register: content-drift reviewed, the normalisation diff over ADR-002,
+ADR-003 and ADR-004 touches status shape and one heading name only, 11
+insertions against 9 deletions, and ADR-001 needed no change; pointer-rot
+reviewed, the hypomnema lint exits 0 and every ADR cross-reference
+(ADR-003 from ADR-005, ADR-004 from ADR-006) resolves; ledger-arithmetic
+not applicable, no row cut this step. Phylax and ephoros exit 0. Root
+104/104; hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: ADR-002 and ADR-004 carry no Alternatives section;
+their rejected options live as prose in their context and decision
+sections, written by the run that authored them. Restructuring that prose
+into sections risks rewording another run's reasoning, so the gap is left
+for the shape check this run's close names as the successor frontier.

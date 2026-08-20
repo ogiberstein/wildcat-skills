@@ -1,8 +1,8 @@
 # ADR-004: Release the Promise Machine without moving skill frontiers
 
-- Status: Accepted
-- Date: 2026-08-20
-- Contract: `promise-machine/v1`
+## Status
+
+Accepted, 2026-08-20. Contract: `promise-machine/v1`.
 
 ## Context
 
