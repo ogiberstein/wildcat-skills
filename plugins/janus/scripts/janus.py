@@ -235,9 +235,133 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+# ---------------------------------------------------------------------------
+# Reporting
+#
+# The harness emits a findings file in the interchange shape
+#   {"host", "manifest", "sequences", "findings": [{"gate","action","hook","detail"}]}
+# and this renders it to a human-readable Markdown report and a SARIF 2.1.0 log
+# that links each violation to the gate it broke. Both are offline and read
+# only the findings file.
+# ---------------------------------------------------------------------------
+
+GATES = {
+    1: "Permitted effects are enumerated",
+    2: "Value conservation is independent of return values",
+    3: "Exit gets a liveness property",
+    4: "Revert behaviour is part of conformance",
+    5: "Gas grief is exercised",
+    6: "Re-entry crosses actions",
+    7: "A host adapter limits every result",
+}
+
+
+def load_findings(path: str) -> dict:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    for key in ("host", "manifest", "sequences", "findings"):
+        if key not in data:
+            raise ValueError(f"findings file missing '{key}'")
+    if not isinstance(data["findings"], list):
+        raise ValueError("findings must be a list")
+    return data
+
+
+def render_markdown(data: dict) -> str:
+    host = data["host"]
+    manifest = data["manifest"]
+    sequences = data["sequences"]
+    findings = data["findings"]
+    lines = [
+        "# Janus conformance report",
+        "",
+        f"- Host adapter: `{host}`",
+        f"- Manifest: `{manifest}`",
+        f"- Sequences exercised: {sequences}",
+        "",
+    ]
+    if not findings:
+        lines.append(
+            f"No conformance violations were observed over {sequences} "
+            f"sequences against `{manifest}`. This holds for the sequences the "
+            "run drove; it is not a proof of safety, and it is scoped to the "
+            f"`{host}` adapter."
+        )
+        return "\n".join(lines) + "\n"
+    lines.append(f"{len(findings)} violation(s):")
+    lines.append("")
+    lines.append("| Gate | Action | Hook | Detail |")
+    lines.append("| --- | --- | --- | --- |")
+    for f in findings:
+        gate = f.get("gate", "?")
+        title = GATES.get(gate, "unknown gate")
+        lines.append(
+            f"| {gate} ({title}) | {f.get('action','')} | {f.get('hook','')} "
+            f"| {f.get('detail','')} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_sarif(data: dict) -> dict:
+    rules = [
+        {
+            "id": f"janus-gate-{n}",
+            "name": f"Gate{n}",
+            "shortDescription": {"text": title},
+        }
+        for n, title in sorted(GATES.items())
+    ]
+    results = []
+    for f in data["findings"]:
+        gate = f.get("gate")
+        results.append(
+            {
+                "ruleId": f"janus-gate-{gate}",
+                "level": "error",
+                "message": {
+                    "text": "%s violated gate %s on %s: %s"
+                    % (f.get("hook", ""), gate, f.get("action", ""), f.get("detail", ""))
+                },
+                "properties": {
+                    "gate": gate,
+                    "action": f.get("action", ""),
+                    "hook": f.get("hook", ""),
+                    "host": data["host"],
+                    "manifest": data["manifest"],
+                },
+            }
+        )
+    return {
+        "version": "2.1.0",
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "Janus",
+                        "informationUri": "https://github.com/wildcat-finance/skills/tree/main/plugins/janus",
+                        "rules": rules,
+                    }
+                },
+                "results": results,
+            }
+        ],
+    }
+
+
 def cmd_report(args: argparse.Namespace) -> int:
-    """Render human and SARIF reports from a findings file. Lands in step 6."""
-    raise NotImplementedError("janus report lands in runbook step 6")
+    """Render human and SARIF reports from a findings file."""
+    data = load_findings(args.findings)
+    if args.md:
+        with open(args.md, "w", encoding="utf-8") as handle:
+            handle.write(render_markdown(data))
+    if args.sarif:
+        with open(args.sarif, "w", encoding="utf-8") as handle:
+            json.dump(render_sarif(data), handle, indent=2)
+            handle.write("\n")
+    if not args.md and not args.sarif:
+        print(render_markdown(data))
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
