@@ -5,9 +5,11 @@ import argparse
 import sys
 
 from berean_lib import BereanError
+from berean_lib import answers as answers_lib
 from berean_lib import corpus as corpus_lib
 from berean_lib import citations as citations_lib
 from berean_lib import jsonio
+from berean_lib import reads as reads_lib
 
 
 def report(checks):
@@ -42,6 +44,18 @@ def cmd_check_citation(args):
     return report(citations_lib.check(citation, manifest, args.root))
 
 
+def cmd_check_answer(args):
+    answer = jsonio.load(args.answer, "answer")
+    manifest = jsonio.load(args.corpus, "corpus manifest")
+    corpus_lib.validate(manifest)
+    records = reads_lib.load(args.reads)
+    return report(
+        answers_lib.check(
+            answer, manifest, args.root, records, args.chain_id, args.block_number
+        )
+    )
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="berean", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -62,6 +76,19 @@ def build_parser():
     check.add_argument("--corpus", required=True, help="the corpus manifest")
     check.add_argument("--root", required=True, help="the document tree the manifest pins")
     check.set_defaults(handler=cmd_check_citation)
+
+    answer = commands.add_parser(
+        "check-answer", help="prove an answer's classes, citations and reads"
+    )
+    answer.add_argument("answer", help="the answer document")
+    answer.add_argument("--corpus", required=True, help="the corpus manifest")
+    answer.add_argument("--root", required=True, help="the document tree the manifest pins")
+    answer.add_argument("--reads", required=True, help="the preserved reads file")
+    answer.add_argument("--chain-id", required=True, type=int, help="the declared chain id")
+    answer.add_argument(
+        "--block-number", required=True, type=int, help="the declared block number"
+    )
+    answer.set_defaults(handler=cmd_check_answer)
 
     return parser
 
