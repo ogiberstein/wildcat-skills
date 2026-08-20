@@ -239,6 +239,17 @@ def read_json(path: Path, root: Path):
     return document, []
 
 
+def frontmatter_lines(text: str):
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        return None
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        return None
+    return lines[1:end]
+
+
 def check_law(root: Path):
     law_path = root / LAW_NAME
     loaded, findings = read_markdown(
@@ -511,15 +522,20 @@ def skill_name(skill_path: Path, root: Path):
     if loaded is None:
         return skill_path.parent.name, findings
     _, text = loaded
-    match = re.search(r"(?m)^name:\s*([^\n]+)$", text)
-    name = match.group(1).strip().strip("'\"") if match else ""
-    if name != skill_path.parent.name:
+    frontmatter = frontmatter_lines(text)
+    names = [] if frontmatter is None else [
+        match.group(1).strip().strip("'\"")
+        for line in frontmatter
+        if (match := re.fullmatch(r"name:\s*(.+)", line)) is not None
+    ]
+    name = names[0] if len(names) == 1 else ""
+    if len(names) != 1 or name != skill_path.parent.name:
         findings.append(
             Finding(
                 "PM023",
                 "identity",
                 relative(skill_path, root),
-                f"canonical name is {name!r}; expected {skill_path.parent.name!r}",
+                f"canonical frontmatter names are {names!r}; expected only {skill_path.parent.name!r}",
                 "make frontmatter name match the canonical parent directory",
             )
         )
@@ -881,7 +897,11 @@ def check_routers(root: Path, inventory: Inventory):
     if loaded is None:
         return findings
     _, text = loaded
-    if re.search(r"(?m)^\s*version:\s*", text):
+    frontmatter = frontmatter_lines(text)
+    version_lines = [] if frontmatter is None else [
+        line for line in frontmatter if re.fullmatch(r"\s*version:\s*.*", line)
+    ]
+    if version_lines:
         findings.append(
             Finding(
                 "PM043",
@@ -891,7 +911,12 @@ def check_routers(root: Path, inventory: Inventory):
                 "remove the router version; canonical skills own behavioural versions",
             )
         )
-    if re.search(r"(?m)^name:\s*promise-machine\s*$", text) is None:
+    names = [] if frontmatter is None else [
+        match.group(1).strip().strip("'\"")
+        for line in frontmatter
+        if (match := re.fullmatch(r"name:\s*(.+)", line)) is not None
+    ]
+    if names != ["promise-machine"]:
         findings.append(
             Finding(
                 "PM040",
@@ -987,6 +1012,37 @@ def check_versions(root: Path, inventory: Inventory):
     findings: list[Finding] = []
     package_versions = 0
     skill_versions = 0
+    marketplace_path = root / ".claude-plugin" / "marketplace.json"
+    marketplace, marketplace_findings = read_json(marketplace_path, root)
+    findings.extend(marketplace_findings)
+    listed_versions: dict[str, str | None] = {}
+    if marketplace is not None:
+        entries = marketplace.get("plugins")
+        if isinstance(entries, list):
+            for entry in entries:
+                if isinstance(entry, dict) and isinstance(entry.get("name"), str):
+                    name = entry["name"]
+                    if name in listed_versions:
+                        findings.append(
+                            Finding(
+                                "PM045",
+                                "version",
+                                relative(marketplace_path, root),
+                                f"package marketplace repeats {name!r}",
+                                "retain one versioned marketplace entry per plugin",
+                            )
+                        )
+                    listed_versions[name] = entry.get("version")
+        else:
+            findings.append(
+                Finding(
+                    "PM045",
+                    "version",
+                    relative(marketplace_path, root),
+                    "package marketplace plugins value is not a list",
+                    "restore the versioned package marketplace list",
+                )
+            )
     for plugin_path in inventory.plugins:
         plugin = root / plugin_path
         values = []
@@ -1007,7 +1063,22 @@ def check_versions(root: Path, inventory: Inventory):
                     )
                 else:
                     values.append(value)
-        if len(values) == len(PLUGIN_MANIFESTS) and len(set(values)) == 1:
+        listed = listed_versions.get(plugin.name)
+        if not isinstance(listed, str) or SEMVER.fullmatch(listed) is None:
+            findings.append(
+                Finding(
+                    "PM045",
+                    "version",
+                    relative(marketplace_path, root),
+                    f"marketplace package version for {plugin.name!r} is absent or not semantic: {listed!r}",
+                    "state the plugin package version in the Claude marketplace",
+                )
+            )
+        if (
+            len(values) == len(PLUGIN_MANIFESTS)
+            and len(set(values)) == 1
+            and listed == values[0]
+        ):
             package_versions += 1
         elif values:
             findings.append(
@@ -1015,8 +1086,8 @@ def check_versions(root: Path, inventory: Inventory):
                     "PM045",
                     "version",
                     plugin_path,
-                    f"host package versions disagree: {values!r}",
-                    "propagate one package version across host manifests",
+                    f"package versions disagree: manifests={values!r} marketplace={listed!r}",
+                    "propagate one package version across manifests and marketplace",
                 )
             )
 
@@ -1030,15 +1101,20 @@ def check_versions(root: Path, inventory: Inventory):
         findings.extend(read_findings)
         if loaded is None:
             continue
-        metadata = re.search(r'(?m)^  version: "([^"]+)"$', loaded[1])
-        value = metadata.group(1) if metadata else None
-        if value is None or SEMVER.fullmatch(value) is None:
+        frontmatter = frontmatter_lines(loaded[1])
+        metadata = [] if frontmatter is None else [
+            match.group(1)
+            for line in frontmatter
+            if (match := re.fullmatch(r'  version: "([^"]+)"', line)) is not None
+        ]
+        value = metadata[0] if len(metadata) == 1 else None
+        if len(metadata) != 1 or value is None or SEMVER.fullmatch(value) is None:
             findings.append(
                 Finding(
                     "PM046",
                     "version",
                     skill.path,
-                    f"skill metadata version is absent or not semantic: {value!r}",
+                    f"skill metadata versions are absent, duplicated or not semantic: {metadata!r}",
                     "state the canonical skill version as metadata.version without a package namespace",
                 )
             )
