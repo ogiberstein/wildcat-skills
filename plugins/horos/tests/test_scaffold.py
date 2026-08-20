@@ -45,5 +45,57 @@ class ScaffoldTests(unittest.TestCase):
         self.assertIn(rule, text)
 
 
+SCOPED_ENTRY = PLUGIN / "docs" / "scoped-entry"
+
+MODULE_IDS = (
+    "change-scaffold",
+    "tracked-universe",
+    "boundary-currency",
+    "scoped-entry",
+    "demonstration",
+)
+
+
+class ScopedEntrySpecTests(unittest.TestCase):
+    """The committed spec for this run, held to its own shape."""
+
+    def test_the_run_commits_its_study_and_runbook(self):
+        for name in ("study.md", "runbook.md"):
+            with self.subTest(document=name):
+                self.assertTrue((SCOPED_ENTRY / name).is_file())
+
+    def test_the_runbook_names_every_module_in_build_order(self):
+        text = (SCOPED_ENTRY / "runbook.md").read_text(encoding="utf-8")
+        seen = [
+            module for module in MODULE_IDS
+            if f"| {module} |" in text
+        ]
+        self.assertEqual(seen, list(MODULE_IDS))
+        order = text.index("Build order:")
+        self.assertEqual(
+            [module for module in MODULE_IDS if module in text[order:order + 300]],
+            list(MODULE_IDS),
+        )
+
+    def test_the_study_carries_fourteen_success_criteria(self):
+        text = (SCOPED_ENTRY / "study.md").read_text(encoding="utf-8")
+        section = text.split("## Success criteria", 1)[1].split("\n# ", 1)[0]
+        numbered = [
+            line for line in section.splitlines()
+            if line[:1].isdigit() and line.split(".", 1)[0].isdigit()
+        ]
+        self.assertEqual(len(numbered), 14)
+
+    def test_each_step_carries_the_six_required_fields(self):
+        text = (SCOPED_ENTRY / "runbook.md").read_text(encoding="utf-8")
+        steps = text.split("\n## Step ")[1:]
+        self.assertEqual(len(steps), 5)
+        for index, body in enumerate(steps, start=1):
+            for field in ("**Goal.**", "**Entry.**", "**Exit.**", "**Files.**",
+                          "**Tests.**", "**Disciplines.**"):
+                with self.subTest(step=index, field=field):
+                    self.assertIn(field, body)
+
+
 if __name__ == "__main__":
     unittest.main()
