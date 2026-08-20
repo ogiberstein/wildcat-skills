@@ -5696,3 +5696,35 @@ exit 0. Demo path clean over the run's own study. Root 104/104;
 hexaemeron 490/492 with the two recorded environment failures.
 
 Leads not pursued: none
+
+## Protasis risk-register block, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study's own item 5 carries the first fenced block and the
+study check exits 0 over it. Per the register: shape-drift reviewed, the
+held job's wording is untouched this step; example-mismatch reviewed, the
+block's three lines each split into three pipe-separated fields;
+ledger-arithmetic not applicable, no row cut this step. Phylax, ephoros
+and hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two
+recorded environment failures.
+
+Leads not pursued: none
+
+## Protasis risk-register block, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: shape-drift reviewed, the held job's
+target and acceptance read byte-identical before and after the diff, and
+the row retains revision and digest; example-mismatch reviewed, the
+example block in item 5 splits into three pipe-separated fields on both
+lines; ledger-arithmetic reviewed, the evolution suite passes over the
+new generation row. Phylax, ephoros, hypomnema and the study check exit
+0. Root 104/104; hexaemeron 490/492 with the two recorded environment
+failures.
+
+Leads not pursued: none
