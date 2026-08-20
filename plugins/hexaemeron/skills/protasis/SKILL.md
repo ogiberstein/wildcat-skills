@@ -112,6 +112,37 @@ are happy.
    line each.
 7. **Sources.** Enough of a pointer to find each one again.
 
+The five that follow are the disciplines the build will be held to. Answering
+them here costs a sentence each; leaving them to the audit loop costs a step.
+
+8. **Signals, and the questions behind them.** Two to four questions someone
+   will ask at three in the morning once this runs unattended, and which steps
+   emit the signals that answer them.
+   [ephoros](../ephoros/SKILL.md) owns what a signal must carry.
+9. **Boundaries, per capability.** Each boundary this opens, what is worth
+   taking at it, and the control that closes it. This feeds item 5 rather than
+   replacing it. [phylax](../phylax/SKILL.md) owns the boundary list and the
+   controls.
+10. **The budget, or its absence.** Any performance budget this must hold, with
+    the exact command that measures it.
+    [metron](../metron/SKILL.md) owns what a budget carries and how it is
+    checked.
+11. **The fail-closed posture.** What stops the run, and the guard-test
+    convention a fix will follow.
+    [elenchus](../elenchus/SKILL.md) owns the triage order and the guard rule.
+12. **Decisions and their homes.** The decisions expected to be expensive to
+    reverse, and the file each record will live in.
+    [hypomnema](../hypomnema/SKILL.md) owns which decisions earn a record and
+    where each one lives.
+
+For items 8 through 12, "none, and here is why" is a complete answer. A lint
+invoked from a terminal has no on-call question; a step that reads two files
+has no budget. What is not a complete answer is silence, because silence cannot
+be told apart from not having looked.
+
+Cite those five contracts, never restate them. Each owns its own rules and each
+evolves on its own ledger, so a copy here is stale the moment it is written.
+
 A section reading "TBD" is a section to fill or cut. Where the request is
 ambiguous, record the reading you chose and the reason for it. Never resolve an
 ambiguity silently.
@@ -131,7 +162,23 @@ And it stays small enough to audit, because that phase dominates the clock.
 **Exit.** Deliverables, plus the command or test that proves them.
 **Files.** Paths created or changed.
 **Tests.** What gets written or extended, and the expected count if known.
+**Disciplines.** Which of the five apply to this step and why, or none with
+the reason.
 ```
+
+The Disciplines line carries the study's items 8 through 12 down to the step
+that actually incurs them. Name each discipline and the reason in one clause:
+
+```text
+**Disciplines.** phylax: this step opens the ingestion path. ephoros: it runs
+unattended once deployed. metron: none, no performance claim. elenchus: none,
+no failure in hand. hypomnema: the storage format is expensive to reverse.
+```
+
+A step that names a discipline without a reason has not answered; a step that
+omits one has not been asked. Mason builds against the declared gates and
+warden audits against them, so a gate named here is cheaper than the same gate
+discovered in round three.
 
 Three fixed points. Step 1 scaffolds: layout, toolchain pins, CI stub, licence,
 and committed copies of the study and runbook. The last step demonstrates, by
@@ -213,12 +260,15 @@ other shipped artefact, and both go through the prose pass first.
 Report the count, then name every failure. A set reported as passed without the
 count is not a report.
 
-- [ ] The study answers all seven items.
+- [ ] The study answers all twelve items.
+- [ ] Items 8 through 12 each carry an answer or a stated none with its reason.
+- [ ] No discipline core is restated where a citation belongs.
 - [ ] Assumptions are on the page and were confirmed or corrected.
 - [ ] Every success criterion names a command, a test or a demo path.
 - [ ] The chosen design says what it traded away.
 - [ ] Always, ask-first and never each carry concrete entries.
-- [ ] Each step carries goal, entry, exit, files and tests.
+- [ ] Each step carries goal, entry, exit, files, tests and disciplines.
+- [ ] Every discipline a step names carries the reason it applies.
 - [ ] No exit rests on anything but a command.
 - [ ] Step 1 scaffolds and the last step demonstrates.
 - [ ] Steps are in dependency order.
