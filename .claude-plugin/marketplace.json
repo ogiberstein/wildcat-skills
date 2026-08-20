@@ -72,6 +72,27 @@
       ]
     },
     {
+      "name": "janus",
+      "displayName": "Janus",
+      "source": "./plugins/janus",
+      "description": "A conformance suite for what a contract hook may observe and change before and after a host action.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wildcat Labs",
+        "url": "https://wildcat.finance"
+      },
+      "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/janus",
+      "repository": "https://github.com/wildcat-finance/skills",
+      "category": "Developer Tools",
+      "tags": [
+        "solidity",
+        "hooks",
+        "conformance",
+        "foundry",
+        "security"
+      ]
+    },
+    {
       "name": "sapheneia",
       "displayName": "Sapheneia",
       "source": "./plugins/sapheneia",

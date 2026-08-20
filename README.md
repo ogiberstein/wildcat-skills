@@ -46,6 +46,16 @@ repository's token sinks with evidence and emits the boundary agents consult
 before reading, so the budget goes to the code that matters.
 
 
+### Janus
+
+[Janus](./plugins/janus) tests a contract hook at the threshold it controls:
+what it may observe and change before a host action, what it may change after,
+and what it must never touch. A host adapter and a JSON manifest state the
+permitted effects; a stateful Foundry harness records the real storage writes,
+call targets, value movements and gas across each threshold and fails when the
+delta exceeds the manifest. The first adapter is Wildcat's v2.5 market hooks.
+
+
 ### Lemma
 
 [Lemma](./plugins/lemma) turns Solidity compiler inputs and Markdown documents
@@ -95,14 +105,14 @@ another person can rebuild after the endpoint that served them is gone.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Alexandria | Ariadne | Brevitas | Hermes | Hexaemeron | Horos | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 8 | 8 | 9 | 9 | 8 | 6 | 8 | 8 | 4 | 8 | 7 |
-| Security and audit | 8 | 9 | 10 | 7 | 8 | 2 | 4 | 8 | 9 | 5 | 7 | 7 |
-| Marketing | 1 | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 | 3 | 1 |
-| Business development | 6 | 2 | 2 | 2 | 5 | 1 | 1 | 2 | 2 | 9 | 4 | 3 |
-| Finance | 8 | 1 | 2 | 3 | 4 | 1 | 1 | 2 | 2 | 7 | 4 | 7 |
-| Legal | 3 | 3 | 2 | 1 | 4 | 1 | 1 | 2 | 2 | 4 | 4 | 2 |
+| Role | Alexandria | Ariadne | Brevitas | Hermes | Hexaemeron | Horos | Janus | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 8 | 8 | 9 | 9 | 8 | 8 | 6 | 8 | 8 | 4 | 8 | 7 |
+| Security and audit | 8 | 9 | 10 | 7 | 8 | 2 | 9 | 4 | 8 | 9 | 5 | 7 | 7 |
+| Marketing | 1 | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 | 1 | 3 | 1 |
+| Business development | 6 | 2 | 2 | 2 | 5 | 1 | 2 | 1 | 2 | 2 | 9 | 4 | 3 |
+| Finance | 8 | 1 | 2 | 3 | 4 | 1 | 1 | 1 | 2 | 2 | 7 | 4 | 7 |
+| Legal | 3 | 3 | 2 | 1 | 4 | 1 | 2 | 1 | 2 | 2 | 4 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -118,6 +128,7 @@ The short map of what each plugin does and what is honestly left to build.
 | [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | No complete, reproducible live Wildcat evidence bundle is published. |
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
 | [Horos](./plugins/horos) | Classifying a repository's token sinks with evidence and emitting the reading boundary agents respect. | The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains. |
+| [Janus](./plugins/janus) | Stating and enforcing what a contract hook may observe and change around a host action, checked by a manifest and a stateful Foundry harness. | Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model. |
 | [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | Callable-surface ABI validation does not independently check return types or state mutability. |
 | [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state, replaying exact requests without fallback, and releasing the fixture with a statement a stranger can check. | Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot. |
 | [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records. |
@@ -154,6 +165,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin install brevitas@wildcat-labs
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
+/plugin install janus@wildcat-labs
 /plugin install lemma@wildcat-labs
 /plugin install lazarus@wildcat-labs
 /plugin install pandects@wildcat-labs
@@ -175,6 +187,7 @@ Claude namespaces plugin skills, so each entry skill answers as:
 /hermes:hermes
 /hexaemeron:fiat "<topic>"
 /hexaemeron:kronos
+/janus:janus
 /lemma:chunk
 /lazarus:lazarus
 /pandects:pandects
@@ -228,6 +241,7 @@ Use Hexaemeron Phylax to harden the off-chain surface of this change.
 Use Hexaemeron Ephoros to choose the events, metrics and alerts this step must emit.
 Use Hexaemeron Metron to baseline this slow path, change one thing and keep or revert on the numbers.
 Use Hexaemeron Hypomnema to record this decision where the next person will find it.
+Use Janus to check what this hook may observe and change around a host action, against a conformance manifest.
 Use Lemma to chunk this Solidity standard input into JSONL.
 Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
 Use Pandects to check this credit protocol against the executable laws in the corpus.
@@ -440,6 +454,7 @@ Every plugin has that shape. What each adds beyond it:
 | Brevitas | `brevitas` | evals |
 | Hermes | `hermes` | references and scripts inside the skill |
 | Hexaemeron | `fiat`, `kronos`, `imprimatur`, `vulgate`, the vendored `x-ray`, `solidity-auditor` and `fizz`, and `protasis`, `elenchus`, `phylax`, `ephoros`, `metron`, `hypomnema` | agents, audit, docs |
+| Janus | `janus` | a Foundry harness, hook-manifest schema, hostile reference hooks, the Wildcat host adapter, scripts |
 | Lazarus | `lazarus` | docs, examples, schemas, scripts, pinned requirements |
 | Lemma | `chunk` | chunkers, baseline, schema, solc container, tools |
 | Pandects | `pandects` | Solidity under `src` and `test`, adapters, catalogue, specimens, integrations, audit |
