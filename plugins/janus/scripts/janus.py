@@ -296,10 +296,23 @@ def render_markdown(data: dict) -> str:
         gate = f.get("gate", "?")
         title = GATES.get(gate, "unknown gate")
         lines.append(
-            f"| {gate} ({title}) | {f.get('action','')} | {f.get('hook','')} "
-            f"| {f.get('detail','')} |"
+            "| %s (%s) | %s | %s | %s |"
+            % (
+                gate,
+                title,
+                _md_cell(f.get("action", "")),
+                _md_cell(f.get("hook", "")),
+                _md_cell(f.get("detail", "")),
+            )
         )
     return "\n".join(lines) + "\n"
+
+
+def _md_cell(text: str) -> str:
+    """Make a value safe inside a Markdown table cell: a bare pipe would start a
+    new column and a newline would break the row, so a field carrying either
+    would otherwise malform the report."""
+    return str(text).replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ").replace("\r", " ")
 
 
 def render_sarif(data: dict) -> dict:

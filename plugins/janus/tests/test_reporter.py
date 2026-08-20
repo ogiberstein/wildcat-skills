@@ -68,6 +68,22 @@ class ReporterTests(unittest.TestCase):
         sarif = self.janus.render_sarif(clean)
         self.assertEqual(sarif["runs"][0]["results"], [])
 
+    def test_markdown_cells_survive_a_pipe_or_newline(self):
+        data = {
+            "host": "wildcat-v2.5",
+            "manifest": "wildcat-open-term",
+            "sequences": 1,
+            "findings": [{"gate": 1, "action": "deposit", "hook": "Evil", "detail": "a | b\nc"}],
+        }
+        md = self.janus.render_markdown(data)
+        # Every table row has exactly the four column separators, so a pipe in a
+        # field did not open a fifth column, and no row was split by a newline.
+        rows = [ln for ln in md.splitlines() if ln.startswith("| 1 (")]
+        self.assertEqual(len(rows), 1)
+        # Count only structural pipes; an escaped \| is a literal cell character.
+        self.assertEqual(rows[0].replace("\\|", "").count("|"), 5)
+        self.assertIn("\\|", rows[0])  # the field's pipe was escaped, not dropped
+
     def test_report_command_writes_both_outputs(self):
         with tempfile.TemporaryDirectory() as d:
             md = str(Path(d) / "report.md")
