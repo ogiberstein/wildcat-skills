@@ -3980,3 +3980,63 @@ truncated a document and blamed it for the missing fields, one invented findings
 against a document that used a legal fence. None was a crash, and none would have
 been caught by reading the diff. They came from asking what the code would say
 about a document built to embarrass it.
+
+## Protasis discipline cores, step 4, round 1 -- 2026-08-20
+
+Reviewed: the ledger row, the frontmatter version, and the demo path, by
+recomputing every claim rather than reading it.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | low | plugins/hexaemeron/skills/protasis/EVOLUTION.md | The row claimed 37 cases where the file holds 34. The inflated count came from reading a subTest loop as six cases where unittest reports one. A ledger is what a stranger reads instead of running the suite. | fixed in cb14cd3 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24 including all seven
+evolution-contract checks, plugin suite 337/337, imprimatur 100.0 on both files.
+
+What was recomputed. The header digest against the four-field canonical line;
+exactly one new row for this run; the evolution axis holding generation and epoch
+while incrementing evolution; the new digest differing from the row before it;
+the frontmatter version matching the ledger; the twelve study items the row
+claims actually present in the contract; all five finding codes present in the
+module; and the case count, which is where it came apart. The digest was then
+rechecked after the correction, since editing a row near a hashed block invites
+exactly that mistake.
+
+The frontier does not close mature, and the reason is on the record rather than
+asserted. The runbook schema is executable and the study contract beside it is
+not, and step 2 widened that gap from seven items to twelve. This run's own study
+named the study check as a non-goal and a successor before any of it was built,
+so the next job is evidenced rather than invented to keep a ledger open.
+
+Leads not pursued: the README test-count staleness first logged in step 3 round 1
+still stands.
+
+## Protasis discipline cores, step 4, round 2 -- 2026-08-20
+
+Reviewed: the corrected ledger row, every number in it recomputed.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+Seven claims recomputed and all seven hold: 34 cases against a suite that
+reports 34, seven study items becoming twelve against twelve numbered items in
+the contract, five codes against P000 through P004 in the module, a sixth step
+field against six labels in the schema block, and five audit rounds with four
+faults against five logged round headings and four finding rows in this run's own
+sections.
+
+Two of this round's first measurements were wrong, and in the same way: one read
+the header line because it also contains the version string, and one counted
+`S3-R` finding ids across the whole file, catching entries from earlier runs.
+Both were probe faults rather than content faults, and both are worth recording,
+because a probe that reads the wrong line reports either a false pass or a false
+finding depending on which way it lands. This run has now had three of them: two
+here and the shell quoting that fed three lint tools one concatenated path in
+step 1. The probe checks its own premise, or its verdict is worth nothing.
+
+Six findings across the run, one of them in the ledger and four in the checker,
+and every one was a verdict stated with more confidence than the evidence carried.
+None was a crash.
