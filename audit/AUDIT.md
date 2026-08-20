@@ -4435,3 +4435,34 @@ describes the null-median treatment as the scope side's alone, which is now
 under-description rather than error, since both sides carry a status field. It
 goes to the prose phase with the rest of this step's wording rather than
 opening a third round for a docstring.
+
+## Scoped entry, step 2, round 1 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 35/35 with one, verified before this
+receipt. Three of the five new guards were seen failing on the unfixed
+classifier and all eleven pass on the fixed one.
+
+The review went at the paths the change could break rather than the ones it
+fixes. The pruning is safe because the dropped entry covers no tracked file, so
+the walk has nothing to classify under it, and that was already the behaviour
+for a matched directory. Two edges were run rather than reasoned about. An
+empty tracked universe, a repository with nothing committed, produces an empty
+boundary and zero walked files, which is the fail-open position stated in the
+skill. The widened universe still separates the two cases correctly: with
+`--include-untracked`, an untracked-but-not-ignored `dist/` binds at one file
+while an ignored `out/` stays out, so the flag still means what it says.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: two. A directory that will be dropped is
+still walked in full before the drop, so the count that decides it is paid for
+and discarded; measured against Metron's rule the full-tree check sits at 55.5
+ms against 52.1 ms at step 1 on a tree that also grew, which is noise rather
+than a regression, and short-circuiting it would put a universe prefix scan in
+front of every directory to save that. Separately, `check .` now names this
+file's own classifier source as drifted, because the marker rule excludes it
+and its byte count moved: that is the held frontier defect showing itself
+during unrelated work, evidence for the marker self-exclusion job rather than
+for this one.

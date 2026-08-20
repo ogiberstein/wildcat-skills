@@ -495,6 +495,22 @@ def directory_entry(root, relpath, category, evidence, tally=None, grade="hard",
     }
 
 
+def binding_directory_entry(root, relpath, category, evidence, tally=None, universe=None):
+    """One hard directory entry, or None when it would bind no tracked file.
+
+    A directory holding nothing tracked is not a token sink: excluding it saves
+    no bytes an agent would ever read, and emitting it makes the same check
+    answer differently on two machines, since an ignored build directory or a
+    stray worktree sits in one checkout and not the other. Fail-open still
+    holds where git cannot answer: with no universe there is no tracked notion
+    to test against, so the entry stands.
+    """
+    entry = directory_entry(root, relpath, category, evidence, tally, universe=universe)
+    if universe is not None and entry["files"] == 0:
+        return None
+    return entry
+
+
 def resolve_universe(root, include_untracked=False):
     """The file set a scan covers. Git-tracked by default so local build
     products and caches never contaminate a committed boundary; the
@@ -556,16 +572,18 @@ def scan_tree(root, census=False, include_untracked=False):
             if named_category is not None:
                 corroboration = corroborate_directory(child, dirname)
                 if corroboration is not None:
-                    entries.append(
-                        directory_entry(
-                            root,
-                            relpath,
-                            named_category,
-                            f"directory name {dirname} corroborated by {corroboration}",
-                            tally,
-                            universe=universe,
-                        )
+                    entry = binding_directory_entry(
+                        root,
+                        relpath,
+                        named_category,
+                        f"directory name {dirname} corroborated by {corroboration}",
+                        tally,
+                        universe=universe,
                     )
+                    if entry is not None:
+                        entries.append(entry)
+                    # Either way the subtree is pruned: an entry covers it, or
+                    # it holds nothing tracked for the walk to classify.
                     continue
                 # Name alone is a candidate signal; the subtree is walked
                 # file by file instead of being excluded.
@@ -584,11 +602,11 @@ def scan_tree(root, census=False, include_untracked=False):
                 continue
             matched = match_attribute_scopes(scopes, relpath + "/")
             if matched is not None:
-                entries.append(
-                    directory_entry(
-                        root, relpath, matched[0], matched[1], tally, universe=universe
-                    )
+                entry = binding_directory_entry(
+                    root, relpath, matched[0], matched[1], tally, universe=universe
                 )
+                if entry is not None:
+                    entries.append(entry)
                 continue
             keep.append(dirname)
         dirnames[:] = keep

@@ -49,10 +49,13 @@ tracked file, so `check` answers the same on every machine.
 **Entry.** Step 1's green exit. `check .` exits 1 with 7 drifted paths, 6 of
 them ignored local directories.
 
-**Exit.** A fresh scan of this repository emits no phantom entry; `check .`
-exits 0 on a clean tracked checkout regardless of local build or worktree
-directories; the fixture from step 1 passes; census attribution is unchanged for
-every entry that does cover tracked files.
+**Exit.** A fresh scan of this repository emits no phantom entry, taking its
+hard entries from 93 to 87; step 1's fixtures for criteria 4 and 5 pass with
+their markers removed, so a checkout carrying an ignored build directory exits
+0; census attribution is unchanged for every entry that does cover tracked
+files. This repository's own `check .` still exits 1 at this step, for the
+tracked evidence copy the committed boundary predates, and step 3 owns that
+refresh.
 
 **Files.** `plugins/horos/skills/horos/scripts/horos.py`, classifier tests,
 fixtures, and `.horos/boundary.json` only if a real entry changed.
