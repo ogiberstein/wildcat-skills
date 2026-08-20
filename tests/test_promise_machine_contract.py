@@ -369,6 +369,7 @@ class PromiseStructureTests(unittest.TestCase):
             },
             "plugins/pandects/skills/pandects/SKILL.md": {
                 "pandects-law-contract",
+                "pandects-catalogue-render",
                 "pandects-broken-specimen",
                 "pandects-search-record",
             },
@@ -391,12 +392,13 @@ class PromiseStructureTests(unittest.TestCase):
             with self.subTest(path=path):
                 text = (ROOT / path).read_text(encoding="utf-8")
                 self.assertEqual(text.splitlines().count("## Promise Machine contract"), 1)
+                contract = text.split("## Promise Machine contract", 1)[1]
+                contract = contract.split("\n## ", 1)[0]
                 self.assertEqual(
                     {
                         line.removeprefix("### ")
-                        for line in text.splitlines()
+                        for line in contract.splitlines()
                         if line.startswith("### ")
-                        and line.removeprefix("### ") in promise_ids
                     },
                     promise_ids,
                 )
@@ -405,7 +407,23 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 42)
+        self.assertEqual(report["counts"]["promises"], 43)
+
+    def test_contract_component_refuses_an_absent_section(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_plugin(target)
+            skill = write_skill(plugin)
+            (skill / "SKILL.md").write_text(
+                "---\nname: example\ndescription: A fixture skill.\n---\n\n# Example\n",
+                encoding="utf-8",
+            )
+            completed = run_cli(
+                "check", "--root", target, "--only", "contracts", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM031", [item["code"] for item in report["findings"]])
 
     def test_missing_contract_fixture_is_refused(self):
         completed = run_cli(
