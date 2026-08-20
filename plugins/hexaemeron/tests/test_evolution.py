@@ -168,7 +168,7 @@ class EvolutionContractTests(unittest.TestCase):
         self.assertIn("material user or protocol impact: 40", kronos)
         self.assertIn("evidenced urgency or defect severity: 25", kronos)
         self.assertIn("readiness of inputs and acceptance conditions: 20", kronos)
-        self.assertIn("leverage for other in-scope skills: 15", kronos)
+        self.assertIn("work it unblocks or shapes in other in-scope skills: 15", kronos)
         self.assertIn("Never create one goal\n   per skill", kronos)
         self.assertIn("Invoke Fiat with the held Next Fiat job byte for byte", kronos)
         self.assertIn("Kronos itself", kronos)
