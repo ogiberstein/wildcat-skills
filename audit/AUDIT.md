@@ -5504,3 +5504,30 @@ The inventory binds existing domain formats; it does not replace them with a
 generic result envelope or claim that a structural field map proves the domain
 result. Berean's Wildcat-grounded release and Janus's second adapter remain held
 frontier work.
+
+## Promise Machine, step 8, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected checker now derives the high-consequence set from canonical
+declarations, requires exactly one complete runtime map for each member, confines
+its source, recomputes the reviewed source digest through a bounded read and
+refuses stale or extra entries. The package release still leaves every unrelated
+skill frontier untouched.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The Promise Machine full check is clean across all 66 promises. All 91 focused
+contract, evolution, version and marketplace tests, all 104 root tests, all 474
+Hexaemeron tests and all 62 Imprimatur checks pass. The Phylax, Ephoros,
+Hypomnema and Horos gates are clean.
+
+### Leads not pursued
+
+The digest proves which result surface the map reviewed, not that a domain
+operation ran or its assertion is true. Those claims remain with the exact
+command, gate or observation named by the owning promise.
