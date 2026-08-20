@@ -126,6 +126,38 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertIn("[", readme)
                 self.assertIn("./plugins/%s" % name, readme)
 
+    def test_root_readme_documents_how_to_publish(self):
+        """Install was documented for three hosts and publishing for none.
+
+        The two routes take different commands, and only one of them has a
+        publishing step at all, so an operator who guessed wrong either ran an
+        update that does nothing or waited for a sync that was never involved.
+        """
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        flat = " ".join(readme.split())
+        self.assertIn("## Publish", readme)
+        # Both routes, named.
+        self.assertIn("claude plugin marketplace update wildcat-labs", readme)
+        self.assertIn("Organization settings > Plugins", readme)
+        # The constraint that forces the second repository.
+        self.assertIn("has to be private", flat)
+        self.assertIn("wildcat-finance/skills-marketplace", readme)
+        self.assertIn("every five minutes", flat)
+        # Nothing is packaged by hand.
+        self.assertIn("nothing to package or upload", flat)
+        # The relative-source rule that keeps sync able to package.
+        self.assertIn("stay relative paths", flat)
+
+    def test_the_publish_section_sits_under_its_own_heading(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        install = readme.index("## Install")
+        publish = readme.index("## Publish")
+        use = readme.index("## Use")
+        self.assertLess(install, publish)
+        self.assertLess(publish, use)
+        # Local agents is an Install concern and must not have been absorbed.
+        self.assertLess(readme.index("### Local agents"), publish)
+
     def test_plugin_landing_readmes_publish_unique_rolling_fiat_jobs(self):
         landings = plugin_landing_readmes()
         self.assertEqual(set(landings), set(PLUGINS))

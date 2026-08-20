@@ -239,6 +239,72 @@ Use Tabularium to build and verify a source-bound Goldfinch, Euler v1 or Euler V
 Fiat remains explicit-only. Mentioning a similar delivery task does not start
 the controller unless the user names Hexaemeron or Fiat and asks to run it.
 
+## Publish
+
+Work lands here, in the public repository. What reaches an installed plugin
+depends on how that machine added the marketplace, and the two routes differ in
+who fetches the repository.
+
+### Git-backed, which needs no publishing step
+
+A marketplace added with `/plugin marketplace add wildcat-finance/skills`, or the
+Codex equivalent, is a clone the host pulls with the operator's own git
+credentials. Pushing to `main` is the whole of publishing. To pick up new
+commits:
+
+```bash
+claude plugin marketplace update wildcat-labs
+claude plugin update hexaemeron@wildcat-labs
+```
+
+Inside a session that is `/plugin marketplace update` and
+`/plugin update <plugin>@wildcat-labs`. In a provisioning script, pass `--yes`.
+
+### Organisation-distributed, through the private mirror
+
+A marketplace distributed through
+[Organization settings > Plugins](https://claude.ai/admin-settings/plugins) is
+read server-side by the Claude GitHub App, and that repository has to be private
+or internal. Hence the second repository:
+
+- `wildcat-finance/skills` is public and holds the work.
+- `wildcat-finance/skills-marketplace` is private. A scheduled job in that
+  repository force-pushes every branch and tag from the public one into it every
+  five minutes.
+
+So the mirror is the publishing pipeline, and there is nothing to package or
+upload: organisation sync packages each plugin itself during distribution, which
+is why nobody installing needs access to a separate source repository. To
+release, merge to `main`, let the mirror run, and let organisation sync read it.
+Confirm the mirror caught up before expecting anything downstream:
+
+```bash
+gh api repos/wildcat-finance/skills/commits/main --jq '.sha'
+gh api repos/wildcat-finance/skills-marketplace/commits/main --jq '.sha'
+```
+
+Two constraints follow from that route rather than from taste. Plugin sources in
+`.claude-plugin/marketplace.json` stay relative paths, `./plugins/<name>`, so
+sync packages each plugin out of the mirror instead of fetching it from
+somewhere it may not be able to authenticate to. And a version bump is only
+released once it has crossed all three links: merged here, mirrored there,
+distributed by sync. An installed plugin can sit a whole evolution behind while
+every one of those looks healthy.
+
+### Which route a machine is on
+
+Read it rather than assuming, because the update commands above only work on one
+of them. A git-backed install holds a git checkout; an organisation-distributed
+one holds an extracted package under an opaque identifier, with a marketplace id
+and no remote, ref or commit recorded anywhere. Hexaemeron's Fiat states the
+same distinction, and what to do about a controller behind its own repository, in
+[plugin-currency.md](./plugins/hexaemeron/skills/fiat/references/plugin-currency.md).
+
+Anthropic's [marketplace documentation](https://code.claude.com/docs/en/plugin-marketplaces)
+carries the source rules, and the
+[organisation plugin workflow](https://support.claude.com/en/articles/13837433)
+carries the admin side.
+
 ## Use
 
 Alexandria needs Python 3 and nothing else. Its checked-in demonstration and
