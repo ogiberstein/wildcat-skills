@@ -3390,3 +3390,81 @@ the suite passing under three shuffled orders.
 The three bundled lints ran against the changed tree and each exited 0:
 `phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
 waiver recorded at init covers the Pashov trio.
+
+## Goldfinch preservation release, step 4, round 1 -- 2026-08-20
+
+Reviewed: `verify-release`, which reads a release back and checks every claim it
+makes about itself.
+
+Three findings.
+
+Fifteen rules were mutated and four survived. Two of those trace to one test that
+passed for the wrong reason, and it is the more interesting half of the round.
+
+The test for a fixture reached through a symlinked segment put the symlink at the
+top of the release, where a different rule refuses it for being an unaccounted
+symlink. So the rule under test never ran, while the test read as though it
+covered it. Removing the no-follow flag from the directory walk left the suite
+green, and so did replacing the confined walk with plain path joining. The
+symlink is buried a level down now, and a companion test proves the same fixture
+reached without a symlink still verifies, so the test cannot pass for a fixture
+that is simply absent.
+
+The third: the read helper normalised a path and then handed it to a reader that
+normalises it again.
+
+Two mutants were dropped rather than caught, because no test can tell them apart
+from the original. After the count comparison passes, the document's counts and
+the fixture's are the same numbers, so reporting either is the same value.
+
+A sweep then edited a release every way there is. One byte flipped at the start,
+the middle and the end of each of its seven files. Each file truncated, emptied
+and doubled. Each file replaced by each other file, forty-two pairs. And every
+one of twenty document fields changed with the digest restamped, so each change
+had to be caught on its merits rather than by the digest. Everything was refused
+except setting a path to the value it already had.
+
+## Goldfinch preservation release, step 4, round 2 -- 2026-08-20
+
+Reviewed: what the write says against what the read says, and whether a release
+is a document or a layout.
+
+No defects. Two properties nothing pinned.
+
+The write and the read compute the same seven claims about one release by
+different routes, and nothing compared them.
+
+The reader honours the paths the document names, and nothing said so. A release
+whose fixture sits at `state` and whose statement is `attestation.json` verifies,
+as does one with the fixture a level down, and the unaccounted-file rule follows
+the document rather than the word `fixture`. A reader that looked for its own
+names regardless would be reading a layout, and the two path fields in the
+document would be decoration.
+
+Checked and found sound:
+
+- 114 of 114 statements reached.
+- Neither of two releases accepts the other's fixture, statement or document,
+  with a companion test proving both verify on their own, so the three refusals
+  cannot be passing for a pair that never verified.
+
+## Goldfinch preservation release, step 4, round 3 -- 2026-08-20
+
+Reviewed: whether anything here passes for the wrong reason, and the whole path
+through the commands.
+
+No findings.
+
+All seventeen test classes pass alone in their own process, and the suite passes
+under three shuffled orders.
+
+On the shipped `goldfinch-v0` fixture, five commands run in sequence and each
+exits 0: verify the fixture, release it, verify the release, validate the
+document, and verify the fixture copy on its own. Then three tampers, one at a
+time, each exiting 1 and naming what disagreed: a proved count raised in the
+statement, a byte changed in a recorded RPC component, and the block the document
+records.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
