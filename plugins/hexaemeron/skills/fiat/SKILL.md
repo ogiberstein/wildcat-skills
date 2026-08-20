@@ -169,7 +169,9 @@ without pretending that it changes Fiat or another skill.
    increment evolution, retain generation and epoch, and either record one
    evidenced next job or set `Frontier status` to `mature` and `Next Fiat
    job` to `None -- mature`. A normal Fiat delivery does not touch skill
-   versions or frontier text.
+   versions or frontier text. The contract also states what every frontier run
+   owes before it is recorded as done, whichever plugin the skill sits in; read
+   it there rather than expecting the held job to spell it out.
 
 **Make step 4 mechanical.** Name the ledger at `init` and the controller holds
 the run to it:
