@@ -64,6 +64,13 @@ job a full loop would start with.
 Steps 5 to 8 do not happen. No durable goal is created, Fiat is not invoked, and
 no ledger is touched. Rank-only reports the field; it does not work it.
 
+Recording is the one part of step 6 that still happens, because a ranking worth
+handing over is worth comparing against the next one. Record it here rather than
+there, with no run to name. Read the standing parks with `parked` as well: its
+exit of 3 means a park stands, which is what the report is for, and not that
+anything went wrong. Nothing in this mode is waiting on that exit, because
+nothing here declares a loop complete.
+
 The scope rules are unchanged, so this composes with phase-only mode: a
 rank-only pass over the six phase skills records `mode` as `phase-only` and
 `rank_only` as true, which is why the two are separate fields.
