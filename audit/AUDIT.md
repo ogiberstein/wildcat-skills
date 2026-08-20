@@ -5758,3 +5758,17 @@ hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two recorded
 environment failures.
 
 Leads not pursued: none
+
+## Hypomnema first records, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check exits 0. Per the register: content-drift not
+applicable, no record touched this step; pointer-rot reviewed, the
+hypomnema lint exits 0 over docs and plugins; ledger-arithmetic not
+applicable, no row cut this step. Phylax and ephoros exit 0. Root
+104/104; hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: none
