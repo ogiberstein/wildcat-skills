@@ -12,6 +12,52 @@ interface Vm {
     address emitter;
   }
 
+  // State-diff recording. One recording captures storage writes, external call
+  // targets and kinds, and value movements across a driven action, which are
+  // four of the effect classes the state-delta recorder must observe.
+  enum AccountAccessKind {
+    Call,
+    DelegateCall,
+    CallCode,
+    StaticCall,
+    Create,
+    SelfDestruct,
+    Resume,
+    Balance,
+    Extcodesize,
+    Extcodehash,
+    Extcodecopy
+  }
+  struct ChainInfo {
+    uint256 forkId;
+    uint256 chainId;
+  }
+  struct StorageAccess {
+    address account;
+    bytes32 slot;
+    bool isWrite;
+    bytes32 previousValue;
+    bytes32 newValue;
+    bool reverted;
+  }
+  struct AccountAccess {
+    ChainInfo chainInfo;
+    AccountAccessKind kind;
+    address account;
+    address accessor;
+    bool initialized;
+    uint256 oldBalance;
+    uint256 newBalance;
+    bytes deployedCode;
+    uint256 value;
+    bytes data;
+    bool reverted;
+    StorageAccess[] storageAccesses;
+    uint64 depth;
+  }
+  function startStateDiffRecording() external;
+  function stopAndReturnStateDiff() external returns (AccountAccess[] memory accountAccesses);
+
   // Storage-access recording, for the state-delta recorder.
   function record() external;
   function accesses(
