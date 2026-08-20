@@ -4100,3 +4100,25 @@ Leads not pursued: the scoreboard read cap of 16 MiB refuses an append once a
 file passes it, which stops recording rather than losing a line. Accepted: the
 cap is stated in the source, and 16 MiB of ranking passes is far past any real
 loop.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what round 1's fix could have broken and what it did not
+cover. Moving the K010 check ahead of the stdin read does not weaken the
+append-nothing property, since it refuses earlier rather than later. `show` has
+no such check, which is correct: it only reads, and reading through a link the
+caller named writes nothing anywhere.
+
+One property was assumed in round 1 and checked here instead. A basis holding a
+newline could have split one record across two lines and broken the file for
+every later read. It does not: `json.dumps` escapes it, the file kept one line,
+and `show` renders the text across two lines without the record changing.
+
+Leads not pursued: none.
