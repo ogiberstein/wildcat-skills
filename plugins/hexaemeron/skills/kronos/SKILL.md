@@ -44,10 +44,12 @@ rescan all six phase ledgers from disk and no others, rerank from scratch and
 repeat. A replacement held job may re-enter the ranking.
 
 Unless the user supplies an iteration cap, stop only when none of the six
-phase ledgers remains eligible. If the user requests a bounded batch, stop
-after that many completed Fiat iterations or sooner if the phase market is
-exhausted. The scope limits which skill owns a selected frontier; Fiat may
-still change any file genuinely required by that exact held job.
+phase ledgers remains eligible and no park stands against one of them. If the
+user requests a bounded batch, stop after that many completed Fiat iterations or
+sooner if the phase market is exhausted, and report any park still standing
+rather than letting the cap bury it. The scope limits which skill owns a
+selected frontier; Fiat may still change any file genuinely required by that
+exact held job.
 
 ## Loop
 
