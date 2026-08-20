@@ -4602,3 +4602,61 @@ suites pass.
 | -- | -- | -- | none | -- |
 
 Leads not pursued: none.
+
+## Step 5, round 1 -- 2026-08-20
+
+Solidity step shipping the five hostile reference hooks and the completed gate
+engine. This is the round where invariant fuzzing applies: `fizz`'s stateful
+approach is realised as a Foundry invariant that keeps the reentry hook in the
+loop over 2048 calls. The vendored `solidity-auditor` reviewed the hostile
+hooks, the engine, and the tests for two properties: no false pass, and each
+hostile hook genuinely exercising the class it claims. `x-ray` is deferred with
+reason: the harness is not a protocol to profile.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | high | plugins/janus/harness/src/JanusHarness.sol | The accessor-closure attribution swept the host's own base-action calls into the hook's set once a hook merely read host state, wrongly failing a legitimate hook. A false fail, not a false pass, but it broke soundness for real hooks that read host state. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-02 | medium | plugins/janus/harness/src/JanusHarness.sol | No gate validated storage writes; the storage-mutation hook only exercised the call allowlist, so a hook-caused write to non-permitted storage was ungated. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-03 | medium | plugins/janus/harness/src/JanusHarness.sol | The findings JSON was concatenated with no escaping, so a field carrying a quote could inject or hide a finding (a detail overrode a gate number in the auditor's proof). | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-04 | low | plugins/janus/harness/test/HostileHooks.t.sol | The reentry invariant asserted only that no deposit landed; a re-entering deposit would revert on a balance underflow even if the guard were removed, so it did not isolate gate 6. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+| S5-R1-05 | low | plugins/janus/harness/test/HostileHooks.t.sol | The stale-auth exit test did not pin the revert reason. | fixed in 1ef5bab6e4b91bb25eeae04654ca0b80a78ee209 |
+
+The depth-subtree attribution resolves the earlier laundering finding and this
+round's over-attribution together: it captures the hook's descendant calls
+without the host's siblings, and gate 1 now enforces state-changing calls only,
+so a read is never an effect. Gate 1 also refuses a hook-caused write to an
+account outside its permitted write scopes. The auditor confirmed no false pass
+among the five hostile hooks as tested, that the attribution terminates and
+does not under-attribute, and that the sequence guard and the invariant target
+restriction are correct.
+
+Accepted limitations, recorded rather than fixed:
+
+- The one value-returning hook can return an adversarial but in-bounds rate,
+  and no gate constrains the returned value beyond the market's own `<= 10000`
+  bound. Constraining it needs a rate-band field the manifest format does not
+  carry. Left as a documented gap; a hook cannot exceed the market's bound, so
+  the exposure is policy griefing, not an out-of-bound write or value theft.
+- The gas gate is exercised on deposit; a hook cheap on deposit and grief-heavy
+  on another action is not covered by the hostile set, though the gate itself
+  reads a per-action budget and applies to any action driven.
+
+Leads not pursued: the two accepted limitations above, both needing a manifest
+extension out of this step's scope.
+
+## Step 5, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes. The depth-subtree attribution is a
+strict correction: the honest hook and the host-reading hook both clear gate 1
+now, the laundering and storage-mutation hooks are still caught, and the
+injection regression shows an escaped field cannot rewrite another. The
+strengthened invariant runs 2048 calls with every block confirmed to be the
+reentrancy guard. All 24 harness tests pass, and the repository and Janus
+Python suites pass. The two accepted limitations from round 1 stand as
+recorded; no new issue surfaced.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: the two accepted limitations recorded in round 1.
