@@ -3814,3 +3814,20 @@ Phylax remains the only place those live. Recorded because the next person to
 grow this contract will stand at the same line.
 
 Leads not pursued: none.
+
+## Protasis discipline cores, step 2, round 2 -- 2026-08-20
+
+Reviewed: the same file with round 1's fix applied.
+
+No findings.
+
+The three bundled lints ran against the fixed tree and each exited 0: `phylax`,
+`ephoros`, `hypomnema`. Root suite 24/24, plugin suite 303/303, imprimatur
+100.0 clean.
+
+Round 1's fix was checked rather than assumed: the description now names both
+the discipline questions and the gates a step declares, the study still holds
+twelve numbered items, Disciplines is still the last field of the schema, and
+the checklist still covers both additions. A fix to trigger text is the kind
+that can quietly contradict the body it advertises, so the check compares the
+two rather than reading the diff.
