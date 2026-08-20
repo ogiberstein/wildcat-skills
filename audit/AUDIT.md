@@ -4472,3 +4472,38 @@ thirteen plugins; the Janus Python suite passes; every shipped document lints
 the ecosystem-standard `forge-std` cheatcode handle, and is not a defect.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+Python and JSON step: the JSON manifest schema, the stdlib validator, and its
+fixtures. No Solidity ships, so `x-ray` and `solidity-auditor` have nothing to
+review this step; the review surface is the validator, an untrusted-JSON
+boundary. The three bundled lints ran clean over the changed files (phylax 0,
+ephoros 0, hypomnema 0), and the validator was read against the risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/janus/scripts/janus.py | The validator scanned effect free-text for wildcards but did not enforce the `scope` and `kind` enumerations the schema documents, so a manifest with an unrecognised storage scope or call kind validated. Gate 1 promises effects are enumerated; an unrecognised enum value slipping through is a fail-open hole. | fixed in ae61738509855e47ba687299fb0705e609d2f478 |
+
+The fix adds code J015: an unrecognised `scope` or `kind` is rejected, fail
+closed, with a fixture. The validator otherwise fails closed correctly: it uses
+`json.load` with no `eval` or code execution, raises on the first broken rule,
+and returns invalid on any parse or rule failure. Gate 1's "omitted list is
+forbidden" is enforced through the required-keys check (J006) and the non-list
+check (J008); wildcards are refused in every free-text field (J009).
+
+Leads not pursued: none.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fix applied. The bundled lints re-ran clean
+(phylax 0), the Janus validator suite passes with the J015 fixture, and the
+repository suite passes. The look checked that the enum enforcement did not
+narrow a legitimate manifest: the honest Wildcat manifest still validates, and
+the J015 path fires only on a scope or kind outside the documented sets.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
