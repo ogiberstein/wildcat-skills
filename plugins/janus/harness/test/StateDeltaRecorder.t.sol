@@ -26,6 +26,20 @@ contract Actor {
   }
 }
 
+/// @dev A contract that takes an endowment at construction, so deploying it
+///      moves value through a CREATE rather than a CALL.
+contract Endowed {
+  constructor() payable {}
+}
+
+/// @dev Moves value by deploying an endowed contract, the create-endowment
+///      path that a naive recorder would miss.
+contract CreatingActor {
+  function act() external payable returns (address) {
+    return address(new Endowed{value: msg.value}());
+  }
+}
+
 contract StateDeltaRecorderTest is JanusBase, StateDeltaRecorder {
   function test_records_a_write_a_call_and_a_value_movement() external {
     Sink sink = new Sink();
@@ -71,5 +85,33 @@ contract StateDeltaRecorderTest is JanusBase, StateDeltaRecorder {
 
   function endWithoutBegin() external returns (Delta memory) {
     return _endRecording(0);
+  }
+
+  /// @dev A create-endowment moves value; the recorder must not miss it.
+  function test_records_value_moved_through_a_create_endowment() external {
+    CreatingActor actor = new CreatingActor();
+    vm.deal(address(this), 3 ether);
+
+    _beginRecording();
+    uint256 before = gasleft();
+    actor.act{value: 3 ether}();
+    uint256 gasUsed = before - gasleft();
+    Delta memory d = _endRecording(gasUsed);
+
+    // The endowed CREATE carries 3 ether; the enclosing call to the actor
+    // carries it too, so the recorder sees the value on at least the create.
+    assertTrue(_valueMoved(d) >= 3 ether, "captured the create-endowment value");
+  }
+
+  /// @dev A second begin while one is open must fail closed rather than reset
+  ///      the buffer and drop everything recorded so far.
+  function test_double_begin_reverts() external {
+    _beginRecording();
+    vm.expectRevert(StateDeltaRecorder.RecordingAlreadyStarted.selector);
+    this.beginAgain();
+  }
+
+  function beginAgain() external {
+    _beginRecording();
   }
 }

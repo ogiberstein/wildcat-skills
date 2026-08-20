@@ -14,6 +14,7 @@ abstract contract StateDeltaRecorder {
   Vm private constant _vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
   error RecordingNotStarted();
+  error RecordingAlreadyStarted();
 
   struct StorageWriteObs {
     address account;
@@ -36,6 +37,10 @@ abstract contract StateDeltaRecorder {
   bool private _recording;
 
   function _beginRecording() internal {
+    // A second begin while one is open would reset Foundry's state-diff buffer
+    // and silently drop everything recorded so far. Fail closed on both misuse
+    // directions, not only the missing-begin one.
+    if (_recording) revert RecordingAlreadyStarted();
     _recording = true;
     _vm.startStateDiffRecording();
   }
@@ -56,7 +61,7 @@ abstract contract StateDeltaRecorder {
     for (uint256 i; i < accesses.length; ++i) {
       Vm.AccountAccess memory a = accesses[i];
       if (a.reverted) continue;
-      if (_isExternalCall(a.kind)) ++callCount;
+      if (_reachesAccount(a.kind)) ++callCount;
       for (uint256 j; j < a.storageAccesses.length; ++j) {
         Vm.StorageAccess memory s = a.storageAccesses[j];
         if (s.isWrite && !s.reverted) ++writeCount;
@@ -73,7 +78,7 @@ abstract contract StateDeltaRecorder {
     for (uint256 i; i < accesses.length; ++i) {
       Vm.AccountAccess memory a = accesses[i];
       if (a.reverted) continue;
-      if (_isExternalCall(a.kind)) {
+      if (_reachesAccount(a.kind)) {
         delta.calls[c++] = CallObs({target: a.account, kind: a.kind, value: a.value});
       }
       for (uint256 j; j < a.storageAccesses.length; ++j) {
@@ -85,12 +90,30 @@ abstract contract StateDeltaRecorder {
     }
   }
 
-  function _isExternalCall(Vm.AccountAccessKind kind) private pure returns (bool) {
+  /// @dev Account accesses that reach another account and belong in the calls
+  ///      list: the four message-call kinds plus create and selfdestruct, both
+  ///      of which carry a target address and can move value. Leaving create
+  ///      and selfdestruct out let a hook move value invisibly by deploying
+  ///      with an endowment or sweeping its balance.
+  function _reachesAccount(Vm.AccountAccessKind kind) private pure returns (bool) {
     return
       kind == Vm.AccountAccessKind.Call ||
       kind == Vm.AccountAccessKind.StaticCall ||
       kind == Vm.AccountAccessKind.DelegateCall ||
-      kind == Vm.AccountAccessKind.CallCode;
+      kind == Vm.AccountAccessKind.CallCode ||
+      kind == Vm.AccountAccessKind.Create ||
+      kind == Vm.AccountAccessKind.SelfDestruct;
+  }
+
+  /// @dev Whether a kind moves fresh value. A delegatecall inherits the
+  ///      enclosing call's value, so summing it would double-count; a
+  ///      staticcall can move none. Create and selfdestruct do move value.
+  function _movesValue(Vm.AccountAccessKind kind) private pure returns (bool) {
+    return
+      kind == Vm.AccountAccessKind.Call ||
+      kind == Vm.AccountAccessKind.CallCode ||
+      kind == Vm.AccountAccessKind.Create ||
+      kind == Vm.AccountAccessKind.SelfDestruct;
   }
 
   /// @dev Whether the delta records any write to `account`. The gate engine
@@ -110,10 +133,12 @@ abstract contract StateDeltaRecorder {
     return false;
   }
 
-  /// @dev The total ETH value moved by the recorded calls.
+  /// @dev The total ETH value moved by the recorded accesses, counting only the
+  ///      kinds that move fresh value so an inherited delegatecall value is not
+  ///      double-counted.
   function _valueMoved(Delta memory delta) internal pure returns (uint256 total) {
     for (uint256 i; i < delta.calls.length; ++i) {
-      total += delta.calls[i].value;
+      if (_movesValue(delta.calls[i].kind)) total += delta.calls[i].value;
     }
   }
 }
