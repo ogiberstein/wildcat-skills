@@ -509,6 +509,25 @@ def cmd_init(args) -> None:
     check_branch_name(run_branch)
     if run_branch == args.base:
         die("--run-branch must differ from --base; the run needs its own branch")
+    frontier = None
+    if args.frontier:
+        ledger = args.frontier if os.path.isabs(args.frontier) else \
+            os.path.join(args.dir, args.frontier)
+        if not os.path.isfile(ledger):
+            die(f"--frontier {args.frontier} is not a file; name the target "
+                f"skill's EVOLUTION.md")
+        with open(ledger, encoding="utf-8") as fh:
+            text = fh.read()
+        if ledger_field(text, "Current version") is None:
+            die(f"--frontier {args.frontier} states no `Current version`; it "
+                f"does not look like a governed ledger")
+        frontier = {
+            "ledger": os.path.relpath(ledger, args.dir),
+            "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "rows": len(ledger_rows(text)),
+            "version_at_init": ledger_field(text, "Current version"),
+        }
+
     state = {
         "version": 1,
         "controller": "hexctl",
@@ -522,6 +541,7 @@ def cmd_init(args) -> None:
         "receipts": {},
         "config": json.loads(json.dumps(DEFAULT_CONFIG)),
         "halted": None,
+        "frontier": frontier,
     }
     commit(
         args.dir,
@@ -533,6 +553,12 @@ def cmd_init(args) -> None:
         f"initialised {root} (topic: {args.topic}); "
         f"run branch {run_branch} off {args.base}"
     )
+    if frontier is not None:
+        print(
+            f"frontier run: {frontier['ledger']} at {frontier['version_at_init']}, "
+            f"{frontier['rows']} row(s). `done integrate` refuses until it "
+            f"carries exactly one new valid row."
+        )
     stale = stale_controller(args.dir)
     if stale is not None:
         running, checked_in, path = stale
@@ -558,6 +584,121 @@ def ledger_version(evolution_md: str) -> str | None:
                     return line.split(":", 1)[1].strip().strip("`") or None
     except OSError:
         return None
+    return None
+
+
+LEDGER_ROW = re.compile(
+    r"^\| `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+    r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
+    r"\| (?P<evidence>.*?) \| (?P<change>.*?) \|$"
+)
+"""One history row. Deliberately the same shape tests/test_evolution_contract.py
+matches, so the gate and the suite cannot disagree about what a row is."""
+
+LEDGER_AXES = ("baseline", "evolution", "generation", "epoch")
+
+
+def ledger_rows(text: str) -> list[dict]:
+    return [m.groupdict() for m in
+            (LEDGER_ROW.fullmatch(line) for line in text.splitlines()) if m]
+
+
+def ledger_field(text: str, name: str) -> str | None:
+    match = re.search(rf"(?m)^- {re.escape(name)}: (.+)$", text)
+    return match.group(1).strip().strip("`") if match else None
+
+
+def ledger_frontier_digest(text: str) -> str | None:
+    """SHA-256 over the four-field canonical line, including its newline."""
+    fields = [ledger_field(text, name) for name in
+              ("Frontier status", "Frontier revision", "Current frontier",
+               "Next Fiat job")]
+    if any(f is None for f in fields):
+        return None
+    return hashlib.sha256(("|".join(fields) + "\n").encode("utf-8")).hexdigest()
+
+
+def _label_parts(label: str, skill: str) -> tuple[int, int, int] | None:
+    match = re.fullmatch(rf"{re.escape(skill)}-v(\d+)\.(\d+)\.(\d+)", label)
+    return tuple(int(g) for g in match.groups()) if match else None
+
+
+def frontier_close_fault(path: str, before: dict) -> str | None:
+    """Why this run has not closed the frontier it declared, or None.
+
+    The maturity gate says to update the ledger exactly once, and says it in
+    prose. This repository has already had to reconstruct two broken evolutions,
+    so the run proves the update instead of asserting it.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError as exc:
+        return f"the declared ledger {path} cannot be read ({exc})"
+
+    if hashlib.sha256(text.encode("utf-8")).hexdigest() == before["sha256"]:
+        return (f"{path} is byte-for-byte what it was at init; a completed "
+                f"frontier job records one new row")
+
+    rows = ledger_rows(text)
+    gained = len(rows) - before["rows"]
+    if gained != 1:
+        return (f"{path} gained {gained} history row(s); the contract allows "
+                f"exactly one per completed frontier job")
+
+    row = rows[-1]
+    skill = os.path.basename(os.path.dirname(path))
+    current = ledger_field(text, "Current version")
+    if row["version"] != current:
+        return (f"the new row is {row['version']} and the header says "
+                f"{current}; they have to be the same row")
+    if row["revision"] != ledger_field(text, "Frontier revision"):
+        return (f"the new row's revision {row['revision']!r} is not the "
+                f"header's {ledger_field(text, 'Frontier revision')!r}")
+
+    expected = ledger_frontier_digest(text)
+    if expected is None:
+        return f"{path} is missing one of the four frontier header fields"
+    if row["digest"] != expected:
+        return (f"the new row's digest does not match the frontier line it "
+                f"describes; recomputed {expected[:16]}...")
+
+    parts = _label_parts(row["version"], skill)
+    prior = rows[-2] if len(rows) > 1 else None
+    if parts is None:
+        return f"{row['version']} is not a valid label for {skill}"
+    if prior is not None:
+        before_parts = _label_parts(prior["version"], skill)
+        if before_parts is None:
+            return f"the previous row {prior['version']} is not a valid label"
+        axis, bumped = row["axis"], None
+        if axis == "evolution":
+            bumped = (before_parts[0] + 1, before_parts[1], before_parts[2])
+        elif axis == "generation":
+            bumped = (before_parts[0], before_parts[1] + 1, before_parts[2])
+            if row["revision"] != prior["revision"]:
+                return "a generation entry must retain the prior frontier revision"
+            if row["digest"] != prior["digest"]:
+                return "a generation entry must retain the prior frontier digest"
+        elif axis == "epoch":
+            bumped = (before_parts[0], before_parts[1], before_parts[2] + 1)
+            if row["digest"] != prior["digest"] and \
+                    "reopen" not in (row["evidence"] + row["change"]).lower():
+                return "an epoch entry that moves the frontier must record the reopening"
+        if bumped is not None and parts != bumped:
+            article = "an" if axis[0] in "aeiou" else "a"
+            return (f"{article} {axis} entry from {prior['version']} must be "
+                    f"{skill}-v{bumped[0]}.{bumped[1]}.{bumped[2]}, not "
+                    f"{row['version']}")
+
+    status = ledger_field(text, "Frontier status")
+    next_job = ledger_field(text, "Next Fiat job")
+    if status not in ("open", "mature"):
+        return f"frontier status {status!r} is neither open nor mature"
+    if status == "mature" and next_job != "None -- mature":
+        return "a mature frontier's next job has to be `None -- mature`"
+    if status == "open" and next_job == "None -- mature":
+        return "an open frontier cannot hold `None -- mature` as its next job"
     return None
 
 
@@ -1046,6 +1187,16 @@ def done_integrate(args, state: dict) -> None:
             "--merge-commit is required; the run is not complete until the run "
             f"branch is merged into '{state['base']}'"
         )
+    frontier = as_dict(state.get("frontier"))
+    if frontier:
+        fault = frontier_close_fault(
+            os.path.join(args.dir, frontier["ledger"]), frontier)
+        if fault:
+            die(
+                f"the frontier ledger has not been closed: {fault}. This run "
+                f"declared {frontier['ledger']} at init; update it exactly once "
+                f"per the versioning contract, or `hexctl halt` and say why not"
+            )
     expected_issue = expected_task_issue(state)
     if state["receipts"].get("task_issue") is not None and not args.closed_issue_url:
         die("--closed-issue-url is required because a task_issue receipt exists")
@@ -1322,6 +1473,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-branch",
         dest="run_branch",
         help="integration branch for the whole run (default: slug of --topic)",
+    )
+    sp.add_argument(
+        "--frontier",
+        help="EVOLUTION.md this run is meant to advance; the terminal receipt "
+             "then refuses until it carries exactly one new valid row",
     )
     sp.set_defaults(fn=cmd_init)
 

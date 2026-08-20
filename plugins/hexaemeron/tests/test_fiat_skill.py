@@ -14,6 +14,7 @@ MARKETPLACE = ROOT / "skills" / "fiat" / "references" / "wildcat-marketplace.md"
 CONTRIBUTOR_CHECK = ROOT / "skills" / "fiat" / "scripts" / "check_wildcat_contributor.py"
 PUSH_DISCIPLINE = ROOT / "skills" / "fiat" / "references" / "push-discipline.md"
 PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
+KRONOS = ROOT / "skills" / "kronos" / "SKILL.md"
 
 
 def load_contributor_check():
@@ -274,6 +275,42 @@ class PluginCurrencyTests(unittest.TestCase):
 
     def test_a_run_cannot_enforce_what_it_just_shipped(self):
         self.assertIn("cannot take effect for the very run that made it", self.flat)
+
+
+class FrontierGateContractTests(unittest.TestCase):
+    """The ledger update is owed mechanically, and both callers say so.
+
+    The maturity gate stated it in prose, and this repository has already had to
+    reconstruct two broken evolutions. Kronos ranks by held job, so an unchanged
+    ledger read as a closed one would make it rank the same job forever.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fiat = " ".join(FIAT.read_text(encoding="utf-8").split())
+        cls.fiat_raw = FIAT.read_text(encoding="utf-8")
+        cls.kronos = " ".join(KRONOS.read_text(encoding="utf-8").split())
+
+    def test_the_maturity_gate_names_the_flag(self):
+        self.assertIn("--frontier plugins/<plugin>/skills/<skill>/EVOLUTION.md",
+                      self.fiat_raw)
+        self.assertIn("Make step 4 mechanical", self.fiat_raw)
+
+    def test_what_the_gate_checks_is_written_down(self):
+        self.assertIn("exactly one new row valid under the versioning contract",
+                      self.fiat)
+        self.assertIn("Each refusal names which of those failed", self.fiat)
+
+    def test_ordinary_delivery_does_not_owe_a_row(self):
+        self.assertIn("Leave it off for ordinary delivery", self.fiat)
+
+    def test_a_recorded_stop_is_not_a_silent_finish(self):
+        self.assertIn("refuses a silent finish, not a recorded stop", self.fiat)
+
+    def test_kronos_requires_it_mechanically(self):
+        self.assertIn("hexctl init --frontier", self.kronos)
+        self.assertIn("cannot afford to take an unchanged ledger for a closed one",
+                      self.kronos)
 
 
 class ContributorCheckTests(unittest.TestCase):

@@ -197,7 +197,11 @@ class MarketplaceProseTests(unittest.TestCase):
         found = set()
         for path in ROOT.rglob("*.md"):
             relative = path.relative_to(ROOT)
-            if relative.parts[0] in {".git", ".hexaemeron"}:
+            # `.claude` holds git worktrees of this same repository, so a
+            # sweep that descends into it finds every landing README twice and
+            # reports the copies as strays. Nothing shipped lives under a dot
+            # directory here.
+            if relative.parts[0] in {".git", ".hexaemeron", ".claude"}:
                 continue
             if "**Next Fiat job.**" in path.read_text(encoding="utf-8"):
                 found.add(path)
@@ -212,7 +216,8 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertEqual(len(landing_frontiers), 1)
             expected = landing_frontiers[0]
 
-            surfaces = list((ROOT / "plugins" / name).rglob("*.md"))
+            surfaces = [path for path in (ROOT / "plugins" / name).rglob("*.md")
+                        if ".claude" not in path.parts]
             portable = ROOT / ".agents" / "skills" / name / "SKILL.md"
             if portable.is_file():
                 surfaces.append(portable)

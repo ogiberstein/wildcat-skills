@@ -1243,3 +1243,179 @@ class StaleControllerTests(unittest.TestCase):
         finally:
             import shutil
             shutil.rmtree(module_dir, ignore_errors=True)
+
+
+LEDGER_HEADER = """# Widget evolution ledger
+
+- Current version: `{version}`
+- Frontier status: `{status}`
+- Frontier revision: `{revision}`
+- Current frontier: {frontier}
+- Next Fiat job: {job}
+
+## History
+
+| Version | Axis | Frontier revision | Frontier SHA-256 | Evidence | Change |
+| --- | --- | --- | --- | --- | --- |
+"""
+
+
+def widget_ledger(path, rows, *, version, status="open", revision="held-thing",
+                  frontier="The widget does not do the thing.",
+                  job="Make the widget do the thing."):
+    """A governed ledger with the header and rows a caller dictates."""
+    text = LEDGER_HEADER.format(version=version, status=status, revision=revision,
+                                frontier=frontier, job=job) + "".join(rows)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    return text
+
+
+def frontier_digest(status, revision, frontier, job):
+    return hashlib.sha256(
+        ("|".join((status, revision, frontier, job)) + "\n").encode("utf-8")
+    ).hexdigest()
+
+
+def row(version, axis, revision, digest, change="Did the thing."):
+    return f"| `{version}` | {axis} | `{revision}` | `{digest}` | [e](f) | {change} |\n"
+
+
+class FrontierGateTests(unittest.TestCase):
+    """A frontier run proves its ledger update instead of asserting it.
+
+    The maturity gate says to update the ledger exactly once per completed
+    frontier job, in prose. This repository has already had to reconstruct two
+    broken evolutions, so the terminal receipt now refuses until the ledger
+    carries exactly one new row valid under the versioning contract.
+    """
+
+    HELD = ("open", "held-thing", "The widget does not do the thing.",
+            "Make the widget do the thing.")
+    NEXT = ("open", "new-thing", "The widget does the thing; the next is undone.",
+            "Make the widget do the next thing.")
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.ledger = os.path.join(
+            self.dir, "plugins", "demo", "skills", "widget", "EVOLUTION.md")
+        self.base_digest = frontier_digest(*self.HELD)
+        self.base_row = row("widget-v1.1.0", "baseline", self.HELD[1],
+                            self.base_digest, "Versioning starts here.")
+        widget_ledger(self.ledger, [self.base_row], version="widget-v1.1.0",
+                      status=self.HELD[0], revision=self.HELD[1],
+                      frontier=self.HELD[2], job=self.HELD[3])
+        self.before = {
+            "ledger": os.path.relpath(self.ledger, self.dir),
+            "sha256": hashlib.sha256(
+                open(self.ledger, "rb").read()).hexdigest(),
+            "rows": 1,
+        }
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def fault(self):
+        return hexctl_module().frontier_close_fault(self.ledger, self.before)
+
+    def close_with(self, version, axis, header=None, digest=None, extra=()):
+        header = header or self.NEXT
+        widget_ledger(
+            self.ledger,
+            [self.base_row, row(version, axis, header[1],
+                                digest or frontier_digest(*header)), *extra],
+            version=version, status=header[0], revision=header[1],
+            frontier=header[2], job=header[3])
+
+    def test_an_untouched_ledger_is_refused(self):
+        self.assertIn("byte-for-byte what it was at init", self.fault())
+
+    def test_a_correct_evolution_row_closes(self):
+        self.close_with("widget-v2.1.0", "evolution")
+        self.assertIsNone(self.fault())
+
+    def test_a_wrong_digest_is_refused(self):
+        self.close_with("widget-v2.1.0", "evolution", digest="0" * 64)
+        self.assertIn("digest does not match", self.fault())
+
+    def test_wrong_axis_arithmetic_is_refused(self):
+        self.close_with("widget-v9.1.0", "evolution")
+        self.assertIn("must be widget-v2.1.0", self.fault())
+
+    def test_two_new_rows_are_refused(self):
+        self.close_with("widget-v2.1.0", "evolution",
+                        extra=[row("widget-v3.1.0", "evolution", self.NEXT[1],
+                                   frontier_digest(*self.NEXT))])
+        self.assertIn("gained 2 history row(s)", self.fault())
+
+    def test_a_generation_must_hold_the_frontier(self):
+        # Same axis arithmetic, but the revision moved, which a generation may
+        # not do: the held target has to survive it byte for byte.
+        self.close_with("widget-v1.2.0", "generation")
+        self.assertIn("retain the prior frontier revision", self.fault())
+
+    def test_a_generation_holding_the_frontier_closes(self):
+        self.close_with("widget-v1.2.0", "generation", header=self.HELD)
+        self.assertIsNone(self.fault())
+
+    def test_a_header_row_mismatch_is_refused(self):
+        widget_ledger(
+            self.ledger,
+            [self.base_row, row("widget-v2.1.0", "evolution", self.NEXT[1],
+                                frontier_digest(*self.NEXT))],
+            version="widget-v7.7.7", status=self.NEXT[0], revision=self.NEXT[1],
+            frontier=self.NEXT[2], job=self.NEXT[3])
+        self.assertIn("they have to be the same row", self.fault())
+
+    def test_a_mature_frontier_needs_no_next_job(self):
+        mature = ("mature", "new-thing", "Nothing evidenced remains.",
+                  "Make the widget do the next thing.")
+        self.close_with("widget-v2.1.0", "evolution", header=mature)
+        self.assertIn("`None -- mature`", self.fault())
+
+    def test_a_mature_frontier_with_none_closes(self):
+        mature = ("mature", "new-thing", "Nothing evidenced remains.",
+                  "None -- mature")
+        self.close_with("widget-v2.1.0", "evolution", header=mature)
+        self.assertIsNone(self.fault())
+
+    def test_an_unreadable_ledger_is_reported_not_raised(self):
+        os.remove(self.ledger)
+        self.assertIn("cannot be read", self.fault())
+
+    def test_init_refuses_a_frontier_that_is_not_a_ledger(self):
+        plain = os.path.join(self.dir, "notes.md")
+        with open(plain, "w", encoding="utf-8") as fh:
+            fh.write("# notes\n\nno version line\n")
+        done = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "t",
+             "--base", "main", "--frontier", "notes.md"],
+            capture_output=True, text=True)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("states no `Current version`", done.stderr)
+
+    def test_init_without_frontier_records_none(self):
+        done = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "t",
+             "--base", "main"], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("frontier run:", done.stdout)
+        with open(os.path.join(self.dir, ".hexaemeron", "state.json"),
+                  encoding="utf-8") as fh:
+            self.assertIsNone(json.load(fh)["frontier"])
+
+    def test_init_in_frontier_mode_records_and_announces(self):
+        done = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "t",
+             "--base", "main", "--frontier", self.before["ledger"]],
+            capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("frontier run:", done.stdout)
+        self.assertIn("widget-v1.1.0", done.stdout)
+        with open(os.path.join(self.dir, ".hexaemeron", "state.json"),
+                  encoding="utf-8") as fh:
+            held = json.load(fh)["frontier"]
+        self.assertEqual(held["rows"], 1)
+        self.assertEqual(held["sha256"], self.before["sha256"])
