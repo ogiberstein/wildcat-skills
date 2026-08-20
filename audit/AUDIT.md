@@ -5627,3 +5627,20 @@ network policy); both fail identically on base `b26181b`, so they are
 environmental rather than introduced.
 
 Leads not pursued: none
+
+## Protasis audit-record source, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The diff was reviewed against the risk register's three
+concerns. Item 2's wording names the audit file exactly as the audit loop
+defines it (`config audit.log_path`, default `audit/AUDIT.md`). The
+checklist line asks for what item 2 states and nothing more, including the
+plain statement where there was nothing to read. The ledger row holds the
+generation arithmetic, revision and digest, proved by the evolution suite.
+Phylax, ephoros, hypomnema and the protasis runbook check all exit 0.
+Root suite 104/104; hexaemeron suite 470/472 with the same two
+environmental failures recorded for step 1.
+
+Leads not pursued: none
