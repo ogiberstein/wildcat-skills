@@ -1,13 +1,504 @@
 {
   "counts": {
     "bytes_binary": 17,
-    "bytes_generated": 113986,
+    "bytes_content_addressed": 7844971,
+    "bytes_generated": 121632,
     "bytes_lockfile": 54,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1016
+    "files_walked": 1135
   },
   "entries": [
+    {
+      "bytes": 3795,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/02/021d7f39046e1f06a67e96d8588a0a8888e990fe02af8b0115a50ddf420174f6"
+    },
+    {
+      "bytes": 87,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/02/025db8cc43f2ffe88fb5dd6ce4b02998e40fa3e15b9fb25e998fa4fdf51e5206"
+    },
+    {
+      "bytes": 140,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/0a/0a45a4a0ce15a0acf1e65258bfb2a68cd6dda831fb67e31a7ddfe5b0c4e933d2"
+    },
+    {
+      "bytes": 232,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/13/13a1338f5dda836240844115a1dc6a0fb99c9f007c9d394087b41f1fc8202375"
+    },
+    {
+      "bytes": 143,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/15/156cf3be518ccf658f5d5c8eb7a52617b634df9d854163aecb4327f9ed4b37e3"
+    },
+    {
+      "bytes": 39,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/15/15965c3ceb81367a585925b74d1f20e2c4e9fc4ef17971a93c40412c29e24a1b"
+    },
+    {
+      "bytes": 36681,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/16/161c368768c75d84de8d61e8d1e4d6665ae26420e361dbd997f15ed4b7947b55"
+    },
+    {
+      "bytes": 216,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/17/17bc2fc38c8d445a425bc2c7c9e6ddbc671b18762646a480619c86d6e64b9bdb"
+    },
+    {
+      "bytes": 37485,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/1d/1dc095c08f94cd276881f7e205c970ef3f736da7564a30acf793fa8c62393d5a"
+    },
+    {
+      "bytes": 85,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/24/24a7bc00b5b35f824b6e22998532f070e815f34d6d90e4b91c7c501d6a9599fe"
+    },
+    {
+      "bytes": 15469,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/25/25432f8ff44abe1296765a6e17bcfa64aac789fc209e7ada21f59922292a3090"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/26/26a292b72a2bd2bc109b108caf826f8869c04a38fcf8bc2fe9a41747b304012f"
+    },
+    {
+      "bytes": 168,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/26/26c9322d6dacbbe6e6e3af5deff3095fa7032d36a6a88850ef5dc258a23ef3fc"
+    },
+    {
+      "bytes": 2301,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/28/28825ee92d6b91d0f3d3bbfbf6d8b39f2761f464722bffe629288f7efd69e6f8"
+    },
+    {
+      "bytes": 2932,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/29/29bbccf393fd542cec8dd0bed012c35d5e7b66da54610875a128909e3e889a1b"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/2c/2c198760eb4fb09e595b438027ad5637a53e0750d2c694a43de8744ac243e028"
+    },
+    {
+      "bytes": 60,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/2e/2e25e0865046707b0f354a3beafa087ccdf3c1bd577527fad0705ef334bcfa6d"
+    },
+    {
+      "bytes": 18567,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/2f/2f4ece5352ee5d130142e9e1d6bc145f32b283779222fcd5c36844bf7dbaec17"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/33/33c46a7e700aa45935d9e31636d0db2d1885a3efae4f42990db61acb5320c314"
+    },
+    {
+      "bytes": 201,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/38/3899ab7f371f022337568b7f3fdcf4b259ea90e451cab4b04ae08e1d0acff690"
+    },
+    {
+      "bytes": 60,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/3c/3cd534fe78e6a4adfef6e9126416c7acc4664873e8652f553305ee5bd4913ea6"
+    },
+    {
+      "bytes": 135,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/3d/3d8991f7db10ae48dc35a7fed88b34339319bd02bdef2c7bd1abe7eeb20bcaf3"
+    },
+    {
+      "bytes": 28233,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/3e/3eff07d0c032d8ab1b614d5ee7691b77e198daa31fa824c739ee7056340b848e"
+    },
+    {
+      "bytes": 4210,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/40/4080103db97ec31474693ce4c0b9e0722079239eb414ca071761a2c3aedf9ca8"
+    },
+    {
+      "bytes": 117,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/49/49d1a391cd61cf9ef9bb6fb2b64a2e51cff177d11864660ae299ac926712ee41"
+    },
+    {
+      "bytes": 3644,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/4d/4d0bb65d235740ad75336159c82eda794c9128896ecbf519cf2281c84da644c0"
+    },
+    {
+      "bytes": 142,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/53/53d0f23ff25beb224d899a4992e702311d970ea850445eba432a55103be36997"
+    },
+    {
+      "bytes": 141,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/5d/5dbcbeb2a51666554840532dcbd58bab6c969a910dbbd39c826136504f79e8dd"
+    },
+    {
+      "bytes": 232,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/65/65b6875da82d4afa86e2bb86c8b9145b0d26bf10b7d0eb52a3cb2f3d1168346a"
+    },
+    {
+      "bytes": 2003,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/68/689cf0e940bfdc440eba854201d8ed738be5a442802ee5723a05a4b2d16f6c57"
+    },
+    {
+      "bytes": 165,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/69/69222c088789e8c71f5bf7a296c4b0b44d1c59d84c4891fe8ba1202d21ffcc86"
+    },
+    {
+      "bytes": 3795,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/6a/6ad30a7b21516a12f4eb1387aac14a3a565ee0cf5b7075d4fa0389cfc5c36f54"
+    },
+    {
+      "bytes": 1100695,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/6f/6fe9baa091cfe659e7f3901cab27621926d4e3167fdccac95263b3536da56646"
+    },
+    {
+      "bytes": 128,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/70/70b1c2c1a3f5ec813210fc76355a61c628c7b642fc4501feb5f40fa0d09259bc"
+    },
+    {
+      "bytes": 1422,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/74/741b9578962b480a2d806f7e543f514094cb36ee13df7b93e3ec7df8b2e1cc23"
+    },
+    {
+      "bytes": 116,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/77/776c2e5cb7444dc09dd0d51f9e4c47eeecba5f0ac06bb881a755e4873fd2f5b8"
+    },
+    {
+      "bytes": 86,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/80/80c844198cecb1ba3bf1df642670774a67cf106f1549c1b6f508c9824f3e4648"
+    },
+    {
+      "bytes": 142,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/83/8336d8d0322acf9cfab90d185189663056d56c5d7dc4ca8da073840d4cfecd28"
+    },
+    {
+      "bytes": 216,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/85/858382d85d4de11a1b9ff243ca9dc68524b3cf160e0477f0189d706c8e390524"
+    },
+    {
+      "bytes": 3953,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/85/858c966442ab093fb860dbc48e707526b5daae1730f41e4cc24f0ca01886319d"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/85/85983d3a338f9284f1d6e16353878926400a8a18f624089fbf789f556c6c52ef"
+    },
+    {
+      "bytes": 21905,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/89/893f3645e1e1b11be0d08888af64229dda8046322d8146f58d700d02747a50c9"
+    },
+    {
+      "bytes": 141,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/94/9457035d247063968531335242e0b3c3dc2bc1ede2fb1adbde8a718da39d617a"
+    },
+    {
+      "bytes": 191,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/95/9574b28edc65076bbe42860c496a7f72071e0a56008dc9cf254041494ea03ac6"
+    },
+    {
+      "bytes": 6452358,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/96/9658c3ec9a9befdfa3c05b1c835fb01b932363a1a7818ee69f49e9341f6e44c4"
+    },
+    {
+      "bytes": 1065,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/a5/a5cac0e8a8f90c48aa3584674f80257664a21540e4bdb1331a650b91e9e91ad9"
+    },
+    {
+      "bytes": 135,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/a8/a88da3202224571a5bba97f65e41b561c2177e502038f6deaa9ac8070796287c"
+    },
+    {
+      "bytes": 191,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/a9/a9244d1f0ced09175f3bb4bd5d7859ee280ec12f68a0b38870c36578e55efb89"
+    },
+    {
+      "bytes": 783,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/b4/b400536ac0ea3e44c8337046c751d9dfa4f2bc5714d6d3e7bb9cd3bdfa291d91"
+    },
+    {
+      "bytes": 10224,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/b6/b610007a689c839f236dba03a7cdef0ba19115d3a6652954306bef18c2fead13"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/bb/bbe7f7ccd892169f6ee97a8bf8cf2f75b5f85361e1d30839eaf56d05061b73e4"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c0/c069c919d12b3eef1c102ae22e963cf5fcc73534613f73e6f1d40a36f345d24a"
+    },
+    {
+      "bytes": 1365,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c0/c08703199b5ac9d03b3f893f35079cdcd8798b21029f81265c4dca790c58f0e2"
+    },
+    {
+      "bytes": 17874,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c3/c3925c14f3ca31d7fed79b75a841401ae1241fea9236c62edf6616f0b0a59d94"
+    },
+    {
+      "bytes": 4249,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c3/c3e0f3631d2e1762f49561a255b6ff5793447aac00490813f83536a5e6623291"
+    },
+    {
+      "bytes": 1926,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c4/c4a8b746a0389f75202ab071eb874774fef276087f6666823c9b07ef91741f51"
+    },
+    {
+      "bytes": 127,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c7/c7060824f835535f5117c1db447e2822f7044007a4f35c94e7c77c60e99287db"
+    },
+    {
+      "bytes": 117,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/c7/c732e58bf47c033a1dd3e1ce85b871a341c2f45d42056cea5a2462dafcfc6c2a"
+    },
+    {
+      "bytes": 103,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/ca/cadb351513971dea65173213bd17bcd29b6b6fa024f935a7120527b7eec2b595"
+    },
+    {
+      "bytes": 167,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/ce/ce5602da3dcde3f744a1ebadb54b034fee2b1435a451ecb6ec36a7046f5b0a36"
+    },
+    {
+      "bytes": 81,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/d3/d30c3e23a5b5079775c4edad8a520183b9938fd15c0d7dd26a5f009520e0bccb"
+    },
+    {
+      "bytes": 116,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/d8/d8893a84224a2db694537a9e557bd7a95ad17587c5baf3ffb7c91dbd70621acd"
+    },
+    {
+      "bytes": 201,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/e0/e00775315aa03831e88d05cd0a9178cd2cc35860d4fa5d19f316317ee501d65f"
+    },
+    {
+      "bytes": 190,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/e4/e49312c69b70ce0f7e203eeccfd85d1f02e718f008d4c01ea070b22fbd6f74d7"
+    },
+    {
+      "bytes": 1534,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/f5/f594b4ac165e7089332430b530cc1db56dc8cfc806a9919647dd0fe66108500c"
+    },
+    {
+      "bytes": 67,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/fa/fae6d53686abda2cfc5ed5156d7a69c31cfa0e9dbdcae0d367912be46d5644e8"
+    },
+    {
+      "bytes": 37237,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/fb/fb7ba74282e1d0b353322515c8378b437b8ac28cb7a839cf56998c4085e6695a"
+    },
+    {
+      "bytes": 5530,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/fd/fdafb894bc212bc23133ddf80a8ad11384332e2ac6fba871c251a8a082fe0880"
+    },
+    {
+      "bytes": 16281,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/fe/fe52855046a956f74756a5c5710889558d17335b12c7031199a79f37cf090ed0"
+    },
+    {
+      "bytes": 1865,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/alexandria/examples/compound-v3-phase0-v0/release/objects/sha256/ff/ff544298cc52691fb55e78265bb9f64c492dd41a9938788e6e4e28acf438407f"
+    },
     {
       "bytes": 20086,
       "category": "generated",
@@ -91,6 +582,20 @@
       "path": "plugins/horos/examples/fixture/node_modules/"
     },
     {
+      "bytes": 49,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/horos/examples/fixture/store/blobs/sha256/3e02003799bc454870aca53af1adccdf0c695a00528998235c47d4ba0d006f89"
+    },
+    {
+      "bytes": 45,
+      "category": "content_addressed",
+      "evidence": "sha256 digest of the file's own bytes equals its name",
+      "grade": "hard",
+      "path": "plugins/horos/examples/fixture/store/objects/sha256/7d/7d2aa7ee1155c6102a2dbb74ff9efa27115cec234f2ea4555a0d3a92663d7e82"
+    },
+    {
       "bytes": 54,
       "category": "lockfile",
       "evidence": "lockfile name yarn.lock",
@@ -98,26 +603,18 @@
       "path": "plugins/horos/examples/fixture/yarn.lock"
     },
     {
-      "bytes": 30024,
+      "bytes": 33328,
       "category": "generated",
       "evidence": "marker 'do not edit' in the first 4096 bytes",
       "grade": "hard",
       "path": "plugins/horos/skills/horos/scripts/horos.py"
     },
     {
-      "bytes": 12649,
+      "bytes": 16991,
       "category": "generated",
       "evidence": "marker 'do not edit' in the first 4096 bytes",
       "grade": "hard",
       "path": "plugins/horos/tests/test_classify.py"
-    },
-    {
-      "bytes": 0,
-      "category": "generated",
-      "evidence": "directory name out corroborated by sample: 8 of 8 files minified, binary or generated",
-      "files": 0,
-      "grade": "hard",
-      "path": "plugins/pandects/out/"
     }
   ],
   "schema": 2,

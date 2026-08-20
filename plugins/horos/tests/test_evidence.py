@@ -25,7 +25,11 @@ RESULTS_7 = EVIDENCE / "v2-protocol-outline.results.json"
 BUNDLE_8 = EVIDENCE / "three-repository-marking.md"
 MARKING_V2P = EVIDENCE / "v2-protocol.boundary.json"
 MARKING_APP = EVIDENCE / "wildcat-app-v2.boundary.v2.json"
-MARKING_SKILLS = PLUGIN.parents[1] / ".horos" / "boundary.json"
+# Frozen beside the other two marked repositories. Reading this repository's
+# live boundary instead would make the recorded capture drift with the tree, so
+# a later rule class would either fail this test or force the bundle's figures
+# to be rewritten into a claim the marking run never made.
+MARKING_SKILLS = EVIDENCE / "skills.boundary.json"
 
 
 def capture_lines(bundle=BUNDLE, tag="evidence"):
