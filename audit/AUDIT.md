@@ -4557,3 +4557,35 @@ suite 34 and berean suite 143 green.
 | -- | -- | -- | No findings. | clean |
 
 Leads not pursued: none.
+
+## Berean from its Commons specification, step 6, round 1 -- 2026-08-20
+
+Scope: `23fcb9a..bdac6a4`, the reference release and the demonstration.
+The suite waiver stands; phylax, ephoros and hypomnema exit 0, root suite
+34 and berean suite 150 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| B6-R1-01 | note | `plugins/berean/docs/runbook.md` | The runbook's step 6 file list put the README and demo inside the release directory, which the components gate refuses by design; the layout landed with the release under `release/` and the copy did not yet record the correction. | fixed in `07772a9` |
+
+The look held the reference release to the register: the copied reads are
+byte-identical to the Lazarus fixture and the drift test proves it; the
+corpus documents state that they are demonstration prose and make no claim
+about the live protocol beyond the preserved evidence; the corpus files
+carry no rolling marketplace prose, so a frontier refresh cannot move
+pinned bytes; the rebuild is deterministic and compared byte for byte; and
+the demo's three tamper stages name their refusing gates.
+
+Leads not pursued: none.
+
+## Berean from its Commons specification, step 6, round 2 -- 2026-08-20
+
+Scope: the step 6 tree with `07772a9` applied. The corrected runbook copy
+re-read against the layout on disk; nothing new surfaced. Lints exit 0;
+root suite 34 and berean suite 150 green; the demo exits 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.

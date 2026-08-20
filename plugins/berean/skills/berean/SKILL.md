@@ -118,15 +118,15 @@ python3 scripts/berean.py check-citation quote.json --corpus corpus-manifest.jso
 Verify the shipped reference release and its evaluation record offline:
 
 ```text
-python3 scripts/berean.py verify-release examples/goldfinch-demo-v0
-python3 scripts/berean.py run-evals examples/goldfinch-demo-v0
+python3 scripts/berean.py verify-release examples/goldfinch-demo-v0/release
+python3 scripts/berean.py run-evals examples/goldfinch-demo-v0/release
 ```
 
 Export the evaluation cases for an external runner in the Agent Skills case
 shape:
 
 ```text
-python3 scripts/berean.py export-cases examples/goldfinch-demo-v0 --out cases.json
+python3 scripts/berean.py export-cases examples/goldfinch-demo-v0/release --out cases.json
 ```
 
 ## What this skill must refuse
