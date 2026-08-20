@@ -4,6 +4,15 @@
 > **Marketplace context: Sapheneia.** Sapheneia shapes the agent's own interaction with an AuDHD reader: the action, meaning, working state and evidence stay visible from turn to turn. Use Imprimatur to inspect prose for banned machine-writing patterns, and use Vulgate or another voice mask to change register. Sapheneia governs interaction shape; it does not diagnose the reader or choose a house voice. **Current frontier:** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
 <!-- marketplace-context:end -->
 
+## Promise Machine binding
+
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
 Sapheneia contains one Agent Skill. Read `skills/sapheneia/SKILL.md` in full
 before applying it.
 

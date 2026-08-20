@@ -5,6 +5,10 @@ Step 1 commits the specification. Step 10 runs the study's demo path and the
 supported-host demonstrations. Every step is one pull request, starts from the
 previous green exit and changes one reviewable boundary.
 
+Step 1 landed before this implementation run in PR #283 at `d577b88`. The
+controller preserves it as reviewed history and executes Steps 2 through 10 as
+nine stacked implementation steps.
+
 ## Step 1: Commit the specification
 
 **Goal.** Put the complete study and runbook in the repository before any
@@ -20,7 +24,7 @@ failure through Elenchus and establish a new green `main` entry ref before
 
 **Exit.** Both documents are committed, Protasis `2.2.0` accepts the runbook,
 Imprimatur accepts both documents and the 38-test root baseline remains green.
-The step record says that PRs #270, #279, #281 and #282 were read and carries
+The step record says that PRs #270, #279, #281, #282 and #283 were read and carries
 forward the Berean, Janus and mirror limits named in the study. Berean's
 complete 151-test suite, Janus's 14 Python tests and Janus's 24 Foundry tests
 also pass from the recorded entry ref.

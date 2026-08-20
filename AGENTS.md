@@ -5,6 +5,18 @@ because its files are present in context. Match the user's request against the
 portable entries under `.agents/skills/`, load the selected entry, and follow
 the canonical `SKILL.md` it names.
 
+## Promise Machine contract
+
+Before selecting or running a skill, read the suite-wide
+[Promise Machine contract](PROMISE_MACHINE.md). Its identity is
+`promise-machine/v1`. Each result authorises only the transition declared by
+its canonical skill; missing, stale or insufficient evidence blocks that
+dependent transition while leaving inspection, repair, rerun and safe exit
+available.
+
+The root law is authored once. Plugin-local `PROMISE_MACHINE.md` files are
+generated installation copies and must remain byte-identical to it.
+
 ## Marketplace boundaries
 
 The fourteen plugins form one marketplace, not fourteen competing descriptions

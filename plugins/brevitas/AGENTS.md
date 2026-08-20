@@ -1,11 +1,24 @@
-Brevitas runtime contract
+# Brevitas runtime contract
 
 <!-- marketplace-context:start -->
 > **Marketplace context: Brevitas.** Brevitas enforces mechanical volume and structure budgets on engineering review prose while preserving evidence. Use Imprimatur for banned vocabulary, Vulgate for register, and Sapheneia for AuDHD interaction shape. Brevitas does not own any of those jobs. **Current frontier:** The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked.
 <!-- marketplace-context:end -->
 
+## Promise Machine binding
+
+Before selecting or running a skill, read the local
+[Promise Machine contract](PROMISE_MACHINE.md). This `promise-machine/v1`
+file is a generated installation copy of the suite law. A result authorises
+only the transition its canonical skill declares; missing, stale or
+insufficient evidence blocks that dependent transition while leaving recovery
+available.
+
+## Skill boundary
+
 Brevitas contains one Agent Skill. Read `skills/brevitas/SKILL.md` in full
 before applying it. The canonical skill is the only behaviour contract.
+
+## Invocation and checks
 
 - Apply Brevitas to the agent's substantive chat answer and to engineering prose written to disk.
 - Run it after Imprimatur, Vulgate, or another word-choice or register pass.

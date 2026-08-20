@@ -5100,3 +5100,47 @@ so this plugin's 212 tests run locally and in no gate; `lazarus.yml` and
 `pandects.yml` cover `tests/**`, which is why step 3 drew checks and steps 2
 and 4 drew none. Adding `horos.yml` is an ask-first change under this run's
 boundaries and is recorded on pull requests 256 and 261 rather than made here.
+
+## Promise Machine, step 1, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite was waived because this step changes Markdown policy,
+runtime contracts and a standard-library Python checker. Phylax, Ephoros and
+Hypomnema each exited 0 against the changed tree. The manual review covered the
+law identity and field schema, fixed copy destinations, bounded reads, path and
+symlink confinement, atomic replacement, empty discovery, component selection,
+JSON/text finding parity and the generated-copy decision record.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | high | `scripts/promise_machine.py` | `check --only copies` removed a missing-law finding and returned success without an authored source to compare | fixed and guarded on the audit branch |
+| S1-R1-02 | medium | `scripts/promise_machine.py` | `check --only law` still ran plugin discovery and could fail on an unrelated empty plugin tree | fixed and guarded on the audit branch |
+| S1-R1-03 | high | `audit/AUDIT.md` | The first audit-log write replaced the shared historical ledger instead of appending this round | parent bytes restored before receipt; this section is appended |
+
+### Leads not pursued
+
+Replacement of a plugin directory by another local process
+between discovery and atomic rename. The command operates in the caller-owned
+checkout under the caller's filesystem permissions, writes fixed destinations
+and claims no hostile multi-user synchronisation boundary.
+
+## Promise Machine, step 1, round 2 -- 2026-08-20
+
+### Review scope
+
+The fixed non-Solidity tree has no open finding. The root law and 14 copies
+match, the missing-source copy check refuses with `PM001`, and law-only checking
+does not depend on a plugin tree. The 11 focused Promise Machine tests and all
+49 root tests pass. Phylax, Ephoros and Hypomnema each exit 0.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The local directory-replacement race recorded in round 1, under the same
+caller-owned-checkout boundary.

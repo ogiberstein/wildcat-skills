@@ -2,7 +2,7 @@
   "counts": {
     "bytes_asset": 138,
     "bytes_binary": 11,
-    "bytes_blob": 9301111,
+    "bytes_blob": 9379286,
     "bytes_generated": 98
   },
   "entries": [
@@ -89,6 +89,13 @@
       "evidence": "no newline in the first 4096 bytes of 28233 bytes",
       "grade": "candidate",
       "path": "plugins/alexandria/examples/compound-v3-phase0-v0/source/registry.json"
+    },
+    {
+      "bytes": 78175,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "plugins/berean/examples/goldfinch-demo-v0/release/reads.jsonl"
     },
     {
       "bytes": 38122,
