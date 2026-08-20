@@ -5435,3 +5435,29 @@ parity and its labelled evidence is `inferred`, not `recorded` or `proved`.
 Labelled cases describe expected decisions and do not establish that a future
 model will follow them. The coverage rows name `not-run` wherever no model,
 campaign, conversion, sync, pre-audit or audit was executed.
+
+## Promise Machine, step 7, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected gate derives every accepted evidence class from the owning
+canonical declaration, requires explicit classes for prompt and vendored
+references, and confines evaluation corpora to resolving repository-relative
+paths. All 16 selected rows retain model, prompt, corpus and disposition
+records with status limited to `recorded` or `unknown`.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+All 17 focused coverage checks, 21 Brevitas tests, 60 Imprimatur checks, nine
+Sapheneia tests, 474 Hexaemeron tests and 97 root tests pass. The Phylax,
+Ephoros, Hypomnema and Horos gates are clean. The five vendored instruction
+files remain unchanged.
+
+### Leads not pursued
+
+The forward-testing and no-execution limits recorded in round 1 remain
+unchanged.
