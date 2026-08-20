@@ -3877,7 +3877,7 @@ have exposed rather than re-reading it.
 
 | id | severity | file | finding | status |
 | --- | --- | --- | --- | --- |
-| S3-R2-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | The last tracked step's body ran to the next non-step heading, so where the cap had dropped steps their fields sat inside that span and donated themselves upward. A broken step at the cap boundary passed while missing five of six fields. | fixed in 3f7c8d1 |
+| S3-R2-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | The last tracked step's body ran to the next non-step heading, so where the cap had dropped steps their fields sat inside that span and donated themselves upward. A broken step at the cap boundary passed while missing five of six fields. | fixed in 6a8bca8 |
 
 The three bundled lints ran against the changed tree and each exited 0:
 `phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 333/333.
