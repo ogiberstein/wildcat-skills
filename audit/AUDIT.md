@@ -4392,3 +4392,31 @@ its `P` and stayed out of selection, the pass rendered as `(rank-only)`, and
 than a failure.
 
 Leads not pursued: none.
+
+## Berean from its Commons specification, step 1, round 1 -- 2026-08-20
+
+Scope: `496f7a1..fe36843`, the plugin scaffold and its marketplace landing.
+The Solidity suite is waived for this run: the delivery is Python, JSON and
+Markdown with no contracts in any step. The mechanical part ran phylax,
+ephoros and hypomnema over the changed trees, all exit 0, with the root
+suite (34, at 13 plugins) and the berean suite (5) green on the tracked
+tree, which also puts every new shipped document through the in-process
+imprimatur gate.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The look beyond the lints checked the risk register's step 1 concerns: the
+frontier sentence is byte-identical across the eight berean surfaces and the
+root status row; the ledger digest reproduces from the header fields; the
+three manifests and the openai interface carry one description; the portable
+entry's links resolve at their depth; the Commons section moves berean from
+the remaining list without rewording the janus entry; and the preserved
+specification differs from the upload only in its header block, which
+`docs/design.md` records verbatim.
+
+Leads not pursued: brevitas B011 flags the runtime contract's selection and
+capability tables (1x3 and 5x2); the shipped template in every existing
+plugin carries the same shapes and the same flags, so the tables stay with
+the house form. Nothing else.
