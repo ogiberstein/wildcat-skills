@@ -7,9 +7,9 @@ Lazarus captures the finite fixed-block Ethereum state and RPC evidence an appli
 
 **Try something else when.** Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence.
 
-**Current frontier.** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
+**Current frontier.** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 
-**Next Fiat job.** Use /hexaemeron:fiat to bind a Lazarus fixture through an Ariadne state-fixture predicate in the first end-to-end Goldfinch preservation release without upgrading recorded RPC evidence into proof-backed state. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to prove the fixture's recorded transaction receipt and its logs against the captured header's receiptsRoot, so receipt evidence stops resting on the provider's word, and carry the resulting evidence class through the manifest, the verifier, the release and the Ariadne state-fixture predicate without moving any other recorded RPC response into a proved class. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 Lazarus preserves the finite part of historical Ethereum state and RPC
@@ -17,6 +17,11 @@ evidence that one application test needs. A fixture binds an explicit capture
 plan, a fixed block header, exact JSON-RPC records and EIP-1186 account and
 storage proofs into deterministic files. Replay answers only requests present
 in that fixture and fails closed on a miss.
+
+A preservation release goes one step further: the fixture, a statement somebody
+else wrote about it, and a document binding the two, written only if the fixture
+verifies and the statement survives being held to what that verification
+recomputed. See [docs/preservation-release.md](docs/preservation-release.md).
 
 The current build implements finite capture and offline verification for the
 versioned plan, header, RPC record, proof record and manifest formats. It

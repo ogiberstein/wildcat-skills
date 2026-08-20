@@ -13,19 +13,33 @@ class ScaffoldTests(unittest.TestCase):
         codex = support.load_json(".codex-plugin/plugin.json")
         for manifest in (claude, codex):
             self.assertEqual(manifest["name"], "lazarus")
-            self.assertEqual(manifest["version"], "0.1.0")
             self.assertEqual(manifest["skills"], "./skills/")
+        self.assertEqual(claude["version"], codex["version"])
         self.assertEqual(claude["description"], codex["description"])
         self.assertEqual(claude["license"], "MIT")
 
-    def test_versions_agree_across_package_skill_and_manifests(self):
-        versions = {
-            __version__,
-            support.skill_version(),
-            support.load_json(".claude-plugin/plugin.json")["version"],
-            support.load_json(".codex-plugin/plugin.json")["version"],
-        }
-        self.assertEqual(versions, {"0.1.0"})
+    def test_the_host_manifests_follow_the_skill_and_not_the_writer(self):
+        """Two axes, kept apart on purpose.
+
+        The host manifests carry the skill's version, which moves when the
+        frontier advances. `__version__` is what Lazarus stamps into a manifest
+        as `tool_version`, so moving it rewrites the provenance of every fixture
+        already captured. They were one number until the skill's first evolution
+        advance, and that advance is what showed they are not one thing.
+        """
+        skill = support.skill_version()
+        for host in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+            with self.subTest(host=host):
+                self.assertEqual(support.load_json(host)["version"], skill)
+
+    def test_the_writer_version_is_the_one_the_fixture_records(self):
+        """Pinned to the artefact it appears in rather than to a literal, so a
+        bump that would invalidate the checked-in fixture's provenance fails
+        here rather than in the demonstration."""
+        manifest = support.load_json("examples/goldfinch-v0/manifest.json")
+        self.assertEqual(manifest["tool_version"], __version__)
+        release = support.load_json("examples/goldfinch-v0-release/release.json")
+        self.assertEqual(release["tool_version"], __version__)
 
     def test_skill_is_canonical_and_has_no_readme_shadow(self):
         self.assertTrue(support.SKILL.is_file())

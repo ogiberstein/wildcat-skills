@@ -7,7 +7,7 @@ description: >
   proof-checked fixture with a fail-closed local replay boundary. Never use it
   to describe receipts, logs, calls or traces as state-proof-backed evidence.
 metadata:
-  version: "0.1.0"
+  version: "1.1.0"
 ---
 
 # Lazarus
@@ -26,7 +26,7 @@ Lazarus captures the finite fixed-block Ethereum state and RPC evidence an appli
 
 **Use another tool when.** Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence.
 
-**Current frontier.** Preservation-pipeline integration and an Ariadne state-fixture predicate remain unimplemented.
+**Current frontier.** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 <!-- marketplace-context:end -->
 
 Lazarus turns a finite historical Ethereum capture plan into a deterministic
@@ -52,6 +52,11 @@ coverage and evidence classes together.
 storage values are checked against the captured state root, while calls,
 receipts, logs and client traces remain labelled as recorded evidence.
 
+**Archiving.** A fixture has to outlive the people who made it. A preservation
+release ships the fixture, a statement about it and the document binding them,
+so a stranger can check that the statement describes that fixture and does not
+claim more than it holds.
+
 ## Available offline commands
 
 The current build validates versioned documents and binds their bytes in a
@@ -67,6 +72,9 @@ python3 scripts/lazarus.py build-manifest <fixture-directory> \
   --chain-id 0x1 --block-number <quantity> --block-hash <hash>
 python3 scripts/lazarus.py verify <fixture-directory>
 python3 scripts/lazarus.py replay <fixture-directory>
+python3 scripts/lazarus.py release <fixture-directory> \
+  --statement <statement.json> --out <release-directory>
+python3 scripts/lazarus.py verify-release <release-directory>
 ```
 
 `verify` checks schema versions, safe paths, canonical manifest bytes and every
@@ -75,6 +83,16 @@ fork-appropriate header hash; verifies EIP-1186 account and storage inclusion
 or absence against the header state root; checks response fields against the
 decoded leaves; and hashes captured code against the proved `codeHash`. It
 reports separate proof-backed, header-bound and recorded-RPC evidence counts.
+
+`release` writes a preservation release: the verified fixture, a statement
+somebody else wrote about it, and a document binding the two. The statement is
+held to the counts verification recomputed rather than to the ones the manifest
+claims, which is the only place that disagreement is visible, and nothing is
+written unless both the fixture and the statement pass. `verify-release` reads
+one back from its bytes years later. Neither reaches a network, and neither
+signs anything. See
+[docs/preservation-release.md](../../docs/preservation-release.md).
+
 Read the checked-in
 [study](../../docs/study.md) for the selected design and the
 [runbook](../../docs/runbook.md) for implementation status.
