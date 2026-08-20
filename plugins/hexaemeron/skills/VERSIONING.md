@@ -60,6 +60,21 @@ including its final newline:
   next job to `None -- mature`, record the evidence, and stop. Do not suggest,
   start, or resume another Fiat frontier run for that skill.
 
+## What every frontier run owes
+
+Before a frontier job is recorded as done, cold-read and reconcile all mutable
+first-party marketplace prose. A frontier advance is the point at which a
+skill's behaviour changes, and the documents that describe it to somebody else
+are the ones that go stale silently. This holds for every governed skill in the
+checkout, whichever plugin it sits in.
+
+It is stated here rather than inside each `Next Fiat job` because a rule copied
+into eighteen held targets goes stale in eighteen places, and because amending
+a held target is exactly what the discipline above forbids. A ledger whose job
+text still spells the obligation out is repeating this clause, not extending
+it; the copy retires on its own when a completed frontier run next replaces
+that text.
+
 A mature frontier can reopen only when a maintainer supplies a new external
 failure, requirement, dependency change, or other evidence that invalidates
 the closure. Record that compatibility boundary as an epoch entry, with the

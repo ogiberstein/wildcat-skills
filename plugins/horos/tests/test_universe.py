@@ -104,5 +104,67 @@ class UniverseTests(unittest.TestCase):
         self.assertEqual(entry["files"], 2)
 
 
+MINIFIED = "var a=1;" * 400 + "\n"
+
+
+@unittest.skipIf(GIT is None, "git unavailable")
+class BindingDirectoryTests(unittest.TestCase):
+    """A hard directory entry must cover at least one file in the universe.
+
+    Without this, a boundary check answers differently on two machines: an
+    ignored build directory or a stray worktree is present in one checkout and
+    absent from the other, so the check drifts against local state instead of
+    against the tree.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = self._tmp.name
+        self.addCleanup(self._tmp.cleanup)
+        git(self.root, "init", "-q")
+        write(self.root, ".gitignore", "node_modules/\nout/\nvendor-only/\n")
+        write(self.root, "src/app.py", "value = 1\n")
+
+    def paths(self, result):
+        return [entry["path"] for entry in result["entries"]]
+
+    def test_a_vendored_name_holding_nothing_tracked_earns_no_entry(self):
+        write(self.root, "node_modules/dep/package.json", '{"name": "dep"}\n')
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "tracked")
+        self.assertNotIn("node_modules/", self.paths(horos.scan_tree(self.root)))
+
+    def test_a_corroborated_generated_name_holding_nothing_tracked_earns_no_entry(self):
+        write(self.root, "out/bundle.min.js", MINIFIED)
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "tracked")
+        self.assertNotIn("out/", self.paths(horos.scan_tree(self.root)))
+
+    def test_one_tracked_file_is_enough_to_bind_the_directory(self):
+        write(self.root, "node_modules/dep/package.json", '{"name": "dep"}\n')
+        git(self.root, "add", "-f", "node_modules/dep/package.json", "src", ".gitignore")
+        git(self.root, "commit", "-q", "-m", "one tracked")
+        write(self.root, "node_modules/dep/local-cache.js", "cache\n" * 20)
+        write(self.root, "node_modules/other/index.js", "module.exports = 2\n")
+        entries = {entry["path"]: entry for entry in horos.scan_tree(self.root)["entries"]}
+        self.assertIn("node_modules/", entries)
+        self.assertEqual(entries["node_modules/"]["files"], 1)
+
+    def test_an_attribute_matched_directory_holding_nothing_tracked_earns_no_entry(self):
+        write(self.root, ".gitattributes", "vendor-only/** linguist-vendored\n")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "attributes")
+        write(self.root, "vendor-only/lib.js", "module.exports = 3\n")
+        self.assertNotIn("vendor-only/", self.paths(horos.scan_tree(self.root)))
+
+    def test_the_filesystem_fallback_still_binds_an_untracked_directory(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        write(outside.name, "node_modules/dep/package.json", '{"name": "dep"}\n')
+        result = horos.scan_tree(outside.name)
+        self.assertEqual(result["universe"], "filesystem")
+        self.assertIn("node_modules/", self.paths(result))
+
+
 if __name__ == "__main__":
     unittest.main()

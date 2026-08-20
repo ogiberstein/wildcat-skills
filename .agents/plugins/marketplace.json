@@ -137,6 +137,18 @@
       "category": "Developer Tools"
     },
     {
+      "name": "berean",
+      "source": {
+        "source": "local",
+        "path": "./plugins/berean"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
       "name": "janus",
       "source": {
         "source": "local",

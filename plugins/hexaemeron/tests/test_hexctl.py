@@ -79,6 +79,13 @@ class HexctlCase(unittest.TestCase):
             fh.write(content)
         return name
 
+    def write_run_pr(self, carried="- nothing outstanding\n"):
+        """The run-level pull request body the integrate receipt reads."""
+        body = "Run body.\n"
+        if carried is not None:
+            body += "\n## Carried forward\n\n" + carried
+        return self.write(os.path.join(".hexaemeron", "run-pr.md"), body)
+
     def init(self, topic="test topic"):
         self.run_ctl("init", "--topic", topic)
 
@@ -116,6 +123,7 @@ class HexctlCase(unittest.TestCase):
 
     def integrate_run(self, closed_issue_url=None):
         self.merge_stack()
+        self.write_run_pr()
         args = ["done", "integrate", "--pr-url", "https://x/pr/run",
                 "--merge-commit", "runmerge"]
         if closed_issue_url:
@@ -593,6 +601,7 @@ class TestProseAndPush(HexctlCase):
             "--closed-issue-url", "https://x/issues/75", expect=2,
         )
         self.assertIn("does not match", proc.stderr)
+        self.write_run_pr()
         self.run_ctl(
             "done", "integrate", "--pr-url", "https://x/pr/run",
             "--merge-commit", "runmerge",
@@ -633,9 +642,44 @@ class TestProseAndPush(HexctlCase):
         proc = self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
                             expect=2)
         self.assertIn("--merge-commit", proc.stderr)
+        self.write_run_pr()
         self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
                      "--merge-commit", "runmerge")
         self.assertEqual(self.next_json()["do"], "done")
+        self.run_ctl("verify")
+
+    def test_integrate_refuses_a_run_that_never_said_what_it_left_undone(self):
+        self.to_steps(("One",))
+        self.run_ctl("record", "security_suite", SUITE)
+        self.finish_step(1)
+        self.merge_stack()
+        args = ["done", "integrate", "--pr-url", "https://x/pr/run",
+                "--merge-commit", "runmerge"]
+
+        proc = self.run_ctl(*args, expect=2)
+        self.assertIn("cannot be read", proc.stderr)
+
+        self.write(os.path.join(".hexaemeron", "run-pr.md"),
+                   "Run body with no section.\n")
+        proc = self.run_ctl(*args, expect=2)
+        self.assertIn("Carried forward", proc.stderr)
+
+        self.write_run_pr(carried="\n")
+        proc = self.run_ctl(*args, expect=2)
+        self.assertIn("nothing under it", proc.stderr)
+
+        # A later section cannot stand in for this one.
+        self.write(os.path.join(".hexaemeron", "run-pr.md"),
+                   "Run body.\n\n## Carried forward\n\n## Checks\n\n- root 38\n")
+        proc = self.run_ctl(*args, expect=2)
+        self.assertIn("nothing under it", proc.stderr)
+
+        self.write_run_pr(carried="- no CI workflow for this plugin yet\n")
+        self.run_ctl(*args)
+        receipt = self.state()["receipts"]["integrate"]["carried_forward"]
+        self.assertEqual(receipt["lines"], 1)
+        self.assertEqual(receipt["path"], ".hexaemeron/run-pr.md")
+        self.assertEqual(len(receipt["sha256"]), 64)
         self.run_ctl("verify")
 
     def test_reset_refuses_a_run_whose_stack_has_not_landed(self):

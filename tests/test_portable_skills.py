@@ -32,6 +32,7 @@ class PortableSkillTests(unittest.TestCase):
         for name in (
             "alexandria",
             "ariadne",
+            "berean",
             "brevitas",
             "hermes",
             "hexaemeron",
@@ -94,6 +95,11 @@ class PortableSkillTests(unittest.TestCase):
         for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
             self.assertTrue((ariadne / relative).is_file(), relative)
 
+        berean = ROOT / "plugins" / "berean"
+        contract = (berean / "AGENTS.md").read_text(encoding="utf-8")
+        for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
+            self.assertTrue((berean / relative).is_file(), relative)
+
         brevitas = ROOT / "plugins" / "brevitas"
         contract = (brevitas / "AGENTS.md").read_text(encoding="utf-8")
         for relative in re.findall(r"`(skills/[^`]+/SKILL\.md)`", contract):
@@ -129,6 +135,7 @@ class PortableSkillTests(unittest.TestCase):
     def test_skill_names_match_canonical_parent_directories(self):
         skills = list((ROOT / "plugins" / "alexandria" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "ariadne" / "skills").glob("*/SKILL.md"))
+        skills += list((ROOT / "plugins" / "berean" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "brevitas" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "hermes" / "skills").glob("*/SKILL.md"))
         skills += list((ROOT / "plugins" / "hexaemeron" / "skills").glob("*/SKILL.md"))

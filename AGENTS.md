@@ -7,12 +7,15 @@ the canonical `SKILL.md` it names.
 
 ## Marketplace boundaries
 
-The thirteen plugins form one marketplace, not thirteen competing descriptions
+The fourteen plugins form one marketplace, not fourteen competing descriptions
 of the same job. Alexandria preserves lending inputs; Tabularium interprets
 preserved venue records; Probitas assembles a counterparty dossier. Lazarus
 preserves the finite historical Ethereum state and exact RPC traffic a test
-needs, while Ariadne binds a released artefact digest to its evidence. Pandects
-supplies reviewed credit laws, Hermes measures a single gas-optimisation class,
+needs, while Ariadne binds a released artefact digest to its evidence. Berean
+holds a protocol agent's recorded answers to pinned corpora and preserved
+chain reads; it neither chunks documents nor preserves chain state itself.
+Pandects supplies reviewed credit laws, Hermes measures a single
+gas-optimisation class,
 Hexaemeron controls a receipted delivery loop and holds each of its phases to a
 named skill, while Lemma stops after producing
 source-linked chunks. Horos decides what an agent does not read. Janus checks
@@ -30,6 +33,8 @@ selected skill.
   `plugins/alexandria/AGENTS.md` before running its skill or changing that
   plugin.
 - Ariadne is under `plugins/ariadne/`. Read `plugins/ariadne/AGENTS.md` before
+  running its skill or changing that plugin.
+- Berean is under `plugins/berean/`. Read `plugins/berean/AGENTS.md` before
   running its skill or changing that plugin.
 - Brevitas is under `plugins/brevitas/`. Read `plugins/brevitas/AGENTS.md`
   before running its skill or changing that plugin.
@@ -88,6 +93,7 @@ Run the checks that cover every changed area.
 python3 -m unittest discover -s tests
 python3 -m unittest discover -s plugins/alexandria/tests -t plugins/alexandria
 python3 -m unittest discover -s plugins/ariadne/tests -t plugins/ariadne
+python3 -m unittest discover -s plugins/berean/tests -t plugins/berean
 python3 -m unittest discover -s plugins/brevitas/tests -t plugins/brevitas
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
@@ -137,3 +143,11 @@ that earned its entry; leave those paths unread unless the task demands
 one. The boundary is fail-open: what it omits is merely unproven. It never
 applies during security review; during any audit, review or incident work,
 read as if no boundary exists.
+
+The root suite checks that this file's boundary still describes the tracked
+tree, so a change that adds or alters a classified file fails it until the
+boundary is regenerated:
+
+```bash
+python3 plugins/horos/skills/horos/scripts/horos.py scan . --write
+```
