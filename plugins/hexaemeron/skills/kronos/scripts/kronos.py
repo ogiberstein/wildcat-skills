@@ -330,6 +330,10 @@ def record(args: argparse.Namespace) -> int:
     for name in ungoverned:
         if not isinstance(name, str) or not name.strip():
             raise Refusal("K017", f"ungoverned holds {name!r}, which is not a name")
+        # Ungoverned means no ledger, and a scored candidate was scored from one.
+        # A name in both leaves the record asserting each about the same skill.
+        if name in names:
+            raise Refusal("K017", f"{name} is reported ungoverned and scored in the same pass")
 
     previous = existing_passes(scoreboard)
     entry = {

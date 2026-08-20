@@ -537,6 +537,10 @@ class ScoreboardTest(unittest.TestCase):
     def test_an_ungoverned_field_that_is_not_a_list_is_refused(self):
         self.assertRefused(self.document(ungoverned="gamma"), "K017")
 
+    def test_a_skill_both_scored_and_reported_ungoverned_is_refused(self):
+        """Round 1 recorded protasis as scored from a ledger and as having none."""
+        self.assertRefused(self.document(ungoverned=["alpha"]), "K017")
+
     def test_show_marks_a_rank_only_pass_and_lists_the_ungoverned(self):
         self.run_record(self.document(rank_only=True, ungoverned=["gamma"]))
         code, out = self.run_show()
