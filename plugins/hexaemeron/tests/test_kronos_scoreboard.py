@@ -282,6 +282,29 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(len(selected), 1)
         self.assertIn("beta", selected[0])
 
+    # -- the skill and the script agree ---------------------------------
+
+    def test_every_field_the_script_accepts_is_named_in_the_skill(self):
+        """Round 1 documented a refusal for `total` without documenting the field.
+
+        A caller reading only SKILL.md could be refused over something it never
+        told them they could send, and the two drift apart silently otherwise.
+        """
+        skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        section = skill.split("## Scoreboard", 1)[1].split("## Hard rules", 1)[0]
+        for name in sorted(kronos.PASS_FIELDS | kronos.CANDIDATE_FIELDS):
+            with self.subTest(field=name):
+                self.assertIn(f"`{name}`", section)
+
+    def test_the_pass_is_recorded_once_the_fiat_run_is_named(self):
+        """The run link is half the record, and it does not exist at selection."""
+        skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        loop = skill.split("## Loop", 1)[1].split("## Scoreboard", 1)[0]
+        step_four = loop.split("4. ", 1)[1].split("5. ", 1)[0]
+        step_six = loop.split("6. ", 1)[1].split("7. ", 1)[0]
+        self.assertNotIn("record the pass", step_four)
+        self.assertIn("record the pass", step_six)
+
     # -- against the real ledgers ---------------------------------------
 
     def test_the_hash_matches_a_real_governed_ledger_history_row(self):

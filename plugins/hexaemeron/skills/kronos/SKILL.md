@@ -74,14 +74,18 @@ still change any file genuinely required by that exact held job.
    Show the score and one-sentence basis for every candidate. Do not invent
    work to fill the list.
 4. Select the highest score. Break a tie by impact, then readiness, then the
-   order in which the ledgers were found. Then record the pass to the
-   scoreboard below, before any Fiat run starts.
+   order in which the ledgers were found.
 5. When the runtime provides a durable goal facility, create one goal whose
    objective is to repeat steps 1-8 until no eligible frontier remains. When
    it does not, keep the same loop in the current run. Never create one goal
    per skill.
 6. Read the selected skill's canonical instructions, its ledger, and Fiat's
-   `SKILL.md`. Invoke Fiat with the held Next Fiat job byte for byte.
+   `SKILL.md`. Invoke Fiat with the held Next Fiat job byte for byte. Once
+   Fiat's `init` has named the run, record the pass to the scoreboard below
+   with `run` naming it. Record it here rather than at selection, because the
+   link to the run this pass launched is half the record and does not exist
+   until Fiat is invoked. The cost is that a pass which never reaches `init`
+   leaves no line.
 7. Let Fiat finish its complete terminal path: implement, validate, stage,
    commit, push each step's stacked pull request, then the integrate phase --
    the stack merged into the run branch in order, the run branch merged into
@@ -127,8 +131,10 @@ python3 "<this skill dir>/scripts/kronos.py" show \
 
 `record` reads the pass on stdin as one JSON object: `scope`, `mode` of `full`
 or `phase-only`, `selected`, an optional `run` naming the Fiat run this pass
-launched, and `candidates`, each carrying `skill`, `ledger`, the four axis
-scores under their own names, and a one-sentence `basis`.
+launched, and `candidates`. Each candidate carries `skill`, `ledger`, the four
+axis scores under the names `impact`, `urgency`, `readiness` and `unblocks`, a
+one-sentence `basis`, and an optional `total` for the arithmetic the ranking
+did in chat, which is refused when it disagrees with the axes.
 
 It computes each candidate's held-job hash from that ledger on disk rather than
 taking one from the caller, so a recorded line can be checked against the digest
