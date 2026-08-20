@@ -573,6 +573,36 @@ class OneReadTests(unittest.TestCase):
                 module.bind = original
             self.assertIs(seen["manifest"], seen["report"]["manifest"])
 
+    def test_reading_a_release_binds_against_the_manifest_the_report_carried(self):
+        """The same decision as the write, at the site the write's test does not
+        reach.
+
+        Mutation found this one: replacing the read's manifest with a second
+        read of the directory left the suite green, because in a test nothing
+        changes between the two reads. What the rule is for is the case where
+        something does, and an identity check pins it without having to stage a
+        race.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            from lazarus_lib import release as module
+
+            original = module.bind
+            seen = {}
+
+            def watched(statement, manifest, report):
+                seen["manifest"] = manifest
+                seen["report"] = report
+                return original(statement, manifest, report)
+
+            module.bind = watched
+            try:
+                verify_release(prepared.out)
+            finally:
+                module.bind = original
+            self.assertIs(seen["manifest"], seen["report"]["manifest"])
+
     def test_a_release_records_the_digest_the_report_carried(self):
         with tempfile.TemporaryDirectory() as directory:
             prepared = Prepared(directory)
