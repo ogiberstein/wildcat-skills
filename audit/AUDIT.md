@@ -5531,3 +5531,26 @@ Hypomnema and Horos gates are clean.
 The digest proves which result surface the map reviewed, not that a domain
 operation ran or its assertion is true. Those claims remain with the exact
 command, gate or observation named by the owning promise.
+
+## Promise Machine, step 8, publication gate repair -- 2026-08-20
+
+### Failure
+
+FINDING
+[High] S8-PG-01: Lazarus's scaffold test still equated package and skill versions.
+Location: `plugins/lazarus/tests/test_scaffold.py`
+Mechanism: The test compared both host manifest versions with canonical skill metadata instead of the marketplace package entry.
+Impact: The planned `lazarus` package release failed on Python 3.11 and 3.13 despite preserving `lazarus-v1.1.0` correctly.
+Fix: Compare both host manifests with the marketplace package version and guard its independence from skill and writer versions.
+END
+
+### Evidence
+
+The failure reproduced with the exact Lazarus scaffold test. The corrected test
+passes on the full Lazarus suite and preserves the checked-in fixture's
+`tool_version` separately.
+
+### Boundary
+
+This repair changes no Lazarus command, result format, canonical skill version,
+frontier digest or held job. It corrects a stale test of the distribution layer.
