@@ -5461,3 +5461,46 @@ files remain unchanged.
 
 The forward-testing and no-execution limits recorded in round 1 remain
 unchanged.
+
+## Promise Machine, step 8, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes the root Python
+checker, JSON inventories, package manifests, prose and Imprimatur's Markdown
+heading rule, not Solidity. The review compared all 29 level-2 and level-3
+bindings with their canonical declarations and result surfaces, checked package
+and skill version separation, recomputed the unchanged frontier digest for the
+Imprimatur generation, and inspected the new default full-check path.
+
+### Findings
+
+FINDING
+[High] S8-R1-01: A runtime field map was not bound to the result surface bytes.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: The gate checked that each schema, writer or contract existed, but a later change to that source could leave its field map green.
+Impact: A stale map could misstate where a consequential result carries its subject, evidence, unknowns or transition.
+Fix: Added a required source SHA-256, recomputation in the root checker and a source-drift refusal test.
+END
+
+FINDING
+[Medium] S8-R1-02: Runtime source hashing had no read bound.
+Location: `scripts/promise_machine.py`
+Mechanism: A coverage entry could point the checker at any regular repository file and read all of it into memory.
+Impact: A malformed or hostile entry could turn the structural gate into an avoidable memory sink.
+Fix: Hash sources in 64 KiB chunks, stop above 1 MiB and guard the limit with an oversized-source test.
+END
+
+### Evidence
+
+The full checker reports 14 plugins, 28 canonical skills, 66 promises, 29
+digest-bound runtime bindings and zero findings. The focused runtime mutations
+refuse an absent binding, a repository escape, source drift and an oversized
+source.
+
+### Leads not pursued
+
+The inventory binds existing domain formats; it does not replace them with a
+generic result envelope or claim that a structural field map proves the domain
+result. Berean's Wildcat-grounded release and Janus's second adapter remain held
+frontier work.

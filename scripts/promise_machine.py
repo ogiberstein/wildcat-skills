@@ -22,6 +22,7 @@ MARKER = (
 MAX_MARKDOWN_BYTES = 256 * 1024
 MAX_JSON_BYTES = 64 * 1024
 MAX_COVERAGE_BYTES = 512 * 1024
+MAX_RUNTIME_SOURCE_BYTES = 1024 * 1024
 REQUIRED_HEADINGS = (
     "# Promise Machine contract",
     "## Contract identity",
@@ -194,6 +195,21 @@ def confined(path: Path, root: Path) -> bool:
         return True
     except (OSError, ValueError):
         return False
+
+
+def bounded_sha256(path: Path, limit: int):
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with path.open("rb") as source:
+            while chunk := source.read(64 * 1024):
+                total += len(chunk)
+                if total > limit:
+                    return None, f"source exceeds the {limit}-byte limit"
+                digest.update(chunk)
+    except OSError as exc:
+        return None, f"source could not be read: {exc}"
+    return digest.hexdigest(), None
 
 
 def read_markdown(path: Path, root: Path, *, missing_code: str, unsafe_code: str):
@@ -1594,14 +1610,18 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
     for promise_id in sorted(required_runtime & actual_runtime):
         binding = runtime_catalog[promise_id]
         binding_path = f"{COVERAGE_PATH.as_posix()}#runtime.{promise_id}"
-        if not isinstance(binding, dict) or set(binding) != {"source", "bindings"}:
+        if not isinstance(binding, dict) or set(binding) != {
+            "source",
+            "sha256",
+            "bindings",
+        }:
             findings.append(
                 Finding(
                     "PM070",
                     "structural",
                     binding_path,
-                    "runtime binding must contain exactly source and bindings",
-                    "name one confined result schema, writer or contract and its field map",
+                    "runtime binding must contain exactly source, sha256 and bindings",
+                    "name one digest-bound result schema, writer or contract and its field map",
                     promise_id=promise_id,
                 )
             )
@@ -1638,6 +1658,45 @@ def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
                         promise_id=promise_id,
                     )
                 )
+            else:
+                digest = binding.get("sha256")
+                if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                    findings.append(
+                        Finding(
+                            "PM070",
+                            "structural",
+                            binding_path,
+                            "runtime binding source digest is absent or malformed",
+                            "record the full lowercase SHA-256 of the reviewed source bytes",
+                            promise_id=promise_id,
+                        )
+                    )
+                else:
+                    actual, digest_error = bounded_sha256(
+                        source_target, MAX_RUNTIME_SOURCE_BYTES
+                    )
+                    if digest_error is not None:
+                        findings.append(
+                            Finding(
+                                "PM070",
+                                "structural",
+                                binding_path,
+                                f"runtime binding {digest_error}",
+                                "name a bounded readable result surface inside the repository",
+                                promise_id=promise_id,
+                            )
+                        )
+                    elif actual != digest:
+                        findings.append(
+                            Finding(
+                                "PM071",
+                                "drift",
+                                binding_path,
+                                f"runtime binding source digest is {actual}; inventory records {digest}",
+                                "review the changed result surface and update its field map and digest together",
+                                promise_id=promise_id,
+                            )
+                        )
         fields = binding.get("bindings")
         if (
             not isinstance(fields, dict)

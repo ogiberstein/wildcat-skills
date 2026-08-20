@@ -22,6 +22,7 @@
   "runtime": {
     "alexandria-derived-view": {
       "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
+      "sha256": "59e92f0716b34c18705069d1bca86d48df3bc3485b06f5c4a8c7dbaa2bc88947",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "release_id and kind",
@@ -35,6 +36,7 @@
     },
     "alexandria-raw-release": {
       "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
+      "sha256": "59e92f0716b34c18705069d1bca86d48df3bc3485b06f5c4a8c7dbaa2bc88947",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "release_id, source and chain",
@@ -48,6 +50,7 @@
     },
     "ariadne-replay-command": {
       "source": "plugins/ariadne/scripts/ariadne.py",
+      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "statement subject digest and replay project",
@@ -61,6 +64,7 @@
     },
     "ariadne-verify-statement": {
       "source": "plugins/ariadne/scripts/ariadne.py",
+      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "in-toto subject name and digest",
@@ -74,6 +78,7 @@
     },
     "berean-release-promotion": {
       "source": "plugins/berean/schemas/promotion-record-v1.json",
+      "sha256": "16ceae02a2f87bb44dcb718743708747e703ed254ddde85dc7c6135fbe11ecb7",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "release_digest",
@@ -87,6 +92,7 @@
     },
     "elenchus-fixed-and-guarded": {
       "source": "plugins/hexaemeron/skills/elenchus/scripts/elenchus.py",
+      "sha256": "9069e2a4266bf349c963aaad6e22cf2966d14bb34d05d025b72c9e77017d39c5",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "baseline and fixed commit identities",
@@ -100,6 +106,7 @@
     },
     "ephoros-observability-review": {
       "source": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "sha256": "381440b736200a933464b18e2a99469b9bc80229951ea3e7b837a3986c5425e4",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step and build identity",
@@ -113,6 +120,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "sha256": "25aed7debc2ff69842b8dbece31dff08afaab2649d57d69ede24a65c80ba1afc",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -126,6 +134,7 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "sha256": "25aed7debc2ff69842b8dbece31dff08afaab2649d57d69ede24a65c80ba1afc",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "topic, run branch, step branch and head commit",
@@ -139,6 +148,7 @@
     },
     "hermes-baseline-promotion": {
       "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
+      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "candidate commit, target set and sealed run directory",
@@ -152,6 +162,7 @@
     },
     "hermes-candidate-acceptance": {
       "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
+      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "baseline commit, candidate commit and named targets",
@@ -165,6 +176,7 @@
     },
     "hexaemeron-fizz-convert-properties": {
       "source": "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md",
+      "sha256": "59cd4b4ef5dc56315782a7d25222afb286a24e63e438530cbd0044293ea54af7",
       "bindings": {
         "promise_id": "coverage key joined to the digest-bound vendored overlay",
         "subject": "target repository, PROPERTIES.md entry and harness assertion",
@@ -178,6 +190,7 @@
     },
     "hexaemeron-fizz-harness-campaign": {
       "source": "plugins/hexaemeron/skills/fizz/SKILL.md",
+      "sha256": "62a60df4cec160511b8ef36433eef7c8805d0b4a398491293eb4542ab73539bd",
       "bindings": {
         "promise_id": "coverage key joined to the digest-bound vendored overlay",
         "subject": "target repository revision, generated harness and campaign",
@@ -191,6 +204,7 @@
     },
     "hexaemeron-fizz-sync-drift": {
       "source": "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md",
+      "sha256": "e969cd8a447941989715840e24aa6a915c0fd795effabd912b3c627598a95e16",
       "bindings": {
         "promise_id": "coverage key joined to the digest-bound vendored overlay",
         "subject": "target source revision, prior snapshot and reconciled harness",
@@ -204,6 +218,7 @@
     },
     "hexaemeron-solidity-audit-report": {
       "source": "plugins/hexaemeron/skills/solidity-auditor/SKILL.md",
+      "sha256": "1c1cf4e99d042e7aadc56b622d97a07d3286f4786838a05510697c814d1e983f",
       "bindings": {
         "promise_id": "coverage key joined to the digest-bound vendored overlay",
         "subject": "audited repository revision and Solidity scope",
@@ -217,6 +232,7 @@
     },
     "horos-boundary-scan": {
       "source": "plugins/horos/skills/horos/scripts/horos.py",
+      "sha256": "8145f8b035b01f06c41cec470637e8670a0bd0caf4688bcd7cd4d490361d707c",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "repository root and tracked-tree identity",
@@ -230,6 +246,7 @@
     },
     "hypomnema-record-placement": {
       "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "sha256": "c62f0cce2534ea935ba85b26958f851c9e162de28729a0530c31d157726a7542",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named decision and changed repository surface",
@@ -243,6 +260,7 @@
     },
     "janus-bounded-conformance": {
       "source": "plugins/janus/scripts/janus.py",
+      "sha256": "46f586289cf3def05130fb7870e1f60bb27b1b85a41c2f43630d74a45685d80d",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "hook, host adapter and manifest revision",
@@ -256,6 +274,7 @@
     },
     "kronos-fiat-dispatch": {
       "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py",
+      "sha256": "8b2a9a3eef62c506c7fecb2ca22268a7e4402d51576e69ee678ab926f47df8d5",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "selected plugin, skill and held job hash",
@@ -269,6 +288,7 @@
     },
     "kronos-parked-lane": {
       "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py",
+      "sha256": "8b2a9a3eef62c506c7fecb2ca22268a7e4402d51576e69ee678ab926f47df8d5",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "parked plugin, skill and held job hash",
@@ -282,6 +302,7 @@
     },
     "lazarus-exact-replay": {
       "source": "plugins/lazarus/scripts/lazarus.py",
+      "sha256": "0ae280084dd2934e902b11826c12aff8247989616126c1771ae6af65e38307b2",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "verified fixture identity and exact request key",
@@ -295,6 +316,7 @@
     },
     "lazarus-fixture-capture": {
       "source": "plugins/lazarus/schemas/manifest-v1.json",
+      "sha256": "53acaefd6ddaf5648dc9d16345fc13c64c3bd7786851271ef922b67b9f423c14",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "fixture digest, chain id, block number and block hash",
@@ -308,6 +330,7 @@
     },
     "lazarus-preservation-release": {
       "source": "plugins/lazarus/schemas/release-v1.json",
+      "sha256": "f7b8ce3eb37c40d79a23bdff1d88dd0e6e163c2d72ec67575b3b4e7023d5415d",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "release digest, fixture digest and statement digest",
@@ -321,6 +344,7 @@
     },
     "metron-change-decision": {
       "source": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "sha256": "575ac79da8d176d1466942c30fde70b33f59fc6e8cb07cfb7666241cda461394",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named workload, implementation and isolated change",
@@ -334,6 +358,7 @@
     },
     "pandects-search-record": {
       "source": "plugins/pandects/scripts/pandects.py",
+      "sha256": "33b3a2f58f986f8833aa7f89a75314ce6a4d4e46fa5032852feb8b70012fe15e",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "target revision, adapter and law identifiers",
@@ -347,6 +372,7 @@
     },
     "phylax-boundary-review": {
       "source": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "sha256": "abd7a080c09d22d64d1cc80f4299604f3678f35df507d9b60a3bc756bc5b1019",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step, source tree and external-input boundary",
@@ -360,6 +386,7 @@
     },
     "probitas-dossier-verification": {
       "source": "plugins/probitas/scripts/probitas.py",
+      "sha256": "82679d551c7150e2dc2dd8bbc007662d6fc7f2dcc9a537cd3d359bd8aa53d41c",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "dossier bytes, evidence digest and declared entity addresses",
@@ -373,6 +400,7 @@
     },
     "tabularium-release-build": {
       "source": "plugins/tabularium/scripts/tabularium.py",
+      "sha256": "733c4c67e327fa5cf5818e50aa612d8bd8dc23a276a53d46cd5e5d037dc54d0f",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "release directory, source digest and adapter version",
@@ -386,6 +414,7 @@
     },
     "tabularium-release-verification": {
       "source": "plugins/tabularium/scripts/tabularium.py",
+      "sha256": "733c4c67e327fa5cf5818e50aa612d8bd8dc23a276a53d46cd5e5d037dc54d0f",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "release directory, source digest and adapter version",
