@@ -1,0 +1,11 @@
+[
+  {"name": "shape-retention-widened", "op": "json-set", "path": "release.json", "pointer": ["retention"], "value": "forever", "gates": ["release-shape"]},
+  {"name": "corpus-manifest-version-drift", "op": "json-set", "path": "corpus-manifest.json", "pointer": ["corpus_version"], "value": "v2", "gates": ["release-corpus"]},
+  {"name": "reads-file-drift", "op": "append-byte", "path": "reads.jsonl", "gates": ["release-reads", "release-answers"]},
+  {"name": "allowlist-emptied", "op": "json-set-release", "path": "release.json", "pointer": ["allowlists", "contracts"], "value": [], "gates": ["release-allowlists"]},
+  {"name": "answer-bytes-drift", "op": "append-byte", "path": "answers/a1.json", "gates": ["release-answers"]},
+  {"name": "retention-claimed-none", "op": "json-set-release", "path": "release.json", "pointer": ["retention"], "value": "none", "gates": ["release-retention"]},
+  {"name": "eval-report-drift", "op": "append-byte", "path": "evals/report.json", "gates": ["release-evals"]},
+  {"name": "stray-component", "op": "add-file", "path": "NOTES.txt", "value": "stray\n", "gates": ["release-components"]},
+  {"name": "forged-promotion", "op": "add-file", "path": "promotions.jsonl", "value": "{\"format\":\"berean-promotion/v1\"}\n", "gates": ["release-promotions"]}
+]
