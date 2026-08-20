@@ -20,6 +20,11 @@ plugins/*/harness/cache/
 **/slither.err
 **/slither_results.json
 
+# Berean corpora are pinned release inputs, not fuzz-engine output. Keep the
+# broad engine rule above while making every Berean corpus visible to Git.
+!plugins/berean/**/corpus/
+!plugins/berean/**/corpus/**
+
 # search-record.json is not output. It is shipped evidence, it is tracked, and
 # tests/test_search_record.py holds it against the catalogue's law count and
 # digest. Ignoring it would let a fresh clone regenerate it and see no diff.
