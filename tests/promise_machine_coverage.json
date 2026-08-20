@@ -1,0 +1,1520 @@
+{
+  "contract": "promise-machine/v1",
+  "schema": "promise-machine-coverage/v1",
+  "handoffs": [
+    {
+      "producer": "lazarus-fixture-verification",
+      "consumer": "berean-answer-evidence",
+      "path": "plugins/berean/tests/test_examples.py",
+      "selector": "test_the_copied_reads_match_the_lazarus_fixture_byte_for_byte",
+      "preserves": ["block", "evidence-class", "subject"],
+      "refuses": "answer-truth"
+    },
+    {
+      "producer": "berean-release-promotion",
+      "consumer": "ariadne-capture-statement",
+      "path": "plugins/ariadne/tests/test_gates.py",
+      "selector": "test_a_payload_asserting_its_own_verification_fails",
+      "preserves": ["answer-digest", "evidence-class", "subject"],
+      "refuses": "answer-truth"
+    }
+  ],
+  "evidence": {
+    "alexandria-p": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_documented_build_and_verify_commands_run_exactly",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "alexandria-m": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_build_refuses_existing_output",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "alexandria-s": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_source_pin_tamper_fails_before_ingest",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "alexandria-o": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_compound_plan_does_not_treat_logs_as_complete_credit_history",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "alexandria-r": {
+      "path": "plugins/alexandria/tests/test_demo.py",
+      "selector": "test_cli_failure_is_controlled",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "ariadne-p": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_both_examples_verify_with_nothing_unchecked",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "ariadne-m": {
+      "path": "plugins/ariadne/tests/test_gates.py",
+      "selector": "test_a_missing_claims_block_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "ariadne-s": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_the_unhappy_example_says_its_audit_covered_another_revision",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "ariadne-o": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_every_example_records_its_deployment_as_unconfirmed",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "ariadne-r": {
+      "path": "plugins/ariadne/tests/test_examples.py",
+      "selector": "test_every_tampered_copy_fails_the_gate_it_is_meant_to",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "hermes-p": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_accepts_and_promotes_a_fully_verified_candidate",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "hermes-m": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_rejects_full_suite_failure_at_gate_four",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "hermes-s": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_rejects_changed_invariant_snapshot_rows",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "hermes-o": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_records_changed_fuzz_statistics_without_calling_them_a_regression",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "hermes-r": {
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_rejects_any_gas_regression_at_gate_three",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "elenchus-p": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_runner_categories_distinguish_all_three_outcomes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "elenchus-m": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_legacy_no_report_is_inconclusive",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "elenchus-s": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_oversized_and_stale_reports_are_rejected_before_parsing",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "elenchus-o": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_diagnostic_poisoning_and_exit_code_do_not_change_the_report",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "elenchus-r": {
+      "path": "plugins/hexaemeron/tests/test_elenchus_checker.py",
+      "selector": "test_legacy_cli_is_nonfatal_by_default_and_fails_when_required",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "ephoros-p": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_it_allows_a_stable_name_with_fields",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "ephoros-m": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_it_flags_an_f_string_message",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "ephoros-s": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_a_bare_pragma_does_not_suppress",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "ephoros-o": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_it_ignores_print_which_is_not_telemetry",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "ephoros-r": {
+      "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
+      "selector": "test_a_stated_reason_suppresses",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "fiat-p": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_push_advances_steps_then_the_stack_integrates",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "fiat-m": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_done_out_of_order_rejected",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "fiat-s": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_state_edit_detected_by_verify",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "fiat-o": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_verify_preserves_receipt_assertions_without_proving_them",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "fiat-r": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_halt_blocks_progress_and_resume_restores",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "horos-p": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_check_passes_on_a_fresh_boundary",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "horos-m": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_a_missing_boundary_is_a_distinct_failure",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "horos-s": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_a_changed_entry_drifts_and_is_named",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "horos-o": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_the_boundary_file_never_classifies_itself",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "horos-r": {
+      "path": "plugins/horos/tests/test_boundary.py",
+      "selector": "test_write_creates_the_boundary_and_leaves_no_temporary",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "lazarus-p": {
+      "path": "plugins/lazarus/tests/test_goldfinch.py",
+      "selector": "test_fixture_verifies_with_expected_evidence_and_provenance",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "lazarus-m": {
+      "path": "plugins/lazarus/tests/test_verifier.py",
+      "selector": "test_missing_or_extra_proof_targets_fail",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "lazarus-s": {
+      "path": "plugins/lazarus/tests/test_verifier.py",
+      "selector": "test_proved_rpc_selector_must_name_the_fixture_block",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "lazarus-o": {
+      "path": "plugins/lazarus/tests/test_preservation_release.py",
+      "selector": "test_it_claims_nothing_about_the_canonical_chain",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "lazarus-r": {
+      "path": "plugins/lazarus/tests/test_goldfinch.py",
+      "selector": "test_demo_command_runs_the_complete_application_check",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "metron-p": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_an_improvement_past_the_variance_is_reported_and_passes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "metron-m": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_a_run_reporting_only_one_budget_fails_on_the_rest",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "metron-s": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_a_move_inside_the_variance_is_another_sample",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "metron-o": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_no_baseline_entry_is_neutral_rather_than_a_failure",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "metron-r": {
+      "path": "plugins/hexaemeron/tests/test_metron_check.py",
+      "selector": "test_the_ledger_keeps_the_reverted_attempt",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "pandects-p": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_law_with_every_part_passes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "pandects-m": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_missing_component_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "pandects-s": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_component_whose_id_disagrees_with_the_catalogue_fails",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "pandects-o": {
+      "path": "plugins/pandects/tests/test_checker.py",
+      "selector": "test_a_law_reverting_to_signal_a_violation_fails",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "pandects-r": {
+      "path": "plugins/pandects/tests/test_search_record.py",
+      "selector": "test_a_timed_out_campaign_is_recorded_rather_than_dropped",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "phylax-p": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_it_allows_an_argument_list",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "phylax-m": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_it_flags_a_shell_invocation",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "phylax-s": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_a_bare_pragma_without_a_reason_does_not_suppress",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "phylax-o": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_findings_do_not_repeat_secret_material_in_text_or_json",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "phylax-r": {
+      "path": "plugins/hexaemeron/tests/test_phylax_checker.py",
+      "selector": "test_a_stated_reason_suppresses_the_finding",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "probitas-p": {
+      "path": "plugins/probitas/tests/test_demo.py",
+      "selector": "test_it_exits_zero",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "probitas-m": {
+      "path": "plugins/probitas/tests/test_evidence.py",
+      "selector": "test_missing_source_raises",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "probitas-s": {
+      "path": "plugins/probitas/tests/test_gates.py",
+      "selector": "test_an_invented_transaction_hash_fails",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "probitas-o": {
+      "path": "plugins/probitas/tests/test_gates.py",
+      "selector": "test_a_rating_with_no_rubric_fails",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "probitas-r": {
+      "path": "plugins/probitas/tests/test_registry.py",
+      "selector": "test_an_adapter_returning_no_coverage_is_a_bug_not_a_silence",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "protasis-p": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_a_complete_step_is_clean",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "protasis-m": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_each_required_field_is_required",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "protasis-s": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_a_fenced_block_under_a_later_field_does_not_count",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "protasis-o": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_an_exit_with_no_command_is_a_finding",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "protasis-r": {
+      "path": "plugins/hexaemeron/tests/test_protasis_checker.py",
+      "selector": "test_this_runs_own_runbook_is_clean",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "tabularium-p": {
+      "path": "plugins/tabularium/tests/test_release.py",
+      "selector": "test_committed_release_verifies_offline_and_without_rewrites",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "tabularium-m": {
+      "path": "plugins/tabularium/tests/test_verify.py",
+      "selector": "test_missing_artifact_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "tabularium-s": {
+      "path": "plugins/tabularium/tests/test_verify.py",
+      "selector": "test_altered_source_bytes_fail_the_declared_digest",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "tabularium-o": {
+      "path": "plugins/tabularium/tests/test_verify.py",
+      "selector": "test_indexed_block_must_match_source_metadata",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "tabularium-r": {
+      "path": "plugins/tabularium/tests/test_release.py",
+      "selector": "test_documented_demo_rebuilds_and_compares_in_a_fresh_directory",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "chunk-markdown-p": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_byte_exact",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "chunk-markdown-m": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_summary_fail_loud",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "chunk-markdown-s": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_heading_path",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "chunk-markdown-o": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_exclusions",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "chunk-markdown-r": {
+      "path": "plugins/lemma/tests/test_markdown.py",
+      "selector": "test_short_document_survives",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "chunk-solidity-p": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_chunks",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "chunk-solidity-m": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_compile_errors_raise",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "chunk-solidity-s": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_source_path_canonicality",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "chunk-solidity-o": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_empty_selection",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "chunk-solidity-r": {
+      "path": "plugins/lemma/tests/test_solidity.py",
+      "selector": "test_cli_integration",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "janus-manifest-p": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_the_honest_manifest_validates",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "janus-manifest-m": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_each_fixture_fails_with_its_named_code",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "janus-manifest-s": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_markdown_names_each_gate_and_hook",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "janus-manifest-o": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_wildcard_is_rejected_everywhere_it_could_hide",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "janus-manifest-r": {
+      "path": "plugins/janus/tests/test_validator.py",
+      "selector": "test_validate_command_exit_code",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "janus-bounded-p": {
+      "path": "plugins/janus/harness/test/WildcatConformance.t.sol",
+      "selector": "test_gate1_and_gate2_honest_deposit",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "janus-bounded-m": {
+      "path": "plugins/janus/harness/test/StateDeltaRecorder.t.sol",
+      "selector": "test_ending_without_beginning_reverts",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "janus-bounded-s": {
+      "path": "plugins/janus/harness/test/WildcatConformance.t.sol",
+      "selector": "test_gate7_adapter_names_its_scope",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "janus-bounded-o": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_empty_findings_report_states_context_not_safety",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "janus-bounded-r": {
+      "path": "plugins/janus/harness/test/HostileHooks.t.sol",
+      "selector": "test_storage_mutation_hook_caught_by_gate1",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "janus-report-p": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_report_command_writes_both_outputs",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "janus-report-m": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_the_sample_findings_load",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "janus-report-s": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_markdown_cells_survive_a_pipe_or_newline",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "janus-report-o": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_empty_findings_report_states_context_not_safety",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "janus-report-r": {
+      "path": "plugins/janus/tests/test_reporter.py",
+      "selector": "test_sarif_round_trips_as_json",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-corpus-p": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_build_then_verify_is_clean",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-corpus-m": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_an_empty_tree_is_refused",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-corpus-s": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_a_one_byte_edit_fails_corpus_bytes",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-corpus-o": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_an_unpinned_extra_file_fails_corpus_complete",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-corpus-r": {
+      "path": "plugins/berean/tests/test_corpus.py",
+      "selector": "test_write_stages_and_lands_whole",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-answer-p": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_classified_answer_passes",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-answer-m": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_an_evidence_free_document_sentence_fails",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-answer-s": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_mismatched_span_fails_answer_citations",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-answer-o": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_user_supplied_fact_carries_no_evidence",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-answer-r": {
+      "path": "plugins/berean/tests/test_answers.py",
+      "selector": "test_a_clean_refusal_passes",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-evaluation-p": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_the_fixture_corpus_grades_clean_and_reproduces_its_report",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-evaluation-m": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_a_release_without_evals_refuses",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-evaluation-s": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_a_cases_digest_mismatch_refuses_to_grade",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-evaluation-o": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_an_accepted_answer_fails_a_rejected_case",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-evaluation-r": {
+      "path": "plugins/berean/tests/test_evals.py",
+      "selector": "test_a_drifted_corpus_refuses_to_grade",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    },
+    "berean-promotion-p": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_clean_report_promotes_and_the_release_is_active",
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "berean-promotion-m": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_failed_report_does_not_promote",
+      "claim": "Missing required evidence is refused rather than treated as success."
+    },
+    "berean-promotion-s": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_report_for_another_corpus_does_not_promote",
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+    },
+    "berean-promotion-o": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_a_pinned_pass_over_a_failing_case_does_not_promote",
+      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+    },
+    "berean-promotion-r": {
+      "path": "plugins/berean/tests/test_promote.py",
+      "selector": "test_an_active_release_rolls_back_by_record",
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+    }
+  },
+  "rows": [
+    {
+      "promise_id": "alexandria-address-query",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "alexandria-compound-method-proof",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "alexandria-derived-view",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "alexandria-raw-release",
+      "skill_path": "plugins/alexandria/skills/alexandria/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "alexandria-p",
+        "M": "alexandria-m",
+        "S": "alexandria-s",
+        "O": "alexandria-o",
+        "R": "alexandria-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-capture-statement",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-inspect-statement",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-replay-command",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ariadne-verify-statement",
+      "skill_path": "plugins/ariadne/skills/ariadne/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ariadne-p",
+        "M": "ariadne-m",
+        "S": "ariadne-s",
+        "O": "ariadne-o",
+        "R": "ariadne-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-answer-evidence",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["answer-truth-refused", "read-class", "source-class", "subject", "time-domain"],
+      "cases": {
+        "P": "berean-answer-p",
+        "M": "berean-answer-m",
+        "S": "berean-answer-s",
+        "O": "berean-answer-o",
+        "R": "berean-answer-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-corpus-binding",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["corpus-digest", "source-class", "subject"],
+      "cases": {
+        "P": "berean-corpus-p",
+        "M": "berean-corpus-m",
+        "S": "berean-corpus-s",
+        "O": "berean-corpus-o",
+        "R": "berean-corpus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-evaluation-report",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["answer-digest", "answer-truth-refused", "corpus-digest", "time-domain"],
+      "cases": {
+        "P": "berean-evaluation-p",
+        "M": "berean-evaluation-m",
+        "S": "berean-evaluation-s",
+        "O": "berean-evaluation-o",
+        "R": "berean-evaluation-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "berean-release-promotion",
+      "skill_path": "plugins/berean/skills/berean/SKILL.md",
+      "group": "executable",
+      "preserves": ["answer-digest", "answer-truth-refused", "corpus-digest", "evaluation-digest"],
+      "cases": {
+        "P": "berean-promotion-p",
+        "M": "berean-promotion-m",
+        "S": "berean-promotion-s",
+        "O": "berean-promotion-o",
+        "R": "berean-promotion-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "brevitas-evidence-preservation",
+      "skill_path": "plugins/brevitas/skills/brevitas/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "brevitas-structure-check",
+      "skill_path": "plugins/brevitas/skills/brevitas/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "elenchus-fixed-and-guarded",
+      "skill_path": "plugins/hexaemeron/skills/elenchus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "elenchus-p",
+        "M": "elenchus-m",
+        "S": "elenchus-s",
+        "O": "elenchus-o",
+        "R": "elenchus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ephoros-mechanical-gate",
+      "skill_path": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ephoros-p",
+        "M": "ephoros-m",
+        "S": "ephoros-s",
+        "O": "ephoros-o",
+        "R": "ephoros-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "ephoros-observability-review",
+      "skill_path": "plugins/hexaemeron/skills/ephoros/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "ephoros-p",
+        "M": "ephoros-m",
+        "S": "ephoros-s",
+        "O": "ephoros-o",
+        "R": "ephoros-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "fiat-final-integration",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "fiat-p",
+        "M": "fiat-m",
+        "S": "fiat-s",
+        "O": "fiat-o",
+        "R": "fiat-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "fiat-receipted-delivery",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "fiat-p",
+        "M": "fiat-m",
+        "S": "fiat-s",
+        "O": "fiat-o",
+        "R": "fiat-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-baseline-promotion",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-p",
+        "M": "hermes-m",
+        "S": "hermes-s",
+        "O": "hermes-o",
+        "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-candidate-acceptance",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-p",
+        "M": "hermes-m",
+        "S": "hermes-s",
+        "O": "hermes-o",
+        "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-sealed-baseline",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-p",
+        "M": "hermes-m",
+        "S": "hermes-s",
+        "O": "hermes-o",
+        "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hexaemeron-fizz-convert-properties",
+      "skill_path": "plugins/hexaemeron/skills/fizz/skills/fizz-convert/SKILL.md",
+      "group": "vendored",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "hexaemeron-fizz-harness-campaign",
+      "skill_path": "plugins/hexaemeron/skills/fizz/SKILL.md",
+      "group": "vendored",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "hexaemeron-fizz-sync-drift",
+      "skill_path": "plugins/hexaemeron/skills/fizz/skills/fizz-sync/SKILL.md",
+      "group": "vendored",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "hexaemeron-solidity-audit-report",
+      "skill_path": "plugins/hexaemeron/skills/solidity-auditor/SKILL.md",
+      "group": "vendored",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "hexaemeron-x-ray-preaudit",
+      "skill_path": "plugins/hexaemeron/skills/x-ray/SKILL.md",
+      "group": "vendored",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "horos-boundary-check",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "horos-boundary-scan",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "horos-census",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "horos-skeleton-map",
+      "skill_path": "plugins/horos/skills/horos/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "horos-p",
+        "M": "horos-m",
+        "S": "horos-s",
+        "O": "horos-o",
+        "R": "horos-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hypomnema-pointer-gate",
+      "skill_path": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "hypomnema-record-placement",
+      "skill_path": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "imprimatur-prose-gate",
+      "skill_path": "plugins/hexaemeron/skills/imprimatur/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "janus-bounded-conformance",
+      "skill_path": "plugins/janus/skills/janus/SKILL.md",
+      "group": "executable",
+      "preserves": ["adapter", "bounded-search", "cross-host-refused", "manifest", "recorder", "safety-refused", "unknown-effect-refused"],
+      "cases": {
+        "P": "janus-bounded-p",
+        "M": "janus-bounded-m",
+        "S": "janus-bounded-s",
+        "O": "janus-bounded-o",
+        "R": "janus-bounded-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "janus-manifest-validation",
+      "skill_path": "plugins/janus/skills/janus/SKILL.md",
+      "group": "executable",
+      "preserves": ["adapter", "manifest"],
+      "cases": {
+        "P": "janus-manifest-p",
+        "M": "janus-manifest-m",
+        "S": "janus-manifest-s",
+        "O": "janus-manifest-o",
+        "R": "janus-manifest-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "janus-report-rendering",
+      "skill_path": "plugins/janus/skills/janus/SKILL.md",
+      "group": "executable",
+      "preserves": ["adapter", "bounded-search", "manifest", "recorder", "safety-refused"],
+      "cases": {
+        "P": "janus-report-p",
+        "M": "janus-report-m",
+        "S": "janus-report-s",
+        "O": "janus-report-o",
+        "R": "janus-report-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "kronos-fiat-dispatch",
+      "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "kronos-frontier-ranking",
+      "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "kronos-parked-lane",
+      "skill_path": "plugins/hexaemeron/skills/kronos/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "lazarus-exact-replay",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lazarus-fixture-capture",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lazarus-fixture-verification",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lazarus-preservation-release",
+      "skill_path": "plugins/lazarus/skills/lazarus/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "lazarus-p",
+        "M": "lazarus-m",
+        "S": "lazarus-s",
+        "O": "lazarus-o",
+        "R": "lazarus-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lemma-chunk-validation",
+      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "chunk-solidity-p",
+        "M": "chunk-solidity-m",
+        "S": "chunk-solidity-s",
+        "O": "chunk-solidity-o",
+        "R": "chunk-solidity-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lemma-markdown-chunks",
+      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "chunk-markdown-p",
+        "M": "chunk-markdown-m",
+        "S": "chunk-markdown-s",
+        "O": "chunk-markdown-o",
+        "R": "chunk-markdown-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "lemma-solidity-chunks",
+      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "chunk-solidity-p",
+        "M": "chunk-solidity-m",
+        "S": "chunk-solidity-s",
+        "O": "chunk-solidity-o",
+        "R": "chunk-solidity-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "metron-budget-verdict",
+      "skill_path": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "metron-p",
+        "M": "metron-m",
+        "S": "metron-s",
+        "O": "metron-o",
+        "R": "metron-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "metron-change-decision",
+      "skill_path": "plugins/hexaemeron/skills/metron/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "metron-p",
+        "M": "metron-m",
+        "S": "metron-s",
+        "O": "metron-o",
+        "R": "metron-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-broken-specimen",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-catalogue-render",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-law-contract",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "pandects-search-record",
+      "skill_path": "plugins/pandects/skills/pandects/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "pandects-p",
+        "M": "pandects-m",
+        "S": "pandects-s",
+        "O": "pandects-o",
+        "R": "pandects-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "phylax-boundary-review",
+      "skill_path": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "phylax-p",
+        "M": "phylax-m",
+        "S": "phylax-s",
+        "O": "phylax-o",
+        "R": "phylax-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "phylax-mechanical-gate",
+      "skill_path": "plugins/hexaemeron/skills/phylax/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "phylax-p",
+        "M": "phylax-m",
+        "S": "phylax-s",
+        "O": "phylax-o",
+        "R": "phylax-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "probitas-dossier-rendering",
+      "skill_path": "plugins/probitas/skills/probitas/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "probitas-p",
+        "M": "probitas-m",
+        "S": "probitas-s",
+        "O": "probitas-o",
+        "R": "probitas-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "probitas-dossier-verification",
+      "skill_path": "plugins/probitas/skills/probitas/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "probitas-p",
+        "M": "probitas-m",
+        "S": "probitas-s",
+        "O": "probitas-o",
+        "R": "probitas-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "probitas-evidence-collection",
+      "skill_path": "plugins/probitas/skills/probitas/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "probitas-p",
+        "M": "probitas-m",
+        "S": "probitas-s",
+        "O": "probitas-o",
+        "R": "probitas-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "protasis-runbook-readiness",
+      "skill_path": "plugins/hexaemeron/skills/protasis/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "protasis-p",
+        "M": "protasis-m",
+        "S": "protasis-s",
+        "O": "protasis-o",
+        "R": "protasis-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "protasis-study-readiness",
+      "skill_path": "plugins/hexaemeron/skills/protasis/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "protasis-p",
+        "M": "protasis-m",
+        "S": "protasis-s",
+        "O": "protasis-o",
+        "R": "protasis-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "sapheneia-deactivation",
+      "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "sapheneia-session-shape",
+      "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    },
+    {
+      "promise_id": "tabularium-compound-witness",
+      "skill_path": "plugins/tabularium/skills/tabularium/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "tabularium-p",
+        "M": "tabularium-m",
+        "S": "tabularium-s",
+        "O": "tabularium-o",
+        "R": "tabularium-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "tabularium-release-build",
+      "skill_path": "plugins/tabularium/skills/tabularium/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "tabularium-p",
+        "M": "tabularium-m",
+        "S": "tabularium-s",
+        "O": "tabularium-o",
+        "R": "tabularium-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "tabularium-release-verification",
+      "skill_path": "plugins/tabularium/skills/tabularium/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "tabularium-p",
+        "M": "tabularium-m",
+        "S": "tabularium-s",
+        "O": "tabularium-o",
+        "R": "tabularium-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "vulgate-register-rewrite",
+      "skill_path": "plugins/hexaemeron/skills/vulgate/SKILL.md",
+      "group": "prompt",
+      "cases": null,
+      "pending": "Runbook Step 8 classifies prompt, transformation and vendored evidence."
+    }
+  ]
+}

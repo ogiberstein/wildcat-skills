@@ -21,6 +21,7 @@ MARKER = (
 )
 MAX_MARKDOWN_BYTES = 256 * 1024
 MAX_JSON_BYTES = 64 * 1024
+MAX_COVERAGE_BYTES = 512 * 1024
 REQUIRED_HEADINGS = (
     "# Promise Machine contract",
     "## Contract identity",
@@ -65,6 +66,72 @@ PROMISE_ID = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 OVERLAY_PATH = Path("plugins/hexaemeron/PROMISES.md")
 OVERLAY_HEADING = "# Hexaemeron Promise Machine overlays"
 OVERLAY_FIELDS = ("Path", "SHA-256", *REQUIRED_FIELDS)
+COVERAGE_PATH = Path("tests/promise_machine_coverage.json")
+COVERAGE_SCHEMA = "promise-machine-coverage/v1"
+COVERAGE_CODES = ("P", "M", "S", "O", "R", "X")
+PROMPT_SKILLS = {
+    "brevitas",
+    "hypomnema",
+    "imprimatur",
+    "kronos",
+    "sapheneia",
+    "vulgate",
+}
+PRESERVATION_REQUIREMENTS = {
+    "berean-corpus-binding": {"corpus-digest", "source-class", "subject"},
+    "berean-answer-evidence": {
+        "answer-truth-refused",
+        "read-class",
+        "source-class",
+        "subject",
+        "time-domain",
+    },
+    "berean-evaluation-report": {
+        "answer-digest",
+        "answer-truth-refused",
+        "corpus-digest",
+        "time-domain",
+    },
+    "berean-release-promotion": {
+        "answer-digest",
+        "answer-truth-refused",
+        "corpus-digest",
+        "evaluation-digest",
+    },
+    "janus-manifest-validation": {"adapter", "manifest"},
+    "janus-bounded-conformance": {
+        "adapter",
+        "bounded-search",
+        "cross-host-refused",
+        "manifest",
+        "recorder",
+        "safety-refused",
+        "unknown-effect-refused",
+    },
+    "janus-report-rendering": {
+        "adapter",
+        "bounded-search",
+        "manifest",
+        "recorder",
+        "safety-refused",
+    },
+}
+REQUIRED_HANDOFFS = {
+    ("lazarus-fixture-verification", "berean-answer-evidence"),
+    ("berean-release-promotion", "ariadne-capture-statement"),
+}
+HANDOFF_PRESERVES = {
+    ("lazarus-fixture-verification", "berean-answer-evidence"): {
+        "block",
+        "evidence-class",
+        "subject",
+    },
+    ("berean-release-promotion", "ariadne-capture-statement"): {
+        "answer-digest",
+        "evidence-class",
+        "subject",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -92,6 +159,13 @@ class Inventory:
     skills: tuple[SkillRecord, ...]
     routers: tuple[str, ...]
     overlays: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PromiseRecord:
+    promise_id: str
+    skill_path: str
+    group: str
 
 
 def relative(path: Path, root: Path) -> str:
@@ -174,26 +248,35 @@ def read_markdown(path: Path, root: Path, *, missing_code: str, unsafe_code: str
     return (payload, text), findings
 
 
-def read_json(path: Path, root: Path):
+def read_json(
+    path: Path,
+    root: Path,
+    *,
+    max_bytes: int = MAX_JSON_BYTES,
+    missing_code: str = "PM021",
+    unsafe_code: str = "PM021",
+    malformed_code: str = "PM022",
+    noun: str = "plugin manifest",
+):
     shown = relative(path, root)
     if path.is_symlink() or not confined(path, root):
         return None, [
             Finding(
-                "PM021",
+                unsafe_code,
                 "identity",
                 shown,
-                "plugin manifest is a symlink or resolves outside the repository",
-                "restore a regular manifest at the fixed plugin path",
+                f"{noun} is a symlink or resolves outside the repository",
+                f"restore a regular {noun} at the fixed path",
             )
         ]
     if not path.is_file():
         return None, [
             Finding(
-                "PM021",
+                missing_code,
                 "structural",
                 shown,
-                "paired plugin manifest is absent",
-                "restore both host manifests for the plugin",
+                f"{noun} is absent",
+                f"restore the required {noun}",
             )
         ]
     try:
@@ -201,43 +284,51 @@ def read_json(path: Path, root: Path):
     except OSError as exc:
         return None, [
             Finding(
-                "PM021",
+                unsafe_code,
                 "identity",
                 shown,
-                f"plugin manifest could not be read: {exc}",
-                "restore a readable manifest inside the repository",
+                f"{noun} could not be read: {exc}",
+                f"restore a readable {noun} inside the repository",
             )
         ]
-    if len(payload) > MAX_JSON_BYTES:
+    if len(payload) > max_bytes:
         return None, [
             Finding(
-                "PM022",
+                malformed_code,
                 "structural",
                 shown,
-                f"plugin manifest is {len(payload)} bytes; limit is {MAX_JSON_BYTES}",
-                "reduce the manifest below the bounded-read limit",
+                f"JSON document is {len(payload)} bytes; limit is {max_bytes}",
+                "reduce the document below the bounded-read limit",
             )
         ]
+    def reject_duplicate_keys(pairs):
+        document = {}
+        for key, value in pairs:
+            if key in document:
+                raise ValueError(f"duplicate object key: {key!r}")
+            document[key] = value
+        return document
+
     try:
-        document = json.loads(payload)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        document = json.loads(payload, object_pairs_hook=reject_duplicate_keys)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         return None, [
             Finding(
-                "PM022",
+                malformed_code,
                 "structural",
                 shown,
-                f"plugin manifest is not valid UTF-8 JSON: {exc}",
-                "restore a valid plugin manifest",
+                f"{noun} is not valid UTF-8 JSON: {exc}",
+                f"restore a valid {noun}",
             )
         ]
     if not isinstance(document, dict):
         return None, [
             Finding(
-                "PM022",
+                malformed_code,
                 "structural",
                 shown,
-                "plugin manifest root is not an object",
-                "restore the manifest object",
+                f"{noun} root is not an object",
+                f"restore the {noun} object",
             )
         ]
     return document, []
@@ -1200,6 +1291,465 @@ def check_overlays(root: Path, inventory: Inventory):
     return len(blocks), findings
 
 
+def promise_records(root: Path, inventory: Inventory):
+    records: list[PromiseRecord] = []
+    for skill in inventory.skills:
+        if skill.governance != "first-party":
+            continue
+        parsed, _ = parse_contract(skill, root)
+        group = "prompt" if skill.name in PROMPT_SKILLS else "executable"
+        records.extend(
+            PromiseRecord(promise_id, skill.path, group)
+            for promise_id, _ in parsed
+        )
+
+    loaded, _ = read_markdown(
+        root / OVERLAY_PATH, root, missing_code="PM060", unsafe_code="PM060"
+    )
+    if loaded is not None:
+        lines = loaded[1].splitlines()
+        heading_index = lines.index(OVERLAY_HEADING) if OVERLAY_HEADING in lines else 0
+        section_end = next(
+            (
+                index
+                for index in range(heading_index + 1, len(lines))
+                if lines[index].startswith("# ") or lines[index].startswith("## ")
+            ),
+            len(lines),
+        )
+        blocks = [
+            index
+            for index in range(heading_index + 1, section_end)
+            if lines[index].startswith("### ")
+        ]
+        for offset, block_start in enumerate(blocks):
+            block_end = blocks[offset + 1] if offset + 1 < len(blocks) else len(lines)
+            promise_id = lines[block_start][4:].strip()
+            declared = ""
+            for line in lines[block_start + 1 : block_end]:
+                match = re.fullmatch(r"- Path:\s*`?([^`]+?)`?\s*", line)
+                if match is not None:
+                    declared = match.group(1).strip()
+                    break
+            records.append(PromiseRecord(promise_id, declared, "vendored"))
+    return tuple(sorted(records, key=lambda item: item.promise_id))
+
+
+def parse_groups(raw: str):
+    groups = {item.strip() for item in raw.split(",") if item.strip()}
+    unknown = sorted(groups - {"executable", "prompt", "vendored"})
+    if unknown or not groups:
+        raise ValueError(f"unsupported --group value(s): {unknown or ['<empty>']}")
+    return groups
+
+
+def selector_resolves(path: Path, text: str, selector: str):
+    if path.suffix == ".py":
+        pattern = rf"^\s*def\s+{re.escape(selector)}\s*\("
+    elif path.suffix == ".sol":
+        pattern = rf"^\s*function\s+{re.escape(selector)}\s*\("
+    else:
+        return False
+    return re.search(pattern, text, re.MULTILINE) is not None
+
+
+def check_coverage(root: Path, inventory: Inventory, selected_groups: set[str]):
+    findings: list[Finding] = []
+    expected_records = promise_records(root, inventory)
+    expected = {item.promise_id: item for item in expected_records}
+    required_handoffs = {
+        pair for pair in REQUIRED_HANDOFFS if pair[0] in expected and pair[1] in expected
+    }
+    document, read_findings = read_json(
+        root / COVERAGE_PATH,
+        root,
+        max_bytes=MAX_COVERAGE_BYTES,
+        missing_code="PM060",
+        unsafe_code="PM060",
+        malformed_code="PM061",
+        noun="coverage file",
+    )
+    findings.extend(read_findings)
+    if document is None:
+        return 0, 0, findings
+    if document.get("contract") != CONTRACT_ID or document.get("schema") != COVERAGE_SCHEMA:
+        findings.append(
+            Finding(
+                "PM061",
+                "structural",
+                COVERAGE_PATH.as_posix(),
+                "coverage contract or schema identity is absent or unsupported",
+                f"use contract {CONTRACT_ID!r} and schema {COVERAGE_SCHEMA!r}",
+            )
+        )
+    handoffs = document.get("handoffs")
+    seen_handoffs: set[tuple[str, str]] = set()
+    if not isinstance(handoffs, list):
+        findings.append(
+            Finding(
+                "PM068",
+                "composition",
+                COVERAGE_PATH.as_posix(),
+                "coverage handoffs are not an array",
+                "record the required producer-to-consumer evidence boundaries",
+            )
+        )
+        handoffs = []
+    for index, handoff in enumerate(handoffs):
+        handoff_path = f"{COVERAGE_PATH.as_posix()}#handoffs[{index}]"
+        required_keys = {"producer", "consumer", "path", "selector", "preserves", "refuses"}
+        if not isinstance(handoff, dict) or set(handoff) != required_keys:
+            findings.append(
+                Finding(
+                    "PM068",
+                    "composition",
+                    handoff_path,
+                    "handoff does not have the required evidence-bound shape",
+                    "name producer, consumer, exact test, preserved fields and refused overclaim",
+                )
+            )
+            continue
+        if not all(
+            isinstance(handoff[key], str) and handoff[key].strip()
+            for key in ("producer", "consumer", "path", "selector", "refuses")
+        ):
+            findings.append(
+                Finding(
+                    "PM068",
+                    "composition",
+                    handoff_path,
+                    "handoff identities and test reference are not non-empty strings",
+                    "state concrete producer, consumer, path, selector and refused overclaim",
+                )
+            )
+            continue
+        pair = (handoff["producer"], handoff["consumer"])
+        seen_handoffs.add(pair)
+        preserves = handoff["preserves"]
+        if (
+            pair not in required_handoffs
+            or not isinstance(preserves, list)
+            or not preserves
+            or any(not isinstance(item, str) or not item for item in preserves)
+            or not HANDOFF_PRESERVES.get(pair, set()).issubset(
+                set(item for item in preserves if isinstance(item, str))
+            )
+            or handoff["refuses"] != "answer-truth"
+        ):
+            findings.append(
+                Finding(
+                    "PM068",
+                    "composition",
+                    handoff_path,
+                    "handoff does not preserve its declared evidence boundary or refusal",
+                    "preserve subject and evidence class without promoting answer truth",
+                )
+            )
+        target = root / handoff["path"]
+        loaded, target_findings = read_markdown(
+            target, root, missing_code="PM065", unsafe_code="PM065"
+        )
+        findings.extend(target_findings)
+        if loaded is not None and not selector_resolves(
+            target, loaded[1], handoff["selector"]
+        ):
+            findings.append(
+                Finding(
+                    "PM065",
+                    "composition",
+                    handoff["path"],
+                    f"handoff test selector does not resolve: {handoff['selector']!r}",
+                    "cite the exact existing cross-skill test selector",
+                )
+            )
+    for pair in sorted(required_handoffs - seen_handoffs):
+        findings.append(
+            Finding(
+                "PM068",
+                "composition",
+                COVERAGE_PATH.as_posix(),
+                f"required evidence handoff is absent: {pair!r}",
+                "add its exact subject, evidence-class and answer-truth guard",
+            )
+        )
+    handoff_counts: dict[tuple[str, str], int] = {}
+    for handoff in handoffs:
+        if not isinstance(handoff, dict):
+            continue
+        producer = handoff.get("producer")
+        consumer = handoff.get("consumer")
+        if isinstance(producer, str) and isinstance(consumer, str):
+            pair = (producer, consumer)
+            handoff_counts[pair] = handoff_counts.get(pair, 0) + 1
+    for pair, count in sorted(handoff_counts.items()):
+        if count > 1:
+            findings.append(
+                Finding(
+                    "PM068",
+                    "composition",
+                    COVERAGE_PATH.as_posix(),
+                    f"evidence handoff is repeated {count} times: {pair!r}",
+                    "retain one exact record for each required handoff",
+                )
+            )
+    rows = document.get("rows")
+    evidence_catalog = document.get("evidence")
+    if not isinstance(evidence_catalog, dict):
+        findings.append(
+            Finding(
+                "PM061",
+                "structural",
+                COVERAGE_PATH.as_posix(),
+                "coverage evidence catalogue is not an object",
+                "provide named exact test references for coverage rows",
+            )
+        )
+        evidence_catalog = {}
+    if not isinstance(rows, list):
+        findings.append(
+            Finding(
+                "PM061",
+                "structural",
+                COVERAGE_PATH.as_posix(),
+                "coverage rows are not an array",
+                "provide one row object for every discovered promise",
+            )
+        )
+        return 0, 0, findings
+
+    seen: dict[str, int] = {}
+    selected = 0
+    for index, row in enumerate(rows):
+        row_path = f"{COVERAGE_PATH.as_posix()}#rows[{index}]"
+        if not isinstance(row, dict):
+            findings.append(
+                Finding(
+                    "PM061",
+                    "structural",
+                    row_path,
+                    "coverage row is not an object",
+                    "replace it with a typed coverage row",
+                )
+            )
+            continue
+        promise_id = row.get("promise_id")
+        if not isinstance(promise_id, str):
+            findings.append(
+                Finding(
+                    "PM061",
+                    "structural",
+                    row_path,
+                    "coverage row has no string promise_id",
+                    "name the discovered stable promise id",
+                )
+            )
+            continue
+        seen[promise_id] = seen.get(promise_id, 0) + 1
+        record = expected.get(promise_id)
+        if record is None:
+            findings.append(
+                Finding(
+                    "PM062",
+                    "identity",
+                    row_path,
+                    "coverage row names no discovered promise",
+                    "remove the stale row or restore its canonical declaration",
+                    promise_id=promise_id,
+                )
+            )
+            continue
+        if row.get("skill_path") != record.skill_path or row.get("group") != record.group:
+            findings.append(
+                Finding(
+                    "PM063",
+                    "identity",
+                    row_path,
+                    f"coverage owner or group disagrees with discovery: expected {record.skill_path!r} in {record.group!r}",
+                    "derive the owner and group from the canonical declaration",
+                    promise_id=promise_id,
+                )
+            )
+
+        required_preservation = PRESERVATION_REQUIREMENTS.get(promise_id)
+        if required_preservation is not None:
+            preserves = row.get("preserves")
+            if not isinstance(preserves, list) or not required_preservation.issubset(
+                set(item for item in preserves if isinstance(item, str))
+            ):
+                findings.append(
+                    Finding(
+                        "PM068",
+                        "composition",
+                        row_path,
+                        f"coverage row omits required preserved boundaries: {sorted(required_preservation)!r}",
+                        "retain the producer evidence class, subject and refused overclaim",
+                        promise_id=promise_id,
+                    )
+                )
+
+        cases = row.get("cases")
+        if record.group not in selected_groups:
+            pending_reason = row.get("pending")
+            if cases is None and (
+                not isinstance(pending_reason, str) or not pending_reason.strip()
+            ):
+                findings.append(
+                    Finding(
+                        "PM066",
+                        "coverage",
+                        row_path,
+                        "unselected incomplete row has no visible pending reason",
+                        "state the later runbook step that will classify this row",
+                        promise_id=promise_id,
+                    )
+                )
+            continue
+
+        selected += 1
+        if not isinstance(cases, dict) or set(cases) != set(COVERAGE_CODES):
+            findings.append(
+                Finding(
+                    "PM066",
+                    "coverage",
+                    row_path,
+                    f"selected row must classify exactly {list(COVERAGE_CODES)!r}",
+                    "provide evidence or an explicit inapplicability reason for every class",
+                    promise_id=promise_id,
+                )
+            )
+            continue
+
+        references: dict[tuple[str, str], str] = {}
+        for code in COVERAGE_CODES:
+            raw_case = cases[code]
+            case_path = f"{row_path}.{code}"
+            if isinstance(raw_case, str):
+                case = evidence_catalog.get(raw_case)
+                if case is None:
+                    findings.append(
+                        Finding(
+                            "PM064",
+                            "coverage",
+                            case_path,
+                            f"coverage evidence id does not resolve: {raw_case!r}",
+                            "cite an existing evidence-catalogue entry",
+                            promise_id=promise_id,
+                        )
+                    )
+                    continue
+            else:
+                case = raw_case
+            if not isinstance(case, dict):
+                findings.append(
+                    Finding(
+                        "PM064",
+                        "coverage",
+                        case_path,
+                        "coverage case is not an object",
+                        "provide one evidence reference or inapplicability reason",
+                        promise_id=promise_id,
+                    )
+                )
+                continue
+            if "not_applicable" in case:
+                if set(case) != {"not_applicable", "reason"} or case.get("not_applicable") is not True or not isinstance(case.get("reason"), str) or not case["reason"].strip():
+                    findings.append(
+                        Finding(
+                            "PM064",
+                            "coverage",
+                            case_path,
+                            "inapplicability is not an attributed non-empty reason",
+                            "set not_applicable true and state why the class cannot apply",
+                            promise_id=promise_id,
+                        )
+                    )
+                elif code in {"P", "M", "O", "R"}:
+                    findings.append(
+                        Finding(
+                            "PM066",
+                            "coverage",
+                            case_path,
+                            f"material {code} evidence may not be inapplicable",
+                            "cite a distinct positive, missing, overclaim or recovery case",
+                            promise_id=promise_id,
+                        )
+                    )
+                continue
+            if set(case) != {"path", "selector", "claim"} or not all(
+                isinstance(case.get(key), str) and case[key].strip()
+                for key in ("path", "selector", "claim")
+            ):
+                findings.append(
+                    Finding(
+                        "PM064",
+                        "coverage",
+                        case_path,
+                        "evidence reference must contain only non-empty path, selector and claim",
+                        "cite one exact existing test selector and its bounded interpretation",
+                        promise_id=promise_id,
+                    )
+                )
+                continue
+            evidence_path = Path(case["path"])
+            target = root / evidence_path
+            loaded, target_findings = read_markdown(
+                target, root, missing_code="PM065", unsafe_code="PM065"
+            )
+            findings.extend(target_findings)
+            if loaded is not None and not selector_resolves(
+                target, loaded[1], case["selector"]
+            ):
+                findings.append(
+                    Finding(
+                        "PM065",
+                        "coverage",
+                        case["path"],
+                        f"test selector does not resolve: {case['selector']!r}",
+                        "cite an exact function or test name present in the file",
+                        promise_id=promise_id,
+                    )
+                )
+            reference = (case["path"], case["selector"])
+            if reference in references:
+                findings.append(
+                    Finding(
+                        "PM067",
+                        "coverage",
+                        case_path,
+                        f"one test selector is reused for incompatible {references[reference]} and {code} cases",
+                        "cite distinct evidence for each incompatible class",
+                        promise_id=promise_id,
+                    )
+                )
+            references[reference] = code
+
+    actual_ids = set(seen)
+    for promise_id in sorted(set(expected) - actual_ids):
+        findings.append(
+            Finding(
+                "PM062",
+                "coverage",
+                COVERAGE_PATH.as_posix(),
+                "discovered promise has no coverage row",
+                "add the promise without removing any discovered entry",
+                promise_id=promise_id,
+            )
+        )
+    for promise_id, count in sorted(seen.items()):
+        if count > 1:
+            findings.append(
+                Finding(
+                    "PM062",
+                    "identity",
+                    COVERAGE_PATH.as_posix(),
+                    f"promise has {count} coverage rows",
+                    "retain exactly one row for each discovered promise",
+                    promise_id=promise_id,
+                )
+            )
+    return len(rows), selected, findings
+
+
 def check_identity(inventory: Inventory):
     findings: list[Finding] = []
     owners: dict[str, list[str]] = {}
@@ -1716,20 +2266,22 @@ def report(
                 f"{item.message}; repair: {item.remedy}"
             )
         print(f"refused: {len(findings)} finding(s)")
-    elif command == "inventory":
+    elif command in {"inventory", "coverage"}:
+        keys = (
+            (
+                "plugins",
+                "canonical_skills",
+                "governed_skills",
+                "vendored_skills",
+                "routers",
+                "overlays",
+            )
+            if command == "inventory"
+            else ("promises", "coverage_rows", "coverage_selected")
+        )
         print(
             "clean: "
-            + " ".join(
-                f"{key}={counts[key]}"
-                for key in (
-                    "plugins",
-                    "canonical_skills",
-                    "governed_skills",
-                    "vendored_skills",
-                    "routers",
-                    "overlays",
-                )
-            )
+            + " ".join(f"{key}={counts[key]}" for key in keys)
         )
     else:
         suffix = f"; wrote {written}" if command == "sync" else ""
@@ -1785,6 +2337,16 @@ def main(argv=None):
     inventory_parser.add_argument("--root", help=argparse.SUPPRESS)
     inventory_parser.add_argument("--json", action="store_true", help="emit canonical JSON")
 
+    coverage_parser = subparsers.add_parser(
+        "coverage", help="check promise-to-evidence classifications"
+    )
+    coverage_parser.add_argument("--check", action="store_true")
+    coverage_parser.add_argument(
+        "--group", default="executable,prompt,vendored", help="comma-separated groups"
+    )
+    coverage_parser.add_argument("--root", help=argparse.SUPPRESS)
+    coverage_parser.add_argument("--json", action="store_true", help="emit canonical JSON")
+
     args = parser.parse_args(argv)
     try:
         root = repository_root(args.root)
@@ -1801,6 +2363,40 @@ def main(argv=None):
             findings,
             as_json=args.json,
             inventory=inventory,
+        )
+
+    if args.command == "coverage":
+        try:
+            selected_groups = parse_groups(args.group)
+        except ValueError as exc:
+            parser.error(str(exc))
+        inventory, findings = discover_inventory(root)
+        plugins = [root / path for path in inventory.plugins]
+        canonical_promises, structure_findings = check_structure(
+            root,
+            inventory,
+            require_standalone_contracts=True,
+            require_hexaemeron_contracts=True,
+        )
+        overlay_promises, overlay_findings = check_overlays(root, inventory)
+        coverage_rows, coverage_selected, coverage_findings = check_coverage(
+            root, inventory, selected_groups
+        )
+        findings.extend(structure_findings)
+        findings.extend(overlay_findings)
+        findings.extend(coverage_findings)
+        return report(
+            "coverage",
+            root,
+            plugins,
+            findings,
+            as_json=args.json,
+            inventory=inventory,
+            promises=canonical_promises + overlay_promises,
+            stats={
+                "coverage_rows": coverage_rows,
+                "coverage_selected": coverage_selected,
+            },
         )
 
     if args.command == "check":

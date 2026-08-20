@@ -128,6 +128,68 @@ def write_overlay(root, skill, *, promise_id="hexaemeron-upstream-run", digest=N
     return overlay
 
 
+def write_coverage_fixture(root):
+    plugin = make_plugin(root, "hexaemeron")
+    write_skill(plugin, "elenchus")
+    vendored = write_vendored_skill(plugin)
+    write_overlay(root, vendored)
+    evidence_path = root / "tests" / "evidence.py"
+    evidence_path.parent.mkdir(parents=True)
+    selectors = {
+        "p": "test_positive",
+        "m": "test_missing",
+        "s": "test_subject_mismatch",
+        "o": "test_overclaim",
+        "r": "test_recovery",
+    }
+    evidence_path.write_text(
+        "\n".join(f"def {selector}():\n    pass\n" for selector in selectors.values()),
+        encoding="utf-8",
+    )
+    evidence = {
+        key: {
+            "path": "tests/evidence.py",
+            "selector": selector,
+            "claim": f"Fixture {key} evidence.",
+        }
+        for key, selector in selectors.items()
+    }
+    document = {
+        "contract": "promise-machine/v1",
+        "schema": "promise-machine-coverage/v1",
+        "handoffs": [],
+        "evidence": evidence,
+        "rows": [
+            {
+                "promise_id": "example-check",
+                "skill_path": "plugins/hexaemeron/skills/elenchus/SKILL.md",
+                "group": "executable",
+                "cases": {
+                    "P": "p",
+                    "M": "m",
+                    "S": "s",
+                    "O": "o",
+                    "R": "r",
+                    "X": {
+                        "not_applicable": True,
+                        "reason": "The fixture supports no exceptions.",
+                    },
+                },
+            },
+            {
+                "promise_id": "hexaemeron-upstream-run",
+                "skill_path": "plugins/hexaemeron/skills/upstream/SKILL.md",
+                "group": "vendored",
+                "cases": None,
+                "pending": "Runbook Step 8 classifies vendored evidence.",
+            },
+        ],
+    }
+    coverage = root / "tests" / "promise_machine_coverage.json"
+    coverage.write_text(json.dumps(document), encoding="utf-8")
+    return coverage, document
+
+
 class PromiseLawTests(unittest.TestCase):
     def test_repository_law_and_copies_are_clean(self):
         completed = run_cli("check", "--only", "law,copies")
@@ -883,6 +945,126 @@ class PromiseIdentityTests(unittest.TestCase):
                 "check", "--root", target, "--only", "routers", "--json"
             )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+
+class PromiseCoverageTests(unittest.TestCase):
+    def test_repository_executable_coverage_is_complete(self):
+        completed = run_cli(
+            "coverage", "--check", "--group", "executable", "--json"
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["counts"]["coverage_rows"], 66)
+        self.assertEqual(report["counts"]["coverage_selected"], 50)
+
+    def test_berean_and_janus_boundaries_are_explicit(self):
+        coverage = json.loads(
+            (ROOT / "tests" / "promise_machine_coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        rows = {row["promise_id"]: row for row in coverage["rows"]}
+        self.assertEqual(
+            set(rows["berean-answer-evidence"]["preserves"]),
+            {
+                "answer-truth-refused",
+                "read-class",
+                "source-class",
+                "subject",
+                "time-domain",
+            },
+        )
+        self.assertEqual(
+            set(rows["janus-bounded-conformance"]["preserves"]),
+            {
+                "adapter",
+                "bounded-search",
+                "cross-host-refused",
+                "manifest",
+                "recorder",
+                "safety-refused",
+                "unknown-effect-refused",
+            },
+        )
+        self.assertEqual(
+            {
+                (handoff["producer"], handoff["consumer"])
+                for handoff in coverage["handoffs"]
+            },
+            {
+                ("lazarus-fixture-verification", "berean-answer-evidence"),
+                ("berean-release-promotion", "ariadne-capture-statement"),
+            },
+        )
+
+    def run_mutation(self, mutate):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, document = write_coverage_fixture(target)
+            mutate(document)
+            coverage_path.write_text(json.dumps(document), encoding="utf-8")
+            completed = run_cli(
+                "coverage",
+                "--check",
+                "--root",
+                target,
+                "--group",
+                "executable",
+                "--json",
+            )
+        return completed, json.loads(completed.stdout)
+
+    def test_missing_coverage_row_is_refused(self):
+        completed, report = self.run_mutation(
+            lambda document: document["rows"].pop(0)
+        )
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM062", [item["code"] for item in report["findings"]])
+
+    def test_unresolved_test_selector_is_refused(self):
+        def mutate(document):
+            document["evidence"]["p"]["selector"] = "test_absent"
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM065", [item["code"] for item in report["findings"]])
+
+    def test_one_selector_cannot_satisfy_incompatible_cases(self):
+        def mutate(document):
+            document["rows"][0]["cases"]["M"] = "p"
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM067", [item["code"] for item in report["findings"]])
+
+    def test_material_missing_case_cannot_be_inapplicable(self):
+        def mutate(document):
+            document["rows"][0]["cases"]["M"] = {
+                "not_applicable": True,
+                "reason": "Fixture claim.",
+            }
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM066", [item["code"] for item in report["findings"]])
+
+    def test_inapplicability_requires_a_reason(self):
+        def mutate(document):
+            document["rows"][0]["cases"]["X"] = {"not_applicable": True}
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM064", [item["code"] for item in report["findings"]])
+
+    def test_selected_pending_row_is_refused(self):
+        def mutate(document):
+            document["rows"][0]["cases"] = None
+            document["rows"][0]["pending"] = "Later."
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM066", [item["code"] for item in report["findings"]])
 
 
 if __name__ == "__main__":
