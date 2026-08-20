@@ -3831,3 +3831,41 @@ twelve numbered items, Disciplines is still the last field of the schema, and
 the checklist still covers both additions. A fix to trigger text is the kind
 that can quietly contradict the body it advertises, so the check compares the
 two rather than reading the diff.
+
+## Protasis discipline cores, step 3, round 1 -- 2026-08-20
+
+Reviewed: the checker, its tests, its four fixtures, and the README count that
+an existing test derives.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | The step cap stopped scanning and discarded the fact that it had, so five hundred sound steps followed by a broken one returned clean at exit 0. The cap turned a broken runbook into a passing one. | fixed in bf4fd43 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 332/332.
+
+The finding came from probing the risk register rather than reading the code.
+The register's third entry says a checker that finds nothing and exits 0 is
+worse than no checker, and names an empty step set as the way in. P003 already
+covered that door. The cap was the other one, and it was open. The fix keeps the
+bound, because a document from outside the process gets bounded, and returns the
+dropped count so P004 can report what went unchecked.
+
+Two more register entries were probed and are sound. Regex cost is not a denial
+surface: a 200,000 character step heading finishes in 0.7 ms and an unterminated
+allow comment of the same size in 2.4 ms, both linear enough at a 2 MiB read cap.
+Path handling refuses anything that is not a regular file, which covers device
+and directory arguments, and the argument list is documented as the trust
+boundary rather than pretended away.
+
+Also worth recording from this step, though it was caught by the suite rather
+than by the audit: P002 was first written to search the whole step for a command,
+which lets any field carrying backticks answer for the exit. Since
+`**Files.** `a.py`` is close to universal, the code would never have fired on a
+real runbook. It now searches the exit's own field span. Both that fix and this
+round's fix are guarded by tests seen to fail on the unfixed tree.
+
+Leads not pursued: the README states "124 controller, contract and practice-check
+tests, 55 lint tests" while the plugin suite ran 303 before this run and 332
+after. That prose was already stale by roughly 180 tests before this run touched
+it, no test derives it, and correcting it is outside what this step asks for.
