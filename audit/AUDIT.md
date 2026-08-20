@@ -4491,3 +4491,21 @@ request body and this row. Separately, `plugins/horos/**` has no CI workflow of
 its own, so this plugin's 188 tests run locally and nowhere else; adding one is
 an ask-first change under this run's boundaries and is recorded on pull request
 256 rather than made here.
+
+## Scoped entry, step 3, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+188/188 with one expected failure, root 38/38 clean, `check .` exit 0, all
+verified before this receipt. The round audited the tree with round 1's
+correction applied and re-read every remaining quantitative claim in this
+run's two documents against the tree rather than against the earlier prose:
+the entry count, the census rows, the suite counts, the baseline median, and
+the audit references. The 87 figure now carries the checkout it was measured
+in. The three mutations that pin the guard ran again in this round as part of
+the root suite; the three ways the guard was seen failing belong to the step
+rather than to this round, and are recorded there.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: none.
