@@ -9,6 +9,7 @@ settles the part a parser can.
   P001  a step missing a required field
   P002  a step whose exit states no command
   P003  a document in which no step was found
+  P004  more steps than the check will track, so the tail went unchecked
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
@@ -85,14 +86,20 @@ def _read(path: Path) -> list[str] | None:
         return None
 
 
-def _spans(lines: list[str]) -> list[tuple[int, str, int, int]]:
-    """Every step as (heading line, title, body start, body end), 1-indexed.
+def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
+    """Steps as (heading line, title, body start, body end), and how many were
+    left untracked by the cap.
 
     A step owns the lines after its heading up to the next step heading or the
     next heading of the same or higher level, so a trailing section does not
     get read as part of the last step.
+
+    The cap bounds the work, and the count of what it dropped is returned rather
+    than discarded: a check that stops early and still reports clean is the
+    false confidence this whole module exists to avoid.
     """
     starts: list[tuple[int, str]] = []
+    dropped = 0
     in_fence = False
     for index, line in enumerate(lines, start=1):
         if FENCE.match(line):
@@ -102,9 +109,10 @@ def _spans(lines: list[str]) -> list[tuple[int, str, int, int]]:
             continue
         match = STEP.match(line)
         if match:
-            starts.append((index, match.group("title")))
             if len(starts) >= MAX_STEPS:
-                break
+                dropped += 1
+                continue
+            starts.append((index, match.group("title")))
 
     spans = []
     for position, (line_number, title) in enumerate(starts):
@@ -118,7 +126,7 @@ def _spans(lines: list[str]) -> list[tuple[int, str, int, int]]:
                     end = index - 1
                     break
         spans.append((line_number, title, line_number + 1, end))
-    return spans
+    return spans, dropped
 
 
 def _field_span(body: list[str], name: str) -> list[str]:
@@ -164,9 +172,14 @@ def check(path: Path) -> list[Finding]:
         return [Finding(path, 1, "P000", "cannot be read as a runbook")]
 
     findings: list[Finding] = []
-    spans = _spans(lines)
+    spans, dropped = _spans(lines)
     if not spans:
         return [Finding(path, 1, "P003", "no step found; expected a '## Step N: title' heading")]
+    if dropped:
+        findings.append(Finding(
+            path, 1, "P004",
+            f"{dropped} step(s) past the {MAX_STEPS}-step cap were not checked; "
+            f"split the runbook rather than trusting this result"))
 
     for heading_line, title, body_start, body_end in spans:
         if suppressed(lines, heading_line):

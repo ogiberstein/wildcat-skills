@@ -142,6 +142,24 @@ class Documents(unittest.TestCase):
         source = COMPLETE_STEP + ("x" * (protasis.MAX_BYTES + 1))
         self.assertEqual(codes(source), ["P000"])
 
+    def test_steps_past_the_cap_are_reported_not_dropped(self):
+        """The guard for silent truncation.
+
+        Capping the work is right; capping it and still reporting clean is the
+        false confidence this module exists to avoid. A broken step past the cap
+        must not hide behind a clean verdict.
+        """
+        capped = "\n".join(COMPLETE_STEP.replace("Step 1:", f"Step {n}:")
+                           for n in range(1, protasis.MAX_STEPS + 1))
+        source = capped + "\n## Step 9999: Broken\n\n**Goal.** only this.\n"
+        found = codes(source)
+        self.assertIn("P004", found)
+
+    def test_a_document_inside_the_cap_reports_no_truncation(self):
+        capped = "\n".join(COMPLETE_STEP.replace("Step 1:", f"Step {n}:")
+                           for n in range(1, protasis.MAX_STEPS + 1))
+        self.assertEqual(codes(capped), [])
+
 
 class Suppression(unittest.TestCase):
     def test_an_allow_comment_above_the_heading_suppresses_the_step(self):
