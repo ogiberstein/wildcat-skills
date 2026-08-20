@@ -4040,3 +4040,29 @@ step 1. The probe checks its own premise, or its verdict is worth nothing.
 Six findings across the run, one of them in the ledger and four in the checker,
 and every one was a verdict stated with more confidence than the evidence carried.
 None was a crash.
+
+# Run: record each Kronos ranking pass in a durable scoreboard
+
+## Step 1, round 1 -- 2026-08-20
+
+Two Markdown documents, no code. The three bundled lints ran against both
+files, passed as separate arguments rather than one concatenated string, which
+is the shell-quoting fault the previous run recorded in this file.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0.
+
+The look the lints cannot do, against the study's risk register: the register's
+concerns are all about the writer step 2 builds, so none of them can be
+exercised by two documents. What a document can get wrong is a false claim, so
+the diff was checked against the tree instead. The frontier digest quoted in
+both files matches `plugins/hexaemeron/skills/kronos/EVOLUTION.md` byte for
+byte; the cited test at `tests/test_evolution_contract.py:111` is the digest
+recomputation the study says it is; the four axis caps match `SKILL.md` lines
+70 to 73. The diff carries no credential and no account data, which the
+marketplace preflight forbids shipping.
+
+Leads not pursued: none.
