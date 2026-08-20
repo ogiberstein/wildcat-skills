@@ -123,6 +123,31 @@ class ScopedEntryTests(unittest.TestCase):
         self.assertIsNone(resolved)
         self.assertIn("leaves the worktree", reason)
 
+    def test_a_relative_path_climbing_out_of_the_worktree_is_refused(self):
+        cwd = os.getcwd()
+        os.chdir(os.path.join(self.root, "plugins", "one"))
+        try:
+            resolved, reason = horos.resolve_boundary_root("../../..")
+        finally:
+            os.chdir(cwd)
+        self.assertIsNone(resolved)
+        self.assertIn("leaves the worktree", reason)
+
+    def test_a_symlinked_intermediate_component_is_refused(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        os.makedirs(os.path.join(outside.name, "sub"))
+        git(os.path.realpath(outside.name), "init", "-q")
+        os.symlink(os.path.realpath(outside.name), os.path.join(self.root, "bridge"))
+        cwd = os.getcwd()
+        os.chdir(self.root)
+        try:
+            resolved, reason = horos.resolve_boundary_root("bridge/sub")
+        finally:
+            os.chdir(cwd)
+        self.assertIsNone(resolved)
+        self.assertIn("leaves the worktree", reason)
+
     def test_a_missing_boundary_exits_two(self):
         os.remove(os.path.join(self.root, horos.BOUNDARY_RELPATH))
         resolved, reason = horos.resolve_boundary_root(

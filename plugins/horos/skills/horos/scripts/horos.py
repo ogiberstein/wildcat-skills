@@ -877,11 +877,22 @@ def resolve_boundary_root(target):
     worktree is refused rather than resolved into a different tree.
     """
     given = os.path.abspath(target)
-    if os.path.islink(given):
-        parent_root = git_worktree_root(os.path.dirname(given))
-        if parent_root is not None and not _within(os.path.realpath(given), parent_root):
-            return None, f"symlink leaves the worktree at {parent_root}"
     resolved = os.path.realpath(given)
+    if not os.path.isabs(target):
+        # A relative path means "inside the repository I am working in", so
+        # anything that resolves out of it is refused rather than answered
+        # from another tree's boundary. This covers `..`, a symlinked final
+        # component and a symlinked intermediate one alike, which a check on
+        # the given path alone does not: `git -C` resolves symlinks before it
+        # answers, so a path with a symlink in the middle would otherwise
+        # report the far repository as its own worktree.
+        here = git_worktree_root(os.getcwd())
+        if here is not None and not _within(resolved, here):
+            return None, f"path leaves the worktree at {here}"
+    elif os.path.islink(given):
+        parent_root = git_worktree_root(os.path.dirname(given))
+        if parent_root is not None and not _within(resolved, parent_root):
+            return None, f"symlink leaves the worktree at {parent_root}"
     if not os.path.isdir(resolved):
         return None, f"not a directory: {target}"
     limit = git_worktree_root(resolved)
