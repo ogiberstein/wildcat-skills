@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "3.4.0"
+  version: "3.5.0"
 ---
 
 # Protasis
@@ -277,6 +277,28 @@ the reviewer and the rest of this contract.
 When a decision changes, change the study first and the code second. When scope
 moves, say so on the page. Both documents are committed and reviewed like any
 other shipped artefact, and both go through the prose pass first.
+
+A mid-run change is an amendment, and an amendment appends rather than edits,
+so the run's earlier belief stays readable. It is a dated block at the end of
+the study carrying four fields:
+
+```markdown
+### Amendment -- 2026-08-20
+
+**What changed.** The capture step reads the header from the fixture, not RPC.
+**Why.** The archive endpoint was withdrawn mid-run.
+**Steps touched.** Step 3's entry and step 4's files.
+**Still holding.** Steps 5 and 6 re-confirmed: each unbuilt step's entry and
+exit hold as written. Step 3 does not; see below.
+```
+
+Every unbuilt step gets a verdict in the last field: its entry and exit hold,
+or they do not. Do not proceed past a step whose entry the amendment broke;
+report it as blocked in the contract's three parts and re-derive the runbook
+from the amended study, or re-specify the step, before building on it. The
+decision that forced the change is recorded where
+[hypomnema](../hypomnema/SKILL.md)'s rules put it, and the amendment points at
+that record rather than restating it.
 
 ## Rationalisations
 
