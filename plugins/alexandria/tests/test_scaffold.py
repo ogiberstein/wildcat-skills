@@ -94,13 +94,14 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         self.assertEqual([item["skills"] for item in manifests], ["./skills/"] * 2)
         self.assertTrue(SKILL.is_file())
 
-    def test_portable_entrypoint_resolves_to_runtime_contract(self):
-        entrypoint = REPO_ROOT / ".agents" / "skills" / "alexandria" / "SKILL.md"
+    def test_promise_machine_router_resolves_to_runtime_contract(self):
+        entrypoint = REPO_ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
         text = entrypoint.read_text(encoding="utf-8")
-        self.assertIn("name: alexandria", text)
-        match = re.search(r"\[[^]]+\]\(([^)]+)\)", text)
-        self.assertIsNotNone(match)
-        self.assertTrue((entrypoint.parent / match.group(1)).resolve().is_file())
+        self.assertIn("name: promise-machine", text)
+        links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
+        self.assertIn("../../../plugins/alexandria/AGENTS.md", links)
+        contract = (PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`skills/alexandria/SKILL.md`", contract)
 
     def test_marketplaces_use_the_local_plugin_path(self):
         claude = json.loads(

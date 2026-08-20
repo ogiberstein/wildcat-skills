@@ -239,6 +239,17 @@ def read_json(path: Path, root: Path):
     return document, []
 
 
+def frontmatter_lines(text: str):
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        return None
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        return None
+    return lines[1:end]
+
+
 def check_law(root: Path):
     law_path = root / LAW_NAME
     loaded, findings = read_markdown(
@@ -511,15 +522,20 @@ def skill_name(skill_path: Path, root: Path):
     if loaded is None:
         return skill_path.parent.name, findings
     _, text = loaded
-    match = re.search(r"(?m)^name:\s*([^\n]+)$", text)
-    name = match.group(1).strip().strip("'\"") if match else ""
-    if name != skill_path.parent.name:
+    frontmatter = frontmatter_lines(text)
+    names = [] if frontmatter is None else [
+        match.group(1).strip().strip("'\"")
+        for line in frontmatter
+        if (match := re.fullmatch(r"name:\s*(.+)", line)) is not None
+    ]
+    name = names[0] if len(names) == 1 else ""
+    if len(names) != 1 or name != skill_path.parent.name:
         findings.append(
             Finding(
                 "PM023",
                 "identity",
                 relative(skill_path, root),
-                f"canonical name is {name!r}; expected {skill_path.parent.name!r}",
+                f"canonical frontmatter names are {names!r}; expected only {skill_path.parent.name!r}",
                 "make frontmatter name match the canonical parent directory",
             )
         )
@@ -837,6 +853,376 @@ def check_structure(root: Path, inventory: Inventory):
     return len(promises), findings
 
 
+def check_identity(inventory: Inventory):
+    findings: list[Finding] = []
+    owners: dict[str, list[str]] = {}
+    for skill in inventory.skills:
+        owners.setdefault(skill.name, []).append(skill.path)
+    for name, paths in sorted(owners.items()):
+        if len(paths) > 1:
+            for path in paths:
+                findings.append(
+                    Finding(
+                        "PM044",
+                        "identity",
+                        path,
+                        f"canonical logical id is duplicated: {paths!r}",
+                        "retain one canonical implementation for the logical skill id",
+                        promise_id=name,
+                    )
+                )
+    return findings
+
+
+def check_routers(root: Path, inventory: Inventory):
+    findings: list[Finding] = []
+    expected_router = ".agents/skills/promise-machine/SKILL.md"
+    if inventory.routers != (expected_router,):
+        findings.append(
+            Finding(
+                "PM040",
+                "identity",
+                ".agents/skills",
+                f"portable routers are {list(inventory.routers)!r}; expected only {expected_router!r}",
+                "remove duplicate portable catalogues and retain the sole Promise Machine router",
+            )
+        )
+        return findings
+
+    router = root / expected_router
+    loaded, read_findings = read_markdown(
+        router, root, missing_code="PM040", unsafe_code="PM025"
+    )
+    findings.extend(read_findings)
+    if loaded is None:
+        return findings
+    _, text = loaded
+    frontmatter = frontmatter_lines(text)
+    version_lines = [] if frontmatter is None else [
+        line for line in frontmatter if re.fullmatch(r"\s*version:\s*.*", line)
+    ]
+    if version_lines:
+        findings.append(
+            Finding(
+                "PM043",
+                "version",
+                expected_router,
+                "portable router declares a behavioural version",
+                "remove the router version; canonical skills own behavioural versions",
+            )
+        )
+    names = [] if frontmatter is None else [
+        match.group(1).strip().strip("'\"")
+        for line in frontmatter
+        if (match := re.fullmatch(r"name:\s*(.+)", line)) is not None
+    ]
+    if names != ["promise-machine"]:
+        findings.append(
+            Finding(
+                "PM040",
+                "identity",
+                expected_router,
+                "portable router frontmatter does not name promise-machine",
+                "restore the fixed router name",
+            )
+        )
+
+    expected_targets = {root / "AGENTS.md"}
+    expected_targets.update(root / plugin / "AGENTS.md" for plugin in inventory.plugins)
+    resolved: list[Path] = []
+    for link in re.findall(r"\[[^]]+\]\(([^)]+)\)", text):
+        if "://" in link or link.startswith("#"):
+            findings.append(
+                Finding(
+                    "PM042",
+                    "identity",
+                    expected_router,
+                    f"portable router contains a non-runtime link: {link!r}",
+                    "keep only confined root and plugin runtime-contract links",
+                )
+            )
+            continue
+        target = (router.parent / link).resolve(strict=False)
+        if not confined(target, root) or not target.is_file():
+            findings.append(
+                Finding(
+                    "PM041",
+                    "identity",
+                    expected_router,
+                    f"portable route does not resolve inside the repository: {link!r}",
+                    "point the route at an existing root or plugin AGENTS.md",
+                )
+            )
+            continue
+        resolved.append(target)
+    actual_targets = set(resolved)
+    missing = sorted(relative(path, root) for path in expected_targets - actual_targets)
+    extra = sorted(relative(path, root) for path in actual_targets - expected_targets)
+    duplicates = sorted(
+        relative(path, root) for path in actual_targets if resolved.count(path) != 1
+    )
+    if missing:
+        findings.append(
+            Finding(
+                "PM041",
+                "identity",
+                expected_router,
+                f"portable router omits runtime contracts: {missing!r}",
+                "add one route to the root and every discovered plugin runtime contract",
+            )
+        )
+    if extra or duplicates:
+        findings.append(
+            Finding(
+                "PM042",
+                "identity",
+                expected_router,
+                f"portable router has extra or repeated targets: extra={extra!r} repeated={duplicates!r}",
+                "retain exactly one link to each runtime contract",
+            )
+        )
+
+    for skill in inventory.skills:
+        plugin_root = root / "plugins" / skill.plugin
+        contract = plugin_root / "AGENTS.md"
+        loaded_contract, contract_findings = read_markdown(
+            contract, root, missing_code="PM041", unsafe_code="PM025"
+        )
+        findings.extend(contract_findings)
+        if loaded_contract is None:
+            continue
+        canonical = Path(skill.path).relative_to(Path("plugins") / skill.plugin).as_posix()
+        if f"`{canonical}`" not in loaded_contract[1]:
+            findings.append(
+                Finding(
+                    "PM041",
+                    "identity",
+                    relative(contract, root),
+                    f"runtime contract does not resolve canonical skill {canonical!r}",
+                    "add the canonical path to the plugin selection table",
+                )
+            )
+    return findings
+
+
+SEMVER = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+
+
+def check_versions(root: Path, inventory: Inventory):
+    findings: list[Finding] = []
+    package_versions = 0
+    skill_versions = 0
+    marketplace_path = root / ".claude-plugin" / "marketplace.json"
+    marketplace, marketplace_findings = read_json(marketplace_path, root)
+    findings.extend(marketplace_findings)
+    listed_versions: dict[str, str | None] = {}
+    if marketplace is not None:
+        entries = marketplace.get("plugins")
+        if isinstance(entries, list):
+            for entry in entries:
+                if isinstance(entry, dict) and isinstance(entry.get("name"), str):
+                    name = entry["name"]
+                    if name in listed_versions:
+                        findings.append(
+                            Finding(
+                                "PM045",
+                                "version",
+                                relative(marketplace_path, root),
+                                f"package marketplace repeats {name!r}",
+                                "retain one versioned marketplace entry per plugin",
+                            )
+                        )
+                    listed_versions[name] = entry.get("version")
+        else:
+            findings.append(
+                Finding(
+                    "PM045",
+                    "version",
+                    relative(marketplace_path, root),
+                    "package marketplace plugins value is not a list",
+                    "restore the versioned package marketplace list",
+                )
+            )
+    for plugin_path in inventory.plugins:
+        plugin = root / plugin_path
+        values = []
+        for manifest_path in PLUGIN_MANIFESTS:
+            manifest, manifest_findings = read_json(plugin / manifest_path, root)
+            findings.extend(manifest_findings)
+            if manifest is not None:
+                value = manifest.get("version")
+                if not isinstance(value, str) or SEMVER.fullmatch(value) is None:
+                    findings.append(
+                        Finding(
+                            "PM045",
+                            "version",
+                            relative(plugin / manifest_path, root),
+                            f"package version is not semantic: {value!r}",
+                            "state a semantic package version in each host manifest",
+                        )
+                    )
+                else:
+                    values.append(value)
+        listed = listed_versions.get(plugin.name)
+        if not isinstance(listed, str) or SEMVER.fullmatch(listed) is None:
+            findings.append(
+                Finding(
+                    "PM045",
+                    "version",
+                    relative(marketplace_path, root),
+                    f"marketplace package version for {plugin.name!r} is absent or not semantic: {listed!r}",
+                    "state the plugin package version in the Claude marketplace",
+                )
+            )
+        if (
+            len(values) == len(PLUGIN_MANIFESTS)
+            and len(set(values)) == 1
+            and listed == values[0]
+        ):
+            package_versions += 1
+        elif values:
+            findings.append(
+                Finding(
+                    "PM045",
+                    "version",
+                    plugin_path,
+                    f"package versions disagree: manifests={values!r} marketplace={listed!r}",
+                    "propagate one package version across manifests and marketplace",
+                )
+            )
+
+    for skill in inventory.skills:
+        if skill.governance != "first-party":
+            continue
+        skill_path = root / skill.path
+        loaded, read_findings = read_markdown(
+            skill_path, root, missing_code="PM020", unsafe_code="PM025"
+        )
+        findings.extend(read_findings)
+        if loaded is None:
+            continue
+        frontmatter = frontmatter_lines(loaded[1])
+        metadata = [] if frontmatter is None else [
+            match.group(1)
+            for line in frontmatter
+            if (match := re.fullmatch(r'  version: "([^"]+)"', line)) is not None
+        ]
+        value = metadata[0] if len(metadata) == 1 else None
+        if len(metadata) != 1 or value is None or SEMVER.fullmatch(value) is None:
+            findings.append(
+                Finding(
+                    "PM046",
+                    "version",
+                    skill.path,
+                    f"skill metadata versions are absent, duplicated or not semantic: {metadata!r}",
+                    "state the canonical skill version as metadata.version without a package namespace",
+                )
+            )
+            continue
+        ledger = skill_path.parent / "EVOLUTION.md"
+        loaded_ledger, ledger_findings = read_markdown(
+            ledger, root, missing_code="PM046", unsafe_code="PM025"
+        )
+        findings.extend(ledger_findings)
+        if loaded_ledger is None:
+            continue
+        current = re.search(
+            rf"(?m)^- Current version: `{re.escape(skill.name)}-v([0-9]+\.[0-9]+\.[0-9]+)`$",
+            loaded_ledger[1],
+        )
+        if current is None or current.group(1) != value:
+            findings.append(
+                Finding(
+                    "PM047",
+                    "version",
+                    relative(ledger, root),
+                    f"skill metadata {value!r} does not match its evolution ledger",
+                    "propagate the canonical skill version within the skill layer",
+                )
+            )
+            continue
+        skill_versions += 1
+    return package_versions, skill_versions, findings
+
+
+def marketplace_names(root: Path, path: Path, inventory: Inventory, host: str):
+    document, findings = read_json(root / path, root)
+    names: set[str] = set()
+    if document is None:
+        return names, findings
+    entries = document.get("plugins")
+    if not isinstance(entries, list):
+        findings.append(
+            Finding(
+                "PM048",
+                "structural",
+                path.as_posix(),
+                "host marketplace plugins value is not a list",
+                "restore the explicit host plugin list",
+            )
+        )
+        return names, findings
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
+            findings.append(
+                Finding(
+                    "PM048",
+                    "structural",
+                    path.as_posix(),
+                    "host marketplace contains an unnamed plugin entry",
+                    "name every host marketplace entry",
+                )
+            )
+            continue
+        name = entry["name"]
+        if name in names:
+            findings.append(
+                Finding(
+                    "PM048",
+                    "identity",
+                    path.as_posix(),
+                    f"host marketplace repeats plugin {name!r}",
+                    "retain one host entry per plugin",
+                )
+            )
+        names.add(name)
+        source = entry.get("source")
+        raw = source if host == "claude" else source.get("path") if isinstance(source, dict) else None
+        expected = f"./plugins/{name}"
+        if raw != expected:
+            findings.append(
+                Finding(
+                    "PM049",
+                    "identity",
+                    path.as_posix(),
+                    f"host source for {name!r} is {raw!r}; expected {expected!r}",
+                    "use the fixed repository-relative plugin source",
+                )
+            )
+    expected_names = {Path(plugin).name for plugin in inventory.plugins}
+    if names != expected_names:
+        findings.append(
+            Finding(
+                "PM048",
+                "identity",
+                path.as_posix(),
+                f"host set differs from discovered plugins: missing={sorted(expected_names - names)!r} extra={sorted(names - expected_names)!r}",
+                "make the host marketplace set equal the discovered plugin set",
+            )
+        )
+    return names, findings
+
+
+def check_hosts(root: Path, inventory: Inventory):
+    claude, claude_findings = marketplace_names(
+        root, Path(".claude-plugin/marketplace.json"), inventory, "claude"
+    )
+    codex, codex_findings = marketplace_names(
+        root, Path(".agents/plugins/marketplace.json"), inventory, "codex"
+    )
+    return len(claude), len(codex), claude_findings + codex_findings
+
+
 def check_copies(root: Path, law: bytes | None, plugins: list[Path]):
     findings: list[Finding] = []
     if law is None:
@@ -930,6 +1316,7 @@ def report(
     copies: int = 0,
     inventory: Inventory | None = None,
     promises: int = 0,
+    stats: dict[str, int] | None = None,
 ):
     findings = sorted(findings, key=lambda item: (item.path, item.code, item.message))
     counts = {
@@ -951,7 +1338,13 @@ def report(
         "routers": len(inventory.routers) if inventory else 0,
         "overlays": len(inventory.overlays) if inventory else 0,
         "promises": promises,
+        "claude_plugins": 0,
+        "codex_plugins": 0,
+        "package_versions": 0,
+        "skill_versions": 0,
     }
+    if stats:
+        counts.update(stats)
     document = {
         "contract": CONTRACT_ID,
         "command": command,
@@ -1006,7 +1399,16 @@ def repository_root(raw: str | None):
 
 def parse_only(raw: str):
     requested = tuple(item.strip() for item in raw.split(",") if item.strip())
-    allowed = {"law", "copies", "inventory", "structure"}
+    allowed = {
+        "law",
+        "copies",
+        "inventory",
+        "structure",
+        "identity",
+        "routers",
+        "versions",
+        "hosts",
+    }
     unknown = sorted(set(requested) - allowed)
     if unknown or not requested:
         raise ValueError(f"unsupported --only value(s): {unknown or ['<empty>']}")
@@ -1062,6 +1464,7 @@ def main(argv=None):
         plugins: list[Path] = []
         inventory = None
         promises = 0
+        stats: dict[str, int] = {}
         if "law" in only or "copies" in only:
             law, law_findings = check_law(root)
             findings.extend(law_findings)
@@ -1069,13 +1472,37 @@ def main(argv=None):
             plugins, discovery_findings = discover_plugins(root)
             findings.extend(discovery_findings)
             findings.extend(check_copies(root, law, plugins))
-        if "inventory" in only or "structure" in only:
+        inventory_components = {
+            "inventory",
+            "structure",
+            "identity",
+            "routers",
+            "versions",
+            "hosts",
+        }
+        if only & inventory_components:
             inventory, inventory_findings = discover_inventory(root)
             findings.extend(inventory_findings)
             plugins = [root / path for path in inventory.plugins]
         if "structure" in only and inventory is not None:
             promises, structure_findings = check_structure(root, inventory)
             findings.extend(structure_findings)
+        if "identity" in only and inventory is not None:
+            findings.extend(check_identity(inventory))
+        if "routers" in only and inventory is not None:
+            findings.extend(check_routers(root, inventory))
+        if "versions" in only and inventory is not None:
+            package_versions, skill_versions, version_findings = check_versions(
+                root, inventory
+            )
+            stats["package_versions"] = package_versions
+            stats["skill_versions"] = skill_versions
+            findings.extend(version_findings)
+        if "hosts" in only and inventory is not None:
+            claude_plugins, codex_plugins, host_findings = check_hosts(root, inventory)
+            stats["claude_plugins"] = claude_plugins
+            stats["codex_plugins"] = codex_plugins
+            findings.extend(host_findings)
         return report(
             "check",
             root,
@@ -1085,6 +1512,7 @@ def main(argv=None):
             copies=len(plugins) if "copies" in only else 0,
             inventory=inventory,
             promises=promises,
+            stats=stats,
         )
 
     law, law_findings = check_law(root)

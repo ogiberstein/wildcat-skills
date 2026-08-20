@@ -36,13 +36,13 @@ class SapheneiaContractTests(unittest.TestCase):
         self.assertGreaterEqual(len(codex["description"]), 25)
         self.assertLessEqual(len(codex["description"]), 64)
 
-    def test_portable_entrypoint_routes_to_canonical_contract(self):
-        portable = ROOT / ".agents" / "skills" / "sapheneia" / "SKILL.md"
+    def test_promise_machine_router_reaches_the_runtime_contract(self):
+        portable = ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
         text = portable.read_text(encoding="utf-8")
         links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
-        self.assertEqual(len(links), 2)
-        for link in links:
-            self.assertTrue((portable.parent / link).resolve().is_file(), link)
+        self.assertIn("../../../plugins/sapheneia/AGENTS.md", links)
+        contract = (PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`skills/sapheneia/SKILL.md`", contract)
 
 
 if __name__ == "__main__":
