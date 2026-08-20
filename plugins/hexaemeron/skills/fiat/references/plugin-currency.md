@@ -45,12 +45,15 @@ Two repositories. All work lands in the public one; the private one is a mirror:
 - **`wildcat-finance/skills`** is public and is where every pull request in this
   loop targets.
 - **`wildcat-finance/skills-marketplace`** is private. A scheduled job
-  force-pushes every branch and tag from the public repository into it every five
-  minutes.
+  force-pushes every branch and tag from the public repository into it. The cron
+  asks for five minutes and GitHub has been delivering closer to twenty, so read
+  the two heads rather than trusting an interval. `gh workflow run
+  sync-skills-marketplace.yml --repo wildcat-finance/skills-marketplace` runs it
+  now.
 
 The lag is a chain rather than a step, and each link can sit behind the one
-before it: a merge into the public repository, the mirror up to five minutes
-later, the install only when something updates it. All three were visibly
+before it: a merge into the public repository, the mirror on its own schedule
+after that, the install only when something updates it. All three were visibly
 different during one run, at `fiat-v4.5.1`, `fiat-v4.4.1` and `fiat-v3.4.1`.
 
 ### Which route this host used
@@ -100,9 +103,10 @@ Do not carry on and mention it.
    ```
 
    On Claude Code the second one is what an update can give you. If it is behind
-   the first, the mirror has not run yet: wait for it rather than reaching around
-   it. Five minutes is the whole delay, and hand-installing from the public
-   repository to save them puts an unpublished tree behind a run's receipts.
+   the first, the mirror has not run yet. Trigger it rather than reaching around
+   it, with `gh workflow run sync-skills-marketplace.yml --repo
+   wildcat-finance/skills-marketplace`; hand-installing from the public
+   repository puts an unpublished tree behind a run's receipts.
 2. Update the installed plugin through the host's own installer, from the
    marketplace that host uses. Do not hand-edit a plugin cache and do not copy
    files over an installed plugin: the next legitimate update overwrites it, and

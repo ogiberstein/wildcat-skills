@@ -254,7 +254,11 @@ class PluginCurrencyTests(unittest.TestCase):
 
     def test_the_two_repositories_and_the_mirror_delay_are_stated(self):
         self.assertIn("wildcat-finance/skills-marketplace", self.doc)
-        self.assertIn("every five minutes", self.flat)
+        # Measured, not declared. The cron requests five minutes; the
+        # scheduler delivers closer to twenty, so the doc must send a
+        # reader to the two heads and the manual trigger instead.
+        self.assertIn("read the two heads rather than trusting an interval", self.flat)
+        self.assertIn("gh workflow run sync-skills-marketplace.yml", self.doc)
         self.assertIn("chain rather than a step", self.flat)
 
     def test_an_unfixable_gap_becomes_a_receipt(self):
