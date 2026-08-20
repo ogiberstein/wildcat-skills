@@ -92,13 +92,13 @@ still change any file genuinely required by that exact held job.
    the frontier becomes mature. Require it mechanically rather than by reading:
    start the run with `hexctl init --frontier <that skill's EVOLUTION.md>`, and
    `done integrate` refuses until the ledger carries exactly one new valid row.
-   A loop that ranks by held job cannot afford to take an unchanged ledger for a
-   closed one, because the next pass would rank the same job again. Then rescan
-   the entire scope from disk --
-   every plugin and every governed skill, not only those ranked in the
-   previous pass -- rerank from scratch, and repeat. A skill whose frontier
-   was replaced re-enters the ranking carrying its new held job, and a skill
-   whose ledger has appeared since the last pass enters for the first time.
+   A loop that ranks by held job cannot afford to take an unchanged ledger for
+   a closed one, because the next pass would rank the same job again. Then
+   rescan the entire scope from disk -- every plugin and every governed skill,
+   not only those ranked in the previous pass -- rerank from scratch, and
+   repeat. A skill whose frontier was replaced re-enters the ranking carrying
+   its new held job, and a skill whose ledger has appeared since the last pass
+   enters for the first time.
 
 Stop successfully when no eligible ledger remains. If Fiat halts on a genuine
 external blocker, preserve the durable goal and report that blocker; do not
