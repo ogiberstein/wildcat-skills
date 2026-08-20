@@ -5712,3 +5712,19 @@ and hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two
 recorded environment failures.
 
 Leads not pursued: none
+
+## Protasis risk-register block, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: shape-drift reviewed, the held job's
+target and acceptance read byte-identical before and after the diff, and
+the row retains revision and digest; example-mismatch reviewed, the
+example block in item 5 splits into three pipe-separated fields on both
+lines; ledger-arithmetic reviewed, the evolution suite passes over the
+new generation row. Phylax, ephoros, hypomnema and the study check exit
+0. Root 104/104; hexaemeron 490/492 with the two recorded environment
+failures.
+
+Leads not pursued: none

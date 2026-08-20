@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "3.3.0"
+  version: "3.4.0"
 ---
 
 # Protasis
@@ -125,7 +125,20 @@ are happy.
    Solidity: trust boundaries, external calls, arithmetic, upgrade paths, key
    custody. In Python: untrusted input, subprocess and filesystem handling,
    secret material, partial writes, and what happens when a long run is killed
-   halfway.
+   halfway. The concerns go in a fenced block the audit loop can enumerate,
+   info string `risk-register`, one concern per line as three pipe-separated
+   fields -- a kebab-case id stable within the study, the boundary the concern
+   sits at, and what the audit loop checks:
+
+   ```risk-register
+   subprocess-input | the argv of the spawned compiler | inputs are pinned and no shell is used
+   partial-write | the release directory during a long harvest | a killed run leaves no half-written file that verifies
+   ```
+
+   A round then logs each id as reviewed or not applicable, so the look is an
+   enumerable obligation rather than a judgement call nobody can verify
+   afterwards. Prose around the block carries what a line cannot, and the ids
+   are how a round cites it.
 6. **Glossary seeds.** Terms the runbook and implementation will reuse, one
    line each.
 7. **Sources.** Enough of a pointer to find each one again.
