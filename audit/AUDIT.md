@@ -3644,3 +3644,109 @@ records.
 The three bundled lints ran against the changed tree and each exited 0:
 `phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
 waiver recorded at init covers the Pashov trio.
+
+## Goldfinch preservation release, step 5, round 1 -- 2026-08-20
+
+Reviewed: every surface this step touched, against what the code does, and
+whether the guards against a stale release actually bite.
+
+Two findings, both in the probe.
+
+The surfaces agree. Nine files state the new frontier and none states the old
+one. The ledger label, the skill frontmatter, both host manifests and the
+marketplace entry all read 1.1.0. The eight check names appear in three places --
+the documentation table, the binding's own tuple, and the shipped release
+document -- in the same order in each. No link is broken across six documents,
+every command the prose promises exists in the command line, and a clean
+worktree checkout verifies both the fixture and the release and passes the suite.
+
+The guards bite. Six drifts, six caught, each one failing the suite rather than
+shipping quietly: a byte in the release's fixture copy, a count in its statement,
+the block its document records, the document's own digest, a check name the
+binding makes, and a manifest rewritten by a later writer. That last one is the
+recapture case the runbook asked for, and it fails seven tests.
+
+The findings in the probe are worth recording because one of them made it report
+a clean pass. Its edit to the release digest searched for a string with a space
+after the colon, and canonical JSON has no space there, so it changed nothing and
+would have counted a drift as caught having tested nothing. That is the fourth
+edit in this run to miss its target, which is why the probe now refuses to count
+a no-op.
+
+The second: two earlier runs of it were killed at the two-minute mark with a
+tracked file mutated, and a restore that lives in a `finally` block does not run
+when the runner is killed. It now refuses to start on a dirty tree and says what
+is outstanding, rather than measuring a baseline that is already wrong.
+
+## Goldfinch preservation release, step 5, round 2 -- 2026-08-20
+
+Reviewed: whether the shipped release stands on its own, and whether the
+statement it ships survives its own author's gates.
+
+One finding, in the probe.
+
+Carried into another directory the release verifies. With the checked-in fixture
+renamed out of reach it still verifies, which is the property that matters:
+nothing inside a release reaches back to where it was made.
+
+Ariadne's own `verify` passes every gate over the shipped statement -- the seven
+core gates and the three named checks -- reporting two proof-backed records, one
+header-bound and four recorded RPC. A release shipping a statement its own
+author would refuse would be a strange thing to archive.
+
+The release and the statement agree on the predicate type, the block, the three
+counts, the canonical-chain claim and the component list. The demonstration
+prints all nine things its docstring promises and leaves nothing behind in the
+repository.
+
+The finding was mine: the probe called `ariadne verify` with a flag it does not
+take, so the first run reported exit 2 and a usage message rather than an
+answer.
+
+## Goldfinch preservation release, step 5, round 3 -- 2026-08-20
+
+Reviewed: everything once more, after the merge brought the base branch in.
+
+One finding, in the probe.
+
+Thirty-eight test classes across seven modules each pass alone in their own
+process. The suite passes under three shuffled orders, at three hundred and
+sixty-two tests. Both demonstrations exit 0.
+
+The merged audit record holds a hundred and fifty-seven sections and no conflict
+markers: twenty from the previous run's state-fixture predicate, sixteen from
+this one, and the rest from every run before them. The Ariadne plugin's own build
+record still stands at four hundred and sixty-six lines, which is what the
+separate change to un-split that record was for.
+
+The finding was mine again. The probe ran the root suite from the plugins
+directory rather than the repository root, so `unittest` could not import the
+start directory and the probe printed an `ImportError` as though the suite were
+broken. Run from the root it passes, as it has all along. That makes five edits
+or invocations in this run that missed their target and reported the miss as a
+result, which is the argument for every one of these probes checking its own
+premise before it counts anything.
+
+## Goldfinch preservation release, step 5, round 4 -- 2026-08-20
+
+Reviewed: the same sweep, with the probe run from where it should have been run.
+
+No findings.
+
+Thirty-eight classes alone, three shuffled orders at three hundred and sixty-two
+tests, the root suite at twenty-four, both demonstrations exiting 0, and the
+merged audit record at a hundred and fifty-seven sections with no conflict
+markers.
+
+Worth naming what this step's four findings had in common: every one of them was
+in the measuring apparatus and none in the work. The shipped release, the
+statement beside it, the ledger and the marketplace prose held under every check
+made of them. What kept failing was the probe -- an edit for a string the file
+does not contain, a search for a space canonical JSON does not have, a flag a
+command does not take, a suite run from the wrong directory. Each surfaced as a
+finding rather than as a clean pass because the probe checks its own premise
+before it counts anything, which is the habit this run bought.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. No Solidity ships in this run, so the suite
+waiver recorded at init covers the Pashov trio.
