@@ -119,7 +119,12 @@ confessions and every file oracle-parsed, recorded at
    `.horos/candidates.json` as an advisory report a maintainer can promote
    to a repository-specific rule. Scans of git repositories cover tracked
    files by default, so local build products never contaminate a committed
-   boundary; `--include-untracked` widens the universe deliberately.
+   boundary; `--include-untracked` widens the universe deliberately. A
+   directory entry has to cover at least one file in that universe: one
+   holding nothing tracked excludes no bytes a reader would have reached, and
+   emitting it would make the same check answer differently on two machines.
+   Where git cannot answer at all, the fail-open position stands and the entry
+   is kept.
 5. When writing a boundary into a repository other agents will work in, add
    the adoption stanza that `scan --write` prints to that repository's
    AGENTS.md or CLAUDE.md. Agent harnesses load those files at session
