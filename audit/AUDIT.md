@@ -5758,3 +5758,57 @@ hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two recorded
 environment failures.
 
 Leads not pursued: none
+
+## Hypomnema first records, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check exits 0. Per the register: content-drift not
+applicable, no record touched this step; pointer-rot reviewed, the
+hypomnema lint exits 0 over docs and plugins; ledger-arithmetic not
+applicable, no row cut this step. Phylax and ephoros exit 0. Root
+104/104; hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: none
+
+## Hypomnema first records, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings open. One fault surfaced and was fixed before the step's
+commit: ADR-006's first consequences sentence used a metaphor the prose
+lint refuses; the sentence was rewritten with the fact intact. Per the
+register: content-drift reviewed, the normalisation diff over ADR-002,
+ADR-003 and ADR-004 touches status shape and one heading name only, 11
+insertions against 9 deletions, and ADR-001 needed no change; pointer-rot
+reviewed, the hypomnema lint exits 0 and every ADR cross-reference
+(ADR-003 from ADR-005, ADR-004 from ADR-006) resolves; ledger-arithmetic
+not applicable, no row cut this step. Phylax and ephoros exit 0. Root
+104/104; hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: ADR-002 and ADR-004 carry no Alternatives section;
+their rejected options live as prose in their context and decision
+sections, written by the run that authored them. Restructuring that prose
+into sections risks rewording another run's reasoning, so the gap is left
+for the shape check this run's close names as the successor frontier.
+
+## Hypomnema first records, step 3, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+One fault surfaced and was fixed within the step: the contract edit moved
+the bytes of a Promise Machine runtime binding surface, and the coverage
+gate refused the drift (PM071). The field map was reviewed as unchanged
+and the inventory digest updated with the surface, which is the checker's
+own remedy; the full promise_machine check returns clean. Per the
+register: content-drift reviewed, no record changed this step;
+pointer-rot reviewed, the hypomnema lint exits 0; ledger-arithmetic
+reviewed, the evolution suite passes over the new row and its digest
+matches the new frontier line. Phylax and ephoros exit 0. Root 104/104;
+hexaemeron 490/492 with the two recorded environment failures.
+
+Leads not pursued: none

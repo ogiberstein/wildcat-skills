@@ -2,14 +2,15 @@
 
 Policy: [../VERSIONING.md](../VERSIONING.md)
 
-- Current version: `hypomnema-v0.1.0`
+- Current version: `hypomnema-v1.1.0`
 - Frontier status: `open`
-- Frontier revision: `recorded-reasons-and-their-homes`
-- Current frontier: A lint checks that every pointer in a first-party record resolves, and no decision-record directory exists in this marketplace yet for the skill's conventions to match.
-- Next Fiat job: Establish the first decision records for choices this marketplace already made and never wrote down, starting with the vendoring boundary around the Pashov suite and the reason skill ledgers are not SemVer. Accepted when the records exist under the convention this skill states, the lint resolves every pointer in them, and both suites pass.
+- Frontier revision: `adr-shape-check`
+- Current frontier: Six records exist and the lint resolves their pointers, but it reads no structure: the first four stated their status in three different shapes within a day of being written, and two still carry no alternatives section, which only a reader notices.
+- Next Fiat job: Ship a lint rule verifying that each record under docs/decisions/ carries the template's dated status and its five sections, with the existing pragma for deliberate exceptions. Accepted when it catches each omission in fixture records, passes over the tree's records once the two without an alternatives section are filled by their authorship trail, and both suites pass.
 
 ## History
 
 | Version | Axis | Frontier revision | Frontier SHA-256 | Evidence | Change |
 | --- | --- | --- | --- | --- | --- |
 | `hypomnema-v0.1.0` | baseline | `recorded-reasons-and-their-homes` | `5bcbb5f56863de94e5d141ddb78afc84fcc78aea2e64971dff8e3fd1dc5ceb11` | [skill evolution contract](../VERSIONING.md) | Hypomnema starts here, holding what gets recorded and where it goes. |
+| `hypomnema-v1.1.0` | evolution | `adr-shape-check` | `5c69c143dc7adb1380e27931e5440e9772b184b96fc5964f3fb5a722d3ac59f9` | [first-records study](../../../../docs/hypomnema-first-records-study.md), [skills#308](https://github.com/wildcat-finance/skills/pull/308), [skills#309](https://github.com/wildcat-finance/skills/pull/309) | Closes the recorded-reasons-and-their-homes frontier. The marketplace's first deliberate decision records exist under the convention this skill states: ADR-005 records the vendoring boundary around the Pashov suite and ADR-006 the reason skill ledgers are not SemVer, and the lint resolves every pointer in them. The run found the convention's home already alive -- the Promise Machine run had left ADR-001 to ADR-004 under docs/decisions/ in three different status shapes -- so it continued the numbering, normalised all six records to one dated Status shape without moving other content, and named the directory as a running convention in the contract. The successor frontier is the structure the lint cannot yet read: shape drift arrived within a day of the first records, and two records still carry no alternatives section. |
