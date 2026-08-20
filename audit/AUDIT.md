@@ -3924,3 +3924,34 @@ document that broke it is this skill's own contract, which quotes a step heading
 a few lines from where it states the schema.
 
 Leads not pursued: none new.
+
+## Protasis discipline cores, step 3, round 4 -- 2026-08-20
+
+Reviewed: the thrice-fixed checker, probing fence and line-ending variants.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | medium | plugins/hexaemeron/skills/protasis/scripts/protasis.py | Fences matched backticks only, so a runbook using tilde fences had its examples read as content: a quoted step heading became a step with no fields and the document collected six findings it had not earned. | fixed in 2226614 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+Eight probes: tilde fences, backticks nested inside a tilde block, a four
+backtick run, an indented fence, a field label inside a fence, CRLF line
+endings, trailing spaces on a step heading, and a file with no final newline.
+Only the tilde case came apart, and it is the one that produces findings a
+document has not earned. A checker that cries wolf gets switched off, so this
+was worth a round even at medium.
+
+The fix carries a second change the previous three rounds argued for. Fence
+state was tracked separately at three sites and one of them shipped without any
+tracking, which was round 3's finding; the tilde gap then had to be fixed at all
+three. They now share one generator. The duplication was the defect rather than
+the place it happened to surface, and rounds 3 and 4 are the same underlying
+fault twice.
+
+Leads not pursued: full CommonMark fence semantics remain unimplemented, and
+deliberately. Info strings, fences indented past three spaces and fences inside
+list items are all legal and all unhandled. The contract states the runbook
+shape and the study traded tolerance of an unconventional shape away on purpose.
+What was fixed here is the case a real runbook in this repository would hit.
