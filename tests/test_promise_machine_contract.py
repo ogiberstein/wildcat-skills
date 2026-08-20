@@ -88,6 +88,27 @@ class PromiseLawTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM010", [item["code"] for item in report["findings"]])
 
+    def test_copy_only_refuses_an_absent_root_law(self):
+        completed = run_cli(
+            "check", "--root", FIXTURE, "--only", "copies", "--json"
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertFalse(report["ok"])
+        self.assertIn("PM001", [item["code"] for item in report["findings"]])
+
+    def test_law_only_does_not_require_a_plugin_tree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            shutil.copy2(LAW, target / LAW.name)
+            completed = run_cli(
+                "check", "--root", target, "--only", "law", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["counts"]["plugins"], 0)
+
     @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
     def test_symlinked_copy_is_refused_without_following_it(self):
         with tempfile.TemporaryDirectory() as directory:

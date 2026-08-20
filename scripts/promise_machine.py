@@ -429,22 +429,24 @@ def main(argv=None):
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 
-    law, law_findings = check_law(root)
-    plugins, discovery_findings = discover_plugins(root)
-    findings = list(law_findings) + list(discovery_findings)
-    written = 0
-
     if args.command == "check":
         try:
             only = parse_only(args.only)
         except ValueError as exc:
             parser.error(str(exc))
+        law, law_findings = check_law(root)
+        findings = list(law_findings)
+        plugins: list[Path] = []
         if "copies" in only:
+            plugins, discovery_findings = discover_plugins(root)
+            findings.extend(discovery_findings)
             findings.extend(check_copies(root, law, plugins))
-        if "law" not in only:
-            findings = [item for item in findings if item.code not in {"PM001", "PM002", "PM003", "PM004", "PM005", "PM006", "PM007", "PM008", "PM009"}]
         return report("check", root, plugins, findings, as_json=args.json)
 
+    law, law_findings = check_law(root)
+    plugins, discovery_findings = discover_plugins(root)
+    findings = list(law_findings) + list(discovery_findings)
+    written = 0
     if args.check:
         findings.extend(check_copies(root, law, plugins))
     elif not findings and law is not None:
