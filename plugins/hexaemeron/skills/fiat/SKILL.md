@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "4.7.1"
+  version: "4.8.1"
 ---
 
 # Fiat
@@ -279,7 +279,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
 | `push` | Stage and commit final changes, push the step branch, open its stacked PR against `pr_base`, and leave it open | [push-discipline.md](references/push-discipline.md) | `done push --pr-url <url> --head-commit <sha> --pr-base <ref>` |
 | `merge-step` | Merge the named step's PR into the run branch, bottom of the stack first | [push-discipline.md](references/push-discipline.md) | `done merge-step --step <n> --merge-commit <sha>` |
-| `integrate` | Open and merge one PR from the run branch into the base, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
+| `integrate` | Open and merge one PR from the run branch into the base, name what the run leaves unfinished in `.hexaemeron/run-pr.md`, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
 | `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
 | `done` | Final report | below | -- |
@@ -345,14 +345,18 @@ integrate phase, not here. Do not add an issue reference unless one was
 independently supplied or required by higher-priority repository policy. Receipt
 the head SHA, PR URL, and PR base.
 
-**Integrate.** Once every step is pushed, the stack comes down in order. Merge
-step 1's pull request into the run branch, delete its branch, and let the next
-step's pull request retarget onto the run branch; receipt each merge before
-starting the next. With the stack landed, open one pull request from the run
-branch into the recorded base, wait for its gates, merge it without bypassing
-them, delete the run branch where policy allows, and close any recorded task
-issue. That merge is the only one into the base for the whole run. A routine
-publish or closure action is not a handoff to a human.
+**Integrate.** Once every step is pushed, the stack comes down in order.
+Retarget the next step's pull request onto the run branch, then merge this
+step's, and delete no branch here; receipt each merge before starting the next.
+Deleting a merged step's branch closes the pull request stacked on it, and a
+closed pull request whose base ref is gone can be neither reopened nor
+retargeted, so the order is not a preference. With the stack landed, open one
+pull request from the run branch into the recorded base, name everything the run
+left unfinished in its body under `## Carried forward`, wait for its gates,
+merge it without bypassing them, delete the run branch and the step branches
+where policy allows, and close any recorded task issue. That merge is the only
+one into the base for the whole run. A routine publish or closure action is not
+a handoff to a human.
 
 ## Delegation and context
 

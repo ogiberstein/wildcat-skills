@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Protasis
@@ -100,6 +100,13 @@ are happy.
    prototype means here. Name the demo path or the check that proves it.
 2. **Prior art.** What exists already, in this repo, in the organisation's
    other repos, and outside. Name files, packages and standards by identifier.
+   Where the topic touches something that has shipped before, read the last two
+   merged pull requests that changed it before writing anything else. A run
+   that could not finish something records it in the body of the last pull
+   request it lands, so that is where the unfinished work of the previous run
+   is written down. Carry each item forward as content here, as a stated
+   non-goal, or as a named reason it stays open. Found in the study it costs a
+   sentence; found in step four it costs the step.
 3. **Constraints and non-goals.** The starting ref, toolchain and version pins,
    what the user ruled out, what is deferred past the prototype.
 4. **Design options.** Two to four candidate constructions, each with the trade
@@ -264,6 +271,9 @@ count is not a report.
 
 - [ ] The study answers all twelve items.
 - [ ] Items 8 through 12 each carry an answer or a stated none with its reason.
+- [ ] The last two merged pull requests touching the target were read, and
+      anything they carried forward is answered, refused by name, or stated as
+      still open. Say so plainly where there were none to read.
 - [ ] No discipline core is restated where a citation belongs.
 - [ ] Assumptions are on the page and were confirmed or corrected.
 - [ ] Every success criterion names a command, a test or a demo path.

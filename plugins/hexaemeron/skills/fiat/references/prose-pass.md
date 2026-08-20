@@ -12,6 +12,10 @@ bundled in this plugin, so no external install is involved.
 - The committed copies of the study and runbook, when this step ships them.
 - The PR title and body for this step. Draft them now and stash at
   `.hexaemeron/steps/<n>/pr.md` for the push phase to use verbatim.
+- On the last step, the run-level title and body as well, stashed at
+  `.hexaemeron/run-pr.md`. That one carries a `## Carried forward` section
+  naming everything the run leaves unfinished, or saying plainly that it leaves
+  nothing; `done integrate` refuses the run without it.
 
 ## Order
 
