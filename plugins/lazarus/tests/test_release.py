@@ -1152,6 +1152,136 @@ class VerifiedReleaseTests(unittest.TestCase):
             self.assertEqual(snapshot(), before)
 
 
+class WriteAndReadAgreeTests(unittest.TestCase):
+    """Two functions, one release. They have to say the same thing about it."""
+
+    def test_every_claim_the_write_recorded_the_read_confirms(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            written = prepared.release()
+            read = verify_release(prepared.out)
+            self.assertEqual(written["release_digest"], read["release_digest"])
+            self.assertEqual(
+                written["fixture"]["fixture_digest"], read["fixture_digest"]
+            )
+            self.assertEqual(written["statement"]["sha256"], read["statement_sha256"])
+            self.assertEqual(
+                written["statement"]["predicate_type"], read["predicate_type"]
+            )
+            self.assertEqual(written["verified"]["block_hash"], read["block_hash"])
+            self.assertEqual(
+                written["verified"]["evidence_counts"], read["evidence_counts"]
+            )
+            self.assertEqual(written["binding"]["checks"], read["checks"])
+
+
+class OtherLayoutTests(unittest.TestCase):
+    """The reader honours the paths the document names.
+
+    Nothing requires a release to use the names the writer chose. A reader that
+    looked for `fixture` and `statement.json` regardless would be reading a
+    layout rather than a document, and the two path fields would be decoration.
+    """
+
+    def laid_out(self, prepared, target, fixture_path, statement_path):
+        target.mkdir(parents=True)
+        shutil.copytree(prepared.out / FIXTURE_DIRECTORY, target / fixture_path)
+        (target / statement_path).write_bytes(
+            (prepared.out / STATEMENT_NAME).read_bytes()
+        )
+        document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+        document["fixture"]["path"] = fixture_path
+        document["statement"]["path"] = statement_path
+        document["release_digest"] = release_digest(document)
+        (target / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+        return target
+
+    def test_a_release_using_its_own_names_verifies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            hand = self.laid_out(
+                prepared, prepared.root / "by-hand", "state", "attestation.json"
+            )
+            self.assertEqual(verify_release(hand)["checks"], list(CHECKS))
+
+    def test_a_fixture_a_level_down_verifies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            nested = self.laid_out(
+                prepared, prepared.root / "nested", "inner/state", "note.json"
+            )
+            self.assertEqual(verify_release(nested)["checks"], list(CHECKS))
+
+    def test_the_unlisted_rule_follows_the_document_rather_than_the_names(self):
+        """With the fixture at `inner/state`, `inner` is the entry the document
+        accounts for. A rule keyed on the word `fixture` would refuse it."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            nested = self.laid_out(
+                prepared, prepared.root / "nested", "inner/state", "note.json"
+            )
+            (nested / "unaccounted.txt").write_bytes(b"nobody said")
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(nested)
+            self.assertIn("unaccounted.txt", str(caught.exception))
+
+
+class TwoReleasesTests(unittest.TestCase):
+    """Neither release will accept the other's parts."""
+
+    def pair(self, directory):
+        root = Path(directory)
+        first = Prepared(directory)
+        first.release()
+        other = root / "second"
+        other.mkdir()
+        write_fixture(other, hash_source="a second synthetic offline test vector")
+        statement = root / "second-statement.json"
+        statement.write_bytes(json.dumps(statement_for(other), indent=2).encode())
+        second = root / "second-release"
+        write_release(other, statement, second)
+        return first, second
+
+    def test_another_releases_fixture_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, second = self.pair(directory)
+            shutil.rmtree(first.out / FIXTURE_DIRECTORY)
+            shutil.copytree(second / FIXTURE_DIRECTORY, first.out / FIXTURE_DIRECTORY)
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(first.out)
+            self.assertIn("the fixture verifies to", str(caught.exception))
+
+    def test_another_releases_statement_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, second = self.pair(directory)
+            (first.out / STATEMENT_NAME).write_bytes(
+                (second / STATEMENT_NAME).read_bytes()
+            )
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(first.out)
+            self.assertIn("the statement digests to", str(caught.exception))
+
+    def test_another_releases_document_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, second = self.pair(directory)
+            (first.out / RELEASE_NAME).write_bytes(
+                (second / RELEASE_NAME).read_bytes()
+            )
+            with self.assertRaises(IntegrityError):
+                verify_release(first.out)
+
+    def test_each_release_verifies_on_its_own(self):
+        """Without this the tests above would pass for a pair that never
+        verified in the first place."""
+        with tempfile.TemporaryDirectory() as directory:
+            first, second = self.pair(directory)
+            self.assertEqual(verify_release(first.out)["checks"], list(CHECKS))
+            self.assertEqual(verify_release(second)["checks"], list(CHECKS))
+
+
 class VerifyCommandTests(unittest.TestCase):
     def run_cli(self, *arguments):
         return subprocess.run(
