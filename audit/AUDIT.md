@@ -4476,3 +4476,16 @@ empty, evidence nothing cites is refused, and the per-class evidence rules
 hold user-supplied facts to no artefact at all.
 
 Leads not pursued: none.
+
+## Berean from its Commons specification, step 3, round 2 -- 2026-08-20
+
+Scope: the step 3 tree with `2883291` applied. The collision refusal
+re-reviewed against the current tree with its guard test; nothing new
+surfaced. Lints phylax, ephoros and hypomnema exit 0; root suite 34 and
+berean suite 96 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
