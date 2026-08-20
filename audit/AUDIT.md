@@ -4264,3 +4264,20 @@ prior revision and digest are retained byte for byte, the status stays mature
 with no next job, and the frontmatter agrees.
 
 Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what the new mark could have broken. With nothing parked the
+selected mark still stands alone, and a `kronos-v0.3.0` line carrying no parked
+field at all renders and exits 0, because the flag is read with `get` rather than
+indexed. That second case is the one that would have broken every scoreboard
+written before this run.
+
+Leads not pursued: none.
