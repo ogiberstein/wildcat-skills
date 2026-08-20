@@ -3897,3 +3897,30 @@ always there.
 
 Leads not pursued: none new. The README test-count staleness from round 1 still
 stands and is still outside this step.
+
+## Protasis discipline cores, step 3, round 3 -- 2026-08-20
+
+Reviewed: the twice-fixed checker, probing what round 2's boundary change might
+have broken.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | high | plugins/hexaemeron/skills/protasis/scripts/protasis.py | Round 2 let any same-level heading end the last step, and that scan does not track code fences, so a runbook quoting a step heading inside an example truncated its own last step and reported the fields below it missing. | fixed in 8cb3ef9 |
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 334/334.
+
+Six probes this round: an h1 between steps, an h3 inside a step, a fenced step
+heading inside an exit, a last step that genuinely ends the document, a
+suppressed step at the cap boundary, and a step whose six fields are all present
+but empty. The third came apart. The sixth reports P002 and is correct: a field
+with no text names no command, and the module documents that it reads presence
+rather than quality.
+
+Unlike round 2's finding, this one is a regression from the round before it, and
+the entry says so. Round 2 widened the boundary rule without carrying over the
+fence tracking the step scan has always had. The irony is worth keeping: the
+document that broke it is this skill's own contract, which quotes a step heading
+a few lines from where it states the schema.
+
+Leads not pursued: none new.
