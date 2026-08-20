@@ -4553,3 +4553,52 @@ and double-begin cases. The repository and Janus Python suites pass.
 | -- | -- | -- | none | -- |
 
 Leads not pursued: none.
+
+## Step 4, round 1 -- 2026-08-20
+
+Solidity step shipping the Wildcat host model, the honest hook, the adapter and
+the gate engine, the fidelity core. The vendored `solidity-auditor` reviewed
+all five files against two properties: fidelity to the real v2.5 seam, and no
+false pass. Fidelity was verified against the checked-out v2-protocol source at
+the anchor commit and confirmed on every cited mechanic (the hook call
+primitive and its bubble, the value-return `>= 0x40` contract and bounds, the
+hook-before-effects ordering and the queueWithdrawal expiry exception, the
+global reentrancy guard, and onExecuteWithdrawal never being hook-gated).
+`x-ray` and `fizz` are deferred with reason: the harness is not a protocol to
+x-ray, and the invariant suite lands in step 5 with the hostile hooks.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | plugins/janus/harness/src/JanusHarness.sol | Gate 1 and the value measure attributed a hook's effects by the immediate `accessor`, so they saw only the hook's direct callees. A hook could launder a forbidden call or value movement one hop through a permitted or reachable non-hook accessor and be reported conformant. | fixed in 657c1f1a4746cf0f69ba4eca9e45b056173e5ca1 |
+| S4-R1-02 | medium | plugins/janus/harness/src/JanusHarness.sol | `_hookValueMoved` shared the immediate-accessor limitation and did not filter by value-moving kind, so a delegatecall's inherited value was double-counted. | fixed in 657c1f1a4746cf0f69ba4eca9e45b056173e5ca1 |
+| S4-R1-03 | medium | plugins/janus/harness/src/JanusHarness.sol | Honest-path gates could pass vacuously on an empty or reverted delta; nothing forced a drive expected to have effects to have produced any. | fixed in 657c1f1a4746cf0f69ba4eca9e45b056173e5ca1 |
+
+The fix attributes effects by the transitive closure of the hook's causal
+subtree, iterated to a fixpoint over the recorded (accessor, target) pairs, and
+a new test launders a call through an allowed forwarder to show gate 1 now
+catches it. The auditor confirmed `_drive`'s revert handling sound (a caught,
+fully-reverted action yields an effect-free delta and a conserved value
+snapshot, so a reverting hook is never mis-attributed effects). One documented
+fidelity note (low): the model's setAPR omits the market's own
+reserve-ratio-versus-liquidity reverts, which guard the returned value
+independently of hook honesty and cannot pass a hook here that the real market
+would reject on the seam.
+
+Leads not pursued: none.
+
+## Step 4, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. The transitive attribution is a
+strict strengthening: the honest hook makes no calls, so its closure stays
+empty and it still clears gate 1; the laundering test confirms a forbidden call
+one hop past an allowed forwarder is now caught. The re-review checked the
+fixpoint terminates (it only ever sets bits true, bounded by the call count)
+and that the value sum's new kind filter does not drop a real Call or Create
+value. All fifteen harness tests pass, and the repository and Janus Python
+suites pass.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
