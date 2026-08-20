@@ -5120,3 +5120,16 @@ Leads not pursued: replacement of a plugin directory by another local process
 between discovery and atomic rename. The command operates in the caller-owned
 checkout under the caller's filesystem permissions, writes fixed destinations
 and claims no hostile multi-user synchronisation boundary.
+
+## Promise Machine, step 1, round 2 -- 2026-08-20
+
+The fixed non-Solidity tree has no open finding. The root law and 14 copies
+match, the missing-source copy check refuses with `PM001`, and law-only checking
+does not depend on a plugin tree. The 11 focused Promise Machine tests and all
+49 root tests pass. Phylax, Ephoros and Hypomnema each exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the local directory-replacement race recorded
+in round 1, under the same caller-owned-checkout boundary.
