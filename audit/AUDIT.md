@@ -4507,3 +4507,49 @@ the J015 path fires only on a scope or kind outside the documented sets.
 | -- | -- | -- | none | -- |
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+Solidity step shipping the state-delta recorder, the trust root of the suite,
+where a missed effect is a false pass. The vendored `solidity-auditor` was run
+over `StateDeltaRecorder.sol`, `HostAdapter.sol` and `Vm.sol`, focused on the
+one property that matters: the recorder must never miss an effect that occurred.
+`x-ray` and `fizz` are deferred with reason: x-ray produces a protocol
+readiness report and this ships a test-harness library, and fizz's invariant
+suite lands in step 5 with the gate engine and the hostile hooks.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | plugins/janus/harness/src/StateDeltaRecorder.sol | CREATE and SELFDESTRUCT account accesses carry a target and moved value, and the recorder dropped both, so a hook could move value invisibly by deploying with an endowment or sweeping its balance. The one false-pass vector. | fixed in 13dfd3f546aa8db06a42025ee7383dbdd1b2112b |
+| S3-R1-02 | low | plugins/janus/harness/src/StateDeltaRecorder.sol | A second `_beginRecording` while one was open reset Foundry's state-diff buffer and silently dropped everything recorded so far; only the missing-begin direction failed closed. | fixed in 13dfd3f546aa8db06a42025ee7383dbdd1b2112b |
+| S3-R1-03 | low | plugins/janus/harness/src/StateDeltaRecorder.sol | `_valueMoved` summed delegatecall value, which is inherited from the enclosing call and double-counts. An over-count is a false-fail rather than a false-pass, but it made the measure unreliable. | fixed in 13dfd3f546aa8db06a42025ee7383dbdd1b2112b |
+
+The auditor verified as sound, and this review confirms: the two-pass count and
+fill predicates are byte-identical so the index counters cannot over- or
+under-flow; reverted accesses are correctly dropped as non-persisted; the flat
+access array means nesting and reentrant frames cannot hide a write or call;
+the taken flag plus the RecordingNotStarted revert prevent a silent clean
+delta; and the Vm struct and enum layout matches the Foundry cheatcode ABI. One
+documented assumption (L-2): correctness of the drop-reverted logic rests on
+Foundry never marking a persisted effect reverted, which errs toward false-fail
+rather than false-pass. Attribution of an effect to the hook and comparison
+against a manifest are the gate engine's job, not the recorder's.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. The three fixes are additive and
+narrow: `_reachesAccount` now includes create and selfdestruct, `_beginRecording`
+guards the already-open case, and `_valueMoved` sums only value-moving kinds.
+Re-review confirmed the count and fill predicates stayed identical (both now
+call `_reachesAccount`), so the index counters remain in bounds, and the new
+`_movesValue` filter is applied only in the value sum, not in the calls list, so
+no target is dropped. All seven harness tests pass, including the create-endowment
+and double-begin cases. The repository and Janus Python suites pass.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
