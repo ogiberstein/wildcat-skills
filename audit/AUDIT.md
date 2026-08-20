@@ -3955,3 +3955,28 @@ deliberately. Info strings, fences indented past three spaces and fences inside
 list items are all legal and all unhandled. The contract states the runbook
 shape and the study traded tolerance of an unconventional shape away on purpose.
 What was fixed here is the case a real runbook in this repository would hit.
+
+## Protasis discipline cores, step 3, round 5 -- 2026-08-20
+
+Reviewed: the checker after round 4's fix and the refactor that came with it.
+
+No findings.
+
+The three bundled lints ran against the changed tree and each exited 0:
+`phylax`, `ephoros`, `hypomnema`. Root suite 24/24, plugin suite 337/337.
+
+The refactor moved three separate fence trackers onto one generator, which is
+the kind of change that pays for a round of its own. Six probes: cost at 400 and
+3000 steps, the exit span still bounding correctly with a later field carrying
+backticks, an allow comment inside a fence, a document made only of fences, and
+the three real runbook-shaped documents this repository now holds. Cost is 3 ms
+and 7 ms, so replacing the early break with a full scan did not turn the check
+quadratic. Everything else answered as it should.
+
+Four rounds found four things and the fifth found nothing, which is where the
+loop closes. Worth naming what the four had in common: every one was the checker
+reporting a verdict it had not earned. Two said clean over a broken document, one
+truncated a document and blamed it for the missing fields, one invented findings
+against a document that used a legal fence. None was a crash, and none would have
+been caught by reading the diff. They came from asking what the code would say
+about a document built to embarrass it.
