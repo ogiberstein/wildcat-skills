@@ -11,6 +11,7 @@ MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 PLUGINS = (
     "alexandria",
     "ariadne",
+    "berean",
     "brevitas",
     "hermes",
     "hexaemeron",
@@ -25,6 +26,7 @@ PLUGINS = (
 CANONICAL_SKILLS = {
     "alexandria": ROOT / "plugins" / "alexandria" / "skills" / "alexandria" / "SKILL.md",
     "ariadne": ROOT / "plugins" / "ariadne" / "skills" / "ariadne" / "SKILL.md",
+    "berean": ROOT / "plugins" / "berean" / "skills" / "berean" / "SKILL.md",
     "brevitas": ROOT / "plugins" / "brevitas" / "skills" / "brevitas" / "SKILL.md",
     "hermes": ROOT / "plugins" / "hermes" / "skills" / "hermes" / "SKILL.md",
     "hexaemeron": ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md",
@@ -165,7 +167,7 @@ class MarketplaceProseTests(unittest.TestCase):
     def test_plugin_landing_readmes_publish_unique_rolling_fiat_jobs(self):
         landings = plugin_landing_readmes()
         self.assertEqual(set(landings), set(PLUGINS))
-        self.assertEqual(len(landings), 12)
+        self.assertEqual(len(landings), 13)
 
         topics = {}
         for name, path in landings.items():
