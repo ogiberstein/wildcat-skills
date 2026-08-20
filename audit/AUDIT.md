@@ -4328,3 +4328,20 @@ Leads not pursued: the ungoverned list is not deduplicated, so a name repeated
 in it prints twice. Accepted: it is a report of what the walk found, repetition
 in it is the caller's own output rather than a contradiction, and refusing it
 would be a rule about tidiness rather than about meaning.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fix applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what the new refusal could have caught by mistake. An
+ungoverned list naming skills that are not candidates records as before, an
+empty list records, and a rank-only pass carrying an explicit null run records,
+which is the case a refusal keyed on the field's presence rather than its value
+would have broken.
+
+Leads not pursued: none.
