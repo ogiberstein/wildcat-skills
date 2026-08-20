@@ -5826,3 +5826,19 @@ and hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two
 recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema design bridge, step 2, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: double-record reviewed, the rule states
+point-or-write and names the two homes with never both; scope-creep
+reviewed, the rule fires in the prose phase on shipped studies and leaves
+protasis's items 4 and 12 unchanged; ledger-arithmetic reviewed, the
+evolution suite passes over the new generation row and the coverage
+digest moved with the reviewed surface. Phylax, ephoros, hypomnema and
+the promise_machine check exit 0. Root 104/104; hexaemeron 490/492 with
+the two recorded environment failures.
+
+Leads not pursued: none
