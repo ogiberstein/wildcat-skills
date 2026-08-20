@@ -6,9 +6,11 @@ is left behind for a later reader to mistake for a release.
 """
 
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import subprocess
 import sys
@@ -26,6 +28,7 @@ from lazarus_lib.release import (
     STATEMENT_NAME,
     build_release,
     release_digest,
+    verify_release,
     write_release,
 )
 from lazarus_lib.verifier import verify_fixture
@@ -854,3 +857,304 @@ class CommandTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VerifiedReleaseTests(unittest.TestCase):
+    """Reading a release back, and refusing to.
+
+    Everything the write did is done again from the bytes on disk. Nothing is
+    taken from the document except the two paths it names, because a document
+    checking itself against its own numbers checks nothing.
+    """
+
+    def released(self, directory):
+        prepared = Prepared(directory)
+        prepared.release()
+        return prepared
+
+    def test_a_release_written_by_the_command_verifies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            report = verify_release(prepared.out)
+            written = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            self.assertEqual(report["release_digest"], written["release_digest"])
+            self.assertEqual(
+                report["fixture_digest"], written["fixture"]["fixture_digest"]
+            )
+            self.assertEqual(report["checks"], list(CHECKS))
+
+    def test_it_reports_what_the_fixture_verifies_to(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            report = verify_release(prepared.out)
+            fixture = verify_fixture(prepared.fixture)
+            self.assertEqual(report["evidence_counts"], fixture["evidence_counts"])
+            self.assertEqual(report["block_hash"], fixture["block_hash"])
+            self.assertEqual(report["predicate_type"], STATE_FIXTURE_TYPE)
+
+    def test_a_component_byte_edited_after_the_fact_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            component = prepared.out / FIXTURE_DIRECTORY / "plan.json"
+            edited = component.read_bytes().replace(
+                b"ethereum-mainnet", b"ethereum-testnet", 1
+            )
+            self.assertNotEqual(edited, component.read_bytes())
+            component.write_bytes(edited)
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("plan.json", str(caught.exception))
+
+    def test_a_statement_edited_after_the_fact_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            document = json.loads((prepared.out / STATEMENT_NAME).read_bytes())
+            document["predicate"]["evidence"]["proof_backed"] += 1
+            (prepared.out / STATEMENT_NAME).write_bytes(
+                json.dumps(document).encode()
+            )
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("the statement digests to", str(caught.exception))
+
+    def test_a_statement_reformatted_but_unchanged_is_refused(self):
+        """The release digests bytes. Re-encoding is a different document even
+        when it says the same thing, and a release that accepted it would be
+        recording a digest nobody can reproduce."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            document = json.loads((prepared.out / STATEMENT_NAME).read_bytes())
+            (prepared.out / STATEMENT_NAME).write_bytes(
+                json.dumps(document, indent=4).encode()
+            )
+            with self.assertRaises(IntegrityError):
+                verify_release(prepared.out)
+
+    def test_a_document_edited_after_the_fact_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["verified"]["evidence_counts"]["proof_backed"] += 1
+            (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("release digest does not cover", str(caught.exception))
+
+    def test_a_document_edited_and_restamped_is_refused(self):
+        """Restamping the digest gets past the digest and into the numbers,
+        which is where the fixture disagrees."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["verified"]["evidence_counts"]["proof_backed"] += 1
+            document["release_digest"] = release_digest(document)
+            (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("evidence counts", str(caught.exception))
+
+    def test_each_recorded_claim_restamped_is_refused(self):
+        """One at a time, with the digest restamped each time, so what is being
+        refused is the claim rather than the digest."""
+        edits = {
+            "the fixture digest": ("fixture", "fixture_digest", "f" * 64),
+            "the statement digest": ("statement", "sha256", "e" * 64),
+            "the block": ("verified", "block_hash", "0x" + "99" * 32),
+        }
+        for what, (block, field, value) in edits.items():
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = self.released(directory)
+                document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+                document[block][field] = value
+                document["release_digest"] = release_digest(document)
+                (prepared.out / RELEASE_NAME).write_bytes(
+                    json.dumps(document).encode()
+                )
+                with self.subTest(claim=what), self.assertRaises(IntegrityError):
+                    verify_release(prepared.out)
+
+    def test_a_check_the_binding_does_not_make_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["binding"]["checks"] = ["everything-was-fine"]
+            document["release_digest"] = release_digest(document)
+            (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("everything-was-fine", str(caught.exception))
+
+    def test_a_predicate_type_the_statement_does_not_declare_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["statement"]["predicate_type"] = "https://example.invalid/x/v1"
+            document["release_digest"] = release_digest(document)
+            (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("example.invalid", str(caught.exception))
+
+    def test_a_document_claiming_the_canonical_chain_is_refused(self):
+        """The schema pins the field to false, which is why nothing in
+        `verify_release` checks it: a document claiming it does not get that
+        far."""
+        for value in (True, "false", 0, 1, None, "no"):
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = self.released(directory)
+                document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+                document["verified"]["canonical_chain_claim"] = value
+                document["release_digest"] = release_digest(document)
+                (prepared.out / RELEASE_NAME).write_bytes(
+                    json.dumps(document).encode()
+                )
+                with self.subTest(claim=value), self.assertRaises(FormatError):
+                    verify_release(prepared.out)
+
+    def test_a_report_claiming_the_canonical_chain_is_refused_by_the_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            from lazarus_lib import release as module
+
+            original = module.verify_fixture
+
+            def claiming(root):
+                report = original(root)
+                report["header_bound"]["canonical_chain_claim"] = True
+                return report
+
+            module.verify_fixture = claiming
+            try:
+                with self.assertRaises(IntegrityError) as caught:
+                    verify_release(prepared.out)
+            finally:
+                module.verify_fixture = original
+            self.assertIn("canonical chain", str(caught.exception))
+
+    def test_a_release_missing_each_of_its_three_parts_is_refused(self):
+        for part in (RELEASE_NAME, STATEMENT_NAME, FIXTURE_DIRECTORY):
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = self.released(directory)
+                target = prepared.out / part
+                if target.is_dir():
+                    shutil.rmtree(target)
+                else:
+                    target.unlink()
+                with self.subTest(part=part), self.assertRaises(LazarusError):
+                    verify_release(prepared.out)
+
+    def test_a_file_the_document_does_not_account_for_is_refused(self):
+        """The same rule the fixture manifest applies to its own directory."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            (prepared.out / "stowaway.txt").write_bytes(b"unaccounted for")
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("stowaway.txt", str(caught.exception))
+
+    def test_a_symlink_beside_the_document_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            (prepared.out / "link.json").symlink_to(prepared.out / RELEASE_NAME)
+            with self.assertRaises(PathError) as caught:
+                verify_release(prepared.out)
+            self.assertIn("symlink", str(caught.exception))
+
+    def test_a_fixture_reached_through_a_symlinked_segment_is_refused(self):
+        """`list_fixture_files` refuses a symlinked fixture root and
+        `read_confined_bytes` refuses a symlinked component. Neither sees the
+        segments in between."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            outside = prepared.root / "outside"
+            shutil.move(str(prepared.out / FIXTURE_DIRECTORY), str(outside))
+            (prepared.out / "through").symlink_to(outside.parent)
+            document = json.loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["fixture"]["path"] = "through/outside"
+            document["release_digest"] = release_digest(document)
+            (prepared.out / RELEASE_NAME).write_bytes(json.dumps(document).encode())
+            with self.assertRaises(PathError):
+                verify_release(prepared.out)
+
+    def test_a_release_that_is_not_there_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(PathError):
+                verify_release(Path(directory) / "no-release")
+
+    def test_a_document_that_is_not_json_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            (prepared.out / RELEASE_NAME).write_bytes(b"{not json")
+            with self.assertRaises(LazarusError):
+                verify_release(prepared.out)
+
+    def test_a_document_the_schema_refuses_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            (prepared.out / RELEASE_NAME).write_bytes(b'{"schema_version": 1}')
+            with self.assertRaises(FormatError):
+                verify_release(prepared.out)
+
+    def test_a_moved_release_still_verifies(self):
+        """Every path a release names is relative to itself."""
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            first = verify_release(prepared.out)
+            moved = prepared.root / "carried-elsewhere"
+            shutil.move(str(prepared.out), str(moved))
+            self.assertEqual(verify_release(moved), first)
+
+    def test_verifying_twice_reports_the_same_thing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+            self.assertEqual(verify_release(prepared.out), verify_release(prepared.out))
+
+    def test_verifying_changes_nothing_in_the_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = self.released(directory)
+
+            def snapshot():
+                return {
+                    path.relative_to(prepared.out).as_posix(): (
+                        hashlib.sha256(path.read_bytes()).hexdigest(),
+                        path.stat().st_mode,
+                    )
+                    for path in sorted(prepared.out.rglob("*"))
+                    if path.is_file()
+                }
+
+            before = snapshot()
+            verify_release(prepared.out)
+            self.assertEqual(snapshot(), before)
+
+
+class VerifyCommandTests(unittest.TestCase):
+    def run_cli(self, *arguments):
+        return subprocess.run(
+            [sys.executable, str(CLI), "verify-release", *[str(a) for a in arguments]],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_the_command_prints_the_counts_and_the_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            result = self.run_cli(prepared.out)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("proof-backed: 3", result.stdout)
+            self.assertIn("header-bound: 1", result.stdout)
+            self.assertIn("recorded-rpc: 1", result.stdout)
+            for check in CHECKS:
+                self.assertIn(check, result.stdout)
+
+    def test_the_command_exits_one_and_names_the_disagreement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            prepared.release()
+            component = prepared.out / FIXTURE_DIRECTORY / "header.json"
+            component.write_bytes(component.read_bytes().replace(b"0x", b"0X", 1))
+            result = self.run_cli(prepared.out)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("header.json", result.stderr)
+            self.assertEqual(result.stdout, "")

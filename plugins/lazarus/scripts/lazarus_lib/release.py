@@ -36,7 +36,11 @@ from .binding import bind, predicate_type_of
 from .canonical import MAX_JSON_BYTES, dumps, loads
 from .errors import FormatError, IntegrityError, PathError
 from .manifest import MANIFEST_NAME, MAX_COMPONENT_BYTES
-from .paths import read_confined_bytes, validate_relative_path
+from .paths import (
+    confined_directory,
+    read_confined_bytes,
+    validate_relative_path,
+)
 from .schemas import validate_document
 from .verifier import verify_fixture
 from .version import __version__
@@ -160,6 +164,124 @@ def write_release(
         shutil.rmtree(staged, ignore_errors=True)
         raise
     return release
+
+
+def verify_release(directory: str | Path) -> dict[str, Any]:
+    """Read a release back and check every claim it makes about itself.
+
+    Everything the write did is done again from the bytes on disk: the fixture
+    copy is verified, the statement beside it is bound to that verification, and
+    the document is held to both. Nothing is taken from the document except the
+    two paths it names, because a document checking itself against its own
+    numbers checks nothing.
+
+    This is also where the release digest is checked. `validate release` answers
+    whether a document is well formed, the way `validate manifest` does; whether
+    its digests hold is this question, and it is asked here.
+    """
+    root = Path(directory)
+    release = validate_document(
+        "release", loads(_read_inside(root, RELEASE_NAME, "release document"))
+    )
+    if release["release_digest"] != release_digest(release):
+        raise IntegrityError(
+            "the release digest does not cover this document; it records "
+            f"{release['release_digest']} and the document digests to "
+            f"{release_digest(release)}"
+        )
+    _refuse_unlisted(root, release)
+
+    statement_bytes = _read_inside(
+        root, release["statement"]["path"], "statement"
+    )
+    held = hashlib.sha256(statement_bytes).hexdigest()
+    if held != release["statement"]["sha256"]:
+        raise IntegrityError(
+            f"the statement digests to {held} and the release records "
+            f"{release['statement']['sha256']}"
+        )
+    statement = loads(statement_bytes)
+
+    fixture = confined_directory(root, release["fixture"]["path"])
+    report = verify_fixture(fixture)
+    if report["fixture_digest"] != release["fixture"]["fixture_digest"]:
+        raise IntegrityError(
+            f"the fixture verifies to {report['fixture_digest']} and the release "
+            f"records {release['fixture']['fixture_digest']}"
+        )
+
+    declared = predicate_type_of(statement)
+    if declared != release["statement"]["predicate_type"]:
+        raise IntegrityError(
+            f"the statement is a {declared} and the release records a "
+            f"{release['statement']['predicate_type']}"
+        )
+
+    checks = bind(statement, report["manifest"], report)
+    if checks != release["binding"]["checks"]:
+        raise IntegrityError(
+            "the release records checks this binding does not make: recorded "
+            f"{', '.join(release['binding']['checks'])}; made "
+            f"{', '.join(checks)}"
+        )
+
+    verified = release["verified"]
+    if verified["block_hash"] != report["block_hash"]:
+        raise IntegrityError(
+            f"the release records block {verified['block_hash']} and the fixture "
+            f"verifies to {report['block_hash']}"
+        )
+    if verified["evidence_counts"] != report["evidence_counts"]:
+        raise IntegrityError(
+            "the release records evidence counts the fixture does not verify to: "
+            f"recorded {verified['evidence_counts']}, verified "
+            f"{report['evidence_counts']}"
+        )
+    # `verified.canonical_chain_claim` is not checked here. The schema pins it to
+    # false, so a document claiming it does not get this far, and the binding
+    # already refuses a report that claims it. A third check would be a third
+    # authority on one question.
+    return {
+        "release_digest": release["release_digest"],
+        "fixture_digest": report["fixture_digest"],
+        "block_hash": report["block_hash"],
+        "evidence_counts": dict(report["evidence_counts"]),
+        "predicate_type": declared,
+        "statement_sha256": held,
+        "checks": list(checks),
+    }
+
+
+def _read_inside(root: Path, relative: str, what: str) -> bytes:
+    """One file from inside a release, through no-follow descriptors."""
+    try:
+        return read_confined_bytes(
+            root, validate_relative_path(relative), max_bytes=MAX_JSON_BYTES
+        )
+    except PathError as error:
+        # Not nested: read_confined_bytes speaks about fixture components, and a
+        # release document is not one. The cause is kept on the exception.
+        raise PathError(f"cannot read the {what}: {relative}") from error
+
+
+def _refuse_unlisted(root: Path, release: dict[str, Any]) -> None:
+    """A release holds the document, the statement and the fixture, and no more.
+
+    The same rule the fixture manifest applies to its own directory. A file the
+    document does not account for is a file a reader has no reason to trust and
+    no way to check, sitting inside something whose whole claim is that every
+    part of it was checked.
+    """
+    fixture = validate_relative_path(release["fixture"]["path"]).split("/")[0]
+    allowed = {RELEASE_NAME, validate_relative_path(release["statement"]["path"])}
+    found: set[str] = set()
+    for entry in sorted(Path(root).iterdir()):
+        if entry.is_symlink():
+            raise PathError(f"release holds a symlink: {entry.name}")
+        found.add(entry.name)
+    extra = sorted(found - allowed - {fixture})
+    if extra:
+        raise IntegrityError("release holds files it does not account for: " + ", ".join(extra))
 
 
 def _refuse_overlap(source: Path, destination: Path) -> None:
