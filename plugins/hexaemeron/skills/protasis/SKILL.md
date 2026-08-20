@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "2.3.0"
+  version: "3.3.0"
 ---
 
 # Protasis
@@ -239,6 +239,25 @@ Three tiers, each with concrete entries:
 - **Never.** Commit key material or an RPC credential. Edit a vendored
   directory. Delete a failing test to make a suite pass. Claim a command ran
   when it did not.
+
+## The mechanical subset
+
+Whether the twelve items are present, and whether items 8 through 12 carry an
+answer, is settled by a parser; so is the runbook step schema. Run the bundled
+check over each artefact and require exit 0:
+
+```bash
+python3 "$PLUGIN_ROOT/skills/protasis/scripts/protasis.py" --study <study>
+python3 "$PLUGIN_ROOT/skills/protasis/scripts/protasis.py" <runbook>
+```
+
+The study mode reads items as `## N. Title` headings, 1 to 12, and refuses
+silence and a bare none on items 8 through 12. The runbook mode reads the step
+schema above. Codes P000 to P004 and S000 to S004 are stable interfaces other
+tools cite. Deliberate exceptions state a reason:
+`<!-- protasis: allow <why> -->` on the heading line or the line above it.
+Presence is all the parser settles; whether an answer is any good stays with
+the reviewer and the rest of this contract.
 
 ## The spec stays alive
 
