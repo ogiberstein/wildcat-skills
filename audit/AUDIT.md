@@ -4392,3 +4392,29 @@ its `P` and stayed out of selection, the pass rendered as `(rank-only)`, and
 than a failure.
 
 Leads not pursued: none.
+
+# Run: create the janus skill in the Wildcat Commons
+
+## Step 1, round 1 -- 2026-08-20
+
+Non-Solidity round; the security-suite waiver covers the Pashov pair (the step
+lands Markdown only). phylax exit 0, ephoros exit 0, hypomnema exit 0 over
+`docs/commons/janus.md`, `docs/janus-commons-spec/study.md` and
+`docs/janus-commons-spec/runbook.md`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went at the study's risk register. Byte preservation holds:
+`sha256sum docs/commons/janus.md` prints the pinned
+`8234ee09201927aeb8df34c9068c5c68e9201539057ccffce3d2600dd724c3ed`. Sweep
+boundaries hold: the spec's marketplace-context block carries no frontier
+line, and nothing fails because `tests/test_shipped_prose_lints.py` skips
+`docs/**` while the frontier scans in `tests/test_marketplace_prose.py` walk
+only the twelve plugin subtrees; the full root suite ran against this tree,
+34 tests, all green. All five `../../plugins/` links in the committed study
+resolve from `docs/janus-commons-spec/`. Nothing landed under `plugins/` or
+`.agents/`, so the versioning and evolution contracts see no new surface.
+
+Leads not pursued: none.
