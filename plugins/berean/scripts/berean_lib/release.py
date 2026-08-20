@@ -164,6 +164,24 @@ def _file_digest_matches(directory, relative, expected):
     return digests.of_bytes(data) == expected
 
 
+def _address_shaped(value):
+    """Every address-shaped string anywhere in a params tree.
+
+    Walked rather than scanned at the top level, because a filter object
+    carries its address one level down and an allowlist that misses it is
+    not an allowlist.
+    """
+    if isinstance(value, str):
+        if ADDRESS.match(value):
+            yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from _address_shaped(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _address_shaped(item)
+
+
 def verify(directory):
     """Run the release gates by name from bytes on disk; no repair."""
     checks = []
@@ -211,8 +229,8 @@ def verify(directory):
     strays = []
     contracts = set(document["allowlists"]["contracts"])
     for key, record in sorted(records.items()):
-        for param in record["params"]:
-            if isinstance(param, str) and ADDRESS.match(param) and param not in contracts:
+        for param in _address_shaped(record["params"]):
+            if param not in contracts:
                 strays.append(f"{key[:12]}: {param}")
     checks.append(
         Check("release-allowlists", not strays, "; ".join(strays))

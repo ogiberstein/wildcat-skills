@@ -1,5 +1,7 @@
 """Promotion is evidence, rollback is a record, the chain replays whole."""
 
+from pathlib import Path
+
 import json
 import os
 import shutil
@@ -76,6 +78,13 @@ class PromoteTests(PromoteFixture):
         self.rewrite_report(mutate)
         with self.assertRaises(BereanError):
             promote.promote(self.directory, "wrong answers")
+
+    def test_the_report_is_parsed_from_the_digested_bytes(self):
+        source = (Path(__file__).parents[1] / "scripts" / "berean_lib" / "promote.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("jsonio.load(report_path", source)
+        self.assertIn("jsonio.loads(report_text", source)
 
     def test_a_tampered_report_does_not_promote(self):
         report_path = os.path.join(self.directory, "evals", "report.json")

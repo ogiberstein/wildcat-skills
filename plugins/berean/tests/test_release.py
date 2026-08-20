@@ -164,6 +164,54 @@ class ConformanceTests(unittest.TestCase):
         )
 
 
+class AllowlistWalkTests(unittest.TestCase):
+    def test_an_address_nested_in_a_filter_object_is_walked(self):
+        found = list(
+            release._address_shaped(
+                [{"address": "0x" + "8b" * 20, "topics": [["0x" + "11" * 20]]}]
+            )
+        )
+        self.assertEqual(found, ["0x" + "8b" * 20, "0x" + "11" * 20])
+
+    def test_a_nested_unallowlisted_address_fails_the_gate(self):
+        import shutil as _shutil
+
+        from berean_lib import jsonio as jsonio_lib
+        from berean_lib import reads as reads_lib
+
+        with tempfile.TemporaryDirectory() as holder:
+            directory = os.path.join(holder, "release")
+            _shutil.copytree(PASS_RELEASE, directory)
+            method = "eth_getLogs"
+            params = [{"address": "0x" + "99" * 20, "fromBlock": "0xf4240"}]
+            extra = {
+                "schema_version": 1,
+                "request_key": reads_lib.request_key(method, params),
+                "method": method,
+                "params": params,
+                "required": True,
+                "evidence": "recorded-rpc",
+                "outcome": {"result": []},
+            }
+            reads_path = os.path.join(directory, "reads.jsonl")
+            with open(reads_path, encoding="utf-8") as handle:
+                records = [json.loads(line) for line in handle.read().splitlines()]
+            records.append(extra)
+            records.sort(key=lambda record: record["request_key"])
+            with open(reads_path, "w", encoding="utf-8") as handle:
+                handle.write("\n".join(canonical.dumps(r) for r in records) + "\n")
+            document_path = os.path.join(directory, "release.json")
+            with open(document_path, encoding="utf-8") as handle:
+                document = json.loads(handle.read())
+            document["reads"]["sha256"] = release.digests.of_file(reads_path)
+            document["release_digest"] = release.release_digest(document)
+            with open(document_path, "w", encoding="utf-8") as handle:
+                handle.write(canonical.dumps(document) + "\n")
+            self.assertEqual(
+                failures(release.verify(directory)), ["release-allowlists"]
+            )
+
+
 class SchemaAgreementTests(unittest.TestCase):
     def test_the_shipped_schema_matches_the_module(self):
         with open(SCHEMAS / "release-v1.json", encoding="utf-8") as handle:

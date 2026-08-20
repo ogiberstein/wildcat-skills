@@ -180,7 +180,11 @@ def promote(directory, note):
     report_bytes = digests.read_file(report_path)
     if digests.of_bytes(report_bytes) != evals["report_sha256"]:
         raise BereanError("the eval report does not match the release's pinned digest")
-    report = validate_report(jsonio.load(report_path, "eval report"))
+    try:
+        report_text = report_bytes.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise BereanError(f"eval report is not UTF-8: {error}") from error
+    report = validate_report(jsonio.loads(report_text, "eval report"))
     if report["corpus_digest"] != document["corpus"]["corpus_digest"]:
         raise BereanError("the eval report grades another corpus")
     if report["cases_sha256"] != evals["cases_sha256"]:
