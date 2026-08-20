@@ -20,6 +20,14 @@ then derives only the credit rows a reviewed mapping can defend.
 [Ariadne](./plugins/ariadne) binds a release to the evidence behind it, in a statement another person can check.
 
 
+### Berean
+
+[Berean](./plugins/berean) releases evidence-backed protocol agents: the
+corpus pinned by digest, every citation provable as exact bytes, every live
+value bound to a chain and block, and promotion held to an evaluation record,
+all checkable without the model that produced the answers.
+
+
 ### Brevitas
 
 [Brevitas](./plugins/brevitas) is the final structural pass for audit findings,
@@ -95,14 +103,14 @@ another person can rebuild after the endpoint that served them is gone.
 
 Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
 
-| Role | Alexandria | Ariadne | Brevitas | Hermes | Hexaemeron | Horos | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 8 | 8 | 9 | 9 | 8 | 6 | 8 | 8 | 4 | 8 | 7 |
-| Security and audit | 8 | 9 | 10 | 7 | 8 | 2 | 4 | 8 | 9 | 5 | 7 | 7 |
-| Marketing | 1 | 1 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 | 3 | 1 |
-| Business development | 6 | 2 | 2 | 2 | 5 | 1 | 1 | 2 | 2 | 9 | 4 | 3 |
-| Finance | 8 | 1 | 2 | 3 | 4 | 1 | 1 | 2 | 2 | 7 | 4 | 7 |
-| Legal | 3 | 3 | 2 | 1 | 4 | 1 | 1 | 2 | 2 | 4 | 4 | 2 |
+| Role | Alexandria | Ariadne | Berean | Brevitas | Hermes | Hexaemeron | Horos | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Developers | 8 | 8 | 8 | 8 | 9 | 9 | 8 | 6 | 8 | 8 | 4 | 8 | 7 |
+| Security and audit | 8 | 9 | 7 | 10 | 7 | 8 | 2 | 4 | 8 | 9 | 5 | 7 | 7 |
+| Marketing | 1 | 1 | 2 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 | 3 | 1 |
+| Business development | 6 | 2 | 5 | 2 | 2 | 5 | 1 | 1 | 2 | 2 | 9 | 4 | 3 |
+| Finance | 8 | 1 | 3 | 2 | 3 | 4 | 1 | 1 | 2 | 2 | 7 | 4 | 7 |
+| Legal | 3 | 3 | 3 | 2 | 1 | 4 | 1 | 1 | 2 | 2 | 4 | 4 | 2 |
 
 Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
 
@@ -114,6 +122,7 @@ The short map of what each plugin does and what is honestly left to build.
 | --- | --- | --- |
 | [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented. |
 | [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them. |
+| [Berean](./plugins/berean) | Releasing and verifying evidence-backed protocol agents against pinned corpora, preserved chain reads and an evaluation record. | The reference release answers against a frozen demonstration corpus and preserved Goldfinch mainnet reads; no release yet cites live Wildcat documentation or a captured Wildcat market read, and no Ariadne statement binds a berean release. |
 | [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
 | [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | No complete, reproducible live Wildcat evidence bundle is published. |
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
@@ -151,6 +160,7 @@ Add the same marketplace and install a plugin from inside Claude Code:
 /plugin marketplace add wildcat-finance/skills
 /plugin install alexandria@wildcat-labs
 /plugin install ariadne@wildcat-labs
+/plugin install berean@wildcat-labs
 /plugin install brevitas@wildcat-labs
 /plugin install hermes@wildcat-labs
 /plugin install hexaemeron@wildcat-labs
@@ -171,6 +181,7 @@ Claude namespaces plugin skills, so each entry skill answers as:
 ```text
 /alexandria:alexandria
 /ariadne:ariadne
+/berean:berean
 /brevitas:brevitas
 /hermes:hermes
 /hexaemeron:fiat "<topic>"
@@ -200,8 +211,8 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin mar
 
 ### Local agents
 
-Agents that support the open Agent Skills convention can discover the eleven
-host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
+Agents that support the open Agent Skills convention can discover the
+nineteen host-neutral entries under [`.agents/skills`](./.agents/skills). Point the
 agent at this repository and include that directory in its project skill
 search path. Keep the repository layout intact: each entry routes to the
 canonical plugin instructions instead of copying them.
@@ -217,6 +228,7 @@ Plain-text activation works alongside host syntax:
 ```text
 Use Alexandria to preserve this lending-data capture and query its source-bound credit view.
 Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
+Use Berean to verify this release's citations, chain readings and promotion record against its pinned corpus.
 Use Brevitas to enforce evidence-preserving structural budgets on this engineering review.
 Use Hermes to optimise gas in this Foundry repository.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
@@ -335,6 +347,16 @@ Use $ariadne to capture this release in an evidence statement, run its gates, an
 
 The gates, the predicate and the refusals live in [Ariadne's `SKILL.md`](./plugins/ariadne/skills/ariadne/SKILL.md).
 
+Berean needs Python 3.9 or later and nothing else. Its checked-in reference
+release and every verification path run offline. Ask:
+
+```text
+Use $berean to verify this release's citations, chain readings and promotion record against its pinned corpus.
+```
+
+The release contract, the gates and the refusals live in
+[Berean's `SKILL.md`](./plugins/berean/skills/berean/SKILL.md).
+
 Brevitas needs Python 3 and no third-party package. Ask:
 
 ```text
@@ -437,6 +459,7 @@ Every plugin has that shape. What each adds beyond it:
 | --- | --- | --- |
 | Alexandria | `alexandria` | docs, examples, schemas, scripts |
 | Ariadne | `ariadne` | audit, docs, examples, schemas, scripts |
+| Berean | `berean` | docs, examples, schemas, scripts |
 | Brevitas | `brevitas` | evals |
 | Hermes | `hermes` | references and scripts inside the skill |
 | Hexaemeron | `fiat`, `kronos`, `imprimatur`, `vulgate`, the vendored `x-ray`, `solidity-auditor` and `fizz`, and `protasis`, `elenchus`, `phylax`, `ephoros`, `metron`, `hypomnema` | agents, audit, docs |
@@ -471,12 +494,12 @@ carries the shared credit laws. `lazarus` preserves and replays a finite slice
 of historical state. Another protocol, auditor, researcher or agent builder
 should be able to use each one without needing to use Wildcat. `alexandria`
 now keeps the heterogeneous raw record and serves a reviewed address view to
-`probitas` without making either one own the other's claims.
+`probitas` without making either one own the other's claims. Agents that can
+show their sources were the next gap, and `berean` now carries the release
+contract, verifier and evaluation corpus for them.
 
-What remains, listed alphabetically:
+What remains:
 
-- `berean`, a release manifest and evaluation corpus for agents that must
-  support answers with exact documents and chain state.
 - `janus`, a conformance suite for what contract hooks may observe and change
   before and after a host action.
 

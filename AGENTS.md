@@ -7,11 +7,14 @@ the canonical `SKILL.md` it names.
 
 ## Marketplace boundaries
 
-The eleven plugins form one marketplace, not eleven competing descriptions of the
-same job. Alexandria preserves lending inputs; Tabularium interprets preserved
-venue records; Probitas assembles a counterparty dossier. Lazarus preserves the
-finite historical Ethereum state and exact RPC traffic a test needs, while
-Ariadne binds a released artefact digest to its evidence. Pandects supplies
+The thirteen plugins form one marketplace, not thirteen competing descriptions
+of the same job. Alexandria preserves lending inputs; Tabularium interprets
+preserved venue records; Probitas assembles a counterparty dossier. Lazarus
+preserves the finite historical Ethereum state and exact RPC traffic a test
+needs, while Ariadne binds a released artefact digest to its evidence. Berean
+holds a protocol agent's recorded answers to pinned corpora and preserved
+chain reads; it neither chunks documents nor preserves chain state itself.
+Pandects supplies
 reviewed credit laws, Hermes measures a single gas-optimisation class,
 Hexaemeron controls a receipted delivery loop and holds each of its phases to a
 named skill, while Lemma stops after producing
@@ -27,6 +30,8 @@ rather than broadening the selected skill.
   `plugins/alexandria/AGENTS.md` before running its skill or changing that
   plugin.
 - Ariadne is under `plugins/ariadne/`. Read `plugins/ariadne/AGENTS.md` before
+  running its skill or changing that plugin.
+- Berean is under `plugins/berean/`. Read `plugins/berean/AGENTS.md` before
   running its skill or changing that plugin.
 - Brevitas is under `plugins/brevitas/`. Read `plugins/brevitas/AGENTS.md`
   before running its skill or changing that plugin.
@@ -81,6 +86,7 @@ Run the checks that cover every changed area.
 python3 -m unittest discover -s tests
 python3 -m unittest discover -s plugins/alexandria/tests -t plugins/alexandria
 python3 -m unittest discover -s plugins/ariadne/tests -t plugins/ariadne
+python3 -m unittest discover -s plugins/berean/tests -t plugins/berean
 python3 -m unittest discover -s plugins/brevitas/tests -t plugins/brevitas
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
