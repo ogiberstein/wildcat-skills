@@ -1237,6 +1237,9 @@ class StaleControllerTests(unittest.TestCase):
             self.assertIn("warning", done.stderr)
             self.assertIn("fiat-v99.9.9", done.stderr)
             self.assertIn("initialised", done.stdout)
+            # A warning that does not say what to do gets read and ignored.
+            self.assertIn("plugin-currency.md", done.stderr)
+            self.assertIn("controller_version", done.stderr)
         finally:
             import shutil
             shutil.rmtree(module_dir, ignore_errors=True)

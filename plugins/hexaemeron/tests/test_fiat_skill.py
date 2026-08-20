@@ -13,6 +13,7 @@ FIAT = ROOT / "skills" / "fiat" / "SKILL.md"
 MARKETPLACE = ROOT / "skills" / "fiat" / "references" / "wildcat-marketplace.md"
 CONTRIBUTOR_CHECK = ROOT / "skills" / "fiat" / "scripts" / "check_wildcat_contributor.py"
 PUSH_DISCIPLINE = ROOT / "skills" / "fiat" / "references" / "push-discipline.md"
+PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
 
 
 def load_contributor_check():
@@ -215,6 +216,60 @@ class BaseSyncTests(unittest.TestCase):
 
     def test_the_starting_sha_reaches_the_study(self):
         self.assertIn("state the starting SHA in the study's constraints", self.flat)
+
+
+class PluginCurrencyTests(unittest.TestCase):
+    """Directing the update, rather than noting the version and carrying on.
+
+    A run drove a controller a whole evolution behind the repository it was
+    editing and recorded its lint results as prose, because the installed
+    audit-round did not accept flags its own ledger documented.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = PLUGIN_CURRENCY.read_text(encoding="utf-8")
+        cls.flat = " ".join(cls.doc.split())
+        cls.fiat = " ".join(FIAT.read_text(encoding="utf-8").split())
+        cls.market = " ".join(
+            MARKETPLACE.read_text(encoding="utf-8").split()
+        )
+
+    def test_preflight_directs_the_update_rather_than_noting_it(self):
+        self.assertIn("plugin-currency.md", self.fiat)
+        self.assertIn("Do not run the loop under a controller you have noticed is behind",
+                      self.fiat)
+
+    def test_the_host_mechanism_lives_here_only(self):
+        # Both callers need it; two copies of a host list drift.
+        self.assertIn("/reload-plugins", self.doc)
+        self.assertIn("plugin-currency.md", self.market)
+        self.assertNotIn("/reload-plugins", self.market)
+
+    def test_the_install_route_is_established_not_assumed(self):
+        self.assertIn("Do not assume", self.flat)
+        self.assertIn("git-backed marketplace", self.flat)
+        self.assertIn("managed marketplace", self.flat)
+        self.assertIn("the agent cannot do it", self.flat)
+
+    def test_the_two_repositories_and_the_mirror_delay_are_stated(self):
+        self.assertIn("wildcat-finance/skills-marketplace", self.doc)
+        self.assertIn("every five minutes", self.flat)
+        self.assertIn("chain rather than a step", self.flat)
+
+    def test_an_unfixable_gap_becomes_a_receipt(self):
+        self.assertIn("hexctl record controller_version", self.doc)
+        self.assertIn("say so out loud", self.flat)
+
+    def test_hand_editing_a_plugin_cache_is_refused(self):
+        self.assertIn("Do not hand-edit a plugin cache", self.flat)
+
+    def test_the_self_hosting_case_is_excluded(self):
+        self.assertIn("is not a problem", self.flat)
+        self.assertIn("skips that by identity", self.flat)
+
+    def test_a_run_cannot_enforce_what_it_just_shipped(self):
+        self.assertIn("cannot take effect for the very run that made it", self.flat)
 
 
 class ContributorCheckTests(unittest.TestCase):

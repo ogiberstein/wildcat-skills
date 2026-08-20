@@ -540,8 +540,11 @@ def cmd_init(args) -> None:
             f"hexctl: warning: this controller is {running}, and {path} in the "
             f"target repository is {checked_in}. The run will use the older "
             f"one, so a receipt it cannot record is a gap in this run's "
-            f"evidence rather than a rule that does not exist. Update the "
-            f"installed plugin before relying on it.",
+            f"evidence rather than a rule that does not exist. Follow "
+            f"references/plugin-currency.md: update the plugin through this "
+            f"host's own installer, refresh, and re-resolve the paths, or "
+            f"record a controller_version receipt saying why that could not "
+            f"happen.",
             file=sys.stderr,
         )
 

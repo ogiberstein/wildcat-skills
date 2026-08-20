@@ -90,14 +90,12 @@ no `labs_marketplace` receipt, skip this section silently.
    clone or copy its source repository root into a marketplace or plugin cache.
    Do not install an unrelated plugin merely because it is published by
    Wildcat Labs.
-3. Finish every selected install before any skill or plugin refresh. Then use
-   the host-appropriate boundary:
-   - on Claude Code, run the supported `/reload-plugins` or `/reload-skills`
-     command;
-   - on Codex, ask the user to continue the same Fiat run in a new chat after
-     the installs complete;
-   - on another host, use its native refresh mechanism, or request a new
-     session when live refresh is unavailable.
+3. Finish every selected install before any skill or plugin refresh. Then
+   refresh through the host boundary in
+   [plugin-currency.md](plugin-currency.md), which owns the per-host mechanism
+   and the rule about re-resolving paths afterwards. It is stated there rather
+   than here because preflight needs the same procedure for an out-of-date
+   controller, and two copies of a host list drift.
 4. After a refresh or new chat, load each selected skill's canonical
    instructions before applying it. Use it only in phases where the completed
    study gives it a concrete role. Keep Hexaemeron's receipts truthful: list a
