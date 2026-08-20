@@ -5578,3 +5578,34 @@ versions and evolution ledgers remain unchanged.
 
 This follow-up changes test expectations only. It does not change a command,
 result format, promise, canonical skill version, frontier digest or held job.
+
+## Promise Machine, step 9, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because Step 9 adds one Markdown evidence
+record and changes no executable or Solidity file. The review compared every
+recorded count with its command result, checked the installed package and skill
+versions independently, inspected the Codex resolver entries, and confirmed
+that both unavailable host observations were reported as unknowns.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The Promise Machine inventory and full check are clean, the checker completes
+in 0.10 seconds, and the root suite passes 104 tests. Every plugin suite named
+in the runbook passes, including Berean's 151 tests, Janus's 14 Python and 24
+Foundry tests, and Pandects's 116 Python and 79 Foundry tests. The Phylax,
+Ephoros and Hypomnema tree checks exit clean. The new evidence document passes
+Imprimatur and Brevitas.
+
+### Leads not pursued
+
+Codex computer control cannot inspect the Codex app, so the picker screenshot
+was not taken. Claude Code's expired OAuth token prevented the model-backed
+slash invocation. The evidence record names both limits and retains the
+resolver, package and host-neutral transcripts that did run; it does not infer
+either missing result.
