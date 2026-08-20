@@ -571,11 +571,33 @@ def discover_inventory(root: Path):
                 )
             )
         elif router_root.is_dir():
-            routers = [
-                relative(path, root)
-                for path in sorted(router_root.glob("*/SKILL.md"))
-                if path.is_file() and not path.is_symlink()
-            ]
+            for entry in sorted(router_root.iterdir(), key=lambda item: item.name):
+                if entry.is_symlink() or not confined(entry, root):
+                    findings.append(
+                        Finding(
+                            "PM025",
+                            "identity",
+                            relative(entry, root),
+                            "portable router directory is a symlink or resolves outside the repository",
+                            "restore a regular router directory inside .agents/skills",
+                        )
+                    )
+                    continue
+                if not entry.is_dir():
+                    continue
+                router = entry / "SKILL.md"
+                if router.is_symlink() or not confined(router, root):
+                    findings.append(
+                        Finding(
+                            "PM025",
+                            "identity",
+                            relative(router, root),
+                            "portable router is a symlink or resolves outside the repository",
+                            "restore a regular router SKILL.md",
+                        )
+                    )
+                elif router.is_file():
+                    routers.append(relative(router, root))
             if not routers:
                 findings.append(
                     Finding(
@@ -586,16 +608,38 @@ def discover_inventory(root: Path):
                         "restore at least one portable router or remove the empty surface",
                     )
                 )
-    overlays = tuple(
-        relative(path, root)
-        for path in sorted((root / "plugins").glob("*/PROMISES.md"))
-        if path.is_file() and not path.is_symlink()
-    )
+    overlays = []
+    for plugin in plugins:
+        overlay = plugin / "PROMISES.md"
+        if not (overlay.exists() or overlay.is_symlink()):
+            continue
+        if overlay.is_symlink() or not confined(overlay, root):
+            findings.append(
+                Finding(
+                    "PM025",
+                    "identity",
+                    relative(overlay, root),
+                    "promise overlay is a symlink or resolves outside the repository",
+                    "restore a regular plugin-local PROMISES.md",
+                )
+            )
+        elif overlay.is_file():
+            overlays.append(relative(overlay, root))
+        else:
+            findings.append(
+                Finding(
+                    "PM025",
+                    "structural",
+                    relative(overlay, root),
+                    "promise overlay is not a regular file",
+                    "restore a regular plugin-local PROMISES.md",
+                )
+            )
     inventory = Inventory(
         plugins=tuple(relative(plugin, root) for plugin in plugins),
         skills=tuple(records),
         routers=tuple(routers),
-        overlays=overlays,
+        overlays=tuple(overlays),
     )
     return inventory, findings
 
@@ -720,9 +764,17 @@ def parse_contract(skill: SkillRecord, root: Path):
             )
         exceptions = fields.get("Exceptions", [])
         if len(exceptions) == 1 and exceptions[0].lower() != "none":
-            lowered = exceptions[0].lower()
             required = ("authority", "scope", "record", "expiry")
-            absent = [item for item in required if item not in lowered]
+            absent = [
+                item
+                for item in required
+                if re.search(
+                    rf"(?:^|;)\s*{item}\s*(?::|=)\s*[^;\s].*?(?=;|$)",
+                    exceptions[0],
+                    re.IGNORECASE,
+                )
+                is None
+            ]
             if absent:
                 findings.append(
                     Finding(
@@ -742,6 +794,25 @@ def check_structure(root: Path, inventory: Inventory):
     findings: list[Finding] = []
     promises: list[tuple[str, str]] = []
     for skill in inventory.skills:
+        if skill.governance == "vendored":
+            loaded, read_findings = read_markdown(
+                root / skill.path,
+                root,
+                missing_code="PM020",
+                unsafe_code="PM025",
+            )
+            findings.extend(read_findings)
+            if loaded is not None and "## Promise Machine contract" in loaded[1].splitlines():
+                findings.append(
+                    Finding(
+                        "PM029",
+                        "structural",
+                        skill.path,
+                        "vendored instruction authors a Promise Machine contract",
+                        "remove the local contract and bind the unchanged instruction through a first-party overlay",
+                    )
+                )
+            continue
         if skill.governance != "first-party":
             continue
         parsed, parsed_findings = parse_contract(skill, root)
@@ -856,13 +927,14 @@ def report(
     *,
     as_json: bool,
     written: int = 0,
+    copies: int = 0,
     inventory: Inventory | None = None,
     promises: int = 0,
 ):
     findings = sorted(findings, key=lambda item: (item.path, item.code, item.message))
     counts = {
         "plugins": len(plugins),
-        "copies": len(plugins),
+        "copies": copies,
         "written": written,
         "findings": len(findings),
         "canonical_skills": len(inventory.skills) if inventory else 0,
@@ -921,7 +993,7 @@ def report(
         )
     else:
         suffix = f"; wrote {written}" if command == "sync" else ""
-        print(f"clean: {len(plugins)} plugin(s), {len(plugins)} copy/copies{suffix}")
+        print(f"clean: {len(plugins)} plugin(s), {counts['copies']} copy/copies{suffix}")
     return 0 if not findings else 1
 
 
@@ -1010,6 +1082,7 @@ def main(argv=None):
             plugins,
             findings,
             as_json=args.json,
+            copies=len(plugins) if "copies" in only else 0,
             inventory=inventory,
             promises=promises,
         )
@@ -1024,7 +1097,15 @@ def main(argv=None):
         written, write_findings = sync_copies(root, law, plugins)
         findings.extend(write_findings)
         findings.extend(check_copies(root, law, plugins))
-    return report("sync", root, plugins, findings, as_json=args.json, written=written)
+    return report(
+        "sync",
+        root,
+        plugins,
+        findings,
+        as_json=args.json,
+        written=written,
+        copies=len(plugins),
+    )
 
 
 if __name__ == "__main__":
