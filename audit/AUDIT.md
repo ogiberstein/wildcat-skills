@@ -4442,3 +4442,18 @@ rather than passing as a superset; and citation digest and display text are
 checked separately so neither can vouch for the other.
 
 Leads not pursued: none.
+
+## Berean from its Commons specification, step 2, round 2 -- 2026-08-20
+
+Scope: the step 2 tree with `c8c72d3` applied. Both fixes re-reviewed
+against the current tree: the constant hook refuses all three JSON
+constants with a guard test per spelling, and the drift loop reports a
+swapped symlink as a named `corpus-bytes` failure with the refusal in its
+detail. Lints phylax, ephoros and hypomnema exit 0; root suite 34 and
+berean suite 61 green.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: none.
