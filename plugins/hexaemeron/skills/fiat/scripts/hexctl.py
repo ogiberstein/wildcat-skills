@@ -23,6 +23,7 @@ import argparse
 import contextlib
 import datetime
 import fcntl
+import glob
 import hashlib
 import json
 import os
@@ -532,6 +533,60 @@ def cmd_init(args) -> None:
         f"initialised {root} (topic: {args.topic}); "
         f"run branch {run_branch} off {args.base}"
     )
+    stale = stale_controller(args.dir)
+    if stale is not None:
+        running, checked_in, path = stale
+        print(
+            f"hexctl: warning: this controller is {running}, and {path} in the "
+            f"target repository is {checked_in}. The run will use the older "
+            f"one, so a receipt it cannot record is a gap in this run's "
+            f"evidence rather than a rule that does not exist. Update the "
+            f"installed plugin before relying on it.",
+            file=sys.stderr,
+        )
+
+
+def ledger_version(evolution_md: str) -> str | None:
+    """The `Current version` a skill's EVOLUTION.md declares."""
+    try:
+        with open(evolution_md, encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("- Current version:"):
+                    return line.split(":", 1)[1].strip().strip("`") or None
+    except OSError:
+        return None
+    return None
+
+
+def stale_controller(target_dir: str) -> tuple[str, str, str] | None:
+    """Whether the running Fiat is older than a copy checked into the target.
+
+    A marketplace plugin is installed from a published copy, so a repository
+    that also holds Fiat's source can be a whole evolution ahead of the
+    controller driving the run. Every rule the newer one enforces then goes
+    unenforced silently, which is the one failure mode a receipt cannot show:
+    the missing flag looks like a rule that was never written.
+
+    Returns (running label, checked-in label, repo-relative path), or None when
+    there is nothing to compare or the two agree.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    running = ledger_version(os.path.join(here, os.pardir, "EVOLUTION.md"))
+    if running is None:
+        return None
+    for candidate in sorted(
+        glob.glob(
+            os.path.join(target_dir, "plugins", "*", "skills", "fiat", "EVOLUTION.md")
+        )
+    ):
+        if os.path.realpath(candidate) == os.path.realpath(
+            os.path.join(here, os.pardir, "EVOLUTION.md")
+        ):
+            continue  # the run's target is the plugin's own source tree
+        checked_in = ledger_version(candidate)
+        if checked_in is not None and checked_in != running:
+            return running, checked_in, os.path.relpath(candidate, target_dir)
+    return None
 
 
 RESERVED_RECEIPTS = {"study", "runbook"}
