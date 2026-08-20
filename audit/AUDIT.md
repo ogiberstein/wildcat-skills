@@ -4660,3 +4660,39 @@ recorded; no new issue surfaced.
 | -- | -- | -- | none | -- |
 
 Leads not pursued: the two accepted limitations recorded in round 1.
+
+## Step 6, round 1 -- 2026-08-20
+
+Python, prose and deletion step: the report subcommand, the sample findings,
+the README retirement of the anchor, and the removal of the delivered spec. No
+Solidity ships, so x-ray and solidity-auditor have nothing to review; the three
+bundled lints ran clean over the changed files (phylax 0, ephoros 0, hypomnema
+0) and the reporter was read against the risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S6-R1-01 | low | plugins/janus/scripts/janus.py | A finding field carrying a pipe or a newline would malform the human report's Markdown table, opening a spurious column or splitting the row. | fixed in fde7c12cd9f53078548357bccc4714219a99814b |
+
+The SARIF output was already safe, serialized through `json.dump` rather than
+concatenated. `load_findings` fails closed on a missing key or a non-list
+findings value. The clean-run report states the manifest and the sequence
+count and explicitly does not claim safety, matching the liveness caveat. The
+anchor retirement leaves only historical, point-in-time references to
+`docs/commons/janus.md` in the audit log and the two committed run specs, which
+the repository treats as records of what was written rather than live links.
+
+Leads not pursued: none.
+
+## Step 6, round 2 -- 2026-08-20
+
+Against the tree with round 1's fix. The cell escaping is confined to the
+Markdown renderer and does not touch the SARIF path; a test confirms a pipe in
+a field is escaped rather than dropped and the row keeps its four columns. The
+Janus Python suite and the repository suite pass. The demo path runs end to
+end: forge test, manifest validation, and the report to Markdown and SARIF.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none.
