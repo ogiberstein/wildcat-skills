@@ -103,12 +103,12 @@ class BrevitasTests(unittest.TestCase):
         self.assertGreaterEqual(len(codex["description"]), 25)
         self.assertLessEqual(len(codex["description"]), 64)
 
-    def test_portable_entrypoint_routes_to_canonical_contract(self) -> None:
-        portable = ROOT / ".agents" / "skills" / "brevitas" / "SKILL.md"
+    def test_promise_machine_router_reaches_the_runtime_contract(self) -> None:
+        portable = ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
         links = re.findall(r"\[[^]]+\]\(([^)]+)\)", portable.read_text(encoding="utf-8"))
-        self.assertEqual(len(links), 2)
-        for link in links:
-            self.assertTrue((portable.parent / link).resolve().is_file(), link)
+        self.assertIn("../../../plugins/brevitas/AGENTS.md", links)
+        contract = (PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`skills/brevitas/SKILL.md`", contract)
 
 
 if __name__ == "__main__":

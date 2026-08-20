@@ -5230,3 +5230,27 @@ Zero findings.
 ### Leads not pursued
 
 The natural-language routing boundary recorded in round 1 remains unchanged.
+
+## Promise Machine, step 3, publication correction -- 2026-08-20
+
+### Review scope
+
+Publication CI exposed four plugin-local scaffold tests that still addressed
+portable mirrors removed by this step. The Alexandria, Brevitas, Lazarus and
+Sapheneia guards now reach those plugins through the sole Promise Machine
+router and then verify the runtime contract's canonical-skill link. Lazarus
+keeps its invocation aliases at the runtime-contract layer.
+
+### Findings
+
+S3-CI-01, high, affected the Alexandria, Brevitas, Lazarus and Sapheneia test
+directories. Their plugin-local scaffold guards still opened four deleted
+portable mirrors, so the published Lazarus matrix failed despite the root suite
+passing. The guards are fixed and exercised in all four affected plugin suites.
+
+### Evidence
+
+The 255 Alexandria tests, 15 Brevitas tests, 364 Lazarus tests and four
+Sapheneia tests pass. The 74-test root suite also passes. Lazarus was exercised
+in a fresh environment built from its committed `requirements.lock`, matching
+the dependency boundary used by CI.

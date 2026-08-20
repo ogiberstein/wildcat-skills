@@ -45,14 +45,15 @@ class ScaffoldTests(unittest.TestCase):
         self.assertTrue(support.SKILL.is_file())
         self.assertFalse((support.SKILL.parent / "README.md").exists())
 
-    def test_portable_entrypoint_routes_to_the_runtime_contract(self):
-        path = support.REPO_ROOT / ".agents" / "skills" / "lazarus" / "SKILL.md"
+    def test_promise_machine_router_reaches_the_runtime_contract(self):
+        path = support.REPO_ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
         text = path.read_text(encoding="utf-8")
         links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
         self.assertIn("../../../plugins/lazarus/AGENTS.md", links)
-        self.assertTrue(all((path.parent / link).resolve().is_file() for link in links))
+        contract = (support.PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`skills/lazarus/SKILL.md`", contract)
         for alias in ("/lazarus:lazarus", "$lazarus"):
-            self.assertIn(alias, text)
+            self.assertIn(alias, contract)
 
     def test_runtime_contract_documents_planned_entrypoints_and_boundaries(self):
         contract = (support.PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
