@@ -299,3 +299,29 @@ End with one action, and make it something the reader can do in a couple of
 minutes: confirm an assumption, answer one question, or approve the runbook.
 Name the open question rather than closing it with a guess. Corrected here, an
 assumption costs a sentence. Found in the audit loop, it costs a step.
+
+## Promise Machine contract
+
+### protasis-study-readiness
+
+- Promise: A study accepted by Protasis states the problem, assumptions, current state, chosen design and rejected trade, boundaries, failure and recovery model, affected versions and evidence-bearing success criteria needed to derive a runbook.
+- Evidence: The exact study, source inventory, explicit unknowns and exclusions, answered discipline questions, design comparison and completed study checklist.
+- Evidence classes: checked, inferred, recorded
+- Boundary: Readiness means the study contains material required to plan; it does not establish that the design is correct, implementation exists, tests pass or later receipts are true.
+- Authorises: Derivation of a discrete runbook from the accepted study without silently adding a new design decision.
+- Consequence: 1
+- Refuses: Hidden assumptions, an unstated boundary, solution-first prose, missing trade, untestable success language or a topic still containing several independent deliveries.
+- Recovery: Name the missing question or decision, gather the required evidence, amend the study and repeat the complete Protasis review.
+- Exceptions: none
+
+### protasis-runbook-readiness
+
+- Promise: A runbook accepted by Protasis decomposes the study into ordered steps whose entry, modules, exit commands, files, tests and discipline effects are discrete and provable.
+- Evidence: The accepted study, exact runbook, `protasis.py` structural result, per-step commands and files, dependency order, version boundary and completed pre-receipt checklist.
+- Evidence classes: checked, inferred, recorded
+- Boundary: Runbook readiness establishes buildable specification content, not correct implementation, command success, audit closure or delivery completion.
+- Authorises: Starting implementation at the first step while using the study and runbook as the change-control boundary.
+- Consequence: 1
+- Refuses: A step with no executable exit, mixed independent outcomes, missing affected files or tests, forward references to an undecided design or receipt language with no evidence command.
+- Recovery: Split or reorder the failing step, supply its exact evidence and rerun both the mechanical check and the full content review.
+- Exceptions: none

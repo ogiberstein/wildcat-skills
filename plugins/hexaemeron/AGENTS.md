@@ -35,6 +35,26 @@ Hexaemeron skill matches a task.
 | `metron` | `skills/metron/SKILL.md` | Baseline something slow, change one thing, re-measure, and keep or revert on the numbers |
 | `hypomnema` | `skills/hypomnema/SKILL.md` | Record the reason behind a decision, and put each kind of record where it will be found |
 
+## Vendored Promise Machine overlays
+
+Before selecting `fizz`, `fizz-convert`, `fizz-sync`, `x-ray` or
+`solidity-auditor`, read its declaration in [PROMISES.md](PROMISES.md) and
+recompute the SHA-256 of the exact canonical `SKILL.md`. The path and digest
+must match before the Wildcat promise is available. A mismatch blocks the
+overlay and requires review of the upstream change; it never authorises an
+edit to the vendored instruction.
+
+From this distribution repository, check the complete binding with:
+
+```bash
+python3 scripts/promise_machine.py check --only contracts,overlays
+```
+
+A standalone installation without the repository checker performs the same
+local path and digest comparison before it relies on an overlay. The overlay
+states what the Wildcat suite accepts from the vendored operation; the
+unchanged upstream file still controls how that operation runs.
+
 The first-party `fiat`, `imprimatur`, `vulgate`, and `kronos` directories each
 carry an `EVOLUTION.md` ledger governed by `skills/VERSIONING.md`. Read the
 selected skill's ledger before proposing a frontier run. A `mature` frontier
