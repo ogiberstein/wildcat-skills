@@ -998,6 +998,31 @@ class PromiseCoverageTests(unittest.TestCase):
             },
         )
 
+    def test_repository_prompt_and_vendored_coverage_is_complete(self):
+        completed = run_cli(
+            "coverage", "--check", "--group", "prompt,vendored", "--json"
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["counts"]["coverage_rows"], 66)
+        self.assertEqual(report["counts"]["coverage_selected"], 16)
+
+    def test_prompt_and_vendored_evaluations_never_claim_proof(self):
+        coverage = json.loads(
+            (ROOT / "tests" / "promise_machine_coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        selected = [
+            row for row in coverage["rows"] if row["group"] in {"prompt", "vendored"}
+        ]
+        self.assertEqual(len(selected), 16)
+        self.assertTrue(all("pending" not in row for row in selected))
+        self.assertTrue(
+            all(row["evaluation"]["status"] in {"recorded", "unknown"} for row in selected)
+        )
+
     def run_mutation(self, mutate):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)
@@ -1011,6 +1036,38 @@ class PromiseCoverageTests(unittest.TestCase):
                 target,
                 "--group",
                 "executable",
+                "--json",
+            )
+        return completed, json.loads(completed.stdout)
+
+    def run_vendored_mutation(self, mutate):
+        def complete(document):
+            row = document["rows"][1]
+            row["cases"] = dict(document["rows"][0]["cases"])
+            row.pop("pending")
+            for evidence in document["evidence"].values():
+                evidence["evidence_class"] = "checked"
+            row["evaluation"] = {
+                "status": "recorded",
+                "model": "not-run",
+                "prompt": "Fixture prompt.",
+                "corpus": "tests/evidence.py",
+                "disposition": "Fixture classifications recorded.",
+            }
+            mutate(document)
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, document = write_coverage_fixture(target)
+            complete(document)
+            coverage_path.write_text(json.dumps(document), encoding="utf-8")
+            completed = run_cli(
+                "coverage",
+                "--check",
+                "--root",
+                target,
+                "--group",
+                "vendored",
                 "--json",
             )
         return completed, json.loads(completed.stdout)
@@ -1065,6 +1122,14 @@ class PromiseCoverageTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM064", [item["code"] for item in report["findings"]])
 
+    def test_evidence_class_must_be_accepted_by_the_promise(self):
+        def mutate(document):
+            document["evidence"]["p"]["evidence_class"] = "recorded"
+
+        completed, report = self.run_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM064", [item["code"] for item in report["findings"]])
+
     def test_duplicate_json_key_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)
@@ -1095,6 +1160,59 @@ class PromiseCoverageTests(unittest.TestCase):
         completed, report = self.run_mutation(mutate)
         self.assertEqual(completed.returncode, 1)
         self.assertIn("PM066", [item["code"] for item in report["findings"]])
+
+    def test_prompt_or_vendored_evaluation_provenance_is_required(self):
+        completed, report = self.run_vendored_mutation(
+            lambda document: document["rows"][1].pop("evaluation")
+        )
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM069", [item["code"] for item in report["findings"]])
+
+    def test_prompt_or_vendored_evaluation_may_not_claim_proof(self):
+        def mutate(document):
+            document["rows"][1]["evaluation"]["status"] = "proved"
+
+        completed, report = self.run_vendored_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM069", [item["code"] for item in report["findings"]])
+
+    def test_prompt_or_vendored_evaluation_corpus_must_resolve(self):
+        def mutate(document):
+            document["rows"][1]["evaluation"]["corpus"] = "tests/missing.json"
+
+        completed, report = self.run_vendored_mutation(mutate)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM069", [item["code"] for item in report["findings"]])
+
+    def test_prompt_or_vendored_evaluation_corpus_must_be_repository_relative(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            coverage_path, document = write_coverage_fixture(target)
+            row = document["rows"][1]
+            row["cases"] = dict(document["rows"][0]["cases"])
+            row.pop("pending")
+            for evidence in document["evidence"].values():
+                evidence["evidence_class"] = "checked"
+            row["evaluation"] = {
+                "status": "recorded",
+                "model": "not-run",
+                "prompt": "Fixture prompt.",
+                "corpus": str((target / "tests" / "evidence.py").resolve()),
+                "disposition": "Fixture classifications recorded.",
+            }
+            coverage_path.write_text(json.dumps(document), encoding="utf-8")
+            completed = run_cli(
+                "coverage",
+                "--check",
+                "--root",
+                target,
+                "--group",
+                "vendored",
+                "--json",
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM069", [item["code"] for item in report["findings"]])
 
 
 if __name__ == "__main__":

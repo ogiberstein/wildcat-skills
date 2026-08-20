@@ -91,6 +91,33 @@ class BrevitasTests(unittest.TestCase):
         codes = self.codes("The path is unsafe.\n", source_text=source)
         self.assertIn("B030", codes)
 
+    def test_source_evidence_survives(self) -> None:
+        source = "At `src/Foo.sol:42`, 17 calls reach 0x1111111111111111111111111111111111111111."
+        self.assertNotIn("B030", self.codes(source, source_text=source))
+
+    def test_source_subject_mismatch_is_refused(self) -> None:
+        source = "At `src/Foo.sol:42`, 17 calls reach the boundary."
+        draft = "At `src/Foo.sol:42`, 18 calls reach the boundary."
+        self.assertIn("B030", self.codes(draft, source_text=source))
+
+    def test_token_survival_does_not_establish_semantic_equivalence(self) -> None:
+        source = "The 17 calls are safe."
+        draft = "The 17 calls are unsafe."
+        self.assertNotIn("B030", self.codes(draft, source_text=source))
+
+    def test_missing_source_evidence_recovers_when_restored(self) -> None:
+        source = "At `src/Foo.sol:42`, 17 calls reach the boundary."
+        self.assertIn("B030", self.codes("The path is unsafe.\n", source_text=source))
+        self.assertNotIn("B030", self.codes(source, source_text=source))
+
+    def test_clean_structure_does_not_establish_factual_accuracy(self) -> None:
+        draft = VALID_FINDING.replace("Claim.", "The Moon is made of cheese.")
+        self.assertEqual(self.codes(draft), set())
+
+    def test_over_budget_finding_recovers_after_compression(self) -> None:
+        self.assertIn("B002", self.codes(VALID_FINDING + "Evidence: extra.\n"))
+        self.assertNotIn("B002", self.codes(VALID_FINDING))
+
     def test_host_descriptions_remain_identical(self) -> None:
         claude = json.loads(
             (PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")

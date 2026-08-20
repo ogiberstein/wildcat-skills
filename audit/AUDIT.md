@@ -5393,3 +5393,71 @@ Hypomnema gates are clean.
 
 The recorded-judgement and later-runbook boundaries from round 1 remain
 unchanged.
+
+## Promise Machine, step 7, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes Python and JSON
+coverage records and tests, not Solidity. The review compared all 16 prompt,
+transformation and vendored rows with their canonical evidence classes, traced
+each P/M/S/O/R/X reference to its owning test or labelled corpus, checked
+evaluation provenance and confirmed that the five vendored instructions remain
+byte-exact.
+
+### Findings
+
+FINDING
+[High] S7-R1-01: Vulgate cases used an evidence class its promise does not accept.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: Generic Hexaemeron cases were marked `recorded`, while Vulgate declares only `checked` and `inferred` evidence.
+Impact: A recognised class could pass even when the owning promise excluded it.
+Fix: Added Vulgate-specific inferred references and made the gate reject explicit classes absent from the canonical declaration.
+END
+
+FINDING
+[Medium] S7-R1-02: Evaluation corpora could use checkout-specific absolute paths.
+Location: `scripts/promise_machine.py`
+Mechanism: Confinement accepted an absolute path when it happened to resolve inside the current checkout.
+Impact: A locally clean record could fail to identify the same corpus in another checkout.
+Fix: Required confined repository-relative corpus paths and added missing, absolute and overclaimed-provenance refusal cases.
+END
+
+### Evidence
+
+The prompt and vendored coverage gate reports all 16 selected promises with no
+finding. The 17 focused coverage checks pass, including evidence-class and
+evaluation-corpus mutations. Vulgate stays `unknown` for cross-model content
+parity and its labelled evidence is `inferred`, not `recorded` or `proved`.
+
+### Leads not pursued
+
+Labelled cases describe expected decisions and do not establish that a future
+model will follow them. The coverage rows name `not-run` wherever no model,
+campaign, conversion, sync, pre-audit or audit was executed.
+
+## Promise Machine, step 7, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected gate derives every accepted evidence class from the owning
+canonical declaration, requires explicit classes for prompt and vendored
+references, and confines evaluation corpora to resolving repository-relative
+paths. All 16 selected rows retain model, prompt, corpus and disposition
+records with status limited to `recorded` or `unknown`.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+All 17 focused coverage checks, 21 Brevitas tests, 60 Imprimatur checks, nine
+Sapheneia tests, 474 Hexaemeron tests and 97 root tests pass. The Phylax,
+Ephoros, Hypomnema and Horos gates are clean. The five vendored instruction
+files remain unchanged.
+
+### Leads not pursued
+
+The forward-testing and no-execution limits recorded in round 1 remain
+unchanged.
