@@ -4345,3 +4345,50 @@ which is the case a refusal keyed on the field's presence rather than its value
 would have broken.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. Both findings came from reading
+the new section against the sections it refers to.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | plugins/hexaemeron/skills/kronos/SKILL.md | the section said to record the pass, then said steps 5 to 8 do not happen, and step 6 is where recording lives | fixed in 7a03c5f |
+| S3-R1-02 | low | plugins/hexaemeron/skills/kronos/SKILL.md | it asked for standing parks in the report without saying `parked` exits 3 whenever one stands, and the parked section explains that 3 only in terms of step 8 | fixed in 7a03c5f |
+
+Neither is a code fault and both would have cost a reader a wrong action: the
+first dropping the record, the second reading a normal exit as a failure. One
+guard covers the section's required content, run against the unfixed text first.
+
+The ledger row was checked by hand as well as by the suite: header and row name
+one version, generation moves alone, the recomputed digest matches, the prior
+revision and digest are retained byte for byte, the status stays mature with no
+next job, and the frontmatter agrees. The description change is carried by
+`tests/test_portable_skills.py`, which requires a non-empty description and
+passes over the edited one.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went at whether the amended text broke the guards that were already
+holding it, and at whether the three shipped mechanisms compose. All four prose
+guards pass together: the field list, the phase-only park clause, the rank-only
+section's own content, and the one requiring step 6 rather than step 4 to carry
+the loop's recording, which the new wording could have moved.
+
+The three mechanisms were then run against each other in one pass: a phase-only
+rank-only ranking with a parked candidate scoring above the selection, an
+ungoverned skill, and `parked` reporting the block. The parked candidate carried
+its `P` and stayed out of selection, the pass rendered as `(rank-only)`, and
+`parked` exited 3, which the amended section now says means a park stands rather
+than a failure.
+
+Leads not pursued: none.

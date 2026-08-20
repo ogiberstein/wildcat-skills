@@ -485,6 +485,18 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(len(marked), 1)
         self.assertIn("alpha", marked[0])
 
+    def test_rank_only_mode_says_what_it_still_records_and_reads(self):
+        """It says steps 5 to 8 do not happen, and step 6 is where recording lives.
+
+        Without naming the two exceptions a reader takes that sentence literally
+        and drops both the pass record and the parked read.
+        """
+        skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        section = skill.split("## Rank-only mode", 1)[1].split("## Loop", 1)[0]
+        self.assertIn("step 6", section, "it must say which step's recording still happens")
+        self.assertIn("parked", section, "it must say to read the standing parks")
+        self.assertIn("3", section, "it must say what that exit code means here")
+
     def test_phase_only_mode_stops_on_a_standing_park_too(self):
         """Its stop condition is restated, so the park clause has to be in it."""
         skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
