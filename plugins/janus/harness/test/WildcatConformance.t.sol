@@ -116,6 +116,22 @@ contract LaunderProbe is IWildcatHook {
   }
 }
 
+/// @dev A benign hook that reads host state through a staticcall on deposit. A
+///      read is not an effect, so gate 1 must not reject it even though the
+///      host is not in the permitted call set.
+contract HostReadHook is IWildcatHook {
+  uint256 public seen;
+
+  function onDeposit(address, uint256, MarketState calldata, bytes calldata) external override {
+    seen = WildcatHostModel(msg.sender).scaledTotalSupply();
+  }
+
+  function onQueueWithdrawal(address, uint32, uint256, MarketState calldata, bytes calldata) external override {}
+  function onTransfer(address, address, address, uint256, MarketState calldata, bytes calldata) external override {}
+  function onSetAnnualInterestAndReserveRatioBips(uint16 a, uint16 r, MarketState calldata, bytes calldata)
+    external pure override returns (uint16, uint16) { return (a, r); }
+}
+
 contract WildcatConformanceTest is JanusBase, JanusHarness {
   string constant MANIFEST = "manifests/wildcat-open-term.json";
 
@@ -209,6 +225,24 @@ contract WildcatConformanceTest is JanusBase, JanusHarness {
     assertTrue(
       !_gate1_hookCallsWithinAllowed(r.delta, address(probe), allowed),
       "gate1: a forbidden call laundered one hop through an allowed target is caught"
+    );
+  }
+
+  function test_gate1_does_not_reject_a_host_read() external {
+    // A hook that reads host state via a staticcall makes no effect. Gate 1
+    // must pass it even with an empty permitted-call set: reads are not
+    // enumerated effects, and the host is not swept in as a laundering relay.
+    HostReadHook reader = new HostReadHook();
+    model.setHook(address(reader));
+    honest.grant(lender, block.timestamp + 1000); // not used by the reader, harmless
+
+    DriveResult memory r = _drive(adapter, "deposit", lender, _depositParams(100));
+    assertTrue(!r.reverted, "the host-reading deposit succeeds");
+
+    address[] memory allowed = new address[](0);
+    assertTrue(
+      _gate1_hookCallsWithinAllowed(r.delta, address(reader), allowed),
+      "gate1: a staticcall read of host state is not a forbidden effect"
     );
   }
 

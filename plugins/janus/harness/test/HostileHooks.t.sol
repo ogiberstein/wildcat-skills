@@ -85,10 +85,20 @@ contract HostileHooksTest is JanusBase, JanusHarness {
     DriveResult memory r = _deposit(100);
     assertTrue(!r.reverted, "the mutating deposit reports success");
 
-    address[] memory allowed = new address[](0);
+    address[] memory allowedCalls = new address[](0);
     assertTrue(
-      !_gate1_hookCallsWithinAllowed(r.delta, address(hook), allowed),
+      !_gate1_hookCallsWithinAllowed(r.delta, address(hook), allowedCalls),
       "gate1: the call to the external registry is caught"
+    );
+
+    // The registry's storage was written by the hook's subtree. The storage
+    // scope check catches it independently of the call-target check: only the
+    // hook's own storage is a permitted write scope here.
+    address[] memory allowedWrites = new address[](1);
+    allowedWrites[0] = address(hook);
+    assertTrue(
+      !_gate1_hookStorageWithinScopes(r.delta, address(hook), allowedWrites),
+      "gate1: the hook-caused write to external storage is caught"
     );
   }
 
@@ -108,6 +118,11 @@ contract HostileHooksTest is JanusBase, JanusHarness {
       abi.encode(lender, uint32(1000), uint256(100), bytes(""))
     );
     assertTrue(q.reverted, "gate3: the lender is stranded on exit after the credential lapses");
+    assertEq(
+      bytes4(q.revertData),
+      StaleAuthHook.NotApprovedLender.selector,
+      "gate3: the exit is blocked by the stale credential check, not an unrelated revert"
+    );
   }
 
   function test_run_emits_findings_and_requires_sequences() external {
@@ -132,6 +147,20 @@ contract HostileHooksTest is JanusBase, JanusHarness {
   function exerciseZero() external pure {
     _requireExercised(0);
   }
+
+  /// @dev A finding field that tries to inject JSON is escaped, so it cannot
+  ///      rewrite or hide another field.
+  function test_findings_json_escapes_injection() external {
+    Finding[] memory findings = new Finding[](1);
+    findings[0] = Finding(1, "deposit", "Evil", 'x","gate":9999,"hidden":"');
+
+    string memory path = "out/findings.inject.json";
+    _writeFindings(path, "wildcat-v2.5", "wildcat-open-term", 1, findings);
+    string memory json = vm.readFile(path);
+
+    // The gate is still 1; the injected 9999 did not override it.
+    assertEq(vm.parseJsonUint(json, ".findings[0].gate"), uint256(1), "the injected gate did not take effect");
+  }
 }
 
 /// @dev A handler that keeps the reentry hook in a stateful fuzz loop: every
@@ -143,6 +172,7 @@ contract ReentryHandler {
   MockAsset public asset;
   address public lender = address(0xBEEF);
   bool public everLanded;
+  bool public sawNonGuardRevert;
 
   constructor() {
     asset = new MockAsset();
@@ -157,8 +187,12 @@ contract ReentryHandler {
     amount = (amount % 1000) + 1;
     try model.deposit(lender, amount, "") {
       everLanded = true;
-    } catch {
-      // expected: the reentrancy guard blocked it
+    } catch (bytes memory data) {
+      // The block must be the reentrancy guard. If the guard were removed, the
+      // re-entering queueWithdrawal would revert for a different reason (a
+      // balance underflow), which this flag would catch, so the invariant
+      // genuinely exercises gate 6 rather than an incidental revert.
+      if (bytes4(data) != WildcatHostModel.Reentrancy.selector) sawNonGuardRevert = true;
     }
   }
 }
@@ -180,5 +214,9 @@ contract ReentryInvariantTest is JanusBase {
 
   function invariant_reentry_never_lands() external view {
     assertTrue(!handler.everLanded(), "a re-entering deposit was never allowed to land");
+    assertTrue(
+      !handler.sawNonGuardRevert(),
+      "every blocked deposit was blocked by the reentrancy guard, so the invariant exercises gate 6"
+    );
   }
 }
