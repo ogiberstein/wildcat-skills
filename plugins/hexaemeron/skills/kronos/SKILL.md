@@ -113,9 +113,9 @@ skip to a lower-scoring job to make the loop look busy.
 
 ## Scoreboard
 
-Step 8 reranks from scratch, so without a record the same held job can score 62
-in one pass and 78 three passes later with nothing about it changed, and nobody
-can see that happen. Each pass goes to `.kronos/scoreboard.jsonl` at the scope
+Step 8 reranks from scratch. Without a record, the same held job can score 62 in
+one pass and 78 three passes later with nothing about it changed, and nobody can
+see that happen. Each pass goes to `.kronos/scoreboard.jsonl` at the scope
 root, one JSON line, beside a `.gitignore` the writer creates. The file stays
 out of git deliberately: Fiat refuses to start against a dirty tree, so a
 scoreboard git can see would stop the loop's next iteration before it began.
