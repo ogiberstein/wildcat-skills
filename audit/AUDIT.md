@@ -5296,3 +5296,34 @@ Zero findings.
 ### Leads not pursued
 
 The behavioural-conformance boundary recorded in round 1 remains unchanged.
+
+## Promise Machine, step 5, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes first-party
+Markdown contracts, a standard-library checker and its Python tests. The
+review compared all 18 Hexaemeron declarations with their canonical
+instructions and checked the five vendored overlays against their unchanged
+upstream bytes. It also inspected overlay discovery, confinement, bounded
+reads, suite-wide identifier uniqueness, exact coverage, digest drift,
+first-party rejection and the runtime digest-check instruction.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+The checker reports 61 canonical first-party promises and five digest-bound
+vendored overlays. All 44 focused Promise Machine tests, 80 root tests and 451
+Hexaemeron tests pass. A one-byte mutation of a vendored instruction is
+refused with `PM057`; the five vendored instruction paths have no diff.
+Imprimatur, Brevitas, Phylax, Ephoros, Hypomnema and Horos are clean.
+
+### Leads not pursued
+
+The declarations state evidence contracts but do not yet prove every skill's
+runtime implementation conforms to them. Executable, prompt, transformation
+and vendored conformance are the explicit subjects of the next two runbook
+steps, so treating that work as a finding here would duplicate their scope.
