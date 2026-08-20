@@ -4415,3 +4415,23 @@ Leads not pursued: the scaffold test bounds its build-order assertion to a
 300-character window after the `Build order:` line, which is a positional
 assumption rather than a parse; it fails rather than passes if the line moves,
 so it was left as it is.
+
+## Scoped entry, step 1, round 2 -- 2026-08-20
+
+Suite waived (no Solidity); lints phylax 0, ephoros 0, hypomnema 0. Horos
+183/183 with three expected failures, root 35/35 with one, verified before this
+receipt. The round audited the tree with round 1's fix applied. The fix is
+eleven lines and does one thing on both sides of the record: a refused check
+reports a null median and the refusal reason instead of a duration. Re-ran the
+benchmark against both a working root and a rootless one to see each branch
+taken, and re-ran each fixture in isolation to confirm the fix moved none of
+them.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Zero findings. Leads not pursued: the benchmark's module docstring still
+describes the null-median treatment as the scope side's alone, which is now
+under-description rather than error, since both sides carry a status field. It
+goes to the prose phase with the rest of this step's wording rather than
+opening a third round for a docstring.
