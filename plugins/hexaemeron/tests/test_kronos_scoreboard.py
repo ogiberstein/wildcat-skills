@@ -208,6 +208,46 @@ class ScoreboardTest(unittest.TestCase):
         self.assertIn("K008", err)
         self.assertEqual(len(self.lines()), 2, "the partial line stays, nothing is appended")
 
+    def test_a_symlinked_scoreboard_directory_is_refused(self):
+        """Round 1 wrote through a symlinked .kronos into an unnamed directory.
+
+        Both the scoreboard and its `*` gitignore landed there. Where the link
+        pointed somewhere git watches, that is the dirty tree the whole design
+        exists to avoid.
+        """
+        elsewhere = self.root / "elsewhere"
+        elsewhere.mkdir()
+        self.scoreboard.parent.symlink_to(elsewhere)
+        code, _, err = self.run_record(self.document())
+        self.assertEqual(code, 1)
+        self.assertIn("K010", err)
+        self.assertEqual(list(elsewhere.iterdir()), [], "nothing may be written through the link")
+
+    def test_a_symlinked_scoreboard_file_is_refused(self):
+        """resolve() follows the link, so the first fix never saw it."""
+        elsewhere = self.root / "elsewhere.jsonl"
+        self.scoreboard.parent.mkdir(parents=True)
+        self.scoreboard.symlink_to(elsewhere)
+        code, _, err = self.run_record(self.document())
+        self.assertEqual(code, 1)
+        self.assertIn("K010", err)
+        self.assertFalse(elsewhere.exists(), "nothing may be written through the link")
+
+    def test_a_scoreboard_directory_that_is_a_file_is_refused(self):
+        self.scoreboard.parent.write_text("not a directory", encoding="utf-8")
+        code, _, err = self.run_record(self.document())
+        self.assertEqual(code, 1)
+        self.assertIn("K010", err)
+
+    def test_a_run_field_that_is_not_a_string_is_refused(self):
+        self.assertRefused(self.document(run={"url": "https://example.invalid"}), "K002")
+
+    def test_a_run_field_that_is_a_string_survives_into_the_record(self):
+        url = "https://github.com/wildcat-finance/skills/pull/1"
+        code, _, err = self.run_record(self.document(run=url))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(self.lines()[0])["run"], url)
+
     # -- reading it back ------------------------------------------------
 
     def test_show_marks_an_axis_that_moved_under_an_unchanged_held_job(self):

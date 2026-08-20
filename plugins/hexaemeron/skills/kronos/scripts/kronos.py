@@ -20,6 +20,7 @@ changed. This appends each pass to a file so that movement is visible.
   K007  a candidate ledger that cannot be used
   K008  an existing scoreboard line that cannot be read
   K009  more candidates than the check will track
+  K010  a scoreboard directory that is not a real directory
 
 Exit 0 clean, 1 a refusal, 2 bad invocation. A refusal appends nothing: a pass
 is recorded whole or not at all.
@@ -191,7 +192,17 @@ def existing_passes(scoreboard: Path) -> list:
 
 
 def record(args: argparse.Namespace) -> int:
-    scoreboard = Path(args.scoreboard).resolve()
+    # Before resolving anything. A symlink at either the scoreboard or the
+    # directory holding it would put the file and its `*` gitignore somewhere
+    # the caller did not name, and resolve() erases the link on the way past.
+    given = Path(args.scoreboard)
+    holder = given.parent
+    if given.is_symlink():
+        raise Refusal("K010", f"{given} is a symlink")
+    if holder.is_symlink() or (holder.exists() and not holder.is_dir()):
+        raise Refusal("K010", f"{holder} is not a real directory")
+
+    scoreboard = given.resolve()
     root = Path(args.root).resolve() if args.root else scoreboard.parent.parent
     raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)
     if len(raw) > MAX_STDIN_BYTES:
@@ -220,13 +231,17 @@ def record(args: argparse.Namespace) -> int:
     if document["selected"] != expected:
         raise Refusal("K006", f"selected {document['selected']!r}, but the tie-break picks {expected!r}")
 
+    run = document.get("run")
+    if run is not None and not isinstance(run, str):
+        raise Refusal("K002", f"run is {run!r}, which is neither a string nor absent")
+
     previous = existing_passes(scoreboard)
     entry = {
         "pass": len(previous) + 1,
         "scope": document["scope"],
         "mode": document["mode"],
         "selected": document["selected"],
-        "run": document.get("run"),
+        "run": run,
         "candidates": scored,
     }
     scoreboard.parent.mkdir(parents=True, exist_ok=True)
