@@ -4281,3 +4281,24 @@ indexed. That second case is the one that would have broken every scoreboard
 written before this run.
 
 Leads not pursued: none.
+
+# Run: add a rank-only reporting mode to Kronos
+
+## Step 1, round 1 -- 2026-08-20
+
+Two Markdown documents, no code. phylax exit 0, ephoros exit 0, hypomnema
+exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The register describes fields step 2 has not added, so the look went at the
+claims the study rests on. The quoted description line is in `SKILL.md` byte for
+byte. `PASS_FIELDS` and `MODES` hold what the study says they hold, and `run` is
+already read with `get`, which is what makes a pass with no run representable
+today and indistinguishable tomorrow. The field-drift guard the runbook plans
+around exists. Step 2's ungoverned-report sentence is in the loop as quoted. The
+frontier digest matches the ledger, and the diff carries no credential.
+
+Leads not pursued: none.
