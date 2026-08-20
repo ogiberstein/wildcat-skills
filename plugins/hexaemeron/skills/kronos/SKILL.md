@@ -7,7 +7,7 @@ description: >-
   Use only when the user explicitly asks for Kronos or for a repeated ranked
   Fiat frontier loop. Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Kronos
@@ -80,7 +80,12 @@ still change any file genuinely required by that exact held job.
    it does not, keep the same loop in the current run. Never create one goal
    per skill.
 6. Read the selected skill's canonical instructions, its ledger, and Fiat's
-   `SKILL.md`. Invoke Fiat with the held Next Fiat job byte for byte.
+   `SKILL.md`. Invoke Fiat with the held Next Fiat job byte for byte. Once
+   Fiat's `init` has named the run, record the pass to the scoreboard below
+   with `run` naming it. Record it here rather than at selection, because the
+   link to the run this pass launched is half the record and does not exist
+   until Fiat is invoked. The cost is that a pass which never reaches `init`
+   leaves no line.
 7. Let Fiat finish its complete terminal path: implement, validate, stage,
    commit, push each step's stacked pull request, then the integrate phase --
    the stack merged into the run branch in order, the run branch merged into
@@ -98,11 +103,50 @@ still change any file genuinely required by that exact held job.
    not only those ranked in the previous pass -- rerank from scratch, and
    repeat. A skill whose frontier was replaced re-enters the ranking carrying
    its new held job, and a skill whose ledger has appeared since the last pass
-   enters for the first time.
+   enters for the first time. Read the scoreboard back before reranking. Where
+   it reports drift, an earlier pass scored the same held job differently, and
+   the new score either has a reason or is the one to correct.
 
 Stop successfully when no eligible ledger remains. If Fiat halts on a genuine
 external blocker, preserve the durable goal and report that blocker; do not
 skip to a lower-scoring job to make the loop look busy.
+
+## Scoreboard
+
+Step 8 reranks from scratch. Without a record, the same held job can score 62 in
+one pass and 78 three passes later with nothing about it changed, and nobody can
+see that happen. Each pass goes to `.kronos/scoreboard.jsonl` at the scope
+root, one JSON line, beside a `.gitignore` the writer creates. The file stays
+out of git deliberately: Fiat refuses to start against a dirty tree, so a
+scoreboard git can see would stop the loop's next iteration before it began.
+
+The writer is `scripts/kronos.py` beside this skill:
+
+```text
+python3 "<this skill dir>/scripts/kronos.py" record \
+  --scoreboard <scope root>/.kronos/scoreboard.jsonl --root <scope root>
+python3 "<this skill dir>/scripts/kronos.py" show \
+  --scoreboard <scope root>/.kronos/scoreboard.jsonl
+```
+
+`record` reads the pass on stdin as one JSON object: `scope`, `mode` of `full`
+or `phase-only`, `selected`, an optional `run` naming the Fiat run this pass
+launched, and `candidates`. Each candidate carries `skill`, `ledger`, the four
+axis scores under the names `impact`, `urgency`, `readiness` and `unblocks`, a
+one-sentence `basis`, and an optional `total` for the arithmetic the ranking
+did in chat, which is refused when it disagrees with the axes.
+
+It computes each candidate's held-job hash from that ledger on disk rather than
+taking one from the caller, so a recorded line can be checked against the digest
+the ledger already stores. It refuses an axis outside its cap, a stated total
+that disagrees with its axes, a selection the tie-break does not pick, a ledger
+it cannot use, and a scoreboard file it cannot parse. A refusal appends nothing
+and exits non-zero. `show` prints the passes and marks every axis score that
+moved for a candidate whose held job did not.
+
+The scoreboard records a judgement; it does not make one. Every score and basis
+is still the ranking's own work, and a loop that skips the writer leaves a
+shorter file and no other trace.
 
 ## Hard rules
 
