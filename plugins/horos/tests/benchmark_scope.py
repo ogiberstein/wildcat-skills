@@ -4,8 +4,11 @@ Emits one JSON object so a before-and-after pair can be compared without
 reading prose, per `plugins/hexaemeron/skills/metron/SKILL.md`. It asserts
 nothing: a machine-specific threshold in a test would fail on a different
 machine rather than on a regression. Either side reports a null median and a
-status naming the refusal when its check could not run, so the scoped figures
-stay null until the scoped check exists.
+status naming the refusal when its check could not run, rather than a duration
+for a check that classified nothing. The counters come from the same scoped
+walk the check performs, and `classified_outside_scope` is the one that
+matters: a scoped check that classified anything outside its scope has not
+done what it claims.
 
     python3 plugins/horos/tests/benchmark_scope.py --root . --scope plugins/alexandria --runs 5
 """
@@ -32,7 +35,7 @@ def timed_check(target, runs):
     for _ in range(runs):
         out = io.StringIO()
         started = time.perf_counter()
-        code = horos.check_tree(target, out=out)
+        code = horos.check_scope_or_tree(target, out=out)
         samples.append((time.perf_counter() - started) * 1000.0)
         text = out.getvalue()
     return statistics.median(samples), code, text
@@ -60,6 +63,13 @@ def main(argv=None):
     full_report, full_status = report(full_median, full_code, full_text)
     scope_report, scope_status = report(scope_median, scope_code, scope_text)
 
+    # What the scoped walk touched, from the same walk the check runs.
+    scoped = horos.scan_tree(root, scope=args.scope)
+    classified = {"entries": scoped["entries"] + scoped["candidates"]}
+    outside = len(classified["entries"]) - len(
+        horos.entries_under(classified, args.scope)
+    )
+
     record = {
         "runs": args.runs,
         "root": args.root,
@@ -70,7 +80,10 @@ def main(argv=None):
         "scope_median_ms": scope_report,
         "scope_exit": scope_code,
         "scope_status": scope_status,
-        "tracked_files_inspected_outside_scope": None,
+        "classified_in_scope": scoped["counts"]["files_walked"],
+        "listed_outside_scope": scoped["counts"]["files_outside_scope_listed"],
+        "attribute_files_above_scope": scoped["counts"]["attribute_files_above_scope"],
+        "classified_outside_scope": outside,
     }
     json.dump(record, sys.stdout, indent=2, sort_keys=True)
     sys.stdout.write("\n")
