@@ -4,10 +4,11 @@ description: >-
   Rank the held Next Fiat jobs across explicitly in-scope, non-mature skills,
   select the most worthwhile job out of 100, set one durable goal or loop,
   run that job through Fiat, then repeat until no eligible frontier remains.
-  Use only when the user explicitly asks for Kronos or for a repeated ranked
-  Fiat frontier loop. Do not use it for one ordinary Fiat delivery.
+  Use only when the user explicitly asks for Kronos, for a repeated ranked
+  Fiat frontier loop, or for the ranking on its own without running anything.
+  Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Kronos
@@ -50,6 +51,22 @@ sooner if the phase market is exhausted, and report any park still standing
 rather than letting the cap bury it. The scope limits which skill owns a
 selected frontier; Fiat may still change any file genuinely required by that
 exact held job.
+
+## Rank-only mode
+
+When the user asks for the ranking rather than the loop, run steps 1 to 4 and
+stop. Record the pass with `rank_only` set and no `run`, then hand back the
+table: every candidate with its four axis scores and its basis, the selection
+and why the tie-break landed there, any standing park with its reason, and the
+ungoverned skills the walk found. Say plainly that nothing was run and name the
+job a full loop would start with.
+
+Steps 5 to 8 do not happen. No durable goal is created, Fiat is not invoked, and
+no ledger is touched. Rank-only reports the field; it does not work it.
+
+The scope rules are unchanged, so this composes with phase-only mode: a
+rank-only pass over the six phase skills records `mode` as `phase-only` and
+`rank_only` as true, which is why the two are separate fields.
 
 ## Loop
 
@@ -208,6 +225,8 @@ what it says.
 - Never alter a held Next Fiat job before its exact frontier job completes.
 - Never continue merely because the loop can continue. No eligible frontier
   means the goal is complete.
+- Never invoke Fiat, create a durable goal, or touch a ledger from a rank-only
+  pass, and never record one that names a run.
 - Never select a parked candidate, and never drop one from the ranking.
 - Never summarise, shorten or reword a halt reason on the way into a park.
 - Never release a park on the loop's own judgement, and never call the loop
