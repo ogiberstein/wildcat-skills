@@ -1,15 +1,28 @@
 #!/usr/bin/env python3
-"""Protasis runbook schema check.
+"""Protasis runbook and study schema checks.
 
 A runbook step that omits a field is not caught by reading, because the phase
-that reads it carefully is the one that has already started building. This
-settles the part a parser can.
+that reads it carefully is the one that has already started building. The same
+holds for a study missing one of its twelve items. This settles the part a
+parser can.
+
+Runbook mode (the default):
 
   P000  a path that cannot be read as a runbook
   P001  a step missing a required field
   P002  a step whose exit states no command
   P003  a document in which no step was found
   P004  more steps than the check will track, so the tail went unchecked
+
+Study mode (`--study`):
+
+  S000  a path that cannot be read as a study
+  S001  one of the twelve study items is missing
+  S002  an answer to items 8 through 12 is neither content nor a stated
+        none carrying its reason
+  S003  a document in which no study item was found
+  S004  a study item number appears more than once, so no verdict on its
+        answer is earned
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
@@ -21,7 +34,10 @@ answer is any good: a Disciplines line naming the wrong gates and an Exit whose
 command proves nothing both pass. Judging an answer is the reviewer's job, and
 the study's non-goals say so. P002 is the closest to a judgement, and it is
 still only presence: a step carrying no code at all cannot have named a command,
-while a step carrying one may still have named the wrong one.
+while a step carrying one may still have named the wrong one. The study mode
+holds the same line: S002 refuses silence and a bare none, never a weak reason,
+and items 1 through 7 are checked for presence only, because "none, and here is
+why" is a complete answer solely for items 8 through 12.
 
 The trust boundary is the argument list. Paths are read as given, so the caller
 decides what is opened; the checker refuses anything that is not a regular file,
@@ -49,6 +65,37 @@ INLINE_CODE = re.compile(r"`[^`\n]+`")
 ALLOW = re.compile(r"<!--\s*protasis:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
 
 REQUIRED = ("Goal", "Entry", "Exit", "Files", "Tests", "Disciplines")
+
+# "## 2. Prior art". The number is required and the dot ends it: a heading
+# reading "## Sources" is prose, not an item.
+ITEM = re.compile(r"^##\s+(?P<n>\d{1,3})\.\s*(?P<title>.*?)\s*$")
+
+# The twelve items the study contract mandates, by number.
+ITEMS = {
+    1: "Problem statement",
+    2: "Prior art",
+    3: "Constraints and non-goals",
+    4: "Design options",
+    5: "Risk register seed",
+    6: "Glossary seeds",
+    7: "Sources",
+    8: "Signals, and the questions behind them",
+    9: "Boundaries, per capability",
+    10: "The budget, or its absence",
+    11: "The fail-closed posture",
+    12: "Decisions and their homes",
+}
+
+# The five whose answer may be a stated none, and only with its reason.
+ANSWERED = range(8, 13)
+
+# An answer that asserts none and stops. Punctuation-stripped, lowercased,
+# whole-answer matches only: "none, and here is why: ..." carries more words
+# and passes, while judging whether the reason is any good stays the
+# reviewer's job.
+BARE = {"none", "n/a", "na", "no", "tbd"}
+
+COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 
 # A runbook is a document somebody handed over. Bound both axes.
 MAX_BYTES = 2 * 1024 * 1024
@@ -222,15 +269,93 @@ def check(path: Path) -> list[Finding]:
     return findings
 
 
+def _item_spans(lines: list[str]) -> dict[int, list[tuple[int, int, int]]]:
+    """Item spans keyed by number: (heading line, body start, body end).
+
+    A list per number, because a duplicate is a fact to report rather than a
+    copy to silently prefer. An item owns the lines after its heading up to
+    the next level-two heading; fenced lines are content, so a study quoting
+    an item heading does not gain or truncate an item.
+    """
+    headings: list[tuple[int, int | None]] = []
+    for index, line, in_fence in _scan(lines):
+        if in_fence or not HEADING.match(line):
+            continue
+        match = ITEM.match(line)
+        number = int(match.group("n")) if match else None
+        headings.append((index, number if number in ITEMS else None))
+
+    spans: dict[int, list[tuple[int, int, int]]] = {}
+    for position, (line_number, number) in enumerate(headings):
+        if number is None:
+            continue
+        if position + 1 < len(headings):
+            end = headings[position + 1][0] - 1
+        else:
+            end = len(lines)
+        spans.setdefault(number, []).append((line_number, line_number + 1, end))
+    return spans
+
+
+def _answer(lines: list[str], start: int, end: int) -> str:
+    """The answer's text with comments and whitespace stripped."""
+    body = "\n".join(lines[start - 1:end])
+    body = COMMENT.sub(" ", body)
+    return " ".join(body.split())
+
+
+def check_study(path: Path) -> list[Finding]:
+    lines = _read(path)
+    if lines is None:
+        return [Finding(path, 1, "S000", "cannot be read as a study")]
+
+    spans = _item_spans(lines)
+    if not spans:
+        return [Finding(path, 1, "S003",
+                        "no study item found; expected '## N. Title' headings, 1 to 12")]
+
+    findings: list[Finding] = []
+    for number in sorted(ITEMS):
+        name = ITEMS[number]
+        occurrences = spans.get(number, [])
+        if not occurrences:
+            findings.append(Finding(
+                path, 1, "S001", f"study item {number} ({name}) is missing"))
+            continue
+        if len(occurrences) > 1:
+            first = occurrences[0][0]
+            findings.append(Finding(
+                path, first, "S004",
+                f"study item {number} ({name}) appears {len(occurrences)} times, "
+                f"so no verdict on its answer is earned"))
+            continue
+        heading_line, body_start, body_end = occurrences[0]
+        if number not in ANSWERED or suppressed(lines, heading_line):
+            continue
+        answer = _answer(lines, body_start, body_end)
+        stripped = answer.strip(" .,!:;-").lower()
+        if not answer or stripped in BARE:
+            findings.append(Finding(
+                path, heading_line, "S002",
+                f"item {number} ({name}) carries neither content nor a stated "
+                f"none with its reason"))
+    return findings
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Protasis runbook schema check.")
-    parser.add_argument("paths", nargs="+", help="runbook files to check")
+    parser = argparse.ArgumentParser(
+        description="Protasis runbook and study schema checks.")
+    parser.add_argument("paths", nargs="+", help="documents to check")
+    parser.add_argument("--study", action="store_true",
+                        help="check studies against the twelve-item contract "
+                             "instead of runbooks against the step schema")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args(argv)
 
+    checker = check_study if args.study else check
     findings: list[Finding] = []
     for name in args.paths:
-        findings.extend(check(Path(name)))
+        findings.extend(checker(Path(name)))
 
     if args.format == "json":
         print(json.dumps([f.as_dict() for f in findings], indent=2))
