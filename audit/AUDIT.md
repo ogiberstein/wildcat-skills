@@ -4281,3 +4281,114 @@ indexed. That second case is the one that would have broken every scoreboard
 written before this run.
 
 Leads not pursued: none.
+
+# Run: add a rank-only reporting mode to Kronos
+
+## Step 1, round 1 -- 2026-08-20
+
+Two Markdown documents, no code. phylax exit 0, ephoros exit 0, hypomnema
+exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The register describes fields step 2 has not added, so the look went at the
+claims the study rests on. The quoted description line is in `SKILL.md` byte for
+byte. `PASS_FIELDS` and `MODES` hold what the study says they hold, and `run` is
+already read with `get`, which is what makes a pass with no run representable
+today and indistinguishable tomorrow. The field-drift guard the runbook plans
+around exists. Step 2's ungoverned-report sentence is in the loop as quoted. The
+frontier digest matches the ledger, and the diff carries no credential.
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. The finding came from walking
+the study's risk register against the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | low | plugins/hexaemeron/skills/kronos/scripts/kronos.py | a skill could be recorded as a scored candidate and reported ungoverned in the same pass, and `show` printed both | fixed in aaf172a |
+
+Reproduced before it was believed: a pass naming protasis as a candidate scored
+from its ledger and in `ungoverned` as having none recorded cleanly, and the
+rendered output asserted each. Ungoverned means no ledger, and the held-job hash
+on a scored candidate is computed out of one, so the two cannot both hold.
+
+The register's other entries were checked and hold. The `rank_only` and `run`
+contradiction is refused on the combination rather than on either alone, and a
+pass carrying `rank_only` beside an explicit null run is still accepted, since
+a null run is the absence the flag asserts. Both fields are read with a default
+in `show`, held by a case over a `v0.4.0`-shaped line, which is the fault this
+audit found twice in the previous run.
+
+Leads not pursued: the ungoverned list is not deduplicated, so a name repeated
+in it prints twice. Accepted: it is a report of what the walk found, repetition
+in it is the caller's own output rather than a contradiction, and refusing it
+would be a rule about tidiness rather than about meaning.
+
+## Step 2, round 2 -- 2026-08-20
+
+Against the tree with round 1's fix applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went after what the new refusal could have caught by mistake. An
+ungoverned list naming skills that are not candidates records as before, an
+empty list records, and a rank-only pass carrying an explicit null run records,
+which is the case a refusal keyed on the field's presence rather than its value
+would have broken.
+
+Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-20
+
+phylax exit 0, ephoros exit 0, hypomnema exit 0. Both findings came from reading
+the new section against the sections it refers to.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | plugins/hexaemeron/skills/kronos/SKILL.md | the section said to record the pass, then said steps 5 to 8 do not happen, and step 6 is where recording lives | fixed in 7a03c5f |
+| S3-R1-02 | low | plugins/hexaemeron/skills/kronos/SKILL.md | it asked for standing parks in the report without saying `parked` exits 3 whenever one stands, and the parked section explains that 3 only in terms of step 8 | fixed in 7a03c5f |
+
+Neither is a code fault and both would have cost a reader a wrong action: the
+first dropping the record, the second reading a normal exit as a failure. One
+guard covers the section's required content, run against the unfixed text first.
+
+The ledger row was checked by hand as well as by the suite: header and row name
+one version, generation moves alone, the recomputed digest matches, the prior
+revision and digest are retained byte for byte, the status stays mature with no
+next job, and the frontmatter agrees. The description change is carried by
+`tests/test_portable_skills.py`, which requires a non-empty description and
+passes over the edited one.
+
+Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-20
+
+Against the tree with round 1's fixes applied. phylax exit 0, ephoros exit 0,
+hypomnema exit 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+The look went at whether the amended text broke the guards that were already
+holding it, and at whether the three shipped mechanisms compose. All four prose
+guards pass together: the field list, the phase-only park clause, the rank-only
+section's own content, and the one requiring step 6 rather than step 4 to carry
+the loop's recording, which the new wording could have moved.
+
+The three mechanisms were then run against each other in one pass: a phase-only
+rank-only ranking with a parked candidate scoring above the selection, an
+ungoverned skill, and `parked` reporting the block. The parked candidate carried
+its `P` and stayed out of selection, the pass rendered as `(rank-only)`, and
+`parked` exited 3, which the amended section now says means a park stands rather
+than a failure.
+
+Leads not pursued: none.

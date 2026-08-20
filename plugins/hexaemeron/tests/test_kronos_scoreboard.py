@@ -485,11 +485,99 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(len(marked), 1)
         self.assertIn("alpha", marked[0])
 
+    def test_rank_only_mode_says_what_it_still_records_and_reads(self):
+        """It says steps 5 to 8 do not happen, and step 6 is where recording lives.
+
+        Without naming the two exceptions a reader takes that sentence literally
+        and drops both the pass record and the parked read.
+        """
+        skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
+        section = skill.split("## Rank-only mode", 1)[1].split("## Loop", 1)[0]
+        self.assertIn("step 6", section, "it must say which step's recording still happens")
+        self.assertIn("parked", section, "it must say to read the standing parks")
+        self.assertIn("3", section, "it must say what that exit code means here")
+
     def test_phase_only_mode_stops_on_a_standing_park_too(self):
         """Its stop condition is restated, so the park clause has to be in it."""
         skill = (ROOT / "skills" / "kronos" / "SKILL.md").read_text(encoding="utf-8")
         section = skill.split("## Phase-only mode", 1)[1].split("## Loop", 1)[0]
         self.assertIn("park", section)
+
+    # -- rank-only ------------------------------------------------------
+
+    def test_a_rank_only_pass_is_recorded_with_no_run(self):
+        code, out, err = self.run_record(self.document(rank_only=True))
+        self.assertEqual(code, 0, err)
+        self.assertIn("rank-only pass 1 recorded", out)
+        entry = json.loads(self.lines()[0])
+        self.assertTrue(entry["rank_only"])
+        self.assertIsNone(entry["run"])
+
+    def test_a_rank_only_pass_naming_a_run_is_refused(self):
+        """The two contradict: a pass that stopped after selection launched nothing."""
+        self.assertRefused(
+            self.document(rank_only=True, run="https://example.invalid/1"), "K016"
+        )
+
+    def test_a_non_boolean_rank_only_is_refused(self):
+        self.assertRefused(self.document(rank_only="yes"), "K004")
+
+    def test_a_pass_with_neither_field_records_as_before(self):
+        code, out, err = self.run_record(self.document())
+        self.assertEqual(code, 0, err)
+        self.assertIn("pass 1 recorded", out)
+        self.assertNotIn("rank-only", out)
+        entry = json.loads(self.lines()[0])
+        self.assertFalse(entry["rank_only"])
+        self.assertEqual(entry["ungoverned"], [])
+
+    def test_an_ungoverned_list_is_stored(self):
+        code, _, err = self.run_record(self.document(ungoverned=["gamma", "delta"]))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(self.lines()[0])["ungoverned"], ["gamma", "delta"])
+
+    def test_an_ungoverned_list_over_the_cap_is_refused(self):
+        many = [f"skill-{n}" for n in range(kronos.MAX_UNGOVERNED + 1)]
+        self.assertRefused(self.document(ungoverned=many), "K017")
+
+    def test_an_ungoverned_element_that_is_not_a_name_is_refused(self):
+        self.assertRefused(self.document(ungoverned=["gamma", 7]), "K017")
+
+    def test_an_empty_ungoverned_name_is_refused(self):
+        self.assertRefused(self.document(ungoverned=["  "]), "K017")
+
+    def test_an_ungoverned_field_that_is_not_a_list_is_refused(self):
+        self.assertRefused(self.document(ungoverned="gamma"), "K017")
+
+    def test_a_skill_both_scored_and_reported_ungoverned_is_refused(self):
+        """Round 1 recorded protasis as scored from a ledger and as having none."""
+        self.assertRefused(self.document(ungoverned=["alpha"]), "K017")
+
+    def test_show_marks_a_rank_only_pass_and_lists_the_ungoverned(self):
+        self.run_record(self.document(rank_only=True, ungoverned=["gamma"]))
+        code, out = self.run_show()
+        self.assertEqual(code, 0)
+        self.assertIn("(rank-only)", out)
+        self.assertIn("ungoverned: gamma", out)
+
+    def test_a_pass_written_before_either_field_still_reads(self):
+        """v0.4.0 lines carry neither field, and show must not need them."""
+        legacy = {
+            "pass": 1, "scope": "the checkout", "mode": "full", "selected": "alpha",
+            "run": None,
+            "candidates": [{
+                "skill": "alpha", "ledger": "alpha/EVOLUTION.md", "held_job": "0" * 64,
+                "impact": 30, "urgency": 20, "readiness": 15, "unblocks": 10,
+                "total": 75, "parked": False, "basis": "Written before rank-only existed.",
+            }],
+        }
+        self.scoreboard.parent.mkdir(parents=True)
+        self.scoreboard.write_text(json.dumps(legacy) + "\n", encoding="utf-8")
+        code, out = self.run_show()
+        self.assertEqual(code, 0)
+        self.assertIn("Written before rank-only existed.", out)
+        self.assertIn("no run recorded", out)
+        self.assertNotIn("ungoverned:", out)
 
     # -- the skill and the script agree ---------------------------------
 
