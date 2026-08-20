@@ -112,3 +112,29 @@ compression and exact retention for the evidence-exception case.
 
 Do not apply this skill to code comments, commit messages or specifications where
 completeness is the point. Do not change lexicon, tone, register or accessibility.
+
+## Promise Machine contract
+
+### brevitas-structure-check
+
+- Promise: A successful answer- or report-mode lint establishes that the named draft satisfies Brevitas's mechanical line, finding, code-fence, table, heading and qualifier budgets.
+- Evidence: The exact draft bytes, selected lint mode, emitted diagnostics and exit status from `scripts/brevitas.py`.
+- Evidence classes: checked
+- Boundary: The lint does not establish factual accuracy, evidence completeness, severity correctness, voice, accessibility or fitness for a completeness-oriented specification.
+- Authorises: Presentation of the checked draft as structurally conformant to the selected Brevitas mode.
+- Consequence: 0
+- Refuses: Calling prose Brevitas-clean when the checker did not run, reported a diagnostic, inferred the wrong mode or received an excluded document class.
+- Recovery: Select the right mode, preserve protected evidence, remove the named structural defect and rerun the checker.
+- Exceptions: none
+
+### brevitas-evidence-preservation
+
+- Promise: A successful lint with `--source` establishes that protected addresses, transaction hashes, file-line references and numeric tokens from the named source survive in the compressed draft.
+- Evidence: The exact source and draft bytes, source-token comparison, any explicit evidence exception and a zero-exit lint result.
+- Evidence classes: checked, recomputed
+- Boundary: Token survival does not establish semantic equivalence, complete reasoning, correct conclusions or preservation of evidence classes that the token checker cannot represent.
+- Authorises: Saving or handing off the compressed draft as a derived artefact whose mechanically protected tokens remain present.
+- Consequence: 1
+- Refuses: Deleting or weakening protected evidence to meet a volume budget, or claiming preservation without supplying the source comparison.
+- Recovery: Restore the missing evidence, use a scoped evidence exception when ordered proof requires it and rerun with the original source.
+- Exceptions: none

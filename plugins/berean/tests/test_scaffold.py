@@ -126,7 +126,9 @@ class FrontierTests(unittest.TestCase):
             r"\*\*Current frontier\.\*\* ([^\n]+)", landing
         ).group(1).strip()
         surfaces = sorted(PLUGIN_ROOT.rglob("*.md"))
-        surfaces.append(REPO_ROOT / ".agents" / "skills" / "berean" / "SKILL.md")
+        surfaces.append(
+            REPO_ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
+        )
         checked = 0
         for path in surfaces:
             text = read(path)

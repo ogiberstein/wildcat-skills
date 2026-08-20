@@ -5254,3 +5254,45 @@ The 255 Alexandria tests, 15 Brevitas tests, 364 Lazarus tests and four
 Sapheneia tests pass. The 74-test root suite also passes. Lazarus was exercised
 in a fresh environment built from its committed `requirements.lock`, matching
 the dependency boundary used by CI.
+
+## Promise Machine, step 4, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity audit suite remained waived because the step changes Markdown
+declarations, Python contract checks and packaging guards. The review compared
+all 43 standalone promises with their canonical commands and existing refusal
+boundaries, then exercised absent-contract and declaration-identity mutations.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | `scripts/promise_machine.py` | The documented `contracts` component was only an alias for the earlier optional structure pass, so an absent standalone declaration still passed | fixed by requiring a contract for every non-Hexaemeron first-party skill and guarding an absent section |
+| S4-R1-02 | high | `plugins/pandects/skills/pandects/SKILL.md` | `pandects-law-contract` said `pandects.py check` established generated catalogue-byte equality, although that relation belongs to the separate renderer regression | fixed by narrowing the law check and adding a separate render promise |
+| S4-R1-03 | medium | `tests/test_promise_machine_contract.py` | The population guard collected expected promise ids from every level-three heading in a skill, so an id moved outside the contract section could satisfy the repository-specific assertion | fixed by confining exact id-set comparison to the contract section |
+
+### Leads not pursued
+
+This round does not claim behavioural conformance from the new Markdown.
+Executable, prompt and transformation evidence receives its own coverage and
+negative-evidence work in the following runbook steps.
+
+## Promise Machine, step 4, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected contracts component requires all 13 standalone first-party
+declarations while leaving the next step's Hexaemeron population explicit.
+The exact contract-section id sets contain 43 promises. Pandects now gives
+structural law checking and catalogue rendering separate evidence and
+consequences. The absent-section mutation, 75 root tests, 116 Pandects Python
+tests and the Pandects Foundry suite pass.
+
+### Findings
+
+Zero findings.
+
+### Leads not pursued
+
+The behavioural-conformance boundary recorded in round 1 remains unchanged.

@@ -660,7 +660,7 @@ def discover_inventory(root: Path):
     return inventory, findings
 
 
-def parse_contract(skill: SkillRecord, root: Path):
+def parse_contract(skill: SkillRecord, root: Path, *, required: bool = False):
     path = root / skill.path
     loaded, findings = read_markdown(
         path, root, missing_code="PM020", unsafe_code="PM025"
@@ -671,6 +671,16 @@ def parse_contract(skill: SkillRecord, root: Path):
     lines = text.splitlines()
     headings = [index for index, line in enumerate(lines) if line == "## Promise Machine contract"]
     if not headings:
+        if required:
+            findings.append(
+                Finding(
+                    "PM031",
+                    "structural",
+                    skill.path,
+                    "required Promise Machine contract section is absent",
+                    "add one contract section with at least one stable promise block",
+                )
+            )
         return [], findings
     if len(headings) != 1:
         findings.append(
@@ -806,7 +816,12 @@ def parse_contract(skill: SkillRecord, root: Path):
     return promises, findings
 
 
-def check_structure(root: Path, inventory: Inventory):
+def check_structure(
+    root: Path,
+    inventory: Inventory,
+    *,
+    require_standalone_contracts: bool = False,
+):
     findings: list[Finding] = []
     promises: list[tuple[str, str]] = []
     for skill in inventory.skills:
@@ -831,7 +846,11 @@ def check_structure(root: Path, inventory: Inventory):
             continue
         if skill.governance != "first-party":
             continue
-        parsed, parsed_findings = parse_contract(skill, root)
+        parsed, parsed_findings = parse_contract(
+            skill,
+            root,
+            required=require_standalone_contracts and skill.plugin != "hexaemeron",
+        )
         promises.extend(parsed)
         findings.extend(parsed_findings)
     owners: dict[str, list[str]] = {}
@@ -1404,6 +1423,7 @@ def parse_only(raw: str):
         "copies",
         "inventory",
         "structure",
+        "contracts",
         "identity",
         "routers",
         "versions",
@@ -1475,6 +1495,7 @@ def main(argv=None):
         inventory_components = {
             "inventory",
             "structure",
+            "contracts",
             "identity",
             "routers",
             "versions",
@@ -1484,8 +1505,12 @@ def main(argv=None):
             inventory, inventory_findings = discover_inventory(root)
             findings.extend(inventory_findings)
             plugins = [root / path for path in inventory.plugins]
-        if "structure" in only and inventory is not None:
-            promises, structure_findings = check_structure(root, inventory)
+        if only & {"structure", "contracts"} and inventory is not None:
+            promises, structure_findings = check_structure(
+                root,
+                inventory,
+                require_standalone_contracts="contracts" in only,
+            )
             findings.extend(structure_findings)
         if "identity" in only and inventory is not None:
             findings.extend(check_identity(inventory))

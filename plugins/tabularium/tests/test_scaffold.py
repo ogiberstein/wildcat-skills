@@ -71,6 +71,9 @@ class TabulariumPackagingTests(unittest.TestCase):
             self.assertTrue((PLUGIN_ROOT / relative).is_file(), relative)
 
     def test_public_document_links_resolve_inside_the_plugin(self):
+        shared_versioning = (
+            REPO_ROOT / "plugins" / "hexaemeron" / "skills" / "VERSIONING.md"
+        ).resolve()
         for path in PLUGIN_ROOT.rglob("*.md"):
             if "__pycache__" in path.parts:
                 continue
@@ -79,6 +82,9 @@ class TabulariumPackagingTests(unittest.TestCase):
                     continue
                 target = (path.parent / link.split("#", 1)[0]).resolve()
                 with self.subTest(document=path.relative_to(PLUGIN_ROOT), link=link):
+                    if target == shared_versioning:
+                        self.assertTrue(target.is_file())
+                        continue
                     self.assertIn(PLUGIN_ROOT, target.parents)
                     self.assertTrue(target.exists())
 
