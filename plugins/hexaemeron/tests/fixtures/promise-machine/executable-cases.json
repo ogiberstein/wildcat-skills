@@ -1,0 +1,23 @@
+{
+  "ephoros-observability-review": {
+    "P": {"disposition": "accept", "scenario": "Every on-call question has a bounded signal, exercised alert, runbook and reviewed output sample.", "boundary": "The result applies only to the named step and exercised signals."},
+    "M": {"disposition": "refuse", "scenario": "A new external call has no error or duration signal and no alert evidence.", "boundary": "Absent operational evidence cannot authorise unattended operation."},
+    "S": {"disposition": "refuse", "scenario": "The output sample and alert exercise came from an older build than the reviewed step.", "boundary": "Evidence from another subject does not establish the current step."},
+    "O": {"disposition": "refuse", "scenario": "The mechanical lint is clean and is presented as proof that observability is useful and complete.", "boundary": "Three parser rules do not establish the judgement-held review."},
+    "R": {"disposition": "recover", "scenario": "Add the missing bounded signal, exercise its alert, inspect current output and repeat the review.", "boundary": "Recovery produces new evidence; it does not rewrite the refused result."}
+  },
+  "phylax-boundary-review": {
+    "P": {"disposition": "accept", "scenario": "Every boundary introduced by the step is named, controlled and classified as verified or asserted.", "boundary": "The review covers only the introduced boundaries and available hostile-input evidence."},
+    "M": {"disposition": "refuse", "scenario": "External data reaches a generated path without a named confinement control or hostile-input test.", "boundary": "An unnamed or uncontrolled boundary blocks the step."},
+    "S": {"disposition": "refuse", "scenario": "The dependency review and lockfile evidence belong to the parent revision rather than the changed dependency.", "boundary": "A review of another subject cannot authorise this dependency transition."},
+    "O": {"disposition": "refuse", "scenario": "A clean mechanical lint is presented as whole-system security evidence.", "boundary": "Parser coverage is not a security review or proof that a control works."},
+    "R": {"disposition": "recover", "scenario": "Name the boundary, add and exercise its control, review the affected dependency or data path and repeat the review.", "boundary": "Recovery leaves the earlier refusal intact and supplies new evidence."}
+  },
+  "protasis-study-readiness": {
+    "P": {"disposition": "accept", "scenario": "The study states the problem, assumptions, current state, chosen design, rejected trade, boundaries, recovery and testable criteria.", "boundary": "Readiness authorises runbook derivation, not an implementation or proof that the design is correct."},
+    "M": {"disposition": "refuse", "scenario": "The study relies on an unstated environment assumption and gives no evidence-bearing success criterion.", "boundary": "Hidden assumptions and untestable success language block runbook derivation."},
+    "S": {"disposition": "refuse", "scenario": "The source inventory and current-state evidence name a different repository revision than the study entry ref.", "boundary": "A mismatched subject cannot establish current-state readiness."},
+    "O": {"disposition": "refuse", "scenario": "An accepted study is presented as proof that the selected design is correct and its future tests pass.", "boundary": "Content readiness is not implementation or correctness evidence."},
+    "R": {"disposition": "recover", "scenario": "Name the missing question, gather current evidence, amend the study and repeat the complete review.", "boundary": "Recovery supplies a new reviewed study without strengthening the refused draft."}
+  }
+}

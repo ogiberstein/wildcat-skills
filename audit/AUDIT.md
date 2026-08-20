@@ -5327,3 +5327,69 @@ The declarations state evidence contracts but do not yet prove every skill's
 runtime implementation conforms to them. Executable, prompt, transformation
 and vendored conformance are the explicit subjects of the next two runbook
 steps, so treating that work as a finding here would duplicate their scope.
+
+## Promise Machine, step 6, round 1 -- 2026-08-20
+
+### Review scope
+
+The Solidity suite remained waived because this step changes a standard-library
+checker, JSON coverage records and Python tests. The review traced every selected
+P/M/S/O/R/X reference to its exact selector, checked evidence reuse and
+inapplicability rules, inspected the Berean and Janus preservation boundaries and
+the Lazarus-to-Berean-to-Ariadne handoffs, and compared judgement-held promises
+with the narrower mechanical gates beside them.
+
+### Findings
+
+FINDING
+[High] S6-R1-01: Three judgement-held promises cited mechanical parser tests.
+Location: `tests/promise_machine_coverage.json`
+Mechanism: The Ephoros, Phylax and Protasis review rows borrowed evidence from narrower mechanical gates.
+Impact: The coverage map overstated what those tests established.
+Fix: Added 15 labelled review cases that record P/M/S/O/R judgements without presenting them as checked runtime proof.
+END
+
+FINDING
+[Medium] S6-R1-02: Evidence references could not state their base class.
+Location: `scripts/promise_machine.py`
+Mechanism: The schema accepted only a path, selector and claim.
+Impact: Recorded judgement cases were indistinguishable from executable checks.
+Fix: Added a validated optional `evidence_class` field and refusal tests for unsupported classes.
+END
+
+### Evidence
+
+The executable coverage gate reports 50 selected promises out of 66 discovered,
+with no finding. The 25 focused coverage and labelled-case checks, all 90 root
+tests and all 467 Hexaemeron tests pass. The Phylax, Ephoros and Hypomnema gates
+are clean.
+
+### Leads not pursued
+
+Recorded review cases establish that each decision path has been named and kept
+inside its boundary; they do not turn a human review judgement into runtime
+proof. The remaining prompt, transformation and vendored rows stay visibly
+pending for runbook step 8.
+
+## Promise Machine, step 6, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected coverage map keeps executable tests, recorded review cases and
+inapplicability reasons distinct. All exact references resolve; incompatible
+P/M/S/O/R paths remain separate; the required preservation and handoff records
+remain explicit; and the full law, copy and executable-coverage checks are clean.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+All 90 root tests and all 467 Hexaemeron tests pass. The Phylax, Ephoros and
+Hypomnema gates are clean.
+
+### Leads not pursued
+
+The recorded-judgement and later-runbook boundaries from round 1 remain
+unchanged.

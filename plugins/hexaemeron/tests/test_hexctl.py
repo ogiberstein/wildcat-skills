@@ -716,6 +716,24 @@ class TestControls(HexctlCase):
         proc = self.run_ctl("verify", expect=1)
         self.assertIn("chain broken", proc.stderr)
 
+    def test_verify_preserves_receipt_assertions_without_proving_them(self):
+        self.to_steps(("One",))
+        assertion = "all dragons defeated"
+        self.run_ctl(
+            "done",
+            "implement",
+            "--branch",
+            self.step_branch(1),
+            "--commit",
+            "abc123",
+            "--tests",
+            assertion,
+        )
+        self.run_ctl("verify")
+        state = json.loads(self.run_ctl("status", "--json").stdout)
+        receipt = state["steps"][0]["receipts"]["implement"]
+        self.assertEqual(receipt["tests"], assertion)
+
     def test_record_and_status_json(self):
         self.init()
         self.run_ctl("record", "note", '"local run"')
