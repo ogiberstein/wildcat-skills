@@ -5644,3 +5644,16 @@ Root suite 104/104; hexaemeron suite 470/472 with the same two
 environmental failures recorded for step 1.
 
 Leads not pursued: none
+
+## Protasis study schema check, step 1, round 1 -- 2026-08-20
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The step commits the study and runbook, byte-identical to the
+run's working copies. Phylax, ephoros and hypomnema exit 0 over the tree.
+Reviewed against the risk register: no checker code exists yet, so the
+unearned-verdict concerns do not arise this step. Root suite 104/104;
+hexaemeron 470/472 with the two recorded environment failures.
+
+Leads not pursued: none
