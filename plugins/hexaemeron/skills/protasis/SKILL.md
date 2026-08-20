@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
 ---
 
 # Protasis
@@ -105,8 +105,17 @@ are happy.
    that could not finish something records it in the body of the last pull
    request it lands, so that is where the unfinished work of the previous run
    is written down. Carry each item forward as content here, as a stated
-   non-goal, or as a named reason it stays open. Found in the study it costs a
-   sentence; found in step four it costs the step.
+   non-goal, or as a named reason it stays open. Read the audit records of
+   every in-scope skill the same way, before design options are drawn: the
+   audit file at the target's `config audit.log_path`, default
+   `audit/AUDIT.md`, holds what each round found, what was fixed, and the
+   leads accepted with the reason nobody pursued them. A study that cannot
+   find the real reason for a decision supplies a plausible one, and the
+   plausible one then governs the build: a rejected option gets rejected for
+   the wrong cause, an accepted risk gets quietly reopened, and the round
+   that already judged the question reads afterwards as though it never
+   happened. Found in the study it costs a sentence; found in step four it
+   costs the step.
 3. **Constraints and non-goals.** The starting ref, toolchain and version pins,
    what the user ruled out, what is deferred past the prototype.
 4. **Design options.** Two to four candidate constructions, each with the trade
@@ -274,6 +283,8 @@ count is not a report.
 - [ ] The last two merged pull requests touching the target were read, and
       anything they carried forward is answered, refused by name, or stated as
       still open. Say so plainly where there were none to read.
+- [ ] The audit records of every in-scope skill were read before design
+      options were drawn. Say so plainly where there were none to read.
 - [ ] No discipline core is restated where a citation belongs.
 - [ ] Assumptions are on the page and were confirmed or corrected.
 - [ ] Every success criterion names a command, a test or a demo path.
