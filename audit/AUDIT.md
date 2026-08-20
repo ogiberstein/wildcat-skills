@@ -5359,3 +5359,26 @@ Recorded review cases establish that each decision path has been named and kept
 inside its boundary; they do not turn a human review judgement into runtime
 proof. The remaining prompt, transformation and vendored rows stay visibly
 pending for runbook step 8.
+
+## Promise Machine, step 6, round 2 -- 2026-08-20
+
+### Review scope
+
+The corrected coverage map keeps executable tests, recorded review cases and
+inapplicability reasons distinct. All exact references resolve; incompatible
+P/M/S/O/R paths remain separate; the required preservation and handoff records
+remain explicit; and the full law, copy and executable-coverage checks are clean.
+
+### Findings
+
+Zero findings.
+
+### Evidence
+
+All 90 root tests and all 467 Hexaemeron tests pass. The Phylax, Ephoros and
+Hypomnema gates are clean.
+
+### Leads not pursued
+
+The recorded-judgement and later-runbook boundaries from round 1 remain
+unchanged.
