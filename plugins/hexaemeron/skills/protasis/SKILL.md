@@ -3,8 +3,9 @@ name: protasis
 description: >-
   Hold a Fiat study and runbook to a content contract before any code is
   written: stated assumptions, testable success criteria, a chosen design with
-  its trade named, and steps that are discrete, green at both ends and sized
-  for the audit loop. Use when a topic is about to enter the study or runbook
+  its trade named, the five discipline questions answered before any build, and
+  steps that are discrete, green at both ends, sized for the audit loop and
+  explicit about the gates they incur. Use when a topic is about to enter the study or runbook
   phase, when a requirement arrives vague or bundles several capabilities, or
   when deciding whether a runbook is ready to build from. Do not use it to run
   the controller or write a receipt, which belong to fiat, and do not use it to
