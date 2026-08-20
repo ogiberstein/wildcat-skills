@@ -89,8 +89,19 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         for host in (".claude-plugin", ".codex-plugin"):
             path = PLUGIN_ROOT / host / "plugin.json"
             manifests.append(json.loads(path.read_text(encoding="utf-8")))
+        marketplace = json.loads(
+            (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        package = next(
+            item["version"]
+            for item in marketplace["plugins"]
+            if item["name"] == "alexandria"
+        )
         self.assertEqual([item["name"] for item in manifests], ["alexandria"] * 2)
-        self.assertEqual([item["version"] for item in manifests], ["0.2.0"] * 2)
+        self.assertEqual([item["version"] for item in manifests], [package] * 2)
+        self.assertEqual(package, "0.2.1")
         self.assertEqual([item["skills"] for item in manifests], ["./skills/"] * 2)
         self.assertTrue(SKILL.is_file())
 
