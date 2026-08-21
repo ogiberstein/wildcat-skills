@@ -31,6 +31,20 @@ contract and names where promise id, subject, scope, evidence references and
 classes, unknowns, transition and exception are carried. The root checker
 refuses a missing, incomplete, stale or repository-escaping runtime binding.
 
+## Alternatives
+
+- **Treat the suite release as a skill advance.** Bumping skill versions or
+  frontier state would have said that frontier work happened when it did
+  not; the release study's non-goals refuse advancing a held frontier merely
+  because Fiat delivers this repository change.
+- **Leave package versions unchanged.** The quietest release, but a host
+  caching plugins by package identity would retain the package from before
+  the governing contract existed, with nothing observable to update on.
+- **Replace domain result formats with one generic result envelope.** One
+  schema for every consequential result reads simpler, but it would discard
+  useful semantics and create a second authority beside the existing schemas
+  and writers, which is why the study scoped it out.
+
 ## Consequences
 
 Hosts receive the Promise Machine only after observing a new plugin package
