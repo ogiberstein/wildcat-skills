@@ -6109,3 +6109,22 @@ extractor and asserting it reproduces the committed bytes would close the gap
 for the mechanically derivable fields. The runbook does not ask for it, and
 adding it here would be scope the step did not carry; it belongs to a later
 frontier judgement.
+
+## Hermes rule corpus, step 2, round 2 -- 2026-08-21
+
+Round 1's fix introduced no regression and this round found nothing. Status:
+clean.
+
+Phylax, Ephoros and Hypomnema each exit 0 against the fixed tree. The root
+suite passes 104/104 and the Hermes suite 32/32. `corpus --validate` reports
+28 myths and 40 references with no fault, at corpus digest `0692e53d` and
+source digest `297c926d`, so neither the data nor the pinned document moved
+while the validator was corrected.
+
+The second look re-read the fix itself. Deriving the record classes from the
+schema means the header check and the record walk now read one declaration
+rather than two, so a class added to the schema cannot be a class the header
+rejects. Its guard adds a fourth class in a temporary copy and requires the
+corpus holding it to validate.
+
+Leads not pursued: the extractor gap recorded in round 1 stands unchanged.
