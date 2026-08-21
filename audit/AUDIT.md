@@ -6457,3 +6457,33 @@ per-file Brevitas checks are clean. Root tests pass 104/104, Hexaemeron
 Ephoros and Hypomnema each exit 0 over their required trees, Horos is current
 at 1,378 files, 89 entries and none unreadable, and the diff check is clean.
 No new leads.
+
+## Fiat delegation packets, step 1, round 3 -- 2026-08-21
+
+### Closure
+
+Zero findings. The Step 1 Horos proof block passes exactly as written under
+fail-fast shell semantics: the parent/current comparison is unequal, the
+second scan matches the saved fresh document, the temporary evidence directory
+is removed, and the two documented legacy entry-only checks remain green.
+I320-S1-R1-01, I320-S1-R1-02, I320-S1-R1-03 and I320-S1-R2-01 are closed.
+The controller and tracked study and runbook copies are byte-identical.
+
+### Gates
+
+The focused boundary suite passes 4/4, root 104/104 and Hexaemeron 599/599;
+Promise Machine reports 14 plugins and 14 copies clean. Both Protasis modes,
+Imprimatur, both per-file Brevitas checks, diff check, Horos and the Phylax,
+Ephoros and Hypomnema tree lints exit 0. A fresh Horos scan is byte-identical
+to the committed document at 1,378 tracked files, 89 entries and none
+unreadable. Fix `ff0d7a0130cd4d812ba8095358f163c0102d3cb1` has a good local
+signature and exactly one required co-author and origin trailer.
+
+### Risk-register disposition
+
+`local-signature-gap` is closed for all three step content commits.
+`remote-verification-gap` and `merge-origin-confusion` remain inapplicable
+before push and merge. The other seven study risks remain inapplicable to the
+docs-and-boundary step and are held for steps 2 and 3.
+
+Further leads: none.
