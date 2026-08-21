@@ -249,6 +249,15 @@ class AlertRules(unittest.TestCase):
                     self.assertEqual(
                         ["E004"], [finding.code for finding in yaml_findings(source)])
 
+    def test_plain_scalar_continuation_quotes_do_not_hide_alerts(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = ("- note: first\n"
+                          f"    {quote}continued\n"
+                          "- alert: StillMissing\n")
+                self.assertEqual(
+                    ["E004"], [finding.code for finding in yaml_findings(source)])
+
 
 class OverTheMarketplace(unittest.TestCase):
     def test_suffix_matching_directories_are_not_walked_as_files(self):

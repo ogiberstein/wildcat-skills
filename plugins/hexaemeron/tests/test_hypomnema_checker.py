@@ -197,6 +197,14 @@ class YamlRunbooks(unittest.TestCase):
                               "runbook: runbooks/missing.md\n")
                     self.assertEqual(["H003"], yaml_codes(source))
 
+    def test_plain_scalar_continuation_quotes_do_not_hide_runbook_pointers(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = ("note: first\n"
+                          f"  {quote}continued\n"
+                          "runbook: runbooks/missing.md\n")
+                self.assertEqual(["H003"], yaml_codes(source))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 

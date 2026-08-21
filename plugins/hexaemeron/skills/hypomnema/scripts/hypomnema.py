@@ -115,6 +115,19 @@ def _yaml_quote_starts(line: str, index: int) -> bool:
         stripped == "-" or prefix.rstrip().endswith(":")))
 
 
+def _yaml_plain_scalar_indent(content: str) -> int | None:
+    """Return the key indent for a supported inline plain scalar."""
+    indent = len(content) - len(content.lstrip(" "))
+    stripped = content[indent:]
+    sequence = stripped.startswith("- ")
+    if sequence:
+        stripped = stripped[2:]
+    match = re.match(r"^[^:#][^:]*:[ \t]+(?P<value>\S.*)$", stripped)
+    if not match or match.group("value")[0] in "'\"|>[{&*!%@`":
+        return None
+    return indent + 2 if sequence else indent
+
+
 def _strip_yaml_comment(
         line: str, quote: str | None = None) -> tuple[str, str | None]:
     """Remove a YAML comment while carrying a quoted scalar."""
@@ -149,6 +162,7 @@ def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
     """Resolve generic block-YAML runbook keys without classifying alerts."""
     findings: list[Finding] = []
     scalar_indent: int | None = None
+    plain_indent: int | None = None
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -158,6 +172,14 @@ def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
             if raw_indent > scalar_indent:
                 continue
             scalar_indent = None
+        if plain_indent is not None:
+            if not raw.strip():
+                continue
+            if not raw.lstrip().startswith("#"):
+                raw_indent = len(raw) - len(raw.lstrip(" "))
+                if raw_indent > plain_indent:
+                    continue
+            plain_indent = None
         started_in_quote = quote is not None
         content, quote = _strip_yaml_comment(raw, quote)
         if started_in_quote:
@@ -170,6 +192,7 @@ def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
         if BLOCK_SCALAR.match(stripped):
             scalar_indent = indent
             continue
+        plain_indent = _yaml_plain_scalar_indent(content)
         match = YAML_RUNBOOK.match(stripped)
         if not match:
             continue

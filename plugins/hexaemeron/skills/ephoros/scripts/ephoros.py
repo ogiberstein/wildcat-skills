@@ -170,6 +170,19 @@ def _yaml_quote_starts(line: str, index: int) -> bool:
         stripped == "-" or prefix.rstrip().endswith(":")))
 
 
+def _yaml_plain_scalar_indent(content: str) -> int | None:
+    """Return the key indent for a supported inline plain scalar."""
+    indent = len(content) - len(content.lstrip(" "))
+    stripped = content[indent:]
+    sequence = stripped.startswith("- ")
+    if sequence:
+        stripped = stripped[2:]
+    match = re.match(r"^[^:#][^:]*:[ \t]+(?P<value>\S.*)$", stripped)
+    if not match or match.group("value")[0] in "'\"|>[{&*!%@`":
+        return None
+    return indent + 2 if sequence else indent
+
+
 def _split_yaml_comment(
         line: str, quote: str | None = None) -> tuple[str, str, str | None]:
     """Split YAML content and comment while carrying a quoted scalar."""
@@ -204,6 +217,7 @@ def _yaml_allow_lines(lines: list[str]) -> set[int]:
     """Return reasoned pragma lines that are actual YAML comments."""
     allowed: set[int] = set()
     scalar_indent: int | None = None
+    plain_indent: int | None = None
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -213,6 +227,14 @@ def _yaml_allow_lines(lines: list[str]) -> set[int]:
             if raw_indent > scalar_indent:
                 continue
             scalar_indent = None
+        if plain_indent is not None:
+            if not raw.strip():
+                continue
+            if not raw.lstrip().startswith("#"):
+                raw_indent = len(raw) - len(raw.lstrip(" "))
+                if raw_indent > plain_indent:
+                    continue
+            plain_indent = None
         started_in_quote = quote is not None
         content, comment, quote = _split_yaml_comment(raw, quote)
         if started_in_quote:
@@ -231,6 +253,8 @@ def _yaml_allow_lines(lines: list[str]) -> set[int]:
             allowed.add(number)
         if BLOCK_SCALAR.match(content[indent:]):
             scalar_indent = indent
+        else:
+            plain_indent = _yaml_plain_scalar_indent(content)
     return allowed
 
 
@@ -238,6 +262,7 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
     """Return significant block-YAML lines, excluding block scalar bodies."""
     out: list[tuple[int, int, str]] = []
     scalar_indent: int | None = None
+    plain_indent: int | None = None
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -247,6 +272,14 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
             if raw_indent > scalar_indent:
                 continue
             scalar_indent = None
+        if plain_indent is not None:
+            if not raw.strip():
+                continue
+            if not raw.lstrip().startswith("#"):
+                raw_indent = len(raw) - len(raw.lstrip(" "))
+                if raw_indent > plain_indent:
+                    continue
+            plain_indent = None
         started_in_quote = quote is not None
         content, _, quote = _split_yaml_comment(raw, quote)
         if started_in_quote:
@@ -259,6 +292,8 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
         out.append((number, indent, stripped))
         if BLOCK_SCALAR.match(stripped):
             scalar_indent = indent
+        else:
+            plain_indent = _yaml_plain_scalar_indent(content)
     return out
 
 
