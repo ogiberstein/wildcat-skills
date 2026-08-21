@@ -176,3 +176,13 @@ Five decisions are expensive to reverse, and the first two are the ones a later 
 **Steps touched.** Step 3's files gain the schema, since the shape changes where the first rules land. Step 5's obligation refusal now reads a rule's `obligations` list, which is empty for a rule whose statement requires nothing; that is a narrower gate than item 11 described and the step spells the narrowing out. Steps 4 and 6 are unaffected.
 
 **Still holding.** Every other item. The fidelity check this amendment adds also closes the extractor lead that step 2's round 1 recorded, for the transcribed fields: `statement` equality against the pinned source is exactly the text comparison that lead asked for. The scope bounds and the Hermes class stay authored, stay reasoned on the page, and stay the two fields the audit round reads rule by rule.
+
+### Amendment -- 2026-08-21 (third)
+
+**What changed.** The Hermes suite's budget ceiling moves from 25 seconds to 30. The corpus-validation ceiling of one second is unchanged and is met with two orders of magnitude to spare, at 0.04 seconds.
+
+**Why.** The ceiling was authored in item 10 before the step that would add 22 hermetic integration cases, each sealing a baseline through a fake Forge. Measured over four consecutive runs of the 72-case suite the numbers are 26.1, 24.8, 25.9 and 25.0 seconds, so 25 sits inside the spread and a budget inside its own noise band fails intermittently, which teaches a reader to ignore it. 30 seconds sits above the observed maximum with headroom and below the 34.5 seconds the duplicated-fixture defect produced in step 5, so it still catches that class of regression. The alternative was to make the fixture cheaper by sharing one sealed baseline across the gate cases; that was rejected for this run because the run directory records absolute paths, so sharing it means either rewriting them on copy or teaching the harness a relocation it has no other reason to support.
+
+**Steps touched.** Step 5's exit criterion, whose measured numbers were inside the old ceiling when it ran and are inside the new one now, and step 6's, which is where the measurement above was taken. No step's entry moves.
+
+**Still holding.** Every other item, including the discipline that produced this amendment: the budget was measured rather than asserted, twice, and the first measurement found a defect rather than a cost.
