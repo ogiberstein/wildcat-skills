@@ -6142,3 +6142,13 @@ Hypomnema each exit 0 over their required trees. A fresh Horos scan remains
 at 1,376 tracked files, 89 entries and none unreadable. All other semantics,
 finding codes, ownership, versions and held frontier digests are unchanged.
 No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 4 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R4-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Both bounded YAML lexers reset quote state on every physical line. In a valid multi-line single- or double-quoted scalar, alert-shaped text is therefore treated as real keys: quoted `annotations.runbook` text can satisfy E004 for an unannotated alert, quoted `- alert:` text can produce E004, and quoted `runbook:` text can produce H003. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..9e3be06a062c79138ad6aed1776ad824bf642a03`. The two round-3 fault guards were run against `3008376882d955c7a7168c013d57cbfc24d44c91` in memory and failed once each; both pass against the fixed tree, and the paired Ephoros hash-path presence guard is also green. The round-3 path and walk boundaries are closed; the remaining material YAML review found only the multi-line quoted-scalar case above. Focused tests pass 108/108; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 581/581. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, E004/H003 ownership, unchanged H007 and both ordinary-generation frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R4-01.
