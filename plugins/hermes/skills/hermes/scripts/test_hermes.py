@@ -639,23 +639,66 @@ class CorpusFidelityTests(unittest.TestCase):
                 with self.subTest(rule=rule["id"], obligation=obligation[:40]):
                     self.assertIn(obligation, rule["statement"])
 
-    def test_the_section_counts_the_corpus_holds_so_far(self) -> None:
+    def test_the_corpus_holds_every_rule_the_source_states(self) -> None:
         counts = {}
         for rule in self.corpus["rules"]:
             prefix = rule["id"].split("-")[0]
             counts[prefix] = counts.get(prefix, 0) + 1
-        self.assertEqual(counts, {"CMP": 12, "STO": 27, "TRN": 7, "MEM": 16})
-        self.assertEqual(len(self.corpus["rules"]), 62)
+        self.assertEqual(counts, {"CMP": 12, "STO": 27, "TRN": 7, "MEM": 16,
+                                  "CTL": 18, "EXT": 14, "DEP": 12, "YUL": 14})
+        self.assertEqual(len(self.corpus["rules"]), 120)
+        self.assertEqual(sorted(r["id"] for r in self.corpus["rules"]),
+                         sorted(self.source_rules()))
 
     def test_a_rule_with_no_class_is_recorded_rather_than_guessed(self) -> None:
-        """Half of this group constrains the run or the architecture, so it
-        names no candidate. The count is asserted because quietly mapping one
-        of them to the nearest-sounding class is the failure to catch."""
+        """58 of the 120 rules name no candidate: they constrain how a run is
+        conducted, or they are architecture. The count is asserted because
+        quietly mapping one of them to the nearest-sounding class is the
+        failure worth catching, and because the size of that number is the
+        finding this corpus produced about Hermes itself."""
         unclassed = [r["id"] for r in self.corpus["rules"] if r["hermes_class"] is None]
-        self.assertEqual(len(unclassed), 31)
+        self.assertEqual(len(unclassed), 58)
+        self.assertEqual(sum(1 for r in self.corpus["rules"] if r["hermes_class"]), 62)
         for identifier in ("CMP-01", "TRN-01", "STO-23", "MEM-15",
-                           "STO-12", "MEM-09"):
+                           "STO-12", "MEM-09", "CTL-07", "EXT-13"):
             self.assertIn(identifier, unclassed)
+
+    def test_every_deployment_rule_names_no_class(self) -> None:
+        """Every DEP rule is an architecture decision rather than a change
+        inside one contract, so the whole section carries null."""
+        deployment = [r for r in self.corpus["rules"] if r["id"].startswith("DEP-")]
+        self.assertEqual(len(deployment), 12)
+        for rule in deployment:
+            with self.subTest(rule=rule["id"]):
+                self.assertIsNone(rule["hermes_class"])
+                self.assertEqual(rule["kind"], "architecture")
+
+    def test_every_assembly_section_rule_takes_the_assembly_class(self) -> None:
+        """The one section where the class vocabulary fits exactly."""
+        yul = [r for r in self.corpus["rules"] if r["id"].startswith("YUL-")]
+        self.assertEqual(len(yul), 14)
+        for rule in yul:
+            with self.subTest(rule=rule["id"]):
+                self.assertEqual(rule["hermes_class"], "assembly")
+
+    def test_the_require_custom_error_prohibition_stops_at_its_release(self) -> None:
+        """EXT-01 is the one rule whose upper bound matters: the source says
+        custom-error arguments to require arrived after 0.8.25, so the
+        prohibition cannot be carried into the release that introduced them."""
+        rule = next(r for r in self.corpus["rules"] if r["id"] == "EXT-01")
+        self.assertEqual(rule["scope"]["compiler_max_exclusive"], "0.8.26")
+        self.assertEqual(rule["hermes_class"], "custom-errors")
+
+    def test_the_canonical_loop_rule_floors_at_the_release_that_changed_it(self) -> None:
+        rule = next(r for r in self.corpus["rules"] if r["id"] == "CTL-04")
+        self.assertEqual(rule["scope"]["compiler_min"], "0.8.22")
+        self.assertIn("0.8.22", rule["scope"]["compiler_reason"])
+
+    def test_every_class_the_harness_knows_is_reachable_from_some_rule(self) -> None:
+        """A class no rule names would be a class the corpus cannot select,
+        which is the other half of the mapping question."""
+        named = {r["hermes_class"] for r in self.corpus["rules"]} - {None}
+        self.assertEqual(named, set(hermes.OPTIMISATION_CLASSES))
 
     def test_every_measurement_rule_names_no_class(self) -> None:
         for rule in self.corpus["rules"]:
