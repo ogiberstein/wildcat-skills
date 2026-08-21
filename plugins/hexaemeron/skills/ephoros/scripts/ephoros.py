@@ -45,10 +45,11 @@ MEAN_FUNCS = {"mean", "fmean", "average", "avg"}
 ALLOW = re.compile(r"#\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
 YAML_SUFFIXES = {".yaml", ".yml"}
 MAX_YAML_BYTES = 1 << 20
-ALERT = re.compile(r"^-\s+alert\s*:", re.IGNORECASE)
-ANNOTATIONS = re.compile(r"^annotations\s*:\s*$", re.IGNORECASE)
-RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.IGNORECASE)
-BLOCK_SCALAR = re.compile(r"^[^:#][^:]*:\s*[|>](?:[+-]?\d?|\d[+-]?)\s*$")
+ALERT = re.compile(r"^-\s+alert\s*:")
+ANNOTATIONS = re.compile(r"^annotations\s*:\s*$")
+RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$")
+BLOCK_SCALAR = re.compile(
+    r"^(?:[^:#][^:]*:\s*|-\s+)[|>](?:[+-]?\d?|\d[+-]?)\s*$")
 
 
 def suppressed(text: str, line: int) -> bool:
@@ -160,8 +161,8 @@ class Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def _strip_yaml_comment(line: str) -> str:
-    """Remove a YAML comment without treating a quoted hash as a marker."""
+def _split_yaml_comment(line: str) -> tuple[str, str]:
+    """Split content and comment without treating a quoted hash as a marker."""
     single = False
     double = False
     escaped = False
@@ -177,8 +178,35 @@ def _strip_yaml_comment(line: str) -> str:
         elif character == '"' and not single:
             double = not double
         elif character == "#" and not single and not double:
-            return line[:index]
-    return line
+            return line[:index], line[index:]
+    return line, ""
+
+
+def _strip_yaml_comment(line: str) -> str:
+    return _split_yaml_comment(line)[0]
+
+
+def _yaml_allow_lines(lines: list[str]) -> set[int]:
+    """Return reasoned pragma lines that are actual YAML comments."""
+    allowed: set[int] = set()
+    scalar_indent: int | None = None
+    for number, raw in enumerate(lines, start=1):
+        content, comment = _split_yaml_comment(raw)
+        content = content.rstrip()
+        if not content.strip():
+            if scalar_indent is None and ALLOW.search(comment):
+                allowed.add(number)
+            continue
+        indent = len(content) - len(content.lstrip(" "))
+        if scalar_indent is not None:
+            if indent > scalar_indent:
+                continue
+            scalar_indent = None
+        if ALLOW.search(comment):
+            allowed.add(number)
+        if BLOCK_SCALAR.match(content[indent:]):
+            scalar_indent = indent
+    return allowed
 
 
 def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
@@ -211,7 +239,9 @@ def _relative_markdown(value: str) -> bool:
 
 
 def _yaml_findings(path: Path, text: str) -> list[Finding]:
-    significant = _yaml_lines(text.splitlines())
+    lines = text.splitlines()
+    significant = _yaml_lines(lines)
+    allowed = _yaml_allow_lines(lines)
     findings: list[Finding] = []
     for index, (number, alert_indent, content) in enumerate(significant):
         if not ALERT.match(content):
@@ -248,7 +278,7 @@ def _yaml_findings(path: Path, text: str) -> list[Finding]:
                 break
             cursor += 1
 
-        if not annotated and not suppressed(text, number):
+        if not annotated and number not in allowed and number - 1 not in allowed:
             findings.append(Finding(
                 path, number, "E004",
                 "alert entry has no nested `annotations.runbook` Markdown path"))
@@ -257,7 +287,8 @@ def _yaml_findings(path: Path, text: str) -> list[Finding]:
 def check(path: Path) -> list[Finding]:
     if path.suffix in YAML_SUFFIXES:
         try:
-            raw = path.read_bytes()
+            with path.open("rb") as source:
+                raw = source.read(MAX_YAML_BYTES + 1)
             if len(raw) > MAX_YAML_BYTES:
                 return [Finding(path, 1, "E000", "unreadable: YAML exceeds 1 MiB")]
             text = raw.decode("utf-8")

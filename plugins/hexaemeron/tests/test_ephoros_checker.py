@@ -7,8 +7,10 @@ not durations.
 """
 
 import importlib.util
+import io
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -145,6 +147,15 @@ class AlertRules(unittest.TestCase):
     def test_a_reasoned_suppression_covers_e004(self):
         self.assertEqual([], ephoros.check(ALERT_FIXTURES / "suppressed.yaml"))
 
+    def test_pragma_shaped_scalar_text_does_not_suppress_e004(self):
+        specimens = (
+            'note: "# ephoros: allow quoted example"\n- alert: StillMissing\n',
+            "note: |\n  # ephoros: allow block example\n- alert: StillMissing\n",
+        )
+        for source in specimens:
+            with self.subTest(source=source):
+                self.assertEqual(["E004"], [f.code for f in yaml_findings(source)])
+
     def test_a_bare_suppression_does_not_cover_e004(self):
         source = "# ephoros: allow\n- alert: StillMissing\n"
         self.assertEqual(["E004"], [f.code for f in yaml_findings(source)])
@@ -152,6 +163,34 @@ class AlertRules(unittest.TestCase):
     def test_an_oversized_yaml_file_fails_visibly(self):
         source = "#" * (ephoros.MAX_YAML_BYTES + 1)
         self.assertEqual(["E000"], [f.code for f in yaml_findings(source)])
+
+    def test_yaml_read_requests_only_the_cap_plus_one_byte(self):
+        class RecordingReader(io.BytesIO):
+            requested = None
+
+            def read(self, size=-1):
+                self.requested = size
+                return super().read(size)
+
+        reader = RecordingReader(b"#" * (ephoros.MAX_YAML_BYTES + 1))
+        with mock.patch.object(Path, "open", return_value=reader), \
+                mock.patch.object(Path, "read_bytes", side_effect=AssertionError):
+            findings = ephoros.check(Path("bounded.yaml"))
+        self.assertEqual(["E000"], [finding.code for finding in findings])
+        self.assertEqual(ephoros.MAX_YAML_BYTES + 1, reader.requested)
+
+    def test_bare_sequence_block_scalars_do_not_create_alerts(self):
+        for marker in ("|", ">"):
+            with self.subTest(marker=marker):
+                source = f"examples:\n  - {marker}\n    - alert: ExampleOnly\n"
+                self.assertEqual([], yaml_findings(source))
+
+    def test_yaml_keys_are_case_sensitive(self):
+        self.assertEqual([], yaml_findings("- Alert: UnsupportedCase\n"))
+        source = ("- alert: MissingLowercaseKeys\n"
+                  "  Annotations:\n"
+                  "    Runbook: runbooks/wrong-case.md\n")
+        self.assertEqual(["E004"], [finding.code for finding in yaml_findings(source)])
 
 
 class OverTheMarketplace(unittest.TestCase):

@@ -6058,3 +6058,26 @@ No further leads remain.
 Scope: `3b2d58955d483586f326ab68ed73994532a0d7bf..cefd3735b447cd916b086881aaff936c0d9cf7f5`, the complete folded step-2 diff. Focused checker tests pass 96/96; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 569/569. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and the Phylax, Ephoros and Hypomnema tree lints exit 0. The boundary-currency unit module passes 4/4 because its comparison names entry drift but does not compare `counts.files_walked`; the direct fresh-document comparison above fails. The step commit has a good local signature and exactly one required co-author and origin trailer. The two generation rows retain their prior frontier revisions, digests, statuses and held jobs, and H007 is unchanged.
 
 Leads not pursued: non-HTTP URI schemes and unquoted hashes in plain scalar paths remain outside the documented relative-path prototype; neither changes the five findings above.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 1 -- 2026-08-21
+
+All five findings are resolved on the audit branch. E319-S2-R1-01 now derives
+E004 suppression only from reasoned YAML comments outside quoted and block
+scalar text. E319-S2-R1-02 extends both bounded lexers to recognise bare
+sequence block scalars introduced by `- |` and `- >`. E319-S2-R1-03 replaces
+whole-file `read_bytes()` calls with one binary read capped at 1 MiB plus one
+byte, and guards the requested read size. E319-S2-R1-04 regenerates the Horos
+document over 1,376 tracked files with 89 entries and none unreadable.
+E319-S2-R1-05 makes the supported YAML keys exact-case, so `Alert`,
+`Annotations` and `Runbook` remain outside the lowercase prototype.
+
+The seven new guard tests were observed red before the fixes: the focused
+suite ran 103 tests with ten assertion failures covering the two scalar
+markers and two suppression specimens separately. After repair, the focused
+suite passes 103/103, evolution and version propagation 23/23, marketplace
+prose 13/13, root 104/104 and Hexaemeron 576/576. Protasis accepts both
+documents; Imprimatur and per-file Brevitas accept the six named prose files;
+Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
+Hypomnema each exit 0 over their required trees. E000 to E004 and H000 to H007
+retain their ownership and numbers, H007 is unchanged, and both held frontier
+digests remain unchanged. No new leads.

@@ -57,10 +57,11 @@ ADR_NUMBER = re.compile(r"ADR-(\d+)", re.IGNORECASE)
 # A path, not whatever word follows a colon: "a runbook: what fired" is prose.
 RUNBOOK = re.compile(r"runbook:\s*[`\"']?(?P<path>[\w./-]+\.md|[\w./-]+/[\w./-]+)[`\"']?",
                      re.IGNORECASE)
-YAML_RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.IGNORECASE)
+YAML_RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$")
 YAML_SUFFIXES = {".yaml", ".yml"}
 MAX_YAML_BYTES = 1 << 20
-BLOCK_SCALAR = re.compile(r"^[^:#][^:]*:\s*[|>](?:[+-]?\d?|\d[+-]?)\s*$")
+BLOCK_SCALAR = re.compile(
+    r"^(?:[^:#][^:]*:\s*|-\s+)[|>](?:[+-]?\d?|\d[+-]?)\s*$")
 ALLOW = re.compile(r"<!--\s*hypomnema:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
 SKIP_SCHEME = ("http", "https", "mailto", "tel", "ftp")
 # The record template the SKILL states, held mechanically since the first
@@ -321,7 +322,8 @@ def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
         return _source_findings(path, adr_numbers)
     if path.suffix in YAML_SUFFIXES:
         try:
-            raw = path.read_bytes()
+            with path.open("rb") as source:
+                raw = source.read(MAX_YAML_BYTES + 1)
             if len(raw) > MAX_YAML_BYTES:
                 return [Finding(path, 1, "H000", "unreadable: YAML exceeds 1 MiB")]
             lines = raw.decode("utf-8").splitlines()
