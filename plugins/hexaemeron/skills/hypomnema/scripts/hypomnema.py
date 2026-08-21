@@ -128,6 +128,27 @@ def _yaml_plain_scalar_indent(content: str) -> int | None:
     return indent + 2 if sequence else indent
 
 
+def _yaml_plain_continuation(line: str) -> str:
+    """Return folded plain-scalar text before a separated YAML comment."""
+    for index, character in enumerate(line):
+        if character == "#" and (index == 0 or line[index - 1] in " \t"):
+            return line[:index].strip()
+    return line.strip()
+
+
+def _yaml_target(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        return value[1:-1].strip()
+    return value
+
+
+def _relative_markdown(value: str) -> bool:
+    return bool(value and value.lower().endswith(".md")
+                and not value.startswith(("/", "\\"))
+                and not _external(value))
+
+
 def _strip_yaml_comment(
         line: str, quote: str | None = None) -> tuple[str, str | None]:
     """Remove a YAML comment while carrying a quoted scalar."""
@@ -158,11 +179,13 @@ def _strip_yaml_comment(
     return line, active
 
 
-def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
-    """Resolve generic block-YAML runbook keys without classifying alerts."""
-    findings: list[Finding] = []
+def _yaml_lines(lines: list[str]) -> list[tuple[int, str, bool]]:
+    """Return logical YAML lines, folding supported plain runbook values."""
+    out: list[tuple[int, str, bool]] = []
     scalar_indent: int | None = None
     plain_indent: int | None = None
+    plain_out_index: int | None = None
+    plain_candidate = False
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -178,8 +201,17 @@ def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
             if not raw.lstrip().startswith("#"):
                 raw_indent = len(raw) - len(raw.lstrip(" "))
                 if raw_indent > plain_indent:
+                    if plain_out_index is not None:
+                        continuation = _yaml_plain_continuation(raw)
+                        if continuation:
+                            first = out[plain_out_index]
+                            out[plain_out_index] = (
+                                first[0], f"{first[1]} {continuation}",
+                                first[2] or plain_candidate)
                     continue
             plain_indent = None
+            plain_out_index = None
+            plain_candidate = False
         started_in_quote = quote is not None
         content, quote = _strip_yaml_comment(raw, quote)
         if started_in_quote:
@@ -193,14 +225,24 @@ def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
             scalar_indent = indent
             continue
         plain_indent = _yaml_plain_scalar_indent(content)
+        out.append((number, stripped, False))
         match = YAML_RUNBOOK.match(stripped)
+        if plain_indent is not None and match:
+            plain_out_index = len(out) - 1
+            plain_candidate = _relative_markdown(
+                _yaml_target(match.group("path")))
+    return out
+
+
+def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
+    """Resolve generic block-YAML runbook keys without classifying alerts."""
+    findings: list[Finding] = []
+    for number, content, folded_candidate in _yaml_lines(lines):
+        match = YAML_RUNBOOK.match(content)
         if not match:
             continue
-        target = match.group("path").strip()
-        if len(target) >= 2 and target[0] == target[-1] and target[0] in "'\"":
-            target = target[1:-1].strip()
-        if (not target.lower().endswith(".md") or target.startswith(("/", "\\"))
-                or _external(target)):
+        target = _yaml_target(match.group("path"))
+        if not _relative_markdown(target) and not folded_candidate:
             continue
         if not (path.parent / target).exists():
             findings.append(Finding(

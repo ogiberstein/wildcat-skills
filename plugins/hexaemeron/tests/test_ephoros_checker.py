@@ -258,6 +258,24 @@ class AlertRules(unittest.TestCase):
                 self.assertEqual(
                     ["E004"], [finding.code for finding in yaml_findings(source)])
 
+    def test_a_folded_plain_runbook_cannot_use_a_first_line_decoy(self):
+        source = ("- alert: FoldedPointer\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/present.md\n"
+                  "      extra\n")
+        self.assertEqual(["E004"], [finding.code for finding in yaml_findings(source)])
+
+    def test_single_line_and_valid_folded_plain_runbooks_satisfy_e004(self):
+        single = ("- alert: SingleLine\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/present.md\n")
+        folded = ("- alert: FoldedPath\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/present\n"
+                  "      target.md\n")
+        self.assertEqual([], yaml_findings(single))
+        self.assertEqual([], yaml_findings(folded))
+
 
 class OverTheMarketplace(unittest.TestCase):
     def test_suffix_matching_directories_are_not_walked_as_files(self):

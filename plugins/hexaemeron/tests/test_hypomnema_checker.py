@@ -205,6 +205,21 @@ class YamlRunbooks(unittest.TestCase):
                           "runbook: runbooks/missing.md\n")
                 self.assertEqual(["H003"], yaml_codes(source))
 
+    def test_a_folded_plain_runbook_cannot_resolve_through_a_first_line_decoy(self):
+        source = "runbook: runbooks/present.md\n  extra\n"
+        self.assertEqual(
+            ["H003"], yaml_codes(source, siblings=("runbooks/present.md",)))
+
+    def test_a_valid_folded_plain_runbook_resolves_as_one_path(self):
+        source = "runbook: runbooks/present.md\n  target.md\n"
+        self.assertEqual([], yaml_codes(
+            source, siblings=("runbooks/present.md target.md",)))
+
+    def test_a_single_line_plain_runbook_stays_clean(self):
+        source = "runbook: runbooks/present.md\n"
+        self.assertEqual(
+            [], yaml_codes(source, siblings=("runbooks/present.md",)))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 

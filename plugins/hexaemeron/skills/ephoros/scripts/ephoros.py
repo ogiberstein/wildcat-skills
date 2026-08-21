@@ -183,6 +183,14 @@ def _yaml_plain_scalar_indent(content: str) -> int | None:
     return indent + 2 if sequence else indent
 
 
+def _yaml_plain_continuation(line: str) -> str:
+    """Return folded plain-scalar text before a separated YAML comment."""
+    for index, character in enumerate(line):
+        if character == "#" and (index == 0 or line[index - 1] in " \t"):
+            return line[:index].strip()
+    return line.strip()
+
+
 def _split_yaml_comment(
         line: str, quote: str | None = None) -> tuple[str, str, str | None]:
     """Split YAML content and comment while carrying a quoted scalar."""
@@ -263,6 +271,7 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
     out: list[tuple[int, int, str]] = []
     scalar_indent: int | None = None
     plain_indent: int | None = None
+    plain_out_index: int | None = None
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -278,8 +287,15 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
             if not raw.lstrip().startswith("#"):
                 raw_indent = len(raw) - len(raw.lstrip(" "))
                 if raw_indent > plain_indent:
+                    if plain_out_index is not None:
+                        continuation = _yaml_plain_continuation(raw)
+                        if continuation:
+                            first = out[plain_out_index]
+                            out[plain_out_index] = (
+                                first[0], first[1], f"{first[2]} {continuation}")
                     continue
             plain_indent = None
+            plain_out_index = None
         started_in_quote = quote is not None
         content, _, quote = _split_yaml_comment(raw, quote)
         if started_in_quote:
@@ -294,6 +310,8 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
             scalar_indent = indent
         else:
             plain_indent = _yaml_plain_scalar_indent(content)
+            if plain_indent is not None and RUNBOOK.match(stripped):
+                plain_out_index = len(out) - 1
     return out
 
 

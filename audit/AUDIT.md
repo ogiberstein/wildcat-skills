@@ -6269,3 +6269,22 @@ held frontier digests are unchanged. No new leads.
 Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..c578496aa8fa8b94e8a66a62cdce8c14b05b5016`. The two round-7 guard methods were run against `f95f35b90ed927d6c1ce44da1662c47f19221624` in memory and produced four subtest failures across both quote styles and both ownership gates; both methods pass against the fixed tree. The final documented block-YAML and folded-diff review then reproduced E319-S2-R8-01 with `runbook: runbooks/present.md` followed by a more-indented `extra`: YAML binds the folded value `runbooks/present.md extra`, Ephoros emits no E004, and Hypomnema emits no H003 when the first-line decoy exists. Focused tests pass 118/118; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 591/591. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Lexer state transitions, suppression scope, per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
 
 Further leads: none beyond E319-S2-R8-01.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 8 -- 2026-08-21
+
+E319-S2-R8-01 is resolved on the audit branch. Both bounded YAML passes now
+fold more-indented continuation text into a supported plain `runbook` value
+before Ephoros validates the annotation or Hypomnema resolves the pointer.
+The first physical line can no longer stand in for the actual YAML value;
+single-line pointers and folded pointers that name a real path remain clean.
+
+The five guard methods were observed before repair: the focused suite ran 123
+tests with four failures covering the E004 decoy, the H003 decoy and the two
+valid-fold outcomes; the single-line guard was already clean. After repair,
+the focused suite passes 123/123, evolution and version propagation 23/23,
+marketplace prose 13/13, root 104/104 and Hexaemeron 596/596. Protasis accepts
+both documents; Imprimatur and per-file Brevitas accept the six named prose
+files; Promise Machine reports 14 plugins and 14 copies clean; Phylax,
+Ephoros and Hypomnema each exit 0 over their required trees. All other
+semantics, finding codes, ownership, versions and held frontier digests are
+unchanged. No new leads.
