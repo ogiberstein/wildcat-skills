@@ -498,6 +498,19 @@ class CorpusValidationTests(unittest.TestCase):
             corpus["rules"].append(_rule_record())
         self.assertEqual(self.faults(mutate), [])
 
+    def test_a_schema_class_the_header_does_not_name_is_still_a_record_class(self) -> None:
+        """Round 1 finding: the header check named the three record classes
+        itself, so a schema that grew a fourth reported it as an unknown
+        top-level field instead of validating it."""
+        def mutate(corpus, schema):
+            schema["records"]["gates"] = {
+                "id_pattern": "^GATE-[0-9]{2}$",
+                "required": {"id": "id", "title": "text"},
+                "optional": {},
+            }
+            corpus["gates"] = [{"id": "GATE-01", "title": "pin the build"}]
+        self.assertEqual(self.faults(mutate), [])
+
     def test_the_command_reports_clean_and_exits_zero(self) -> None:
         result = subprocess.run(
             [sys.executable, str(SCRIPT_DIR / "hermes.py"), "corpus", "--validate", "--json"],

@@ -6064,3 +6064,48 @@ the counts beside them, so a stale `files_walked` ships without a test
 noticing, as it just did. Correcting it here was a side effect of following
 the regeneration rule rather than a fix, and widening that guard belongs to
 Horos rather than to a Hermes corpus run.
+
+## Hermes rule corpus, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | low | `plugins/hermes/skills/hermes/scripts/hermes.py` | The header check named the three record classes in its own tuple, so a schema that grew a fourth class would report the corpus key holding it as an unknown top-level field rather than validating its records. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+32/32, of which 18 are new this step. `corpus --validate` reports 28 myths and
+40 references with no fault.
+
+The review read the whole validator against the risk register. On
+`corpus-schema-drift`: records are lists rather than objects keyed by id,
+because `json.load` drops a duplicate key silently and a duplicate rule id has
+to be a refusal; the duplicate, unknown-field, missing-field, bad-pattern and
+unimplemented-token cases each have a test. On `citation-network`: the new code
+imports nothing that can open a socket and the citations are inert strings; the
+`https` shape check is a format rule, not a fetch. On `binding-digest`: the
+`hermes.py` digest in the Promise Machine coverage moved twice in this step,
+once for the implementation and once for the round's fix, and the file was
+edited by substring replacement rather than reserialised, which is what keeps
+the diff at two lines instead of 1,908. On `citation-shape`: the extraction
+counts footnote definitions, and the test pins REF-25 at one entry because the
+source states it both as a line-initial citation and as a definition.
+
+One candidate finding was investigated and rejected. The nested shape tokens
+(`source`, `verified_on`, `scope`) are read out of the schema, which looks like
+a cycle a malformed schema could ride into unbounded recursion. It cannot: each
+level recurses only when the value at that level is an object, so the walk is
+bounded by the nesting of the data and JSON cannot express infinite nesting. A
+depth limit and its test were written, shown not to fire, and removed rather
+than kept as a guard against a fault that has no reachable path. Deeply nested
+input would exhaust the recursion limit inside `json.loads` before the
+validator saw it, and the corpus is in-tree data rather than caller input.
+
+Leads not pursued: the corpus records were produced by a throwaway extractor
+run against the pinned source, which cross-checked every citation's footnote
+URL against its table URL and found all 40 in agreement. That extractor is not
+committed, so `transcription-fidelity` rests on counts, id shape and reference
+resolution rather than on text equality with the source. Committing an
+extractor and asserting it reproduces the committed bytes would close the gap
+for the mechanically derivable fields. The runbook does not ask for it, and
+adding it here would be scope the step did not carry; it belongs to a later
+frontier judgement.

@@ -1149,8 +1149,9 @@ def validate_corpus(corpus: dict[str, Any], schema: dict[str, Any]) -> list[str]
         # mismatched schema would report faults about the wrong document.
         return faults
 
+    record_classes = set((schema.get("records") or {}))
     _check_record(
-        {key: value for key, value in corpus.items() if key not in ("references", "myths", "rules")},
+        {key: value for key, value in corpus.items() if key not in record_classes},
         schema.get("header", {}), schema, corpus, "corpus", faults,
     )
     for name, spec in sorted((schema.get("records") or {}).items()):
