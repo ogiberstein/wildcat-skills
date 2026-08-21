@@ -322,15 +322,58 @@ def run_pr_path(base_dir: str) -> str:
     return os.path.join(state_root(base_dir), RUN_PR_FILE)
 
 
+def require_state_container(value, path: str, expected_type: type):
+    """Return one required state container or stop with a value-free fault."""
+    if not isinstance(value, expected_type):
+        kind = "object" if expected_type is dict else "array"
+        die(f"state key '{path}' must be an {kind}", 1)
+    return value
+
+
+def validate_state_shape(state) -> dict:
+    """Validate the version-1 container spine in one deterministic order.
+
+    Leaves heterogeneous receipt and field payloads to their existing semantic
+    checks. This boundary establishes only the containers every reader traverses.
+    """
+    root = require_state_container(state, "$", dict)
+    config = require_state_container(root.get("config"), "config", dict)
+    for section in ("skills", "audit", "git"):
+        require_state_container(
+            config.get(section), f"config.{section}", dict
+        )
+    require_state_container(root.get("receipts"), "receipts", dict)
+    steps = require_state_container(root.get("steps"), "steps", list)
+
+    for step_index, step in enumerate(steps):
+        require_state_container(step, f"steps[{step_index}]", dict)
+
+    for step_index, step in enumerate(steps):
+        prefix = f"steps[{step_index}]"
+        require_state_container(step.get("receipts"), f"{prefix}.receipts", dict)
+        audit = require_state_container(step.get("audit"), f"{prefix}.audit", dict)
+        rounds = require_state_container(
+            audit.get("rounds"), f"{prefix}.audit.rounds", list
+        )
+        for round_index, round_entry in enumerate(rounds):
+            require_state_container(
+                round_entry,
+                f"{prefix}.audit.rounds[{round_index}]",
+                dict,
+            )
+    return root
+
+
 def load_state(base_dir: str) -> dict:
     path = state_path(base_dir)
     if not os.path.exists(path):
         die(f"no state at {path}; run `hexctl init --topic ...` first")
     try:
         with open(path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            state = json.load(fh)
     except (ValueError, OSError) as exc:
         die(f"state file unreadable at {path}: {exc}", 1)
+    return validate_state_shape(state)
 
 
 MUTATING = frozenset(
