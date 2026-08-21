@@ -122,7 +122,8 @@ def _strip_yaml_comment(line: str) -> str:
             single = not single
         elif character == '"' and not single:
             double = not double
-        elif character == "#" and not single and not double:
+        elif (character == "#" and not single and not double
+              and (index == 0 or line[index - 1] in " \t")):
             return line[:index]
     return line
 

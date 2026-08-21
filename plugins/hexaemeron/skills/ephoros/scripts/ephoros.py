@@ -326,7 +326,8 @@ def walk(paths: list[str]) -> list[Path]:
             found = (child for suffix in (".py", *sorted(YAML_SUFFIXES))
                      for child in root.rglob(f"*{suffix}"))
             out.extend(child for child in sorted(set(found))
-                       if "__pycache__" not in child.parts
+                       if child.is_file()
+                       and "__pycache__" not in child.parts
                        and "fixtures" not in child.relative_to(root).parts[:-1])
         else:
             out.append(root)

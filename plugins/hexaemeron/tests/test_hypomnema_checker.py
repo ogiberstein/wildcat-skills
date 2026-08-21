@@ -171,6 +171,10 @@ class YamlRunbooks(unittest.TestCase):
     def test_yaml_runbook_keys_are_case_sensitive(self):
         self.assertEqual([], yaml_codes("Runbook: runbooks/wrong-case.md\n"))
 
+    def test_an_unseparated_hash_is_preserved_in_a_missing_runbook_path(self):
+        source = "runbook: runbooks/missing#book.md\n"
+        self.assertEqual(["H003"], yaml_codes(source))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 

@@ -6122,3 +6122,23 @@ No new leads.
 Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..ed3785f0b6669b9c45a9ffa4874b8569984628c8`. Both round-2 guards were run against `a0af48ee6f162b7602414105a59e26929863627a` in memory and failed once each; both pass against the fixed tree. The exact round-2 suppression cases are closed, but the remaining YAML boundary probes found the two cases above. Focused tests pass 105/105; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 578/578. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, E004/H003 ownership, unchanged H007 and both ordinary-generation frontier digests otherwise remain intact.
 
 Further leads: none beyond E319-S2-R3-01 and E319-S2-R3-02.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 3 -- 2026-08-21
+
+Both findings are resolved on the audit branch. E319-S2-R3-01 gives
+Hypomnema the same whitespace-bounded YAML comment marker as Ephoros, so the
+plain-scalar path `runbooks/missing#book.md` remains whole and emits H003 when
+absent; the paired E004 presence guard stays clean. E319-S2-R3-02 now requires
+recursive Ephoros walk candidates to be files, leaving suffix-matching
+directories outside the checker input set.
+
+The two fault guards were observed red before repair: the focused suite ran
+108 tests with two failures, one for each finding. After repair, the focused
+suite passes 108/108, evolution and version propagation 23/23, marketplace
+prose 13/13, root 104/104 and Hexaemeron 581/581. Protasis accepts both
+documents; Imprimatur and per-file Brevitas accept the six named prose files;
+Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
+Hypomnema each exit 0 over their required trees. A fresh Horos scan remains
+at 1,376 tracked files, 89 entries and none unreadable. All other semantics,
+finding codes, ownership, versions and held frontier digests are unchanged.
+No new leads.
