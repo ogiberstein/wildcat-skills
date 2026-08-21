@@ -54,20 +54,20 @@
         "evidence_grade": "enum:evidence_grade",
         "automation": "enum:automation",
         "hermes_class": "hermes-class-or-none",
-        "summary": "text",
-        "mechanism": "text",
-        "recommendation": "text",
-        "detector_signals": "text-list",
-        "preconditions": "text-list",
-        "proof_obligations": "text-list",
-        "failure_modes": "text-list",
-        "validation": "text-list",
+        "statement": "text",
+        "obligations": "text-list",
         "references": "ref-id-list",
         "source_section": "text",
         "verified_on": "verified-on",
         "scope": "scope"
       },
-      "optional": {}
+      "optional": {},
+      "notes": {
+        "statement": "The rule's body as the source document states it, whitespace collapsed, footnote markers lifted into references. Transcribed, not written.",
+        "obligations": "Requirements the statement itself makes. Every entry has to be an exact substring of this rule's statement, which is what keeps an obligation the rule's own words rather than a paraphrase. Empty when the statement requires nothing.",
+        "hermes_class": "Authored. One of the twelve classes the harness already knows, or null for a rule that constrains the run rather than changing source.",
+        "scope": "Authored. The range and fork floor over which the mechanism holds, each with its reason. The source pins one compiler and one fork; a scope copied from that header would refuse correct candidates on every other configuration."
+      }
     }
   },
   "verified_on": {
@@ -90,10 +90,31 @@
     "optional": {}
   },
   "enums": {
-    "rule_kind": ["technique", "measurement", "architecture", "release_gate"],
-    "priority": ["P0", "P1", "P2"],
-    "evidence_grade": ["A", "B", "C", "X"],
-    "automation": ["safe", "guarded", "never"],
-    "pipeline": ["legacy", "via-ir"]
+    "rule_kind": [
+      "technique",
+      "measurement",
+      "architecture",
+      "release_gate"
+    ],
+    "priority": [
+      "P0",
+      "P1",
+      "P2"
+    ],
+    "evidence_grade": [
+      "A",
+      "B",
+      "C",
+      "X"
+    ],
+    "automation": [
+      "safe",
+      "guarded",
+      "never"
+    ],
+    "pipeline": [
+      "legacy",
+      "via-ir"
+    ]
   }
 }

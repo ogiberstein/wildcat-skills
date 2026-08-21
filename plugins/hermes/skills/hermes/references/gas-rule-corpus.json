@@ -562,5 +562,1993 @@
       "source_section": "13"
     }
   ],
-  "rules": []
+  "rules": [
+    {
+      "id": "CMP-01",
+      "title": "pin the complete build configuration",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "pin the exact compiler binary, EVM target, optimizer state, run count, pipeline, metadata settings, libraries, and linked addresses. do not compare gas results produced by different configurations.",
+      "obligations": [
+        "do not compare gas results produced by different configurations."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-02",
+      "title": "optimize the production artifact",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "production tests, fuzzing, invariants, audits, gas snapshots, and bytecode review must run against the optimized artifact. testing only an unoptimized debug build does not validate production code generation.",
+      "obligations": [
+        "production tests, fuzzing, invariants, audits, gas snapshots, and bytecode review must run against the optimized artifact."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-03",
+      "title": "treat optimizer runs as a lifecycle parameter",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": null,
+      "statement": "`runs` models expected lifetime executions and trades deployment/code size against runtime cost; it is not the number of optimizer iterations. benchmark a matrix of plausible values against expected deployment count and call frequency.",
+      "obligations": [],
+      "references": [
+        "REF-03"
+      ],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The limits are consensus rules rather than compiler behaviour; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "EIP-170's runtime code limit applies from Spurious Dragon onward and the source treats it as a standing budget.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Code size differs between pipelines, which is the reason the rule says to measure both."
+      }
+    },
+    {
+      "id": "CMP-04",
+      "title": "benchmark legacy and via-IR",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P1",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "neither pipeline is a universal winner. compile and validate both where the project is free to choose, but retain one canonical audited configuration.",
+      "obligations": [
+        "compile and validate both where the project is free to choose, but retain one canonical audited configuration."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-05",
+      "title": "inspect optimized IR, assembly, and bytecode",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "a source rewrite is not evidence of an optimization. confirm that generated code changes in the expected way and does not create a larger regression through inlining, stack layout, or code size.",
+      "obligations": [
+        "confirm that generated code changes in the expected way and does not create a larger regression through inlining, stack layout, or code size."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-06",
+      "title": "profile representative transaction paths",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "define success, revert, cold, warm, first-use, repeat-use, batch, maximum-size, and adversarial scenarios before ranking candidates.",
+      "obligations": [
+        "define success, revert, cold, warm, first-use, repeat-use, batch, maximum-size, and adversarial scenarios before ranking candidates."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-07",
+      "title": "measure cold and warm state independently",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "state access and account access differ between first and subsequent uses within a transaction. `SSTORE` cost also depends on original, current, and new values. one aggregate gas figure for a stateful function is generally lossy.",
+      "obligations": [],
+      "references": [
+        "REF-10",
+        "REF-11"
+      ],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Access pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "berlin",
+        "evm_reason": "The saving rests on the cold and warm access distinction EIP-2929 introduced, which the source cites for this rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same access opcodes for the same reads."
+      }
+    },
+    {
+      "id": "CMP-08",
+      "title": "report a cost vector, not one percentage",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "report: - deployment and initcode - runtime success paths - runtime failure paths - calldata or data-availability cost - persistent state growth - number of transactions - system-wide transfers and approvals - break-even by usage scenario",
+      "obligations": [],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-09",
+      "title": "apply the compiler known-bugs gate",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "a long-lived 0.8.25 pin needs an automated review against Solidity’s known-bugs list whenever source features or compiler settings change.",
+      "obligations": [],
+      "references": [
+        "REF-08"
+      ],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-10",
+      "title": "require semantic equivalence testing",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": null,
+      "statement": "optimization validation must cover outputs, storage, logs, reverts, calls, value movement, and protocol invariants. assembly and decoder rewrites should retain an executable reference implementation wherever possible.",
+      "obligations": [
+        "optimization validation must cover outputs, storage, logs, reverts, calls, value movement, and protocol invariants.",
+        "assembly and decoder rewrites should retain an executable reference implementation wherever possible."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "CMP-11",
+      "title": "maintain scenario-level gas snapshots",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "track named gas scenarios and linked runtime/initcode size in CI. accepted regressions require an explicit explanation.",
+      "obligations": [
+        "accepted regressions require an explicit explanation."
+      ],
+      "references": [],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The limits are consensus rules rather than compiler behaviour; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "EIP-170's runtime code limit applies from Spurious Dragon onward and the source treats it as a standing budget.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Code size differs between pipelines, which is the reason the rule says to measure both."
+      }
+    },
+    {
+      "id": "CMP-12",
+      "title": "do not customize optimizer step sequences casually",
+      "kind": "measurement",
+      "category": "compiler-and-measurement",
+      "priority": "P2",
+      "evidence_grade": "C",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "a custom Yul optimizer sequence creates a bespoke compiler configuration with a large validation and maintenance burden. Solidity’s Yul optimizer is a set of interacting greedy passes rather than a globally optimal superoptimizer.",
+      "obligations": [],
+      "references": [
+        "REF-03"
+      ],
+      "source_section": "4",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-01",
+      "title": "retain read-only dynamic inputs in calldata",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": "calldata-memory",
+      "statement": "declare external read-only dynamic arguments as `calldata` and avoid implicit conversion to memory.",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-02",
+      "title": "preserve calldata through internal helpers",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "calldata-memory",
+      "statement": "a calldata parameter loses its advantage when the first helper accepts memory. use calldata helpers or carefully selected overloads.",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-03",
+      "title": "use calldata slices",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "calldata-memory",
+      "statement": "validate offset and length once, then pass a calldata view rather than allocating and copying a subrange.",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-04",
+      "title": "use custom packed calldata only on concentrated hot paths",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P0",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "calldata-memory",
+      "statement": "a custom byte format can remove ABI padding and redundant fields, but it creates a parser and a new external protocol. requirements: - versioned wire-format specification - canonical widths and byte order - off-chain reference encoder - reference Solidity decoder - malformed and truncated input fuzzing - signature and commitment compatibility tests - separate L1 and L2 fee measurements",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-05",
+      "title": "decode only the consumed fields",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P1",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "calldata-memory",
+      "statement": "a specialized path need not allocate a maximal nested structure when it uses a few fixed fields. keep the generic decoder as a differential oracle. Seaport’s basic-order path demonstrates this optimization at production scale.",
+      "obligations": [
+        "keep the generic decoder as a differential oracle."
+      ],
+      "references": [
+        "REF-27"
+      ],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-06",
+      "title": "use scratch memory for fixed short-lived operations",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "assembly",
+      "statement": "use `0x00–0x3f` for ephemeral hashes or call data only when no pointer escapes and Solidity’s zero-slot and free-memory-pointer invariants remain valid.",
+      "obligations": [],
+      "references": [
+        "REF-06"
+      ],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-07",
+      "title": "allocate exact buffers",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "calldata-memory",
+      "statement": "construct only the memory span required for a call, hash, event, revert, or return value. memory expansion is monotonic within the call frame.",
+      "obligations": [
+        "construct only the memory span required for a call, hash, event, revert, or return value."
+      ],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-08",
+      "title": "re-benchmark old memory-copy assembly under `MCOPY`",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "assembly",
+      "statement": "Solidity 0.8.25 can emit `MCOPY` for ordinary memory byte-array copies. preserve legacy assembly only when it retains a measured shape-specific advantage or different semantics.",
+      "obligations": [
+        "preserve legacy assembly only when it retains a measured shape-specific advantage or different semantics."
+      ],
+      "references": [
+        "REF-01"
+      ],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 can emit MCOPY for ordinary memory byte-array copies.",
+        "evm_floor": "cancun",
+        "evm_reason": "MCOPY is a Cancun opcode, so the comparison the rule asks for only exists at or after that fork.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines can emit the copy the rule re-benchmarks."
+      }
+    },
+    {
+      "id": "MEM-09",
+      "title": "avoid distant memory offsets",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "calldata-memory",
+      "statement": "one access at a high offset expands memory over the entire intervening range. all attacker-controlled offset and length arithmetic requires explicit bounds.",
+      "obligations": [
+        "all attacker-controlled offset and length arithmetic requires explicit bounds."
+      ],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-10",
+      "title": "handle fixed returndata directly",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "assembly",
+      "statement": "when a caller needs only success, no data, or one fixed word, avoid allocating arbitrary bytes and passing them through a generic decoder.",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-11",
+      "title": "bound revert-data bubbling",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "assembly",
+      "statement": "unbounded `RETURNDATACOPY` allows a callee to force memory expansion. define whether errors are propagated, truncated, mapped, or replaced.",
+      "obligations": [
+        "define whether errors are propagated, truncated, mapped, or replaced."
+      ],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-12",
+      "title": "hash fixed static tuples directly",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "hashing-encoding",
+      "statement": "for a fixed sequence of canonical 32-byte words, scratch-memory `KECCAK256` can replace generic `abi.encode`. differential-test every helper against the canonical encoding.",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-13",
+      "title": "return exact-size fixed data",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": "assembly",
+      "statement": "assembly may write fixed ABI words and `return(pointer, length)` directly. every byte in the returned span must be initialized.",
+      "obligations": [
+        "every byte in the returned span must be initialized."
+      ],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-14",
+      "title": "support EIP-2098 compact signatures where compatible",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P2",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "hashing-encoding",
+      "statement": "accept 64-byte compact signatures alongside standard 65-byte signatures when wallet and library compatibility is established.",
+      "obligations": [],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-15",
+      "title": "use Merkle commitments for large static sets",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "replace large on-chain membership maps with a root plus proofs where set mutability and proof availability permit. define canonical leaf encoding, domain separation, ordering, and replay protection.",
+      "obligations": [
+        "define canonical leaf encoding, domain separation, ordering, and replay protection."
+      ],
+      "references": [],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "MEM-16",
+      "title": "never copy an unbounded storage array wholesale",
+      "kind": "technique",
+      "category": "calldata-memory-and-abi",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "calldata-memory",
+      "statement": "narrow storage element types still consume ordinary 32-byte memory words after copying. expose indexed or bounded retrieval instead.",
+      "obligations": [],
+      "references": [
+        "REF-06"
+      ],
+      "source_section": "7",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-01",
+      "title": "pack co-accessed bounded fields",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "storage-packing",
+      "statement": "pack fields when they are commonly read or written together and have durable range bounds. generate a bit-allocation specification and storage-layout diff.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-02",
+      "title": "use full-width arithmetic locals",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": null,
+      "statement": "use `uint256` or `int256` for stack and ordinary memory arithmetic unless narrow semantics are required. narrow widths usually help only when they improve storage packing; EVM stack words and ordinary memory elements remain 256 bits.",
+      "obligations": [
+        "use `uint256` or `int256` for stack and ordinary memory arithmetic unless narrow semantics are required."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-03",
+      "title": "do not pack independently hot fields blindly",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "storage-packing",
+      "statement": "updating one packed field requires loading, masking, and rewriting the shared slot. packing fields that are usually updated separately can cost more despite using fewer slots. Solidity explicitly documents this read-modify-write trade-off.",
+      "obligations": [
+        "updating one packed field requires loading, masking, and rewriting the shared slot."
+      ],
+      "references": [
+        "REF-04"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Storage write pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "istanbul",
+        "evm_reason": "The rule turns on original, current and new value metering, which EIP-2200 defines and the source cites.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same store opcodes for the same writes."
+      }
+    },
+    {
+      "id": "STO-04",
+      "title": "use packed configuration words",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "storage-packing",
+      "statement": "for stable protocol configuration, encode bounded fields with named masks and offsets. reserve extension bits and expose typed getters and setters. Aave v3’s reserve configuration is the canonical production model: many risk, collateral, borrowing, cap, and status values share packed words.",
+      "obligations": [],
+      "references": [
+        "REF-15"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-05",
+      "title": "load a packed word once",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "storage-load-caching",
+      "statement": "when several fields from one packed slot are required, cache the raw word and decode all values locally rather than invoking multiple getters.",
+      "obligations": [
+        "when several fields from one packed slot are required, cache the raw word and decode all values locally rather than invoking multiple getters."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Access pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "berlin",
+        "evm_reason": "The saving rests on the cold and warm access distinction EIP-2929 introduced, which the source cites for this rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same access opcodes for the same reads."
+      }
+    },
+    {
+      "id": "STO-06",
+      "title": "aggregate packed updates into one write",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "storage-packing",
+      "statement": "load the word, apply every bit mutation locally, validate the final representation, and perform one `SSTORE`. do not expose unsafe intermediate state through callbacks.",
+      "obligations": [
+        "do not expose unsafe intermediate state through callbacks."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Storage write pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "istanbul",
+        "evm_reason": "The rule turns on original, current and new value metering, which EIP-2200 defines and the source cites.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same store opcodes for the same writes."
+      }
+    },
+    {
+      "id": "STO-07",
+      "title": "use bitmaps for dense boolean state",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "storage-packing",
+      "statement": "use `mapping(uint256 => uint256)` words for dense flags, membership, initialization state, or bounded indexed domains. Uniswap v3 stores 256 tick initialization flags per word and uses bit scans to find the next initialized tick. Aave stores two user-state bits per reserve.",
+      "obligations": [],
+      "references": [
+        "REF-16",
+        "REF-19"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-08",
+      "title": "use nonce bitmaps for unordered authorization",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "storage-packing",
+      "statement": "for parallel signed authorizations, partition a nonce into word index and bit position. Permit2 uses an unordered nonce bitmap instead of one storage slot per nonce.",
+      "obligations": [],
+      "references": [
+        "REF-25"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-09",
+      "title": "cache repeated `SLOAD`s",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": "storage-load-caching",
+      "statement": "load storage once when no mutation or callback can invalidate the value. keep the cache’s lifetime narrow. even a warm `SLOAD` is more expensive than stack reuse, while the first access to a slot may be cold.",
+      "obligations": [
+        "keep the cache’s lifetime narrow."
+      ],
+      "references": [
+        "REF-10"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Access pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "berlin",
+        "evm_reason": "The saving rests on the cold and warm access distinction EIP-2929 introduced, which the source cites for this rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same access opcodes for the same reads."
+      }
+    },
+    {
+      "id": "STO-10",
+      "title": "cache a storage base pointer",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": "storage-load-caching",
+      "statement": "replace repeated `mapping[key].member` expressions with a local storage reference when several members are accessed.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Access pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "berlin",
+        "evm_reason": "The saving rests on the cold and warm access distinction EIP-2929 introduced, which the source cites for this rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same access opcodes for the same reads."
+      }
+    },
+    {
+      "id": "STO-11",
+      "title": "cache storage-array length when invariant",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": "loop-arithmetic",
+      "statement": "cache `.length` before a loop only when the loop body and every reachable callback cannot change it. this is useful for storage arrays, not a universal rule for memory or calldata.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Access pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "berlin",
+        "evm_reason": "The saving rests on the cold and warm access distinction EIP-2929 introduced, which the source cites for this rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same access opcodes for the same reads."
+      }
+    },
+    {
+      "id": "STO-12",
+      "title": "accumulate locally, commit once",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "storage-load-caching",
+      "statement": "load initial accounting state, perform bounded calculations locally, validate the final value, and execute one storage write.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Storage write pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "istanbul",
+        "evm_reason": "The rule turns on original, current and new value metering, which EIP-2200 defines and the source cites.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same store opcodes for the same writes."
+      }
+    },
+    {
+      "id": "STO-13",
+      "title": "skip common no-op writes",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "B",
+      "automation": "guarded",
+      "hermes_class": "control-flow",
+      "statement": "guard an `SSTORE` when idempotent calls are common and the old value is already loaded. benchmark the actual state distribution; adding an `SLOAD` and branch solely for the guard can lose.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Storage write pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "istanbul",
+        "evm_reason": "The rule turns on original, current and new value metering, which EIP-2200 defines and the source cites.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same store opcodes for the same writes."
+      }
+    },
+    {
+      "id": "STO-14",
+      "title": "validate before persistent writes",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "control-flow",
+      "statement": "perform deterministic parameter, authorization, balance, and limit checks before storage mutation when this does not weaken reentrancy safety or required error precedence.",
+      "obligations": [
+        "perform deterministic parameter, authorization, balance, and limit checks before storage mutation when this does not weaken reentrancy safety or required error precedence."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-15",
+      "title": "use constants for true compile-time values",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": "constants-immutables",
+      "statement": "constants avoid storage initialization and reads. check code-size effects when a large expression or value is substituted at many call sites.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-16",
+      "title": "use immutables for deployment-time constants",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "constants-immutables",
+      "statement": "immutables remove `SLOAD` at the cost of embedding values into runtime code. model repeated references, fleet size, proxies, and clone alternatives.",
+      "obligations": [],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The limits are consensus rules rather than compiler behaviour; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "EIP-170's runtime code limit applies from Spurious Dragon onward and the source treats it as a standing budget.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Code size differs between pipelines, which is the reason the rule says to measure both."
+      }
+    },
+    {
+      "id": "STO-17",
+      "title": "use fixed-width internal representations",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "storage-packing",
+      "statement": "use `bytes32` or another fixed-width type when protocol data is canonically bounded to one word. define padding and encoding at the boundary.",
+      "obligations": [
+        "define padding and encoding at the boundary."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-18",
+      "title": "use short-string representations conditionally",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P2",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": "storage-packing",
+      "statement": "for immutable labels bounded to 31 bytes, a `ShortString`-style word representation can avoid dynamic handling. retain a fallback when arbitrary strings are part of the interface.",
+      "obligations": [
+        "retain a fallback when arbitrary strings are part of the interface."
+      ],
+      "references": [
+        "REF-31"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-19",
+      "title": "use code-as-data for large immutable blobs",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "an SSTORE2-style data contract can replace many storage slots with deployed code and `EXTCODECOPY`. include deployment, cold account access, copy cost, offsets, read frequency, code limits, and chain support in the break-even.",
+      "obligations": [
+        "include deployment, cold account access, copy cost, offsets, read frequency, code limits, and chain support in the break-even."
+      ],
+      "references": [
+        "REF-30"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The limits are consensus rules rather than compiler behaviour; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "EIP-170's runtime code limit applies from Spurious Dragon onward and the source treats it as a standing budget.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Code size differs between pipelines, which is the reason the rule says to measure both."
+      }
+    },
+    {
+      "id": "STO-20",
+      "title": "use sentinel values to collapse state",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "B",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "reserve a value such as zero or maximum to represent uninitialized, unlimited, disabled, or another state only when that value can never become valid protocol data.",
+      "obligations": [
+        "reserve a value such as zero or maximum to represent uninitialized, unlimited, disabled, or another state only when that value can never become valid protocol data."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-21",
+      "title": "skip decrementing unlimited allowances",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "guarded",
+      "hermes_class": "control-flow",
+      "statement": "when maximum value explicitly means unlimited, branch before subtraction and avoid repeated allowance writes. Aave and Permit2 both use this motif.",
+      "obligations": [],
+      "references": [
+        "REF-17",
+        "REF-26"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Storage write pricing is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "istanbul",
+        "evm_reason": "The rule turns on original, current and new value metering, which EIP-2200 defines and the source cites.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Both pipelines emit the same store opcodes for the same writes."
+      }
+    },
+    {
+      "id": "STO-22",
+      "title": "emit non-consensus history instead of storing it",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "use events for append-only history that no future on-chain transition needs to read. retain only current state, commitments, roots, counters, or data required for future verification.",
+      "obligations": [
+        "retain only current state, commitments, roots, counters, or data required for future verification."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-23",
+      "title": "use cumulative indexes and lazy checkpoints",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "replace iteration over every account with global cumulative indexes and per-account checkpoint-on-touch settlement. prove monotonicity, conservation, rounding, and long-horizon overflow bounds. Aave’s indexed balances and reserve-state updates are a mature production example.",
+      "obligations": [
+        "prove monotonicity, conservation, rounding, and long-horizon overflow bounds."
+      ],
+      "references": [
+        "REF-18"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-24",
+      "title": "paginate or aggregate unbounded collections",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "do not return or process arbitrarily large storage collections. use bounded pages, indexed getters, commitments, pull claims, or event reconstruction.",
+      "obligations": [
+        "do not return or process arbitrarily large storage collections."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-25",
+      "title": "delete storage for lifecycle correctness, not refund farming",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "refunds are reduced and capped under the post-London gas schedule. model clearing cost, likely reuse, state growth, and liveness; never add an unbounded cleanup loop for speculative refunds.",
+      "obligations": [
+        "never add an unbounded cleanup loop for speculative refunds."
+      ],
+      "references": [
+        "REF-12"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "Refund accounting is an EVM property; no 0.8 release changes it.",
+        "evm_floor": "london",
+        "evm_reason": "The rule exists because EIP-3529 reduced and capped refunds, which the source cites for it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Refund behaviour does not differ by pipeline."
+      }
+    },
+    {
+      "id": "STO-26",
+      "title": "use mapping plus compact indexed registry",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "when both keyed lookup and enumeration are required, keep canonical records in a mapping and a dense list of keys or stable IDs. define tombstones and prohibit unsafe ID reuse.",
+      "obligations": [
+        "when both keyed lookup and enumeration are required, keep canonical records in a mapping and a dense list of keys or stable IDs.",
+        "define tombstones and prohibit unsafe ID reuse."
+      ],
+      "references": [],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "STO-27",
+      "title": "treat storage layout as an external interface",
+      "kind": "technique",
+      "category": "state-model-and-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "field order, field width, packed masks, and raw slots are ABI-like commitments for proxies, delegatecalls, and storage-reference libraries. no gas rewrite may change them without a migration or equivalence proof.",
+      "obligations": [],
+      "references": [
+        "REF-04"
+      ],
+      "source_section": "5",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.0",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The mechanism is a property of EVM execution, not of a compiler release; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "No fork-gated opcode or repricing is involved, so any fork the source's baseline succeeds carries it.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Neither pipeline removes the cost the rule addresses; the source says neither is a universal winner."
+      }
+    },
+    {
+      "id": "TRN-01",
+      "title": "transient reentrancy guards",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "on Cancun-compatible chains, a transient guard avoids persistent lock writes. prove nested-call behavior, multicall reuse, proxy/delegatecall ownership, and every intended clear boundary.",
+      "obligations": [
+        "prove nested-call behavior, multicall reuse, proxy/delegatecall ownership, and every intended clear boundary."
+      ],
+      "references": [
+        "REF-09"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    },
+    {
+      "id": "TRN-02",
+      "title": "transaction-local callback context",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "use transient state for values that must survive external calls but must not survive the transaction: unlock status, phase, temporary authorization, or callback context.",
+      "obligations": [
+        "use transient state for values that must survive external calls but must not survive the transaction: unlock status, phase, temporary authorization, or callback context."
+      ],
+      "references": [
+        "REF-09"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    },
+    {
+      "id": "TRN-03",
+      "title": "transient mapping emulation",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P1",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "hash a namespace plus fixed-width logical keys into a transient slot. avoid dynamic packed preimages and prove namespace separation. Uniswap v4 derives transient slots for per-target, per-currency signed deltas.",
+      "obligations": [
+        "avoid dynamic packed preimages and prove namespace separation."
+      ],
+      "references": [
+        "REF-22"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    },
+    {
+      "id": "TRN-04",
+      "title": "net-delta or flash accounting",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "record signed transaction-local asset deltas and perform only final settlement rather than transferring assets after every internal operation. this removes gross intermediate transfers but requires a locked execution boundary, strict asset-conservation invariants, adversarial-token handling, and proof that every nonzero obligation is settled before exit. Uniswap v4 is the primary production reference.",
+      "obligations": [
+        "this removes gross intermediate transfers but requires a locked execution boundary, strict asset-conservation invariants, adversarial-token handling, and proof that every nonzero obligation is settled before exit."
+      ],
+      "references": [
+        "REF-24"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    },
+    {
+      "id": "TRN-05",
+      "title": "unresolved-obligation counter",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "increment a transient counter on zero-to-nonzero obligation transitions and decrement on nonzero-to-zero transitions. assert zero at the final boundary instead of enumerating every touched key.",
+      "obligations": [
+        "assert zero at the final boundary instead of enumerating every touched key."
+      ],
+      "references": [
+        "REF-23"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    },
+    {
+      "id": "TRN-06",
+      "title": "model `CALL` versus `DELEGATECALL` ownership",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "never",
+      "hermes_class": null,
+      "statement": "delegatecalled code operates on the caller’s transient state; a separately called contract owns separate transient state. slot namespaces and lock domains must match the proxy and module architecture.",
+      "obligations": [
+        "slot namespaces and lock domains must match the proxy and module architecture."
+      ],
+      "references": [
+        "REF-09"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    },
+    {
+      "id": "TRN-07",
+      "title": "chain-capability gate",
+      "kind": "technique",
+      "category": "transient-storage",
+      "priority": "P0",
+      "evidence_grade": "A",
+      "automation": "safe",
+      "hermes_class": null,
+      "statement": "bytecode reaching `TLOAD` or `TSTORE` fails on a chain without EIP-1153. compiler success is not evidence that every deployment chain supports the artifact.",
+      "obligations": [],
+      "references": [
+        "REF-09"
+      ],
+      "source_section": "6",
+      "verified_on": {
+        "compiler": "0.8.25",
+        "evm": "cancun"
+      },
+      "scope": {
+        "compiler_min": "0.8.25",
+        "compiler_max_exclusive": "0.9.0",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
+        "evm_floor": "cancun",
+        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "pipelines": [
+          "legacy",
+          "via-ir"
+        ],
+        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+      }
+    }
+  ]
 }
