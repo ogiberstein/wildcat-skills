@@ -6261,3 +6261,45 @@ remains reachable through MEM-14, which is what keeps the bidirectional
 mapping test meaningful after MEM-12 moved.
 
 Leads not pursued: the class vocabulary, unchanged from round 1.
+
+## Hermes rule corpus, step 5, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | high | `plugins/hermes/skills/hermes/scripts/hermes.py` | A run directory sealed by the previous Hermes carries neither `corpus_sha256` nor `forge_config`, and Gate 2 read both by subscript. An operator resuming against an older baseline got an unhandled `KeyError` traceback rather than a refusal with an exit code, which is the one failure mode a fail-closed harness must not have. | fixed in this round |
+| S5-R1-02 | medium | `plugins/hermes/skills/hermes/scripts/hermes.py` | `resolve_scope` indexed `fork_order` for the rule's floor without checking the floor was in it, so a corpus fault escaped as an uncontrolled `ValueError`. Unreachable through `verify`, because validation runs first; reachable at the function boundary, which is where the guard now sits. | fixed in this round |
+| S5-R1-03 | low | `plugins/hermes/skills/hermes/scripts/hermes.py` | The rejected-rule citation scan was case-sensitive, so the same citation written in lower case went unnoticed. The refusal now matches either case and names the canonical id beside what was written. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+71/71, of which 22 are new this step.
+
+The review drove the new helpers adversarially rather than reading them. Six
+probes: a rejected-rule id inside an obligation answer, the same in lower case,
+an obligation answer at 19, 20 and 21 characters against the 20-character
+minimum the existing rationale flag already uses, an obligation index of zero
+and of minus one, an answer supplied to a rule that states no obligation, and a
+`fork_order` with the rule's floor removed. Four refused correctly, one refused
+by design and case-sensitively, and the last produced the S5-R1-02 traceback.
+S5-R1-01 came out of asking what a run directory from the previous version
+looks like.
+
+One thing the round changed about method rather than code. S5-R1-02's first
+guard test drove the fault through `verify` and passed for the wrong reason:
+`validate_corpus` catches the same corpus first and refuses with its own
+message, so the test proved validation worked and said nothing about the guard.
+It is now a direct call on `resolve_scope`, which is where the guard applies.
+A guard test that cannot fail without its fix is the whole point of writing one.
+
+The budget in the study's item 10 was measured, not asserted, and measuring it
+found a defect. The suite had grown to 82 cases in 34.5 seconds against a
+25-second ceiling. The cause was not the new cases: `CorpusGateTests` inherited
+`HermesHarnessTests`, so all fourteen harness cases ran a second time under a
+`verify` the subclass had overridden. The fixture is now a plain mixin that is
+not itself collected, and the suite runs 71 cases in 23.9 seconds. Corpus
+validation runs in 0.04 seconds against its one-second ceiling.
+
+Leads not pursued: the 20-character minimum for an obligation answer is
+inherited from the existing rationale flags rather than derived from anything.
+It stops an empty field and nothing more, which is what the boundary language
+in the new promise says out loud.

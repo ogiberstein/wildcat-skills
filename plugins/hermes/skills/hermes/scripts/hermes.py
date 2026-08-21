@@ -738,11 +738,19 @@ def verify_command(args: argparse.Namespace) -> int:
             raise GateFailure(2, "Foundry configuration changed after baseline", 20)
 
         corpus, corpus_schema, corpus_digest = load_corpus()
-        if corpus_digest != state["baseline"]["corpus_sha256"]:
+        baseline = state["baseline"]
+        for required in ("corpus_sha256", "forge_config"):
+            if required not in baseline:
+                raise CorpusRefusal(
+                    "corpus/baseline-predates-corpus",
+                    f"this run directory was sealed before the corpus gate "
+                    f"existed and carries no {required}; take a fresh baseline",
+                )
+        if corpus_digest != baseline["corpus_sha256"]:
             raise CorpusRefusal(
                 "corpus/digest-moved",
                 f"the corpus changed after the baseline sealed it: baseline "
-                f"{state['baseline']['corpus_sha256'][:16]}, now "
+                f"{baseline['corpus_sha256'][:16]}, now "
                 f"{corpus_digest[:16]}",
             )
         corpus_faults = validate_corpus(corpus, corpus_schema)
@@ -772,7 +780,7 @@ def verify_command(args: argparse.Namespace) -> int:
             "--property-proof": args.property_proof,
             "--obligation": " ".join(args.obligation or []),
         })
-        scope_resolution = resolve_scope(rule, corpus, state["baseline"]["forge_config"])
+        scope_resolution = resolve_scope(rule, corpus, baseline["forge_config"])
         obligations = pair_obligations(rule, args.obligation)
 
         changed_files, _, added_tokens = source_diff(repo, run_dir, state["baseline"]["source_manifest"])
@@ -1260,7 +1268,7 @@ class CorpusRefusal(GateFailure):
         self.reason = reason
 
 
-MYTH_CITATION_RE = re.compile(r"\bMYTH-\d{2}\b")
+MYTH_CITATION_RE = re.compile(r"\bMYTH-\d{2}\b", re.I)
 RULE_ID_RE = re.compile(r"^(CMP|STO|TRN|MEM|CTL|EXT|DEP|YUL|MYTH)-[0-9]{2}$")
 OBLIGATION_ANSWER_RE = re.compile(r"^(?P<index>[1-9][0-9]*)=(?P<answer>.*)$", re.S)
 MINIMUM_OBLIGATION_ANSWER = 20
@@ -1294,13 +1302,13 @@ def refuse_myth_citations(corpus: dict[str, Any], texts: dict[str, str | None]) 
                    if isinstance(myth, dict) and myth.get("id")}
     for where, text in sorted(texts.items()):
         for cited in MYTH_CITATION_RE.findall(text or ""):
-            myth = corrections.get(cited)
+            myth = corrections.get(cited.upper())
             if myth is None:
                 continue
             raise CorpusRefusal(
                 "corpus/myth-cited",
-                f"{where} cites {cited}, which the corpus rejects: "
-                f"{myth['claim']} -- {myth['correction']}",
+                f"{where} cites {cited} ({myth['id']}), which the corpus "
+                f"rejects: {myth['claim']} -- {myth['correction']}",
             )
 
 
@@ -1313,6 +1321,15 @@ def resolve_scope(rule: dict[str, Any], corpus: dict[str, Any],
     """
     scope = rule["scope"]
     forks = corpus["fork_order"]
+    if scope["evm_floor"] not in forks:
+        # validate_corpus already requires this, and depending on that here
+        # without saying so turns a corpus fault into a traceback rather than a
+        # refusal with an exit code.
+        raise CorpusRefusal(
+            "corpus/invalid",
+            f"{rule['id']} floors at {scope['evm_floor']}, which the corpus "
+            f"does not order",
+        )
 
     solc = config.get("solc")
     if not isinstance(solc, str) or parse_version(solc) is None:

@@ -787,6 +787,52 @@ class CorpusGateTests(HarnessFixture, unittest.TestCase):
                          "--attest-single-class", "--gas-target", "testGas_target"])
         self.assertNotEqual(raised.exception.code, 0)
 
+    def test_a_baseline_sealed_before_the_corpus_gate_refuses(self) -> None:
+        """Round 1 finding: a run directory from the previous Hermes carries
+        neither the corpus digest nor the sealed configuration, and reading a
+        missing key is a traceback rather than a refusal."""
+        self.baseline()
+        self.prepare_candidate()
+        state_path = self.run_dir / "state.json"
+        state = json.loads(state_path.read_text())
+        del state["baseline"]["corpus_sha256"]
+        state_path.write_text(json.dumps(state))
+        result = self.assert_refused(self.verify(), "corpus/baseline-predates-corpus")
+        self.assertIn("take a fresh baseline", result["reason"])
+
+    def test_a_floor_the_corpus_does_not_order_is_a_refusal_not_a_traceback(self) -> None:
+        """Round 1 finding: `resolve_scope` indexed `fork_order` for the rule's
+        floor without checking it was there, so a corpus fault escaped as a
+        ValueError instead of a refusal with an exit code.
+
+        Driven directly rather than through `verify`, because `validate_corpus`
+        runs first and catches the same corpus with its own message. The guard
+        is at the function boundary and that is where it is proved.
+        """
+        corpus, _schema, _digest = hermes.load_corpus()
+        corpus["fork_order"] = ["homestead", "cancun"]
+        rule = next(r for r in corpus["rules"] if r["id"] == "STO-09")
+        with self.assertRaises(hermes.CorpusRefusal) as raised:
+            hermes.resolve_scope(rule, corpus,
+                                 {"solc": "0.8.25", "evm_version": "cancun", "via_ir": False})
+        self.assertEqual(raised.exception.reason, "corpus/invalid")
+        self.assertIn("does not order", str(raised.exception))
+
+    def test_a_lowercased_myth_citation_is_still_refused(self) -> None:
+        """Round 1 finding: the citation scan was case-sensitive, so the same
+        citation written in lower case went unnoticed."""
+        self.baseline()
+        self.prepare_candidate(source=SOURCE_UNCHECKED)
+        code = self.verify(
+            "--no-sensitive-unchecked",
+            "--non-sensitive-rationale",
+            "This is safe for the reason given in myth-28 about unit tests.",
+            optimisation_class="unchecked-arithmetic",
+        )
+        result = self.assert_refused(code, "corpus/myth-cited")
+        self.assertIn("myth-28 (MYTH-28)", result["reason"])
+        self.assertIn("every intermediate bound needs a durable proof", result["reason"])
+
     def test_an_accepted_candidate_records_the_corpus_that_judged_it(self) -> None:
         self.baseline()
         self.prepare_candidate()
