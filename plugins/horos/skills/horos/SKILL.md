@@ -17,11 +17,6 @@ unread by default, each exclusion carrying the evidence that earned it. Its
 version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
 
-**Use another tool when.** Use Lemma to chunk source for retrieval rather than
-to skip it; use Brevitas for prose volume; use Metron for runtime cost. Horos
-never rewrites code: the compression premise was measured and rejected in the
-study this plugin ships at `docs/study.md`.
-
 **Current frontier.** A census roll-up of the skills repository refuted the closure: the marker rule files horos.py and test_classify.py as generated from their own rule list, 42,673 of the boundary's 114,151 bytes, and content-addressed object stores stand unclassified at 7,844,877 bytes more. The held job is the marker self-exclusion fix; the content-addressed object rule and the Markdown outline extractor follow it, with maturity expected after all three.
 
 ## The verbs

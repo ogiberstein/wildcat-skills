@@ -26,8 +26,6 @@ another frontier pass after that ledger becomes mature.
 
 Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
 
-**Use another tool when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
-
 **Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 

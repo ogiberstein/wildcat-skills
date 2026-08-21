@@ -19,8 +19,6 @@ another frontier pass after that ledger becomes mature.
 
 Sapheneia shapes the agent's own interaction with an AuDHD reader: the action, meaning, working state and evidence stay visible from turn to turn.
 
-**Use another tool when.** Use Imprimatur to inspect prose for banned machine-writing patterns, and use Vulgate or another voice mask to change register. Sapheneia governs interaction shape; it does not diagnose the reader or choose a house voice.
-
 **Current frontier.** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
 <!-- marketplace-context:end -->
 

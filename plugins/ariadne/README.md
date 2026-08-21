@@ -5,8 +5,6 @@
 
 Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
 
-**Try something else when.** Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence.
-
 **Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 
 **Next Fiat job.** Use /hexaemeron:fiat to implement the state-fixture predicate with its schema, gates, conformance fixtures and capture path, and close the gate 5 hole the dataset run recorded against the Solidity release predicate, which a new predicate would inherit. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.

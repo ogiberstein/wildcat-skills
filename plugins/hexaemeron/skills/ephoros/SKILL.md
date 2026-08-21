@@ -24,11 +24,6 @@ first incident becomes archaeology.
 Ephoros owns the telemetry that stays: what a step emits, in what shape, and
 what wakes someone up.
 
-**Use another tool when.** `elenchus` adds logging to chase a failure and takes
-it out again. `metron` measures something slow in order to change it. `hermes`
-measures gas. `phylax` decides what must never appear in output at all, and
-this skill obeys that rule rather than restating it.
-
 Serves the `implement` phase. Fiat has no counterpart for this work today, so
 nothing is superseded.
 

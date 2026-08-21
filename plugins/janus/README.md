@@ -5,8 +5,6 @@
 
 Janus tests a contract hook at the threshold it controls: what it may observe and change before a host action, what it may change after, and what it must never touch.
 
-**Try something else when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness, Pandects for the economic laws a hook-driven transition must preserve, and Ariadne to carry a manifest revision and its conformance result with a release.
-
 **Current frontier.** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 
 **Next Fiat job.** Use /hexaemeron:fiat to add a second host adapter once the Wildcat boundary survives its own suite, so the manifest format is shown to describe more than one callback model, starting with the ERC-7579 pre- and post-execution hooks. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.

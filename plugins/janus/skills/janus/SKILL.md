@@ -27,8 +27,6 @@ after that ledger becomes mature.
 
 Janus tests a contract hook at the threshold it controls: what may happen before the host action, what may happen after it, and what the hook must never change.
 
-**Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness, Pandects for the economic laws a hook-driven transition must preserve, and Ariadne to carry a manifest revision and its conformance result with a release.
-
 **Current frontier.** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 <!-- marketplace-context:end -->
 

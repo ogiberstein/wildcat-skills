@@ -26,8 +26,6 @@ another frontier pass after that ledger becomes mature.
 
 Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample.
 
-**Use another tool when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
-
 **Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
 

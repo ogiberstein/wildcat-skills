@@ -26,12 +26,6 @@ Protasis owns the content contract for the `study` and `runbook` phases: what
 those two documents must answer before implementation is allowed to start. It
 owns no state, writes no receipt and gates nothing itself.
 
-**Use another tool when.** Fiat owns the controller, the artefact paths, the
-receipts and the phase gate. `hypomnema` records a decision once it has been
-made; protasis decides what has to be settled first. `elenchus` works a failure
-you already have. `metron` supplies the measurement a performance criterion
-needs.
-
 Serves the `study` and `runbook` phases.
 
 Its version, held frontier, next job, and maturity state live in

@@ -5,8 +5,6 @@
 
 Hexaemeron runs an explicit, receipted delivery loop, and every skill it uses answers on its own: fuzzing, audit-readiness and security review, prose lint and voice, and the specification, debugging, hardening, telemetry, measurement and record-keeping skills the loop holds each phase to.
 
-**Try something else when.** Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks.
-
 **Current frontier.** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
 
 **Next Fiat job.** Use /hexaemeron:fiat to run and publish the first Solidity delivery that exercises the bundled x-ray, solidity-auditor and fizz loop end to end, recording every round and closing state. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.

@@ -5,8 +5,6 @@
 
 Sapheneia shapes the agent's own interaction with an AuDHD reader: the action, meaning, working state and evidence stay visible from turn to turn.
 
-**Try something else when.** Use Imprimatur to inspect prose for banned machine-writing patterns, and use Vulgate or another voice mask to change register. Sapheneia governs interaction shape; it does not diagnose the reader or choose a house voice.
-
 **Current frontier.** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
 
 **Next Fiat job.** Use /hexaemeron:fiat to build and publish a held cross-model corpus covering debugging, explanation, destructive-action and long-running task turns, then reconcile the ten rules against its results. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
