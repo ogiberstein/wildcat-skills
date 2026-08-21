@@ -254,14 +254,29 @@ def slug(text: str, limit: int = 48) -> str:
 
 
 def task_issue_number(value: str) -> str:
-    try:
-        path = urllib.parse.urlsplit(value).path
-    except (TypeError, ValueError):
-        path = ""
+    parsed = None
+    if isinstance(value, str) and not any(
+        character.isspace() or ord(character) < 32 or ord(character) == 127
+        for character in value
+    ):
+        try:
+            parsed = urllib.parse.urlsplit(value)
+            hostname = parsed.hostname
+        except ValueError:
+            parsed = None
+            hostname = None
+    else:
+        hostname = None
+    path = parsed.path if parsed is not None else ""
     match = TASK_ISSUE_PATH_RE.fullmatch(path)
-    if match is None:
+    if (
+        match is None
+        or parsed is None
+        or parsed.scheme not in ("http", "https")
+        or hostname is None
+    ):
         die(
-            "--task-issue must have a URL path ending in "
+            "--task-issue must be an absolute HTTP(S) URL with a path ending in "
             "/issues/<positive-number>"
         )
     return match.group(1)

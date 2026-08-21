@@ -1618,6 +1618,10 @@ class TestProseAndPush(HexctlCase):
     def test_task_issue_and_override_are_validated_before_state_creation(self):
         invalid_issues = (
             "not-a-url",
+            "not-a-url/issues/438",
+            "https:///issues/438",
+            "javascript:payload/issues/438",
+            "https://github.com/wildcat-finance/skills/issues/4\n38",
             "https://github.com/wildcat-finance/skills/issues/0",
             "https://github.com/wildcat-finance/skills/issues/0438",
             "https://github.com/wildcat-finance/skills/issues/438/extra",
