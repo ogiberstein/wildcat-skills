@@ -1,0 +1,6 @@
+groups:
+  - name: downstream
+    rules:
+      # ephoros: allow generated annotation is supplied downstream
+      - alert: DownstreamRunbook
+        expr: downstream_failures > 0

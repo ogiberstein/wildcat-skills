@@ -1,0 +1,9 @@
+runbook: runbooks/pending-submission-too-old.md
+notes: |
+  - alert: ExampleOnly
+    annotations:
+      runbook: runbooks/missing-example.md
+# - alert: CommentOnly
+unsupported:
+  alert: MappingWithoutListEntry
+flow: [{alert: FlowStyle, annotations: {runbook: runbooks/flow.md}}]

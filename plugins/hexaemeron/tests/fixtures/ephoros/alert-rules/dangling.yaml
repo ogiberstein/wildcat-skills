@@ -1,0 +1,6 @@
+groups:
+  - name: submissions
+    rules:
+      - alert: DanglingRunbook
+        annotations:
+          runbook: runbooks/not-there.md

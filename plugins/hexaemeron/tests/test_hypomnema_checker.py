@@ -5,12 +5,15 @@ reads as though the reason exists and was checked.
 """
 
 import importlib.util
+import io
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "hypomnema" / "scripts" / "hypomnema.py"
+ALERT_FIXTURES = ROOT / "tests" / "fixtures" / "ephoros" / "alert-rules"
 
 spec = importlib.util.spec_from_file_location("hypomnema_lint", SCRIPT)
 hypomnema = importlib.util.module_from_spec(spec)
@@ -27,6 +30,19 @@ def codes(source, *, siblings=(), adrs=None):
         path = base / "record.md"
         path.write_text(source, encoding="utf-8")
         return sorted(f.code for f in hypomnema.check(path, adrs))
+
+
+def yaml_codes(source, *, siblings=(), name="rules.yaml"):
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        for sibling in siblings:
+            target = base / sibling
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("present", encoding="utf-8")
+        path = base / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+        return sorted(f.code for f in hypomnema.check(path))
 
 
 class Links(unittest.TestCase):
@@ -87,6 +103,133 @@ class Runbooks(unittest.TestCase):
         self.assertEqual([], codes(
             "Three lines is a runbook: what fired, what to check, who to wake."))
 
+    def test_markdown_h003_is_unchanged(self):
+        source = "Alert: pending age. runbook: docs/runbooks/pending.md"
+        self.assertEqual(["H003"], codes(source))
+        self.assertEqual([], codes(source, siblings=("docs/runbooks/pending.md",)))
+
+
+class YamlRunbooks(unittest.TestCase):
+    def test_a_dangling_yaml_pointer_reports_h003(self):
+        findings = hypomnema.check(ALERT_FIXTURES / "dangling.yaml")
+        self.assertEqual(["H003"], [finding.code for finding in findings])
+
+    def test_a_yaml_pointer_recovers_when_its_target_is_restored(self):
+        source = "annotations:\n  runbook: runbooks/pending.md\n"
+        self.assertEqual(["H003"], yaml_codes(source))
+        self.assertEqual([], yaml_codes(source, siblings=("runbooks/pending.md",)))
+
+    def test_a_yaml_pointer_resolves_from_the_yaml_files_directory(self):
+        source = "runbook: runbooks/pending.md\n"
+        self.assertEqual([], yaml_codes(
+            source,
+            name="config/rules.yaml",
+            siblings=("config/runbooks/pending.md",),
+        ))
+
+    def test_the_yaml_pass_is_generic_and_accepts_a_top_level_pointer(self):
+        source = "runbook: runbooks/pending.md\n"
+        self.assertEqual([], yaml_codes(source, siblings=("runbooks/pending.md",)))
+
+    def test_comments_and_block_scalars_do_not_create_yaml_pointers(self):
+        source = ("# runbook: runbooks/comment.md\n"
+                  "notes: |\n"
+                  "  runbook: runbooks/example.md\n")
+        self.assertEqual([], yaml_codes(source))
+
+    def test_the_complete_alert_to_runbook_fixture_is_clean(self):
+        alert = ALERT_FIXTURES / "complete.yaml"
+        runbook = ALERT_FIXTURES / "runbooks" / "pending-submission-too-old.md"
+        self.assertEqual([], hypomnema.check(alert))
+        self.assertEqual([], hypomnema.check(runbook))
+
+    def test_an_oversized_yaml_file_fails_visibly(self):
+        source = "#" * (hypomnema.MAX_YAML_BYTES + 1)
+        self.assertEqual(["H000"], yaml_codes(source))
+
+    def test_yaml_read_requests_only_the_cap_plus_one_byte(self):
+        class RecordingReader(io.BytesIO):
+            requested = None
+
+            def read(self, size=-1):
+                self.requested = size
+                return super().read(size)
+
+        reader = RecordingReader(b"#" * (hypomnema.MAX_YAML_BYTES + 1))
+        with mock.patch.object(Path, "open", return_value=reader), \
+                mock.patch.object(Path, "read_bytes", side_effect=AssertionError):
+            findings = hypomnema.check(Path("bounded.yaml"))
+        self.assertEqual(["H000"], [finding.code for finding in findings])
+        self.assertEqual(hypomnema.MAX_YAML_BYTES + 1, reader.requested)
+
+    def test_bare_sequence_block_scalars_do_not_create_runbook_pointers(self):
+        for marker in ("|", ">"):
+            with self.subTest(marker=marker):
+                source = f"examples:\n  - {marker}\n    runbook: runbooks/example.md\n"
+                self.assertEqual([], yaml_codes(source))
+
+    def test_yaml_runbook_keys_are_case_sensitive(self):
+        self.assertEqual([], yaml_codes("Runbook: runbooks/wrong-case.md\n"))
+
+    def test_an_unseparated_hash_is_preserved_in_a_missing_runbook_path(self):
+        source = "runbook: runbooks/missing#book.md\n"
+        self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_multiline_quoted_runbook_text_does_not_fire_h003(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = (f"note: {quote}\n"
+                          "  runbook: runbooks/quoted.md\n"
+                          f"  {quote}\n")
+                self.assertEqual([], yaml_codes(source))
+
+    def test_quotes_inside_plain_scalars_do_not_hide_runbook_pointers(self):
+        for quote, value in (("'", "O'Brien"), ('"', 'six" pipe')):
+            with self.subTest(quote=quote):
+                source = f"note: {value}\nrunbook: runbooks/missing.md\n"
+                self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_unseparated_quote_starts_do_not_hide_runbook_pointers(self):
+        for shape in ("- note: plain:{quote}text", "  -{quote}text"):
+            for quote in ("'", '"'):
+                with self.subTest(shape=shape, quote=quote):
+                    source = (f"{shape.format(quote=quote)}\n"
+                              "runbook: runbooks/missing.md\n")
+                    self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_plain_scalar_continuation_quotes_do_not_hide_runbook_pointers(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = ("note: first\n"
+                          f"  {quote}continued\n"
+                          "runbook: runbooks/missing.md\n")
+                self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_a_folded_plain_runbook_cannot_resolve_through_a_first_line_decoy(self):
+        source = "runbook: runbooks/present.md\n  extra\n"
+        self.assertEqual(
+            ["H003"], yaml_codes(source, siblings=("runbooks/present.md",)))
+
+    def test_a_valid_folded_plain_runbook_resolves_as_one_path(self):
+        source = "runbook: runbooks/present.md\n  target.md\n"
+        self.assertEqual([], yaml_codes(
+            source, siblings=("runbooks/present.md target.md",)))
+
+    def test_a_single_line_plain_runbook_stays_clean(self):
+        source = "runbook: runbooks/present.md\n"
+        self.assertEqual(
+            [], yaml_codes(source, siblings=("runbooks/present.md",)))
+
+    def test_a_blank_plain_fold_cannot_resolve_through_a_space_decoy(self):
+        source = "runbook: runbooks/present\n\n  target.md\n"
+        self.assertEqual(["H003"], yaml_codes(
+            source, siblings=("runbooks/present target.md",)))
+
+    def test_a_blank_plain_fold_resolves_the_newline_path(self):
+        source = "runbook: runbooks/present\n\n  target.md\n"
+        self.assertEqual([], yaml_codes(
+            source, siblings=("runbooks/present\ntarget.md",)))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 
@@ -115,6 +258,10 @@ def runbook_findings(source, name="pending.md", directory="docs/runbooks"):
 class RunbookShape(unittest.TestCase):
     def test_a_complete_runbook_is_clean(self):
         self.assertEqual([], runbook_findings(COMPLETE_RUNBOOK))
+
+    def test_h007_still_rejects_a_missing_required_answer(self):
+        source = COMPLETE_RUNBOOK.replace("## Who to wake\n", "## Escalation\n")
+        self.assertEqual(["H007"], [f.code for f in runbook_findings(source)])
 
     def test_each_answer_is_required(self):
         for name in hypomnema.RUNBOOK_SECTIONS:
@@ -330,11 +477,19 @@ class RecordShape(unittest.TestCase):
         paths = hypomnema.walk([str(FIXTURES / "decisions")])
         self.assertEqual(2, len(paths))
 
-    def test_the_trees_six_records_pass(self):
+    def test_every_record_in_the_tree_passes(self):
+        """Counts the records it found rather than a number written here.
+
+        The literal was 6 and the Hermes corpus run added ADR-007 and ADR-008,
+        so the count broke on a merge for a reason that had nothing to do with
+        record shape. What this case is for is that every record in the tree
+        passes the checker, and a directory holding at least the six that
+        existed when it was written is enough to prove the walk found them.
+        """
         marketplace = ROOT.parents[1]
         decisions = marketplace / "docs" / "decisions"
         paths = hypomnema.walk([str(decisions)])
-        self.assertEqual(6, len(paths))
+        self.assertGreaterEqual(len(paths), 6)
         findings = []
         for path in paths:
             findings.extend(hypomnema.check(path))
