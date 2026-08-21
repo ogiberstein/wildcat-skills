@@ -6381,3 +6381,22 @@ before push and merge. `packet-state-drift`, `artefact-drift`,
 docs-and-boundary step; they remain obligations for steps 2 and 3.
 
 Leads not pursued: none.
+
+### Resolution: Fiat delegation packets, step 1, round 1 -- 2026-08-21
+
+All three findings are resolved on the audit branch. I320-S1-R1-01 now names
+the direct parent-versus-fresh whole-document comparison and its
+`files_walked` evidence; it also states that `horos check .` and the legacy
+root currency guard remain green because they compare classified entries.
+I320-S1-R1-02 requires the named
+`TestDelegationPacketLifecycle.test_fresh_run_emits_packets_through_integrate`
+Step 3 demonstration to start in a fresh temporary repository and traverse
+study through integration. I320-S1-R1-03 identifies the study and runbook as
+run inputs and the Step 3 Fiat `EVOLUTION.md` generation row as the durable
+decision home.
+
+The controller and tracked runbooks remain byte-identical. Both Protasis
+modes, Imprimatur and both per-file Brevitas checks are clean. Root tests pass
+104/104, Hexaemeron 599/599 and Promise Machine reports 14 plugins and 14
+copies clean. Phylax, Ephoros and Hypomnema each exit 0 over their required
+trees, and the diff check is clean. No new leads.
