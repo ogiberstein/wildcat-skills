@@ -6487,3 +6487,63 @@ before push and merge. The other seven study risks remain inapplicable to the
 docs-and-boundary step and are held for steps 2 and 3.
 
 Further leads: none.
+
+## Fiat delegation packets, step 2, round 1 -- 2026-08-21
+
+### Findings
+
+Two findings remain open.
+
+I320-S2-R1-01 (medium), `protasis-grammar-drift`:
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1409-1411` defines private
+source selectors that are narrower than the Protasis grammar which accepts the
+study and runbook. A runbook step heading with trailing spaces passes the
+Protasis runbook check but `source_runbook_step` refuses it as having no exact
+source block. A ` ``` risk-register` opener likewise passes the Protasis study
+check but `source_risk_register` reports no fenced register. The packet builder
+must select every source form accepted by the authoritative grammar, or the
+authoritative checker and selector must share one grammar.
+
+I320-S2-R1-02 (medium), `path-escape`: the Warden packet concatenates mutable
+`audit.stacked_suffix` at
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1616-1624` without validating
+the resulting ref. Setting the suffix to `" bad"` emits a `stacked_branch`
+which `git check-ref-format --branch` rejects. Validate the complete emitted
+branch name before returning the packet.
+
+### Review evidence
+
+The four total envelopes and exact Surveyor, Mason, Warden and Scribe brief
+schemas were reviewed against their agent contracts. Receipt digests bind the
+study and runbook source bytes; mutation, duplicate-selector, missing-source,
+containment, input-size and legacy cases have focused guards. The current run
+is deliberately legacy: `hexctl next` emitted the held audit directive with
+the current state digest, `agent: null` and `brief: {}` because its study
+receipt predates the new digest fields.
+
+Scribe uses the exact two-dot PR-base-to-step-branch range, NUL-delimited Git
+output, containment checks, sorted unique files, a 500-path cap and bounded
+output. Git calls use fixed argument vectors with `shell=False`; direct fake-Git
+probes confirmed fail-visible timeout and output-cap behaviour. Packet
+reconstruction is state-bound and deterministic. No issue was found in those
+mechanisms.
+
+### Gates and provenance
+
+The packet-focused suites pass 159/159 and the full Hexaemeron suite 610/610;
+root tests pass 104/104. Promise Machine reports 14 plugins and 14 copies
+clean. Imprimatur and all four per-file Brevitas checks exit 0. Phylax,
+Ephoros and Hypomnema tree lints, Horos and the folded diff check exit 0.
+Source commit `d98010622f18f40ded9dccc10e60b04bcfaeeb19` has a good local
+signature and exactly one required co-author and origin trailer.
+
+### Risk-register disposition
+
+`packet-state-drift`, `artefact-drift`, `file-range-confusion`,
+`subprocess-control` and `legacy-state-overclaim` are covered by the reviewed
+implementation and green evidence. `protasis-grammar-drift` and `path-escape`
+remain open as I320-S2-R1-01 and I320-S2-R1-02. `local-signature-gap` is closed
+for the step source commit. `remote-verification-gap` and
+`merge-origin-confusion` are inapplicable before push and merge.
+
+Further leads: none beyond I320-S2-R1-01 and I320-S2-R1-02.
