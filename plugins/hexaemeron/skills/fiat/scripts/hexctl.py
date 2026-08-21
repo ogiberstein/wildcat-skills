@@ -1010,6 +1010,14 @@ def done_implement(args, state: dict) -> None:
                 f"'{step_pr_base(state, step)}'; got '{args.branch}'"
             )
     range_base = step_pr_base(state, step) if run_branch_of(state) else state["base"]
+    branch_tip = resolved_commit(
+        args.dir, args.branch, f"step {step['n']} implementation branch"
+    )
+    supplied_head = resolved_commit(
+        args.dir, args.commit, f"step {step['n']} implementation head"
+    )
+    if branch_tip != supplied_head:
+        die(f"step {step['n']} implementation head is not the declared branch tip")
     verified_commits = verify_local_range(
         args.dir, range_base, args.commit, f"step {step['n']} implementation"
     )
@@ -1232,8 +1240,27 @@ def done_push(args, state: dict) -> None:
                 f"({expected_issue})"
             )
     range_base = args.pr_base if stacked else state["base"]
+    branch = (
+        step_branch_name(state, step)
+        if stacked
+        else as_dict(step["receipts"].get("implement")).get("branch")
+    )
+    if not isinstance(branch, str) or not branch:
+        die("step push has no recorded implementation branch")
+    branch_tip = resolved_commit(args.dir, branch, f"step {step['n']} pushed branch")
+    supplied_head = resolved_commit(args.dir, args.head_commit, f"step {step['n']} push head")
+    if branch_tip != supplied_head:
+        die(f"step {step['n']} push head is not the pushed branch tip")
     verified_commits = verify_local_range(
         args.dir, range_base, args.head_commit, f"step {step['n']} push"
+    )
+    pr_record = inspect_pull_request(
+        args.dir,
+        args.pr_url,
+        expected_head=branch,
+        expected_base=(args.pr_base if stacked else state["base"]),
+        expected_head_sha=verified_commits[-1],
+        expected_merge_sha=args.merge_commit,
     )
     github_verified = verify_github_commits(args.dir, verified_commits)
     merge_verified = []
@@ -1248,6 +1275,7 @@ def done_push(args, state: dict) -> None:
         "verified_commits": verified_commits,
         "github_verified": github_verified,
         "github_merge_verified": merge_verified,
+        "pull_request": pr_record,
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -1332,6 +1360,18 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    push_receipt = as_dict(state["steps"][args.step - 1]["receipts"].get("push"))
+    pushed = push_receipt.get("github_verified") or []
+    if not pushed:
+        die("recorded step pull request has no verified head")
+    pr_record = inspect_pull_request(
+        args.dir,
+        pending["pr_url"],
+        expected_head=pending["branch"],
+        expected_base=pending["into"],
+        expected_head_sha=pushed[-1],
+        expected_merge_sha=args.merge_commit,
+    )
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
     integrate.setdefault("merged", []).append(args.step)
@@ -1340,6 +1380,7 @@ def done_merge_step(args, state: dict) -> None:
         "into": pending["into"],
         "merge_commit": args.merge_commit,
         "github_verified": github_verified,
+        "pull_request": pr_record,
     }
     commit(
         args.dir,
@@ -1351,6 +1392,7 @@ def done_merge_step(args, state: dict) -> None:
             "into": pending["into"],
             "merge_commit": args.merge_commit,
             "github_verified": github_verified,
+            "pull_request": pr_record,
         },
     )
     remaining = len(state["steps"]) - len(integrate["merged"])
@@ -1400,6 +1442,22 @@ def done_integrate(args, state: dict) -> None:
     carried = carried_forward_fault(run_pr_path(args.dir))
     if carried:
         die(carried)
+    remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
+    recorded_tip = require_full_sha(final_merge, "final recorded step merge")
+    if remote_tip != recorded_tip:
+        die("remote run branch tip does not match the final recorded step merge")
+    pr_record = inspect_pull_request(
+        args.dir,
+        args.pr_url,
+        expected_head=run_branch_of(state),
+        expected_base=state["base"],
+        expected_head_sha=remote_tip,
+        expected_merge_sha=args.merge_commit,
+        expected_head_label="remote run branch tip",
+    )
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
@@ -1409,6 +1467,9 @@ def done_integrate(args, state: dict) -> None:
         "closed_issue_url": args.closed_issue_url,
         "carried_forward": carried_forward_record(run_pr_path(args.dir)),
         "github_verified": github_verified,
+        "pull_request": pr_record,
+        "run_head": remote_tip,
+        "final_step_merge": recorded_tip,
     }
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
@@ -1651,6 +1712,27 @@ def resolved_commit(base_dir: str, ref: str, label: str) -> str:
     return lines[0]
 
 
+def remote_branch_tip(base_dir: str, branch: str) -> str:
+    check_branch_name(branch)
+    expected_ref = f"refs/heads/{branch}"
+    data = bounded_git(
+        base_dir,
+        ["ls-remote", "--refs", "origin", expected_ref],
+        "remote run branch tip could not be read",
+    )
+    lines = [line for line in tool_text(data, "remote run branch tip").splitlines() if line]
+    if len(lines) != 1:
+        die("remote run branch tip must contain exactly one ref")
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        die("remote run branch tip is malformed")
+    return fields[0]
+
+
 def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
     base = resolved_commit(base_dir, base_ref, f"{label} base")
     head = resolved_commit(base_dir, head_ref, f"{label} head")
@@ -1710,9 +1792,40 @@ def verify_local_range(base_dir: str, base_ref: str, head_ref: str, label: str) 
 
 
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+GITHUB_HTTPS_RE = re.compile(
+    r"^https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+GITHUB_SSH_RE = re.compile(
+    r"^(?:git@github\.com:|ssh://git@github\.com/)(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+GITHUB_PR_RE = re.compile(
+    r"^https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pull/(?P<number>[1-9][0-9]*)/?$"
+)
+
+
+def require_full_sha(value: object, label: str) -> str:
+    if not isinstance(value, str) or not COMMIT_RE.fullmatch(value):
+        die(f"{label} must be a full commit SHA")
+    return value
+
+
+def target_repository(base_dir: str) -> str:
+    data = bounded_git(
+        base_dir,
+        ["remote", "get-url", "origin"],
+        "target origin could not be resolved",
+    )
+    lines = [line.strip() for line in tool_text(data, "target origin").splitlines() if line.strip()]
+    if len(lines) != 1:
+        die("target origin does not name one GitHub repository")
+    match = GITHUB_HTTPS_RE.fullmatch(lines[0]) or GITHUB_SSH_RE.fullmatch(lines[0])
+    if match is None:
+        die("target origin does not name one GitHub repository")
+    return match.group("repo")
 
 
 def github_repository(base_dir: str) -> str:
+    target = target_repository(base_dir)
     data = bounded_gh(
         base_dir,
         ["repo", "view", "--json", "nameWithOwner"],
@@ -1725,11 +1838,89 @@ def github_repository(base_dir: str) -> str:
     repository = payload.get("nameWithOwner") if isinstance(payload, dict) else None
     if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
         die("GitHub repository identity is missing nameWithOwner")
-    return repository
+    if repository.casefold() != target.casefold():
+        die("GitHub repository identity does not match target origin")
+    return target
+
+
+def pull_request_repository(pr_url: object, repository: str) -> str:
+    if not isinstance(pr_url, str):
+        die("pull request URL is invalid")
+    match = GITHUB_PR_RE.fullmatch(pr_url)
+    if match is None or match.group("repo").casefold() != repository.casefold():
+        die("pull request URL does not match target repository")
+    return pr_url.rstrip("/")
+
+
+def inspect_pull_request(
+    base_dir: str,
+    pr_url: object,
+    *,
+    expected_head: str,
+    expected_base: str,
+    expected_head_sha: str | None,
+    expected_merge_sha: str | None,
+    expected_head_label: str = "verified pushed branch tip",
+) -> dict:
+    head_sha = (
+        require_full_sha(expected_head_sha, "pull request head")
+        if expected_head_sha is not None
+        else None
+    )
+    merge_sha = (
+        require_full_sha(expected_merge_sha, "pull request merge")
+        if expected_merge_sha is not None
+        else None
+    )
+    repository = github_repository(base_dir)
+    url = pull_request_repository(pr_url, repository)
+    data = bounded_gh(
+        base_dir,
+        [
+            "pr", "view", url, "--repo", repository, "--json",
+            "url,state,headRefName,headRefOid,baseRefName,mergeCommit",
+        ],
+        "pull request topology could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, "pull request topology"))
+    except ValueError:
+        die("pull request topology returned invalid JSON")
+    if not isinstance(payload, dict):
+        die("pull request topology is invalid")
+    returned_url = payload.get("url")
+    if not isinstance(returned_url, str):
+        die("pull request topology is missing its URL")
+    pull_request_repository(returned_url, repository)
+    if returned_url.rstrip("/") != url:
+        die("pull request topology did not name the recorded pull request")
+    if payload.get("headRefName") != expected_head or payload.get("baseRefName") != expected_base:
+        die("pull request topology does not match the expected head and base")
+    returned_head = payload.get("headRefOid")
+    if not isinstance(returned_head, str) or not COMMIT_RE.fullmatch(returned_head):
+        die("pull request topology has no full head SHA")
+    if head_sha is not None and returned_head != head_sha:
+        die(f"pull request head does not match the {expected_head_label}")
+    merge = payload.get("mergeCommit")
+    returned_merge = merge.get("oid") if isinstance(merge, dict) else None
+    if merge_sha is not None:
+        if payload.get("state") != "MERGED" or returned_merge != merge_sha:
+            die("pull request is not the expected merged topology")
+    elif payload.get("state") == "MERGED":
+        die("step pull request was already merged before integrate")
+    return {
+        "url": url,
+        "head": expected_head,
+        "base": expected_base,
+        "head_sha": returned_head,
+        "state": payload.get("state"),
+        "merge_sha": returned_merge,
+    }
 
 
 def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
     """Require GitHub's valid verification result for each exact SHA."""
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
     repository = github_repository(base_dir)
     verified = []
     for commit_sha in commits:

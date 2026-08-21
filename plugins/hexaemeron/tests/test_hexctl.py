@@ -62,6 +62,8 @@ class HexctlCase(unittest.TestCase):
         self.dir = self.tmp.name
         self.processes = []
         self.env = os.environ.copy()
+        self.fake_refs = {}
+        self.fake_prs = {}
         self.install_fake_delivery_tools()
 
     def tearDown(self):
@@ -72,19 +74,84 @@ class HexctlCase(unittest.TestCase):
         self.tmp.cleanup()
 
     def run_ctl(self, *args, expect=0):
+        pending_refs = dict(self.fake_refs)
+        pending_prs = json.loads(json.dumps(self.fake_prs))
+        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        state = None
+        if os.path.exists(state_path):
+            try:
+                with open(state_path, encoding="utf-8") as handle:
+                    state = json.load(handle)
+            except (OSError, ValueError):
+                state = None
+        if args[:2] == ("done", "implement") and expect == 0:
+            branch = args[args.index("--branch") + 1]
+            head = args[args.index("--commit") + 1]
+            pending_refs[branch] = self.fake_sha(head)
+        if args[:2] == ("done", "push") and expect == 0 and state is not None:
+            step = state["steps"][state["current_step"] - 1]
+            branch = step["receipts"]["implement"]["branch"]
+            head = args[args.index("--head-commit") + 1]
+            base = args[args.index("--pr-base") + 1] if "--pr-base" in args else state["base"]
+            url = args[args.index("--pr-url") + 1]
+            pending_refs[branch] = self.fake_sha(head)
+            merge = args[args.index("--merge-commit") + 1] if "--merge-commit" in args else None
+            pending_prs[url] = self.fake_pr(
+                url, branch, base, self.fake_sha(head), merge
+            )
+        if args[:2] == ("done", "merge-step") and expect == 0 and state is not None:
+            number = int(args[args.index("--step") + 1])
+            url = state["steps"][number - 1]["receipts"]["push"]["pr_url"]
+            merge = args[args.index("--merge-commit") + 1]
+            pending_prs[url]["state"] = "MERGED"
+            pending_prs[url]["mergeCommit"] = {"oid": merge}
+            pending_refs[state["run_branch"]] = merge
+            if number < len(state["steps"]):
+                next_push = state["steps"][number]["receipts"].get("push", {})
+                next_url = next_push.get("pr_url")
+                if next_url in pending_prs:
+                    pending_prs[next_url]["baseRefName"] = state["run_branch"]
+        if args[:2] == ("done", "integrate") and expect == 0 and state is not None:
+            url = args[args.index("--pr-url") + 1]
+            merge = args[args.index("--merge-commit") + 1]
+            head = pending_refs.get(state["run_branch"], self.fake_sha(state["run_branch"]))
+            pending_prs[url] = self.fake_pr(
+                url, state["run_branch"], state["base"], head, merge
+            )
+        env = dict(self.env)
+        env["FAKE_GIT_REFS"] = json.dumps(pending_refs)
+        env["FAKE_GH_PRS"] = json.dumps(pending_prs)
         proc = subprocess.run(
             [sys.executable, HEXCTL, *args],
             cwd=self.dir,
             capture_output=True,
             text=True,
-            env=self.env,
+            env=env,
         )
         if proc.returncode != expect:
             raise AssertionError(
                 f"hexctl {' '.join(args)} -> rc {proc.returncode} "
                 f"(expected {expect})\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
             )
+        if proc.returncode == 0:
+            self.fake_refs = pending_refs
+            self.fake_prs = pending_prs
         return proc
+
+    @staticmethod
+    def fake_sha(ref):
+        return ref if re.fullmatch(r"[0-9a-f]{40}", ref) else hashlib.sha1(ref.encode()).hexdigest()
+
+    @staticmethod
+    def fake_pr(url, head, base, head_sha, merge_sha=None):
+        return {
+            "url": url,
+            "state": "MERGED" if merge_sha else "OPEN",
+            "headRefName": head,
+            "headRefOid": head_sha,
+            "baseRefName": base,
+            "mergeCommit": {"oid": merge_sha} if merge_sha else None,
+        }
 
     def install_fake_delivery_tools(self):
         fake_bin = os.path.join(self.dir, "delivery-tools")
@@ -94,7 +161,9 @@ class HexctlCase(unittest.TestCase):
         with open(git_script, "w", encoding="utf-8") as handle:
             handle.write(f"""#!/usr/bin/env python3
 import hashlib
+import json
 import os
+import re
 import sys
 import time
 
@@ -104,7 +173,24 @@ if args and args[0] == "rev-parse":
     if mode == "missing-commit":
         raise SystemExit(2)
     ref = args[-1].removesuffix("^{{commit}}")
-    print(hashlib.sha1(ref.encode()).hexdigest())
+    refs = json.loads(os.environ.get("FAKE_GIT_REFS", "{{}}"))
+    print(refs.get(ref, ref if re.fullmatch(r"[0-9a-f]{{40}}", ref) else hashlib.sha1(ref.encode()).hexdigest()))
+elif args[:3] == ["remote", "get-url", "origin"]:
+    print(os.environ.get("FAKE_GIT_ORIGIN", "https://github.com/wildcat-finance/example.git"))
+elif args and args[0] == "ls-remote":
+    ref = args[-1]
+    branch = ref.removeprefix("refs/heads/")
+    refs = json.loads(os.environ.get("FAKE_GIT_REFS", "{{}}"))
+    tip = refs.get(branch, hashlib.sha1(branch.encode()).hexdigest())
+    if mode == "remote-absent":
+        pass
+    elif mode == "remote-malformed":
+        print(f"not-a-sha\\t{{ref}}")
+    elif mode == "remote-duplicate":
+        print(f"{{tip}}\\t{{ref}}")
+        print(f"{{tip}}\\t{{ref}}")
+    else:
+        print(f"{{tip}}\\t{{ref}}")
 elif args and args[0] == "merge-base":
     raise SystemExit(0)
 elif args and args[0] == "rev-list":
@@ -151,6 +237,9 @@ import time
 
 args = sys.argv[1:]
 mode = os.environ.get("FAKE_GH_MODE", "valid")
+if os.environ.get("FAKE_GH_LOG"):
+    with open(os.environ["FAKE_GH_LOG"], "a", encoding="utf-8") as log:
+        log.write(json.dumps(args) + "\\n")
 if mode == "timeout":
     time.sleep(2)
 if mode == "overflow":
@@ -163,7 +252,19 @@ if mode == "invalid-json":
     print("not json")
     raise SystemExit(0)
 if args[:2] == ["repo", "view"]:
-    print(json.dumps({"nameWithOwner": "wildcat-finance/example"}))
+    repository = "elsewhere/example" if mode == "repo-mismatch" else "wildcat-finance/example"
+    print(json.dumps({"nameWithOwner": repository}))
+    raise SystemExit(0)
+if args[:2] == ["pr", "view"]:
+    url = args[2]
+    payload = json.loads(os.environ.get("FAKE_GH_PRS", "{}")).get(url)
+    if payload is None:
+        raise SystemExit(4)
+    if mode == "pr-mismatch":
+        payload["baseRefName"] = "wrong-base"
+    if mode == "pr-head-mismatch":
+        payload["headRefOid"] = "9" * 40
+    print(json.dumps(payload))
     raise SystemExit(0)
 sha = args[-1].rsplit("/", 1)[-1]
 payload = {
@@ -229,13 +330,13 @@ print(json.dumps(payload))
     def merge_stack(self):
         for step in self.state()["steps"]:
             self.run_ctl("done", "merge-step", "--step", str(step["n"]),
-                         "--merge-commit", f"m{step['n']}")
+                         "--merge-commit", format(step["n"], "x") * 40)
 
     def integrate_run(self, closed_issue_url=None):
         self.merge_stack()
         self.write_run_pr()
-        args = ["done", "integrate", "--pr-url", "https://x/pr/run",
-                "--merge-commit", "runmerge"]
+        args = ["done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                "--merge-commit", "f" * 40]
         if closed_issue_url:
             args += ["--closed-issue-url", closed_issue_url]
         self.run_ctl(*args)
@@ -357,7 +458,7 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
         self.run_ctl(
             "done", "push",
-            "--pr-url", f"https://x/pr/{step_no}",
+            "--pr-url", f"https://github.com/wildcat-finance/example/pull/{step_no}",
             "--head-commit", f"head{step_no}",
             "--pr-base", self.step_base(step_no),
         )
@@ -509,18 +610,18 @@ class TestDelegationPackets(HexctlCase):
         push = self.next_json()
         self.assertEqual((push["do"], push["agent"], push["brief"]),
                          ("push", None, {}))
-        self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+        self.run_ctl("done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
                      "--head-commit", "abc", "--pr-base", self.step_base(1))
         merge = self.next_json()
         self.assertEqual((merge["do"], merge["agent"], merge["brief"]),
                          ("merge-step", None, {}))
-        self.run_ctl("done", "merge-step", "--step", "1", "--merge-commit", "m1")
+        self.run_ctl("done", "merge-step", "--step", "1", "--merge-commit", "1" * 40)
         integrate = self.next_json()
         self.assertEqual((integrate["do"], integrate["agent"], integrate["brief"]),
                          ("integrate", None, {}))
         self.write_run_pr()
-        self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
-                     "--merge-commit", "run")
+        self.run_ctl("done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                     "--merge-commit", "f" * 40)
         done = self.next_json()
         self.assertEqual((done["do"], done["agent"], done["brief"]),
                          ("done", None, {}))
@@ -785,48 +886,266 @@ class TestCommitVerification(HexctlCase):
                         module.verify_github_commits(self.dir, ["a" * 40])
 
 
-class TestDelegationPacketLifecycle(HexctlCase):
-    def test_fresh_run_emits_packets_through_integrate(self):
+class TestPublicationBindings(HexctlCase):
+    def to_push(self):
         self.to_steps(("Ship",))
-        self.assertEqual(self.next_json()["agent"], "mason")
         self.run_ctl(
             "done", "implement", "--branch", self.step_branch(1),
             "--commit", "abc123",
         )
-        self.assertEqual(self.next_json()["do"], "resolve-security-suite")
         self.run_ctl("record", "security_suite", SUITE)
-        self.assertEqual(self.next_json()["agent"], "warden")
         self.run_ctl("audit-round", "--findings", "0")
-        self.assertEqual(self.next_json()["do"], "close-audit")
         self.run_ctl("done", "audit")
-        self.assertEqual(self.next_json()["agent"], "scribe")
         self.run_ctl(
             "done", "prose", "--files", "1", "--skills",
             "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
-        self.assertEqual(self.next_json()["do"], "push")
+
+    def to_integrate(self):
+        self.to_push()
         self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40,
+        )
+        self.write_run_pr()
+
+    def test_implement_head_must_equal_declared_branch_tip(self):
+        self.to_steps(("Ship",))
+        proc = self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123", expect=2,
+        )
+        self.assertIn("branch tip", proc.stderr)
+
+    def test_push_refuses_cross_repository_pr_and_mismatched_head(self):
+        self.to_push()
+        branch = self.step_branch(1)
+        self.fake_refs[branch] = self.fake_sha("def456")
+        proc = self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/elsewhere/example/pull/1",
+            "--head-commit", "def456", "--pr-base", self.step_base(1),
+            expect=2,
+        )
+        self.assertIn("repository", proc.stderr)
+
+    def test_push_head_must_equal_pushed_branch_tip(self):
+        self.to_push()
+        proc = self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "def456", "--pr-base", self.step_base(1),
+            expect=2,
+        )
+        self.assertIn("branch tip", proc.stderr)
+
+    def test_repository_identity_is_bound_to_target_origin(self):
+        module = hexctl_module()
+        error = StringIO()
+        with mock.patch.dict(
+            os.environ,
+            {"PATH": self.env["PATH"], "FAKE_GH_MODE": "repo-mismatch"},
+        ), redirect_stderr(error):
+            with self.assertRaises(SystemExit):
+                module.github_repository(self.dir)
+        self.assertIn("target origin", error.getvalue())
+
+    def test_invalid_github_value_is_refused_before_gh_and_not_echoed(self):
+        module = hexctl_module()
+        log_path = os.path.join(self.dir, "gh.log")
+        error = StringIO()
+        with mock.patch.dict(
+            os.environ,
+            {"PATH": self.env["PATH"], "FAKE_GH_LOG": log_path},
+        ), redirect_stderr(error):
+            with self.assertRaises(SystemExit):
+                module.verify_github_commits(self.dir, ["ghp_FAKE_SECRET"])
+        self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
+        self.assertFalse(os.path.exists(log_path))
+
+    def test_merge_step_refuses_pr_topology_mismatch(self):
+        self.to_push()
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "def456", "--pr-base", self.step_base(1),
         )
-        self.assertEqual(self.next_json()["do"], "merge-step")
-        self.run_ctl(
-            "done", "merge-step", "--step", "1", "--merge-commit", "fed321"
+        self.env["FAKE_GH_MODE"] = "pr-mismatch"
+        proc = self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "b" * 40, expect=2,
         )
-        self.assertEqual(self.next_json()["do"], "integrate")
+        self.assertIn("pull request", proc.stderr)
+
+    def test_integrate_refuses_pr_topology_mismatch(self):
+        self.to_push()
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "def456", "--pr-base", self.step_base(1),
+        )
+        self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "b" * 40,
+        )
+        self.write_run_pr()
+        self.env["FAKE_GH_MODE"] = "pr-mismatch"
+        proc = self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "c" * 40, expect=2,
+        )
+        self.assertIn("pull request", proc.stderr)
+
+    def test_integrate_pr_head_must_equal_remote_run_branch_tip(self):
+        self.to_integrate()
+        state = self.state()
+        url = "https://github.com/wildcat-finance/example/pull/2"
+        self.fake_prs[url] = self.fake_pr(
+            url,
+            state["run_branch"],
+            state["base"],
+            self.fake_refs[state["run_branch"]],
+            "f" * 40,
+        )
+        self.env["FAKE_GH_MODE"] = "pr-head-mismatch"
+        proc = self.run_ctl(
+            "done", "integrate",
+            "--pr-url", url,
+            "--merge-commit", "f" * 40, expect=2,
+        )
+        self.assertIn("remote run branch tip", proc.stderr)
+
+    def test_remote_run_branch_tip_requires_one_exact_full_ref(self):
+        module = hexctl_module()
+        branch = "fiat/run"
+        tip = "8" * 40
+        base_env = {
+            "PATH": self.env["PATH"],
+            "FAKE_GIT_REFS": json.dumps({branch: tip}),
+        }
+        with mock.patch.dict(os.environ, base_env):
+            self.assertEqual(module.remote_branch_tip(self.dir, branch), tip)
+        for mode in ("remote-absent", "remote-malformed", "remote-duplicate"):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ, {**base_env, "FAKE_GIT_MODE": mode}
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.remote_branch_tip(self.dir, branch)
+                self.assertIn("remote run branch tip", error.getvalue())
+
+    def test_integrate_remote_tip_must_equal_final_recorded_step_merge(self):
+        self.to_integrate()
+        state = self.state()
+        url = "https://github.com/wildcat-finance/example/pull/2"
+        divergent_tip = "8" * 40
+        self.fake_refs[state["run_branch"]] = divergent_tip
+        self.fake_prs[url] = self.fake_pr(
+            url,
+            state["run_branch"],
+            state["base"],
+            divergent_tip,
+            "f" * 40,
+        )
+        proc = self.run_ctl(
+            "done", "integrate", "--pr-url", url,
+            "--merge-commit", "f" * 40, expect=2,
+        )
+        self.assertIn("final recorded step merge", proc.stderr)
+
+
+class TestDelegationPacketLifecycle(HexctlCase):
+    def stable_next(self, expected_do, expected_agent):
+        first = self.run_ctl("next").stdout
+        second = self.run_ctl("next").stdout
+        self.assertEqual(first, second)
+        packet = json.loads(first)
+        self.assertEqual(packet["do"], expected_do)
+        self.assertEqual(packet["agent"], expected_agent)
+        return packet
+
+    def test_fresh_run_emits_packets_through_integrate(self):
+        self.init("fresh packet proof")
+        self.stable_next("study", "surveyor")
+        study = self.write(
+            "study.md",
+            "# Study\n\n```risk-register\n"
+            "packet-state-drift | packet | compare state hash\n```\n",
+        )
+        self.run_ctl(
+            "done", "study", "--artifact", study,
+            "--skills", "hexaemeron:imprimatur",
+        )
+        self.stable_next("runbook", None)
+        runbook = self.write(
+            "runbook.md", "# Runbook\n\n## Step 1: Ship\n\n**Goal.** Ship.\n"
+        )
+        steps = self.write("steps.json", '["Ship"]')
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+        self.git("init", "-b", "main")
+        self.git("config", "user.email", "tests@example.com")
+        self.git("config", "user.name", "Hexctl Tests")
+        self.git("add", study, runbook, steps)
+        self.git("commit", "-m", "fixture")
+        state = self.state()
+        self.git("branch", state["run_branch"])
+        self.git("branch", self.step_branch(1, state))
+        self.stable_next("implement", "mason")
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "a" * 40,
+        )
+        self.stable_next("resolve-security-suite", None)
+        self.run_ctl("record", "security_suite", SUITE)
+        self.stable_next("audit-round", "warden")
+        self.run_ctl("audit-round", "--findings", "0")
+        self.stable_next("close-audit", None)
+        self.run_ctl("done", "audit")
+        self.stable_next("prose", "scribe")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+        self.stable_next("push", None)
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.stable_next("merge-step", None)
+        self.run_ctl(
+            "done", "merge-step", "--step", "1", "--merge-commit", "e" * 40
+        )
+        self.stable_next("integrate", None)
         self.write_run_pr()
         self.run_ctl(
-            "done", "integrate", "--pr-url", "https://x/pr/run",
-            "--merge-commit", "cab789",
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
         )
-        self.assertEqual(self.next_json()["do"], "done")
+        self.stable_next("done", None)
         state = self.state()
         self.assertTrue(state["steps"][0]["receipts"]["implement"]["verified_commits"])
         self.assertTrue(state["steps"][0]["receipts"]["push"]["github_verified"])
         self.assertEqual(
-            state["integrate"]["merges"]["1"]["github_verified"], ["fed321"]
+            state["integrate"]["merges"]["1"]["github_verified"], ["e" * 40]
         )
-        self.assertEqual(state["receipts"]["integrate"]["github_verified"], ["cab789"])
+        self.assertEqual(
+            state["receipts"]["integrate"]["github_verified"], ["f" * 40]
+        )
+        self.assertEqual(state["receipts"]["integrate"]["run_head"], "e" * 40)
+        self.assertEqual(
+            state["receipts"]["integrate"]["final_step_merge"], "e" * 40
+        )
         with open(
             os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),
             encoding="utf-8",
@@ -1042,16 +1361,16 @@ class TestProseAndPush(HexctlCase):
         proc = self.run_ctl("done", "push", expect=2)
         self.assertIn("--pr-url", proc.stderr)
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1", expect=2
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1", expect=2
         )
         self.assertIn("--head-commit", proc.stderr)
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", expect=2,
         )
         self.assertIn("--pr-base", proc.stderr)
         self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", "--pr-base", self.step_base(1),
         )
 
@@ -1060,7 +1379,7 @@ class TestProseAndPush(HexctlCase):
         self.run_ctl("done", "prose", "--files", "1",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", "--pr-base", "main", expect=2,
         )
         self.assertIn("--pr-base must be", proc.stderr)
@@ -1071,7 +1390,7 @@ class TestProseAndPush(HexctlCase):
         self.run_ctl("done", "prose", "--files", "1",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", "--pr-base", self.step_base(1),
             "--merge-commit", "def456", expect=2,
         )
@@ -1124,13 +1443,13 @@ class TestProseAndPush(HexctlCase):
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
         self.strip_run_branch()
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", expect=2,
         )
         self.assertIn("--merge-commit", proc.stderr)
         self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
-            "--head-commit", "abc123", "--merge-commit", "def456",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "abc123", "--merge-commit", "d" * 40,
         )
         out = self.next_json()
         self.assertEqual((out["do"], out["step"]), ("implement", 2))
@@ -1144,13 +1463,13 @@ class TestProseAndPush(HexctlCase):
             "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
         proc = self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", "--pr-base", self.step_base(1),
             "--closed-issue-url", "https://x/issues/74", expect=2,
         )
         self.assertIn("integrate phase", proc.stderr)
         self.run_ctl(
-            "done", "push", "--pr-url", "https://x/pr/1",
+            "done", "push", "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "abc123", "--pr-base", self.step_base(1),
         )
         self.finish_step(2)
@@ -1159,20 +1478,20 @@ class TestProseAndPush(HexctlCase):
             "--closed-issue-url", self.next_json()["then"]
         )
         proc = self.run_ctl(
-            "done", "integrate", "--pr-url", "https://x/pr/run",
+            "done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
             "--merge-commit", "runmerge", expect=2,
         )
         self.assertIn("--closed-issue-url", proc.stderr)
         proc = self.run_ctl(
-            "done", "integrate", "--pr-url", "https://x/pr/run",
-            "--merge-commit", "runmerge",
+            "done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
             "--closed-issue-url", "https://x/issues/75", expect=2,
         )
         self.assertIn("does not match", proc.stderr)
         self.write_run_pr()
         self.run_ctl(
-            "done", "integrate", "--pr-url", "https://x/pr/run",
-            "--merge-commit", "runmerge",
+            "done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
             "--closed-issue-url", "https://x/issues/74",
         )
         self.assertEqual(self.next_json()["do"], "done")
@@ -1194,25 +1513,25 @@ class TestProseAndPush(HexctlCase):
         proc = self.run_ctl("done", "merge-step", "--step", "2",
                             "--merge-commit", "m2", expect=2)
         self.assertIn("step order", proc.stderr)
-        proc = self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
+        proc = self.run_ctl("done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
                             "--merge-commit", "runmerge", expect=2)
         self.assertIn("still has to merge", proc.stderr)
 
-        self.run_ctl("done", "merge-step", "--step", "1", "--merge-commit", "m1")
+        self.run_ctl("done", "merge-step", "--step", "1", "--merge-commit", "1" * 40)
         out = self.next_json()
         self.assertEqual((out["do"], out["step"]), ("merge-step", 2))
         self.assertEqual((out["branch"], out["into"]), (second, run_branch))
-        self.run_ctl("done", "merge-step", "--step", "2", "--merge-commit", "m2")
+        self.run_ctl("done", "merge-step", "--step", "2", "--merge-commit", "2" * 40)
 
         out = self.next_json()
         self.assertEqual(out["do"], "integrate")
         self.assertEqual((out["run_branch"], out["base"]), (run_branch, "main"))
-        proc = self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
+        proc = self.run_ctl("done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
                             expect=2)
         self.assertIn("--merge-commit", proc.stderr)
         self.write_run_pr()
-        self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
-                     "--merge-commit", "runmerge")
+        self.run_ctl("done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                     "--merge-commit", "f" * 40)
         self.assertEqual(self.next_json()["do"], "done")
         self.run_ctl("verify")
 
@@ -1221,8 +1540,8 @@ class TestProseAndPush(HexctlCase):
         self.run_ctl("record", "security_suite", SUITE)
         self.finish_step(1)
         self.merge_stack()
-        args = ["done", "integrate", "--pr-url", "https://x/pr/run",
-                "--merge-commit", "runmerge"]
+        args = ["done", "integrate", "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                "--merge-commit", "f" * 40]
 
         proc = self.run_ctl(*args, expect=2)
         self.assertIn("cannot be read", proc.stderr)
