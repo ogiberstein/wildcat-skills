@@ -1442,13 +1442,15 @@ def done_integrate(args, state: dict) -> None:
     carried = carried_forward_fault(run_pr_path(args.dir))
     if carried:
         die(carried)
+    remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
     pr_record = inspect_pull_request(
         args.dir,
         args.pr_url,
         expected_head=run_branch_of(state),
         expected_base=state["base"],
-        expected_head_sha=None,
+        expected_head_sha=remote_tip,
         expected_merge_sha=args.merge_commit,
+        expected_head_label="remote run branch tip",
     )
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     state["receipts"]["integrate"] = {
@@ -1702,6 +1704,27 @@ def resolved_commit(base_dir: str, ref: str, label: str) -> str:
     return lines[0]
 
 
+def remote_branch_tip(base_dir: str, branch: str) -> str:
+    check_branch_name(branch)
+    expected_ref = f"refs/heads/{branch}"
+    data = bounded_git(
+        base_dir,
+        ["ls-remote", "--refs", "origin", expected_ref],
+        "remote run branch tip could not be read",
+    )
+    lines = [line for line in tool_text(data, "remote run branch tip").splitlines() if line]
+    if len(lines) != 1:
+        die("remote run branch tip must contain exactly one ref")
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        die("remote run branch tip is malformed")
+    return fields[0]
+
+
 def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
     base = resolved_commit(base_dir, base_ref, f"{label} base")
     head = resolved_commit(base_dir, head_ref, f"{label} head")
@@ -1829,6 +1852,7 @@ def inspect_pull_request(
     expected_base: str,
     expected_head_sha: str | None,
     expected_merge_sha: str | None,
+    expected_head_label: str = "verified pushed branch tip",
 ) -> dict:
     head_sha = (
         require_full_sha(expected_head_sha, "pull request head")
@@ -1868,7 +1892,7 @@ def inspect_pull_request(
     if not isinstance(returned_head, str) or not COMMIT_RE.fullmatch(returned_head):
         die("pull request topology has no full head SHA")
     if head_sha is not None and returned_head != head_sha:
-        die("pull request head does not match the verified pushed branch tip")
+        die(f"pull request head does not match the {expected_head_label}")
     merge = payload.get("mergeCommit")
     returned_merge = merge.get("oid") if isinstance(merge, dict) else None
     if merge_sha is not None:

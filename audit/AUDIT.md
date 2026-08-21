@@ -6750,3 +6750,25 @@ exactly one required co-author and origin trailer.
 I320-S3-R2-01. The other eight risk ids are clean in the folded diff.
 
 Further leads: none beyond I320-S3-R2-01.
+
+## Fiat delegation packets, step 3, round 2 resolution -- 2026-08-21
+
+### Fix
+
+I320-S3-R2-01 is closed.
+
+- Before integration inspects the PR, the controller runs bounded, no-shell
+  `git ls-remote --refs origin` for the exact recorded run-branch ref.
+- It accepts exactly one tab-separated full SHA and matching ref. An absent,
+  duplicate, malformed or differently named result stops the receipt.
+- The integration PR's `headRefOid` must equal that remote tip alongside the
+  existing repository, URL, head name, base name, merged state, merge OID and
+  GitHub verification checks.
+
+### Evidence
+
+The wrong-head lifecycle guard was red before the fix: a PR with every other
+field correct completed the run. It now refuses. The focused positive and
+absent, malformed and duplicate remote-ref cases pass, and the fresh lifecycle
+uses the same remote topology. Versions and the held frontier are unchanged;
+no remote mutation was performed.

@@ -177,6 +177,20 @@ if args and args[0] == "rev-parse":
     print(refs.get(ref, ref if re.fullmatch(r"[0-9a-f]{{40}}", ref) else hashlib.sha1(ref.encode()).hexdigest()))
 elif args[:3] == ["remote", "get-url", "origin"]:
     print(os.environ.get("FAKE_GIT_ORIGIN", "https://github.com/wildcat-finance/example.git"))
+elif args and args[0] == "ls-remote":
+    ref = args[-1]
+    branch = ref.removeprefix("refs/heads/")
+    refs = json.loads(os.environ.get("FAKE_GIT_REFS", "{{}}"))
+    tip = refs.get(branch, hashlib.sha1(branch.encode()).hexdigest())
+    if mode == "remote-absent":
+        pass
+    elif mode == "remote-malformed":
+        print(f"not-a-sha\\t{{ref}}")
+    elif mode == "remote-duplicate":
+        print(f"{{tip}}\\t{{ref}}")
+        print(f"{{tip}}\\t{{ref}}")
+    else:
+        print(f"{{tip}}\\t{{ref}}")
 elif args and args[0] == "merge-base":
     raise SystemExit(0)
 elif args and args[0] == "rev-list":
@@ -248,6 +262,8 @@ if args[:2] == ["pr", "view"]:
         raise SystemExit(4)
     if mode == "pr-mismatch":
         payload["baseRefName"] = "wrong-base"
+    if mode == "pr-head-mismatch":
+        payload["headRefOid"] = "9" * 40
     print(json.dumps(payload))
     raise SystemExit(0)
 sha = args[-1].rsplit("/", 1)[-1]
@@ -885,6 +901,19 @@ class TestPublicationBindings(HexctlCase):
             "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
 
+    def to_integrate(self):
+        self.to_push()
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40,
+        )
+        self.write_run_pr()
+
     def test_implement_head_must_equal_declared_branch_tip(self):
         self.to_steps(("Ship",))
         proc = self.run_ctl(
@@ -972,6 +1001,45 @@ class TestPublicationBindings(HexctlCase):
             "--merge-commit", "c" * 40, expect=2,
         )
         self.assertIn("pull request", proc.stderr)
+
+    def test_integrate_pr_head_must_equal_remote_run_branch_tip(self):
+        self.to_integrate()
+        state = self.state()
+        url = "https://github.com/wildcat-finance/example/pull/2"
+        self.fake_prs[url] = self.fake_pr(
+            url,
+            state["run_branch"],
+            state["base"],
+            self.fake_refs[state["run_branch"]],
+            "f" * 40,
+        )
+        self.env["FAKE_GH_MODE"] = "pr-head-mismatch"
+        proc = self.run_ctl(
+            "done", "integrate",
+            "--pr-url", url,
+            "--merge-commit", "f" * 40, expect=2,
+        )
+        self.assertIn("remote run branch tip", proc.stderr)
+
+    def test_remote_run_branch_tip_requires_one_exact_full_ref(self):
+        module = hexctl_module()
+        branch = "fiat/run"
+        tip = "8" * 40
+        base_env = {
+            "PATH": self.env["PATH"],
+            "FAKE_GIT_REFS": json.dumps({branch: tip}),
+        }
+        with mock.patch.dict(os.environ, base_env):
+            self.assertEqual(module.remote_branch_tip(self.dir, branch), tip)
+        for mode in ("remote-absent", "remote-malformed", "remote-duplicate"):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ, {**base_env, "FAKE_GIT_MODE": mode}
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.remote_branch_tip(self.dir, branch)
+                self.assertIn("remote run branch tip", error.getvalue())
 
 
 class TestDelegationPacketLifecycle(HexctlCase):
