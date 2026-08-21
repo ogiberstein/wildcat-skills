@@ -377,6 +377,76 @@ class TypeScriptBoundaries(unittest.TestCase):
                                 encoding="utf-8")
             self.assertEqual([], ephoros.check(specimen))
 
+    def test_a_sink_named_labels_nest_keeps_its_single_exact_finding(self):
+        # Once every nested chain names `.labels`, the cheap unnamed-chain
+        # gate stops short-circuiting and each fully overlapping span paid
+        # a full-width comma split and key read: 28 seconds at this depth,
+        # about 77 minutes at the 1 MiB cap. The per-file position tables
+        # keep the walk near-linear, and only the innermost span carries
+        # the address-shaped key.
+        depth = 8192
+        source = ("// nested labels specimen\n"
+                  + "m.labels(" * depth + "{walletAddress: 1}" + ")" * depth)
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "labels.ts"
+            specimen.write_text(source, encoding="utf-8")
+            findings = ephoros.check(specimen)
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+        self.assertEqual([2], [finding.line for finding in findings])
+        self.assertIn("metric label `walletAddress`", findings[0].message)
+
+    def test_a_sink_named_logger_nest_repeats_the_index_finding_per_span(self):
+        # Each of the nested `logger.info` spans contains the one `index:`
+        # property, so each span reports it, exactly as the old per-span
+        # scans did -- the findings repeat while the work does not (the
+        # same shape cost 7.3 seconds at this depth and quadratically more
+        # beyond it).
+        depth = 8192
+        source = ("// nested logger specimen\n"
+                  + "logger.info(" * depth
+                  + "{index: walletAddress}" + ")" * depth)
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "logger.ts"
+            specimen.write_text(source, encoding="utf-8")
+            findings = ephoros.check(specimen)
+        self.assertEqual(["E005"] * depth,
+                         [finding.code for finding in findings])
+        self.assertEqual({2}, {finding.line for finding in findings})
+        self.assertIn("log index `walletAddress`", findings[0].message)
+
+    def test_a_sink_named_counter_nest_repeats_the_label_finding_per_span(self):
+        # The metric-sink reading of the same overlap: every nested
+        # `counter` span contains the one `labels:` container, so every
+        # span repeats its finding from the container analysed once.
+        depth = 8192
+        source = ("// nested counter specimen\n"
+                  + "counter(" * depth
+                  + "{labels: {walletAddress: 1}}" + ")" * depth)
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "counter.ts"
+            specimen.write_text(source, encoding="utf-8")
+            findings = ephoros.check(specimen)
+        self.assertEqual(["E005"] * depth,
+                         [finding.code for finding in findings])
+        self.assertEqual({2}, {finding.line for finding in findings})
+        self.assertIn("metric label `walletAddress`", findings[0].message)
+
+    def test_a_log_named_bracket_nest_keeps_its_single_exact_finding(self):
+        # The subscript form of the same overlap: every `log[` span read
+        # its full width for a key expression (12.2 seconds at the 1 MiB
+        # cap); the bounded forward parse stops at the first character
+        # outside the chain grammar, and only the innermost span holds one.
+        depth = 150_000
+        source = ("// nested log store specimen\n"
+                  + "log[" * depth + "walletAddress" + "]" * depth)
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "logstore.ts"
+            specimen.write_text(source, encoding="utf-8")
+            findings = ephoros.check(specimen)
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+        self.assertEqual([2], [finding.line for finding in findings])
+        self.assertIn("log index `walletAddress`", findings[0].message)
+
     def test_a_findings_saturated_file_keeps_every_line_number(self):
         # Counting newlines from the top of the file for every finding cost
         # quadratic time on findings-saturated files (10s at this size); a

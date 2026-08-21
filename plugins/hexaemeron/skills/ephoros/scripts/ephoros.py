@@ -72,8 +72,10 @@ TS_IDENTIFIER = r"[A-Za-z_$][\w$]*"
 TS_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
 # `?.` separates a chain the way `.` does: optional chaining names the same sink.
 TS_SEPARATOR = r"\s*\??\.\s*"
-TS_SPLIT = re.compile(TS_SEPARATOR)
+TS_IDENT = re.compile(TS_IDENTIFIER)
+TS_SEP = re.compile(TS_SEPARATOR)
 TS_OPEN = re.compile(r"[\[(]")
+TS_INTEREST = re.compile(r"[()\[\]{}:,]")
 TS_IDENT_CHAR = re.compile(r"[\w$]")
 TS_IDENT_START = re.compile(r"[A-Za-z_$]")
 TS_LABEL_PROPERTY = re.compile(
@@ -552,25 +554,6 @@ def _bracket_matches(mask: str) -> dict[int, int]:
     return matches
 
 
-def _split_ranges(mask: str, start: int, end: int) -> list[tuple[int, int]]:
-    """Split a comma list at lexical depth zero, retaining source offsets."""
-    ranges = []
-    stack = []
-    pairs = {"(": ")", "[": "]", "{": "}"}
-    item = start
-    for index in range(start, end):
-        current = mask[index]
-        if current in pairs:
-            stack.append(pairs[current])
-        elif stack and current == stack[-1]:
-            stack.pop()
-        elif current == "," and not stack:
-            ranges.append((item, index))
-            item = index + 1
-    ranges.append((item, end))
-    return ranges
-
-
 def _ts_words(name: str) -> set[str]:
     return {word.lower() for word in TS_WORD.findall(name)}
 
@@ -626,36 +609,6 @@ def _ts_address_name(name: str) -> bool:
     return bool(_ts_words(name) & TS_ADDRESS_WORDS)
 
 
-def _ts_address_string(value: str) -> bool:
-    return bool(HEX_ADDRESS.fullmatch(value) or _ts_address_name(value))
-
-
-def _ts_string_value(expression: str) -> str | None:
-    expression = expression.strip()
-    if len(expression) >= 2 and expression[0] == expression[-1] \
-            and expression[0] in "'\"":
-        return expression[1:-1]
-    # A template literal with no `${}` interpolation is a constant string;
-    # an interpolated one is not, and stays out of key recognition.
-    if len(expression) >= 2 and expression[0] == expression[-1] == "`" \
-            and "${" not in expression:
-        return expression[1:-1]
-    return None
-
-
-def _ts_address_expression(text: str, mask: str, start: int, end: int) -> str:
-    """Return the address-shaped name or literal in a key position, or ""."""
-    expression = mask[start:end].strip()
-    if re.fullmatch(rf"{TS_IDENTIFIER}(?:{TS_SEPARATOR}{TS_IDENTIFIER})*",
-                    expression):
-        last = TS_SPLIT.split(expression)[-1]
-        return last if _ts_address_name(last) else ""
-    value = _ts_string_value(text[start:end])
-    if value is not None and _ts_address_string(value):
-        return value
-    return ""
-
-
 def _ts_keyed_by_address(path: Path, newlines: list[int], offset: int,
                          position: str, key: str) -> Finding:
     return Finding(path, _line_of(newlines, offset), "E005",
@@ -663,110 +616,284 @@ def _ts_keyed_by_address(path: Path, newlines: list[int], offset: int,
                    "put it in an event")
 
 
-def _ts_object_keys(text: str, mask: str, opening: int,
-                    closing: int) -> list[tuple[int, str]]:
-    """Return (offset, key) for each address-shaped key of one object literal."""
-    keys = []
-    for start, end in _split_ranges(mask, opening + 1, closing):
-        colon = -1
-        stack = []
-        pairs = {"(": ")", "[": "]", "{": "}"}
-        for index in range(start, end):
-            current = mask[index]
-            if current in pairs:
-                stack.append(pairs[current])
-            elif stack and current == stack[-1]:
-                stack.pop()
-            elif current == ":" and not stack:
-                colon = index
-                break
-        key_end = colon if colon != -1 else end
-        key = _ts_address_expression(text, mask, start, key_end)
-        if key:
-            keys.append((start, key))
-    return keys
+class _TsSpanIndex:
+    """Per-file tables that keep sink-named overlapping spans near-linear.
 
+    Once a nested bracket chain named a sink, every enclosing bracket paid
+    its full span for the property scans, the comma splits and the key
+    expression reads, and fully overlapping spans made that quadratic --
+    about 77 minutes at the 1 MiB cap.  Each table here is built in one
+    pass over the file and consulted by bisection, so the total work
+    across all spans stays near-linear in the file plus the findings
+    actually reported.
 
-def _ts_label_container(path: Path, text: str, mask: str, newlines: list[int],
-                        opening: int, closing: int) -> list[Finding]:
-    """E005 findings for address keys inside one label set container."""
-    findings = []
-    if mask[opening] == "{":
-        for offset, key in _ts_object_keys(text, mask, opening, closing):
-            findings.append(_ts_keyed_by_address(
-                path, newlines, offset, "metric label", key))
-    else:
-        for start, end in _split_ranges(mask, opening + 1, closing):
-            value = _ts_string_value(text[start:end])
-            if value is not None and _ts_address_string(value):
-                findings.append(_ts_keyed_by_address(
-                    path, newlines, start, "metric label", value))
-    return findings
+    Every table keys events by the innermost *matched* bracket pair around
+    them, which reproduces the old local scans exactly: inside a matched
+    pair every opener is itself matched, so a scan's private stack mirrors
+    the file-wide one, and an inert closer is inert to both.
+    """
 
+    def __init__(self, path: Path, text: str, mask: str,
+                 newlines: list[int], matches: dict[int, int]) -> None:
+        self.path = path
+        self.text = text
+        self.mask = mask
+        self.newlines = newlines
+        self.matches = matches
+        self._commas: dict[int, list[int]] | None = None
+        self._colons: dict[int, list[int]] = {}
+        self._inerts: dict[int, list[int]] = {}
+        self._label_starts: list[int] = []
+        self._label_rows: list[list[Finding]] = []
+        self._index_starts: list[int] = []
+        self._index_rows: list[Finding] = []
+        self._word_starts: list[int] | None = None
+        self._interp_starts: list[int] | None = None
 
-def _ts_label_properties(path: Path, text: str, mask: str, newlines: list[int],
-                         matches: dict[int, int], start: int,
-                         end: int) -> list[Finding]:
-    """Label/tag/attribute sets inside one telemetry sink call's arguments."""
-    findings = []
-    for match in TS_LABEL_PROPERTY.finditer(mask, start, end):
-        opening = match.start("open")
-        closing = matches.get(opening)
-        if closing is not None:
-            findings.extend(_ts_label_container(
-                path, text, mask, newlines, opening, closing))
-    return findings
-
-
-def _ts_labels_call(path: Path, text: str, mask: str, newlines: list[int],
-                    matches: dict[int, int], start: int,
-                    end: int) -> list[Finding]:
-    """The Prometheus instance style: `.labels({...})` or a literal address."""
-    findings = []
-    for arg_start, arg_end in _split_ranges(mask, start, end):
-        argument = mask[arg_start:arg_end].strip()
-        if argument.startswith("{"):
-            opening = mask.index("{", arg_start, arg_end)
+    def _build(self) -> None:
+        """One pass over the punctuation, then one pass over the sinks."""
+        if self._commas is not None:
+            return
+        commas: dict[int, list[int]] = {}
+        self._commas = commas
+        colons, inerts = self._colons, self._inerts
+        mask, matches = self.mask, self.matches
+        index_matches = list(TS_INDEX_PROPERTY.finditer(mask))
+        queries = sorted({match.end() for match in index_matches})
+        enclosing: dict[int, int] = {}
+        stack: list[int] = []
+        cursor, total = 0, len(queries)
+        for event in TS_INTEREST.finditer(mask):
+            position = event.start()
+            while cursor < total and queries[cursor] <= position:
+                enclosing[queries[cursor]] = stack[-1] if stack else -1
+                cursor += 1
+            current = event.group()
+            if current in "([{":
+                if position in matches:
+                    stack.append(position)
+            elif current in ")]}":
+                if stack and matches[stack[-1]] == position:
+                    stack.pop()
+                else:
+                    inerts.setdefault(
+                        stack[-1] if stack else -1, []).append(position)
+            elif current == ",":
+                commas.setdefault(
+                    stack[-1] if stack else -1, []).append(position)
+            else:
+                colons.setdefault(
+                    stack[-1] if stack else -1, []).append(position)
+        while cursor < total:
+            enclosing[queries[cursor]] = stack[-1] if stack else -1
+            cursor += 1
+        # The property regexes run once over the whole mask, each closed
+        # container or value is analysed once, and only productive rows
+        # are kept: a span later collects its rows by position, so nested
+        # sinks still repeat findings the way the per-span scans did,
+        # without repeating the work.  Neither property can straddle a
+        # span boundary, because neither matches a closing bracket.
+        for match in TS_LABEL_PROPERTY.finditer(mask):
+            opening = match.start("open")
             closing = matches.get(opening)
-            if closing is not None:
-                for offset, key in _ts_object_keys(text, mask, opening, closing):
-                    findings.append(_ts_keyed_by_address(
-                        path, newlines, offset, "metric label", key))
-        else:
-            value = _ts_string_value(text[arg_start:arg_end])
-            if value is not None and HEX_ADDRESS.fullmatch(value):
+            if closing is None:
+                continue
+            row = self._label_container(opening, closing)
+            if row:
+                self._label_starts.append(match.start())
+                self._label_rows.append(row)
+        for match in index_matches:
+            begin = match.end()
+            value_end = self._value_end(enclosing[begin], begin)
+            key = self.address_expression(begin, value_end)
+            if key:
+                self._index_starts.append(match.start())
+                self._index_rows.append(_ts_keyed_by_address(
+                    self.path, self.newlines, match.start(),
+                    "log index", key))
+
+    def _value_end(self, opener: int, begin: int) -> int:
+        """Where an `index:` value ends: the old forward scan, replayed.
+
+        From `begin`, that scan's private stack saw exactly the depth-zero
+        commas and inert closers of the innermost enclosing pair, and then
+        the pair's own closer, whichever came first.
+        """
+        end = self.matches[opener] if opener != -1 else len(self.mask)
+        for positions in (self._commas.get(opener, []),
+                          self._inerts.get(opener, [])):
+            found = bisect_left(positions, begin)
+            if found < len(positions) and positions[found] < end:
+                end = positions[found]
+        return end
+
+    def ranges(self, opening: int, closing: int) -> list[tuple[int, int]]:
+        """Split one matched span at its depth-zero commas."""
+        self._build()
+        ranges = []
+        item = opening + 1
+        for comma in self._commas.get(opening, []):
+            ranges.append((item, comma))
+            item = comma + 1
+        ranges.append((item, closing))
+        return ranges
+
+    def _first_colon(self, opening: int, start: int, end: int) -> int:
+        positions = self._colons.get(opening, [])
+        found = bisect_left(positions, start)
+        if found < len(positions) and positions[found] < end:
+            return positions[found]
+        return end
+
+    def _object_keys(self, opening: int,
+                     closing: int) -> list[tuple[int, str]]:
+        """(offset, key) for each address-shaped key of one object literal."""
+        keys = []
+        for start, end in self.ranges(opening, closing):
+            key_end = self._first_colon(opening, start, end)
+            key = self.address_expression(start, key_end)
+            if key:
+                keys.append((start, key))
+        return keys
+
+    def _label_container(self, opening: int, closing: int) -> list[Finding]:
+        """E005 findings for address keys inside one label set container."""
+        findings = []
+        if self.mask[opening] == "{":
+            for offset, key in self._object_keys(opening, closing):
                 findings.append(_ts_keyed_by_address(
-                    path, newlines, arg_start, "metric label", value))
-    return findings
-
-
-def _ts_index_properties(path: Path, text: str, mask: str, newlines: list[int],
-                         start: int, end: int) -> list[Finding]:
-    """`index:` properties inside one logger or log-store call's arguments."""
-    findings = []
-    for match in TS_INDEX_PROPERTY.finditer(mask, start, end):
-        value_end = match.end()
-        stack = []
-        pairs = {"(": ")", "[": "]", "{": "}"}
-        for index in range(match.end(), end):
-            current = mask[index]
-            if current in pairs:
-                stack.append(pairs[current])
-            elif current in ")]}" and not stack:
-                value_end = index
-                break
-            elif stack and current == stack[-1]:
-                stack.pop()
-            elif current == "," and not stack:
-                value_end = index
-                break
+                    self.path, self.newlines, offset, "metric label", key))
         else:
-            value_end = end
-        key = _ts_address_expression(text, mask, match.end(), value_end)
-        if key:
-            findings.append(_ts_keyed_by_address(
-                path, newlines, match.start(), "log index", key))
-    return findings
+            for start, end in self.ranges(opening, closing):
+                bounds = self._string_bounds(start, end)
+                if bounds is not None and self._address_value(*bounds):
+                    findings.append(_ts_keyed_by_address(
+                        self.path, self.newlines, start, "metric label",
+                        self.text[bounds[0]:bounds[1]]))
+        return findings
+
+    def label_findings(self, start: int, end: int) -> list[Finding]:
+        """Label/tag/attribute sets inside one telemetry sink call."""
+        self._build()
+        findings: list[Finding] = []
+        found = bisect_left(self._label_starts, start)
+        while found < len(self._label_starts) \
+                and self._label_starts[found] < end:
+            findings.extend(self._label_rows[found])
+            found += 1
+        return findings
+
+    def index_findings(self, start: int, end: int) -> list[Finding]:
+        """`index:` properties inside one logger or log-store call."""
+        self._build()
+        found = bisect_left(self._index_starts, start)
+        findings: list[Finding] = []
+        while found < len(self._index_starts) \
+                and self._index_starts[found] < end:
+            findings.append(self._index_rows[found])
+            found += 1
+        return findings
+
+    def labels_call(self, opening: int, closing: int) -> list[Finding]:
+        """The Prometheus instance style: `.labels({...})` or a literal."""
+        findings = []
+        mask = self.mask
+        for arg_start, arg_end in self.ranges(opening, closing):
+            first = arg_start
+            while first < arg_end and mask[first].isspace():
+                first += 1
+            if first < arg_end and mask[first] == "{":
+                inner = self.matches.get(first)
+                if inner is not None:
+                    for offset, key in self._object_keys(first, inner):
+                        findings.append(_ts_keyed_by_address(
+                            self.path, self.newlines, offset,
+                            "metric label", key))
+            else:
+                bounds = self._string_bounds(arg_start, arg_end)
+                if bounds is not None and bounds[1] - bounds[0] == 42 \
+                        and HEX_ADDRESS.fullmatch(
+                            self.text, bounds[0], bounds[1]):
+                    findings.append(_ts_keyed_by_address(
+                        self.path, self.newlines, arg_start, "metric label",
+                        self.text[bounds[0]:bounds[1]]))
+        return findings
+
+    def address_expression(self, start: int, end: int) -> str:
+        """The address-shaped name or literal in a key position, or "".
+
+        Reads a bounded window instead of slicing the span: the dotted
+        chain is parsed forward from the key's own start and stops at the
+        first character outside the chain grammar, so fully overlapping
+        spans no longer pay their whole width for every key.
+        """
+        mask = self.mask
+        first, last = start, end
+        while first < last and mask[first].isspace():
+            first += 1
+        while last > first and mask[last - 1].isspace():
+            last -= 1
+        ident = TS_IDENT.match(mask, first, last) if first < last else None
+        while ident is not None and ident.end() < last:
+            separator = TS_SEP.match(mask, ident.end(), last)
+            ident = TS_IDENT.match(mask, separator.end(), last) \
+                if separator is not None else None
+        if ident is not None:
+            name = ident.group()
+            return name if _ts_address_name(name) else ""
+        bounds = self._string_bounds(start, end)
+        if bounds is not None and self._address_value(*bounds):
+            return self.text[bounds[0]:bounds[1]]
+        return ""
+
+    def _string_bounds(self, start: int, end: int) -> tuple[int, int] | None:
+        """Value bounds of a constant string literal, without slicing.
+
+        A template literal with no `${}` interpolation is a constant
+        string; an interpolated one is not, and stays out of key
+        recognition.
+        """
+        text = self.text
+        while start < end and text[start].isspace():
+            start += 1
+        while end > start and text[end - 1].isspace():
+            end -= 1
+        if end - start < 2 or text[start] != text[end - 1]:
+            return None
+        if text[start] in "'\"":
+            return start + 1, end - 1
+        if text[start] == "`" and not self._interpolated(start + 1, end - 1):
+            return start + 1, end - 1
+        return None
+
+    def _interpolated(self, start: int, end: int) -> bool:
+        if self._interp_starts is None:
+            starts = []
+            found = self.text.find("${")
+            while found != -1:
+                starts.append(found)
+                found = self.text.find("${", found + 1)
+            self._interp_starts = starts
+        starts = self._interp_starts
+        found = bisect_left(starts, start)
+        return found < len(starts) and starts[found] + 2 <= end
+
+    def _address_value(self, start: int, end: int) -> bool:
+        """An address-shaped string value, judged without slicing it.
+
+        The value sits between two quote characters, which no word token
+        can cross, so its word tokens are exactly the file's word tokens
+        inside it: found once for the whole file, then bisected.
+        """
+        if end - start == 42 and HEX_ADDRESS.fullmatch(self.text, start, end):
+            return True
+        if self._word_starts is None:
+            self._word_starts = [
+                match.start() for match in TS_WORD.finditer(self.text)
+                if match.group().lower() in TS_ADDRESS_WORDS]
+        starts = self._word_starts
+        found = bisect_left(starts, start)
+        return found < len(starts) and starts[found] < end
 
 
 def _ts_allow_lines(text: str, spans, newlines: list[int]) -> set[int]:
@@ -803,6 +930,7 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
     allowed = _ts_allow_lines(text, spans, newlines)
     mask = _masked(text, spans)
     matches = _bracket_matches(mask)
+    span_index = _TsSpanIndex(path, text, mask, newlines, matches)
     findings: list[Finding] = []
     for bracket in TS_OPEN.finditer(mask):
         opening = bracket.start()
@@ -820,7 +948,7 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
             closing = matches.get(opening)
             if closing is None:
                 continue
-            key = _ts_address_expression(text, mask, opening + 1, closing)
+            key = span_index.address_expression(opening + 1, closing)
             if key and last_words & TS_DASHBOARD_WORDS:
                 findings.append(_ts_keyed_by_address(
                     path, newlines, opening + 1, "dashboard key", key))
@@ -839,14 +967,11 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
         if closing is None:
             continue
         if metric_sink:
-            findings.extend(_ts_label_properties(
-                path, text, mask, newlines, matches, opening + 1, closing))
+            findings.extend(span_index.label_findings(opening + 1, closing))
         if labels_call:
-            findings.extend(_ts_labels_call(
-                path, text, mask, newlines, matches, opening + 1, closing))
+            findings.extend(span_index.labels_call(opening, closing))
         if log_call:
-            findings.extend(_ts_index_properties(
-                path, text, mask, newlines, opening + 1, closing))
+            findings.extend(span_index.index_findings(opening + 1, closing))
     return [finding for finding in findings
             if finding.line not in allowed and finding.line - 1 not in allowed]
 
