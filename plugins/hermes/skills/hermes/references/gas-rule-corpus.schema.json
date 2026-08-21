@@ -1,0 +1,99 @@
+{
+  "schema": "hermes/gas-rule-corpus-schema/v1",
+  "note": "Field specs the corpus validator interprets. Type tokens are defined by hermes.py; a token here that hermes.py does not implement is a validation failure, not a skipped check.",
+  "corpus_schema": "hermes/gas-rule-corpus/v1",
+  "header": {
+    "required": {
+      "schema": "text",
+      "source": "source",
+      "fork_order": "fork-list"
+    },
+    "optional": {}
+  },
+  "source": {
+    "required": {
+      "path": "text",
+      "sha256": "digest",
+      "compiler_target": "version",
+      "baseline_evm": "fork"
+    },
+    "optional": {}
+  },
+  "records": {
+    "references": {
+      "id_pattern": "^REF-[0-9]{2}$",
+      "required": {
+        "id": "id",
+        "title": "text",
+        "kind": "text",
+        "url": "url",
+        "footnote_title": "text",
+        "source_section": "text"
+      },
+      "optional": {}
+    },
+    "myths": {
+      "id_pattern": "^MYTH-[0-9]{2}$",
+      "required": {
+        "id": "id",
+        "claim": "text",
+        "correction": "text",
+        "references": "ref-id-list",
+        "source_section": "text"
+      },
+      "optional": {}
+    },
+    "rules": {
+      "id_pattern": "^(CMP|STO|TRN|MEM|CTL|EXT|DEP|YUL)-[0-9]{2}$",
+      "required": {
+        "id": "id",
+        "title": "text",
+        "kind": "enum:rule_kind",
+        "category": "text",
+        "priority": "enum:priority",
+        "evidence_grade": "enum:evidence_grade",
+        "automation": "enum:automation",
+        "hermes_class": "hermes-class-or-none",
+        "summary": "text",
+        "mechanism": "text",
+        "recommendation": "text",
+        "detector_signals": "text-list",
+        "preconditions": "text-list",
+        "proof_obligations": "text-list",
+        "failure_modes": "text-list",
+        "validation": "text-list",
+        "references": "ref-id-list",
+        "source_section": "text",
+        "verified_on": "verified-on",
+        "scope": "scope"
+      },
+      "optional": {}
+    }
+  },
+  "verified_on": {
+    "required": {
+      "compiler": "version",
+      "evm": "fork"
+    },
+    "optional": {}
+  },
+  "scope": {
+    "required": {
+      "compiler_min": "version",
+      "compiler_max_exclusive": "version",
+      "compiler_reason": "text",
+      "evm_floor": "fork",
+      "evm_reason": "text",
+      "pipelines": "pipeline-list",
+      "pipeline_reason": "text"
+    },
+    "optional": {}
+  },
+  "enums": {
+    "rule_kind": ["technique", "measurement", "architecture", "release_gate"],
+    "priority": ["P0", "P1", "P2"],
+    "evidence_grade": ["A", "B", "C", "X"],
+    "automation": ["safe", "guarded", "never"],
+    "pipeline": ["legacy", "via-ir"]
+  }
+}

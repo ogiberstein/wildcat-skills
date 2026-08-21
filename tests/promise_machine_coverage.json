@@ -156,7 +156,7 @@
     },
     "hermes-baseline-promotion": {
       "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
-      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
+      "sha256": "20abbce1b2db6e1a6109d08f53d0155956deae8fcb68c50dc35f6b684963a5c3",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "candidate commit, target set and sealed run directory",
@@ -170,7 +170,7 @@
     },
     "hermes-candidate-acceptance": {
       "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
-      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
+      "sha256": "20abbce1b2db6e1a6109d08f53d0155956deae8fcb68c50dc35f6b684963a5c3",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "baseline commit, candidate commit and named targets",
