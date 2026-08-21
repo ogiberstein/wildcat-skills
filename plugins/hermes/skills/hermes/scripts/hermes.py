@@ -35,6 +35,14 @@ OPTIMISATION_CLASSES = (
     "storage-packing",
     "unchecked-arithmetic",
 )
+CORPUS_SCHEMA = "hermes/gas-rule-corpus/v1"
+CORPUS_SCHEMA_ID = "hermes/gas-rule-corpus-schema/v1"
+CORPUS_FILE = "gas-rule-corpus.json"
+CORPUS_SCHEMA_FILE = "gas-rule-corpus.schema.json"
+DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+URL_RE = re.compile(r"^https://[^\s<>\"]+$")
+
 SNAPSHOT_RE = re.compile(r"^(?P<name>.+) \(gas: (?P<gas>[0-9]+)\)$")
 INVARIANT_SNAPSHOT_RE = re.compile(
     r"^(?P<name>.+) \(runs: (?P<runs>[0-9]+), calls: (?P<calls>[0-9]+), reverts: (?P<reverts>[0-9]+)\)$"
@@ -1004,6 +1012,199 @@ def status_command(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Rule corpus
+#
+# The corpus is data: the rules, the rejected universal rules, and the
+# citations transcribed from one pinned source document. Nothing here reaches
+# a network or evaluates a record; a field is text until a type token says
+# otherwise, and a token this module does not implement is a fault rather than
+# a check that quietly passes.
+
+
+class CorpusFault(RuntimeError):
+    """A corpus that cannot be trusted to judge a candidate."""
+
+
+def corpus_paths(directory: Path | None = None) -> tuple[Path, Path]:
+    """The corpus and its schema, resolved beside this script, never from argv."""
+    base = (directory or Path(__file__).resolve().parent.parent / "references")
+    return base / CORPUS_FILE, base / CORPUS_SCHEMA_FILE
+
+
+def load_corpus(directory: Path | None = None) -> tuple[dict[str, Any], dict[str, Any], str]:
+    corpus_path, schema_path = corpus_paths(directory)
+    for path in (corpus_path, schema_path):
+        if not path.is_file():
+            raise CorpusFault(f"missing corpus file: {path}")
+    raw = corpus_path.read_bytes()
+    try:
+        corpus = json.loads(raw.decode("utf-8"))
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise CorpusFault(f"corpus is not valid JSON: {exc}") from exc
+    if not isinstance(corpus, dict) or not isinstance(schema, dict):
+        raise CorpusFault("corpus and schema must each be a JSON object")
+    return corpus, schema, sha256_bytes(raw)
+
+
+def _check_value(token: str, value: Any, schema: dict[str, Any], corpus: dict[str, Any],
+                 where: str, faults: list[str]) -> None:
+    """One field against one type token. Unknown tokens fault; they never pass."""
+    enums = schema.get("enums", {})
+    forks = corpus.get("fork_order") or []
+    if token in ("text", "id"):
+        if not isinstance(value, str) or not value.strip():
+            faults.append(f"{where}: expected non-empty text")
+    elif token == "digest":
+        if not isinstance(value, str) or not DIGEST_RE.match(value):
+            faults.append(f"{where}: expected a lowercase sha256 digest")
+    elif token == "version":
+        if not isinstance(value, str) or not VERSION_RE.match(value):
+            faults.append(f"{where}: expected a three-part version")
+    elif token == "url":
+        if not isinstance(value, str) or not URL_RE.match(value):
+            faults.append(f"{where}: expected an https URL")
+    elif token == "fork":
+        if value not in forks:
+            faults.append(f"{where}: {value!r} is not a name in fork_order")
+    elif token == "fork-list":
+        if not isinstance(value, list) or not value:
+            faults.append(f"{where}: expected a non-empty list of fork names")
+        elif len(set(value)) != len(value):
+            faults.append(f"{where}: fork_order repeats a name")
+        elif not all(isinstance(name, str) and name.strip() for name in value):
+            faults.append(f"{where}: fork_order holds a non-name")
+    elif token == "text-list":
+        if not isinstance(value, list):
+            faults.append(f"{where}: expected a list")
+        elif not all(isinstance(item, str) and item.strip() for item in value):
+            faults.append(f"{where}: every entry must be non-empty text")
+    elif token == "ref-id-list":
+        known = {entry.get("id") for entry in corpus.get("references") or []
+                 if isinstance(entry, dict)}
+        if not isinstance(value, list):
+            faults.append(f"{where}: expected a list of citation ids")
+        else:
+            for item in value:
+                if item not in known:
+                    faults.append(f"{where}: cites {item!r}, which no reference defines")
+    elif token == "pipeline-list":
+        allowed = enums.get("pipeline", [])
+        if not isinstance(value, list) or not value:
+            faults.append(f"{where}: expected a non-empty pipeline list")
+        else:
+            for item in value:
+                if item not in allowed:
+                    faults.append(f"{where}: {item!r} is not one of {allowed}")
+    elif token == "hermes-class-or-none":
+        if value is not None and value not in OPTIMISATION_CLASSES:
+            faults.append(f"{where}: {value!r} is neither null nor a Hermes class")
+    elif token.startswith("enum:"):
+        name = token.split(":", 1)[1]
+        allowed = enums.get(name)
+        if allowed is None:
+            faults.append(f"{where}: schema declares unknown enum {name!r}")
+        elif value not in allowed:
+            faults.append(f"{where}: {value!r} is not one of {allowed}")
+    elif token in ("source", "verified-on", "scope"):
+        spec = schema.get(token.replace("-", "_"))
+        if not isinstance(spec, dict):
+            faults.append(f"{where}: schema declares no shape for {token!r}")
+        elif not isinstance(value, dict):
+            faults.append(f"{where}: expected an object")
+        else:
+            _check_record(value, spec, schema, corpus, where, faults)
+    else:
+        faults.append(f"{where}: schema uses type token {token!r}, which this build cannot check")
+
+
+def _check_record(record: dict[str, Any], spec: dict[str, Any], schema: dict[str, Any],
+                  corpus: dict[str, Any], where: str, faults: list[str]) -> None:
+    required = spec.get("required", {})
+    optional = spec.get("optional", {})
+    for field in sorted(set(record) - set(required) - set(optional)):
+        faults.append(f"{where}: unknown field {field!r}")
+    for field, token in sorted(required.items()):
+        if field not in record:
+            faults.append(f"{where}: missing field {field!r}")
+        else:
+            _check_value(token, record[field], schema, corpus, f"{where}.{field}", faults)
+    for field, token in sorted(optional.items()):
+        if field in record:
+            _check_value(token, record[field], schema, corpus, f"{where}.{field}", faults)
+
+
+def validate_corpus(corpus: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    """Every fault in the corpus, in reading order. Empty means it can judge."""
+    faults: list[str] = []
+    if schema.get("schema") != CORPUS_SCHEMA_ID:
+        faults.append(f"schema declares {schema.get('schema')!r}, expected {CORPUS_SCHEMA_ID!r}")
+    if schema.get("corpus_schema") != CORPUS_SCHEMA:
+        faults.append(f"schema targets {schema.get('corpus_schema')!r}, expected {CORPUS_SCHEMA!r}")
+    if corpus.get("schema") != CORPUS_SCHEMA:
+        faults.append(f"corpus declares {corpus.get('schema')!r}, expected {CORPUS_SCHEMA!r}")
+    if faults:
+        # Every check below reads the schema's own shape declarations, so a
+        # mismatched schema would report faults about the wrong document.
+        return faults
+
+    record_classes = set((schema.get("records") or {}))
+    _check_record(
+        {key: value for key, value in corpus.items() if key not in record_classes},
+        schema.get("header", {}), schema, corpus, "corpus", faults,
+    )
+    for name, spec in sorted((schema.get("records") or {}).items()):
+        records = corpus.get(name)
+        if not isinstance(records, list):
+            faults.append(f"corpus.{name}: expected a list of records")
+            continue
+        pattern = re.compile(spec.get("id_pattern", "^$"))
+        seen: set[str] = set()
+        for index, record in enumerate(records):
+            where = f"corpus.{name}[{index}]"
+            if not isinstance(record, dict):
+                faults.append(f"{where}: expected an object")
+                continue
+            identifier = record.get("id")
+            if isinstance(identifier, str):
+                where = f"corpus.{name}[{identifier}]"
+                if not pattern.match(identifier):
+                    faults.append(f"{where}: id does not match {spec['id_pattern']}")
+                if identifier in seen:
+                    faults.append(f"{where}: duplicate id")
+                seen.add(identifier)
+            _check_record(record, spec, schema, corpus, where, faults)
+    return faults
+
+
+def corpus_command(args: argparse.Namespace) -> int:
+    try:
+        corpus, schema, digest = load_corpus()
+    except CorpusFault as exc:
+        print(f"corpus unusable: {exc}", file=sys.stderr)
+        return 1
+    faults = validate_corpus(corpus, schema)
+    summary = {
+        "schema": corpus.get("schema"),
+        "corpus_sha256": digest,
+        "source_sha256": (corpus.get("source") or {}).get("sha256"),
+        "counts": {name: len(corpus.get(name) or []) for name in ("rules", "myths", "references")},
+        "faults": faults,
+        "status": "clean" if not faults else "faulted",
+    }
+    if args.json:
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    else:
+        counts = summary["counts"]
+        print(f"corpus {digest[:16]} rules={counts['rules']} "
+              f"myths={counts['myths']} references={counts['references']}")
+        for fault in faults:
+            print(f"  {fault}", file=sys.stderr)
+        print("clean" if not faults else f"{len(faults)} fault(s)")
+    return 0 if not faults else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="hermes.py",
@@ -1096,10 +1297,20 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="Print the mesh-readable result JSON")
     status.add_argument("--run-dir", required=True)
     status.set_defaults(handler=status_command)
+
+    corpus = subparsers.add_parser("corpus", help="Validate the pinned gas-rule corpus")
+    corpus.add_argument("--validate", action="store_true",
+                        help="Check the corpus against its schema (the only mode)")
+    corpus.add_argument("--json", action="store_true", help="Print the machine-readable summary")
+    corpus.set_defaults(handler=corpus_command)
     return parser
 
 
 def validate_cross_arguments(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    if args.command == "corpus":
+        if not args.validate:
+            parser.error("corpus takes --validate")
+        return
     if args.command == "baseline":
         protected = args.protected_contract or []
         recorded = args.layout_contract or []

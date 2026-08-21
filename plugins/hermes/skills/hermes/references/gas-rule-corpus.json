@@ -1,0 +1,566 @@
+{
+  "schema": "hermes/gas-rule-corpus/v1",
+  "source": {
+    "path": "docs/hermes-rule-corpus/reference-solidity-0.8.25.md",
+    "sha256": "297c926dc0a2e011e31da5245273c136273b8faa390f3691910c22c870068449",
+    "compiler_target": "0.8.25",
+    "baseline_evm": "cancun"
+  },
+  "fork_order": [
+    "homestead",
+    "tangerineWhistle",
+    "spuriousDragon",
+    "byzantium",
+    "constantinople",
+    "petersburg",
+    "istanbul",
+    "berlin",
+    "london",
+    "paris",
+    "shanghai",
+    "cancun",
+    "prague",
+    "osaka"
+  ],
+  "references": [
+    {
+      "id": "REF-01",
+      "title": "Solidity 0.8.25 release announcement",
+      "kind": "compiler release note",
+      "url": "https://www.soliditylang.org/blog/2024/03/14/solidity-0.8.25-release-announcement/",
+      "footnote_title": "Solidity Team — Solidity 0.8.25 release announcement",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-02",
+      "title": "Solidity 0.8.22 release announcement",
+      "kind": "compiler release note",
+      "url": "https://www.soliditylang.org/blog/2023/10/25/solidity-0.8.22-release-announcement/",
+      "footnote_title": "Solidity Team — Solidity 0.8.22 release announcement",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-03",
+      "title": "Solidity 0.8.25: The Optimizer",
+      "kind": "versioned compiler documentation",
+      "url": "https://docs.soliditylang.org/en/v0.8.25/internals/optimizer.html",
+      "footnote_title": "Solidity 0.8.25 documentation — The Optimizer",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-04",
+      "title": "Solidity 0.8.25: storage layout",
+      "kind": "versioned compiler documentation",
+      "url": "https://docs.soliditylang.org/en/v0.8.25/internals/layout_in_storage.html",
+      "footnote_title": "Solidity 0.8.25 documentation — Layout of State Variables in Storage and Transient Storage",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-05",
+      "title": "Solidity 0.8.25: inline assembly",
+      "kind": "versioned compiler documentation",
+      "url": "https://docs.soliditylang.org/en/v0.8.25/assembly.html",
+      "footnote_title": "Solidity 0.8.25 documentation — Inline Assembly",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-06",
+      "title": "Solidity 0.8.25: memory layout",
+      "kind": "versioned compiler documentation",
+      "url": "https://docs.soliditylang.org/en/v0.8.25/internals/layout_in_memory.html",
+      "footnote_title": "Solidity 0.8.25 documentation — Layout in Memory",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-07",
+      "title": "Solidity 0.8.25: errors and revert",
+      "kind": "versioned compiler documentation",
+      "url": "https://docs.soliditylang.org/en/v0.8.25/contracts.html#errors-and-the-revert-statement",
+      "footnote_title": "Solidity 0.8.25 documentation — Errors and the Revert Statement",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-08",
+      "title": "Solidity 0.8.25: known bugs",
+      "kind": "versioned compiler documentation",
+      "url": "https://docs.soliditylang.org/en/v0.8.25/bugs.html",
+      "footnote_title": "Solidity 0.8.25 documentation — List of Known Bugs",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-09",
+      "title": "EIP-1153: transient storage",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-1153",
+      "footnote_title": "EIP-1153 — Transient storage opcodes",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-10",
+      "title": "EIP-2929: cold/warm state access",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-2929",
+      "footnote_title": "EIP-2929 — Gas cost increases for state access opcodes",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-11",
+      "title": "EIP-2200: net `SSTORE` metering",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-2200",
+      "footnote_title": "EIP-2200 — Structured definitions for net gas metering",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-12",
+      "title": "EIP-3529: reduced refunds",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-3529",
+      "footnote_title": "EIP-3529 — Reduction in refunds",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-13",
+      "title": "EIP-3860: initcode metering and limit",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-3860",
+      "footnote_title": "EIP-3860 — Limit and meter initcode",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-14",
+      "title": "EIP-6780: changed `SELFDESTRUCT` semantics",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-6780",
+      "footnote_title": "EIP-6780 — SELFDESTRUCT only in same transaction",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-15",
+      "title": "Aave v3 `ReserveConfiguration.sol`",
+      "kind": "production source",
+      "url": "https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/configuration/ReserveConfiguration.sol",
+      "footnote_title": "Aave v3 core — ReserveConfiguration.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-16",
+      "title": "Aave v3 `UserConfiguration.sol`",
+      "kind": "production source",
+      "url": "https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/configuration/UserConfiguration.sol",
+      "footnote_title": "Aave v3 core — UserConfiguration.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-17",
+      "title": "Aave v3 `BorrowLogic.sol`",
+      "kind": "production source",
+      "url": "https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/logic/BorrowLogic.sol",
+      "footnote_title": "Aave v3 core — BorrowLogic.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-18",
+      "title": "Aave v3 core repository",
+      "kind": "production repository / review corpus",
+      "url": "https://github.com/aave/aave-v3-core",
+      "footnote_title": "Aave v3 core repository",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-19",
+      "title": "Uniswap v3 `TickBitmap.sol`",
+      "kind": "production source",
+      "url": "https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickBitmap.sol",
+      "footnote_title": "Uniswap v3 core — TickBitmap.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-20",
+      "title": "Uniswap v3 `FullMath.sol`",
+      "kind": "production source",
+      "url": "https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol",
+      "footnote_title": "Uniswap v3 core — FullMath.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-21",
+      "title": "Uniswap v3 core repository",
+      "kind": "production repository / review corpus",
+      "url": "https://github.com/Uniswap/v3-core",
+      "footnote_title": "Uniswap v3 core repository",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-22",
+      "title": "Uniswap v4 `CurrencyDelta.sol`",
+      "kind": "production source",
+      "url": "https://github.com/Uniswap/v4-core/blob/main/src/libraries/CurrencyDelta.sol",
+      "footnote_title": "Uniswap v4 core — CurrencyDelta.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-23",
+      "title": "Uniswap v4 `NonzeroDeltaCount.sol`",
+      "kind": "production source",
+      "url": "https://github.com/Uniswap/v4-core/blob/main/src/libraries/NonzeroDeltaCount.sol",
+      "footnote_title": "Uniswap v4 core — NonzeroDeltaCount.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-24",
+      "title": "Uniswap v4 core repository",
+      "kind": "production repository / review corpus",
+      "url": "https://github.com/Uniswap/v4-core",
+      "footnote_title": "Uniswap v4 core repository",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-25",
+      "title": "Permit2 `SignatureTransfer.sol`",
+      "kind": "production source",
+      "url": "https://github.com/Uniswap/permit2/blob/main/src/SignatureTransfer.sol",
+      "footnote_title": "Permit2 — SignatureTransfer.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-26",
+      "title": "Permit2 `AllowanceTransfer.sol`",
+      "kind": "production source",
+      "url": "https://github.com/Uniswap/permit2/blob/main/src/AllowanceTransfer.sol",
+      "footnote_title": "Permit2 — AllowanceTransfer.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-27",
+      "title": "Seaport `BasicOrderFulfiller.sol`",
+      "kind": "production source",
+      "url": "https://github.com/ProjectOpenSea/seaport-core/blob/main/src/lib/BasicOrderFulfiller.sol",
+      "footnote_title": "Seaport core — BasicOrderFulfiller.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-28",
+      "title": "Seaport repository",
+      "kind": "production repository / review corpus",
+      "url": "https://github.com/ProjectOpenSea/seaport",
+      "footnote_title": "Seaport repository",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-29",
+      "title": "Solady `SafeTransferLib.sol`",
+      "kind": "production library source",
+      "url": "https://github.com/Vectorized/solady/blob/main/src/utils/SafeTransferLib.sol",
+      "footnote_title": "Solady — SafeTransferLib.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-30",
+      "title": "Solady repository",
+      "kind": "optimized-library corpus",
+      "url": "https://github.com/Vectorized/solady",
+      "footnote_title": "Solady repository",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-31",
+      "title": "OpenZeppelin v5.0.2 `ShortStrings.sol`",
+      "kind": "versioned library source",
+      "url": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/utils/ShortStrings.sol",
+      "footnote_title": "OpenZeppelin Contracts v5.0.2 — ShortStrings.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-32",
+      "title": "OpenZeppelin v5.0.2 `Arrays.sol`",
+      "kind": "versioned library source",
+      "url": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/utils/Arrays.sol",
+      "footnote_title": "OpenZeppelin Contracts v5.0.2 — Arrays.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-33",
+      "title": "OpenZeppelin v5.0.2 `Clones.sol`",
+      "kind": "versioned library source",
+      "url": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/proxy/Clones.sol",
+      "footnote_title": "OpenZeppelin Contracts v5.0.2 — Clones.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-34",
+      "title": "Slither detector documentation",
+      "kind": "security-tool documentation",
+      "url": "https://github.com/crytic/slither/wiki/Detector-Documentation",
+      "footnote_title": "Slither detector documentation — dangerous strict equalities and transfer/send-related guidance",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-35",
+      "title": "PeCatch paper",
+      "kind": "research paper",
+      "url": "https://arxiv.org/abs/2403.02661",
+      "footnote_title": "He et al. — How to Save My Gas Fees: Understanding and Detecting Real-World Gas Issues in Solidity Programs / PeCatch",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-36",
+      "title": "OpenZeppelin v5.0.2 `Math.sol`",
+      "kind": "versioned library source",
+      "url": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/utils/math/Math.sol",
+      "footnote_title": "OpenZeppelin Contracts v5.0.2 — Math.sol",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-37",
+      "title": "EIP-170: contract code-size limit",
+      "kind": "EIP",
+      "url": "https://eips.ethereum.org/EIPS/eip-170",
+      "footnote_title": "EIP-170 — Contract code size limit",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-38",
+      "title": "GASOL paper",
+      "kind": "research paper",
+      "url": "https://arxiv.org/abs/1912.11929",
+      "footnote_title": "Albert et al. — GASOL: Gas Analysis and Optimization for Ethereum Smart Contracts",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-39",
+      "title": "Blockchain Superoptimizer / ebso paper",
+      "kind": "research paper",
+      "url": "https://arxiv.org/abs/2005.05912",
+      "footnote_title": "Nagele and Schett — Blockchain Superoptimizer / ebso",
+      "source_section": "footnote definitions"
+    },
+    {
+      "id": "REF-40",
+      "title": "SuperStack paper",
+      "kind": "research paper",
+      "url": "https://dl.acm.org/doi/10.1145/3656431",
+      "footnote_title": "Albert et al. — SuperStack: Superoptimization of Stack-Bytecode via Greedy, Constraint-Based, and SAT Techniques",
+      "source_section": "footnote definitions"
+    }
+  ],
+  "myths": [
+    {
+      "id": "MYTH-01",
+      "claim": "`++i` is always cheaper than `i++`",
+      "correction": "inspect optimized output; the compiler frequently normalizes them",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-02",
+      "claim": "every loop increment needs manual `unchecked`",
+      "correction": "canonical loops are automatically handled on 0.8.25",
+      "references": [
+        "REF-02"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-03",
+      "claim": "use `uint8` or `uint16` everywhere",
+      "correction": "narrow widths mainly help through storage packing",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-04",
+      "claim": "packing always wins",
+      "correction": "independently hot fields can become more expensive",
+      "references": [
+        "REF-04"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-05",
+      "claim": "calldata is always cheaper",
+      "correction": "copies, caller locations, mutation, and code size determine the result",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-06",
+      "claim": "`external` is always cheaper than `public`",
+      "correction": "visibility is not a standalone gas proof",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-07",
+      "claim": "constants always beat immutables",
+      "correction": "deployment, code size, per-instance values, and reference count matter",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-08",
+      "claim": "`abi.encodePacked` is a cheaper drop-in replacement",
+      "correction": "it changes encoding semantics and can create collisions",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-09",
+      "claim": "assembly always wins",
+      "correction": "the compiler may already generate equal or better code",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-10",
+      "claim": "via-IR always wins",
+      "correction": "benchmark both pipelines",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-11",
+      "claim": "maximum optimizer runs is optimal",
+      "correction": "runs is a lifecycle trade-off",
+      "references": [
+        "REF-03"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-12",
+      "claim": "cache every array length",
+      "correction": "storage length can matter; memory/calldata often does not",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-13",
+      "claim": "shifts are always cheaper than multiply or divide",
+      "correction": "the compiler normally performs constant strength reduction",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-14",
+      "claim": "delete storage for profit",
+      "correction": "refunds are reduced, capped, and lifecycle-dependent",
+      "references": [
+        "REF-12"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-15",
+      "claim": "`SELFDESTRUCT` recycles deployed contracts",
+      "correction": "Cancun semantics no longer delete an existing contract except in the creation transaction",
+      "references": [
+        "REF-14"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-16",
+      "claim": "`transfer` and `send` prevent reentrancy",
+      "correction": "gas stipends are not a security invariant",
+      "references": [
+        "REF-34"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-17",
+      "claim": "private functions are cheaper",
+      "correction": "call graph and optimizer output determine cost",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-18",
+      "claim": "explicitly initialize every zero",
+      "correction": "defaults and optimizer removal make this commonly redundant",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-19",
+      "claim": "prewarm every slot or account",
+      "correction": "the warm-up itself has a cost",
+      "references": [
+        "REF-10"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-20",
+      "claim": "`require(condition, CustomError())` works on 0.8.25",
+      "correction": "use explicit `if` and `revert`",
+      "references": [
+        "REF-07"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-21",
+      "claim": "`MCOPY` obsoletes every copy helper",
+      "correction": "specialized decoding and buffer construction remain distinct",
+      "references": [
+        "REF-01"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-22",
+      "claim": "`memory-safe` is merely an optimization hint",
+      "correction": "it is a correctness assertion",
+      "references": [
+        "REF-05"
+      ],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-23",
+      "claim": "branchless code is always cheaper",
+      "correction": "only artifact benchmarks decide",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-24",
+      "claim": "gas savings are portable across EVM chains",
+      "correction": "fork and fee models differ",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-25",
+      "claim": "events are always cheaper than storage",
+      "correction": "events cannot be consumed by future on-chain logic",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-26",
+      "claim": "clones and proxies are always cheaper",
+      "correction": "deployment/runtime break-even may never be reached",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-27",
+      "claim": "SSTORE2 is always cheaper",
+      "correction": "immutable size, reads, account warming, and copy costs determine break-even",
+      "references": [],
+      "source_section": "13"
+    },
+    {
+      "id": "MYTH-28",
+      "claim": "unchecked arithmetic is safe after ordinary unit tests",
+      "correction": "every intermediate bound needs a durable proof",
+      "references": [],
+      "source_section": "13"
+    }
+  ],
+  "rules": []
+}

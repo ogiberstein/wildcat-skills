@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -384,6 +385,185 @@ class HermesHarnessTests(unittest.TestCase):
         self.assertEqual(code, 60)
         self.assertEqual(json.loads((self.run_dir / "result.json").read_text())["failed_gate"], 6)
 
+
+class CorpusValidationTests(unittest.TestCase):
+    """The corpus is what judges a candidate, so a corpus that cannot be
+    trusted has to refuse rather than pass a candidate under advice nobody
+    checked. Each case here mutates one field of the shipped corpus in a
+    temporary directory; nothing writes into the skill's own references."""
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory(prefix="hermes-corpus-")
+        self.directory = Path(self.temporary.name)
+        self.addCleanup(self.temporary.cleanup)
+        self.shipped, self.schema_path = hermes.corpus_paths()
+        shutil.copy(self.shipped, self.directory / self.shipped.name)
+        shutil.copy(self.schema_path, self.directory / self.schema_path.name)
+
+    def load(self) -> tuple[dict, dict]:
+        corpus, schema, _ = hermes.load_corpus(self.directory)
+        return corpus, schema
+
+    def faults(self, mutate) -> list[str]:
+        corpus, schema = self.load()
+        mutate(corpus, schema)
+        return hermes.validate_corpus(corpus, schema)
+
+    def test_the_shipped_corpus_validates(self) -> None:
+        corpus, schema = self.load()
+        self.assertEqual(hermes.validate_corpus(corpus, schema), [])
+
+    def test_the_shipped_corpus_carries_the_source_counts(self) -> None:
+        corpus, _ = self.load()
+        self.assertEqual(len(corpus["myths"]), 28)
+        self.assertEqual(len(corpus["references"]), 40)
+        self.assertEqual(corpus["source"]["sha256"],
+                         "297c926dc0a2e011e31da5245273c136273b8faa390f3691910c22c870068449")
+
+    def test_every_citation_id_resolves_exactly_once(self) -> None:
+        """REF-25 appears in the source at the start of a line as a citation
+        and again as a footnote definition, which is the shape that turns one
+        reference into two during transcription."""
+        corpus, _ = self.load()
+        identifiers = [entry["id"] for entry in corpus["references"]]
+        self.assertEqual(len(identifiers), len(set(identifiers)))
+        self.assertEqual(identifiers.count("REF-25"), 1)
+
+    def test_a_duplicate_record_id_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["myths"].append(dict(corpus["myths"][0]))
+        self.assertIn("duplicate id", " ".join(self.faults(mutate)))
+
+    def test_an_unknown_field_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["myths"][0]["severity"] = "high"
+        self.assertIn("unknown field 'severity'", " ".join(self.faults(mutate)))
+
+    def test_a_missing_field_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            del corpus["myths"][0]["correction"]
+        self.assertIn("missing field 'correction'", " ".join(self.faults(mutate)))
+
+    def test_an_empty_correction_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["myths"][0]["correction"] = "   "
+        self.assertIn("expected non-empty text", " ".join(self.faults(mutate)))
+
+    def test_a_citation_that_no_reference_defines_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["myths"][0]["references"] = ["REF-99"]
+        self.assertIn("cites 'REF-99'", " ".join(self.faults(mutate)))
+
+    def test_a_malformed_source_digest_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["source"]["sha256"] = "297C926D"
+        self.assertIn("expected a lowercase sha256 digest", " ".join(self.faults(mutate)))
+
+    def test_a_wrong_schema_declaration_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["schema"] = "hermes/gas-rule-corpus/v2"
+        faults = self.faults(mutate)
+        self.assertEqual(len(faults), 1, faults)
+        self.assertIn("expected 'hermes/gas-rule-corpus/v1'", faults[0])
+
+    def test_an_id_outside_its_pattern_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["myths"][0]["id"] = "MYTH-1"
+        self.assertIn("does not match", " ".join(self.faults(mutate)))
+
+    def test_a_type_token_this_build_cannot_check_is_a_fault(self) -> None:
+        """A schema that grew a token the validator does not implement must
+        fail loudly. The alternative is a field nobody checks and no sign of
+        it."""
+        def mutate(_corpus, schema):
+            schema["records"]["myths"]["required"]["claim"] = "sonnet"
+        self.assertIn("cannot check", " ".join(self.faults(mutate)))
+
+    def test_a_rule_class_outside_the_twelve_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            corpus["rules"].append(_rule_record(hermes_class="storage-golf"))
+        self.assertIn("neither null nor a Hermes class", " ".join(self.faults(mutate)))
+
+    def test_a_rule_scope_naming_an_unknown_fork_is_refused(self) -> None:
+        def mutate(corpus, _schema):
+            record = _rule_record()
+            record["scope"]["evm_floor"] = "verkle"
+            corpus["rules"].append(record)
+        self.assertIn("is not a name in fork_order", " ".join(self.faults(mutate)))
+
+    def test_a_fully_formed_rule_record_validates(self) -> None:
+        """The rule shape steps three and four fill in, proved against the
+        schema before any of those records exist."""
+        def mutate(corpus, _schema):
+            corpus["rules"].append(_rule_record())
+        self.assertEqual(self.faults(mutate), [])
+
+    def test_a_schema_class_the_header_does_not_name_is_still_a_record_class(self) -> None:
+        """Round 1 finding: the header check named the three record classes
+        itself, so a schema that grew a fourth reported it as an unknown
+        top-level field instead of validating it."""
+        def mutate(corpus, schema):
+            schema["records"]["gates"] = {
+                "id_pattern": "^GATE-[0-9]{2}$",
+                "required": {"id": "id", "title": "text"},
+                "optional": {},
+            }
+            corpus["gates"] = [{"id": "GATE-01", "title": "pin the build"}]
+        self.assertEqual(self.faults(mutate), [])
+
+    def test_the_command_reports_clean_and_exits_zero(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT_DIR / "hermes.py"), "corpus", "--validate", "--json"],
+            capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = json.loads(result.stdout)
+        self.assertEqual(summary["status"], "clean")
+        self.assertEqual(summary["counts"]["myths"], 28)
+        self.assertEqual(summary["counts"]["references"], 40)
+        self.assertEqual(summary["faults"], [])
+
+    def test_the_command_refuses_without_validate(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT_DIR / "hermes.py"), "corpus"],
+            capture_output=True, text=True, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--validate", result.stderr)
+
+
+def _rule_record(**overrides) -> dict:
+    """A minimal rule record in the shape the schema declares."""
+    record = {
+        "id": "STO-09",
+        "title": "cache repeated storage reads",
+        "kind": "technique",
+        "category": "state-model-and-storage",
+        "priority": "P1",
+        "evidence_grade": "A",
+        "automation": "safe",
+        "hermes_class": "storage-load-caching",
+        "summary": "Copy a storage value to a stack local when it is read repeatedly.",
+        "mechanism": "Even a warm SLOAD costs more than a stack operation.",
+        "recommendation": "Load once after the last preceding mutation.",
+        "detector_signals": ["same storage expression read more than once"],
+        "preconditions": ["no internal write invalidates the cached value"],
+        "proof_obligations": ["every use observes the same version of the value"],
+        "failure_modes": ["stale state after a callback"],
+        "validation": ["success and failure gas snapshots"],
+        "references": ["REF-10"],
+        "source_section": "5",
+        "verified_on": {"compiler": "0.8.25", "evm": "cancun"},
+        "scope": {
+            "compiler_min": "0.8.0",
+            "compiler_max_exclusive": "0.9.0",
+            "compiler_reason": "SLOAD pricing is an EVM property, not a compiler one.",
+            "evm_floor": "berlin",
+            "evm_reason": "EIP-2929 introduced the warm and cold distinction the saving rests on.",
+            "pipelines": ["legacy", "via-ir"],
+            "pipeline_reason": "Neither pipeline removes a repeated storage read.",
+        },
+    }
+    record.update(overrides)
+    return record
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
