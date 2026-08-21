@@ -6152,3 +6152,22 @@ No new leads.
 Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..9e3be06a062c79138ad6aed1776ad824bf642a03`. The two round-3 fault guards were run against `3008376882d955c7a7168c013d57cbfc24d44c91` in memory and failed once each; both pass against the fixed tree, and the paired Ephoros hash-path presence guard is also green. The round-3 path and walk boundaries are closed; the remaining material YAML review found only the multi-line quoted-scalar case above. Focused tests pass 108/108; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 581/581. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, E004/H003 ownership, unchanged H007 and both ordinary-generation frontier digests otherwise remain intact.
 
 Further leads: none beyond E319-S2-R4-01.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 4 -- 2026-08-21
+
+E319-S2-R4-01 is resolved on the audit branch. Both bounded YAML lexers now
+carry single- and double-quoted scalar state across physical lines. Lines
+inside those scalars cannot supply an alert, an alert annotation, a reasoned
+suppression pragma or a generic runbook pointer. Block scalar bodies remain
+opaque before quote scanning, preserving the earlier scalar boundary.
+
+The four guards cover both quote styles and were observed red before repair:
+the focused suite ran 112 tests with eight subtest failures across false E004
+alert detection, false E004 satisfaction, false E004 suppression and false
+H003 detection. After repair, the focused suite passes 112/112, evolution and
+version propagation 23/23, marketplace prose 13/13, root 104/104 and
+Hexaemeron 585/585. Protasis accepts both documents; Imprimatur and per-file
+Brevitas accept the six named prose files; Promise Machine reports 14 plugins
+and 14 copies clean; Phylax, Ephoros and Hypomnema each exit 0 over their
+required trees. All other semantics, finding codes, ownership, versions and
+held frontier digests are unchanged. No new leads.

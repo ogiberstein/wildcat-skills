@@ -161,10 +161,11 @@ class Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def _split_yaml_comment(line: str) -> tuple[str, str]:
-    """Split content and comment without treating a quoted hash as a marker."""
-    single = False
-    double = False
+def _split_yaml_comment(
+        line: str, quote: str | None = None) -> tuple[str, str, str | None]:
+    """Split YAML content and comment while carrying a quoted scalar."""
+    single = quote == "'"
+    double = quote == '"'
     escaped = False
     for index, character in enumerate(line):
         if escaped:
@@ -179,37 +180,38 @@ def _split_yaml_comment(line: str) -> tuple[str, str]:
             double = not double
         elif (character == "#" and not single and not double
               and (index == 0 or line[index - 1] in " \t")):
-            return line[:index], line[index:]
-    return line, ""
-
-
-def _strip_yaml_comment(line: str) -> str:
-    return _split_yaml_comment(line)[0]
+            return line[:index], line[index:], None
+    carried = "'" if single else '"' if double else None
+    return line, "", carried
 
 
 def _yaml_allow_lines(lines: list[str]) -> set[int]:
     """Return reasoned pragma lines that are actual YAML comments."""
     allowed: set[int] = set()
     scalar_indent: int | None = None
+    quote: str | None = None
     for number, raw in enumerate(lines, start=1):
-        content, comment = _split_yaml_comment(raw)
+        if scalar_indent is not None:
+            if not raw.strip():
+                continue
+            raw_indent = len(raw) - len(raw.lstrip(" "))
+            if raw_indent > scalar_indent:
+                continue
+            scalar_indent = None
+        started_in_quote = quote is not None
+        content, comment, quote = _split_yaml_comment(raw, quote)
+        if started_in_quote:
+            if quote is None and ALLOW.search(comment):
+                allowed.add(number)
+            continue
         content = content.rstrip()
         if not content.strip():
             if not comment:
                 continue
-            comment_indent = len(raw) - len(raw.lstrip(" "))
-            if scalar_indent is not None:
-                if comment_indent > scalar_indent:
-                    continue
-                scalar_indent = None
             if ALLOW.search(comment):
                 allowed.add(number)
             continue
         indent = len(content) - len(content.lstrip(" "))
-        if scalar_indent is not None:
-            if indent > scalar_indent:
-                continue
-            scalar_indent = None
         if ALLOW.search(comment):
             allowed.add(number)
         if BLOCK_SCALAR.match(content[indent:]):
@@ -221,16 +223,24 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
     """Return significant block-YAML lines, excluding block scalar bodies."""
     out: list[tuple[int, int, str]] = []
     scalar_indent: int | None = None
+    quote: str | None = None
     for number, raw in enumerate(lines, start=1):
-        content = _strip_yaml_comment(raw).rstrip()
+        if scalar_indent is not None:
+            if not raw.strip():
+                continue
+            raw_indent = len(raw) - len(raw.lstrip(" "))
+            if raw_indent > scalar_indent:
+                continue
+            scalar_indent = None
+        started_in_quote = quote is not None
+        content, _, quote = _split_yaml_comment(raw, quote)
+        if started_in_quote:
+            continue
+        content = content.rstrip()
         if not content.strip():
             continue
         indent = len(content) - len(content.lstrip(" "))
         stripped = content[indent:]
-        if scalar_indent is not None:
-            if indent > scalar_indent:
-                continue
-            scalar_indent = None
         out.append((number, indent, stripped))
         if BLOCK_SCALAR.match(stripped):
             scalar_indent = indent

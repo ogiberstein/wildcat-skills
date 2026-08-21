@@ -175,6 +175,14 @@ class YamlRunbooks(unittest.TestCase):
         source = "runbook: runbooks/missing#book.md\n"
         self.assertEqual(["H003"], yaml_codes(source))
 
+    def test_multiline_quoted_runbook_text_does_not_fire_h003(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = (f"note: {quote}\n"
+                          "  runbook: runbooks/quoted.md\n"
+                          f"  {quote}\n")
+                self.assertEqual([], yaml_codes(source))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 

@@ -210,6 +210,30 @@ class AlertRules(unittest.TestCase):
                   "    runbook: runbooks/missing#book.md\n")
         self.assertEqual([], yaml_findings(source))
 
+    def test_multiline_quoted_alert_text_does_not_fire_e004(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = f"notes: {quote}\n  - alert: QuotedExample\n  {quote}\n"
+                self.assertEqual([], yaml_findings(source))
+
+    def test_multiline_quoted_runbook_text_does_not_satisfy_e004(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = ("- alert: NeedsRealRunbook\n"
+                          "  annotations:\n"
+                          f"    note: {quote}\n"
+                          "      runbook: runbooks/quoted.md\n"
+                          f"      {quote}\n")
+                self.assertEqual(["E004"], [finding.code for finding in yaml_findings(source)])
+
+    def test_multiline_quoted_pragma_text_does_not_suppress_e004(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = (f"note: {quote}\n"
+                          f"  # ephoros: allow quoted example {quote}\n"
+                          "- alert: StillMissing\n")
+                self.assertEqual(["E004"], [finding.code for finding in yaml_findings(source)])
+
 
 class OverTheMarketplace(unittest.TestCase):
     def test_suffix_matching_directories_are_not_walked_as_files(self):

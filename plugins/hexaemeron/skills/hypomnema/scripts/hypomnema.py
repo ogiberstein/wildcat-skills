@@ -106,10 +106,11 @@ def _external(target: str) -> bool:
     return bool(parsed.scheme) and parsed.scheme in SKIP_SCHEME
 
 
-def _strip_yaml_comment(line: str) -> str:
-    """Remove a YAML comment without treating a quoted hash as a marker."""
-    single = False
-    double = False
+def _strip_yaml_comment(
+        line: str, quote: str | None = None) -> tuple[str, str | None]:
+    """Remove a YAML comment while carrying a quoted scalar."""
+    single = quote == "'"
+    double = quote == '"'
     escaped = False
     for index, character in enumerate(line):
         if escaped:
@@ -124,24 +125,33 @@ def _strip_yaml_comment(line: str) -> str:
             double = not double
         elif (character == "#" and not single and not double
               and (index == 0 or line[index - 1] in " \t")):
-            return line[:index]
-    return line
+            return line[:index], None
+    carried = "'" if single else '"' if double else None
+    return line, carried
 
 
 def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
     """Resolve generic block-YAML runbook keys without classifying alerts."""
     findings: list[Finding] = []
     scalar_indent: int | None = None
+    quote: str | None = None
     for number, raw in enumerate(lines, start=1):
-        content = _strip_yaml_comment(raw).rstrip()
+        if scalar_indent is not None:
+            if not raw.strip():
+                continue
+            raw_indent = len(raw) - len(raw.lstrip(" "))
+            if raw_indent > scalar_indent:
+                continue
+            scalar_indent = None
+        started_in_quote = quote is not None
+        content, quote = _strip_yaml_comment(raw, quote)
+        if started_in_quote:
+            continue
+        content = content.rstrip()
         if not content.strip():
             continue
         indent = len(content) - len(content.lstrip(" "))
         stripped = content[indent:]
-        if scalar_indent is not None:
-            if indent > scalar_indent:
-                continue
-            scalar_indent = None
         if BLOCK_SCALAR.match(stripped):
             scalar_indent = indent
             continue
