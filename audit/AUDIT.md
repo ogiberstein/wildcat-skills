@@ -6344,3 +6344,146 @@ signature and exactly one required co-author and origin trailer.
 ### Verdict
 
 Further leads: none. All recorded round-8 and post-cap findings are closed.
+
+## Fiat delegation packets, step 1, round 1 -- 2026-08-21
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I320-S1-R1-01 | medium | `docs/fiat-delegation-packets-runbook.md:11` | The exit claims a captured red Horos currency check, but adding the two ordinary Markdown files changes only `counts.files_walked`. Horos `check` and the root currency guard compare classified entries, so replay with the parent boundary exits 0 and says the boundary matches. The runbook supplies no full-document comparison that can produce the claimed red. | open |
+| I320-S1-R1-02 | medium | `docs/fiat-delegation-packets-runbook.md:75` | Protasis requires the final step to run the problem statement's demo path. The study defines a fresh run through study, runbook, implement, audit, prose, push, merge-step and integrate, but step 3 never names or requires that full-lifecycle demo. | open |
+| I320-S1-R1-03 | medium | `docs/fiat-delegation-packets-runbook.md:38` | The step calls the study and runbook the durable decision record, while Hypomnema states that a study is a run artefact rather than a record. The planned Fiat evolution row does not exist in this step. | open |
+
+### Evidence and gates
+
+The receipted and tracked study and runbook are byte-identical. The parent
+boundary records 1,376 tracked files and the fresh step tree records 1,378,
+with the same 89 classified entries. Injecting the parent boundary into the
+current Horos tree check exits 0; the regenerated committed boundary is
+byte-identical to a fresh scan, with none unreadable. The signing requirement
+is otherwise clear about local commits, exact trailers, pushed commits and
+GitHub-created merges. Step commit
+`bb0a19b69c9b905023deb25226b742a4572899ad` has a good local signature and
+exactly one required co-author and origin trailer.
+
+Both Protasis modes, Imprimatur, per-file Brevitas, diff check and the Phylax,
+Ephoros and Hypomnema tree lints exit 0. Root tests pass 104/104, Hexaemeron
+599/599, and Promise Machine reports 14 plugins and 14 copies clean.
+
+### Risk-register disposition
+
+`local-signature-gap` was reviewed and is closed for the step commit.
+`remote-verification-gap` and `merge-origin-confusion` are not yet applicable
+before push and merge. `packet-state-drift`, `artefact-drift`,
+`protasis-grammar-drift`, `file-range-confusion`, `subprocess-control`,
+`legacy-state-overclaim` and `path-escape` are not applicable to this
+docs-and-boundary step; they remain obligations for steps 2 and 3.
+
+Leads not pursued: none.
+
+### Resolution: Fiat delegation packets, step 1, round 1 -- 2026-08-21
+
+All three findings are resolved on the audit branch. I320-S1-R1-01 now names
+the direct parent-versus-fresh whole-document comparison and its
+`files_walked` evidence; it also states that `horos check .` and the legacy
+root currency guard remain green because they compare classified entries.
+I320-S1-R1-02 requires the named
+`TestDelegationPacketLifecycle.test_fresh_run_emits_packets_through_integrate`
+Step 3 demonstration to start in a fresh temporary repository and traverse
+study through integration. I320-S1-R1-03 identifies the study and runbook as
+run inputs and the Step 3 Fiat `EVOLUTION.md` generation row as the durable
+decision home.
+
+The controller and tracked runbooks remain byte-identical. Both Protasis
+modes, Imprimatur and both per-file Brevitas checks are clean. Root tests pass
+104/104, Hexaemeron 599/599 and Promise Machine reports 14 plugins and 14
+copies clean. Phylax, Ephoros and Hypomnema each exit 0 over their required
+trees, and the diff check is clean. No new leads.
+
+## Fiat delegation packets, step 1, round 2 -- 2026-08-21
+
+### Finding
+
+| id | severity | evidence | round-2 verdict | status |
+| --- | --- | --- | --- | --- |
+| I320-S1-R2-01 | medium | `docs/fiat-delegation-packets-runbook.md:13` | I320-S1-R1-01 is partly closed: the proof block contains only two known-green entry checks and `scan --write`, so no executable comparison observes parent/fresh inequality and committed/fresh identity. Add the exact whole-document red and green commands. | open |
+| I320-S1-R1-02 | medium | `docs/fiat-delegation-packets-runbook.md:83` | The final step now names the fresh lifecycle demo through integration. | closed |
+| I320-S1-R1-03 | medium | `docs/fiat-delegation-packets-runbook.md:40` | The runbook now distinguishes run inputs from the future Fiat evolution record. | closed |
+
+### Closure and gates
+
+I320-S1-R1-02 and I320-S1-R1-03 are closed: Step 3 names a fresh
+temporary-repository lifecycle demonstration through integration, and the
+runbook now distinguishes run inputs from the Fiat evolution row that will
+hold the decision. The tracked and controller study and runbook copies are
+byte-identical. Direct reviewer replay establishes that the parent and fresh
+whole documents differ at 1,376 versus 1,378 tracked files, while the current
+committed and fresh documents are byte-identical at 89 entries and none
+unreadable. Fix commit `81bcd6a87eca923852218e4ee2cdce49809b4add`
+has a good local signature and exactly one required co-author and origin
+trailer.
+
+The focused boundary suite passes 4/4, root 104/104 and Hexaemeron 599/599;
+Promise Machine reports 14 plugins and 14 copies clean. Both Protasis modes,
+Imprimatur, both per-file Brevitas checks, diff check, Horos and the Phylax,
+Ephoros and Hypomnema tree lints exit 0.
+
+### Risk-register disposition
+
+`local-signature-gap` remains closed for both step content commits.
+`remote-verification-gap` and `merge-origin-confusion` remain inapplicable
+before push and merge. The other seven study risks remain inapplicable to the
+docs-and-boundary step and are held for steps 2 and 3.
+
+Further leads: none beyond I320-S1-R2-01.
+
+### Resolution: Fiat delegation packets, step 1, round 2 -- 2026-08-21
+
+I320-S1-R2-01 is resolved on the audit branch. The Step 1 proof block now
+creates a temporary evidence directory, reads the exact parent boundary with
+`git show`, regenerates the current boundary, requires parent/current
+inequality, saves that current document as fresh, regenerates again and
+requires fresh/current identity before removing the temporary directory. It
+then runs the two legacy entry-only checks and explicitly records that both
+remain green rather than serving as the red evidence.
+
+The executable sequence passes: the parent/current inequality and
+fresh/current identity predicates both hold, `horos check .` reports a match,
+and the focused boundary suite passes 4/4. The controller and tracked
+runbooks remain byte-identical. Both Protasis modes, Imprimatur and both
+per-file Brevitas checks are clean. Root tests pass 104/104, Hexaemeron
+599/599 and Promise Machine reports 14 plugins and 14 copies clean. Phylax,
+Ephoros and Hypomnema each exit 0 over their required trees, Horos is current
+at 1,378 files, 89 entries and none unreadable, and the diff check is clean.
+No new leads.
+
+## Fiat delegation packets, step 1, round 3 -- 2026-08-21
+
+### Closure
+
+Zero findings. The Step 1 Horos proof block passes exactly as written under
+fail-fast shell semantics: the parent/current comparison is unequal, the
+second scan matches the saved fresh document, the temporary evidence directory
+is removed, and the two documented legacy entry-only checks remain green.
+I320-S1-R1-01, I320-S1-R1-02, I320-S1-R1-03 and I320-S1-R2-01 are closed.
+The controller and tracked study and runbook copies are byte-identical.
+
+### Gates
+
+The focused boundary suite passes 4/4, root 104/104 and Hexaemeron 599/599;
+Promise Machine reports 14 plugins and 14 copies clean. Both Protasis modes,
+Imprimatur, both per-file Brevitas checks, diff check, Horos and the Phylax,
+Ephoros and Hypomnema tree lints exit 0. A fresh Horos scan is byte-identical
+to the committed document at 1,378 tracked files, 89 entries and none
+unreadable. Fix `ff0d7a0130cd4d812ba8095358f163c0102d3cb1` has a good local
+signature and exactly one required co-author and origin trailer.
+
+### Risk-register disposition
+
+`local-signature-gap` is closed for all three step content commits.
+`remote-verification-gap` and `merge-origin-confusion` remain inapplicable
+before push and merge. The other seven study risks remain inapplicable to the
+docs-and-boundary step and are held for steps 2 and 3.
+
+Further leads: none.
