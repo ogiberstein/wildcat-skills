@@ -26,20 +26,18 @@ Use this list to nominate one Gate 2 class. Search for candidates, make a predic
 Generated from the corpus and held to it by the Hermes suite. `verify` takes the rule id, and the rule decides the class.
 
 <!-- corpus-index:start -->
-| Hermes class | Corpus rules that name it |
-| --- | --- |
-| `assembly` | CTL-18, MEM-06, MEM-08, MEM-10, MEM-11, MEM-12, MEM-13, YUL-01, YUL-02, YUL-03, YUL-04, YUL-05, YUL-06, YUL-07, YUL-08, YUL-09, YUL-10, YUL-11, YUL-12, YUL-13, YUL-14 |
-| `calldata-memory` | MEM-01, MEM-02, MEM-03, MEM-04, MEM-05, MEM-07, MEM-16 |
-| `constants-immutables` | CTL-12, STO-15, STO-16 |
-| `control-flow` | CTL-01, CTL-14, CTL-15, EXT-10, STO-13, STO-14, STO-21 |
-| `custom-errors` | EXT-01, EXT-02, EXT-03 |
-| `external-call-reduction` | EXT-04, EXT-09 |
-| `event-packing` | EXT-11 |
-| `hashing-encoding` | MEM-14 |
-| `loop-arithmetic` | CTL-03, CTL-04, CTL-13, STO-11 |
-| `storage-load-caching` | STO-05, STO-09, STO-10 |
-| `storage-packing` | STO-01, STO-03, STO-04, STO-06, STO-07, STO-08, STO-17, STO-18 |
-| `unchecked-arithmetic` | CTL-05, CTL-06 |
+- `assembly`: CTL-18, MEM-06, MEM-08, MEM-10, MEM-11, MEM-12, MEM-13, YUL-01, YUL-02, YUL-03, YUL-04, YUL-05, YUL-06, YUL-07, YUL-08, YUL-09, YUL-10, YUL-11, YUL-12, YUL-13, YUL-14
+- `calldata-memory`: MEM-01, MEM-02, MEM-03, MEM-04, MEM-05, MEM-07, MEM-16
+- `constants-immutables`: CTL-12, STO-15, STO-16
+- `control-flow`: CTL-01, CTL-14, CTL-15, EXT-10, STO-13, STO-14, STO-21
+- `custom-errors`: EXT-01, EXT-02, EXT-03
+- `external-call-reduction`: EXT-04, EXT-09
+- `event-packing`: EXT-11
+- `hashing-encoding`: MEM-14
+- `loop-arithmetic`: CTL-03, CTL-04, CTL-13, STO-11
+- `storage-load-caching`: STO-05, STO-09, STO-10
+- `storage-packing`: STO-01, STO-03, STO-04, STO-06, STO-07, STO-08, STO-17, STO-18
+- `unchecked-arithmetic`: CTL-05, CTL-06
 
 58 of the 120 rules name no class. They constrain how a run is conducted, or they are architecture, so no candidate implements them and `verify` refuses them with that reason. Every `CMP` and `DEP` rule is one of them, as is every `TRN` rule, because no class names transient state.
 <!-- corpus-index:end -->

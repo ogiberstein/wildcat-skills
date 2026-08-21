@@ -961,11 +961,9 @@ class CorpusFidelityTests(unittest.TestCase):
         for rule in self.corpus["rules"]:
             by_class.setdefault(rule["hermes_class"] or "", []).append(rule["id"])
         unclassed = by_class.pop("", [])
-        lines = ["<!-- corpus-index:start -->",
-                 "| Hermes class | Corpus rules that name it |",
-                 "| --- | --- |"]
+        lines = ["<!-- corpus-index:start -->"]
         for name in hermes.OPTIMISATION_CLASSES:
-            lines.append(f"| `{name}` | {', '.join(sorted(by_class.get(name, [])))} |")
+            lines.append(f"- `{name}`: {', '.join(sorted(by_class.get(name, [])))}")
         lines.append("")
         lines.append(
             f"{len(unclassed)} of the {len(self.corpus['rules'])} rules name no class. They "

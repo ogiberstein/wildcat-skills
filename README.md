@@ -254,7 +254,7 @@ Use Alexandria to preserve this lending-data capture and query its source-bound 
 Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
 Use Berean to verify this release's citations, chain readings and promotion record against its pinned corpus.
 Use Brevitas to enforce evidence-preserving structural budgets on this engineering review.
-Use Hermes to optimise gas in this Foundry repository.
+Use Hermes to optimise gas in this Foundry repository. Name the corpus rule each candidate implements.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
 Use Hexaemeron Kronos to rank the held frontier jobs and run the best through Fiat until none remain.
@@ -394,7 +394,7 @@ The budgets, evidence precedence and exception rule live in
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
 
 ```text
-Use $hermes to optimise gas in this repository. Work one optimisation class at a time and keep the complete verification record.
+Use $hermes to optimise gas in this repository. Name the corpus rule each candidate implements, work one optimisation class at a time, and keep the complete verification record.
 ```
 
 The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes/skills/hermes/SKILL.md).

@@ -6325,3 +6325,45 @@ which is right: a baseline is the thing the whole record hangs from and Hermes
 does not seal one as a side effect of being asked to verify.
 
 Leads not pursued: the obligation-answer minimum, unchanged from round 1.
+
+## Hermes rule corpus, step 6, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S6-R1-01 | low | `AGENTS.md`, `README.md`, `plugins/hermes/skills/hermes/SKILL.md` | The marketplace-wide cold read the frontier obligation requires found three surfaces describing Hermes as it was before the corpus: the boundary sentence in the root runtime contract, the two published invocation prompts, and the skill's own selection description. Each now names the corpus. | fixed in this round |
+| S6-R1-02 | low | `plugins/hermes/skills/hermes/SKILL.md`, `references/optimisation-catalogue.md` | Two new two-column tables failed Brevitas B011, which requires three by three before a table earns its shape. Both are lists now. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0, and Brevitas exits 0 on all six changed prose surfaces.
+The root suite passes 104/104 and the Hermes suite 72/72 in 24.8 seconds. The
+demo path from the study's problem statement runs clean at 120 rules, 28 myths
+and 40 references, corpus digest `5d1773f9`, source digest `297c926d`.
+
+The epoch row was recomputed independently of the code that wrote it: the four
+frontier header fields hashed in the contract's canonical order give
+`1916665dfd39d783`, which is the digest in the row; the baseline row retains its
+own digest byte for byte; the arithmetic is `hermes-v0.1.0` to `hermes-v0.1.1`
+on the epoch axis; and the change text carries `reopen`, which the contract
+requires of an epoch row that moves the frontier. All six surfaces carrying the
+frontier sentence agree and no stale copy remains.
+
+Two things the cold read found and deliberately left. Horos's live-evidence
+study cites Hermes's held ambition, meaning the evidence bundle this run
+displaced, and Probitas's audit log mentions Hermes in a logged round. Both sit
+under paths the shipped-prose lint excludes because they are records of what was
+written at the time, and editing either would rewrite history to look tidier
+than it was. The displacement is recorded in ADR-007 where a reader of those
+documents can find it.
+
+The budget was measured a second time and renegotiated on the page rather than
+quietly. Four consecutive runs of the 72-case suite gave 26.1, 24.8, 25.9 and
+25.0 seconds against a 25-second ceiling authored before the 22 hermetic gate
+cases existed. A ceiling inside its own noise band fails intermittently and
+teaches a reader to ignore it, so the study's third amendment moves it to 30
+seconds with the four measurements and the rejected alternative, which was to
+share one sealed baseline across the gate cases. That was rejected because a run
+directory records absolute paths, so sharing one means teaching the harness a
+relocation it has no other reason to support.
+
+Leads not pursued: none. The class-vocabulary gap recorded in steps 3 and 4 is
+no longer a lead, because it is the successor frontier this row holds.

@@ -1,6 +1,6 @@
 ---
 name: hermes
-description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
+description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Every candidate names a rule from a pinned corpus of 120 gas rules and 28 rejected ones, and the harness refuses a rule outside the target's compiler, fork or pipeline scope. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
 metadata:
   version: "0.1.1"
 ---
@@ -88,19 +88,17 @@ Every `verify` names one corpus rule with `--rule`. The rule decides the class, 
 `--optimisation-class` that disagrees with it is refused. Gate 2 refuses before Gate 3
 spends a Forge run, and `result.json` carries a `refusal` field naming which condition failed:
 
-| `refusal` | Condition |
-| --- | --- |
-| `corpus/unknown-rule` | no rule of that id |
-| `corpus/myth-selected` | a rejected universal rule named as a candidate, answered with its correction |
-| `corpus/myth-cited` | a rationale or obligation answer citing a rejected rule as its justification |
-| `corpus/rule-names-no-class` | a rule that constrains the run or is architecture, so no candidate implements it |
-| `corpus/class-disagreement` | the declared class is not the rule's class |
-| `corpus/out-of-scope` | the target's compiler, fork or pipeline is outside the rule's declared scope |
-| `corpus/scope-unresolved` | the target pins no readable `solc`, or names a fork the corpus does not order |
-| `corpus/obligation-unanswered` | an obligation the rule's own statement makes has no substantive answer |
-| `corpus/obligation-malformed` | an `--obligation` argument is not `<n>=<answer>`, or names an index the rule lacks |
-| `corpus/digest-moved` | the corpus changed after the baseline sealed it |
-| `corpus/invalid` | the corpus does not pass its own schema |
+- `corpus/unknown-rule`: no rule of that id
+- `corpus/myth-selected`: a rejected universal rule named as a candidate, answered with its correction
+- `corpus/myth-cited`: a rationale or obligation answer citing a rejected rule as its justification
+- `corpus/rule-names-no-class`: a rule that constrains the run or is architecture, so no candidate implements it
+- `corpus/class-disagreement`: the declared class is not the rule's class
+- `corpus/out-of-scope`: the target's compiler, fork or pipeline is outside the rule's declared scope
+- `corpus/scope-unresolved`: the target pins no readable `solc`, or names a fork the corpus does not order
+- `corpus/obligation-unanswered`: an obligation the rule's own statement makes has no substantive answer
+- `corpus/obligation-malformed`: an `--obligation` argument is not `<n>=<answer>`, or names an index the rule lacks
+- `corpus/digest-moved`: the corpus changed after the baseline sealed it
+- `corpus/invalid`: the corpus does not pass its own schema
 
 Answer each of the rule's obligations with `--obligation "<n>=<answer>"`, one per obligation, indexed
 from one. Those answers are recorded judgement rather than measurement, and `result.json` marks them
