@@ -7327,3 +7327,50 @@ The review covered all 12 source-bound risks: `validation-bypass`,
 implementing or weakening them.
 
 Leads not pursued: none.
+
+## Fiat state-shape validation, step 2, round 1 -- 2026-08-21
+
+The exact range `ea03021ae3cc1d4b24bb422ba6f96ca163a25fec..f750e031c352c6a49796da651f5c8c7fd1da16cb`
+adds one central `load_state` container-spine validator, its command-level
+guards and the corresponding Promise Machine source digest. No Solidity
+changed, so the recorded security-suite waiver applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The Elenchus guard was replayed on the exact parent by applying only the new
+test class to `ea03021ae3cc1d4b24bb422ba6f96ca163a25fec`. All three tests were
+red with 104 command-level failures: wrong-shaped state was variously accepted,
+reported only as an edited fingerprint or allowed to raise a traceback. The
+same tests pass on the implementation head. Removing the central validation
+boundary therefore makes the guard red rather than leaving a reader-specific
+check in place.
+
+The review exercised all 12 source-bound risks. `validation-bypass`,
+`path-diagnostic-drift`, `verify-parity`, `partial-write`, `secret-echo` and
+`round-indexing` are covered by the root, required-container, nested-member and
+command matrix: `status`, `next`, `verify` and `record` return the same exact
+value-free line with exit 1, no traceback and byte-identical state and ledger.
+`validation-order` was probed with seven additional multiple-fault specimens
+across 28 command invocations, including faults split across configuration,
+top-level receipts, step members and round members; every first diagnosis
+followed the documented two-pass step-member then per-step-container order.
+
+`legacy-state-rejection` was checked against all 11 archived runs: both
+`status` and `verify` succeed for every archived state and ledger pair. The
+heterogeneous-receipt guard also preserves scalar and list leaf payloads, so
+`semantic-scope-creep` remains outside the container contract.
+`frontier-arithmetic` and `marketplace-prose-drift` are unchanged in this step;
+the implementation does not touch the evolution ledger or shipped prose.
+`signing-provenance` passes for `f750e031c352c6a49796da651f5c8c7fd1da16cb`:
+the local signature is valid and each required Shoggoth trailer occurs exactly
+once.
+
+The focused controller and Fiat skill suites pass 189/189, the root suite
+104/104 and Hexaemeron 640/640. Promise Machine reports 14 plugins, 14 copies
+and all 67 coverage rows clean. Phylax, Ephoros and Hypomnema each exit 0;
+Python compilation and the diff check are clean.
+
+Leads not pursued: none.

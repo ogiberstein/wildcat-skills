@@ -1940,6 +1940,152 @@ class TestFuzzRegressions(HexctlCase):
         self.assertNotIn("\x1b", proc.stdout)
 
 
+class StateContainerValidationTests(HexctlCase):
+    """Every state-backed command crosses one ordered, value-free shape gate."""
+
+    def setUp(self):
+        super().setUp()
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl(
+            "audit-round", "--findings", "1", "--log", "audit/AUDIT.md"
+        )
+        self.state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        self.ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        with open(self.state_path, "rb") as handle:
+            self.valid_state_bytes = handle.read()
+        with open(self.ledger_path, "rb") as handle:
+            self.valid_ledger_bytes = handle.read()
+
+    @staticmethod
+    def replace_at(state, parts, value):
+        node = state
+        for part in parts[:-1]:
+            node = node[part]
+        node[parts[-1]] = value
+
+    @staticmethod
+    def remove_at(state, parts):
+        node = state
+        for part in parts[:-1]:
+            node = node[part]
+        del node[parts[-1]]
+
+    def write_state(self, state):
+        with open(self.state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+
+    def assert_command_parity(self, state, path, kind):
+        self.write_state(state)
+        with open(self.state_path, "rb") as handle:
+            state_before = handle.read()
+        expected = f"hexctl: error: state key '{path}' must be an {kind}\n"
+        commands = (
+            ("status",),
+            ("next",),
+            ("verify",),
+            ("record", "shape_probe", '"secret-shaped-value"'),
+        )
+        for command in commands:
+            with self.subTest(path=path, kind=kind, command=command[0]):
+                proc = self.run_ctl(*command, expect=1)
+                self.assertEqual(proc.stdout, "")
+                self.assertEqual(proc.stderr, expected)
+                self.assertNotIn("secret-shaped-value", proc.stderr)
+                self.assertNotIn("Traceback", proc.stderr)
+                with open(self.state_path, "rb") as handle:
+                    self.assertEqual(handle.read(), state_before)
+                with open(self.ledger_path, "rb") as handle:
+                    self.assertEqual(handle.read(), self.valid_ledger_bytes)
+
+    def test_required_container_matrix_is_shared_by_every_command(self):
+        cases = (
+            ("config", "object", ("config",), []),
+            ("config.skills", "object", ("config", "skills"), []),
+            ("config.audit", "object", ("config", "audit"), []),
+            ("config.git", "object", ("config", "git"), []),
+            ("receipts", "object", ("receipts",), []),
+            ("steps", "array", ("steps",), {}),
+            ("steps[0].receipts", "object", ("steps", 0, "receipts"), []),
+            ("steps[0].audit", "object", ("steps", 0, "audit"), []),
+            (
+                "steps[0].audit.rounds",
+                "array",
+                ("steps", 0, "audit", "rounds"),
+                {},
+            ),
+        )
+        self.assert_command_parity([], "$", "object")
+        for path, kind, parts, wrong_kind in cases:
+            with self.subTest(path=path, specimen="missing"):
+                state = json.loads(self.valid_state_bytes)
+                self.remove_at(state, parts)
+                self.assert_command_parity(state, path, kind)
+            with self.subTest(path=path, specimen="wrong-kind"):
+                state = json.loads(self.valid_state_bytes)
+                self.replace_at(state, parts, wrong_kind)
+                self.assert_command_parity(state, path, kind)
+
+        member_cases = (
+            ("steps[0]", "object", ("steps", 0)),
+            ("steps[1]", "object", ("steps", 1)),
+            (
+                "steps[0].audit.rounds[0]",
+                "object",
+                ("steps", 0, "audit", "rounds", 0),
+            ),
+        )
+        for path, kind, parts in member_cases:
+            with self.subTest(path=path, specimen="wrong-kind"):
+                state = json.loads(self.valid_state_bytes)
+                self.replace_at(state, parts, "secret-shaped-value")
+                self.assert_command_parity(state, path, kind)
+
+    def test_first_fault_follows_the_documented_order(self):
+        cases = []
+
+        state = json.loads(self.valid_state_bytes)
+        del state["config"]
+        state["receipts"] = []
+        state["steps"] = {}
+        cases.append((state, "config", "object"))
+
+        state = json.loads(self.valid_state_bytes)
+        state["config"]["skills"] = []
+        state["receipts"] = []
+        cases.append((state, "config.skills", "object"))
+
+        state = json.loads(self.valid_state_bytes)
+        state["steps"][0]["receipts"] = []
+        state["steps"][0]["audit"] = []
+        cases.append((state, "steps[0].receipts", "object"))
+
+        state = json.loads(self.valid_state_bytes)
+        state["steps"][0]["receipts"] = []
+        state["steps"][1] = "secret-shaped-value"
+        cases.append((state, "steps[1]", "object"))
+
+        for state, path, kind in cases:
+            with self.subTest(path=path):
+                self.assert_command_parity(state, path, kind)
+
+    def test_version_one_legacy_and_heterogeneous_receipts_still_load(self):
+        state = json.loads(self.valid_state_bytes)
+        state.pop("frontier")
+        state.pop("run_branch")
+        state["steps"][0]["phase"] = "issue"
+        state["receipts"]["legacy_null"] = None
+        state["receipts"]["legacy_list"] = [1, "two", {"three": True}]
+        state["steps"][0]["receipts"]["legacy_scalar"] = 7
+        state["steps"][0]["audit"]["rounds"][0]["legacy_leaf"] = [None]
+        self.write_state(state)
+
+        loaded = hexctl_module().load_state(self.dir)
+
+        self.assertEqual(loaded, state)
+        self.assertEqual(loaded["version"], 1)
+
+
 class LintReceiptTests(HexctlCase):
     """The three lint results a non-Solidity round owes, and the refusals."""
 
