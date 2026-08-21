@@ -6203,3 +6203,13 @@ and per-file Brevitas accept the six named prose files; Promise Machine
 reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema each
 exit 0 over their required trees. All other semantics, finding codes,
 ownership, versions and held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 6 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R6-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | `_yaml_quote_starts` accepts a mapping-looking colon or sequence-looking dash without requiring YAML separation before the quote. Valid plain scalars such as `- note: plain:"text` and an indented `-"text` therefore open cross-line quote state and hide later alert or runbook keys, allowing missing E004 or H003 evidence to pass. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..80a43d1be67eb9d2c71501e51fa1db97446cf829`. The two round-5 guard methods were run against `49bbe00b2d3aff9fbdd121a9a87f3984db5dcd78` in memory and produced four subtest failures, one for each quote style and ownership gate; both methods pass against the fixed tree. The four round-4 methods were also replayed against `91fdc4c2904040d548b75900978c7de3c8c18af6` and produced six subtest failures while the quoted-runbook-satisfaction guard remained green, matching the corrected audit record. Entry and exit probes for ordinary quoted scalars, escaped quotes and embedded plain-scalar quotes remain clean; the remaining material plain-scalar review found E319-S2-R6-01. Focused tests pass 114/114; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 587/587. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R6-01.
