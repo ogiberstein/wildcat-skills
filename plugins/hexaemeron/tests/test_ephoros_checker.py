@@ -153,6 +153,16 @@ class TelemetryKeys(unittest.TestCase):
         self.assertIn("E005", codes(
             "c.labels(wallet_address=a).inc()  # ephoros: allow\n"))
 
+    def test_slash_pragma_text_in_a_python_string_does_not_suppress(self):
+        self.assertEqual(["E005"], codes(
+            's = "// ephoros: allow tracked elsewhere"\n'
+            "c.labels(wallet_address=a).inc()\n"))
+
+    def test_a_slash_pragma_mentioned_mid_comment_does_not_suppress(self):
+        self.assertEqual(["E005"], codes(
+            "c.labels(wallet_address=a).inc()"
+            "  # see // ephoros: allow foo for the shape\n"))
+
 
 def ts_codes(source, name="sample.ts"):
     with tempfile.TemporaryDirectory() as directory:
@@ -190,6 +200,32 @@ class TypeScriptTelemetryKeys(unittest.TestCase):
     def test_it_flags_a_log_store_partitioned_by_address(self):
         self.assertEqual(["E005"], ts_codes("eventLog[walletAddress] = event\n"))
 
+    def test_it_flags_a_string_literal_wallet_index(self):
+        self.assertEqual(["E005"], ts_codes(
+            "auditLog.write(event, { index: 'wallet_address' })\n"))
+
+    def test_it_flags_a_forty_hex_literal_index(self):
+        self.assertEqual(["E005"], ts_codes(
+            "auditLog.write(event, "
+            "{ index: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' })\n"))
+
+    def test_it_flags_the_camel_case_label_names_property(self):
+        self.assertEqual(["E005"], ts_codes(
+            'const c = new client.Counter({ name: "c", '
+            'labelNames: ["wallet_address"] })\n'))
+
+    def test_it_flags_an_optional_chained_metric_sink(self):
+        self.assertEqual(["E005"], ts_codes(
+            "metrics?.gauge('m', { tags: { walletAddress: w } })\n"))
+
+    def test_it_flags_an_optional_chain_inside_a_sink_chain(self):
+        self.assertEqual(["E005"], ts_codes(
+            "sink?.metrics.gauge('m', { tags: { walletAddress: w } })\n"))
+
+    def test_an_optional_chained_cache_key_does_not_fire(self):
+        self.assertEqual([], ts_codes(
+            "cache?.store[walletAddress] = market\n"))
+
     def test_it_allows_a_query_key_array_carrying_an_address(self):
         self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "query-key.ts"))
 
@@ -223,6 +259,20 @@ class TypeScriptTelemetryKeys(unittest.TestCase):
         self.assertEqual(["E005"], ts_codes(
             "eventLog[walletAddress] = event  // ephoros: allow\n"))
 
+    def test_pragma_text_in_a_string_does_not_suppress(self):
+        self.assertEqual(["E005"], ts_codes(
+            'eventLog[walletAddress] = "// ephoros: allow tracked elsewhere"\n'))
+
+    def test_pragma_text_in_a_template_does_not_suppress(self):
+        self.assertEqual(["E005"], ts_codes(
+            "const note = `// ephoros: allow tracked elsewhere`\n"
+            "eventLog[walletAddress] = event\n"))
+
+    def test_a_hash_pragma_does_not_suppress_in_typescript(self):
+        self.assertEqual(["E005"], ts_codes(
+            "// # ephoros: allow tracked elsewhere\n"
+            "eventLog[walletAddress] = event\n"))
+
 
 class TypeScriptBoundaries(unittest.TestCase):
     def test_an_oversized_typescript_file_fails_visibly(self):
@@ -247,6 +297,27 @@ class TypeScriptBoundaries(unittest.TestCase):
     def test_a_lexer_failure_reports_e000(self):
         self.assertEqual(["E000"], ts_codes("const s = `never terminated\n"))
 
+    def test_a_pragma_cannot_suppress_a_lexer_failure(self):
+        self.assertEqual(["E000"], ts_codes(
+            "// ephoros: allow crafted reason\n"
+            "const s = `never terminated\n"))
+
+    def test_a_lexer_recursion_failure_fails_closed_per_file(self):
+        with tempfile.TemporaryDirectory() as base:
+            nested = Path(base) / "nested.ts"
+            nested.write_text(
+                "const s = " + "`${" * 600 + "0" + "}`" * 600 + "\n",
+                encoding="utf-8")
+            sibling = Path(base) / "sibling.ts"
+            sibling.write_text("eventLog[walletAddress] = event\n",
+                               encoding="utf-8")
+            findings = [finding for path in ephoros.walk([base])
+                        for finding in ephoros.check(path)]
+            by_file = {Path(finding.path).name: finding for finding in findings}
+            self.assertEqual("E000", by_file["nested.ts"].code)
+            self.assertIn("recursion", by_file["nested.ts"].message)
+            self.assertEqual("E005", by_file["sibling.ts"].code)
+
     def test_the_walk_skips_node_modules(self):
         with tempfile.TemporaryDirectory() as base:
             vendored = Path(base) / "node_modules" / "left-pad"
@@ -259,6 +330,8 @@ class TypeScriptBoundaries(unittest.TestCase):
             kept.write_text("export default null\n", encoding="utf-8")
             self.assertEqual([kept], ephoros.walk([base]))
 
+
+class AlertLabelKeys(unittest.TestCase):
     def test_an_address_named_key_under_alert_labels_reports_e005(self):
         findings = ephoros.check(TELEMETRY_FIXTURES / "alert-labels.yaml")
         self.assertEqual(["E005"], [finding.code for finding in findings])

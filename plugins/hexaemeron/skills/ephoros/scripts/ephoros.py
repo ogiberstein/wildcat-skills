@@ -56,7 +56,10 @@ DURATION = re.compile(
 )
 MEAN_FUNCS = {"mean", "fmean", "average", "avg"}
 
-ALLOW = re.compile(r"(?:#|//)\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
+# The pragma grammar is gated by surface: `#` belongs to Python and YAML,
+# `//` to TypeScript, where it is read from genuine comment spans only.
+ALLOW = re.compile(r"#\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
+TS_ALLOW = re.compile(r"//\s*ephoros:\s*allow\s+(?P<reason>\S.*)$", re.MULTILINE)
 YAML_SUFFIXES = {".yaml", ".yml"}
 TYPESCRIPT_SUFFIXES = {".ts", ".tsx"}
 TYPESCRIPT_MAX_BYTES = 1 << 20
@@ -66,13 +69,18 @@ TYPESCRIPT_MAX_BYTES = 1 << 20
 # boundaries, so `walletAddress` and `wallet_address` name the same key.
 TS_IDENTIFIER = r"[A-Za-z_$][\w$]*"
 TS_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
+# `?.` separates a chain the way `.` does: optional chaining names the same sink.
+TS_SEPARATOR = r"\s*\??\.\s*"
+TS_SPLIT = re.compile(TS_SEPARATOR)
 TS_CHAIN = re.compile(
-    rf"(?<![\w$.])(?P<chain>{TS_IDENTIFIER}(?:\s*\.\s*{TS_IDENTIFIER})*)"
+    rf"(?<![\w$.])(?P<chain>{TS_IDENTIFIER}(?:{TS_SEPARATOR}{TS_IDENTIFIER})*)"
     r"\s*(?P<open>[\[(])")
 TS_LABEL_PROPERTY = re.compile(
-    r"(?<![\w$])(?:labels|labelnames|label_names|tags|attributes)"
+    r"(?<![\w$])(?:labels|labelNames|labelnames|label_names|tags|attributes)"
     r"\s*:\s*(?P<open>[\[{])")
-TS_INDEX_PROPERTY = re.compile(r"(?<![\w$])index\s*:\s*")
+# No trailing `\s*`: a blanked string in the mask is spaces, and the value
+# span must start at the colon so the raw literal can be read back.
+TS_INDEX_PROPERTY = re.compile(r"(?<![\w$])index\s*:")
 TS_ADDRESS_WORDS = frozenset({"address", "addresses", "addr", "addrs",
                               "wallet", "wallets"})
 TS_METRIC_WORDS = frozenset({"metric", "metrics", "counter", "counters",
@@ -567,8 +575,9 @@ def _ts_string_value(expression: str) -> str | None:
 def _ts_address_expression(text: str, mask: str, start: int, end: int) -> str:
     """Return the address-shaped name or literal in a key position, or ""."""
     expression = mask[start:end].strip()
-    if re.fullmatch(rf"{TS_IDENTIFIER}(?:\s*\.\s*{TS_IDENTIFIER})*", expression):
-        last = re.split(r"\s*\.\s*", expression)[-1]
+    if re.fullmatch(rf"{TS_IDENTIFIER}(?:{TS_SEPARATOR}{TS_IDENTIFIER})*",
+                    expression):
+        last = TS_SPLIT.split(expression)[-1]
         return last if _ts_address_name(last) else ""
     value = _ts_string_value(text[start:end])
     if value is not None and _ts_address_string(value):
@@ -686,16 +695,36 @@ def _ts_index_properties(path: Path, text: str, mask: str, start: int,
     return findings
 
 
+def _ts_allow_lines(text: str, spans) -> set[int]:
+    """Return reasoned pragma lines that are genuine TypeScript comments."""
+    allowed: set[int] = set()
+    for kind, start, end in spans:
+        if kind not in ("line_comment", "block_comment"):
+            continue
+        for match in TS_ALLOW.finditer(text, start, end):
+            allowed.add(_line_of(text, match.start()))
+    return allowed
+
+
 def check_typescript(path: Path, text: str) -> list[Finding]:
-    spans, errors = lex(text)
+    # The lexer boundary fails closed per file: a construct it cannot
+    # terminate reports E000 here rather than crashing the whole run, and
+    # E000 bypasses suppression, matching the Python and YAML semantics.
+    try:
+        spans, errors = lex(text)
+    except RecursionError:
+        return [Finding(path, 1, "E000", "could not lex: recursion limit")]
+    except Exception as err:  # noqa: BLE001 -- any lexer failure fails closed
+        return [Finding(path, 1, "E000", f"could not lex: {err}")]
     if errors:
         return [Finding(path, _line_of(text, offset), "E000",
                         f"could not lex: {reason}")
                 for offset, reason in errors]
+    allowed = _ts_allow_lines(text, spans)
     mask = _masked(text, spans)
     findings: list[Finding] = []
     for match in TS_CHAIN.finditer(mask):
-        segments = re.split(r"\s*\.\s*", match.group("chain"))
+        segments = TS_SPLIT.split(match.group("chain"))
         if segments[0] == "console":
             continue  # command-line output is not telemetry
         opening = match.start("open")
@@ -722,7 +751,8 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
         if len(segments) >= 2 and _ts_words(segments[-2]) & TS_LOG_WORDS:
             findings.extend(_ts_index_properties(
                 path, text, mask, opening + 1, closing))
-    return findings
+    return [finding for finding in findings
+            if finding.line not in allowed and finding.line - 1 not in allowed]
 
 
 def check(path: Path) -> list[Finding]:
@@ -736,8 +766,7 @@ def check(path: Path) -> list[Finding]:
             text = raw.decode("utf-8")
         except (OSError, UnicodeDecodeError) as err:
             return [Finding(path, 1, "E000", f"unreadable: {err}")]
-        return [f for f in check_typescript(path, text)
-                if not suppressed(text, f.line)]
+        return check_typescript(path, text)
     if path.suffix in YAML_SUFFIXES:
         try:
             with path.open("rb") as source:
