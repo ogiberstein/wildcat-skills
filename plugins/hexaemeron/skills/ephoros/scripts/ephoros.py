@@ -177,7 +177,8 @@ def _split_yaml_comment(line: str) -> tuple[str, str]:
             single = not single
         elif character == '"' and not single:
             double = not double
-        elif character == "#" and not single and not double:
+        elif (character == "#" and not single and not double
+              and (index == 0 or line[index - 1] in " \t")):
             return line[:index], line[index:]
     return line, ""
 
@@ -194,7 +195,14 @@ def _yaml_allow_lines(lines: list[str]) -> set[int]:
         content, comment = _split_yaml_comment(raw)
         content = content.rstrip()
         if not content.strip():
-            if scalar_indent is None and ALLOW.search(comment):
+            if not comment:
+                continue
+            comment_indent = len(raw) - len(raw.lstrip(" "))
+            if scalar_indent is not None:
+                if comment_indent > scalar_indent:
+                    continue
+                scalar_indent = None
+            if ALLOW.search(comment):
                 allowed.add(number)
             continue
         indent = len(content) - len(content.lstrip(" "))

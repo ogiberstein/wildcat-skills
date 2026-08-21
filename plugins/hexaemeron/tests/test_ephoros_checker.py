@@ -156,6 +156,18 @@ class AlertRules(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertEqual(["E004"], [f.code for f in yaml_findings(source)])
 
+    def test_an_unseparated_plain_scalar_hash_is_not_a_suppression_comment(self):
+        source = ("- note: literal# ephoros: allow not a comment\n"
+                  "- alert: StillMissing\n")
+        self.assertEqual(["E004"], [finding.code for finding in yaml_findings(source)])
+
+    def test_a_dedented_comment_after_a_block_scalar_can_suppress_e004(self):
+        source = ("note: |\n"
+                  "  scalar body\n"
+                  "# ephoros: allow generated annotation arrives downstream\n"
+                  "- alert: SuppressedMissingAnnotation\n")
+        self.assertEqual([], yaml_findings(source))
+
     def test_a_bare_suppression_does_not_cover_e004(self):
         source = "# ephoros: allow\n- alert: StillMissing\n"
         self.assertEqual(["E004"], [f.code for f in yaml_findings(source)])

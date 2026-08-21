@@ -6092,3 +6092,22 @@ digests remain unchanged. No new leads.
 Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..89bff0f5a5415cf9900efd26d7121cffe6225763`. All seven round-1 regression tests were run against `ba37b42d5890ca45e59d24f5034b32e4dfe9ddb4` in memory and produced ten failures; the same seven pass against the fixed tree. This closes the five exact round-1 specimens, including capped reads and boundary identity, but the two adjacent suppression-state cases above remain open. Focused tests pass 103/103; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 576/576. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Ownership remains E004 presence, H003 pointer existence and unchanged H007 Markdown shape; both ordinary-generation frontier digests remain unchanged.
 
 Further leads: none beyond E319-S2-R2-01 and E319-S2-R2-02.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 2 -- 2026-08-21
+
+Both findings are resolved on the audit branch. E319-S2-R2-01 now recognises
+an unquoted `#` as a YAML comment marker only at the start of a line or after
+separating whitespace, so pragma-shaped plain-scalar content cannot suppress
+E004. E319-S2-R2-02 checks a comment-only line's indentation against active
+block-scalar state first, so a genuinely dedented reasoned comment exits the
+scalar and can suppress the alert immediately below it.
+
+The two guards were observed red before repair: the focused suite ran 105
+tests with two failures, one for each mechanism. After repair, the focused
+suite passes 105/105, evolution and version propagation 23/23, marketplace
+prose 13/13, root 104/104 and Hexaemeron 578/578. Protasis accepts both
+documents; Imprimatur and per-file Brevitas accept the six named prose files;
+Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
+Hypomnema each exit 0 over their required trees. All other YAML behaviour,
+finding codes, ownership, versions and held frontier digests are unchanged.
+No new leads.
