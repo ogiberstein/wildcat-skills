@@ -23,6 +23,11 @@ Study mode (`--study`):
   S003  a document in which no study item was found
   S004  a study item number appears more than once, so no verdict on its
         answer is earned
+  S005  item 5 carries no risk-register block naming a concern
+  S006  a register line that does not split into the three pipe-separated
+        fields the shape fixes
+  S007  a register field that is malformed: an id that is not kebab-case
+        or already used, or an empty boundary or check
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
@@ -37,7 +42,10 @@ still only presence: a step carrying no code at all cannot have named a command,
 while a step carrying one may still have named the wrong one. The study mode
 holds the same line: S002 refuses silence and a bare none, never a weak reason,
 and items 1 through 7 are checked for presence only, because "none, and here is
-why" is a complete answer solely for items 8 through 12.
+why" is a complete answer solely for items 8 through 12. The register codes
+read shape alone -- the block exists, each line splits into three fields, the
+id is kebab-case and unused, no field is empty -- and never whether a boundary
+or a check is worth looking at, which stays with the reviewer.
 
 The trust boundary is the argument list. Paths are read as given, so the caller
 decides what is opened; the checker refuses anything that is not a regular file,
@@ -88,6 +96,14 @@ ITEMS = {
 
 # The five whose answer may be a stated none, and only with its reason.
 ANSWERED = range(8, 13)
+
+# The shape protasis-v3.4.0 fixed for item 5: a fenced block with this info
+# string, one concern per line as three pipe-separated fields, the id
+# kebab-case and stable within the study. Field order and separator are the
+# interface audit rounds cite, so the parse follows the contract exactly.
+REGISTER_ITEM = 5
+REGISTER_INFO = "risk-register"
+KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 # An answer that asserts none and stops. Punctuation-stripped, lowercased,
 # whole-answer matches only: "none, and here is why: ..." carries more words
@@ -297,6 +313,76 @@ def _item_spans(lines: list[str]) -> dict[int, list[tuple[int, int, int]]]:
     return spans
 
 
+def _register_lines(body: list[str], offset: int) -> list[tuple[int, str]]:
+    """The non-blank lines inside item 5's risk-register blocks.
+
+    Fence state starts closed, which is sound because an item span begins at
+    a heading the fence-aware scan accepted. A block opened with another info
+    string is content, so a register block quoted inside a markdown example
+    earns no verdict -- the false clean every recorded protasis finding
+    shares.
+    """
+    collected: list[tuple[int, str]] = []
+    open_mark: str | None = None
+    collecting = False
+    for number, line in enumerate(body, start=offset):
+        match = FENCE.match(line)
+        if match:
+            mark = match.group("mark")
+            if open_mark is None:
+                open_mark = mark[0]
+                info = line.strip()[len(mark):].strip()
+                collecting = info == REGISTER_INFO
+            elif mark[0] == open_mark:
+                open_mark = None
+                collecting = False
+            continue
+        if collecting and line.strip():
+            collected.append((number, line.strip()))
+    return collected
+
+
+def _register_findings(path: Path, lines: list[str], heading_line: int,
+                       body_start: int, body_end: int) -> list[Finding]:
+    body = lines[body_start - 1:body_end]
+    entries = _register_lines(body, body_start)
+    if not entries:
+        return [Finding(
+            path, heading_line, "S005",
+            f"item {REGISTER_ITEM} ({ITEMS[REGISTER_ITEM]}) carries no "
+            f"risk-register block naming a concern")]
+
+    findings: list[Finding] = []
+    seen: set[str] = set()
+    for number, text in entries:
+        fields = [part.strip() for part in text.split("|")]
+        if len(fields) != 3:
+            findings.append(Finding(
+                path, number, "S006",
+                f"register line carries {len(fields)} field(s), not the three "
+                f"the shape fixes (id | boundary | what the audit loop checks)"))
+            continue
+        concern_id, boundary, check_text = fields
+        if not KEBAB.match(concern_id):
+            findings.append(Finding(
+                path, number, "S007",
+                f"register id {concern_id!r} is not kebab-case"))
+        elif concern_id in seen:
+            findings.append(Finding(
+                path, number, "S007",
+                f"register id {concern_id!r} appears more than once, so a "
+                f"round's citation is ambiguous"))
+        else:
+            seen.add(concern_id)
+        if not boundary:
+            findings.append(Finding(
+                path, number, "S007", "register line carries an empty boundary field"))
+        if not check_text:
+            findings.append(Finding(
+                path, number, "S007", "register line carries an empty check field"))
+    return findings
+
+
 def _answer(lines: list[str], start: int, end: int) -> str:
     """The answer's text with comments and whitespace stripped."""
     body = "\n".join(lines[start - 1:end])
@@ -330,7 +416,12 @@ def check_study(path: Path) -> list[Finding]:
                 f"so no verdict on its answer is earned"))
             continue
         heading_line, body_start, body_end = occurrences[0]
-        if number not in ANSWERED or suppressed(lines, heading_line):
+        if suppressed(lines, heading_line):
+            continue
+        if number == REGISTER_ITEM:
+            findings.extend(_register_findings(
+                path, lines, heading_line, body_start, body_end))
+        if number not in ANSWERED:
             continue
         answer = _answer(lines, body_start, body_end)
         stripped = answer.strip(" .,!:;-").lower()

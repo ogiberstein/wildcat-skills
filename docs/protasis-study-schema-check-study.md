@@ -32,6 +32,7 @@ The runbook step schema is executable and the study contract beside it is not: t
 2. **A second script `study.py` beside the checker.** Rejected: duplicates the scanner whose duplication caused three of the four recorded faults last time.
 3. **Auto-detecting document kind from content.** Rejected: a runbook quoting a study heading, or the reverse, makes the kind a guess, and a wrong guess returns verdicts the check has not earned.
 
+<!-- protasis: allow predates the block shape protasis-v3.4.0 fixed for item 5 -->
 ## 5. Risk register seed
 
 The audit loop should look hardest at unearned verdicts, the fault every recorded protasis finding shares: an item heading quoted inside a fence being counted as an item, a duplicate item number letting one answered copy hide an empty one, a bare "None." passing because the none-rule matched too loosely, and an S001 miss when a heading deviates in whitespace or case. Partial reads are bounded by the existing byte cap; no subprocess, network or secret is involved.
