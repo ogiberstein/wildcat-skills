@@ -6825,3 +6825,39 @@ tip and PR head that agreed with each other but not with the last step receipt
 completed the run. It now refuses. The fresh lifecycle records the last step
 merge as both terminal head fields and remains green. Versions and the held
 frontier are unchanged; no remote mutation was performed.
+
+## Fiat delegation packets, step 3, round 4 -- 2026-08-21
+
+### Verdict
+
+Zero findings. I320-S3-R3-01 is closed, and no further leads remain.
+
+### Replay and bounded review
+
+The recorded-step/remote-tip divergence guard is red against
+`5f076d66e5c37435f74dd8dd7127b794eedf748f` and green at
+`e037a895cda39a1505d5c98e2c16fd55b1ea2bf8`. Integration now requires one full
+SHA to be identical across the final recorded step merge, the exact remote
+run-branch tip and the integration PR head OID. The PR repository, URL, head
+and base names, merged state and merge OID remain independently bound, and the
+merge SHA still requires GitHub's exact valid verification result.
+
+The final bounded signing review found no gap in the owned local ranges,
+intermediate commit enumeration, branch-tip checks, exact trailer counts,
+local signature checks, remote repository identity, pushed PR topology,
+step-merge topology, input validation, resource caps, no-shell execution or
+secret-safe refusals. Legacy null packets, source-bound delegation and the
+published generation and frontier identities remain unchanged.
+
+### Gates
+
+The Step 3 focused set passes 206/206, the lifecycle 1/1, root tests 104/104
+and Hexaemeron 626/626. Promise Machine reports 14 plugins and 14 copies
+clean. Both Protasis modes, Imprimatur, every per-file Brevitas check, Phylax,
+Ephoros, Hypomnema, Horos and the folded diff check exit 0. Fix commit
+`e037a895cda39a1505d5c98e2c16fd55b1ea2bf8` has a good local signature and
+exactly one required co-author and origin trailer.
+
+All ten study risk ids are clean in the folded Step 3 diff.
+
+Further leads: none.
