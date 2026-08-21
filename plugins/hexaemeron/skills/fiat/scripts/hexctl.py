@@ -1360,18 +1360,56 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
-    push_receipt = as_dict(state["steps"][args.step - 1]["receipts"].get("push"))
-    pushed = push_receipt.get("github_verified") or []
-    if not pushed:
-        die("recorded step pull request has no verified head")
+    step = state["steps"][args.step - 1]
+    push_receipt = as_dict(step["receipts"].get("push"))
     pr_record = inspect_pull_request(
         args.dir,
         pending["pr_url"],
         expected_head=pending["branch"],
         expected_base=pending["into"],
-        expected_head_sha=pushed[-1],
+        expected_head_sha=None,
         expected_merge_sha=args.merge_commit,
     )
+    remote_head = remote_branch_tip(args.dir, pending["branch"])
+    if pr_record["head_sha"] != remote_head:
+        die("recorded pull request head does not match its remote branch tip")
+    recorded_local = push_receipt.get("verified_commits")
+    recorded_github = push_receipt.get("github_verified")
+    recorded_current = (
+        isinstance(recorded_local, list)
+        and isinstance(recorded_github, list)
+        and recorded_local == recorded_github
+        and bool(recorded_local)
+        and all(isinstance(sha, str) and COMMIT_RE.fullmatch(sha) for sha in recorded_local)
+        and recorded_local[-1] == remote_head
+    )
+    if recorded_current:
+        effective_push = {
+            "repaired": False,
+            "pr_base": push_receipt.get("pr_base"),
+            "head": remote_head,
+            "verified_commits": recorded_local,
+            "github_verified": recorded_github,
+        }
+    else:
+        expected_pr_base = step_pr_base(state, step)
+        pr_base = push_receipt.get("pr_base")
+        if not isinstance(pr_base, str) or pr_base != expected_pr_base:
+            die("recorded step pull request has no exact PR base for repair")
+        repaired_local = verify_local_range(
+            args.dir,
+            pr_base,
+            remote_head,
+            f"step {step['n']} merge-time push repair",
+        )
+        repaired_github = verify_github_commits(args.dir, repaired_local)
+        effective_push = {
+            "repaired": True,
+            "pr_base": pr_base,
+            "head": remote_head,
+            "verified_commits": repaired_local,
+            "github_verified": repaired_github,
+        }
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
     integrate.setdefault("merged", []).append(args.step)
@@ -1381,6 +1419,7 @@ def done_merge_step(args, state: dict) -> None:
         "merge_commit": args.merge_commit,
         "github_verified": github_verified,
         "pull_request": pr_record,
+        "effective_push": effective_push,
     }
     commit(
         args.dir,
@@ -1393,6 +1432,7 @@ def done_merge_step(args, state: dict) -> None:
             "merge_commit": args.merge_commit,
             "github_verified": github_verified,
             "pull_request": pr_record,
+            "effective_push": effective_push,
         },
     )
     remaining = len(state["steps"]) - len(integrate["merged"])

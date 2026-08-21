@@ -901,18 +901,113 @@ class TestPublicationBindings(HexctlCase):
             "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
 
-    def to_integrate(self):
+    def to_merge_step(self):
         self.to_push()
         self.run_ctl(
             "done", "push",
             "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
         )
+
+    def to_integrate(self):
+        self.to_merge_step()
         self.run_ctl(
             "done", "merge-step", "--step", "1",
             "--merge-commit", "e" * 40,
         )
         self.write_run_pr()
+
+    def edit_push_receipt(self, edit):
+        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        edit(state["steps"][0]["receipts"]["push"])
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+
+    def prime_step_merge(self, merge_sha="e" * 40):
+        pr = self.fake_prs["https://github.com/wildcat-finance/example/pull/1"]
+        pr["state"] = "MERGED"
+        pr["mergeCommit"] = {"oid": merge_sha}
+
+    def set_post_push_head(self, head):
+        branch = self.step_branch(1)
+        self.fake_refs[branch] = head
+        self.fake_prs["https://github.com/wildcat-finance/example/pull/1"][
+            "headRefOid"
+        ] = head
+
+    def test_merge_repairs_legacy_push_receipt_missing_verified_head(self):
+        self.to_merge_step()
+        self.edit_push_receipt(
+            lambda receipt: (
+                receipt.pop("github_verified", None),
+                receipt.pop("verified_commits", None),
+            )
+        )
+        self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40,
+        )
+        repair = self.state()["integrate"]["merges"]["1"]["effective_push"]
+        self.assertTrue(repair["repaired"])
+        self.assertEqual(repair["head"], "d" * 40)
+
+    def test_merge_repairs_signed_post_push_head(self):
+        self.to_merge_step()
+        repaired_head = "7" * 40
+        self.set_post_push_head(repaired_head)
+        self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40,
+        )
+        repair = self.state()["integrate"]["merges"]["1"]["effective_push"]
+        self.assertTrue(repair["repaired"])
+        self.assertEqual(repair["head"], repaired_head)
+
+    def test_merge_time_repair_refuses_invalid_local_signature(self):
+        self.to_merge_step()
+        self.edit_push_receipt(lambda receipt: receipt.pop("github_verified", None))
+        self.prime_step_merge()
+        self.env["FAKE_GIT_MODE"] = "unsigned"
+        proc = self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40, expect=2,
+        )
+        self.assertIn("valid local signature", proc.stderr)
+
+    def test_merge_time_repair_refuses_invalid_github_verification(self):
+        self.to_merge_step()
+        self.set_post_push_head("7" * 40)
+        self.prime_step_merge()
+        self.env["FAKE_GH_MODE"] = "verified-false"
+        proc = self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40, expect=2,
+        )
+        self.assertIn("not verified:true", proc.stderr)
+
+    def test_merge_time_repair_refuses_remote_pr_head_mismatch(self):
+        self.to_merge_step()
+        self.fake_prs["https://github.com/wildcat-finance/example/pull/1"][
+            "headRefOid"
+        ] = "7" * 40
+        self.prime_step_merge()
+        proc = self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40, expect=2,
+        )
+        self.assertIn("remote branch tip", proc.stderr)
+
+    def test_merge_time_repair_refuses_pr_topology_mismatch(self):
+        self.to_merge_step()
+        self.prime_step_merge()
+        self.env["FAKE_GH_MODE"] = "pr-mismatch"
+        proc = self.run_ctl(
+            "done", "merge-step", "--step", "1",
+            "--merge-commit", "e" * 40, expect=2,
+        )
+        self.assertIn("topology", proc.stderr)
 
     def test_implement_head_must_equal_declared_branch_tip(self):
         self.to_steps(("Ship",))
@@ -1138,6 +1233,9 @@ class TestDelegationPacketLifecycle(HexctlCase):
         self.assertTrue(state["steps"][0]["receipts"]["push"]["github_verified"])
         self.assertEqual(
             state["integrate"]["merges"]["1"]["github_verified"], ["e" * 40]
+        )
+        self.assertFalse(
+            state["integrate"]["merges"]["1"]["effective_push"]["repaired"]
         )
         self.assertEqual(
             state["receipts"]["integrate"]["github_verified"], ["f" * 40]

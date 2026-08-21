@@ -6861,3 +6861,34 @@ exactly one required co-author and origin trailer.
 All ten study risk ids are clean in the folded Step 3 diff.
 
 Further leads: none.
+
+## Fiat delegation packets, post-push merge incident -- 2026-08-21
+
+### Incident
+
+The live controller remained in `integrate` after the reported
+`done merge-step --step 1 --merge-commit 570ad2...` attempt refused with
+`recorded step pull request has no verified head`. No controller transition
+occurred. Work stopped at that receipt; this repair did not retry it.
+
+### Cause and fix
+
+- Step pull requests created before the verification receipt shipped can name
+  the exact PR but carry no `verified_commits` or `github_verified` list.
+- A signed repair committed after push can also make those recorded lists
+  stale even though the PR now names the repaired head.
+- At merge time the controller now inspects the exact recorded PR and merged
+  topology, resolves the exact remote step-branch head, and requires both to
+  agree. When the push evidence is missing or stale, it verifies every local
+  commit and exact trailer in the recorded `pr_base..head` range, then requires
+  GitHub `verified: true` with `reason: valid` for every SHA. Only that earned
+  evidence becomes the merge receipt's `effective_push`; the old push receipt
+  is not rewritten.
+
+### Red-to-green evidence
+
+The missing-legacy-evidence and signed-post-push-head guards both failed on the
+old controller and now pass. Invalid local signature, invalid GitHub
+verification, remote/PR head disagreement and PR topology mismatch all refuse.
+The ordinary lifecycle records `repaired: false`. Versions and the held
+frontier are unchanged, and no controller or remote state was mutated.
