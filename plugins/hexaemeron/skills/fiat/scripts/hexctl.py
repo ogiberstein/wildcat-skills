@@ -1406,9 +1406,14 @@ def receipted_source(base_dir: str, state: dict, name: str):
     }
 
 
-STEP_HEADING_RE = re.compile(r"^## Step (?P<number>[1-9][0-9]*): (?P<title>.+)$")
+# This is Protasis's accepted STEP grammar with only the number-group name
+# changed for this packet shape. The selector carries bytes accepted by that
+# authority; it does not impose a narrower second grammar.
+STEP_HEADING_RE = re.compile(
+    r"^##\s+Step\s+(?P<number>\d+)\s*:\s*(?P<title>.*?)\s*$"
+)
 MARKDOWN_FENCE_RE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
-RISK_OPEN_RE = re.compile(r"^(?P<mark>`{3,}|~{3,})risk-register[ \t]*$")
+RISK_REGISTER_INFO = "risk-register"
 
 
 def markdown_lines(text: str):
@@ -1471,11 +1476,16 @@ def source_risk_register(source: dict) -> dict:
     start = None
     risk_mark = None
     for line_start, line_end, line, is_fence, was_open in markdown_lines(text):
-        if start is None and was_open is None:
-            opened = RISK_OPEN_RE.fullmatch(line)
+        if start is None and was_open is None and is_fence:
+            opened = MARKDOWN_FENCE_RE.match(line)
             if opened:
+                mark = opened.group("mark")
+                info = line.strip()[len(mark):].strip()
+            else:
+                info = None
+            if info == RISK_REGISTER_INFO:
                 start = line_start
-                risk_mark = opened.group("mark")[0]
+                risk_mark = mark[0]
             continue
         if start is not None and is_fence and was_open == risk_mark:
             fence = MARKDOWN_FENCE_RE.match(line)
@@ -1494,7 +1504,7 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_git(base_dir: str, argv: list[str]) -> bytes:
+def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
     """Run Git without a shell and stop on time, output or exit-status faults."""
     try:
         process = subprocess.Popen(
@@ -1539,6 +1549,8 @@ def bounded_git(base_dir: str, argv: list[str]) -> bytes:
     finally:
         selector.close()
     if returncode != 0:
+        if refusal is not None:
+            die(refusal)
         message = output.decode("utf-8", errors="replace").strip()
         die(f"git {' '.join(argv)} failed with exit {returncode}: {message}")
     return bytes(output)
@@ -1618,10 +1630,16 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
             die("audit config has no log_path for the warden packet")
         if not isinstance(suffix, str) or not suffix:
             die("audit config has no stacked_suffix for the warden packet")
+        stacked_branch = plan["branch"] + suffix
+        bounded_git(
+            root,
+            ["check-ref-format", "--branch", stacked_branch],
+            "stacked_branch is not a valid Git branch",
+        )
         packet["agent"] = "warden"
         packet["brief"] = {
             "step_branch": plan["branch"],
-            "stacked_branch": plan["branch"] + suffix,
+            "stacked_branch": stacked_branch,
             "security_suite": as_dict(state.get("receipts")).get("security_suite"),
             "plugin_root": root_plugin,
             "audit_log_path": scoped_path(root, log, "audit log path"),

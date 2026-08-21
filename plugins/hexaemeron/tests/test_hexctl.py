@@ -15,6 +15,7 @@ from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
+PROTASIS = os.path.join(HERE, "..", "skills", "protasis", "scripts", "protasis.py")
 
 SUITE = '["hexaemeron:x-ray", "hexaemeron:solidity-auditor"]'
 """A security_suite receipt shaped like the one preflight records.
@@ -40,6 +41,15 @@ def hexctl_module():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("hexctl_under_test", HEXCTL)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def protasis_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("protasis_under_test", PROTASIS)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -484,6 +494,41 @@ class TestDelegationPackets(HexctlCase):
             warden["brief"]["risk_register"]["markdown"],
             "```risk-register\nreal | boundary | check\n```\n",
         )
+
+    def test_source_selectors_accept_the_protasis_spacing_grammar(self):
+        controller = hexctl_module()
+        protasis = protasis_module()
+        heading = "## Step 1: Core   "
+        self.assertIsNotNone(protasis.STEP.fullmatch(heading))
+        step_source = {
+            "text": heading + "\n\n**Goal.** Real.\n",
+            "path": "/target/runbook.md",
+            "sha256": "a" * 64,
+        }
+        selected = controller.source_runbook_step(
+            step_source, {"n": 1, "title": "Core"}
+        )
+        self.assertEqual(selected["markdown"], heading + "\n\n**Goal.** Real.\n")
+
+        register_lines = ["``` risk-register", "one | boundary | check", "```"]
+        self.assertEqual(
+            protasis._register_lines(register_lines, 1),
+            [(2, "one | boundary | check")],
+        )
+        risk_source = {
+            "text": "\n".join(register_lines) + "\n",
+            "path": "/target/study.md",
+            "sha256": "b" * 64,
+        }
+        selected = controller.source_risk_register(risk_source)
+        self.assertEqual(selected["markdown"], "\n".join(register_lines) + "\n")
+
+    def test_warden_refuses_an_invalid_assembled_stacked_branch(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("config", "set", "audit.stacked_suffix", '" bad"')
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("stacked_branch is not a valid Git branch", proc.stderr)
 
     def test_path_and_source_byte_caps_refuse(self):
         self.init()

@@ -6547,3 +6547,31 @@ for the step source commit. `remote-verification-gap` and
 `merge-origin-confusion` are inapplicable before push and merge.
 
 Further leads: none beyond I320-S2-R1-01 and I320-S2-R1-02.
+
+## Fiat delegation packets, step 2, round 1 resolution -- 2026-08-21
+
+Both findings are closed.
+
+### Fixes
+
+- I320-S2-R1-01: the source selectors now use the step-heading grammar and
+  fence-info split accepted by Protasis. Trailing-space step headings and
+  spaced `risk-register` openers retain their exact source bytes. Fenced
+  decoys remain excluded, and Protasis remains the shape authority.
+- I320-S2-R1-02: the controller assembles the complete Warden stacked branch,
+  then runs bounded, no-shell `git check-ref-format --branch` on that value.
+  An invalid mutable suffix stops packet emission with the named
+  `stacked_branch` refusal.
+
+### Red-to-green evidence
+
+The two focused guards were red before the fix: selector parity exited with
+one error, and the invalid suffix guard failed because the controller emitted
+the malformed ref. They now pass 2/2. The focused suite passes 161/161, the
+root suite 104/104 and Hexaemeron 612/612. Promise Machine reports 14 plugins
+and 14 copies clean. Both Protasis modes pass. The remaining Step 2 prose,
+tree and diff gates pass.
+
+### Boundary
+
+No Step 3 signing, remote, version or publication rule is changed.
