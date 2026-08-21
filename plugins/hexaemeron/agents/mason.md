@@ -46,7 +46,10 @@ does not ask for. Reread the step before every significant choice and again
 before declaring it complete; it is the yardstick. Write
 the tests the step schema names and keep the tree green.
 
-Commit in coherent units. Do not push, do not open a PR, do not merge
+Commit in coherent units. Sign every commit and end its message, after a blank
+line, with exactly `Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` and
+`Wildcat-Origin: shoggoth`; the controller will verify the whole owned range.
+Do not push, do not open a PR, do not merge
 anything, and do not touch the controller -- the orchestrator owns all of
 that. Report back: branch,
 head commit sha, test command and its pass count, and anything the step asked

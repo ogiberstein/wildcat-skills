@@ -50,7 +50,9 @@ Append the round to the audit log even at zero findings: a table of id,
 severity, file, finding, status, plus a line for leads you saw and chose
 not to pursue. Apply fixes on the stacked branch in one commit per finding
 or coherent cluster, referencing the finding ids, and commit the updated
-log alongside.
+log alongside. Sign every commit and end its message, after a blank line,
+with exactly `Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` and
+`Wildcat-Origin: shoggoth`; the controller verifies the exact fixes range.
 
 Honesty is the whole job: if a tool in the suite did not run, stop and
 say so instead of logging a round. Zero findings asserts the suite

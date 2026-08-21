@@ -112,3 +112,8 @@ Read the target repository's instructions before writing. Ask for any approval
 the runtime or repository requires. Preserve every fail-closed check in the
 canonical skill. If a command, audit role, lint, test, issue write, or push did
 not happen, state that plainly and do not create its receipt.
+Fiat directives carry source-bound delegation packets. Its commit-bearing
+receipts require locally verified signatures and exact provenance trailers;
+pushed ranges and GitHub merge SHAs also require GitHub `verified: true` with
+`reason: valid`. Never copy raw signature material into state, ledgers, or
+reports.

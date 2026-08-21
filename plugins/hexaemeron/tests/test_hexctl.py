@@ -4,6 +4,7 @@ import json
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -60,6 +61,8 @@ class HexctlCase(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = self.tmp.name
         self.processes = []
+        self.env = os.environ.copy()
+        self.install_fake_delivery_tools()
 
     def tearDown(self):
         for process in self.processes:
@@ -74,6 +77,7 @@ class HexctlCase(unittest.TestCase):
             cwd=self.dir,
             capture_output=True,
             text=True,
+            env=self.env,
         )
         if proc.returncode != expect:
             raise AssertionError(
@@ -81,6 +85,99 @@ class HexctlCase(unittest.TestCase):
                 f"(expected {expect})\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
             )
         return proc
+
+    def install_fake_delivery_tools(self):
+        fake_bin = os.path.join(self.dir, "delivery-tools")
+        os.makedirs(fake_bin)
+        real_git = shutil.which("git")
+        git_script = os.path.join(fake_bin, "git")
+        with open(git_script, "w", encoding="utf-8") as handle:
+            handle.write(f"""#!/usr/bin/env python3
+import hashlib
+import os
+import sys
+import time
+
+args = sys.argv[1:]
+mode = os.environ.get("FAKE_GIT_MODE", "valid")
+if args and args[0] == "rev-parse":
+    if mode == "missing-commit":
+        raise SystemExit(2)
+    ref = args[-1].removesuffix("^{{commit}}")
+    print(hashlib.sha1(ref.encode()).hexdigest())
+elif args and args[0] == "merge-base":
+    raise SystemExit(0)
+elif args and args[0] == "rev-list":
+    pair = next(value for value in args if ".." in value)
+    base, head = pair.split("..", 1)
+    if mode == "malformed-range":
+        print("not-a-sha")
+    elif mode == "intermediate":
+        print(hashlib.sha1(b"middle").hexdigest())
+        print(head)
+    else:
+        print(base if mode == "range-confusion" else head)
+elif args and args[0] == "verify-commit":
+    if os.environ.get("FAKE_GIT_LOG"):
+        with open(os.environ["FAKE_GIT_LOG"], "a", encoding="utf-8") as log:
+            log.write(args[-1] + "\\n")
+    if mode == "timeout":
+        time.sleep(2)
+    if mode == "overflow":
+        sys.stdout.write("signature" * 300000)
+    if mode in ("nonzero", "unsigned"):
+        sys.stderr.write("ghp_FAKE_SECRET raw signature material")
+        raise SystemExit(7)
+    print("FAKE SIGNATURE MATERIAL")
+elif args and args[0] == "show":
+    if mode == "missing-trailer":
+        print("subject\\n\\nWildcat-Origin: shoggoth")
+    elif mode == "duplicate-trailer":
+        print("subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
+    else:
+        print("subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
+else:
+    os.execv({real_git!r}, [{real_git!r}, *args])
+""")
+        os.chmod(git_script, 0o755)
+
+        gh_script = os.path.join(fake_bin, "gh")
+        with open(gh_script, "w", encoding="utf-8") as handle:
+            handle.write("""#!/usr/bin/env python3
+import json
+import os
+import sys
+import time
+
+args = sys.argv[1:]
+mode = os.environ.get("FAKE_GH_MODE", "valid")
+if mode == "timeout":
+    time.sleep(2)
+if mode == "overflow":
+    sys.stdout.write("x" * 2200000)
+    raise SystemExit(0)
+if mode == "nonzero":
+    sys.stderr.write("ghp_FAKE_SECRET rate limit response")
+    raise SystemExit(9)
+if mode == "invalid-json":
+    print("not json")
+    raise SystemExit(0)
+if args[:2] == ["repo", "view"]:
+    print(json.dumps({"nameWithOwner": "wildcat-finance/example"}))
+    raise SystemExit(0)
+sha = args[-1].rsplit("/", 1)[-1]
+payload = {
+    "sha": None if mode == "missing-sha" else sha,
+    "commit": {"verification": {
+        "verified": mode != "verified-false",
+        "reason": os.environ.get("FAKE_GH_REASON", "expired_key") if mode == "invalid-reason" else "valid",
+        "signature": "RAW FAKE SIGNATURE",
+    }},
+}
+print(json.dumps(payload))
+""")
+        os.chmod(gh_script, 0o755)
+        self.env["PATH"] = fake_bin + os.pathsep + self.env.get("PATH", "")
 
     def next_json(self):
         return json.loads(self.run_ctl("next").stdout)
@@ -610,6 +707,135 @@ class TestDelegationPackets(HexctlCase):
             with self.assertRaises(SystemExit):
                 module.bounded_git(self.dir, ["diff"])
         self.assertIn("2097152-byte output cap", error.getvalue())
+
+
+class TestCommitVerification(HexctlCase):
+    def test_local_fake_git_negative_matrix_is_fail_closed_and_secret_safe(self):
+        module = hexctl_module()
+        module.GIT_TIMEOUT = 0.05
+        for mode in (
+            "nonzero", "timeout", "overflow", "missing-trailer",
+            "duplicate-trailer", "range-confusion", "malformed-range",
+            "missing-commit",
+        ):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ,
+                    {"PATH": self.env["PATH"], "FAKE_GIT_MODE": mode},
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.verify_local_range(self.dir, "base", "head", "step")
+                self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
+                self.assertNotIn("FAKE SIGNATURE MATERIAL", error.getvalue())
+
+    def test_local_success_checks_every_intermediate_commit(self):
+        module = hexctl_module()
+        log_path = os.path.join(self.dir, "verified.log")
+        with mock.patch.dict(
+            os.environ,
+            {
+                "PATH": self.env["PATH"],
+                "FAKE_GIT_MODE": "intermediate",
+                "FAKE_GIT_LOG": log_path,
+            },
+        ):
+            commits = module.verify_local_range(self.dir, "base", "head", "step")
+        with open(log_path, encoding="utf-8") as handle:
+            checked = handle.read().splitlines()
+        self.assertEqual(commits, checked)
+        self.assertEqual(len(checked), 2)
+
+    def test_fake_github_negative_matrix_is_fail_closed_and_secret_safe(self):
+        module = hexctl_module()
+        module.GIT_TIMEOUT = 0.05
+        for mode in (
+            "nonzero", "timeout", "overflow", "invalid-json",
+            "verified-false", "invalid-reason", "missing-sha",
+        ):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ,
+                    {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode},
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.verify_github_commits(self.dir, ["a" * 40])
+                self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
+                self.assertNotIn("RAW FAKE SIGNATURE", error.getvalue())
+
+        reasons = (
+            "unknown_signature_type", "no_user", "unverified_email",
+            "bad_email", "unknown_key", "malformed_signature", "invalid",
+            "expired_key", "not_signing_key", "gpgverify_error",
+            "gpgverify_unavailable", "unsigned",
+        )
+        for reason in reasons:
+            with self.subTest(reason=reason):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "PATH": self.env["PATH"],
+                        "FAKE_GH_MODE": "invalid-reason",
+                        "FAKE_GH_REASON": reason,
+                    },
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.verify_github_commits(self.dir, ["a" * 40])
+
+
+class TestDelegationPacketLifecycle(HexctlCase):
+    def test_fresh_run_emits_packets_through_integrate(self):
+        self.to_steps(("Ship",))
+        self.assertEqual(self.next_json()["agent"], "mason")
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.assertEqual(self.next_json()["do"], "resolve-security-suite")
+        self.run_ctl("record", "security_suite", SUITE)
+        self.assertEqual(self.next_json()["agent"], "warden")
+        self.run_ctl("audit-round", "--findings", "0")
+        self.assertEqual(self.next_json()["do"], "close-audit")
+        self.run_ctl("done", "audit")
+        self.assertEqual(self.next_json()["agent"], "scribe")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+        self.assertEqual(self.next_json()["do"], "push")
+        self.run_ctl(
+            "done", "push", "--pr-url", "https://x/pr/1",
+            "--head-commit", "def456", "--pr-base", self.step_base(1),
+        )
+        self.assertEqual(self.next_json()["do"], "merge-step")
+        self.run_ctl(
+            "done", "merge-step", "--step", "1", "--merge-commit", "fed321"
+        )
+        self.assertEqual(self.next_json()["do"], "integrate")
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate", "--pr-url", "https://x/pr/run",
+            "--merge-commit", "cab789",
+        )
+        self.assertEqual(self.next_json()["do"], "done")
+        state = self.state()
+        self.assertTrue(state["steps"][0]["receipts"]["implement"]["verified_commits"])
+        self.assertTrue(state["steps"][0]["receipts"]["push"]["github_verified"])
+        self.assertEqual(
+            state["integrate"]["merges"]["1"]["github_verified"], ["fed321"]
+        )
+        self.assertEqual(state["receipts"]["integrate"]["github_verified"], ["cab789"])
+        with open(
+            os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),
+            encoding="utf-8",
+        ) as handle:
+            ledger = handle.read()
+        evidence = json.dumps(state) + ledger
+        self.assertNotIn("FAKE SIGNATURE MATERIAL", evidence)
+        self.assertNotIn("RAW FAKE SIGNATURE", evidence)
+        self.run_ctl("verify")
 
 
 class TestRunLock(HexctlCase):
@@ -1710,10 +1936,11 @@ class FrontierGateTests(unittest.TestCase):
         widget_ledger(self.ledger, [self.base_row], version="widget-v1.1.0",
                       status=self.HELD[0], revision=self.HELD[1],
                       frontier=self.HELD[2], job=self.HELD[3])
+        with open(self.ledger, "rb") as handle:
+            ledger_sha256 = hashlib.sha256(handle.read()).hexdigest()
         self.before = {
             "ledger": os.path.relpath(self.ledger, self.dir),
-            "sha256": hashlib.sha256(
-                open(self.ledger, "rb").read()).hexdigest(),
+            "sha256": ledger_sha256,
             "rows": 1,
         }
 

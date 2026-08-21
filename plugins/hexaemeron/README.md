@@ -56,7 +56,7 @@ merge per run.
 
 ## Day to day
 
-**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one pull request per step, with the audit suite run against each before it is pushed.
+**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one pull request per step. Each directive carries a source-bound agent packet; each Fiat-created commit is verified locally, and pushed ranges and merge SHAs must carry GitHub's valid verification before their receipts advance.
 
 **Security and audit.** You want the Pashov suite over a contract and nothing else. `x-ray`, `solidity-auditor` and `fizz` are vendored whole and run on their own, without taking on the loop around them.
 
