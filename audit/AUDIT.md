@@ -6259,3 +6259,13 @@ Brevitas accept the six named prose files; Promise Machine reports 14 plugins
 and 14 copies clean; Phylax, Ephoros and Hypomnema each exit 0 over their
 required trees. All other semantics, finding codes, ownership, versions and
 held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 8 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R8-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Both checkers bind a multi-line plain `runbook` scalar from its first physical line before discarding its continuation. With a present decoy `runbooks/present.md`, the valid YAML value `runbooks/present.md extra` therefore satisfies E004 and passes H003 even though that actual pointer is neither the checked Markdown path nor a resolving target. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..c578496aa8fa8b94e8a66a62cdce8c14b05b5016`. The two round-7 guard methods were run against `f95f35b90ed927d6c1ce44da1662c47f19221624` in memory and produced four subtest failures across both quote styles and both ownership gates; both methods pass against the fixed tree. The final documented block-YAML and folded-diff review then reproduced E319-S2-R8-01 with `runbook: runbooks/present.md` followed by a more-indented `extra`: YAML binds the folded value `runbooks/present.md extra`, Ephoros emits no E004, and Hypomnema emits no H003 when the first-line decoy exists. Focused tests pass 118/118; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 591/591. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Lexer state transitions, suppression scope, per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R8-01.
