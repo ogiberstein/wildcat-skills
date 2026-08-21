@@ -6171,3 +6171,14 @@ Brevitas accept the six named prose files; Promise Machine reports 14 plugins
 and 14 copies clean; Phylax, Ephoros and Hypomnema each exit 0 over their
 required trees. All other semantics, finding codes, ownership, versions and
 held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 5 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R5-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | The cross-line quote state opens on every apostrophe or double quote, including one inside a plain scalar. A preceding value such as `O'Brien` or `six" pipe` therefore hides a later `- alert:` or `runbook:` key, allowing missing E004 or H003 evidence to pass. | open |
+| E319-S2-R5-02 | low | `plugins/hexaemeron/tests/test_ephoros_checker.py`, `audit/AUDIT.md` | The quoted-runbook-satisfaction guard is already green against the pre-fix round-4 tree. Independent replay produces six red subtests, not the eight recorded in the round-4 resolution, so this guard does not establish the claimed false-E004-satisfaction mechanism and the resolution overstates its red evidence. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..914099ab3daed011b6f147303214c7d62b3c61f6`. The four round-4 guard methods were run against `91fdc4c2904040d548b75900978c7de3c8c18af6` in memory: false alert detection, false suppression and false H003 detection produced six subtest failures across both quote styles, while the claimed false-satisfaction guard remained green. All four methods pass against the fixed tree. Direct current-tree probes then found E319-S2-R5-01 for both quote characters and both ownership gates. Focused tests pass 112/112; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 585/585. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. H007 remains unchanged; per-alert isolation, pointer base, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R5-01 and E319-S2-R5-02.
