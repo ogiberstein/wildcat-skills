@@ -10,7 +10,7 @@ description: >-
   which belongs to elenchus, and do not use it to measure something slow, which
   belongs to metron.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Ephoros
@@ -168,7 +168,7 @@ credential or an address that should not be there.
 
 ## The mechanical subset
 
-Three of these rules are settled by a parser. Run the lint over the paths a
+Four of these rules are settled by a parser. Run the lint over the paths a
 step touched, and require exit 0.
 
 ```bash
@@ -176,8 +176,13 @@ python3 "$PLUGIN_ROOT/skills/ephoros/scripts/ephoros.py" src tests
 ```
 
 It reports a log message assembled by formatting, a metric label drawn from an
-unbounded source, and a duration summarised as a mean. It reads Python, and
-says nothing about the TypeScript surface.
+unbounded source, a duration summarised as a mean, and E004 for each supported
+block-YAML list entry starting with `alert:` that lacks its own nested
+`annotations.runbook` Markdown path. Comments, block scalars, top-level keys
+and neighbouring alert entries do not satisfy E004. The YAML pass establishes
+presence only: Hypomnema H003 resolves the path and H007 checks the target's
+answers. The other three rules read Python, and the lint says nothing about
+the TypeScript surface.
 
 Two things it deliberately leaves alone. A `print` is command-line output
 rather than telemetry, and this marketplace writes a great deal of it. A mean
@@ -186,7 +191,7 @@ layout positions pass untouched.
 
 Deliberate exceptions state a reason: `# ephoros: allow <why>`, on the line or
 the one above it. A bare pragma suppresses nothing. Everything else here stays
-judgement, and a clean exit says only that these three found nothing.
+judgement, and a clean exit says only that these four found nothing.
 
 ## Rationalisations
 
@@ -247,10 +252,10 @@ signal behind it, or the sampled output someone should read.
 
 ### ephoros-mechanical-gate
 
-- Promise: A zero-exit Ephoros lint establishes that the bounded parser found none of its specified formatted-log, unbounded-metric-label or mean-duration patterns in the selected Python paths.
+- Promise: A zero-exit Ephoros lint establishes that the bounded parser found none of its specified formatted-log, unbounded-metric-label or mean-duration patterns in the selected Python paths, and no supported block-YAML alert entry without its own nested runbook annotation.
 - Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
 - Evidence classes: checked
-- Boundary: A clean lint covers only the three implemented Python rules; it does not prove useful observability, safe output, correct alerting or conformance of another language.
+- Boundary: A clean lint covers only the three implemented Python rules and E004 annotation presence in the supported block-YAML subset; it does not prove useful observability, safe output, correct alerting, a resolving or useful runbook, general YAML semantics or conformance of another language.
 - Authorises: Passing the mechanical Ephoros gate for the exact paths and checker version recorded.
 - Consequence: 1
 - Refuses: Unreadable or oversized input, an unexplained suppression, a non-zero result or any broader observability claim.
