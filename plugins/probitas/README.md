@@ -105,16 +105,14 @@ routes do not change unless this option is passed.
 
 ### Options
 
-| Flag | What it does |
-| --- | --- |
-| `--entity` | The counterparty's name. Required |
-| `--address` | An address they declared. Repeatable, required |
-| `--inferred` | An address suspected but neither declared nor provably linked. Kept in its own section, and gate 1 fails the dossier if a finding against one appears anywhere else |
-| `--fixtures` | Read venue responses from a directory instead of the network |
-| `--alexandria-index` | Read verified archive-backed evidence instead of live or fixture adapters |
-| `--run-id` | A label for the run, printed in the dossier |
-| `--timeout` | Seconds per request, default 30 |
-| `--out` | Where to write, or `-` for stdout |
+- `--entity`: The counterparty's name. Required.
+- `--address`: An address they declared. Repeatable and required.
+- `--inferred`: An address suspected but neither declared nor provably linked. Kept in its own section; gate 1 fails the dossier if a finding against one appears anywhere else.
+- `--fixtures`: Read venue responses from a directory instead of the network.
+- `--alexandria-index`: Read verified archive-backed evidence instead of live or fixture adapters.
+- `--run-id`: A label for the run, printed in the dossier.
+- `--timeout`: Seconds per request, default 30.
+- `--out`: Where to write, or `-` for stdout.
 
 ### The fixtures
 
@@ -192,19 +190,17 @@ Fifteen in the registry, four with adapters. The other eleven appear in every
 coverage table saying nobody checked, which is gate 2 working rather than an
 omission.
 
-| Venue | Status |
-| --- | --- |
-| Wildcat | Shipped. Public Goldsky subgraph, no key |
-| Morpho Blue | Shipped. Borrowing on Blue markets, keyless public API |
-| Euler v1 | Shipped. Canonical proxy event log through a keyless archival RPC |
-| Euler v2 | Shipped. Keyless V3 event ledger and liquidation API; Goldsky is not used for history |
-| Centrifuge | Keyless GraphQL, introspects cleanly. The most build-ready of the gaps |
-| Aave v3, Aave v4 | Keyless first-party API. v4 went live on mainnet in March 2026 |
-| MetaMorpho vaults, Morpho Vaults V2, Morpho Midnight | Three further Morpho surfaces, all keyless, none collected |
-| Maple Finance | Answers, but disables introspection and publishes no schema |
-| Compound v3, Goldfinch | Need a paid Graph gateway key |
-| Clearpool | Live, behind a bot challenge. An agreement is the way in, not a workaround |
-| TrueFi | Restructured through a token migration; no public endpoint answered |
+- Wildcat: Shipped. Public Goldsky subgraph, no key.
+- Morpho Blue: Shipped. Borrowing on Blue markets, keyless public API.
+- Euler v1: Shipped. Canonical proxy event log through a keyless archival RPC.
+- Euler v2: Shipped. Keyless V3 event ledger and liquidation API; Goldsky is not used for history.
+- Centrifuge: Keyless GraphQL, introspects cleanly. The most build-ready of the gaps.
+- Aave v3, Aave v4: Keyless first-party API. v4 went live on mainnet in March 2026.
+- MetaMorpho vaults, Morpho Vaults V2, Morpho Midnight: Three further Morpho surfaces, all keyless, none collected.
+- Maple Finance: Answers, but disables introspection and publishes no schema.
+- Compound v3, Goldfinch: Need a paid Graph gateway key.
+- Clearpool: Live, behind a bot challenge. An agreement is the way in, not a workaround.
+- TrueFi: Restructured through a token migration; no public endpoint answered.
 
 Six of the eleven gaps need only an adapter and nothing from anyone: Centrifuge,
 both Aave versions, and Morpho's three other surfaces. The rest wait on a key,

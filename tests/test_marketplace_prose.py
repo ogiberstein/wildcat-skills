@@ -139,6 +139,21 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertIsNotNone(match, agent)
                 self.assertEqual(match.group(1), expected)
 
+    def test_fiat_public_prose_names_the_state_container_gate(self):
+        plugin = ROOT / "plugins" / "hexaemeron"
+        skill = (plugin / "skills" / "fiat" / "SKILL.md").read_text(encoding="utf-8")
+        readme = (plugin / "README.md").read_text(encoding="utf-8")
+        agent = (plugin / "skills" / "fiat" / "agents" / "openai.yaml").read_text(
+            encoding="utf-8"
+        )
+        codex = json.loads(
+            (plugin / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("validates the required version-1 container", skill)
+        self.assertIn("checks the required\nversion-1 container spine", readme)
+        self.assertIn("validating the controller state containers", agent)
+        self.assertIn("validates its required state containers", codex["interface"]["longDescription"])
+
     def test_root_readme_maps_every_plugin(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("## Current status", readme)

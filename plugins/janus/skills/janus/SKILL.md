@@ -25,7 +25,7 @@ after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Janus tests a contract hook at the threshold it controls: what may happen before the host action, what may happen after it, and what the hook must never change.
+Janus tests a contract hook at the threshold it controls: what can happen before the host action, what can happen after it, and what the hook must never change.
 
 **Current frontier.** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 <!-- marketplace-context:end -->

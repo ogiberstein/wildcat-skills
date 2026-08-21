@@ -308,8 +308,8 @@ forge test --match-contract WildcatTest
 
 `integrations/wildcat/` models a market with batched withdrawals, a reserve the
 borrower may not touch, delinquency and penalty accrual.
-[`APPLICABILITY.md`](./integrations/wildcat/APPLICABILITY.md) is the part worth
-reading. Six laws apply flatly. `queue-order-preserved` applies at batch
+[`APPLICABILITY.md`](./integrations/wildcat/APPLICABILITY.md) is the operative
+source. Six laws apply flatly. `queue-order-preserved` applies at batch
 granularity and says nothing per lender. `path-independent` holds while the
 market is solvent and stops holding once the penalty is running. And
 `recorded-claim-never-shrinks` does not hold over a batch that is still open,

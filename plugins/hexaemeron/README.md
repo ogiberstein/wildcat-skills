@@ -106,7 +106,10 @@ Everything else proceeds.
 `skills/fiat/scripts/hexctl.py` sequences the run. The model does the work;
 the controller decides what comes next and refuses to advance without a
 receipt. State sits in `.hexaemeron/` (self-gitignored) beside an
-append-only ledger where every entry hashes over the one before it.
+append-only ledger where every entry hashes over the one before it. Before any
+state-backed command reads further, the controller checks the required
+version-1 container spine in deterministic order and refuses a missing or
+wrong-kind container with a value-free path-and-kind diagnosis.
 
 ```text
 hexctl next                 # the single next action, as JSON
@@ -116,7 +119,7 @@ hexctl audit-round ...      # record one security round
 hexctl record <key> <val>   # named receipts (resolved suite, run context)
 hexctl halt / resume        # put a stop itself on the ledger
 hexctl reset                # archive a completed run and clear active state
-hexctl verify               # prove the chain and state were not edited
+hexctl verify               # check state shape, then prove chain and state integrity
 ```
 
 Mutating commands hold a kernel lock for their whole run. A second writer is
@@ -217,7 +220,8 @@ path, so the warden and scribe always have their tools.
 python3 tests/run_tests.py
 ```
 
-The tests cover the controller and Fiat contract: phase ordering, completed
-run archival and reset, audit gating and round caps, fixes evidence, prose
-skill enforcement, halt/resume, ledger tamper detection, concurrent writer
-exclusion, crash recovery, and the Wildcat marketplace boundary.
+The tests cover the controller and Fiat contract: phase ordering, ordered
+state-container validation, completed run archival and reset, audit gating and
+round caps, fixes evidence, prose skill enforcement, halt/resume, ledger
+tamper detection, concurrent writer exclusion, crash recovery, and the
+Wildcat marketplace boundary.
