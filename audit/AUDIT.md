@@ -6242,3 +6242,22 @@ candidate.
 Leads not pursued: the class vocabulary itself. Twelve classes cover 62 of the
 120 documented rules, and widening them is a change to the harness's public
 interface that the study's constraints put out of scope for this run.
+
+## Hermes rule corpus, step 4, round 2 -- 2026-08-21
+
+Round 1's two fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 49/49. `corpus --validate` is clean at 120 rules.
+
+The second look re-read both fixes and the guards now holding them. MEM-12
+takes `assembly` and its guard asserts the mapping beside the word
+`scratch-memory` in the rule's own statement, so the reason travels with the
+assertion. DEP-07 and DEP-08 floor at Homestead and their guard requires
+EIP-3860 to stay named in the reason, so the initcode half of each rule cannot
+quietly disappear from the record while the floor moves. `hashing-encoding`
+remains reachable through MEM-14, which is what keeps the bidirectional
+mapping test meaningful after MEM-12 moved.
+
+Leads not pursued: the class vocabulary, unchanged from round 1.
