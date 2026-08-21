@@ -7428,3 +7428,29 @@ Phylax, Ephoros and Hypomnema each exit 0. The diff check is clean. Mason head
 exactly one copy of each required Shoggoth trailer.
 
 Leads not pursued: none.
+
+## Ephoros wallet-address telemetry, step 1, round 1 -- 2026-08-21
+
+The exact range `6412c85d7cfd352e21fcc3dc0d8cef39a0649976..a1af4b888b1c181b2a0267b6feee2156abcee238`
+contains the two committed specification copies and nothing else. No product
+source or Solidity changed, so the recorded security-suite waiver applies and
+the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Protasis accepts both tracked specifications, study mode and runbook mode each
+exiting 0. Imprimatur exits 0 on each document. Phylax, Ephoros and Hypomnema
+each exit 0 over the two changed files. The Hexaemeron suite passes 640/640 and
+the root suite 107/107. Promise Machine reports 14 plugins and 14 copies clean.
+The step head has a valid local signature and exactly one of each required
+Shoggoth trailer.
+
+The review covered all 8 source-bound risks: `ts-lexer-input`,
+`false-positive-cache-keys`, `rule-boundary-drift`, `e002-reassignment`,
+`suppression-parity`, `yaml-label-keys`, `fixture-exclusion` and
+`walk-widening`. Each names an implementation obligation of steps 2 through 4;
+this documents-only step records them without implementing or weakening any.
+
+Leads not pursued: none.
