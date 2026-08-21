@@ -5,8 +5,10 @@ reads as though the reason exists and was checked.
 """
 
 import importlib.util
+import io
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,6 +146,89 @@ class YamlRunbooks(unittest.TestCase):
     def test_an_oversized_yaml_file_fails_visibly(self):
         source = "#" * (hypomnema.MAX_YAML_BYTES + 1)
         self.assertEqual(["H000"], yaml_codes(source))
+
+    def test_yaml_read_requests_only_the_cap_plus_one_byte(self):
+        class RecordingReader(io.BytesIO):
+            requested = None
+
+            def read(self, size=-1):
+                self.requested = size
+                return super().read(size)
+
+        reader = RecordingReader(b"#" * (hypomnema.MAX_YAML_BYTES + 1))
+        with mock.patch.object(Path, "open", return_value=reader), \
+                mock.patch.object(Path, "read_bytes", side_effect=AssertionError):
+            findings = hypomnema.check(Path("bounded.yaml"))
+        self.assertEqual(["H000"], [finding.code for finding in findings])
+        self.assertEqual(hypomnema.MAX_YAML_BYTES + 1, reader.requested)
+
+    def test_bare_sequence_block_scalars_do_not_create_runbook_pointers(self):
+        for marker in ("|", ">"):
+            with self.subTest(marker=marker):
+                source = f"examples:\n  - {marker}\n    runbook: runbooks/example.md\n"
+                self.assertEqual([], yaml_codes(source))
+
+    def test_yaml_runbook_keys_are_case_sensitive(self):
+        self.assertEqual([], yaml_codes("Runbook: runbooks/wrong-case.md\n"))
+
+    def test_an_unseparated_hash_is_preserved_in_a_missing_runbook_path(self):
+        source = "runbook: runbooks/missing#book.md\n"
+        self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_multiline_quoted_runbook_text_does_not_fire_h003(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = (f"note: {quote}\n"
+                          "  runbook: runbooks/quoted.md\n"
+                          f"  {quote}\n")
+                self.assertEqual([], yaml_codes(source))
+
+    def test_quotes_inside_plain_scalars_do_not_hide_runbook_pointers(self):
+        for quote, value in (("'", "O'Brien"), ('"', 'six" pipe')):
+            with self.subTest(quote=quote):
+                source = f"note: {value}\nrunbook: runbooks/missing.md\n"
+                self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_unseparated_quote_starts_do_not_hide_runbook_pointers(self):
+        for shape in ("- note: plain:{quote}text", "  -{quote}text"):
+            for quote in ("'", '"'):
+                with self.subTest(shape=shape, quote=quote):
+                    source = (f"{shape.format(quote=quote)}\n"
+                              "runbook: runbooks/missing.md\n")
+                    self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_plain_scalar_continuation_quotes_do_not_hide_runbook_pointers(self):
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                source = ("note: first\n"
+                          f"  {quote}continued\n"
+                          "runbook: runbooks/missing.md\n")
+                self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_a_folded_plain_runbook_cannot_resolve_through_a_first_line_decoy(self):
+        source = "runbook: runbooks/present.md\n  extra\n"
+        self.assertEqual(
+            ["H003"], yaml_codes(source, siblings=("runbooks/present.md",)))
+
+    def test_a_valid_folded_plain_runbook_resolves_as_one_path(self):
+        source = "runbook: runbooks/present.md\n  target.md\n"
+        self.assertEqual([], yaml_codes(
+            source, siblings=("runbooks/present.md target.md",)))
+
+    def test_a_single_line_plain_runbook_stays_clean(self):
+        source = "runbook: runbooks/present.md\n"
+        self.assertEqual(
+            [], yaml_codes(source, siblings=("runbooks/present.md",)))
+
+    def test_a_blank_plain_fold_cannot_resolve_through_a_space_decoy(self):
+        source = "runbook: runbooks/present\n\n  target.md\n"
+        self.assertEqual(["H003"], yaml_codes(
+            source, siblings=("runbooks/present target.md",)))
+
+    def test_a_blank_plain_fold_resolves_the_newline_path(self):
+        source = "runbook: runbooks/present\n\n  target.md\n"
+        self.assertEqual([], yaml_codes(
+            source, siblings=("runbooks/present\ntarget.md",)))
 
 
 COMPLETE_RUNBOOK = """# Pending age
