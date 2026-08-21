@@ -154,7 +154,111 @@ class TelemetryKeys(unittest.TestCase):
             "c.labels(wallet_address=a).inc()  # ephoros: allow\n"))
 
 
-class AlertLabelKeys(unittest.TestCase):
+def ts_codes(source, name="sample.ts"):
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / name
+        path.write_text(source, encoding="utf-8")
+        return sorted(f.code for f in ephoros.check(path))
+
+
+class TypeScriptTelemetryKeys(unittest.TestCase):
+    def test_it_flags_an_address_key_on_a_metric_label_set(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "metric-label-set.ts")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_an_address_key_on_a_dashboard_structure(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "dashboard-key.ts")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_an_address_key_on_a_log_index_position(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "log-index.ts")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_a_camel_case_label_key_on_an_analytics_sink(self):
+        self.assertEqual(["E005"], ts_codes(
+            'analytics.track("deposit", { labels: { walletAddress: depositor } })\n'))
+
+    def test_it_flags_a_forty_hex_literal_in_a_label_array(self):
+        self.assertEqual(["E005"], ts_codes(
+            'metrics.increment("m", '
+            '{ tags: ["0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"] })\n'))
+
+    def test_it_flags_the_labels_instance_call_style(self):
+        self.assertEqual(["E005"], ts_codes(
+            "deposits.labels({ walletAddress: depositor }).inc()\n"))
+
+    def test_it_flags_a_log_store_partitioned_by_address(self):
+        self.assertEqual(["E005"], ts_codes("eventLog[walletAddress] = event\n"))
+
+    def test_it_allows_a_query_key_array_carrying_an_address(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "query-key.ts"))
+
+    def test_it_allows_a_storage_key_built_from_an_address(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "storage-key.ts"))
+
+    def test_it_allows_a_logger_message_interpolating_an_address(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "logger-message.ts"))
+
+    def test_it_ignores_console_output_which_is_not_telemetry(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "console-output.ts"))
+
+    def test_an_address_key_on_an_unnamed_store_does_not_fire(self):
+        self.assertEqual([], ts_codes("cache[walletAddress] = market\n"))
+
+    def test_a_label_shaped_object_outside_a_telemetry_sink_does_not_fire(self):
+        self.assertEqual([], ts_codes(
+            "chip.render({ tags: { walletAddress: lender } })\n"))
+
+    def test_a_reasoned_slash_pragma_on_the_line_suppresses_e005(self):
+        self.assertEqual([], ts_codes(
+            "eventLog[walletAddress] = event"
+            "  // ephoros: allow one aggregate treasury row\n"))
+
+    def test_a_reasoned_slash_pragma_on_the_line_above_suppresses_e005(self):
+        self.assertEqual([], ts_codes(
+            "// ephoros: allow one aggregate treasury row\n"
+            "eventLog[walletAddress] = event\n"))
+
+    def test_a_bare_slash_pragma_does_not_suppress_e005(self):
+        self.assertEqual(["E005"], ts_codes(
+            "eventLog[walletAddress] = event  // ephoros: allow\n"))
+
+
+class TypeScriptBoundaries(unittest.TestCase):
+    def test_an_oversized_typescript_file_fails_visibly(self):
+        source = "//" + "x" * ephoros.TYPESCRIPT_MAX_BYTES
+        self.assertEqual(["E000"], ts_codes(source))
+
+    def test_typescript_read_requests_only_the_cap_plus_one_byte(self):
+        class RecordingReader(io.BytesIO):
+            requested = None
+
+            def read(self, size=-1):
+                self.requested = size
+                return super().read(size)
+
+        reader = RecordingReader(b"/" * (ephoros.TYPESCRIPT_MAX_BYTES + 1))
+        with mock.patch.object(Path, "open", return_value=reader), \
+                mock.patch.object(Path, "read_bytes", side_effect=AssertionError):
+            findings = ephoros.check(Path("bounded.ts"))
+        self.assertEqual(["E000"], [finding.code for finding in findings])
+        self.assertEqual(ephoros.TYPESCRIPT_MAX_BYTES + 1, reader.requested)
+
+    def test_a_lexer_failure_reports_e000(self):
+        self.assertEqual(["E000"], ts_codes("const s = `never terminated\n"))
+
+    def test_the_walk_skips_node_modules(self):
+        with tempfile.TemporaryDirectory() as base:
+            vendored = Path(base) / "node_modules" / "left-pad"
+            vendored.mkdir(parents=True)
+            (vendored / "index.ts").write_text(
+                "eventLog[walletAddress] = event\n", encoding="utf-8")
+            first_party = Path(base) / "src"
+            first_party.mkdir()
+            kept = first_party / "page.tsx"
+            kept.write_text("export default null\n", encoding="utf-8")
+            self.assertEqual([kept], ephoros.walk([base]))
+
     def test_an_address_named_key_under_alert_labels_reports_e005(self):
         findings = ephoros.check(TELEMETRY_FIXTURES / "alert-labels.yaml")
         self.assertEqual(["E005"], [finding.code for finding in findings])

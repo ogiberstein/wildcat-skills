@@ -12,7 +12,8 @@ reading intent. Everything else in SKILL.md stays a judgement.
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
-Deliberate exceptions state a reason: `# ephoros: allow <why>`.
+Deliberate exceptions state a reason: `# ephoros: allow <why>` in Python and
+YAML, `// ephoros: allow <why>` in TypeScript.
 """
 
 from __future__ import annotations
@@ -23,6 +24,12 @@ import json
 import re
 import sys
 from pathlib import Path
+
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+if str(PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_ROOT))
+
+from lib.typescript_lexer import lex  # noqa: E402
 
 LOG_METHODS = {"debug", "info", "warning", "warn", "error", "critical", "exception", "log"}
 # A logger, not any object with an `info` method, and deliberately not `print`:
@@ -49,8 +56,30 @@ DURATION = re.compile(
 )
 MEAN_FUNCS = {"mean", "fmean", "average", "avg"}
 
-ALLOW = re.compile(r"#\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
+ALLOW = re.compile(r"(?:#|//)\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
 YAML_SUFFIXES = {".yaml", ".yml"}
+TYPESCRIPT_SUFFIXES = {".ts", ".tsx"}
+TYPESCRIPT_MAX_BYTES = 1 << 20
+
+# The TypeScript surface, read through the shared masked lexer the way phylax
+# reads it. Recognition splits identifiers on underscore and camel-case
+# boundaries, so `walletAddress` and `wallet_address` name the same key.
+TS_IDENTIFIER = r"[A-Za-z_$][\w$]*"
+TS_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
+TS_CHAIN = re.compile(
+    rf"(?<![\w$.])(?P<chain>{TS_IDENTIFIER}(?:\s*\.\s*{TS_IDENTIFIER})*)"
+    r"\s*(?P<open>[\[(])")
+TS_LABEL_PROPERTY = re.compile(
+    r"(?<![\w$])(?:labels|labelnames|label_names|tags|attributes)"
+    r"\s*:\s*(?P<open>[\[{])")
+TS_INDEX_PROPERTY = re.compile(r"(?<![\w$])index\s*:\s*")
+TS_ADDRESS_WORDS = frozenset({"address", "addresses", "addr", "addrs",
+                              "wallet", "wallets"})
+TS_METRIC_WORDS = frozenset({"metric", "metrics", "counter", "counters",
+                             "gauge", "gauges", "histogram", "histograms",
+                             "analytics", "telemetry", "statsd"})
+TS_DASHBOARD_WORDS = frozenset({"dashboard", "dashboards", "panel", "panels"})
+TS_LOG_WORDS = frozenset({"log", "logs", "logger", "logging"})
 MAX_YAML_BYTES = 1 << 20
 ALERT = re.compile(r"^-\s+alert\s*:")
 ANNOTATIONS = re.compile(r"^annotations\s*:\s*$")
@@ -464,7 +493,251 @@ def _yaml_findings(path: Path, text: str) -> list[Finding]:
                 "alert entry has no nested `annotations.runbook` Markdown path"))
     return findings
 
+def _line_of(text: str, offset: int) -> int:
+    return text.count("\n", 0, offset) + 1
+
+
+def _masked(text: str, spans) -> str:
+    """Blank comments, strings and other non-code while preserving offsets."""
+    parts = []
+    for kind, start, end in spans:
+        segment = text[start:end]
+        if kind == "code":
+            parts.append(segment)
+        else:
+            parts.append("".join(ch if ch == "\n" else " " for ch in segment))
+    return "".join(parts)
+
+
+def _matching(mask: str, opening: int) -> int | None:
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    if opening >= len(mask) or mask[opening] not in pairs:
+        return None
+    stack = [pairs[mask[opening]]]
+    for index in range(opening + 1, len(mask)):
+        current = mask[index]
+        if current in pairs:
+            stack.append(pairs[current])
+        elif stack and current == stack[-1]:
+            stack.pop()
+            if not stack:
+                return index
+    return None
+
+
+def _split_ranges(mask: str, start: int, end: int) -> list[tuple[int, int]]:
+    """Split a comma list at lexical depth zero, retaining source offsets."""
+    ranges = []
+    stack = []
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    item = start
+    for index in range(start, end):
+        current = mask[index]
+        if current in pairs:
+            stack.append(pairs[current])
+        elif stack and current == stack[-1]:
+            stack.pop()
+        elif current == "," and not stack:
+            ranges.append((item, index))
+            item = index + 1
+    ranges.append((item, end))
+    return ranges
+
+
+def _ts_words(name: str) -> set[str]:
+    return {word.lower() for word in TS_WORD.findall(name)}
+
+
+def _ts_address_name(name: str) -> bool:
+    return bool(_ts_words(name) & TS_ADDRESS_WORDS)
+
+
+def _ts_address_string(value: str) -> bool:
+    return bool(HEX_ADDRESS.fullmatch(value) or _ts_address_name(value))
+
+
+def _ts_string_value(expression: str) -> str | None:
+    expression = expression.strip()
+    if len(expression) >= 2 and expression[0] == expression[-1] \
+            and expression[0] in "'\"":
+        return expression[1:-1]
+    return None
+
+
+def _ts_address_expression(text: str, mask: str, start: int, end: int) -> str:
+    """Return the address-shaped name or literal in a key position, or ""."""
+    expression = mask[start:end].strip()
+    if re.fullmatch(rf"{TS_IDENTIFIER}(?:\s*\.\s*{TS_IDENTIFIER})*", expression):
+        last = re.split(r"\s*\.\s*", expression)[-1]
+        return last if _ts_address_name(last) else ""
+    value = _ts_string_value(text[start:end])
+    if value is not None and _ts_address_string(value):
+        return value
+    return ""
+
+
+def _ts_keyed_by_address(path: Path, text: str, offset: int,
+                         position: str, key: str) -> Finding:
+    return Finding(path, _line_of(text, offset), "E005",
+                   f"{position} `{key}` keys telemetry by wallet address; "
+                   "put it in an event")
+
+
+def _ts_object_keys(text: str, mask: str, opening: int,
+                    closing: int) -> list[tuple[int, str]]:
+    """Return (offset, key) for each address-shaped key of one object literal."""
+    keys = []
+    for start, end in _split_ranges(mask, opening + 1, closing):
+        colon = -1
+        stack = []
+        pairs = {"(": ")", "[": "]", "{": "}"}
+        for index in range(start, end):
+            current = mask[index]
+            if current in pairs:
+                stack.append(pairs[current])
+            elif stack and current == stack[-1]:
+                stack.pop()
+            elif current == ":" and not stack:
+                colon = index
+                break
+        key_end = colon if colon != -1 else end
+        key = _ts_address_expression(text, mask, start, key_end)
+        if key:
+            keys.append((start, key))
+    return keys
+
+
+def _ts_label_container(path: Path, text: str, mask: str, opening: int,
+                        closing: int) -> list[Finding]:
+    """E005 findings for address keys inside one label set container."""
+    findings = []
+    if mask[opening] == "{":
+        for offset, key in _ts_object_keys(text, mask, opening, closing):
+            findings.append(_ts_keyed_by_address(
+                path, text, offset, "metric label", key))
+    else:
+        for start, end in _split_ranges(mask, opening + 1, closing):
+            value = _ts_string_value(text[start:end])
+            if value is not None and _ts_address_string(value):
+                findings.append(_ts_keyed_by_address(
+                    path, text, start, "metric label", value))
+    return findings
+
+
+def _ts_label_properties(path: Path, text: str, mask: str, start: int,
+                         end: int) -> list[Finding]:
+    """Label/tag/attribute sets inside one telemetry sink call's arguments."""
+    findings = []
+    for match in TS_LABEL_PROPERTY.finditer(mask, start, end):
+        opening = match.start("open")
+        closing = _matching(mask, opening)
+        if closing is not None:
+            findings.extend(_ts_label_container(path, text, mask, opening, closing))
+    return findings
+
+
+def _ts_labels_call(path: Path, text: str, mask: str, start: int,
+                    end: int) -> list[Finding]:
+    """The Prometheus instance style: `.labels({...})` or a literal address."""
+    findings = []
+    for arg_start, arg_end in _split_ranges(mask, start, end):
+        argument = mask[arg_start:arg_end].strip()
+        if argument.startswith("{"):
+            opening = mask.index("{", arg_start, arg_end)
+            closing = _matching(mask, opening)
+            if closing is not None:
+                for offset, key in _ts_object_keys(text, mask, opening, closing):
+                    findings.append(_ts_keyed_by_address(
+                        path, text, offset, "metric label", key))
+        else:
+            value = _ts_string_value(text[arg_start:arg_end])
+            if value is not None and HEX_ADDRESS.fullmatch(value):
+                findings.append(_ts_keyed_by_address(
+                    path, text, arg_start, "metric label", value))
+    return findings
+
+
+def _ts_index_properties(path: Path, text: str, mask: str, start: int,
+                         end: int) -> list[Finding]:
+    """`index:` properties inside one logger or log-store call's arguments."""
+    findings = []
+    for match in TS_INDEX_PROPERTY.finditer(mask, start, end):
+        value_end = match.end()
+        stack = []
+        pairs = {"(": ")", "[": "]", "{": "}"}
+        for index in range(match.end(), end):
+            current = mask[index]
+            if current in pairs:
+                stack.append(pairs[current])
+            elif current in ")]}" and not stack:
+                value_end = index
+                break
+            elif stack and current == stack[-1]:
+                stack.pop()
+            elif current == "," and not stack:
+                value_end = index
+                break
+        else:
+            value_end = end
+        key = _ts_address_expression(text, mask, match.end(), value_end)
+        if key:
+            findings.append(_ts_keyed_by_address(
+                path, text, match.start(), "log index", key))
+    return findings
+
+
+def check_typescript(path: Path, text: str) -> list[Finding]:
+    spans, errors = lex(text)
+    if errors:
+        return [Finding(path, _line_of(text, offset), "E000",
+                        f"could not lex: {reason}")
+                for offset, reason in errors]
+    mask = _masked(text, spans)
+    findings: list[Finding] = []
+    for match in TS_CHAIN.finditer(mask):
+        segments = re.split(r"\s*\.\s*", match.group("chain"))
+        if segments[0] == "console":
+            continue  # command-line output is not telemetry
+        opening = match.start("open")
+        closing = _matching(mask, opening)
+        if closing is None:
+            continue
+        last_words = _ts_words(segments[-1])
+        if match.group("open") == "[":
+            key = _ts_address_expression(text, mask, opening + 1, closing)
+            if key and last_words & TS_DASHBOARD_WORDS:
+                findings.append(_ts_keyed_by_address(
+                    path, text, opening + 1, "dashboard key", key))
+            elif key and last_words & TS_LOG_WORDS:
+                findings.append(_ts_keyed_by_address(
+                    path, text, opening + 1, "log index", key))
+            continue
+        chain_words = set().union(*(_ts_words(s) for s in segments))
+        if chain_words & TS_METRIC_WORDS:
+            findings.extend(_ts_label_properties(
+                path, text, mask, opening + 1, closing))
+        if len(segments) >= 2 and segments[-1] == "labels":
+            findings.extend(_ts_labels_call(
+                path, text, mask, opening + 1, closing))
+        if len(segments) >= 2 and _ts_words(segments[-2]) & TS_LOG_WORDS:
+            findings.extend(_ts_index_properties(
+                path, text, mask, opening + 1, closing))
+    return findings
+
+
 def check(path: Path) -> list[Finding]:
+    if path.suffix in TYPESCRIPT_SUFFIXES:
+        try:
+            with path.open("rb") as source:
+                raw = source.read(TYPESCRIPT_MAX_BYTES + 1)
+            if len(raw) > TYPESCRIPT_MAX_BYTES:
+                return [Finding(path, 1, "E000",
+                                "unreadable: TypeScript exceeds 1 MiB")]
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError) as err:
+            return [Finding(path, 1, "E000", f"unreadable: {err}")]
+        return [f for f in check_typescript(path, text)
+                if not suppressed(text, f.line)]
     if path.suffix in YAML_SUFFIXES:
         try:
             with path.open("rb") as source:
@@ -495,11 +768,14 @@ def walk(paths: list[str]) -> list[Path]:
     for raw in paths:
         root = Path(raw)
         if root.is_dir():
-            found = (child for suffix in (".py", *sorted(YAML_SUFFIXES))
+            suffixes = (".py", *sorted(TYPESCRIPT_SUFFIXES),
+                        *sorted(YAML_SUFFIXES))
+            found = (child for suffix in suffixes
                      for child in root.rglob(f"*{suffix}"))
             out.extend(child for child in sorted(set(found))
                        if child.is_file()
                        and "__pycache__" not in child.parts
+                       and "node_modules" not in child.parts
                        and "fixtures" not in child.relative_to(root).parts[:-1])
         else:
             out.append(root)
