@@ -5878,3 +5878,19 @@ over the v4.5.0 row. Phylax, ephoros and hypomnema exit 0. Root 104/104;
 hexaemeron 505/507 with the two recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema ADR shape check, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check and the runbook check exit 0 over them, and the
+regenerated boundary carries exactly the two new paths. Per the register:
+backfill-fidelity, shape-source, false-positive and interface-drift not
+applicable, no record, rule or code changes this step; ledger-arithmetic
+not applicable, no row cut this step. Phylax, ephoros and hypomnema exit
+0. Root 104/104; hexaemeron 505/507 with the two recorded environment
+failures.
+
+Leads not pursued: none
