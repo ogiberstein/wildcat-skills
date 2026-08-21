@@ -6367,3 +6367,22 @@ relocation it has no other reason to support.
 
 Leads not pursued: none. The class-vocabulary gap recorded in steps 3 and 4 is
 no longer a lead, because it is the successor frontier this row holds.
+
+## Hermes rule corpus, step 6, round 2 -- 2026-08-21
+
+Round 1's two fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 72/72. The demo path is clean at 120 rules.
+
+The second look re-read the prose the cold read changed, against the thing it
+now claims. The root boundary sentence says Hermes measures one class named by
+a rule from its pinned corpus, which is what Gate 2 enforces. Both published
+invocation prompts tell a reader to name the rule, which is what `verify`
+requires. The skill's selection description names the corpus, the counts and the
+scope refusal, so an agent choosing between skills can see what changed without
+reading the body. The catalogue's generated index is held to the corpus by a
+test, so no future reader is told a mapping the data does not carry.
+
+Leads not pursued: none.
