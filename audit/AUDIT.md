@@ -6618,3 +6618,60 @@ per-file Brevitas checks, Phylax, Ephoros, Hypomnema, Horos and the folded diff
 check exit 0.
 
 Further leads: none.
+
+## Fiat delegation packets, step 3, round 1 -- 2026-08-21
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I320-S3-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1003-1015,1194-1238` | Implement and push validate the declared branch name and the supplied base-to-head range separately, but never require the supplied head to be the declared step branch tip. A different signed descendant of the base can therefore be receipted as that branch and pushed as its range. Resolve the declared branch and require exact equality with the supplied head; bind the pushed PR head to the same SHA. | open |
+| I320-S3-R1-02 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1315-1355,1361-1412` | `merge-step` and `integrate` require only a valid GitHub verification response for the supplied value. They do not establish that it is the named step-to-run or run-to-base merge, or that it belongs to the recorded PR. Any GitHub-valid commit in the selected repository can advance either receipt. Bind each receipt to the exact PR, expected head/base and resulting merge SHA. | open |
+| I320-S3-R1-03 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1194-1250,1375-1411,1712-1756` | Repository identity and publication identity are separate unchecked claims. `gh repo view` supplies an owner/name which is not cross-checked with the target remote, while `--pr-url` is any non-empty text and is not checked against that repository. The fresh test passes in a temporary repository with the fake repository `wildcat-finance/example` while receipting `https://x/...`. Bind the GitHub repository to the target and require the PR response and URL to name that repository and the expected refs. | open |
+| I320-S3-R1-04 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1731-1756` | GitHub verification does not validate each input with `COMMIT_RE` before placing it in the endpoint and refusal text. A direct fake-GitHub probe accepted `not-a-sha`; a token-shaped value can be repeated in an API refusal. Require one full SHA before any command or error is built and keep unvalidated values out of diagnostics. | open |
+| I320-S3-R1-05 | medium | `plugins/hexaemeron/tests/test_hexctl.py:789-838` | The named fresh lifecycle calls `to_steps` before its first packet assertion, so it neither observes the study and runbook directives nor proves second-process reconstruction at each transition. It also uses arbitrary commit labels and unrelated PR URLs accepted by the fake binaries. Extend the proof from the first study directive through every transition with repository-, ref- and SHA-realistic evidence. | open |
+
+### Independent probes
+
+The local range reader refuses empty, malformed, non-descendant and oversized
+ranges, verifies every enumerated intermediate commit, counts both exact
+trailers once and discards raw signature output. Its missing control is the
+relation between that range head and the branch it is said to represent.
+
+The GitHub reader rejects malformed response JSON, missing or mismatched
+response SHAs, false verification, every non-valid reason, tool failure,
+timeout and oversized output. Against its shipped fake boundary,
+`verify_github_commits` returned `['not-a-sha']`. The same boundary accepts a
+repository name without a target-remote comparison. Fixed argv, target cwd,
+`shell=False`, the 30-second timeout and 2 MiB output cap remain intact.
+
+The current pre-generation run remains compatible: `hexctl next` emits the
+held Step 3 audit directive with its state digest and explicit `agent: null`,
+`brief: {}`. Packet, artefact, Protasis and path controls from Step 2 remain
+unchanged.
+
+### Publication and gates
+
+The Fiat release is an ordinary `fiat-v4.9.1` generation. Its
+`receipted-lint-rounds` revision, frontier text and digest remain unchanged;
+the held `load_state` job is not displaced. The Hexaemeron package, both plugin
+manifests and both marketplace records agree on `1.5.2`. Source commit
+`cc7e81f7789d4748abac678dfbd464c2c70702c7` has a good local signature and
+exactly one required co-author and origin trailer.
+
+The Step 3 focused set passes 196/196, the named lifecycle 1/1, root tests
+104/104 and Hexaemeron 616/616. Promise Machine reports 14 plugins and 14
+copies clean. Both Protasis modes, Imprimatur, all per-file Brevitas checks,
+Phylax, Ephoros, Hypomnema, Horos and the folded diff check exit 0.
+
+### Risk-register disposition
+
+`file-range-confusion` and `local-signature-gap` remain open through
+I320-S3-R1-01. `merge-origin-confusion` remains open through I320-S3-R1-02.
+`remote-verification-gap` remains open through I320-S3-R1-03 and
+I320-S3-R1-04. `subprocess-control` remains open only for the unvalidated
+GitHub value and diagnostic in I320-S3-R1-04; its execution controls pass.
+`packet-state-drift`, `artefact-drift`, `protasis-grammar-drift`,
+`legacy-state-overclaim` and `path-escape` are clean in the folded diff.
+
+Further leads: none beyond I320-S3-R1-01 through I320-S3-R1-05.
