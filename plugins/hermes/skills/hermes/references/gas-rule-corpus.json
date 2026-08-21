@@ -2402,7 +2402,7 @@
       "priority": "P2",
       "evidence_grade": "B",
       "automation": "never",
-      "hermes_class": "hashing-encoding",
+      "hermes_class": "assembly",
       "statement": "for a fixed sequence of canonical 32-byte words, scratch-memory `KECCAK256` can replace generic `abi.encode`. differential-test every helper against the canonical encoding.",
       "obligations": [],
       "references": [],
@@ -3778,14 +3778,14 @@
       "scope": {
         "compiler_min": "0.8.0",
         "compiler_max_exclusive": "0.9.0",
-        "compiler_reason": "Initcode metering is a consensus rule rather than compiler behaviour.",
-        "evm_floor": "shanghai",
-        "evm_reason": "EIP-3860 introduced the initcode limit and its per-word cost, which the source cites for this rule.",
+        "compiler_reason": "The limits are consensus rules rather than compiler behaviour; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "EIP-170's runtime code limit applies from Spurious Dragon onward and the source treats it as a standing budget; the initcode half of the rule gains EIP-3860's metering at Shanghai without the rest of it needing that fork.",
         "pipelines": [
           "legacy",
           "via-ir"
         ],
-        "pipeline_reason": "Initcode size differs between pipelines, which is why the rule asks for a budget rather than a number."
+        "pipeline_reason": "Code size and initcode size both differ between pipelines, which is why the rule asks for a budget rather than a number."
       }
     },
     {
@@ -3811,14 +3811,14 @@
       "scope": {
         "compiler_min": "0.8.0",
         "compiler_max_exclusive": "0.9.0",
-        "compiler_reason": "Initcode metering is a consensus rule rather than compiler behaviour.",
-        "evm_floor": "shanghai",
-        "evm_reason": "EIP-3860 introduced the initcode limit and its per-word cost, which the source cites for this rule.",
+        "compiler_reason": "The limits are consensus rules rather than compiler behaviour; the source scopes itself to the 0.8 line.",
+        "evm_floor": "homestead",
+        "evm_reason": "EIP-170's runtime code limit applies from Spurious Dragon onward and the source treats it as a standing budget; the initcode half of the rule gains EIP-3860's metering at Shanghai without the rest of it needing that fork.",
         "pipelines": [
           "legacy",
           "via-ir"
         ],
-        "pipeline_reason": "Initcode size differs between pipelines, which is why the rule asks for a budget rather than a number."
+        "pipeline_reason": "Code size and initcode size both differ between pipelines, which is why the rule asks for a budget rather than a number."
       }
     },
     {

@@ -694,6 +694,24 @@ class CorpusFidelityTests(unittest.TestCase):
         self.assertEqual(rule["scope"]["compiler_min"], "0.8.22")
         self.assertIn("0.8.22", rule["scope"]["compiler_reason"])
 
+    def test_a_rule_stating_its_own_assembly_takes_the_assembly_class(self) -> None:
+        """Round 1 finding: MEM-12 states its implementation is scratch-memory
+        hashing, and Gate 2 refuses added assembly outside the assembly class,
+        so any other class would have been refused every time."""
+        rule = next(r for r in self.corpus["rules"] if r["id"] == "MEM-12")
+        self.assertEqual(rule["hermes_class"], "assembly")
+        self.assertIn("scratch-memory", rule["statement"])
+
+    def test_a_code_size_rule_is_not_floored_at_the_initcode_fork(self) -> None:
+        """Round 1 finding: DEP-07 and DEP-08 hold where EIP-170 already
+        applies, so a Shanghai floor refused advice correct on every earlier
+        fork."""
+        for identifier in ("DEP-07", "DEP-08"):
+            rule = next(r for r in self.corpus["rules"] if r["id"] == identifier)
+            with self.subTest(rule=identifier):
+                self.assertEqual(rule["scope"]["evm_floor"], "homestead")
+                self.assertIn("EIP-3860", rule["scope"]["evm_reason"])
+
     def test_every_class_the_harness_knows_is_reachable_from_some_rule(self) -> None:
         """A class no rule names would be a class the corpus cannot select,
         which is the other half of the mapping question."""
