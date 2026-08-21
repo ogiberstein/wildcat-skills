@@ -18,9 +18,17 @@ python3 plugins/hexaemeron/skills/protasis/scripts/protasis.py docs/fiat-delegat
 python3 plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py docs/fiat-delegation-packets-study.md docs/fiat-delegation-packets-runbook.md
 python3 plugins/brevitas/skills/brevitas/scripts/brevitas.py docs/fiat-delegation-packets-study.md
 python3 plugins/brevitas/skills/brevitas/scripts/brevitas.py docs/fiat-delegation-packets-runbook.md
+horos_evidence_dir="$(mktemp -d)"
+git show 793b112c8f7824e54b8e6c97b06034d0d5270b85:.horos/boundary.json > "$horos_evidence_dir/parent.json"
+python3 plugins/horos/skills/horos/scripts/horos.py scan . --write
+! cmp -s "$horos_evidence_dir/parent.json" .horos/boundary.json
+cp .horos/boundary.json "$horos_evidence_dir/fresh.json"
+python3 plugins/horos/skills/horos/scripts/horos.py scan . --write
+cmp -s "$horos_evidence_dir/fresh.json" .horos/boundary.json
+python3 -c 'import shutil, sys; shutil.rmtree(sys.argv[1])' "$horos_evidence_dir"
+# These legacy entry-only checks remain green; neither is the red evidence.
 python3 plugins/horos/skills/horos/scripts/horos.py check .
 python3 -m unittest tests.test_boundary_currency
-python3 plugins/horos/skills/horos/scripts/horos.py scan . --write
 python3 -m unittest discover -s tests
 python3 plugins/hexaemeron/tests/run_tests.py
 python3 scripts/promise_machine.py check

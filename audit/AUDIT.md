@@ -6437,3 +6437,23 @@ before push and merge. The other seven study risks remain inapplicable to the
 docs-and-boundary step and are held for steps 2 and 3.
 
 Further leads: none beyond I320-S1-R2-01.
+
+### Resolution: Fiat delegation packets, step 1, round 2 -- 2026-08-21
+
+I320-S1-R2-01 is resolved on the audit branch. The Step 1 proof block now
+creates a temporary evidence directory, reads the exact parent boundary with
+`git show`, regenerates the current boundary, requires parent/current
+inequality, saves that current document as fresh, regenerates again and
+requires fresh/current identity before removing the temporary directory. It
+then runs the two legacy entry-only checks and explicitly records that both
+remain green rather than serving as the red evidence.
+
+The executable sequence passes: the parent/current inequality and
+fresh/current identity predicates both hold, `horos check .` reports a match,
+and the focused boundary suite passes 4/4. The controller and tracked
+runbooks remain byte-identical. Both Protasis modes, Imprimatur and both
+per-file Brevitas checks are clean. Root tests pass 104/104, Hexaemeron
+599/599 and Promise Machine reports 14 plugins and 14 copies clean. Phylax,
+Ephoros and Hypomnema each exit 0 over their required trees, Horos is current
+at 1,378 files, 89 entries and none unreadable, and the diff check is clean.
+No new leads.
