@@ -9,6 +9,9 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
@@ -193,13 +196,44 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
 
     def to_steps(self, titles=("Scaffold", "Core")):
         self.init()
-        study = self.write("study.md")
+        study = self.write(
+            "study.md",
+            "# Study\n\n```risk-register\n"
+            "packet-state-drift | packet | compare state hash\n"
+            "```\n",
+        )
         self.run_ctl("done", "study", "--artifact", study,
                      "--skills", "hexaemeron:imprimatur")
-        runbook = self.write("runbook.md")
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n" + "\n".join(
+                f"## Step {number}: {title}\n\n**Goal.** Ship {title}.\n"
+                for number, title in enumerate(titles, 1)
+            ),
+        )
         steps = self.write("steps.json", json.dumps(list(titles)))
         self.run_ctl("done", "runbook", "--artifact", runbook,
                      "--steps-file", steps)
+        self.git("init", "-b", "main")
+        self.git("config", "user.email", "tests@example.com")
+        self.git("config", "user.name", "Hexctl Tests")
+        self.git("add", study, runbook, steps)
+        self.git("commit", "-m", "fixture")
+        state = self.state()
+        self.git("branch", state["run_branch"])
+        for step in state["steps"]:
+            self.git("branch", self.step_branch(step["n"], state))
+
+    def git(self, *args, expect=0):
+        proc = subprocess.run(
+            ["git", *args], cwd=self.dir, capture_output=True, text=True
+        )
+        if proc.returncode != expect:
+            raise AssertionError(
+                f"git {' '.join(args)} -> rc {proc.returncode} "
+                f"(expected {expect})\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
+            )
+        return proc
 
     def to_audit(self):
         self.to_steps()
@@ -260,7 +294,11 @@ class TestLifecycle(HexctlCase):
         self.init()
         study = self.write("study.md")
         self.run_ctl("done", "study", "--artifact", study)
-        rb = self.write("runbook.md")
+        rb = self.write(
+            "runbook.md",
+            "## Step 1: Scaffold\n\n**Goal.** Scaffold.\n\n"
+            "## Step 2: Core\n\n**Goal.** Core.\n",
+        )
         steps = self.write("steps.json",
                            json.dumps(["Scaffold", {"title": "Core"}]))
         self.run_ctl("done", "runbook", "--artifact", rb, "--steps-file", steps)
@@ -268,6 +306,265 @@ class TestLifecycle(HexctlCase):
         self.assertEqual(out["do"], "implement")
         self.assertEqual(out["step"], 1)
         self.assertEqual(out["title"], "Scaffold")
+
+
+class TestDelegationPackets(HexctlCase):
+    def assert_packet(self, directive, agent, fields):
+        self.assertEqual(directive["agent"], agent)
+        self.assertEqual(set(directive["brief"]), set(fields))
+        self.assertRegex(directive["state_sha256"], r"^[0-9a-f]{64}$")
+
+    def test_surveyor_packet_is_total_and_reproducible(self):
+        self.init("packet work")
+        first = self.run_ctl("next").stdout
+        second = self.run_ctl("next").stdout
+        self.assertEqual(first, second)
+        out = json.loads(first)
+        self.assert_packet(
+            out,
+            "surveyor",
+            ("topic", "target_dir", "base_ref", "output_path"),
+        )
+        self.assertEqual(out["brief"]["topic"], "packet work")
+        self.assertEqual(out["brief"]["target_dir"], os.path.realpath(self.dir))
+        self.assertEqual(out["brief"]["base_ref"], "main")
+        self.assertEqual(
+            out["brief"]["output_path"],
+            os.path.realpath(os.path.join(self.dir, ".hexaemeron", "study.md")),
+        )
+        self.assertEqual(out["state_sha256"], hashlib.sha256(
+            json.dumps(self.state(), sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest())
+
+    def test_all_four_role_briefs_and_inline_nulls(self):
+        self.init()
+        study = self.write(
+            "study.md",
+            "# Study\n\n```risk-register\n"
+            "one | boundary | check\n```\n",
+        )
+        self.run_ctl("done", "study", "--artifact", study)
+        self.assertEqual(self.next_json()["agent"], None)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n## Step 1: Core\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Core"]')
+        self.run_ctl("done", "runbook", "--artifact", runbook,
+                     "--steps-file", steps)
+        self.git("init", "-b", "main")
+        self.git("config", "user.email", "tests@example.com")
+        self.git("config", "user.name", "Hexctl Tests")
+        self.git("add", study, runbook, steps)
+        self.git("commit", "-m", "base")
+        state = self.state()
+        self.git("branch", state["run_branch"])
+        self.git("branch", self.step_branch(1, state))
+
+        mason = self.next_json()
+        self.assert_packet(mason, "mason", ("runbook_step", "branch", "branch_from"))
+        source = mason["brief"]["runbook_step"]
+        self.assertEqual(set(source), {"markdown", "path", "sha256", "number", "title"})
+        self.assertEqual(source["number"], 1)
+        self.assertEqual(source["title"], "Core")
+        self.assertTrue(source["markdown"].startswith("## Step 1: Core\n"))
+
+        self.run_ctl("done", "implement", "--branch", self.step_branch(1),
+                     "--commit", "abc")
+        inline = self.next_json()
+        self.assertEqual((inline["do"], inline["agent"], inline["brief"]),
+                         ("resolve-security-suite", None, {}))
+        self.run_ctl("record", "security_suite", SUITE)
+        warden = self.next_json()
+        self.assert_packet(
+            warden,
+            "warden",
+            ("step_branch", "stacked_branch", "security_suite", "plugin_root",
+             "audit_log_path", "round", "risk_register"),
+        )
+        risk = warden["brief"]["risk_register"]
+        self.assertEqual(set(risk), {"markdown", "path", "sha256"})
+        self.assertEqual(risk["markdown"],
+                         "```risk-register\none | boundary | check\n```\n")
+
+        self.run_ctl("audit-round", "--findings", "0")
+        closed = self.next_json()
+        self.assertEqual((closed["do"], closed["agent"], closed["brief"]),
+                         ("close-audit", None, {}))
+        self.run_ctl("done", "audit")
+        scribe = self.next_json()
+        self.assert_packet(
+            scribe, "scribe", ("files", "pr_base", "pr_draft_path", "plugin_root")
+        )
+        self.assertEqual(scribe["brief"]["files"], [])
+        self.run_ctl("done", "prose", "--files", "1", "--skills",
+                     "hexaemeron:imprimatur,hexaemeron:vulgate")
+        push = self.next_json()
+        self.assertEqual((push["do"], push["agent"], push["brief"]),
+                         ("push", None, {}))
+        self.run_ctl("done", "push", "--pr-url", "https://x/pr/1",
+                     "--head-commit", "abc", "--pr-base", self.step_base(1))
+        merge = self.next_json()
+        self.assertEqual((merge["do"], merge["agent"], merge["brief"]),
+                         ("merge-step", None, {}))
+        self.run_ctl("done", "merge-step", "--step", "1", "--merge-commit", "m1")
+        integrate = self.next_json()
+        self.assertEqual((integrate["do"], integrate["agent"], integrate["brief"]),
+                         ("integrate", None, {}))
+        self.write_run_pr()
+        self.run_ctl("done", "integrate", "--pr-url", "https://x/pr/run",
+                     "--merge-commit", "run")
+        done = self.next_json()
+        self.assertEqual((done["do"], done["agent"], done["brief"]),
+                         ("done", None, {}))
+
+    def test_receipts_bind_bytes_and_mutation_refuses_packets(self):
+        self.to_steps(("Core",))
+        state = self.state()
+        for name in ("study", "runbook"):
+            receipt = state["receipts"][name]
+            self.assertRegex(receipt["sha256"], r"^[0-9a-f]{64}$")
+        self.write("runbook.md", "# changed\n")
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("runbook artefact digest changed", proc.stderr)
+
+    def test_risk_block_drift_and_ambiguous_step_refuse(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+        self.write("study.md", "# changed\n")
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("study artefact digest changed", proc.stderr)
+
+        other = HexctlCase(methodName="runTest")
+        other.setUp()
+        try:
+            other.init()
+            study = other.write(
+                "study.md", "```risk-register\none | boundary | check\n```\n"
+            )
+            other.run_ctl("done", "study", "--artifact", study)
+            runbook = other.write(
+                "runbook.md",
+                "## Step 1: Core\n\nA.\n\n## Step 1: Core\n\nB.\n",
+            )
+            steps = other.write("steps.json", '["Core"]')
+            other.run_ctl("done", "runbook", "--artifact", runbook,
+                          "--steps-file", steps)
+            proc = other.run_ctl("next", expect=2)
+            self.assertIn("ambiguous runbook step", proc.stderr)
+        finally:
+            other.tearDown()
+
+    def test_fenced_heading_and_register_decoys_are_not_selectors(self):
+        self.init()
+        study = self.write(
+            "study.md",
+            "~~~markdown\n```risk-register\nfake | fake | fake\n```\n~~~\n"
+            "```risk-register\nreal | boundary | check\n```\n",
+        )
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "~~~markdown\n## Step 1: Core\n\nDecoy.\n~~~\n"
+            "## Step 1: Core\n\n**Goal.** Real.\n",
+        )
+        steps = self.write("steps.json", '["Core"]')
+        self.run_ctl("done", "runbook", "--artifact", runbook,
+                     "--steps-file", steps)
+        mason = self.next_json()
+        self.assertEqual(
+            mason["brief"]["runbook_step"]["markdown"],
+            "## Step 1: Core\n\n**Goal.** Real.\n",
+        )
+        self.run_ctl("done", "implement", "--branch", self.step_branch(1),
+                     "--commit", "abc")
+        self.run_ctl("record", "security_suite", SUITE)
+        warden = self.next_json()
+        self.assertEqual(
+            warden["brief"]["risk_register"]["markdown"],
+            "```risk-register\nreal | boundary | check\n```\n",
+        )
+
+    def test_path_and_source_byte_caps_refuse(self):
+        self.init()
+        outside = tempfile.NamedTemporaryFile("w", delete=False)
+        try:
+            outside.write("outside\n")
+            outside.close()
+            proc = self.run_ctl("done", "study", "--artifact", outside.name,
+                                expect=2)
+            self.assertIn("escapes target directory", proc.stderr)
+        finally:
+            os.unlink(outside.name)
+
+        large = self.write("large.md", "x" * (2 * 1024 * 1024 + 1))
+        proc = self.run_ctl("done", "study", "--artifact", large, expect=2)
+        self.assertIn("exceeds 2097152-byte cap", proc.stderr)
+
+    def test_legacy_receipts_do_not_claim_source_binding(self):
+        self.to_steps(("Core",))
+        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["receipts"]["runbook"].pop("sha256")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+        out = self.next_json()
+        self.assertEqual((out["agent"], out["brief"]), (None, {}))
+
+    def test_missing_receipted_source_refuses(self):
+        self.to_steps(("Core",))
+        os.unlink(os.path.join(self.dir, "runbook.md"))
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("runbook artefact is not a regular file", proc.stderr)
+
+    def test_scribe_diff_is_sorted_and_capped_at_500_entries(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        branch = self.step_branch(1)
+        self.git("checkout", branch)
+        for name in ("zeta.md", "alpha.md"):
+            self.write(name, name)
+        self.git("add", "zeta.md", "alpha.md")
+        self.git("commit", "-m", "step")
+        self.assertEqual(self.next_json()["brief"]["files"],
+                         ["alpha.md", "zeta.md"])
+
+        for number in range(499):
+            self.write(f"many/{number:03d}.md", "x")
+        self.git("add", "many")
+        self.git("commit", "-m", "too many")
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("more than 500 paths", proc.stderr)
+
+    def test_git_output_and_returned_path_caps_refuse(self):
+        module = hexctl_module()
+        fake_bin = os.path.join(self.dir, "fake-bin")
+        os.makedirs(fake_bin)
+        fake_git = os.path.join(fake_bin, "git")
+        with open(fake_git, "w", encoding="utf-8") as handle:
+            handle.write("#!/bin/sh\nprintf '../escape.md\\0'\n")
+        os.chmod(fake_git, 0o755)
+        path = fake_bin + os.pathsep + os.environ.get("PATH", "")
+        error = StringIO()
+        with mock.patch.dict(os.environ, {"PATH": path}), redirect_stderr(error):
+            with self.assertRaises(SystemExit):
+                module.scribe_files(self.dir, "base", "branch")
+        self.assertIn("escapes target directory", error.getvalue())
+
+        with open(fake_git, "w", encoding="utf-8") as handle:
+            handle.write(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                f"sys.stdout.buffer.write(b'x' * {2 * 1024 * 1024 + 1})\n"
+            )
+        error = StringIO()
+        with mock.patch.dict(os.environ, {"PATH": path}), redirect_stderr(error):
+            with self.assertRaises(SystemExit):
+                module.bounded_git(self.dir, ["diff"])
+        self.assertIn("2097152-byte output cap", error.getvalue())
 
 
 class TestRunLock(HexctlCase):
