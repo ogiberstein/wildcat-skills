@@ -39,6 +39,27 @@ engineering prose after vocabulary and register passes. If a request crosses one
 of those boundaries, hand it to the named sibling rather than broadening the
 selected skill.
 
+## Issue queues
+
+Work arrives from four places and each is told apart by its issue title prefix,
+so a reader knows which queue a thing came from without opening it.
+
+- `{skill}-next`, labelled `held-job`. A ledger's held frontier job. The system
+  named it; closing one increments an evolution counter.
+- `{skill}-N`, labelled `wish`. The closed set from a one-off generated
+  wishlist, #317 to #334. Exogenous nice-to-haves. Nothing mints another.
+- `{skill}-wish`, no queue label. Something a Fiat run noticed about one skill
+  and had no authority to fix inside its own packet.
+- `framework-N`, labelled `observation`. Something a run noticed about the
+  system as a whole. Its body opens by stating that Protasis decides which
+  skill or skills it upgrades, because the filer is the wrong party to guess.
+
+`{skill}` is the skill's own governed name rather than its plugin's, so Lemma's
+is `chunk`. The reasoning, the alternatives and the two questions still open are
+in [ADR-009](docs/decisions/ADR-009-four-issue-queues-and-their-titles.md).
+Filing an issue merely to satisfy a workflow remains forbidden; these
+conventions say how to title one that was worth filing.
+
 ## Repository map
 
 - Alexandria is under `plugins/alexandria/`. Read

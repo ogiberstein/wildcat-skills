@@ -5,8 +5,6 @@
 
 Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample.
 
-**Try something else when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness and Ariadne to carry the resulting campaign evidence with a release.
-
 **Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 
 **Next Fiat job.** Use /hexaemeron:fiat to widen the search-record runner to the Echidna and Medusa campaigns, so every engine result ships as a record carrying its engine, configuration, sequence length and corpus digest, with a seed where the engine exposes one and a stated absence where it does not. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
@@ -310,8 +308,8 @@ forge test --match-contract WildcatTest
 
 `integrations/wildcat/` models a market with batched withdrawals, a reserve the
 borrower may not touch, delinquency and penalty accrual.
-[`APPLICABILITY.md`](./integrations/wildcat/APPLICABILITY.md) is the part worth
-reading. Six laws apply flatly. `queue-order-preserved` applies at batch
+[`APPLICABILITY.md`](./integrations/wildcat/APPLICABILITY.md) is the operative
+source. Six laws apply flatly. `queue-order-preserved` applies at batch
 granularity and says nothing per lender. `path-independent` holds while the
 market is solvent and stops holding once the penalty is running. And
 `recorded-claim-never-shrinks` does not hold over a batch that is still open,

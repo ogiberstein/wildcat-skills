@@ -114,7 +114,7 @@
     },
     "ephoros-observability-review": {
       "source": "plugins/hexaemeron/skills/ephoros/SKILL.md",
-      "sha256": "50250264f46d71e945f345ad4538b1485c0a54204761763843a1887370984ecf",
+      "sha256": "547f7c241af77a04e26d8df6284230c402c9d3da7ffe83e26b708ab510285f84",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step and build identity",
@@ -254,7 +254,7 @@
     },
     "hypomnema-record-placement": {
       "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
-      "sha256": "0d7c67131b76e704f2d3c18c5bc3216ae33d8093ee7185fad376b89676d4c806",
+      "sha256": "ea696a2f6d94693ae86f881912bd8a79147e94dc04994570ef081356a16fe4e8",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named decision and changed repository surface",
@@ -352,7 +352,7 @@
     },
     "metron-change-decision": {
       "source": "plugins/hexaemeron/skills/metron/SKILL.md",
-      "sha256": "575ac79da8d176d1466942c30fde70b33f59fc6e8cb07cfb7666241cda461394",
+      "sha256": "ee7b547770954dd651e2abad59eb23820b80f795a247e9acca51170bb474b5f3",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named workload, implementation and isolated change",
@@ -380,7 +380,7 @@
     },
     "phylax-boundary-review": {
       "source": "plugins/hexaemeron/skills/phylax/SKILL.md",
-      "sha256": "abd7a080c09d22d64d1cc80f4299604f3678f35df507d9b60a3bc756bc5b1019",
+      "sha256": "cb5dbd5a82b72cc06c3629c5cde1fc771a7e611ef1f88136b97d08f71802e85b",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step, source tree and external-input boundary",

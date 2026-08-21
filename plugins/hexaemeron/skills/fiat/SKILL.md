@@ -19,11 +19,6 @@ skills. Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md). Read that ledger before suggesting, starting, or
 resuming work intended to advance Fiat itself.
 
-**Use another tool when.** Run `imprimatur` or `vulgate` directly for prose,
-the bundled Pashov skills directly for standalone Solidity review, and any
-phase skill on its own when the question is its and the controller is not
-wanted.
-
 **Current frontier.** The ledger above is authoritative. Never substitute
 Hexaemeron's plugin-wide Solidity frontier for Fiat's own held target.
 

@@ -3,9 +3,7 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Janus tests a contract hook at the threshold it controls: what it may observe and change before a host action, what it may change after, and what it must never touch.
-
-**Try something else when.** Use Hexaemeron Fizz to generate a protocol-specific fuzz harness, Pandects for the economic laws a hook-driven transition must preserve, and Ariadne to carry a manifest revision and its conformance result with a release.
+Janus tests a contract hook at the threshold it controls: what it can observe and change before a host action, what it can change after, and what it must never touch.
 
 **Current frontier.** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 

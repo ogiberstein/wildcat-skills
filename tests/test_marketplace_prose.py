@@ -269,14 +269,37 @@ class MarketplaceProseTests(unittest.TestCase):
             with self.subTest(plugin=name, surface="root selection table"):
                 self.assertEqual(root_readme_frontier(name), expected)
 
-    def test_canonical_skills_state_handoff_and_frontier(self):
+    def test_canonical_skills_state_where_they_sit_and_their_frontier(self):
+        """The sibling-handoff paragraph is deliberately absent.
+
+        Every canonical skill used to carry a `Use another tool when.` line
+        naming siblings to reach for instead, and the landing READMEs carried
+        the same sentence under `Try something else when.`. Both were removed:
+        a reader who does not already know what Ariadne or Fizz are learns
+        nothing from being sent to one by name, and the marketplace boundaries
+        in `AGENTS.md` are where that routing belongs. This case asserts the
+        absence so neither label returns a paragraph at a time.
+        """
         self.assertEqual(set(CANONICAL_SKILLS), set(PLUGINS))
         for name, skill in CANONICAL_SKILLS.items():
             text = skill.read_text(encoding="utf-8")
             with self.subTest(plugin=name):
                 self.assertIn("## Where this sits", text)
-                self.assertIn("**Use another tool when.**", text)
                 self.assertIn("**Current frontier.**", text)
+                self.assertNotIn("**Use another tool when.**", text)
+                self.assertNotIn("**Try something else when.**", text)
+
+    def test_no_shipped_document_carries_a_sibling_handoff_label(self):
+        strays = []
+        for path in ROOT.rglob("*.md"):
+            relative = path.relative_to(ROOT)
+            if relative.parts[0] in {".git", ".hexaemeron", ".claude"}:
+                continue
+            text = path.read_text(encoding="utf-8")
+            for label in ("**Use another tool when.**", "**Try something else when.**"):
+                if label in text:
+                    strays.append(f"{relative}: {label}")
+        self.assertEqual(strays, [])
 
     def test_canonical_skill_directories_have_no_browsing_readme_mirrors(self):
         skills = sorted((ROOT / "plugins").glob("*/skills/**/SKILL.md"))
