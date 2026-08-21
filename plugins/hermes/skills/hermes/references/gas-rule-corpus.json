@@ -1207,7 +1207,7 @@
       "priority": "P1",
       "evidence_grade": "A",
       "automation": "guarded",
-      "hermes_class": "calldata-memory",
+      "hermes_class": null,
       "statement": "one access at a high offset expands memory over the entire intervening range. all attacker-controlled offset and length arithmetic requires explicit bounds.",
       "obligations": [
         "all attacker-controlled offset and length arithmetic requires explicit bounds."
@@ -1808,7 +1808,7 @@
       "priority": "P0",
       "evidence_grade": "A",
       "automation": "guarded",
-      "hermes_class": "storage-load-caching",
+      "hermes_class": null,
       "statement": "load initial accounting state, perform bounded calculations locally, validate the final value, and execute one storage write.",
       "obligations": [],
       "references": [],
@@ -2540,14 +2540,14 @@
       "scope": {
         "compiler_min": "0.8.25",
         "compiler_max_exclusive": "0.9.0",
-        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly; no earlier bound is claimed here.",
-        "evm_floor": "cancun",
-        "evm_reason": "EIP-1153 defines the opcodes, so bytecode reaching them fails on any earlier fork, which the source states as its own chain-capability rule.",
+        "compiler_reason": "The source states 0.8.25 exposes TLOAD and TSTORE through inline assembly, so this is the compiler range whose output can carry them.",
+        "evm_floor": "homestead",
+        "evm_reason": "This rule is the check itself rather than a use of transient storage, so it applies most on a target below Cancun; the other transient rules floor at Cancun because their mechanism needs EIP-1153, and this one does not.",
         "pipelines": [
           "legacy",
           "via-ir"
         ],
-        "pipeline_reason": "Transient access is written as inline assembly and both pipelines carry it."
+        "pipeline_reason": "The capability gate is about the deployment chain, not the pipeline that produced the bytecode."
       }
     }
   ]

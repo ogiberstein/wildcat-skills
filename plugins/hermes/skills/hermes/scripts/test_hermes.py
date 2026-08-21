@@ -652,8 +652,9 @@ class CorpusFidelityTests(unittest.TestCase):
         names no candidate. The count is asserted because quietly mapping one
         of them to the nearest-sounding class is the failure to catch."""
         unclassed = [r["id"] for r in self.corpus["rules"] if r["hermes_class"] is None]
-        self.assertEqual(len(unclassed), 29)
-        for identifier in ("CMP-01", "TRN-01", "STO-23", "MEM-15"):
+        self.assertEqual(len(unclassed), 31)
+        for identifier in ("CMP-01", "TRN-01", "STO-23", "MEM-15",
+                           "STO-12", "MEM-09"):
             self.assertIn(identifier, unclassed)
 
     def test_every_measurement_rule_names_no_class(self) -> None:
@@ -671,12 +672,19 @@ class CorpusFidelityTests(unittest.TestCase):
 
     def test_a_transient_rule_floors_at_cancun(self) -> None:
         """The scope bound that would otherwise ship advice a Paris chain
-        cannot execute."""
+        cannot execute. TRN-07 is deliberately outside it: that rule is the
+        capability check itself, so flooring it at Cancun would refuse it on
+        exactly the targets it exists to protect."""
         for rule in self.corpus["rules"]:
-            if rule["id"].startswith("TRN-"):
+            if rule["id"].startswith("TRN-") and rule["id"] != "TRN-07":
                 with self.subTest(rule=rule["id"]):
                     self.assertEqual(rule["scope"]["evm_floor"], "cancun")
                     self.assertEqual(rule["scope"]["compiler_min"], "0.8.25")
+
+    def test_the_chain_capability_gate_applies_below_cancun(self) -> None:
+        gate = next(r for r in self.corpus["rules"] if r["id"] == "TRN-07")
+        self.assertEqual(gate["scope"]["evm_floor"], "homestead")
+        self.assertIn("below Cancun", gate["scope"]["evm_reason"])
 
 
 if __name__ == "__main__":

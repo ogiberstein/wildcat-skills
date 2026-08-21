@@ -64,7 +64,7 @@
       "optional": {},
       "notes": {
         "statement": "The rule's body as the source document states it, whitespace collapsed, footnote markers lifted into references. Transcribed, not written.",
-        "obligations": "Requirements the statement itself makes. Every entry has to be an exact substring of this rule's statement, which is what keeps an obligation the rule's own words rather than a paraphrase. Empty when the statement requires nothing.",
+        "obligations": "Requirements the statement itself makes. Every entry has to be an exact substring of this rule's statement, which is what keeps an obligation the rule's own words rather than a paraphrase. Empty when the statement requires nothing. Derived by a stated heuristic: a sentence of the statement carrying a requirement verb. The heuristic has one known false-positive class, a sentence using \"requires\" descriptively rather than as an instruction, as STO-03 does; the cost of one is an operator explaining a mechanism, which is the safe direction for a gate that asks for an answer.",
         "hermes_class": "Authored. One of the twelve classes the harness already knows, or null for a rule that constrains the run rather than changing source.",
         "scope": "Authored. The range and fork floor over which the mechanism holds, each with its reason. The source pins one compiler and one fork; a scope copied from that header would refuse correct candidates on every other configuration."
       }
