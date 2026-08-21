@@ -9,8 +9,20 @@ though the reason exists and was checked. This settles the part a parser can.
   H003  an alert naming a runbook file that is not there
   H004  a decision record missing one of the template's five sections
   H005  a decision record whose status is not dated
+  H006  a source comment citing a record that does not exist
 
 Exit 0 clean, 1 findings, 2 bad invocation.
+
+Source files are walked beside the markdown: `#` comments in Python and
+shell, `//` comments and `/* */` blocks in Solidity, JavaScript and
+TypeScript. A marker counts only at the start of a line's stripped text
+or preceded by whitespace, so a marker inside a string literal or a
+URL's double slash earns no scan; that boundary is deliberate and a
+reference the rule cannot see stays unchecked. References found in
+comment text are resolved against the same index the markdown pass
+builds from record file names. In source files the pragma is the bare
+`hypomnema: allow <why>` after a comment marker, on the finding's line
+or the one above it.
 
 A decision record is a markdown file named `ADR-<number>...` inside a
 directory named `decisions`. The shape codes hold it to the template the
@@ -47,6 +59,10 @@ RECORD_NAME = re.compile(r"^ADR-\d+.*\.md$", re.IGNORECASE)
 SECTION = re.compile(r"^##\s+(?P<name>\S.*?)\s*$")
 SECTIONS = ("Status", "Context", "Decision", "Alternatives", "Consequences")
 DATED = re.compile(r"^[A-Za-z]+, \d{4}-\d{2}-\d{2}")
+# One marker family per suffix; the // family also reads /* */ blocks.
+COMMENT_MARKERS = {".py": "#", ".sh": "#", ".sol": "//", ".js": "//",
+                   ".ts": "//", ".tsx": "//", ".jsx": "//"}
+SOURCE_ALLOW = re.compile(r"hypomnema:\s*allow\s+\S")
 # The bundled Pashov suite is vendored, keeps no ledger, and documents files it
 # generates in the target repository rather than files that live here.
 VENDORED = {"fizz", "x-ray", "solidity-auditor"}
@@ -120,7 +136,81 @@ def _record_findings(path: Path, lines: list[str]) -> list[Finding]:
     return findings
 
 
+def _marker_index(text: str, marker: str) -> int:
+    """Where a comment marker starts, or -1.
+
+    A marker counts at the start of the stripped text or preceded by
+    whitespace, so a marker inside a string literal or a URL's double slash
+    earns no scan.
+    """
+    if text.lstrip().startswith(marker):
+        return text.index(marker)
+    start = 0
+    while True:
+        found = text.find(marker, start)
+        if found == -1:
+            return -1
+        if found > 0 and text[found - 1] in " \t":
+            return found
+        start = found + len(marker)
+
+
+def _comment_segments(lines: list[str], marker: str):
+    """Yield (1-indexed line number, comment text) for every comment span."""
+    in_block = False
+    for number, line in enumerate(lines, start=1):
+        rest = line
+        while rest:
+            if in_block:
+                end = rest.find("*/")
+                if end == -1:
+                    yield number, rest
+                    rest = ""
+                else:
+                    yield number, rest[:end]
+                    in_block = False
+                    rest = rest[end + 2:]
+                continue
+            line_at = _marker_index(rest, marker)
+            block_at = _marker_index(rest, "/*") if marker == "//" else -1
+            if block_at != -1 and (line_at == -1 or block_at < line_at):
+                in_block = True
+                rest = rest[block_at + 2:]
+                continue
+            if line_at != -1:
+                yield number, rest[line_at + len(marker):]
+            rest = ""
+
+
+def _source_findings(path: Path, adr_numbers: set[str] | None) -> list[Finding]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as err:
+        return [Finding(path, 1, "H000", f"unreadable: {err}")]
+
+    lines = text.splitlines()
+    marker = COMMENT_MARKERS[path.suffix]
+    findings: list[Finding] = []
+    for number, comment in _comment_segments(lines, marker):
+        for match in ADR_NUMBER.finditer(comment):
+            reference = f"ADR-{match.group(1)}"
+            if adr_numbers is not None and reference not in adr_numbers:
+                findings.append(Finding(
+                    path, number, "H006",
+                    f"comment cites `{reference}`, which does not exist"))
+
+    def allowed(line: int) -> bool:
+        for number in (line, line - 1):
+            if 1 <= number <= len(lines) and SOURCE_ALLOW.search(lines[number - 1]):
+                return True
+        return False
+
+    return [f for f in findings if not allowed(f.line)]
+
+
 def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
+    if path.suffix in COMMENT_MARKERS:
+        return _source_findings(path, adr_numbers)
     if path.suffix != ".md":
         return []
     try:
@@ -181,7 +271,10 @@ def walk(paths: list[str], include_vendored: bool = False) -> list[Path]:
     for raw in paths:
         root = Path(raw)
         if root.is_dir():
-            for child in sorted(root.rglob("*.md")):
+            suffixes = (".md", *COMMENT_MARKERS)
+            found = (child for suffix in suffixes
+                     for child in root.rglob(f"*{suffix}"))
+            for child in sorted(set(found)):
                 if ".git" in child.parts:
                     continue
                 if not include_vendored and VENDORED & set(child.parts):
