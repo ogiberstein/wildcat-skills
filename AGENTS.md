@@ -27,7 +27,7 @@ needs, while Ariadne binds a released artefact digest to its evidence. Berean
 holds a protocol agent's recorded answers to pinned corpora and preserved
 chain reads; it neither chunks documents nor preserves chain state itself.
 Pandects supplies reviewed credit laws, Hermes measures a single
-gas-optimisation class,
+gas-optimisation class named by a rule from its pinned corpus,
 Hexaemeron controls a receipted delivery loop and holds each of its phases to a
 named skill, while Lemma stops after producing
 source-linked chunks. Horos decides what an agent does not read. Janus checks

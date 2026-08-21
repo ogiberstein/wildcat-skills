@@ -6892,3 +6892,405 @@ old controller and now pass. Invalid local signature, invalid GitHub
 verification, remote/PR head disagreement and PR topology mismatch all refuse.
 The ordinary lifecycle records `repaired: false`. Versions and the held
 frontier are unchanged, and no controller or remote state was mutated.
+## Hermes rule corpus, step 1, round 1 -- 2026-08-21
+
+The committed non-Solidity diff has no open finding. Status: clean.
+
+The Pashov pair did not run: the `security_suite` receipt records a waiver
+because the run ships Python, JSON and Markdown and creates or changes no
+Solidity, contract or Foundry project. Phylax, Ephoros and Hypomnema each
+exit 0 over `plugins`, `tests` and the document set. The root suite passes
+104/104 and the Hermes suite 14/14. Protasis is clean over both artefacts and
+Imprimatur scores each 100/100.
+
+The look the lints cannot do covered the three risk-register concerns this
+step can carry. On `frontier-displacement`: the study states the displacement
+in its assumptions, its amendment, its risk register and item 12, and the
+runbook puts the single epoch row and its reopening text in step 6. The body
+of the study still describes two ledger rows where the amendment describes
+one; that is the append-rather-than-edit rule the spec contract states, and
+the amendment carries the correction, so it is reviewed rather than fixed. On
+`successor-judgement`: neither document names the successor frontier, which
+matches the study's position that the choice is an end-of-run judgement
+against the run's own evidence. On `cli-break` and the ten remaining
+concerns: not reachable from a Markdown and boundary-counter diff.
+
+One in-step fault, found before this round and fixed at its cause. The study
+quoted the rolling-job marker verbatim while describing the constraint that
+governs it, and `test_rolling_fiat_jobs_exist_only_in_plugin_landing_readmes`
+scans every tracked Markdown file for that literal, so the document tripped
+the guard it was describing. The detector cannot tell a quotation from a
+declaration and should not try; the sentence now names the line without
+reproducing its marker. The existing test is the guard, so no new one was
+written.
+
+The boundary regeneration moved `files_walked` from 1,360 to 1,369 with the
+entry set unchanged at 89. Two of the nine are this step's documents. The
+other seven are the Hypomnema runbook fixtures that landed after that round
+wrote its boundary, which is why its own log reports 1,360 beside them.
+
+Leads not pursued: the boundary currency guard compares entry sets and not
+the counts beside them, so a stale `files_walked` ships without a test
+noticing, as it just did. Correcting it here was a side effect of following
+the regeneration rule rather than a fix, and widening that guard belongs to
+Horos rather than to a Hermes corpus run.
+
+## Hermes rule corpus, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | low | `plugins/hermes/skills/hermes/scripts/hermes.py` | The header check named the three record classes in its own tuple, so a schema that grew a fourth class would report the corpus key holding it as an unknown top-level field rather than validating its records. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+32/32, of which 18 are new this step. `corpus --validate` reports 28 myths and
+40 references with no fault.
+
+The review read the whole validator against the risk register. On
+`corpus-schema-drift`: records are lists rather than objects keyed by id,
+because `json.load` drops a duplicate key silently and a duplicate rule id has
+to be a refusal; the duplicate, unknown-field, missing-field, bad-pattern and
+unimplemented-token cases each have a test. On `citation-network`: the new code
+imports nothing that can open a socket and the citations are inert strings; the
+`https` shape check is a format rule, not a fetch. On `binding-digest`: the
+`hermes.py` digest in the Promise Machine coverage moved twice in this step,
+once for the implementation and once for the round's fix, and the file was
+edited by substring replacement rather than reserialised, which is what keeps
+the diff at two lines instead of 1,908. On `citation-shape`: the extraction
+counts footnote definitions, and the test pins REF-25 at one entry because the
+source states it both as a line-initial citation and as a definition.
+
+One candidate finding was investigated and rejected. The nested shape tokens
+(`source`, `verified_on`, `scope`) are read out of the schema, which looks like
+a cycle a malformed schema could ride into unbounded recursion. It cannot: each
+level recurses only when the value at that level is an object, so the walk is
+bounded by the nesting of the data and JSON cannot express infinite nesting. A
+depth limit and its test were written, shown not to fire, and removed rather
+than kept as a guard against a fault that has no reachable path. Deeply nested
+input would exhaust the recursion limit inside `json.loads` before the
+validator saw it, and the corpus is in-tree data rather than caller input.
+
+Leads not pursued: the corpus records were produced by a throwaway extractor
+run against the pinned source, which cross-checked every citation's footnote
+URL against its table URL and found all 40 in agreement. That extractor is not
+committed, so `transcription-fidelity` rests on counts, id shape and reference
+resolution rather than on text equality with the source. Committing an
+extractor and asserting it reproduces the committed bytes would close the gap
+for the mechanically derivable fields. The runbook does not ask for it, and
+adding it here would be scope the step did not carry; it belongs to a later
+frontier judgement.
+
+## Hermes rule corpus, step 2, round 2 -- 2026-08-21
+
+Round 1's fix introduced no regression and this round found nothing. Status:
+clean.
+
+Phylax, Ephoros and Hypomnema each exit 0 against the fixed tree. The root
+suite passes 104/104 and the Hermes suite 32/32. `corpus --validate` reports
+28 myths and 40 references with no fault, at corpus digest `0692e53d` and
+source digest `297c926d`, so neither the data nor the pinned document moved
+while the validator was corrected.
+
+The second look re-read the fix itself. Deriving the record classes from the
+schema means the header check and the record walk now read one declaration
+rather than two, so a class added to the schema cannot be a class the header
+rejects. Its guard adds a fourth class in a temporary copy and requires the
+corpus holding it to validate.
+
+Leads not pursued: the extractor gap recorded in round 1 stands unchanged.
+
+## Hermes rule corpus, step 3, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | TRN-07's scope floored at Cancun. That rule is the chain-capability check itself, so the floor refused it on exactly the targets it exists to protect: a Paris deployment is where somebody most needs to be told that bytecode reaching `TLOAD` will fail. | fixed in this round |
+| S3-R1-02 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | STO-12 mapped to `storage-load-caching`. Its saving is fewer `SSTORE`s, and no Hermes class names that, so the mapping was the nearest-sounding one rather than a real one. Now null. | fixed in this round |
+| S3-R1-03 | low | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | MEM-09 mapped to `calldata-memory`. Memory-expansion discipline and bounds checking on attacker-controlled offsets are neither a parameter-location change nor a copy removal. Now null. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+42/42. `corpus --validate` reports 62 rules, 28 myths and 40 references clean.
+
+The review read all 62 class assignments and all 62 scopes one by one, which is
+what the study's risk register asks of the two authored fields. Three were
+wrong and are fixed above. The rest hold, and the reasoning worth keeping is
+this: `storage-packing` takes the rules that move a storage representation,
+because that is the Hermes class whose gate already expects a declared layout
+change; `control-flow` takes STO-13, STO-14 and STO-21, all of which add or
+reorder a branch around a write; and `calldata-memory` keeps MEM-07 and MEM-16
+on the strength of its catalogue row naming needless copies, which is what both
+rules remove.
+
+S3-R1-02 is worth more than its severity. Hermes has twelve classes and none
+of them names a reduction in the number of storage writes, so STO-12, a P0
+grade A rule and one of the most valuable in the source, cannot be run as a
+candidate at all. The corpus made that hole visible by refusing to let it be
+papered over. It is a candidate for the successor frontier rather than
+something to fix by inventing a thirteenth class inside a transcription step,
+which the study's constraints forbid.
+
+31 of the 62 rules now name no class. That is the honest count: twelve
+measurement rules constrain how a run is conducted, seven transient-storage
+rules have no class at all, and the rest are accounting or collection
+architecture. The count is asserted by a test so that a later change cannot
+quietly map one of them to something plausible.
+
+The obligations were read in full, 37 across the group. Each is an exact
+substring of its own rule's statement, checked by a test rather than by eye.
+One is a mechanism sentence rather than an instruction: STO-03's "updating one
+packed field requires loading, masking, and rewriting the shared slot" matched
+the requirement-verb heuristic through a descriptive "requires". The heuristic
+keeps it and the schema now records the false-positive class, because the cost
+is an operator explaining a mechanism in one sentence and the alternative is a
+field that is part derived and part hand-curated with no record of which is
+which.
+
+Leads not pursued: the step 2 extractor lead is now closed for the transcribed
+fields, since `statement`, `title`, `priority`, `evidence_grade`, `automation`
+and `references` are each compared against the pinned source by test. The
+authored fields cannot be closed that way and stay a reading task.
+
+## Hermes rule corpus, step 3, round 2 -- 2026-08-21
+
+Round 1's three fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 42/42. `corpus --validate` is clean at 62 rules.
+
+The second look re-read the three fixes and the tests now holding them. TRN-07
+floors at Homestead with its reason naming why it sits outside the transient
+group, and a test asserts both that and the Cancun floor on TRN-01 through
+TRN-06, so the exception cannot spread by accident. STO-12 and MEM-09 carry
+null and are named in the unclassed test alongside the count, now 31 of 62, so
+neither can be quietly reclassified later. 31 rules remain selectable as
+candidates.
+
+Leads not pursued: the class-vocabulary hole recorded in round 1 stands as a
+successor-frontier candidate.
+
+## Hermes rule corpus, step 4, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | MEM-12 mapped to `hashing-encoding`. The rule states its own implementation is scratch-memory `KECCAK256`, and Gate 2 already refuses added assembly outside the `assembly` class, so a candidate declared under that mapping would have been refused every time it was attempted. Now `assembly`. | fixed in this round |
+| S4-R1-02 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | DEP-07 and DEP-08 floored at Shanghai on the strength of EIP-3860. Both rules hold wherever EIP-170's runtime limit applies, so the floor refused correct advice on every earlier fork. The same shape as step 3's TRN-07 finding. Now floored at Homestead with the initcode half named in the reason. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+49/49. `corpus --validate` is clean at 120 rules, 28 myths and 40 references,
+and a test now asserts the corpus id set equals the source's rather than only
+the count.
+
+S4-R1-01 is the more useful of the two, because it is the first case where the
+class mapping had to be decided against an existing gate rather than against a
+description. Gate 2 refuses a candidate that adds assembly under any class but
+`assembly`, so a rule whose own statement names an assembly implementation has
+only one correct mapping whatever its subject matter is. That reading was
+applied across the group: MEM-06, MEM-10, MEM-11, MEM-13, CTL-18 and all
+fourteen YUL rules take `assembly` for the same reason.
+
+CTL-13 was examined under the same test and kept as `loop-arithmetic`. Its
+canonical implementation is Uniswap v3's tick bitmap, whose `BitMath` is
+ordinary Solidity, so a candidate under it does not have to add assembly and
+the mapping does not set up a refusal.
+
+The review read all 58 assignments and all 58 scopes. 62 of the 120 rules now
+name a class and 58 do not. All twelve DEP rules are null and carry
+`architecture` as their kind, all fourteen YUL rules take `assembly`, and a
+bidirectional test holds the mapping from the other side: every class the
+harness knows is named by at least one rule, so the vocabulary is not
+over-broad even though it is plainly under-broad.
+
+The unclassed CTL and EXT rules are the ones worth naming, because unlike DEP
+they are real source changes with measurable savings that no class describes:
+removing a generic SafeMath wrapper, omitting a redundant zero initialisation,
+batching, pull settlement, and adopting a mature safe-transfer implementation.
+With STO-12 from step 3 they are the evidence behind the successor-frontier
+candidate.
+
+Leads not pursued: the class vocabulary itself. Twelve classes cover 62 of the
+120 documented rules, and widening them is a change to the harness's public
+interface that the study's constraints put out of scope for this run.
+
+## Hermes rule corpus, step 4, round 2 -- 2026-08-21
+
+Round 1's two fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 49/49. `corpus --validate` is clean at 120 rules.
+
+The second look re-read both fixes and the guards now holding them. MEM-12
+takes `assembly` and its guard asserts the mapping beside the word
+`scratch-memory` in the rule's own statement, so the reason travels with the
+assertion. DEP-07 and DEP-08 floor at Homestead and their guard requires
+EIP-3860 to stay named in the reason, so the initcode half of each rule cannot
+quietly disappear from the record while the floor moves. `hashing-encoding`
+remains reachable through MEM-14, which is what keeps the bidirectional
+mapping test meaningful after MEM-12 moved.
+
+Leads not pursued: the class vocabulary, unchanged from round 1.
+
+## Hermes rule corpus, step 5, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | high | `plugins/hermes/skills/hermes/scripts/hermes.py` | A run directory sealed by the previous Hermes carries neither `corpus_sha256` nor `forge_config`, and Gate 2 read both by subscript. An operator resuming against an older baseline got an unhandled `KeyError` traceback rather than a refusal with an exit code, which is the one failure mode a fail-closed harness must not have. | fixed in this round |
+| S5-R1-02 | medium | `plugins/hermes/skills/hermes/scripts/hermes.py` | `resolve_scope` indexed `fork_order` for the rule's floor without checking the floor was in it, so a corpus fault escaped as an uncontrolled `ValueError`. Unreachable through `verify`, because validation runs first; reachable at the function boundary, which is where the guard now sits. | fixed in this round |
+| S5-R1-03 | low | `plugins/hermes/skills/hermes/scripts/hermes.py` | The rejected-rule citation scan was case-sensitive, so the same citation written in lower case went unnoticed. The refusal now matches either case and names the canonical id beside what was written. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+71/71, of which 22 are new this step.
+
+The review drove the new helpers adversarially rather than reading them. Six
+probes: a rejected-rule id inside an obligation answer, the same in lower case,
+an obligation answer at 19, 20 and 21 characters against the 20-character
+minimum the existing rationale flag already uses, an obligation index of zero
+and of minus one, an answer supplied to a rule that states no obligation, and a
+`fork_order` with the rule's floor removed. Four refused correctly, one refused
+by design and case-sensitively, and the last produced the S5-R1-02 traceback.
+S5-R1-01 came out of asking what a run directory from the previous version
+looks like.
+
+One thing the round changed about method rather than code. S5-R1-02's first
+guard test drove the fault through `verify` and passed for the wrong reason:
+`validate_corpus` catches the same corpus first and refuses with its own
+message, so the test proved validation worked and said nothing about the guard.
+It is now a direct call on `resolve_scope`, which is where the guard applies.
+A guard test that cannot fail without its fix is the whole point of writing one.
+
+The budget in the study's item 10 was measured, not asserted, and measuring it
+found a defect. The suite had grown to 82 cases in 34.5 seconds against a
+25-second ceiling. The cause was not the new cases: `CorpusGateTests` inherited
+`HermesHarnessTests`, so all fourteen harness cases ran a second time under a
+`verify` the subclass had overridden. The fixture is now a plain mixin that is
+not itself collected, and the suite runs 71 cases in 23.9 seconds. Corpus
+validation runs in 0.04 seconds against its one-second ceiling.
+
+Leads not pursued: the 20-character minimum for an obligation answer is
+inherited from the existing rationale flags rather than derived from anything.
+It stops an empty field and nothing more, which is what the boundary language
+in the new promise says out loud.
+
+## Hermes rule corpus, step 5, round 2 -- 2026-08-21
+
+Round 1's three fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 71/71 in 24.4 seconds, inside the 25-second ceiling. Corpus
+validation is clean at 120 rules.
+
+The three probes that produced round 1's findings were re-run against the fixed
+tree. A rejected-rule citation is refused in either case and the refusal names
+the canonical id beside what the operator wrote. A `fork_order` missing a rule's
+floor is refused as `corpus/invalid` rather than raising. The shipped corpus
+reports no fault, so neither fix moved the data.
+
+The stale-baseline guard was read once more for the direction it fails in. It
+refuses the run rather than taking a fresh baseline on the operator's behalf,
+which is right: a baseline is the thing the whole record hangs from and Hermes
+does not seal one as a side effect of being asked to verify.
+
+Leads not pursued: the obligation-answer minimum, unchanged from round 1.
+
+## Hermes rule corpus, step 6, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S6-R1-01 | low | `AGENTS.md`, `README.md`, `plugins/hermes/skills/hermes/SKILL.md` | The marketplace-wide cold read the frontier obligation requires found three surfaces describing Hermes as it was before the corpus: the boundary sentence in the root runtime contract, the two published invocation prompts, and the skill's own selection description. Each now names the corpus. | fixed in this round |
+| S6-R1-02 | low | `plugins/hermes/skills/hermes/SKILL.md`, `references/optimisation-catalogue.md` | Two new two-column tables failed Brevitas B011, which requires three by three before a table earns its shape. Both are lists now. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0, and Brevitas exits 0 on all six changed prose surfaces.
+The root suite passes 104/104 and the Hermes suite 72/72 in 24.8 seconds. The
+demo path from the study's problem statement runs clean at 120 rules, 28 myths
+and 40 references, corpus digest `5d1773f9`, source digest `297c926d`.
+
+The epoch row was recomputed independently of the code that wrote it: the four
+frontier header fields hashed in the contract's canonical order give
+`1916665dfd39d783`, which is the digest in the row; the baseline row retains its
+own digest byte for byte; the arithmetic is `hermes-v0.1.0` to `hermes-v0.1.1`
+on the epoch axis; and the change text carries `reopen`, which the contract
+requires of an epoch row that moves the frontier. All six surfaces carrying the
+frontier sentence agree and no stale copy remains.
+
+Two things the cold read found and deliberately left. Horos's live-evidence
+study cites Hermes's held ambition, meaning the evidence bundle this run
+displaced, and Probitas's audit log mentions Hermes in a logged round. Both sit
+under paths the shipped-prose lint excludes because they are records of what was
+written at the time, and editing either would rewrite history to look tidier
+than it was. The displacement is recorded in ADR-007 where a reader of those
+documents can find it.
+
+The budget was measured a second time and renegotiated on the page rather than
+quietly. Four consecutive runs of the 72-case suite gave 26.1, 24.8, 25.9 and
+25.0 seconds against a 25-second ceiling authored before the 22 hermetic gate
+cases existed. A ceiling inside its own noise band fails intermittently and
+teaches a reader to ignore it, so the study's third amendment moves it to 30
+seconds with the four measurements and the rejected alternative, which was to
+share one sealed baseline across the gate cases. That was rejected because a run
+directory records absolute paths, so sharing one means teaching the harness a
+relocation it has no other reason to support.
+
+Leads not pursued: none. The class-vocabulary gap recorded in steps 3 and 4 is
+no longer a lead, because it is the successor frontier this row holds.
+
+## Hermes rule corpus, step 6, round 2 -- 2026-08-21
+
+Round 1's two fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 72/72. The demo path is clean at 120 rules.
+
+The second look re-read the prose the cold read changed, against the thing it
+now claims. The root boundary sentence says Hermes measures one class named by
+a rule from its pinned corpus, which is what Gate 2 enforces. Both published
+invocation prompts tell a reader to name the rule, which is what `verify`
+requires. The skill's selection description names the corpus, the counts and the
+scope refusal, so an agent choosing between skills can see what changed without
+reading the body. The catalogue's generated index is held to the corpus by a
+test, so no future reader is told a mapping the data does not carry.
+
+Leads not pursued: none.
+
+## Fiat delegation packets, integration sync closure -- 2026-08-21
+
+### Incident
+
+The issue 320 integration pull request conflicted after the independently
+merged Hermes rule-corpus run advanced `main`. The overlaps were the Horos
+document and append-only audit ledger; Git merged the root README and Promise
+Machine coverage without manual selection. Rebasing would have rewritten the
+22 signed Fiat commits, while an unreceipted run-branch commit would have
+broken the final-step, remote-tip and pull-request-head identity established by
+the step 3 audit.
+
+### Resolution
+
+`done sync-run` records one explicit integration repair. It requires the remote
+run tip to equal the supplied signed merge, the remote base tip to equal the
+supplied base commit, and the merge parents to be exactly the final recorded
+step merge followed by that base tip. It verifies the local signature and both
+exact provenance trailers, requires GitHub `verified: true` with `reason:
+valid`, refuses a second sync, and makes the recorded sync commit the only
+permitted integration pull-request head. It neither rewrites the stack nor
+loosens ordinary integrations, which still require the final step merge as the
+run tip.
+
+### Evidence
+
+Three focused guards failed before the command existed. Five pass after the
+fix: exact sync and terminal integration, wrong-parent refusal, unsigned-commit
+refusal, stale-base refusal and invalid-GitHub-verification refusal. The Horos
+document was regenerated over the merged tracked tree at 1,385 files, 89
+classified entries and none unreadable. The Fiat controller suite passes
+146/146, the root suite 104/104, Hexaemeron 637/637 and Hermes 72/72. Promise
+Machine reports 14 plugins, 14 copies and all 67 coverage rows clean. The
+changed prose, three tree lints and diff check are clean; historical audit-log
+lexicon signals remain outside this appended closure.
+
+Further leads: none.

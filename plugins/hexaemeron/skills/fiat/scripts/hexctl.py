@@ -1440,6 +1440,64 @@ def done_merge_step(args, state: dict) -> None:
     print(f"step {args.step} merged into {pending['into']}; {tail}")
 
 
+def done_sync_run(args, state: dict) -> None:
+    """Receipt one signed merge of the current base into a completed run stack."""
+    if state["phase"] != "integrate":
+        die(
+            "sync-run is an integrate-phase receipt; the run is in phase "
+            f"'{state['phase']}'"
+        )
+    if state.get("halted"):
+        die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
+    pending = _integrate_directive(state)
+    if pending["do"] != "integrate":
+        die(
+            f"step {pending['step']} still has to merge into "
+            f"'{run_branch_of(state)}' before the run can sync"
+        )
+    integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
+    if integrate.get("sync") is not None:
+        die("the run branch already has a recorded integration sync")
+    if not args.commit:
+        die("--commit is required for sync-run")
+    if not args.base_commit:
+        die("--base-commit is required for sync-run")
+    sync_tip = require_full_sha(args.commit, "run sync commit")
+    base_tip = require_full_sha(args.base_commit, "run sync base commit")
+    remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
+    if remote_tip != sync_tip:
+        die("run sync commit does not match the remote run branch tip")
+    remote_base = remote_branch_tip(
+        args.dir, state["base"], "remote base branch tip"
+    )
+    if remote_base != base_tip:
+        die("run sync base commit does not match the remote base branch tip")
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(integrate.get("merges"))
+    final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
+    recorded_tip = require_full_sha(final_merge, "final recorded step merge")
+    parents = commit_parents(args.dir, sync_tip, "run sync commit")
+    expected_parents = [recorded_tip, base_tip]
+    if parents != expected_parents:
+        die(
+            "run sync merge parents do not match the final recorded step merge "
+            "and the exact remote base tip"
+        )
+    verify_local_commit(args.dir, sync_tip, "run branch integration sync")
+    github_verified = verify_github_commits(args.dir, [sync_tip])
+    integrate["sync"] = {
+        "commit": sync_tip,
+        "base_head": base_tip,
+        "parents": parents,
+        "github_verified": github_verified,
+    }
+    commit(args.dir, state, "done:sync-run", integrate["sync"])
+    print(
+        f"{run_branch_of(state)} synced with {state['base']} at {base_tip}; "
+        "integration may continue"
+    )
+
+
 def done_integrate(args, state: dict) -> None:
     if state["phase"] != "integrate":
         die(
@@ -1484,10 +1542,17 @@ def done_integrate(args, state: dict) -> None:
         die(carried)
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
     final_step = state["steps"][-1]["n"]
-    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    integrate = as_dict(state.get("integrate"))
+    merge_records = as_dict(integrate.get("merges"))
     final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
     recorded_tip = require_full_sha(final_merge, "final recorded step merge")
-    if remote_tip != recorded_tip:
+    sync = as_dict(integrate.get("sync"))
+    expected_tip = recorded_tip
+    if sync:
+        expected_tip = require_full_sha(sync.get("commit"), "recorded run sync commit")
+    if remote_tip != expected_tip:
+        if sync:
+            die("remote run branch tip does not match the recorded run sync commit")
         die("remote run branch tip does not match the final recorded step merge")
     pr_record = inspect_pull_request(
         args.dir,
@@ -1511,6 +1576,8 @@ def done_integrate(args, state: dict) -> None:
         "run_head": remote_tip,
         "final_step_merge": recorded_tip,
     }
+    if sync:
+        state["receipts"]["integrate"]["sync"] = sync
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
     print(
@@ -1527,6 +1594,7 @@ DONE_HANDLERS = {
     "prose": done_prose,
     "push": done_push,
     "merge-step": done_merge_step,
+    "sync-run": done_sync_run,
     "integrate": done_integrate,
 }
 
@@ -1752,25 +1820,40 @@ def resolved_commit(base_dir: str, ref: str, label: str) -> str:
     return lines[0]
 
 
-def remote_branch_tip(base_dir: str, branch: str) -> str:
+def remote_branch_tip(
+    base_dir: str, branch: str, label: str = "remote run branch tip"
+) -> str:
     check_branch_name(branch)
     expected_ref = f"refs/heads/{branch}"
     data = bounded_git(
         base_dir,
         ["ls-remote", "--refs", "origin", expected_ref],
-        "remote run branch tip could not be read",
+        f"{label} could not be read",
     )
-    lines = [line for line in tool_text(data, "remote run branch tip").splitlines() if line]
+    lines = [line for line in tool_text(data, label).splitlines() if line]
     if len(lines) != 1:
-        die("remote run branch tip must contain exactly one ref")
+        die(f"{label} must contain exactly one ref")
     fields = lines[0].split("\t")
     if (
         len(fields) != 2
         or not COMMIT_RE.fullmatch(fields[0])
         or fields[1] != expected_ref
     ):
-        die("remote run branch tip is malformed")
+        die(f"{label} is malformed")
     return fields[0]
+
+
+def commit_parents(base_dir: str, commit_sha: str, label: str) -> list[str]:
+    commit_sha = require_full_sha(commit_sha, label)
+    data = bounded_git(
+        base_dir,
+        ["show", "-s", "--no-show-signature", "--format=%P", commit_sha],
+        f"{label} parents cannot be read",
+    )
+    parents = tool_text(data, f"{label} parents").strip().split()
+    if any(not COMMIT_RE.fullmatch(parent) for parent in parents):
+        die(f"{label} returned a malformed parent SHA")
+    return parents
 
 
 def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
@@ -1798,36 +1881,43 @@ def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) 
     return commits
 
 
+def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
+    """Verify one exact locally created commit and its required trailers."""
+    commit_sha = require_full_sha(commit_sha, label)
+    bounded_git(
+        base_dir,
+        ["verify-commit", commit_sha],
+        f"{label} commit {commit_sha} has no valid local signature",
+    )
+    body = tool_text(
+        bounded_git(
+            base_dir,
+            ["show", "-s", "--no-show-signature", "--format=%B", commit_sha],
+            f"{label} commit {commit_sha} message cannot be read",
+        ),
+        f"{label} commit message",
+    )
+    lines = body.splitlines()
+    coauthors = lines.count(COAUTHOR_TRAILER)
+    origins = lines.count(ORIGIN_TRAILER)
+    if coauthors != 1:
+        die(
+            f"{label} commit {commit_sha} has {coauthors} exact Shoggoth "
+            "co-author trailers; expected 1"
+        )
+    if origins != 1:
+        die(
+            f"{label} commit {commit_sha} has {origins} exact Wildcat-Origin "
+            "trailers; expected 1"
+        )
+    return commit_sha
+
+
 def verify_local_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
     """Verify every locally created commit in one exact base-to-head range."""
     commits = exact_commit_range(base_dir, base_ref, head_ref, label)
     for commit_sha in commits:
-        bounded_git(
-            base_dir,
-            ["verify-commit", commit_sha],
-            f"{label} commit {commit_sha} has no valid local signature",
-        )
-        body = tool_text(
-            bounded_git(
-                base_dir,
-                ["show", "-s", "--no-show-signature", "--format=%B", commit_sha],
-                f"{label} commit {commit_sha} message cannot be read",
-            ),
-            f"{label} commit message",
-        )
-        lines = body.splitlines()
-        coauthors = lines.count(COAUTHOR_TRAILER)
-        origins = lines.count(ORIGIN_TRAILER)
-        if coauthors != 1:
-            die(
-                f"{label} commit {commit_sha} has {coauthors} exact Shoggoth "
-                "co-author trailers; expected 1"
-            )
-        if origins != 1:
-            die(
-                f"{label} commit {commit_sha} has {origins} exact Wildcat-Origin "
-                "trailers; expected 1"
-            )
+        verify_local_commit(base_dir, commit_sha, label)
     return commits
 
 
@@ -2360,6 +2450,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--steps-file", dest="steps_file")
     sp.add_argument("--branch")
     sp.add_argument("--commit")
+    sp.add_argument("--base-commit", dest="base_commit")
     sp.add_argument("--tests")
     sp.add_argument("--no-further-leads", dest="no_further_leads", action="store_true")
     sp.add_argument("--reason")

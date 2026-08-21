@@ -64,6 +64,7 @@ class HexctlCase(unittest.TestCase):
         self.env = os.environ.copy()
         self.fake_refs = {}
         self.fake_prs = {}
+        self.fake_parents = {}
         self.install_fake_delivery_tools()
 
     def tearDown(self):
@@ -76,6 +77,7 @@ class HexctlCase(unittest.TestCase):
     def run_ctl(self, *args, expect=0):
         pending_refs = dict(self.fake_refs)
         pending_prs = json.loads(json.dumps(self.fake_prs))
+        pending_parents = json.loads(json.dumps(self.fake_parents))
         state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
         state = None
         if os.path.exists(state_path):
@@ -120,6 +122,7 @@ class HexctlCase(unittest.TestCase):
             )
         env = dict(self.env)
         env["FAKE_GIT_REFS"] = json.dumps(pending_refs)
+        env["FAKE_GIT_PARENTS"] = json.dumps(pending_parents)
         env["FAKE_GH_PRS"] = json.dumps(pending_prs)
         proc = subprocess.run(
             [sys.executable, HEXCTL, *args],
@@ -136,6 +139,7 @@ class HexctlCase(unittest.TestCase):
         if proc.returncode == 0:
             self.fake_refs = pending_refs
             self.fake_prs = pending_prs
+            self.fake_parents = pending_parents
         return proc
 
     @staticmethod
@@ -216,7 +220,10 @@ elif args and args[0] == "verify-commit":
         raise SystemExit(7)
     print("FAKE SIGNATURE MATERIAL")
 elif args and args[0] == "show":
-    if mode == "missing-trailer":
+    if "--format=%P" in args:
+        parents = json.loads(os.environ.get("FAKE_GIT_PARENTS", "{{}}"))
+        print(" ".join(parents.get(args[-1], [])))
+    elif mode == "missing-trailer":
         print("subject\\n\\nWildcat-Origin: shoggoth")
     elif mode == "duplicate-trailer":
         print("subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
@@ -1154,6 +1161,67 @@ class TestPublicationBindings(HexctlCase):
             "--merge-commit", "f" * 40, expect=2,
         )
         self.assertIn("final recorded step merge", proc.stderr)
+
+    def prepare_run_sync(self, sync_sha="7" * 40, base_sha="6" * 40):
+        self.to_integrate()
+        state = self.state()
+        final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        self.fake_refs[state["run_branch"]] = sync_sha
+        self.fake_refs[state["base"]] = base_sha
+        self.fake_parents[sync_sha] = [final_merge, base_sha]
+        return state, sync_sha, base_sha
+
+    def test_sync_run_receipts_exact_merge_and_allows_integration(self):
+        state, sync_sha, base_sha = self.prepare_run_sync()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha,
+        )
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["run_head"], sync_sha)
+        self.assertEqual(receipt["sync"]["base_head"], base_sha)
+        self.assertEqual(receipt["sync"]["parents"], ["e" * 40, base_sha])
+
+    def test_sync_run_refuses_wrong_merge_parents(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, expect=2,
+        )
+        self.assertIn("merge parents", proc.stderr)
+
+    def test_sync_run_refuses_unsigned_commit(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        self.env["FAKE_GIT_MODE"] = "unsigned"
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, expect=2,
+        )
+        self.assertIn("valid local signature", proc.stderr)
+
+    def test_sync_run_refuses_stale_remote_base(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", "5" * 40, expect=2,
+        )
+        self.assertIn("remote base branch tip", proc.stderr)
+
+    def test_sync_run_refuses_invalid_github_verification(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        self.env["FAKE_GH_MODE"] = "verified-false"
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, expect=2,
+        )
+        self.assertIn("not verified:true", proc.stderr)
 
 
 class TestDelegationPacketLifecycle(HexctlCase):

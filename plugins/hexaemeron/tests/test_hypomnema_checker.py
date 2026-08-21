@@ -477,11 +477,19 @@ class RecordShape(unittest.TestCase):
         paths = hypomnema.walk([str(FIXTURES / "decisions")])
         self.assertEqual(2, len(paths))
 
-    def test_the_trees_six_records_pass(self):
+    def test_every_record_in_the_tree_passes(self):
+        """Counts the records it found rather than a number written here.
+
+        The literal was 6 and the Hermes corpus run added ADR-007 and ADR-008,
+        so the count broke on a merge for a reason that had nothing to do with
+        record shape. What this case is for is that every record in the tree
+        passes the checker, and a directory holding at least the six that
+        existed when it was written is enough to prove the walk found them.
+        """
         marketplace = ROOT.parents[1]
         decisions = marketplace / "docs" / "decisions"
         paths = hypomnema.walk([str(decisions)])
-        self.assertEqual(6, len(paths))
+        self.assertGreaterEqual(len(paths), 6)
         findings = []
         for path in paths:
             findings.extend(hypomnema.check(path))

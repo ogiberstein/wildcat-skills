@@ -279,6 +279,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
 | `push` | Stage and commit final changes, push the step branch, open its stacked PR against `pr_base`, and leave it open | [push-discipline.md](references/push-discipline.md) | `done push --pr-url <url> --head-commit <sha> --pr-base <ref>` |
 | `merge-step` | Merge the named step's PR into the run branch, bottom of the stack first | [push-discipline.md](references/push-discipline.md) | `done merge-step --step <n> --merge-commit <sha>` |
+| `sync-run` | When the base advanced and the integration PR conflicts, receipt one signed two-parent merge of the exact remote base tip into the completed run stack | [push-discipline.md](references/push-discipline.md) | `done sync-run --commit <sha> --base-commit <sha>` |
 | `integrate` | Open and merge one PR from the run branch into the base, name what the run leaves unfinished in `.hexaemeron/run-pr.md`, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
 | `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
@@ -352,7 +353,12 @@ step's, and delete no branch here; receipt each merge before starting the next.
 Deleting a merged step's branch closes the pull request stacked on it, and a
 closed pull request whose base ref is gone can be neither reopened nor
 retargeted, so the order is not a preference. With the stack landed, open one
-pull request from the run branch into the recorded base, name everything the run
+pull request from the run branch into the recorded base. If concurrent work
+advanced the base and that pull request conflicts, merge the exact remote base
+tip into the run branch once with a signed two-parent commit whose first parent
+is the final recorded step merge, push it, require GitHub valid verification,
+and receipt it with `done sync-run`; never rebase or rewrite the signed stack.
+Then name everything the run
 left unfinished in its body under `## Carried forward`, wait for its gates,
 merge it without bypassing them, require GitHub to report `verified: true` and
 `reason: valid` for every pushed commit and merge SHA, delete the run branch and the step branches

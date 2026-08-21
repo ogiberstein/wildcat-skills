@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "f142527743f5c14d28009498d409c3507727590069bbe101e1116f7ec389774b",
+      "sha256": "44ac570e5317a688a52e0a6b39f0e670165d551858dd77f8407b11a925725a5c",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -142,7 +142,7 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "f142527743f5c14d28009498d409c3507727590069bbe101e1116f7ec389774b",
+      "sha256": "44ac570e5317a688a52e0a6b39f0e670165d551858dd77f8407b11a925725a5c",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "topic, run branch, step branch and head commit",
@@ -156,7 +156,7 @@
     },
     "hermes-baseline-promotion": {
       "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
-      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
+      "sha256": "36e80da4405645486e4f34caf6fa59ed795d864c685e04a9b37a959bc43c1805",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "candidate commit, target set and sealed run directory",
@@ -170,7 +170,7 @@
     },
     "hermes-candidate-acceptance": {
       "source": "plugins/hermes/skills/hermes/scripts/hermes.py",
-      "sha256": "9c7cda0947024a36a10c40c798c554521b11b5d8ef40414b877d59c7003389ea",
+      "sha256": "36e80da4405645486e4f34caf6fa59ed795d864c685e04a9b37a959bc43c1805",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "baseline commit, candidate commit and named targets",
@@ -490,6 +490,31 @@
       "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
       "selector": "test_accepts_and_promotes_a_fully_verified_candidate",
       "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+    },
+    "hermes-corpus-m": {
+      "claim": "Missing required evidence is refused rather than treated as success.",
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_an_unanswered_obligation_is_refused"
+    },
+    "hermes-corpus-o": {
+      "claim": "The nearest tempting overclaim remains explicitly unavailable.",
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_a_rule_naming_no_class_is_refused"
+    },
+    "hermes-corpus-p": {
+      "claim": "Positive evidence exercises the declared operation inside its stated boundary.",
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_an_accepted_candidate_records_the_corpus_that_judged_it"
+    },
+    "hermes-corpus-r": {
+      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path.",
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_an_unpinned_solc_refuses_rather_than_assuming_one"
+    },
+    "hermes-corpus-s": {
+      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped.",
+      "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
+      "selector": "test_a_corpus_edited_after_the_baseline_is_refused"
     },
     "hermes-m": {
       "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
@@ -1725,6 +1750,22 @@
         "S": "hermes-s",
         "O": "hermes-o",
         "R": "hermes-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "hermes-corpus-selection",
+      "skill_path": "plugins/hermes/skills/hermes/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "hermes-corpus-p",
+        "M": "hermes-corpus-m",
+        "S": "hermes-corpus-s",
+        "O": "hermes-corpus-o",
+        "R": "hermes-corpus-r",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."

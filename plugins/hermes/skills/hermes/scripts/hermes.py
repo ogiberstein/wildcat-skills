@@ -35,6 +35,14 @@ OPTIMISATION_CLASSES = (
     "storage-packing",
     "unchecked-arithmetic",
 )
+CORPUS_SCHEMA = "hermes/gas-rule-corpus/v1"
+CORPUS_SCHEMA_ID = "hermes/gas-rule-corpus-schema/v1"
+CORPUS_FILE = "gas-rule-corpus.json"
+CORPUS_SCHEMA_FILE = "gas-rule-corpus.schema.json"
+DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+URL_RE = re.compile(r"^https://[^\s<>\"]+$")
+
 SNAPSHOT_RE = re.compile(r"^(?P<name>.+) \(gas: (?P<gas>[0-9]+)\)$")
 INVARIANT_SNAPSHOT_RE = re.compile(
     r"^(?P<name>.+) \(runs: (?P<runs>[0-9]+), calls: (?P<calls>[0-9]+), reverts: (?P<reverts>[0-9]+)\)$"
@@ -535,6 +543,11 @@ def mark_failure(run_dir: Path | None, state: dict[str, Any] | None, failure: Ga
         "reason": str(failure),
         "finished_at": utc_now(),
     }
+    if isinstance(failure, CorpusRefusal):
+        # The exit code names the gate; this names which corpus condition
+        # failed, so a caller can tell an out-of-scope rule from a missing
+        # obligation answer without parsing prose.
+        result["refusal"] = failure.reason
     write_json(run_dir / "result.json", result)
     if state is not None:
         state["status"] = "rejected"
@@ -592,7 +605,7 @@ def baseline_command(args: argparse.Namespace) -> int:
             ["forge", "config", "--json"], repo, run_dir / "logs" / "gate1.forge-config.log", echo=False
         )
         require_success(config, 1, "forge config --json", 10)
-        _, canonical_config = canonical_json(config.stdout, "forge config", 1, 10)
+        config_document, canonical_config = canonical_json(config.stdout, "forge config", 1, 10)
         config_path = run_dir / "baseline.forge-config.json"
         write_text(config_path, canonical_config)
         version_path = run_dir / "baseline.forge-version.txt"
@@ -619,6 +632,14 @@ def baseline_command(args: argparse.Namespace) -> int:
             method_path, _ = inspect_methods(repo, run_dir, contract, "before", 1, 10)
             method_paths.append(method_path)
 
+        corpus, corpus_schema, corpus_digest = load_corpus()
+        corpus_faults = validate_corpus(corpus, corpus_schema)
+        if corpus_faults:
+            raise GateFailure(
+                1, f"the rule corpus does not validate: {corpus_faults[0]}", 10)
+        corpus_path = run_dir / "baseline.gas-rule-corpus.json"
+        write_text(corpus_path, json.dumps(corpus, indent=2, ensure_ascii=False) + "\n")
+
         source_manifest = snapshot_sources(repo, run_dir)
         status = git(repo, ["status", "--porcelain=v1", "-z"], run_dir / "logs" / "gate1.git-status.log")
         require_success(status, 1, "git status", 10)
@@ -631,6 +652,7 @@ def baseline_command(args: argparse.Namespace) -> int:
             version_path,
             status_path,
             run_dir / "baseline-source-manifest.json",
+            corpus_path,
             *layout_paths,
             *method_paths,
         ]
@@ -642,6 +664,12 @@ def baseline_command(args: argparse.Namespace) -> int:
                     "git_head": git_head,
                     "forge_version_sha256": sha256_bytes(version.stdout.encode()),
                     "forge_config_sha256": sha256_bytes(canonical_config.encode()),
+                    "forge_config": {
+                        "solc": config_document.get("solc"),
+                        "evm_version": config_document.get("evm_version"),
+                        "via_ir": bool(config_document.get("via_ir")),
+                    },
+                    "corpus_sha256": corpus_digest,
                     "gas_snapshot": str(baseline_snapshot.relative_to(run_dir)),
                     "source_manifest": source_manifest,
                     "artifact_hashes": hashes,
@@ -709,8 +737,53 @@ def verify_command(args: argparse.Namespace) -> int:
         if sha256_bytes(canonical_config.encode()) != state["baseline"]["forge_config_sha256"]:
             raise GateFailure(2, "Foundry configuration changed after baseline", 20)
 
-        changed_files, _, added_tokens = source_diff(repo, run_dir, state["baseline"]["source_manifest"])
+        corpus, corpus_schema, corpus_digest = load_corpus()
+        baseline = state["baseline"]
+        for required in ("corpus_sha256", "forge_config"):
+            if required not in baseline:
+                raise CorpusRefusal(
+                    "corpus/baseline-predates-corpus",
+                    f"this run directory was sealed before the corpus gate "
+                    f"existed and carries no {required}; take a fresh baseline",
+                )
+        if corpus_digest != baseline["corpus_sha256"]:
+            raise CorpusRefusal(
+                "corpus/digest-moved",
+                f"the corpus changed after the baseline sealed it: baseline "
+                f"{baseline['corpus_sha256'][:16]}, now "
+                f"{corpus_digest[:16]}",
+            )
+        corpus_faults = validate_corpus(corpus, corpus_schema)
+        if corpus_faults:
+            raise CorpusRefusal(
+                "corpus/invalid",
+                f"the rule corpus does not validate: {corpus_faults[0]}")
+
+        rule = select_rule(corpus, args.rule)
         optimisation_class = args.optimisation_class
+        if rule["hermes_class"] is None:
+            raise CorpusRefusal(
+                "corpus/rule-names-no-class",
+                f"{rule['id']} names no Hermes class: it constrains how a run "
+                f"is conducted, or it is architecture. It is advice the record "
+                f"carries, not a candidate this harness can measure.",
+            )
+        if rule["hermes_class"] != optimisation_class:
+            raise CorpusRefusal(
+                "corpus/class-disagreement",
+                f"{rule['id']} is a {rule['hermes_class']} rule; the candidate "
+                f"declares {optimisation_class}",
+            )
+        refuse_myth_citations(corpus, {
+            "--non-sensitive-rationale": args.non_sensitive_rationale,
+            "--layout-change-rationale": args.layout_change_rationale,
+            "--property-proof": args.property_proof,
+            "--obligation": " ".join(args.obligation or []),
+        })
+        scope_resolution = resolve_scope(rule, corpus, baseline["forge_config"])
+        obligations = pair_obligations(rule, args.obligation)
+
+        changed_files, _, added_tokens = source_diff(repo, run_dir, state["baseline"]["source_manifest"])
         if "unchecked" in added_tokens and optimisation_class != "unchecked-arithmetic":
             raise GateFailure(2, "candidate adds unchecked code outside the unchecked-arithmetic class", 20)
         if "assembly" in added_tokens and optimisation_class != "assembly":
@@ -723,6 +796,15 @@ def verify_command(args: argparse.Namespace) -> int:
 
         state["candidate"] = {
             "optimisation_class": optimisation_class,
+            "rule": {
+                "id": rule["id"],
+                "title": rule["title"],
+                "evidence_grade": rule["evidence_grade"],
+                "automation": rule["automation"],
+                "corpus_sha256": corpus_digest,
+                "scope_resolution": scope_resolution,
+                "obligations": obligations,
+            },
             "single_class_attested": True,
             "changed_files": changed_files,
             "added_sensitive_tokens": sorted(added_tokens),
@@ -732,9 +814,11 @@ def verify_command(args: argparse.Namespace) -> int:
         state["gates"].append(
             {
                 "id": 2,
-                "name": "single_optimisation_class",
+                "name": "corpus_rule_and_single_optimisation_class",
                 "status": "passed",
                 "optimisation_class": optimisation_class,
+                "rule": rule["id"],
+                "corpus_sha256": corpus_digest,
                 "changed_files": changed_files,
                 "passed_at": utc_now(),
             }
@@ -948,6 +1032,7 @@ def verify_command(args: argparse.Namespace) -> int:
             "run_id": state["run_id"],
             "repo": str(repo),
             "optimisation_class": optimisation_class,
+            "rule": state["candidate"]["rule"],
             "changed_files": changed_files,
             "gates": state["gates"],
             "gas": gas,
@@ -1004,6 +1089,360 @@ def status_command(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Rule corpus
+#
+# The corpus is data: the rules, the rejected universal rules, and the
+# citations transcribed from one pinned source document. Nothing here reaches
+# a network or evaluates a record; a field is text until a type token says
+# otherwise, and a token this module does not implement is a fault rather than
+# a check that quietly passes.
+
+
+class CorpusFault(RuntimeError):
+    """A corpus that cannot be trusted to judge a candidate."""
+
+
+def corpus_paths(directory: Path | None = None) -> tuple[Path, Path]:
+    """The corpus and its schema, resolved beside this script, never from argv."""
+    base = (directory or Path(__file__).resolve().parent.parent / "references")
+    return base / CORPUS_FILE, base / CORPUS_SCHEMA_FILE
+
+
+def load_corpus(directory: Path | None = None) -> tuple[dict[str, Any], dict[str, Any], str]:
+    corpus_path, schema_path = corpus_paths(directory)
+    for path in (corpus_path, schema_path):
+        if not path.is_file():
+            raise CorpusFault(f"missing corpus file: {path}")
+    raw = corpus_path.read_bytes()
+    try:
+        corpus = json.loads(raw.decode("utf-8"))
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise CorpusFault(f"corpus is not valid JSON: {exc}") from exc
+    if not isinstance(corpus, dict) or not isinstance(schema, dict):
+        raise CorpusFault("corpus and schema must each be a JSON object")
+    return corpus, schema, sha256_bytes(raw)
+
+
+def _check_value(token: str, value: Any, schema: dict[str, Any], corpus: dict[str, Any],
+                 where: str, faults: list[str]) -> None:
+    """One field against one type token. Unknown tokens fault; they never pass."""
+    enums = schema.get("enums", {})
+    forks = corpus.get("fork_order") or []
+    if token in ("text", "id"):
+        if not isinstance(value, str) or not value.strip():
+            faults.append(f"{where}: expected non-empty text")
+    elif token == "digest":
+        if not isinstance(value, str) or not DIGEST_RE.match(value):
+            faults.append(f"{where}: expected a lowercase sha256 digest")
+    elif token == "version":
+        if not isinstance(value, str) or not VERSION_RE.match(value):
+            faults.append(f"{where}: expected a three-part version")
+    elif token == "url":
+        if not isinstance(value, str) or not URL_RE.match(value):
+            faults.append(f"{where}: expected an https URL")
+    elif token == "fork":
+        if value not in forks:
+            faults.append(f"{where}: {value!r} is not a name in fork_order")
+    elif token == "fork-list":
+        if not isinstance(value, list) or not value:
+            faults.append(f"{where}: expected a non-empty list of fork names")
+        elif len(set(value)) != len(value):
+            faults.append(f"{where}: fork_order repeats a name")
+        elif not all(isinstance(name, str) and name.strip() for name in value):
+            faults.append(f"{where}: fork_order holds a non-name")
+    elif token == "text-list":
+        if not isinstance(value, list):
+            faults.append(f"{where}: expected a list")
+        elif not all(isinstance(item, str) and item.strip() for item in value):
+            faults.append(f"{where}: every entry must be non-empty text")
+    elif token == "ref-id-list":
+        known = {entry.get("id") for entry in corpus.get("references") or []
+                 if isinstance(entry, dict)}
+        if not isinstance(value, list):
+            faults.append(f"{where}: expected a list of citation ids")
+        else:
+            for item in value:
+                if item not in known:
+                    faults.append(f"{where}: cites {item!r}, which no reference defines")
+    elif token == "pipeline-list":
+        allowed = enums.get("pipeline", [])
+        if not isinstance(value, list) or not value:
+            faults.append(f"{where}: expected a non-empty pipeline list")
+        else:
+            for item in value:
+                if item not in allowed:
+                    faults.append(f"{where}: {item!r} is not one of {allowed}")
+    elif token == "hermes-class-or-none":
+        if value is not None and value not in OPTIMISATION_CLASSES:
+            faults.append(f"{where}: {value!r} is neither null nor a Hermes class")
+    elif token.startswith("enum:"):
+        name = token.split(":", 1)[1]
+        allowed = enums.get(name)
+        if allowed is None:
+            faults.append(f"{where}: schema declares unknown enum {name!r}")
+        elif value not in allowed:
+            faults.append(f"{where}: {value!r} is not one of {allowed}")
+    elif token in ("source", "verified-on", "scope"):
+        spec = schema.get(token.replace("-", "_"))
+        if not isinstance(spec, dict):
+            faults.append(f"{where}: schema declares no shape for {token!r}")
+        elif not isinstance(value, dict):
+            faults.append(f"{where}: expected an object")
+        else:
+            _check_record(value, spec, schema, corpus, where, faults)
+    else:
+        faults.append(f"{where}: schema uses type token {token!r}, which this build cannot check")
+
+
+def _check_record(record: dict[str, Any], spec: dict[str, Any], schema: dict[str, Any],
+                  corpus: dict[str, Any], where: str, faults: list[str]) -> None:
+    required = spec.get("required", {})
+    optional = spec.get("optional", {})
+    for field in sorted(set(record) - set(required) - set(optional)):
+        faults.append(f"{where}: unknown field {field!r}")
+    for field, token in sorted(required.items()):
+        if field not in record:
+            faults.append(f"{where}: missing field {field!r}")
+        else:
+            _check_value(token, record[field], schema, corpus, f"{where}.{field}", faults)
+    for field, token in sorted(optional.items()):
+        if field in record:
+            _check_value(token, record[field], schema, corpus, f"{where}.{field}", faults)
+
+
+def validate_corpus(corpus: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    """Every fault in the corpus, in reading order. Empty means it can judge."""
+    faults: list[str] = []
+    if schema.get("schema") != CORPUS_SCHEMA_ID:
+        faults.append(f"schema declares {schema.get('schema')!r}, expected {CORPUS_SCHEMA_ID!r}")
+    if schema.get("corpus_schema") != CORPUS_SCHEMA:
+        faults.append(f"schema targets {schema.get('corpus_schema')!r}, expected {CORPUS_SCHEMA!r}")
+    if corpus.get("schema") != CORPUS_SCHEMA:
+        faults.append(f"corpus declares {corpus.get('schema')!r}, expected {CORPUS_SCHEMA!r}")
+    if faults:
+        # Every check below reads the schema's own shape declarations, so a
+        # mismatched schema would report faults about the wrong document.
+        return faults
+
+    record_classes = set((schema.get("records") or {}))
+    _check_record(
+        {key: value for key, value in corpus.items() if key not in record_classes},
+        schema.get("header", {}), schema, corpus, "corpus", faults,
+    )
+    for name, spec in sorted((schema.get("records") or {}).items()):
+        records = corpus.get(name)
+        if not isinstance(records, list):
+            faults.append(f"corpus.{name}: expected a list of records")
+            continue
+        pattern = re.compile(spec.get("id_pattern", "^$"))
+        seen: set[str] = set()
+        for index, record in enumerate(records):
+            where = f"corpus.{name}[{index}]"
+            if not isinstance(record, dict):
+                faults.append(f"{where}: expected an object")
+                continue
+            identifier = record.get("id")
+            if isinstance(identifier, str):
+                where = f"corpus.{name}[{identifier}]"
+                if not pattern.match(identifier):
+                    faults.append(f"{where}: id does not match {spec['id_pattern']}")
+                if identifier in seen:
+                    faults.append(f"{where}: duplicate id")
+                seen.add(identifier)
+            _check_record(record, spec, schema, corpus, where, faults)
+    return faults
+
+
+class CorpusRefusal(GateFailure):
+    """A Gate 2 refusal the corpus decided, carrying a machine-readable reason.
+
+    Exit code stays 20. The published contract says an exit code names the
+    rejected gate, and there is no seventh gate; the reason is a field so the
+    cause is readable without minting one.
+    """
+
+    def __init__(self, reason: str, message: str):
+        super().__init__(2, message, 20)
+        self.reason = reason
+
+
+MYTH_CITATION_RE = re.compile(r"\bMYTH-\d{2}\b", re.I)
+RULE_ID_RE = re.compile(r"^(CMP|STO|TRN|MEM|CTL|EXT|DEP|YUL|MYTH)-[0-9]{2}$")
+OBLIGATION_ANSWER_RE = re.compile(r"^(?P<index>[1-9][0-9]*)=(?P<answer>.*)$", re.S)
+MINIMUM_OBLIGATION_ANSWER = 20
+
+
+def parse_version(value: str) -> tuple[int, int, int] | None:
+    match = VERSION_RE.match(value or "")
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
+def select_rule(corpus: dict[str, Any], identifier: str) -> dict[str, Any]:
+    for rule in corpus.get("rules") or []:
+        if rule.get("id") == identifier:
+            return rule
+    for myth in corpus.get("myths") or []:
+        if myth.get("id") == identifier:
+            raise CorpusRefusal(
+                "corpus/myth-selected",
+                f"{identifier} is a rejected universal rule, not a candidate: "
+                f"{myth.get('claim')} -- {myth.get('correction')}",
+            )
+    raise CorpusRefusal("corpus/unknown-rule", f"no rule {identifier} in the corpus")
+
+
+def refuse_myth_citations(corpus: dict[str, Any], texts: dict[str, str | None]) -> None:
+    """A justification naming a rejected rule is refused with its correction.
+
+    Cheap to satisfy: do not cite a myth id as the reason a candidate is sound.
+    """
+    corrections = {myth["id"]: myth for myth in corpus.get("myths") or []
+                   if isinstance(myth, dict) and myth.get("id")}
+    for where, text in sorted(texts.items()):
+        for cited in MYTH_CITATION_RE.findall(text or ""):
+            myth = corrections.get(cited.upper())
+            if myth is None:
+                continue
+            raise CorpusRefusal(
+                "corpus/myth-cited",
+                f"{where} cites {cited} ({myth['id']}), which the corpus "
+                f"rejects: {myth['claim']} -- {myth['correction']}",
+            )
+
+
+def resolve_scope(rule: dict[str, Any], corpus: dict[str, Any],
+                  config: dict[str, Any]) -> dict[str, Any]:
+    """Whether the rule holds for the configuration the baseline sealed.
+
+    Fails closed: a configuration this cannot read refuses rather than being
+    assumed to match the source document's own single pin.
+    """
+    scope = rule["scope"]
+    forks = corpus["fork_order"]
+    if scope["evm_floor"] not in forks:
+        # validate_corpus already requires this, and depending on that here
+        # without saying so turns a corpus fault into a traceback rather than a
+        # refusal with an exit code.
+        raise CorpusRefusal(
+            "corpus/invalid",
+            f"{rule['id']} floors at {scope['evm_floor']}, which the corpus "
+            f"does not order",
+        )
+
+    solc = config.get("solc")
+    if not isinstance(solc, str) or parse_version(solc) is None:
+        raise CorpusRefusal(
+            "corpus/scope-unresolved",
+            f"the target does not pin a readable solc version ({solc!r}), so "
+            f"{rule['id']}'s compiler range {scope['compiler_min']} to "
+            f"{scope['compiler_max_exclusive']} cannot be resolved; pin "
+            f"solc_version in foundry.toml",
+        )
+    target_version = parse_version(solc)
+    if not (parse_version(scope["compiler_min"]) <= target_version
+            < parse_version(scope["compiler_max_exclusive"])):
+        raise CorpusRefusal(
+            "corpus/out-of-scope",
+            f"{rule['id']} holds for solc {scope['compiler_min']} up to but not "
+            f"including {scope['compiler_max_exclusive']}; the target resolves "
+            f"{solc}. {scope['compiler_reason']}",
+        )
+
+    evm = config.get("evm_version")
+    if evm not in forks:
+        raise CorpusRefusal(
+            "corpus/scope-unresolved",
+            f"the target's evm_version {evm!r} is not a fork this corpus orders, "
+            f"so {rule['id']}'s floor {scope['evm_floor']} cannot be compared; "
+            f"the ordered names are {', '.join(forks)}",
+        )
+    if forks.index(evm) < forks.index(scope["evm_floor"]):
+        raise CorpusRefusal(
+            "corpus/out-of-scope",
+            f"{rule['id']} needs {scope['evm_floor']} or later; the target "
+            f"resolves {evm}. {scope['evm_reason']}",
+        )
+
+    pipeline = "via-ir" if config.get("via_ir") else "legacy"
+    if pipeline not in scope["pipelines"]:
+        raise CorpusRefusal(
+            "corpus/out-of-scope",
+            f"{rule['id']} holds for the {', '.join(scope['pipelines'])} "
+            f"pipeline; the target compiles with {pipeline}. "
+            f"{scope['pipeline_reason']}",
+        )
+    return {"solc": solc, "evm_version": evm, "pipeline": pipeline}
+
+
+def pair_obligations(rule: dict[str, Any], answers: Sequence[str] | None) -> list[dict[str, str]]:
+    """One recorded answer per obligation the rule's own statement makes.
+
+    Answers are recorded judgement, not measurement. The six hard gates do not
+    move, and `result.json` says which fields are which.
+    """
+    obligations = rule["obligations"]
+    parsed: dict[int, str] = {}
+    for raw in answers or []:
+        match = OBLIGATION_ANSWER_RE.match(raw)
+        if match is None:
+            raise CorpusRefusal(
+                "corpus/obligation-malformed",
+                f"--obligation takes <n>=<answer>, not {raw!r}",
+            )
+        index = int(match.group("index"))
+        if index in parsed:
+            raise CorpusRefusal(
+                "corpus/obligation-malformed",
+                f"obligation {index} answered more than once",
+            )
+        if not 1 <= index <= len(obligations):
+            raise CorpusRefusal(
+                "corpus/obligation-malformed",
+                f"{rule['id']} states {len(obligations)} obligation(s); "
+                f"there is no obligation {index}",
+            )
+        parsed[index] = match.group("answer")
+    for index, obligation in enumerate(obligations, start=1):
+        answer = parsed.get(index, "")
+        if len(answer.strip()) < MINIMUM_OBLIGATION_ANSWER:
+            raise CorpusRefusal(
+                "corpus/obligation-unanswered",
+                f"{rule['id']} obligation {index} has no substantive answer: "
+                f"{obligation}",
+            )
+    return [{"obligation": obligation, "answer": parsed[index].strip(), "kind": "recorded judgement"}
+            for index, obligation in enumerate(obligations, start=1)]
+
+
+def corpus_command(args: argparse.Namespace) -> int:
+    try:
+        corpus, schema, digest = load_corpus()
+    except CorpusFault as exc:
+        print(f"corpus unusable: {exc}", file=sys.stderr)
+        return 1
+    faults = validate_corpus(corpus, schema)
+    summary = {
+        "schema": corpus.get("schema"),
+        "corpus_sha256": digest,
+        "source_sha256": (corpus.get("source") or {}).get("sha256"),
+        "counts": {name: len(corpus.get(name) or []) for name in ("rules", "myths", "references")},
+        "faults": faults,
+        "status": "clean" if not faults else "faulted",
+    }
+    if args.json:
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    else:
+        counts = summary["counts"]
+        print(f"corpus {digest[:16]} rules={counts['rules']} "
+              f"myths={counts['myths']} references={counts['references']}")
+        for fault in faults:
+            print(f"  {fault}", file=sys.stderr)
+        print("clean" if not faults else f"{len(faults)} fault(s)")
+    return 0 if not faults else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="hermes.py",
@@ -1045,6 +1484,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify = subparsers.add_parser("verify", help="Run Gates 2-6 against a sealed baseline")
     verify.add_argument("--run-dir", required=True, help="Evidence directory emitted by baseline")
+    verify.add_argument("--rule", required=True, action=SingleValueAction,
+                        help="Corpus rule id the candidate implements, such as STO-09")
+    verify.add_argument("--obligation", action="append",
+                        help="Answer one of the rule's obligations as <n>=<answer>; repeat for each")
     verify.add_argument(
         "--optimisation-class",
         choices=OPTIMISATION_CLASSES,
@@ -1096,10 +1539,20 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="Print the mesh-readable result JSON")
     status.add_argument("--run-dir", required=True)
     status.set_defaults(handler=status_command)
+
+    corpus = subparsers.add_parser("corpus", help="Validate the pinned gas-rule corpus")
+    corpus.add_argument("--validate", action="store_true",
+                        help="Check the corpus against its schema (the only mode)")
+    corpus.add_argument("--json", action="store_true", help="Print the machine-readable summary")
+    corpus.set_defaults(handler=corpus_command)
     return parser
 
 
 def validate_cross_arguments(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    if args.command == "corpus":
+        if not args.validate:
+            parser.error("corpus takes --validate")
+        return
     if args.command == "baseline":
         protected = args.protected_contract or []
         recorded = args.layout_contract or []
@@ -1113,6 +1566,8 @@ def validate_cross_arguments(parser: argparse.ArgumentParser, args: argparse.Nam
         return
     if args.command != "verify":
         return
+    if not RULE_ID_RE.match(args.rule or ""):
+        parser.error("--rule takes a corpus identifier such as STO-09 or MYTH-02")
     targeted = [args.targeted_match_path, args.targeted_match_test, args.property_proof]
     if args.sensitive_unchecked and not all(targeted):
         parser.error(

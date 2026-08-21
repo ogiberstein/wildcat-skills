@@ -155,6 +155,23 @@ run-level title and body, and apply the same provenance markers:
 gh pr create --base <recorded base> --head <run branch> ...
 ```
 
+If concurrent work advanced the base and this pull request conflicts, do not
+rebase or rewrite the signed stack. Fetch the exact remote base tip, merge it
+into the run branch once with `--no-ff`, resolve only the reported conflicts,
+and sign that merge with the two exact provenance trailers. Its first parent
+must be the final recorded step merge and its second parent the supplied base
+tip. Push it, require GitHub `verified: true` with `reason: valid`, then record
+the exact topology before the integration pull request merges:
+
+```text
+hexctl done sync-run --commit <signed merge sha> --base-commit <remote base sha>
+```
+
+The controller compares both remote tips, reads the two parents, verifies the
+local signature and trailers, and checks GitHub's result. It accepts at most
+one sync and makes that commit the only permitted integration PR head. A base
+that moved again or any extra run-branch commit stops the receipt.
+
 **Carry the unfinished forward.** The run-level body lives at
 `.hexaemeron/run-pr.md`, written in the prose phase, and the integration pull
 request is opened from it. Before the receipt will take it, that file has to

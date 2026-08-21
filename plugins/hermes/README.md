@@ -7,9 +7,9 @@ Hermes measures one Solidity gas optimisation class at a time and rejects the ca
 
 **Try something else when.** Use Pandects for credit-specific laws or Hexaemeron's audit skills for a broader security review.
 
-**Current frontier.** No complete, reproducible live Wildcat evidence bundle is published.
+**Current frontier.** Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates.
 
-**Next Fiat job.** Use /hexaemeron:fiat to publish a complete, reproducible Hermes evidence bundle against a real Wildcat release, with a scoped optimisation candidate and every gate outcome recorded. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to widen the Hermes optimisation classes against the pinned rule corpus until every rule with a source-level candidate can be selected, starting with the reduction in storage writes that no class names. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 The canonical workflow and complete gate contract live in

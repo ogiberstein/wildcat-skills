@@ -451,6 +451,7 @@ class PromiseStructureTests(unittest.TestCase):
                 "brevitas-evidence-preservation",
             },
             "plugins/hermes/skills/hermes/SKILL.md": {
+                "hermes-corpus-selection",
                 "hermes-sealed-baseline",
                 "hermes-candidate-acceptance",
                 "hermes-baseline-promotion",
@@ -517,7 +518,7 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 61)
+        self.assertEqual(report["counts"]["promises"], 62)
 
     def test_hexaemeron_contract_population_is_complete(self):
         expected = {
@@ -579,7 +580,7 @@ class PromiseOverlayTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 66)
+        self.assertEqual(report["counts"]["promises"], 67)
         self.assertEqual(report["counts"]["overlays"], 1)
 
     def test_one_byte_vendored_mutation_is_refused(self):
@@ -955,8 +956,8 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 66)
-        self.assertEqual(report["counts"]["coverage_selected"], 50)
+        self.assertEqual(report["counts"]["coverage_rows"], 67)
+        self.assertEqual(report["counts"]["coverage_selected"], 51)
 
     def test_berean_and_janus_boundaries_are_explicit(self):
         coverage = json.loads(
@@ -1154,7 +1155,7 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 66)
+        self.assertEqual(report["counts"]["coverage_rows"], 67)
         self.assertEqual(report["counts"]["coverage_selected"], 16)
 
     def test_prompt_and_vendored_evaluations_never_claim_proof(self):
