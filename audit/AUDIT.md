@@ -7658,3 +7658,38 @@ nested sinks each re-reporting their inner label containers, now run in
 output-proportional time and cannot be faster than what they must print; the
 shared lexer's recursion defect stays carried forward for the owning surface,
 unchanged since round 1.
+
+## Ephoros wallet-address telemetry, step 3, round 5 -- 2026-08-21
+
+The closing round audited the tree at `d21e5ea` with round 4's span-index fix
+as its focus, on evidence independent of the fixer's own harness: a fresh
+differential with its own generators and seed over the 882 clone files, the 24
+fixtures and 5,400 fuzz cases biased at the fix's edges, 6,306 ordered
+comparisons with zero deltas, plus 43 hand-directed attacks derived from a
+static read of the diff. The bounded-window equivalence argument was attacked
+directly and holds: no truncating constant exists, the one numeric literal is
+an exact-length gate beside an anchored hex match, and 500 KB values with the
+address word at the far end fire identically on both sides. Performance holds
+with nothing over 1.13 seconds at the cap, including a fresh shape aimed at
+the new index's bisection. The three lints exit 0, the focused suite passes
+116/116, the Hexaemeron suite 710/710, the root suite 107/107, and the clone
+runs clean at exit 0 in 0.86 seconds with zero pragmas and an empty porcelain
+at start and end.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The remaining lead set is stable and recorded: the shared lexer's recursion
+defect belongs to its owning surface and is contained at this checker's
+boundary by the unsuppressible E000 path, re-confirmed by 178 fail-closed fuzz
+cases; output-proportional shapes now do exactly the work their mandated
+output requires; the spec-accepted lexical misses are declared non-goals with
+parity across both language sides.
+
+Leads not pursued: fuzzing past the cumulative twenty-five thousand cases,
+marginal after two clone-wide differentials with zero unexpected deltas; two
+pre-existing hypomnema pointer hits inside historical Hermes entries of this
+log, outside this step's diff and outside the acceptance lint scope; the
+study's file-count note from round 1, resolved -- the pinned clone reads
+exactly 882 tracked TypeScript files today.
