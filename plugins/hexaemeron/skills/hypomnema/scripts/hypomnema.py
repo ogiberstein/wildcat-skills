@@ -110,7 +110,9 @@ def _yaml_quote_starts(line: str, index: int) -> bool:
     """Return whether a quote occupies a supported quoted-scalar start."""
     prefix = line[:index]
     stripped = prefix.strip()
-    return not stripped or stripped == "-" or prefix.rstrip().endswith(":")
+    separated = bool(prefix) and prefix[-1] in " \t"
+    return not stripped or (separated and (
+        stripped == "-" or prefix.rstrip().endswith(":")))
 
 
 def _strip_yaml_comment(

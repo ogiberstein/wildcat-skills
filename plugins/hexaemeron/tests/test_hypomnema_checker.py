@@ -189,6 +189,14 @@ class YamlRunbooks(unittest.TestCase):
                 source = f"note: {value}\nrunbook: runbooks/missing.md\n"
                 self.assertEqual(["H003"], yaml_codes(source))
 
+    def test_unseparated_quote_starts_do_not_hide_runbook_pointers(self):
+        for shape in ("- note: plain:{quote}text", "  -{quote}text"):
+            for quote in ("'", '"'):
+                with self.subTest(shape=shape, quote=quote):
+                    source = (f"{shape.format(quote=quote)}\n"
+                              "runbook: runbooks/missing.md\n")
+                    self.assertEqual(["H003"], yaml_codes(source))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 
