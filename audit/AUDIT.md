@@ -6081,3 +6081,14 @@ Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
 Hypomnema each exit 0 over their required trees. E000 to E004 and H000 to H007
 retain their ownership and numbers, H007 is unchanged, and both held frontier
 digests remain unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 2 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R2-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | `_split_yaml_comment` treats every unquoted `#` as a comment marker, although a hash without separating whitespace remains plain-scalar content. A preceding list item such as `- note: literal# ephoros: allow not-a-comment` therefore suppresses E004 on the next unannotated alert. | open |
+| E319-S2-R2-02 | low | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | `_yaml_allow_lines` handles a comment-only line before checking whether its indentation ended the active block scalar. A real dedented reasoned comment immediately after a scalar and immediately before an alert is therefore discarded as scalar text, and the documented E004 suppression does not apply. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..89bff0f5a5415cf9900efd26d7121cffe6225763`. All seven round-1 regression tests were run against `ba37b42d5890ca45e59d24f5034b32e4dfe9ddb4` in memory and produced ten failures; the same seven pass against the fixed tree. This closes the five exact round-1 specimens, including capped reads and boundary identity, but the two adjacent suppression-state cases above remain open. Focused tests pass 103/103; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 576/576. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Ownership remains E004 presence, H003 pointer existence and unchanged H007 Markdown shape; both ordinary-generation frontier digests remain unchanged.
+
+Further leads: none beyond E319-S2-R2-01 and E319-S2-R2-02.
