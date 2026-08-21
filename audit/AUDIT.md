@@ -7622,3 +7622,39 @@ name carrying both dashboard and log words reports the dashboard reading by
 deterministic precedence, contrived and consistent; wider fuzzing past four
 thousand cases, marginal after the corpus and clone differentials came back
 with zero unexpected deltas.
+
+## Ephoros wallet-address telemetry, step 3, round 4 -- 2026-08-21
+
+The round audited the tree at `7295cfe` with round 3's fix seams as its focus.
+Every seam held under the strongest equivalence evidence of the loop: a
+findings-tuple differential over all 882 clone TypeScript files, the 24
+committed fixtures, a 40-shape corpus of mismatched and cross-nested brackets
+and fourteen thousand seeded fuzz cases came back with zero deltas, line
+numbers pinned identically including on E000 paths, and every prior specimen
+kept its bound. The three lints and both suites were green; the finding below
+came from extending the adversarial shapes to sink-named nesting, which round
+3's unnamed-chain specimens could not reach.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | medium | scripts/ephoros.py | overlapping spans that name a sink still paid per-span work behind the gates, 107 seconds at 160 KB and roughly 77 minutes at the cap on a nested `.labels(` shape | fixed in d21e5ea |
+
+The fix indexes each file once: both property regexes run a single pass over
+the whole mask with spans collecting their rows by bisection, depth-zero
+punctuation is attributed to its innermost matched pair in one scan, and key
+extraction reads a bounded window whose equivalence the grammar guarantees.
+Measured before and after through the real check path, the nested `.labels(`
+shape goes from an extrapolated 80 minutes at the cap to 1.16 seconds, the
+sink-named bracket nest from 12.2 to 1.08 seconds, and every earlier specimen
+keeps its bound with a normal 1 MiB file at 0.43 seconds. The fixer's own
+differential -- the clone, the fixtures and ten thousand seeded fuzz cases,
+10,906 ordered comparisons -- shows zero behaviour deltas. Four guard tests
+land the shapes with exact codes, counts and line numbers, for 116 focused
+cases; the Hexaemeron suite passes 710/710, the root suite 107/107, the tree
+lint exits 0 and the clone run stays clean at exit 0 in 0.86 seconds.
+
+Leads not pursued: shapes whose mandated output is itself quadratic, such as
+nested sinks each re-reporting their inner label containers, now run in
+output-proportional time and cannot be faster than what they must print; the
+shared lexer's recursion defect stays carried forward for the owning surface,
+unchanged since round 1.
