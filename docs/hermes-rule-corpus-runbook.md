@@ -95,7 +95,7 @@ python3 plugins/hexaemeron/skills/phylax/scripts/phylax.py plugins tests
 time python3 plugins/hermes/skills/hermes/scripts/hermes.py corpus --validate
 ```
 
-The timed command stays under one second and the Hermes suite stays under 25 seconds, both compared against the recorded 10.7 seconds the suite takes at the run's base.
+The timed command stays under one second and the Hermes suite stays under 30 seconds, both compared against the recorded 10.7 seconds the suite takes at the run's base. The study's third amendment carries the ceiling's move from 25 seconds and the four measurements behind it.
 
 **Files.** `plugins/hermes/skills/hermes/scripts/hermes.py`, `plugins/hermes/skills/hermes/scripts/test_hermes.py`, `plugins/hermes/skills/hermes/SKILL.md` (the command contract, the required flag, and the new promise heading), `tests/promise_machine_coverage.json`, `tests/test_promise_machine_contract.py`, `.horos/boundary.json`.
 **Tests.** One case per refusal: unknown rule id, myth cited as justification, declared class disagreeing with the rule's class, rule outside the resolved scope, scope unresolvable because `solc` is null, scope unresolvable because the fork name is unknown, obligation answer blank, corpus digest moved since the baseline, and a `verify` call omitting `--rule` altogether. Plus an accepted run whose `result.json` carries the corpus digest, the rule id and the obligation answers, and a case proving a fork floor of `cancun` is satisfied by `osaka` rather than refused. Expected around eleven new cases.

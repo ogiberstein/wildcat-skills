@@ -944,6 +944,38 @@ class CorpusFidelityTests(unittest.TestCase):
         self.assertEqual(sorted(r["id"] for r in self.corpus["rules"]),
                          sorted(self.source_rules()))
 
+    def test_the_catalogue_index_agrees_with_the_corpus(self) -> None:
+        """The catalogue tells a reader which rules name which class, and prose
+        that states a mapping without deriving it drifts the moment the corpus
+        moves. This regenerates the block and requires the committed bytes."""
+        catalogue = (self.root / "plugins" / "hermes" / "skills" / "hermes"
+                     / "references" / "optimisation-catalogue.md")
+        if not catalogue.is_file():
+            self.skipTest("catalogue not in this tree")
+        text = catalogue.read_text(encoding="utf-8")
+        start = text.index("<!-- corpus-index:start -->")
+        end = text.index("<!-- corpus-index:end -->") + len("<!-- corpus-index:end -->")
+        committed = text[start:end]
+
+        by_class: dict[str, list[str]] = {}
+        for rule in self.corpus["rules"]:
+            by_class.setdefault(rule["hermes_class"] or "", []).append(rule["id"])
+        unclassed = by_class.pop("", [])
+        lines = ["<!-- corpus-index:start -->",
+                 "| Hermes class | Corpus rules that name it |",
+                 "| --- | --- |"]
+        for name in hermes.OPTIMISATION_CLASSES:
+            lines.append(f"| `{name}` | {', '.join(sorted(by_class.get(name, [])))} |")
+        lines.append("")
+        lines.append(
+            f"{len(unclassed)} of the {len(self.corpus['rules'])} rules name no class. They "
+            "constrain how a run is conducted, or they are architecture, so no candidate "
+            "implements them and `verify` refuses them with that reason. Every `CMP` and `DEP` "
+            "rule is one of them, as is every `TRN` rule, because no class names transient "
+            "state.")
+        lines.append("<!-- corpus-index:end -->")
+        self.assertEqual(committed, "\n".join(lines))
+
     def test_a_rule_with_no_class_is_recorded_rather_than_guessed(self) -> None:
         """58 of the 120 rules name no candidate: they constrain how a run is
         conducted, or they are architecture. The count is asserted because

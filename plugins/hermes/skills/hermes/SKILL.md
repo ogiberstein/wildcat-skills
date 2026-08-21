@@ -2,7 +2,7 @@
 name: hermes
 description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
 metadata:
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # hermes gas optimiser
@@ -21,7 +21,7 @@ Hermes measures one Solidity gas optimisation class at a time and rejects the ca
 
 **Use another tool when.** Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review.
 
-**Current frontier.** No complete, reproducible live Wildcat evidence bundle is published.
+**Current frontier.** Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates.
 <!-- marketplace-context:end -->
 
 The ideas are cheap. The evidence is the job.
