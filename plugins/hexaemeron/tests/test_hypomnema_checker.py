@@ -88,6 +88,100 @@ class Runbooks(unittest.TestCase):
             "Three lines is a runbook: what fired, what to check, who to wake."))
 
 
+COMPLETE_RUNBOOK = """# Pending age
+
+## What fired
+
+The pending-age alert fired.
+
+## First check
+
+Check the oldest pending item.
+
+## Who to wake
+
+Wake the on-call maintainer.
+"""
+
+
+def runbook_findings(source, name="pending.md", directory="docs/runbooks"):
+    with tempfile.TemporaryDirectory() as base:
+        target = Path(base) / directory / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source, encoding="utf-8")
+        return hypomnema.check(target)
+
+
+class RunbookShape(unittest.TestCase):
+    def test_a_complete_runbook_is_clean(self):
+        self.assertEqual([], runbook_findings(COMPLETE_RUNBOOK))
+
+    def test_each_answer_is_required(self):
+        for name in hypomnema.RUNBOOK_SECTIONS:
+            with self.subTest(section=name):
+                source = COMPLETE_RUNBOOK.replace(f"## {name}\n", "## Kept out\n")
+                findings = runbook_findings(source)
+                self.assertEqual(["H007"], [f.code for f in findings])
+                self.assertIn(f"## {name}", findings[0].message)
+
+    def test_each_answer_must_be_non_empty(self):
+        bodies = {
+            "What fired": "The pending-age alert fired.\n",
+            "First check": "Check the oldest pending item.\n",
+            "Who to wake": "Wake the on-call maintainer.\n",
+        }
+        for name, body in bodies.items():
+            with self.subTest(section=name):
+                findings = runbook_findings(COMPLETE_RUNBOOK.replace(body, ""))
+                self.assertEqual(["H007"], [f.code for f in findings])
+                self.assertIn("empty", findings[0].message)
+
+    def test_a_markdown_file_outside_a_runbooks_directory_is_out_of_scope(self):
+        self.assertEqual([], runbook_findings("", directory="docs", name="runbook.md"))
+
+    def test_a_heading_inside_a_fence_does_not_count(self):
+        source = COMPLETE_RUNBOOK.replace(
+            "## Who to wake\n\nWake the on-call maintainer.\n",
+            "```markdown\n## Who to wake\n\nWake the on-call maintainer.\n```\n",
+        )
+        self.assertEqual(["H007"], [f.code for f in runbook_findings(source)])
+
+    def test_fenced_example_text_does_not_fill_an_empty_answer(self):
+        source = COMPLETE_RUNBOOK.replace(
+            "Check the oldest pending item.\n",
+            "```text\nCheck the oldest pending item.\n```\n",
+        )
+        self.assertEqual(["H007"], [f.code for f in runbook_findings(source)])
+
+    def test_a_reasoned_pragma_on_the_first_line_suppresses_all_shape_findings(self):
+        source = "<!-- hypomnema: allow generated downstream -->\n"
+        self.assertEqual([], runbook_findings(source))
+
+    def test_a_reasoned_pragma_on_the_relevant_heading_suppresses_its_finding(self):
+        source = COMPLETE_RUNBOOK.replace(
+            "## First check\n\nCheck the oldest pending item.",
+            "## First check <!-- hypomnema: allow supplied during deployment -->",
+        )
+        self.assertEqual([], runbook_findings(source))
+
+    def test_a_pragma_above_the_relevant_heading_does_not_suppress(self):
+        source = COMPLETE_RUNBOOK.replace(
+            "## First check\n\nCheck the oldest pending item.",
+            "<!-- hypomnema: allow supplied during deployment -->\n## First check",
+        )
+        self.assertEqual(["H007"], [f.code for f in runbook_findings(source)])
+
+    def test_a_bare_pragma_does_not_suppress(self):
+        source = "<!-- hypomnema: allow -->\n"
+        self.assertEqual(["H007", "H007", "H007"],
+                         [f.code for f in runbook_findings(source)])
+
+    def test_the_fixture_runbooks_name_six_shape_faults(self):
+        files = hypomnema.walk([str(FIXTURES / "runbooks")])
+        findings = [finding for path in files for finding in hypomnema.check(path)]
+        self.assertEqual(["H007"] * 6, sorted(f.code for f in findings))
+
+
 class Suppression(unittest.TestCase):
     def test_a_stated_reason_on_the_line_above_suppresses(self):
         self.assertEqual([], codes(
@@ -122,6 +216,11 @@ class OverTheMarketplace(unittest.TestCase):
         marketplace = ROOT.parents[1]
         paths = hypomnema.walk([str(marketplace / "plugins" / "hexaemeron" / "skills")])
         self.assertEqual([], [p for p in paths if "x-ray" in p.parts])
+
+    def test_a_directory_named_like_source_is_not_read_as_source(self):
+        with tempfile.TemporaryDirectory() as base:
+            (Path(base) / "generated.sol").mkdir()
+            self.assertEqual([], hypomnema.walk([base]))
 
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "hypomnema"
