@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "2.2.0"
+  version: "3.2.0"
 ---
 
 # Hypomnema
@@ -139,9 +139,10 @@ schema is the documentation and prose describes only what the schema cannot.
 
 ## The mechanical subset
 
-Two rules here are settled by a parser: whether the things a record points at
-exist, and whether a decision record carries the template's shape. Run it over
-the documents a step touched, and require exit 0.
+Three rules here are settled by a parser: whether the things a record points
+at exist, whether a decision record carries the template's shape, and whether
+a source comment's record reference resolves. Run it over the documents a step
+touched, and require exit 0.
 
 ```bash
 python3 "$PLUGIN_ROOT/skills/hypomnema/scripts/hypomnema.py" docs plugins
@@ -149,11 +150,15 @@ python3 "$PLUGIN_ROOT/skills/hypomnema/scripts/hypomnema.py" docs plugins
 
 It reports a relative link that resolves to nothing, a superseding pointer
 naming a record that is absent, an alert naming a runbook that is not there,
-and a decision record under a decisions directory missing its dated status or
-one of the template's five sections. A record pointing at something absent is
-worse than no record, because it reads as though the reason exists and was
-checked. Test fixtures are skipped on a directory walk, since a specimen
-documenting a fault is not a record.
+a decision record under a decisions directory missing its dated status or
+one of the template's five sections, and a source comment citing a record
+that does not exist. A record pointing at something absent is worse than no
+record, because it reads as though the reason exists and was checked. The
+walk reads `#` comments in Python and shell and `//` comments with `/* */`
+blocks in Solidity, JavaScript and TypeScript, leaving string literals and
+URLs alone; in source files the pragma is the bare `hypomnema: allow <why>`
+after a comment marker. Test fixtures are skipped on a directory walk, since
+a specimen documenting a fault is not a record.
 
 The bundled third-party skills are skipped, since they document files they
 generate in the target repository rather than files that live here. Pass

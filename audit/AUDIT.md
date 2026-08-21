@@ -5937,3 +5937,42 @@ hypomnema exit 0. Root 104/104; hexaemeron 519/521 with the two recorded
 environment failures.
 
 Leads not pursued: none
+
+## Hypomnema source-comment references, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check and the runbook check exit 0 over them, and the
+regenerated boundary carries exactly the two new paths. Per the register:
+string-false-positive, tree-self-trip, index-reuse and interface-drift
+not applicable, no scanner, test or code changes this step;
+ledger-arithmetic not applicable, no row cut this step. Phylax, ephoros
+and hypomnema exit 0. Root 104/104; hexaemeron 519/521 with the two
+recorded environment failures.
+
+Leads not pursued: none
+
+## Hypomnema source-comment references, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The expected PM071 refusal fired on the SKILL.md edit and
+took the checker's own remedy, the field map reviewed as unchanged and
+the binding digest updated with its surface; the full check returns
+clean. Per the register: string-false-positive reviewed, the tests
+prove a reference inside a string, after a quote-glued marker and
+behind a URL's double slash earn no finding; tree-self-trip reviewed,
+the tree-wide walk exits 0 with the new tests in place and their
+specimens built by concatenation; index-reuse reviewed, both passes
+resolve against the one index built from record file names, and the
+fixture walk catches the dangling reference beside the shape faults;
+interface-drift reviewed, H000 to H005 keep their numbers and firing
+conditions and every pre-existing test passes unchanged;
+ledger-arithmetic reviewed, the evolution suite passes over the v3.2.0
+row. Phylax, ephoros and hypomnema exit 0. Root 104/104; hexaemeron
+532/534 with the two recorded environment failures.
+
+Leads not pursued: none

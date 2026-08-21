@@ -242,5 +242,82 @@ class RecordShape(unittest.TestCase):
         self.assertEqual([], [str(f) for f in findings])
 
 
+def source_codes(source, name="specimen.py", adrs=frozenset({"ADR-001"})):
+    with tempfile.TemporaryDirectory() as base:
+        target = Path(base) / name
+        target.write_text(source, encoding="utf-8")
+        return sorted(f.code for f in hypomnema.check(target, set(adrs)))
+
+
+class SourceComments(unittest.TestCase):
+    def test_a_hash_comment_citing_a_missing_record_is_a_finding(self):
+        source = "".join(["# see ", "ADR-909", "\n"]) + "WINDOW = 60\n"
+        self.assertEqual(["H006"], source_codes(source))
+
+    def test_a_comment_citing_a_present_record_resolves(self):
+        source = "".join(["# see ", "ADR-001", "\n"]) + "WINDOW = 60\n"
+        self.assertEqual([], source_codes(source))
+
+    def test_a_trailing_comment_is_scanned(self):
+        source = "WINDOW = 60  " + "# per " + "ADR-909" + "\n"
+        self.assertEqual(["H006"], source_codes(source))
+
+    def test_a_reference_inside_a_string_is_left_alone(self):
+        source = 'MESSAGE = "superseded by ' + 'ADR-909"' + "\n"
+        self.assertEqual([], source_codes(source))
+
+    def test_a_quote_glued_marker_is_left_alone(self):
+        source = 'HEADING = "' + '## Status ' + 'ADR-909"' + "\n"
+        self.assertEqual([], source_codes(source))
+
+    def test_a_slash_comment_in_solidity_is_scanned(self):
+        source = "".join(["/// see ", "ADR-909", "\n"]) + "uint256 x;\n"
+        self.assertEqual(["H006"], source_codes(source, name="specimen.sol"))
+
+    def test_a_block_comment_is_scanned(self):
+        source = "/*\n   recorded in " + "ADR-909" + "\n*/\nuint256 x;\n"
+        self.assertEqual(["H006"], source_codes(source, name="specimen.sol"))
+
+    def test_a_url_double_slash_is_left_alone(self):
+        source = 'URL = "https://example.org/' + 'ADR-909"' + "\n"
+        self.assertEqual([], source_codes(source, name="specimen.ts"))
+
+    def test_a_marker_pragma_on_the_line_suppresses(self):
+        source = ("WINDOW = 60  " + "# per " + "ADR-909"
+                  + "  # hypomnema: allow recorded downstream\n")
+        self.assertEqual([], source_codes(source))
+
+    def test_a_marker_pragma_above_the_line_suppresses(self):
+        source = ("# hypomnema: allow recorded downstream\n"
+                  + "WINDOW = 60  " + "# per " + "ADR-909" + "\n")
+        self.assertEqual([], source_codes(source))
+
+    def test_a_file_with_no_index_earns_no_verdict(self):
+        source = "".join(["# see ", "ADR-909", "\n"])
+        with tempfile.TemporaryDirectory() as base:
+            target = Path(base) / "specimen.py"
+            target.write_text(source, encoding="utf-8")
+            self.assertEqual([], hypomnema.check(target, None))
+
+    def test_the_source_fixtures_name_the_one_dangling_reference(self):
+        files = hypomnema.walk([str(FIXTURES)])
+        index = hypomnema.adr_index(files)
+        findings = []
+        for path in files:
+            findings.extend(hypomnema.check(path, index))
+        self.assertEqual(["H006"],
+                         sorted(f.code for f in findings if f.code == "H006"))
+
+    def test_the_tree_walk_stays_clean_with_source_files_included(self):
+        marketplace = ROOT.parents[1]
+        files = hypomnema.walk([str(marketplace / "plugins"), str(marketplace / "docs")])
+        self.assertTrue(any(p.suffix == ".py" for p in files))
+        index = hypomnema.adr_index(files)
+        findings = []
+        for path in files:
+            findings.extend(hypomnema.check(path, index))
+        self.assertEqual([], [str(f) for f in findings])
+
+
 if __name__ == "__main__":
     unittest.main()
