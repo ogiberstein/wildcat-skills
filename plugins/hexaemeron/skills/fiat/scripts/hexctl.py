@@ -185,8 +185,9 @@ def as_dict(value) -> dict:
     """A mapping, or an empty one.
 
     `d.get(key, {})` returns the stored value when the key exists, so a state holding
-    `"integrate": null` defeats the default and the next `.get` raises. `load_state`
-    validates no shape, so this is the guard every chained read here needs.
+    `"integrate": null` defeats the default and the next `.get` raises. The load
+    boundary rejects required containers; this remains defensive for optional leaves
+    and isolated callers.
     """
     return value if isinstance(value, dict) else {}
 
@@ -221,10 +222,9 @@ def solidity_round(state: dict) -> bool:
     A missing receipt reads as Solidity, because nothing can be inferred from it.
     `cmd_audit_round` refuses a missing receipt before ever asking this.
 
-    A state file whose `config` or `receipts` is not an object is read as though the
-    key were absent rather than allowed to raise. `load_state` validates no shape, so a
-    hand-edited or half-written state reaches this function, and a traceback out of the
-    controller is a worse answer than the one every other fault here gets.
+    Direct callers whose `config` or `receipts` is not an object read it as absent
+    rather than raising. State-backed commands cannot reach this fallback because the
+    load boundary rejects those wrong-kind containers first.
     """
     mode = as_dict(state.get("config")).get("solidity", "auto")
     if mode is True or mode is False:

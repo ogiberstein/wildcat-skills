@@ -65,6 +65,15 @@ def governed_skills():
 
 
 class EvolutionContractTests(unittest.TestCase):
+    def test_fiat_state_shape_frontier_holds_the_task_identity_successor(self):
+        ledger = (
+            PLUGINS / "hexaemeron" / "skills" / "fiat" / "EVOLUTION.md"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(field(ledger, "Current version"), "fiat-v5.9.1")
+        self.assertEqual(field(ledger, "Frontier revision"), "state-shape-validation")
+        self.assertIn("load_state validates the version-1 state container spine", ledger)
+        self.assertIn("[skills#363](https://github.com/wildcat-finance/skills/issues/363)", ledger)
+
     def test_history_rows_accept_compact_list(self):
         digest = "a" * 64
         rows = history_rows(

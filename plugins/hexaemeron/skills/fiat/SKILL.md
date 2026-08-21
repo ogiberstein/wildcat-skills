@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "4.9.1"
+  version: "5.9.1"
 ---
 
 # Fiat
@@ -50,6 +50,9 @@ Let there be light.
 Drive the whole loop from durable controller state, never from conversation
 history. The controller emits one directive at a time; do the work it names,
 receipt it, ask for the next one. A phase without a receipt did not happen.
+Every state-backed command first validates the required version-1 container
+spine in deterministic order. A missing or wrong-kind container stops with one
+value-free path-and-kind diagnosis before a reader or writer can traverse it.
 
 Resolve paths from the exact `SKILL.md` file that activated Fiat. Do not
 resolve them from the target repository, the shell's current directory, the
@@ -115,7 +118,7 @@ the second.
    archive the completed run, then continue immediately as a new run at step
    4. Do not ask the user to remove, rename, or approve resetting completed
    state. If the phase is not `done`, this is a resume: enter the loop and
-   treat the state file as canonical.
+   treat the validated state file as canonical.
 4. Otherwise: say exactly `Let there be light.` and nothing else before it,
    run the read-only preflight checks below, then bring the base up to date
    before anything is cut from it, then `hexctl init --topic "<topic>" --base
@@ -423,10 +426,10 @@ the study and runbook live.
 
 ### fiat-receipted-delivery
 
-- Promise: A successful `hexctl verify` establishes that the controller state and append-only ledger agree and that every recorded phase transition occurred in the required order with the required receipt shape.
-- Evidence: The exact study and runbook receipts, step branches and locally verified commit ranges, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
+- Promise: A successful `hexctl verify` establishes that the controller state has the required version-1 container shape, the state and append-only ledger agree, and every recorded phase transition occurred in the required order with the required receipt shape.
+- Evidence: The ordered state-container check, exact study and runbook receipts, step branches and locally verified commit ranges, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
 - Evidence classes: checked, recorded
-- Boundary: Controller verification proves receipt order, integrity, and the recorded local and GitHub signature checks; it does not prove a test summary, audit judgement, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
+- Boundary: Controller verification proves the required container shape, receipt order, integrity, and the recorded local and GitHub signature checks; it does not validate heterogeneous leaf values, prove a test summary, audit judgement, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
 - Authorises: Advancing only to the single next controller directive and reporting the recorded workflow state without strengthening any underlying receipt.
 - Consequence: 2
 - Refuses: Skipping a phase, reconstructing progress from chat, accepting a malformed or missing receipt, or describing an unrun check as complete.
