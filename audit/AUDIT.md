@@ -5878,3 +5878,62 @@ over the v4.5.0 row. Phylax, ephoros and hypomnema exit 0. Root 104/104;
 hexaemeron 505/507 with the two recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema ADR shape check, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check and the runbook check exit 0 over them, and the
+regenerated boundary carries exactly the two new paths. Per the register:
+backfill-fidelity, shape-source, false-positive and interface-drift not
+applicable, no record, rule or code changes this step; ledger-arithmetic
+not applicable, no row cut this step. Phylax, ephoros and hypomnema exit
+0. Root 104/104; hexaemeron 505/507 with the two recorded environment
+failures.
+
+Leads not pursued: none
+
+## Hypomnema ADR shape check, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: backfill-fidelity reviewed, each of the
+six new alternative entries traces to a named line of the Promise
+Machine study -- option D and the option C trade for ADR-002, the
+non-goals list and the release context for ADR-004 -- and the records'
+other sections are byte-identical to base; shape-source, false-positive
+and interface-drift not applicable, no rule or code changes this step;
+ledger-arithmetic not applicable, no row cut this step. Phylax, ephoros
+and hypomnema exit 0. Root 104/104; hexaemeron 505/507 with the two
+recorded environment failures.
+
+Leads not pursued: none
+
+## Hypomnema ADR shape check, step 3, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings open. One fault surfaced and was fixed within the step,
+worked under elenchus: the section regex read a heading pragma as part
+of the section name, so a suppressed status check reported the section
+itself missing; the fix strips the allow comment before matching and the
+suppression test guards it. The expected PM071 refusal fired on the
+SKILL.md edit and took the checker's own remedy, the field map reviewed
+as unchanged and the binding digest updated with its surface; the full
+check returns clean. Per the register: backfill-fidelity not applicable,
+no record content changed this step; shape-source reviewed, the dated
+rule accepts exactly the v1.1.0 shape and all six tree records pass;
+false-positive reviewed, a non-record name, a record name outside a
+decisions directory and a fenced heading each earn no shape verdict, and
+walks skip fixture specimens relative to the root; interface-drift
+reviewed, H000 to H003 keep their numbers and firing conditions and
+every pre-existing test passes unchanged; ledger-arithmetic reviewed,
+the evolution suite passes over the v2.2.0 row. Phylax, ephoros and
+hypomnema exit 0. Root 104/104; hexaemeron 519/521 with the two recorded
+environment failures.
+
+Leads not pursued: none

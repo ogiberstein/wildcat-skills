@@ -23,6 +23,22 @@ The Claude and Codex marketplaces continue to expose all 14 installable
 plugins. Horos is added to the Codex marketplace so both host sets are explicit
 and equal.
 
+## Alternatives
+
+- **Keep the 20 host-neutral entrypoints.** Each repeated selection and
+  frontier prose beside its canonical skill, so discovery could present a
+  portable copy and an installed plugin as separate behavioural identities,
+  and every copy was one more surface to keep current. It lost to a single
+  identity with one selection hop.
+- **Retain every entrypoint, generate it from its canonical definition and
+  declare which source wins.** This preserved direct discovery, but it
+  depended on source precedence that neither Codex nor the Agent Skills
+  specification documents, and it left two visible entries in the
+  demonstrated Codex surface.
+- **Remove the host-neutral surface entirely.** This closed the duplicate
+  identities at the smallest cost, but a host-neutral agent still needs one
+  stable place to begin, and deleting the surface would have left none.
+
 ## Consequences
 
 Host-neutral discovery gains one extra selection hop. In return, there is one
