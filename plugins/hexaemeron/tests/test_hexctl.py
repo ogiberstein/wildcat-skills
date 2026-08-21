@@ -1041,6 +1041,25 @@ class TestPublicationBindings(HexctlCase):
                         module.remote_branch_tip(self.dir, branch)
                 self.assertIn("remote run branch tip", error.getvalue())
 
+    def test_integrate_remote_tip_must_equal_final_recorded_step_merge(self):
+        self.to_integrate()
+        state = self.state()
+        url = "https://github.com/wildcat-finance/example/pull/2"
+        divergent_tip = "8" * 40
+        self.fake_refs[state["run_branch"]] = divergent_tip
+        self.fake_prs[url] = self.fake_pr(
+            url,
+            state["run_branch"],
+            state["base"],
+            divergent_tip,
+            "f" * 40,
+        )
+        proc = self.run_ctl(
+            "done", "integrate", "--pr-url", url,
+            "--merge-commit", "f" * 40, expect=2,
+        )
+        self.assertIn("final recorded step merge", proc.stderr)
+
 
 class TestDelegationPacketLifecycle(HexctlCase):
     def stable_next(self, expected_do, expected_agent):
@@ -1122,6 +1141,10 @@ class TestDelegationPacketLifecycle(HexctlCase):
         )
         self.assertEqual(
             state["receipts"]["integrate"]["github_verified"], ["f" * 40]
+        )
+        self.assertEqual(state["receipts"]["integrate"]["run_head"], "e" * 40)
+        self.assertEqual(
+            state["receipts"]["integrate"]["final_step_merge"], "e" * 40
         )
         with open(
             os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),

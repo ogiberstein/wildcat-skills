@@ -6806,3 +6806,22 @@ exactly one required co-author and origin trailer.
 I320-S3-R3-01. The other eight risk ids are clean in the folded diff.
 
 Further leads: none beyond I320-S3-R3-01.
+
+## Fiat delegation packets, step 3, round 3 resolution -- 2026-08-21
+
+### Fix
+
+I320-S3-R3-01 is closed. `done integrate` reads the last step's recorded
+`merge_commit`, requires it to be a full SHA, and refuses unless it equals the
+exact remote run-branch tip. The existing PR inspection then requires its
+`headRefOid` to equal that same tip before the integration merge can be
+receipted. The terminal receipt records both `run_head` and
+`final_step_merge`, which must therefore be identical.
+
+### Evidence
+
+The divergent recorded-step/remote-tip guard was red before the fix: a remote
+tip and PR head that agreed with each other but not with the last step receipt
+completed the run. It now refuses. The fresh lifecycle records the last step
+merge as both terminal head fields and remains green. Versions and the held
+frontier are unchanged; no remote mutation was performed.

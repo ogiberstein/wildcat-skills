@@ -1443,6 +1443,12 @@ def done_integrate(args, state: dict) -> None:
     if carried:
         die(carried)
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
+    recorded_tip = require_full_sha(final_merge, "final recorded step merge")
+    if remote_tip != recorded_tip:
+        die("remote run branch tip does not match the final recorded step merge")
     pr_record = inspect_pull_request(
         args.dir,
         args.pr_url,
@@ -1462,6 +1468,8 @@ def done_integrate(args, state: dict) -> None:
         "carried_forward": carried_forward_record(run_pr_path(args.dir)),
         "github_verified": github_verified,
         "pull_request": pr_record,
+        "run_head": remote_tip,
+        "final_step_merge": recorded_tip,
     }
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
