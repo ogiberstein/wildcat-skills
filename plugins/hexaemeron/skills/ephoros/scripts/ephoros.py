@@ -7,6 +7,7 @@ reading intent. Everything else in SKILL.md stays a judgement.
   E001  a log message assembled by formatting, so its values cannot be queried
   E002  a metric label drawn from an unbounded source
   E003  a duration summarised as a mean
+  E004  a supported YAML alert entry has no local runbook annotation
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
@@ -42,6 +43,12 @@ DURATION = re.compile(
 MEAN_FUNCS = {"mean", "fmean", "average", "avg"}
 
 ALLOW = re.compile(r"#\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
+YAML_SUFFIXES = {".yaml", ".yml"}
+MAX_YAML_BYTES = 1 << 20
+ALERT = re.compile(r"^-\s+alert\s*:", re.IGNORECASE)
+ANNOTATIONS = re.compile(r"^annotations\s*:\s*$", re.IGNORECASE)
+RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.IGNORECASE)
+BLOCK_SCALAR = re.compile(r"^[^:#][^:]*:\s*[|>](?:[+-]?\d?|\d[+-]?)\s*$")
 
 
 def suppressed(text: str, line: int) -> bool:
@@ -153,7 +160,110 @@ class Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+def _strip_yaml_comment(line: str) -> str:
+    """Remove a YAML comment without treating a quoted hash as a marker."""
+    single = False
+    double = False
+    escaped = False
+    for index, character in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+        if double and character == "\\":
+            escaped = True
+            continue
+        if character == "'" and not double:
+            single = not single
+        elif character == '"' and not single:
+            double = not double
+        elif character == "#" and not single and not double:
+            return line[:index]
+    return line
+
+
+def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
+    """Return significant block-YAML lines, excluding block scalar bodies."""
+    out: list[tuple[int, int, str]] = []
+    scalar_indent: int | None = None
+    for number, raw in enumerate(lines, start=1):
+        content = _strip_yaml_comment(raw).rstrip()
+        if not content.strip():
+            continue
+        indent = len(content) - len(content.lstrip(" "))
+        stripped = content[indent:]
+        if scalar_indent is not None:
+            if indent > scalar_indent:
+                continue
+            scalar_indent = None
+        out.append((number, indent, stripped))
+        if BLOCK_SCALAR.match(stripped):
+            scalar_indent = indent
+    return out
+
+
+def _relative_markdown(value: str) -> bool:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        value = value[1:-1].strip()
+    return bool(value and value.lower().endswith(".md")
+                and not value.startswith(("/", "\\"))
+                and "://" not in value)
+
+
+def _yaml_findings(path: Path, text: str) -> list[Finding]:
+    significant = _yaml_lines(text.splitlines())
+    findings: list[Finding] = []
+    for index, (number, alert_indent, content) in enumerate(significant):
+        if not ALERT.match(content):
+            continue
+        end = len(significant)
+        for cursor in range(index + 1, len(significant)):
+            _, indent, later = significant[cursor]
+            if indent < alert_indent or (indent == alert_indent and later.startswith("-")):
+                end = cursor
+                break
+
+        alert_child_indent = (significant[index + 1][1]
+                              if index + 1 < end else None)
+        annotated = False
+        cursor = index + 1
+        while cursor < end:
+            _, annotations_indent, nested = significant[cursor]
+            if (annotations_indent == alert_child_indent
+                    and ANNOTATIONS.match(nested)):
+                cursor += 1
+                annotation_child_indent = (significant[cursor][1]
+                                           if cursor < end else None)
+                while cursor < end:
+                    _, runbook_indent, candidate = significant[cursor]
+                    if runbook_indent <= annotations_indent:
+                        break
+                    match = RUNBOOK.match(candidate)
+                    if (runbook_indent == annotation_child_indent and match
+                            and _relative_markdown(match.group("path"))):
+                        annotated = True
+                        break
+                    cursor += 1
+            if annotated:
+                break
+            cursor += 1
+
+        if not annotated and not suppressed(text, number):
+            findings.append(Finding(
+                path, number, "E004",
+                "alert entry has no nested `annotations.runbook` Markdown path"))
+    return findings
+
 def check(path: Path) -> list[Finding]:
+    if path.suffix in YAML_SUFFIXES:
+        try:
+            raw = path.read_bytes()
+            if len(raw) > MAX_YAML_BYTES:
+                return [Finding(path, 1, "E000", "unreadable: YAML exceeds 1 MiB")]
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError) as err:
+            return [Finding(path, 1, "E000", f"unreadable: {err}")]
+        return _yaml_findings(path, text)
     if path.suffix != ".py":
         return []
     try:
@@ -174,7 +284,11 @@ def walk(paths: list[str]) -> list[Path]:
     for raw in paths:
         root = Path(raw)
         if root.is_dir():
-            out.extend(c for c in sorted(root.rglob("*.py")) if "__pycache__" not in c.parts)
+            found = (child for suffix in (".py", *sorted(YAML_SUFFIXES))
+                     for child in root.rglob(f"*{suffix}"))
+            out.extend(child for child in sorted(set(found))
+                       if "__pycache__" not in child.parts
+                       and "fixtures" not in child.relative_to(root).parts[:-1])
         else:
             out.append(root)
     return out

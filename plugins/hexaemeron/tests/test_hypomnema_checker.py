@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "hypomnema" / "scripts" / "hypomnema.py"
+ALERT_FIXTURES = ROOT / "tests" / "fixtures" / "ephoros" / "alert-rules"
 
 spec = importlib.util.spec_from_file_location("hypomnema_lint", SCRIPT)
 hypomnema = importlib.util.module_from_spec(spec)
@@ -27,6 +28,19 @@ def codes(source, *, siblings=(), adrs=None):
         path = base / "record.md"
         path.write_text(source, encoding="utf-8")
         return sorted(f.code for f in hypomnema.check(path, adrs))
+
+
+def yaml_codes(source, *, siblings=(), name="rules.yaml"):
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        for sibling in siblings:
+            target = base / sibling
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("present", encoding="utf-8")
+        path = base / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+        return sorted(f.code for f in hypomnema.check(path))
 
 
 class Links(unittest.TestCase):
@@ -87,6 +101,50 @@ class Runbooks(unittest.TestCase):
         self.assertEqual([], codes(
             "Three lines is a runbook: what fired, what to check, who to wake."))
 
+    def test_markdown_h003_is_unchanged(self):
+        source = "Alert: pending age. runbook: docs/runbooks/pending.md"
+        self.assertEqual(["H003"], codes(source))
+        self.assertEqual([], codes(source, siblings=("docs/runbooks/pending.md",)))
+
+
+class YamlRunbooks(unittest.TestCase):
+    def test_a_dangling_yaml_pointer_reports_h003(self):
+        findings = hypomnema.check(ALERT_FIXTURES / "dangling.yaml")
+        self.assertEqual(["H003"], [finding.code for finding in findings])
+
+    def test_a_yaml_pointer_recovers_when_its_target_is_restored(self):
+        source = "annotations:\n  runbook: runbooks/pending.md\n"
+        self.assertEqual(["H003"], yaml_codes(source))
+        self.assertEqual([], yaml_codes(source, siblings=("runbooks/pending.md",)))
+
+    def test_a_yaml_pointer_resolves_from_the_yaml_files_directory(self):
+        source = "runbook: runbooks/pending.md\n"
+        self.assertEqual([], yaml_codes(
+            source,
+            name="config/rules.yaml",
+            siblings=("config/runbooks/pending.md",),
+        ))
+
+    def test_the_yaml_pass_is_generic_and_accepts_a_top_level_pointer(self):
+        source = "runbook: runbooks/pending.md\n"
+        self.assertEqual([], yaml_codes(source, siblings=("runbooks/pending.md",)))
+
+    def test_comments_and_block_scalars_do_not_create_yaml_pointers(self):
+        source = ("# runbook: runbooks/comment.md\n"
+                  "notes: |\n"
+                  "  runbook: runbooks/example.md\n")
+        self.assertEqual([], yaml_codes(source))
+
+    def test_the_complete_alert_to_runbook_fixture_is_clean(self):
+        alert = ALERT_FIXTURES / "complete.yaml"
+        runbook = ALERT_FIXTURES / "runbooks" / "pending-submission-too-old.md"
+        self.assertEqual([], hypomnema.check(alert))
+        self.assertEqual([], hypomnema.check(runbook))
+
+    def test_an_oversized_yaml_file_fails_visibly(self):
+        source = "#" * (hypomnema.MAX_YAML_BYTES + 1)
+        self.assertEqual(["H000"], yaml_codes(source))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 
@@ -115,6 +173,10 @@ def runbook_findings(source, name="pending.md", directory="docs/runbooks"):
 class RunbookShape(unittest.TestCase):
     def test_a_complete_runbook_is_clean(self):
         self.assertEqual([], runbook_findings(COMPLETE_RUNBOOK))
+
+    def test_h007_still_rejects_a_missing_required_answer(self):
+        source = COMPLETE_RUNBOOK.replace("## Who to wake\n", "## Escalation\n")
+        self.assertEqual(["H007"], [f.code for f in runbook_findings(source)])
 
     def test_each_answer_is_required(self):
         for name in hypomnema.RUNBOOK_SECTIONS:

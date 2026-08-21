@@ -114,7 +114,7 @@
     },
     "ephoros-observability-review": {
       "source": "plugins/hexaemeron/skills/ephoros/SKILL.md",
-      "sha256": "381440b736200a933464b18e2a99469b9bc80229951ea3e7b837a3986c5425e4",
+      "sha256": "50250264f46d71e945f345ad4538b1485c0a54204761763843a1887370984ecf",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step and build identity",
@@ -254,7 +254,7 @@
     },
     "hypomnema-record-placement": {
       "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
-      "sha256": "d7c0e071f93743f4f3a44eafb5cad28aae6ca5881121df7a10dac9e78e8435dc",
+      "sha256": "0d7c67131b76e704f2d3c18c5bc3216ae33d8093ee7185fad376b89676d4c806",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named decision and changed repository surface",
@@ -538,28 +538,28 @@
     },
     "ephoros-p": {
       "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
-      "selector": "test_it_allows_a_stable_name_with_fields",
-      "claim": "Positive evidence exercises the declared operation inside its stated boundary."
+      "selector": "test_a_complete_alert_is_clean",
+      "claim": "A supported alert entry carrying its own nested runbook annotation passes E004."
     },
     "ephoros-m": {
       "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
-      "selector": "test_it_flags_an_f_string_message",
-      "claim": "Missing required evidence is refused rather than treated as success."
+      "selector": "test_a_missing_annotation_reports_e004",
+      "claim": "A supported alert entry without its own nested runbook annotation is refused."
     },
     "ephoros-s": {
       "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
-      "selector": "test_a_bare_pragma_does_not_suppress",
-      "claim": "Stale or mismatched subject evidence is refused or kept visibly scoped."
+      "selector": "test_an_annotated_neighbour_cannot_satisfy_the_missing_alert",
+      "claim": "An annotation belonging to a neighbouring alert cannot satisfy the subject entry."
     },
     "ephoros-o": {
       "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
-      "selector": "test_it_ignores_print_which_is_not_telemetry",
-      "claim": "The nearest tempting overclaim remains explicitly unavailable."
+      "selector": "test_e004_does_not_resolve_the_runbook_target",
+      "claim": "E004 presence remains narrower than target resolution or runbook correctness."
     },
     "ephoros-r": {
       "path": "plugins/hexaemeron/tests/test_ephoros_checker.py",
-      "selector": "test_a_stated_reason_suppresses",
-      "claim": "The failure is contained and leaves a concrete rerun, rollback or repair path."
+      "selector": "test_a_reasoned_suppression_covers_e004",
+      "claim": "A narrowly reasoned exception contains the finding while leaving a concrete repair and rerun path."
     },
     "ephoros-review-p": {
       "path": "plugins/hexaemeron/tests/test_promise_cases.py",
@@ -1163,32 +1163,32 @@
     },
     "hypomnema-pointer-p": {
       "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
-      "selector": "test_it_allows_a_link_that_resolves",
-      "claim": "A recognised relative pointer to an existing target passes.",
+      "selector": "test_the_complete_alert_to_runbook_fixture_is_clean",
+      "claim": "A recognised YAML runbook pointer to an existing, shaped target passes.",
       "evidence_class": "checked"
     },
     "hypomnema-pointer-m": {
       "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
-      "selector": "test_it_flags_a_link_to_nothing",
-      "claim": "A recognised pointer to an absent target is refused.",
+      "selector": "test_a_dangling_yaml_pointer_reports_h003",
+      "claim": "A recognised YAML runbook pointer to an absent target is refused.",
       "evidence_class": "checked"
     },
     "hypomnema-pointer-s": {
       "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
-      "selector": "test_it_flags_a_successor_that_does_not_exist",
-      "claim": "A supersession record naming an absent successor is refused.",
+      "selector": "test_a_yaml_pointer_resolves_from_the_yaml_files_directory",
+      "claim": "A YAML pointer is bound to the directory of the file that carries it.",
       "evidence_class": "checked"
     },
     "hypomnema-pointer-o": {
       "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
-      "selector": "test_clean_pointer_check_does_not_establish_record_correctness",
-      "claim": "Pointer resolution is kept narrower than record correctness.",
+      "selector": "test_the_yaml_pass_is_generic_and_accepts_a_top_level_pointer",
+      "claim": "YAML pointer resolution is kept separate from alert classification and annotation presence.",
       "evidence_class": "checked"
     },
     "hypomnema-pointer-r": {
       "path": "plugins/hexaemeron/tests/test_hypomnema_checker.py",
-      "selector": "test_missing_pointer_recovers_when_target_is_restored",
-      "claim": "Restoring the named target clears the same pointer check.",
+      "selector": "test_a_yaml_pointer_recovers_when_its_target_is_restored",
+      "claim": "Restoring the named YAML target clears the same H003 check.",
       "evidence_class": "checked"
     },
     "hex-eval-p": {

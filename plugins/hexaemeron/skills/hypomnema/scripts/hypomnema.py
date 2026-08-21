@@ -57,6 +57,10 @@ ADR_NUMBER = re.compile(r"ADR-(\d+)", re.IGNORECASE)
 # A path, not whatever word follows a colon: "a runbook: what fired" is prose.
 RUNBOOK = re.compile(r"runbook:\s*[`\"']?(?P<path>[\w./-]+\.md|[\w./-]+/[\w./-]+)[`\"']?",
                      re.IGNORECASE)
+YAML_RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.IGNORECASE)
+YAML_SUFFIXES = {".yaml", ".yml"}
+MAX_YAML_BYTES = 1 << 20
+BLOCK_SCALAR = re.compile(r"^[^:#][^:]*:\s*[|>](?:[+-]?\d?|\d[+-]?)\s*$")
 ALLOW = re.compile(r"<!--\s*hypomnema:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
 SKIP_SCHEME = ("http", "https", "mailto", "tel", "ftp")
 # The record template the SKILL states, held mechanically since the first
@@ -99,6 +103,60 @@ def suppressed(lines: list[str], line: int) -> bool:
 def _external(target: str) -> bool:
     parsed = urlparse(target)
     return bool(parsed.scheme) and parsed.scheme in SKIP_SCHEME
+
+
+def _strip_yaml_comment(line: str) -> str:
+    """Remove a YAML comment without treating a quoted hash as a marker."""
+    single = False
+    double = False
+    escaped = False
+    for index, character in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+        if double and character == "\\":
+            escaped = True
+            continue
+        if character == "'" and not double:
+            single = not single
+        elif character == '"' and not single:
+            double = not double
+        elif character == "#" and not single and not double:
+            return line[:index]
+    return line
+
+
+def _yaml_findings(path: Path, lines: list[str]) -> list[Finding]:
+    """Resolve generic block-YAML runbook keys without classifying alerts."""
+    findings: list[Finding] = []
+    scalar_indent: int | None = None
+    for number, raw in enumerate(lines, start=1):
+        content = _strip_yaml_comment(raw).rstrip()
+        if not content.strip():
+            continue
+        indent = len(content) - len(content.lstrip(" "))
+        stripped = content[indent:]
+        if scalar_indent is not None:
+            if indent > scalar_indent:
+                continue
+            scalar_indent = None
+        if BLOCK_SCALAR.match(stripped):
+            scalar_indent = indent
+            continue
+        match = YAML_RUNBOOK.match(stripped)
+        if not match:
+            continue
+        target = match.group("path").strip()
+        if len(target) >= 2 and target[0] == target[-1] and target[0] in "'\"":
+            target = target[1:-1].strip()
+        if (not target.lower().endswith(".md") or target.startswith(("/", "\\"))
+                or _external(target)):
+            continue
+        if not (path.parent / target).exists():
+            findings.append(Finding(
+                path, number, "H003",
+                f"runbook `{target}` resolves to nothing"))
+    return findings
 
 
 def _record_findings(path: Path, lines: list[str]) -> list[Finding]:
@@ -261,6 +319,15 @@ def _source_findings(path: Path, adr_numbers: set[str] | None) -> list[Finding]:
 def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
     if path.suffix in COMMENT_MARKERS:
         return _source_findings(path, adr_numbers)
+    if path.suffix in YAML_SUFFIXES:
+        try:
+            raw = path.read_bytes()
+            if len(raw) > MAX_YAML_BYTES:
+                return [Finding(path, 1, "H000", "unreadable: YAML exceeds 1 MiB")]
+            lines = raw.decode("utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as err:
+            return [Finding(path, 1, "H000", f"unreadable: {err}")]
+        return _yaml_findings(path, lines)
     if path.suffix != ".md":
         return []
     try:
@@ -324,7 +391,7 @@ def walk(paths: list[str], include_vendored: bool = False) -> list[Path]:
     for raw in paths:
         root = Path(raw)
         if root.is_dir():
-            suffixes = (".md", *COMMENT_MARKERS)
+            suffixes = (".md", *COMMENT_MARKERS, *sorted(YAML_SUFFIXES))
             found = (child for suffix in suffixes
                      for child in root.rglob(f"*{suffix}"))
             for child in sorted(set(found)):
