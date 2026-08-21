@@ -226,6 +226,33 @@ class TypeScriptTelemetryKeys(unittest.TestCase):
         self.assertEqual([], ts_codes(
             "cache?.store[walletAddress] = market\n"))
 
+    def test_it_flags_an_optional_chain_bracket_log_store(self):
+        self.assertEqual(["E005"], ts_codes(
+            "eventLog?.[walletAddress] = event\n"))
+
+    def test_it_flags_an_optional_chain_bracket_dashboard_key(self):
+        self.assertEqual(["E005"], ts_codes(
+            "dashboards?.[walletAddress] = panel\n"))
+
+    def test_it_flags_an_optional_chain_bracket_string_log_index(self):
+        self.assertEqual(["E005"], ts_codes(
+            "auditLog?.['walletAddress'].push(e)\n"))
+
+    def test_an_optional_chain_bracket_on_an_unnamed_store_does_not_fire(self):
+        self.assertEqual([], ts_codes("cache?.[walletAddress]\n"))
+
+    def test_an_optional_chain_bracket_after_a_subscript_does_not_fire(self):
+        self.assertEqual([], ts_codes(
+            "ADS_REGISTRY[chainId]?.[marketAddress.toLowerCase()]\n"))
+
+    def test_it_flags_a_template_literal_wallet_index(self):
+        self.assertEqual(["E005"], ts_codes(
+            "auditLog.write(e, { index: `wallet_address` })\n"))
+
+    def test_an_interpolated_template_index_does_not_fire(self):
+        self.assertEqual([], ts_codes(
+            "auditLog.write(e, { index: `${walletAddress}` })\n"))
+
     def test_it_allows_a_query_key_array_carrying_an_address(self):
         self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "query-key.ts"))
 
@@ -273,6 +300,16 @@ class TypeScriptTelemetryKeys(unittest.TestCase):
             "// # ephoros: allow tracked elsewhere\n"
             "eventLog[walletAddress] = event\n"))
 
+    def test_a_block_comment_pragma_does_not_suppress(self):
+        self.assertEqual(["E005"], ts_codes(
+            "/* // ephoros: allow smuggled reason */ "
+            "eventLog[walletAddress] = event\n"))
+
+    def test_a_block_comment_pragma_on_the_line_above_does_not_suppress(self):
+        self.assertEqual(["E005"], ts_codes(
+            "/* // ephoros: allow smuggled reason */\n"
+            "eventLog[walletAddress] = event\n"))
+
 
 class TypeScriptBoundaries(unittest.TestCase):
     def test_an_oversized_typescript_file_fails_visibly(self):
@@ -317,6 +354,15 @@ class TypeScriptBoundaries(unittest.TestCase):
             self.assertEqual("E000", by_file["nested.ts"].code)
             self.assertIn("recursion", by_file["nested.ts"].message)
             self.assertEqual("E005", by_file["sibling.ts"].code)
+
+    def test_an_adversarial_dotted_chain_completes_with_zero_findings(self):
+        # A whitespace-separated dotted chain that never reaches a bracket
+        # once cost quadratic rescans (about a minute at this size); the
+        # bracket-anchored scan reads it once and finds nothing.
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "adversarial.ts"
+            specimen.write_text("a . " * 25_000, encoding="utf-8")
+            self.assertEqual([], ephoros.check(specimen))
 
     def test_the_walk_skips_node_modules(self):
         with tempfile.TemporaryDirectory() as base:

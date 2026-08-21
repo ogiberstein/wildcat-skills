@@ -57,7 +57,7 @@ DURATION = re.compile(
 MEAN_FUNCS = {"mean", "fmean", "average", "avg"}
 
 # The pragma grammar is gated by surface: `#` belongs to Python and YAML,
-# `//` to TypeScript, where it is read from genuine comment spans only.
+# `//` to TypeScript, where it is read from genuine line-comment spans only.
 ALLOW = re.compile(r"#\s*ephoros:\s*allow\s+(?P<reason>\S.*)$")
 TS_ALLOW = re.compile(r"//\s*ephoros:\s*allow\s+(?P<reason>\S.*)$", re.MULTILINE)
 YAML_SUFFIXES = {".yaml", ".yml"}
@@ -72,9 +72,9 @@ TS_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
 # `?.` separates a chain the way `.` does: optional chaining names the same sink.
 TS_SEPARATOR = r"\s*\??\.\s*"
 TS_SPLIT = re.compile(TS_SEPARATOR)
-TS_CHAIN = re.compile(
-    rf"(?<![\w$.])(?P<chain>{TS_IDENTIFIER}(?:{TS_SEPARATOR}{TS_IDENTIFIER})*)"
-    r"\s*(?P<open>[\[(])")
+TS_OPEN = re.compile(r"[\[(]")
+TS_IDENT_CHAR = re.compile(r"[\w$]")
+TS_IDENT_START = re.compile(r"[A-Za-z_$]")
 TS_LABEL_PROPERTY = re.compile(
     r"(?<![\w$])(?:labels|labelNames|labelnames|label_names|tags|attributes)"
     r"\s*:\s*(?P<open>[\[{])")
@@ -556,6 +556,53 @@ def _ts_words(name: str) -> set[str]:
     return {word.lower() for word in TS_WORD.findall(name)}
 
 
+def _skip_ws(mask: str, index: int) -> int:
+    while index and mask[index - 1].isspace():
+        index -= 1
+    return index
+
+
+def _ts_chain_before(mask: str, opening: int) -> list[str] | None:
+    """Parse the dotted chain that ends at the bracket at `opening`, or None.
+
+    Scanning is anchored to the brackets: a chain is only ever read once,
+    backwards from its own bracket, so a dotted expression that never reaches
+    a bracket costs nothing.  A forward chain regex paid quadratically there —
+    every admitted start position rescanned the whole remaining chain before
+    failing at the bracket class.  `?.` separates segments the way `.` does,
+    including the bracket form `?.[` and `?.(`.
+    """
+    index = _skip_ws(mask, opening)
+    if mask[index - 2:index] == "?.":
+        index = _skip_ws(mask, index - 2)
+    segments: list[str] = []
+    while True:
+        end = index
+        while index and TS_IDENT_CHAR.match(mask[index - 1]):
+            index -= 1
+        if end == index or not TS_IDENT_START.match(mask[index]):
+            # No identifier here: the chain ends at the last good segment,
+            # and a separator already consumed is not part of it.
+            if not segments:
+                return None
+            index = start
+            break
+        segments.append(mask[index:end])
+        start = index
+        after = _skip_ws(mask, index)
+        if after and mask[after - 1] == ".":
+            dot = after - 1
+            if dot and mask[dot - 1] == "?":
+                dot -= 1
+            index = _skip_ws(mask, dot)
+            continue
+        break
+    if index and mask[index - 1] == ".":
+        return None  # a trailing property of something that is not a name
+    segments.reverse()
+    return segments
+
+
 def _ts_address_name(name: str) -> bool:
     return bool(_ts_words(name) & TS_ADDRESS_WORDS)
 
@@ -568,6 +615,11 @@ def _ts_string_value(expression: str) -> str | None:
     expression = expression.strip()
     if len(expression) >= 2 and expression[0] == expression[-1] \
             and expression[0] in "'\"":
+        return expression[1:-1]
+    # A template literal with no `${}` interpolation is a constant string;
+    # an interpolated one is not, and stays out of key recognition.
+    if len(expression) >= 2 and expression[0] == expression[-1] == "`" \
+            and "${" not in expression:
         return expression[1:-1]
     return None
 
@@ -696,10 +748,15 @@ def _ts_index_properties(path: Path, text: str, mask: str, start: int,
 
 
 def _ts_allow_lines(text: str, spans) -> set[int]:
-    """Return reasoned pragma lines that are genuine TypeScript comments."""
+    """Return reasoned pragma lines that are genuine `//` line comments.
+
+    The documented grammar is a `//` line comment, so block comments are
+    inert for suppression: `/* // ephoros: allow why */` states no reason
+    at the site it would excuse.
+    """
     allowed: set[int] = set()
     for kind, start, end in spans:
-        if kind not in ("line_comment", "block_comment"):
+        if kind != "line_comment":
             continue
         for match in TS_ALLOW.finditer(text, start, end):
             allowed.add(_line_of(text, match.start()))
@@ -723,16 +780,18 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
     allowed = _ts_allow_lines(text, spans)
     mask = _masked(text, spans)
     findings: list[Finding] = []
-    for match in TS_CHAIN.finditer(mask):
-        segments = TS_SPLIT.split(match.group("chain"))
+    for bracket in TS_OPEN.finditer(mask):
+        opening = bracket.start()
+        segments = _ts_chain_before(mask, opening)
+        if not segments:
+            continue
         if segments[0] == "console":
             continue  # command-line output is not telemetry
-        opening = match.start("open")
         closing = _matching(mask, opening)
         if closing is None:
             continue
         last_words = _ts_words(segments[-1])
-        if match.group("open") == "[":
+        if mask[opening] == "[":
             key = _ts_address_expression(text, mask, opening + 1, closing)
             if key and last_words & TS_DASHBOARD_WORDS:
                 findings.append(_ts_keyed_by_address(
