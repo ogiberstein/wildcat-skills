@@ -6231,3 +6231,13 @@ Imprimatur and per-file Brevitas accept the six named prose files; Promise
 Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema
 each exit 0 over their required trees. All other semantics, finding codes,
 ownership, versions and held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 7 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R7-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Neither lexer tracks an active multi-line plain scalar. A continuation line whose first non-space character is an unmatched quote is valid plain-scalar content, but `_yaml_quote_starts` opens quoted-scalar state and hides the following alert or runbook key, allowing missing E004 or H003 evidence to pass. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..7114c05310bd95a072e4a3503d30096a40005d9c`. The two round-6 guard methods were run against `3588e21b3c46efa119db5b8df43375d90b3b5ce0` in memory and produced eight subtest failures across both unseparated shapes, both quote styles and both ownership gates; both methods pass against the fixed tree. The penultimate documented-subset review then reproduced E319-S2-R7-01 for both quote styles and both checkers: `- note: first` followed by an indented `"continued` is one valid plain-scalar specimen before a real alert, with a parallel top-level mapping before a real runbook pointer. Focused tests pass 116/116; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 589/589. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Quote entry separation, quote exit and escape handling, block scalars, comments, suppression scope, per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R7-01.
