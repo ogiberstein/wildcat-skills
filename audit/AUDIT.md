@@ -6303,3 +6303,25 @@ Leads not pursued: the 20-character minimum for an obligation answer is
 inherited from the existing rationale flags rather than derived from anything.
 It stops an empty field and nothing more, which is what the boundary language
 in the new promise says out loud.
+
+## Hermes rule corpus, step 5, round 2 -- 2026-08-21
+
+Round 1's three fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 71/71 in 24.4 seconds, inside the 25-second ceiling. Corpus
+validation is clean at 120 rules.
+
+The three probes that produced round 1's findings were re-run against the fixed
+tree. A rejected-rule citation is refused in either case and the refusal names
+the canonical id beside what the operator wrote. A `fork_order` missing a rule's
+floor is refused as `corpus/invalid` rather than raising. The shipped corpus
+reports no fault, so neither fix moved the data.
+
+The stale-baseline guard was read once more for the direction it fails in. It
+refuses the run rather than taking a fresh baseline on the operator's behalf,
+which is right: a baseline is the thing the whole record hangs from and Hermes
+does not seal one as a side effect of being asked to verify.
+
+Leads not pursued: the obligation-answer minimum, unchanged from round 1.
