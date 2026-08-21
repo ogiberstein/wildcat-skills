@@ -7,7 +7,11 @@
       "consumer": "berean-answer-evidence",
       "path": "plugins/berean/tests/test_examples.py",
       "selector": "test_the_copied_reads_match_the_lazarus_fixture_byte_for_byte",
-      "preserves": ["block", "evidence-class", "subject"],
+      "preserves": [
+        "block",
+        "evidence-class",
+        "subject"
+      ],
       "refuses": "answer-truth"
     },
     {
@@ -15,7 +19,11 @@
       "consumer": "ariadne-capture-statement",
       "path": "plugins/ariadne/tests/test_gates.py",
       "selector": "test_a_payload_asserting_its_own_verification_fails",
-      "preserves": ["answer-digest", "evidence-class", "subject"],
+      "preserves": [
+        "answer-digest",
+        "evidence-class",
+        "subject"
+      ],
       "refuses": "answer-truth"
     }
   ],
@@ -246,7 +254,7 @@
     },
     "hypomnema-record-placement": {
       "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
-      "sha256": "7057419f9c21daa41f388daad24a126107ec851e1844a24a98a91dc2c808afac",
+      "sha256": "8a997f6745214ac1438012160407e83375faedce5144eb9ec4510cf68254fe02",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named decision and changed repository surface",
@@ -1497,7 +1505,13 @@
       "promise_id": "berean-answer-evidence",
       "skill_path": "plugins/berean/skills/berean/SKILL.md",
       "group": "executable",
-      "preserves": ["answer-truth-refused", "read-class", "source-class", "subject", "time-domain"],
+      "preserves": [
+        "answer-truth-refused",
+        "read-class",
+        "source-class",
+        "subject",
+        "time-domain"
+      ],
       "cases": {
         "P": "berean-answer-p",
         "M": "berean-answer-m",
@@ -1514,7 +1528,11 @@
       "promise_id": "berean-corpus-binding",
       "skill_path": "plugins/berean/skills/berean/SKILL.md",
       "group": "executable",
-      "preserves": ["corpus-digest", "source-class", "subject"],
+      "preserves": [
+        "corpus-digest",
+        "source-class",
+        "subject"
+      ],
       "cases": {
         "P": "berean-corpus-p",
         "M": "berean-corpus-m",
@@ -1531,7 +1549,12 @@
       "promise_id": "berean-evaluation-report",
       "skill_path": "plugins/berean/skills/berean/SKILL.md",
       "group": "executable",
-      "preserves": ["answer-digest", "answer-truth-refused", "corpus-digest", "time-domain"],
+      "preserves": [
+        "answer-digest",
+        "answer-truth-refused",
+        "corpus-digest",
+        "time-domain"
+      ],
       "cases": {
         "P": "berean-evaluation-p",
         "M": "berean-evaluation-m",
@@ -1548,7 +1571,12 @@
       "promise_id": "berean-release-promotion",
       "skill_path": "plugins/berean/skills/berean/SKILL.md",
       "group": "executable",
-      "preserves": ["answer-digest", "answer-truth-refused", "corpus-digest", "evaluation-digest"],
+      "preserves": [
+        "answer-digest",
+        "answer-truth-refused",
+        "corpus-digest",
+        "evaluation-digest"
+      ],
       "cases": {
         "P": "berean-promotion-p",
         "M": "berean-promotion-m",
@@ -1578,7 +1606,10 @@
         "S": "brevitas-evidence-s",
         "O": "brevitas-evidence-o",
         "R": "brevitas-evidence-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1598,7 +1629,10 @@
         "S": "brevitas-structure-s",
         "O": "brevitas-structure-o",
         "R": "brevitas-structure-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1741,8 +1775,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; no conversion result is claimed."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1757,8 +1798,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; no harness campaign is claimed."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1773,8 +1821,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; no harness sync is claimed."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1789,8 +1844,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; no audit report is claimed."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1805,8 +1867,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; no pre-audit result is claimed."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1890,7 +1959,10 @@
         "S": "hypomnema-pointer-s",
         "O": "hypomnema-pointer-o",
         "R": "hypomnema-pointer-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1905,8 +1977,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; forward model behaviour remains unknown."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -1926,14 +2005,25 @@
         "S": "imprimatur-s",
         "O": "imprimatur-o",
         "R": "imprimatur-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
       "promise_id": "janus-bounded-conformance",
       "skill_path": "plugins/janus/skills/janus/SKILL.md",
       "group": "executable",
-      "preserves": ["adapter", "bounded-search", "cross-host-refused", "manifest", "recorder", "safety-refused", "unknown-effect-refused"],
+      "preserves": [
+        "adapter",
+        "bounded-search",
+        "cross-host-refused",
+        "manifest",
+        "recorder",
+        "safety-refused",
+        "unknown-effect-refused"
+      ],
       "cases": {
         "P": "janus-bounded-p",
         "M": "janus-bounded-m",
@@ -1950,7 +2040,10 @@
       "promise_id": "janus-manifest-validation",
       "skill_path": "plugins/janus/skills/janus/SKILL.md",
       "group": "executable",
-      "preserves": ["adapter", "manifest"],
+      "preserves": [
+        "adapter",
+        "manifest"
+      ],
       "cases": {
         "P": "janus-manifest-p",
         "M": "janus-manifest-m",
@@ -1967,7 +2060,13 @@
       "promise_id": "janus-report-rendering",
       "skill_path": "plugins/janus/skills/janus/SKILL.md",
       "group": "executable",
-      "preserves": ["adapter", "bounded-search", "manifest", "recorder", "safety-refused"],
+      "preserves": [
+        "adapter",
+        "bounded-search",
+        "manifest",
+        "recorder",
+        "safety-refused"
+      ],
       "cases": {
         "P": "janus-report-p",
         "M": "janus-report-m",
@@ -1992,8 +2091,15 @@
         "disposition": "Labelled P/M/S/O/R cases recorded; user authority remains external evidence."
       },
       "cases": {
-        "P": "hex-eval-p", "M": "hex-eval-m", "S": "hex-eval-s", "O": "hex-eval-o", "R": "hex-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "hex-eval-p",
+        "M": "hex-eval-m",
+        "S": "hex-eval-s",
+        "O": "hex-eval-o",
+        "R": "hex-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -2013,7 +2119,10 @@
         "S": "kronos-rank-s",
         "O": "kronos-rank-o",
         "R": "kronos-rank-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -2033,7 +2142,10 @@
         "S": "kronos-park-s",
         "O": "kronos-park-o",
         "R": "kronos-park-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -2368,8 +2480,15 @@
         "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
       },
       "cases": {
-        "P": "sapheneia-eval-p", "M": "sapheneia-eval-m", "S": "sapheneia-eval-s", "O": "sapheneia-eval-o", "R": "sapheneia-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "sapheneia-eval-p",
+        "M": "sapheneia-eval-m",
+        "S": "sapheneia-eval-s",
+        "O": "sapheneia-eval-o",
+        "R": "sapheneia-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -2384,8 +2503,15 @@
         "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
       },
       "cases": {
-        "P": "sapheneia-eval-p", "M": "sapheneia-eval-m", "S": "sapheneia-eval-s", "O": "sapheneia-eval-o", "R": "sapheneia-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "sapheneia-eval-p",
+        "M": "sapheneia-eval-m",
+        "S": "sapheneia-eval-s",
+        "O": "sapheneia-eval-o",
+        "R": "sapheneia-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     },
     {
@@ -2448,8 +2574,15 @@
         "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model content parity remains unknown."
       },
       "cases": {
-        "P": "vulgate-eval-p", "M": "vulgate-eval-m", "S": "vulgate-eval-s", "O": "vulgate-eval-o", "R": "vulgate-eval-r",
-        "X": {"not_applicable": true, "reason": "The canonical declaration supports no exception for this promise."}
+        "P": "vulgate-eval-p",
+        "M": "vulgate-eval-m",
+        "S": "vulgate-eval-s",
+        "O": "vulgate-eval-o",
+        "R": "vulgate-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
       }
     }
   ]

@@ -7,10 +7,21 @@ though the reason exists and was checked. This settles the part a parser can.
   H001  a relative link that resolves to nothing
   H002  a superseding pointer naming a record that does not exist
   H003  an alert naming a runbook file that is not there
+  H004  a decision record missing one of the template's five sections
+  H005  a decision record whose status is not dated
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
-Deliberate exceptions state a reason: `# hypomnema: allow <why>`.
+A decision record is a markdown file named `ADR-<number>...` inside a
+directory named `decisions`. The shape codes hold it to the template the
+SKILL states: a Status whose first line is a status word, a comma and an
+ISO date, and the five sections Status, Context, Decision, Alternatives
+and Consequences. Directory walks skip `fixtures` directories relative to
+the walked root, because a specimen documenting a fault is not a record;
+naming a fixtures path directly still reads it.
+
+Deliberate exceptions state a reason: `<!-- hypomnema: allow <why> -->`,
+for a shape finding on the record's first line or the status heading.
 """
 
 from __future__ import annotations
@@ -30,6 +41,12 @@ RUNBOOK = re.compile(r"runbook:\s*[`\"']?(?P<path>[\w./-]+\.md|[\w./-]+/[\w./-]+
                      re.IGNORECASE)
 ALLOW = re.compile(r"<!--\s*hypomnema:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
 SKIP_SCHEME = ("http", "https", "mailto", "tel", "ftp")
+# The record template the SKILL states, held mechanically since the first
+# four records stated their status in three shapes within a day.
+RECORD_NAME = re.compile(r"^ADR-\d+.*\.md$", re.IGNORECASE)
+SECTION = re.compile(r"^##\s+(?P<name>\S.*?)\s*$")
+SECTIONS = ("Status", "Context", "Decision", "Alternatives", "Consequences")
+DATED = re.compile(r"^[A-Za-z]+, \d{4}-\d{2}-\d{2}")
 # The bundled Pashov suite is vendored, keeps no ledger, and documents files it
 # generates in the target repository rather than files that live here.
 VENDORED = {"fizz", "x-ray", "solidity-auditor"}
@@ -61,6 +78,48 @@ def _external(target: str) -> bool:
     return bool(parsed.scheme) and parsed.scheme in SKIP_SCHEME
 
 
+def _record_findings(path: Path, lines: list[str]) -> list[Finding]:
+    """The template shape: a dated status and the five sections.
+
+    Section headings are read outside fences only, so a record quoting the
+    template in an example neither gains nor loses a section.
+    """
+    headings: dict[str, int] = {}
+    in_fence = False
+    for number, line in enumerate(lines, start=1):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        match = SECTION.match(line)
+        if match:
+            # A pragma on the heading is a suppression, not part of the name.
+            name = ALLOW.sub("", match.group("name")).strip()
+            if name in SECTIONS:
+                headings.setdefault(name, number)
+
+    findings = [Finding(path, 1, "H004",
+                        f"decision record is missing its `## {name}` section")
+                for name in SECTIONS if name not in headings]
+
+    status_line = headings.get("Status")
+    if status_line is not None:
+        first = ""
+        for line in lines[status_line:]:
+            if SECTION.match(line) or line.startswith("#"):
+                break
+            if line.strip():
+                first = line.strip()
+                break
+        if not DATED.match(first):
+            findings.append(Finding(
+                path, status_line, "H005",
+                "status is not dated; the shape is a status word, a comma "
+                "and an ISO date"))
+    return findings
+
+
 def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
     if path.suffix != ".md":
         return []
@@ -71,6 +130,8 @@ def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
 
     lines = text.splitlines()
     findings: list[Finding] = []
+    if RECORD_NAME.match(path.name) and "decisions" in path.parts:
+        findings.extend(_record_findings(path, lines))
     in_fence = False
 
     for number, line in enumerate(lines, start=1):
@@ -124,6 +185,10 @@ def walk(paths: list[str], include_vendored: bool = False) -> list[Path]:
                 if ".git" in child.parts:
                     continue
                 if not include_vendored and VENDORED & set(child.parts):
+                    continue
+                # A specimen documenting a fault is not a record. Relative to
+                # the walked root, so naming a fixtures path still reads it.
+                if "fixtures" in child.relative_to(root).parts[:-1]:
                     continue
                 out.append(child)
         else:

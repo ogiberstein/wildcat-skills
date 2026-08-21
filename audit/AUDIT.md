@@ -5911,3 +5911,29 @@ and hypomnema exit 0. Root 104/104; hexaemeron 505/507 with the two
 recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema ADR shape check, step 3, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings open. One fault surfaced and was fixed within the step,
+worked under elenchus: the section regex read a heading pragma as part
+of the section name, so a suppressed status check reported the section
+itself missing; the fix strips the allow comment before matching and the
+suppression test guards it. The expected PM071 refusal fired on the
+SKILL.md edit and took the checker's own remedy, the field map reviewed
+as unchanged and the binding digest updated with its surface; the full
+check returns clean. Per the register: backfill-fidelity not applicable,
+no record content changed this step; shape-source reviewed, the dated
+rule accepts exactly the v1.1.0 shape and all six tree records pass;
+false-positive reviewed, a non-record name, a record name outside a
+decisions directory and a fenced heading each earn no shape verdict, and
+walks skip fixture specimens relative to the root; interface-drift
+reviewed, H000 to H003 keep their numbers and firing conditions and
+every pre-existing test passes unchanged; ledger-arithmetic reviewed,
+the evolution suite passes over the v2.2.0 row. Phylax, ephoros and
+hypomnema exit 0. Root 104/104; hexaemeron 519/521 with the two recorded
+environment failures.
+
+Leads not pursued: none
