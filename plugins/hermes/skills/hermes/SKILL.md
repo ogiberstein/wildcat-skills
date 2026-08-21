@@ -1,8 +1,8 @@
 ---
 name: hermes
-description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
+description: Optimise Solidity gas usage with an executable, fail-closed Foundry loop that measures savings, re-runs behaviour tests, checks storage layouts and method identifiers, and demands targeted differential or property evidence for state-sensitive unchecked arithmetic. Every candidate names a rule from a pinned corpus of 120 gas rules and 28 rejected ones, and the harness refuses a rule outside the target's compiler, fork or pipeline scope. Use for Solidity gas work, Forge snapshot reductions, gas-report reviews, storage packing, unchecked arithmetic, or any proposed EVM gas-saving change.
 metadata:
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # hermes gas optimiser
@@ -21,12 +21,21 @@ Hermes measures one Solidity gas optimisation class at a time and rejects the ca
 
 **Use another tool when.** Use Pandects for credit-specific laws, or Hexaemeron's audit skills for a broader security review.
 
-**Current frontier.** No complete, reproducible live Wildcat evidence bundle is published.
+**Current frontier.** Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates.
 <!-- marketplace-context:end -->
 
 The ideas are cheap. The evidence is the job.
 
-Use `scripts/hermes.py` for every run. It owns the order, seals the baseline, writes the evidence, and exits non-zero at the first bad gate. Use [references/optimisation-catalogue.md](references/optimisation-catalogue.md) to pick a candidate class.
+Use `scripts/hermes.py` for every run. It owns the order, seals the baseline, writes the evidence, and exits non-zero at the first bad gate. Every candidate names a rule from [references/gas-rule-corpus.json](references/gas-rule-corpus.json), the pinned corpus of 120 rules, 28 rejected universal rules and 40 citations transcribed from one source document. Use [references/optimisation-catalogue.md](references/optimisation-catalogue.md) to read the twelve classes those rules map onto.
+
+Check the corpus before a run and read what it holds:
+
+```bash
+python3 "$HERMES_PY" corpus --validate
+python3 "$HERMES_PY" corpus --validate --json
+```
+
+62 of the 120 rules name a class and can be selected. The other 58 constrain how a run is conducted, or they are architecture; the harness refuses them as candidates and says so rather than measuring something they do not describe.
 
 ## Day to day
 
@@ -71,11 +80,31 @@ python3 "$HERMES_PY" baseline \
 
 Add `--layout-contract "Label=path:Contract"` for a non-frozen contract whose layout still needs recording. This is useful for a deliberate packing change.
 
-Gate 1 runs `forge snapshot` and then `forge test`, in that order. It records the snapshot, green test result, Forge version, canonical Foundry config, Git revision, Solidity sources, storage layouts, and method identifiers. A dirty tree, red suite, missing snapshot, failed inspect, or invalid JSON ends the run.
+Gate 1 runs `forge snapshot` and then `forge test`, in that order. It records the snapshot, green test result, Forge version, canonical Foundry config, Git revision, Solidity sources, storage layouts, method identifiers, and the rule corpus with its digest. A corpus that fails its own schema ends the run here, so a candidate is never judged under advice nobody checked. A dirty tree, red suite, missing snapshot, failed inspect, or invalid JSON ends the run.
 
-## Gate 2: make one class of change
+## Gate 2: name a rule and make one class of change
 
-Choose one value from the catalogue and make only that kind of source change. Do not mix cleanup, compiler settings, test edits, or a second gas idea into the candidate.
+Every `verify` names one corpus rule with `--rule`. The rule decides the class, so a declared
+`--optimisation-class` that disagrees with it is refused. Gate 2 refuses before Gate 3
+spends a Forge run, and `result.json` carries a `refusal` field naming which condition failed:
+
+- `corpus/unknown-rule`: no rule of that id
+- `corpus/myth-selected`: a rejected universal rule named as a candidate, answered with its correction
+- `corpus/myth-cited`: a rationale or obligation answer citing a rejected rule as its justification
+- `corpus/rule-names-no-class`: a rule that constrains the run or is architecture, so no candidate implements it
+- `corpus/class-disagreement`: the declared class is not the rule's class
+- `corpus/out-of-scope`: the target's compiler, fork or pipeline is outside the rule's declared scope
+- `corpus/scope-unresolved`: the target pins no readable `solc`, or names a fork the corpus does not order
+- `corpus/obligation-unanswered`: an obligation the rule's own statement makes has no substantive answer
+- `corpus/obligation-malformed`: an `--obligation` argument is not `<n>=<answer>`, or names an index the rule lacks
+- `corpus/digest-moved`: the corpus changed after the baseline sealed it
+- `corpus/invalid`: the corpus does not pass its own schema
+
+Answer each of the rule's obligations with `--obligation "<n>=<answer>"`, one per obligation, indexed
+from one. Those answers are recorded judgement rather than measurement, and `result.json` marks them
+as such. The six gates below do not move because of them.
+
+Then choose that rule's class and make only that kind of source change. Do not mix cleanup, compiler settings, test edits, or a second gas idea into the candidate.
 
 Review `candidate.solidity.diff` before attesting. The harness rejects Solidity file additions or removals, test-source edits, an empty candidate, added `unchecked` outside `unchecked-arithmetic`, and added assembly outside `assembly`. The attestation remains a judgement: read the diff and confirm that every hunk belongs to the declared class.
 
@@ -88,6 +117,8 @@ For an ordinary candidate:
 ```bash
 python3 "$HERMES_PY" verify \
   --run-dir "<run-dir>" \
+  --rule STO-09 \
+  --obligation "1=The cache is loaded after the last write and every use sits inside one call frame." \
   --optimisation-class storage-load-caching \
   --attest-single-class \
   --gas-target 'LedgerTest:test_update' \
@@ -107,6 +138,9 @@ For unchecked arithmetic that can affect persistent state, asset accounting, ext
 ```bash
 python3 "$HERMES_PY" verify \
   --run-dir "<run-dir>" \
+  --rule CTL-05 \
+  --obligation "1=Every intermediate is bounded by the array length checked at the loop head." \
+  --obligation "2=The unchecked region is three lines and the bound is stated beside it." \
   --optimisation-class unchecked-arithmetic \
   --attest-single-class \
   --gas-target 'LedgerTest:test_update' \
@@ -180,30 +214,43 @@ That accepted state becomes the baseline for the next class. Never run two class
 - If someone asks to bundle changes, run them in sequence.
 - If the gas saving cannot be quantified, reject it.
 - If a state-sensitive unchecked change lacks the targeted proof, reject it whatever the gas number says.
+- If the candidate implements no corpus rule, add the rule to the corpus in separate work first. There is no flag that skips the requirement.
 
 ## Promise Machine contract
 
 ### hermes-sealed-baseline
 
-- Promise: A successful `baseline` seals a green, clean Foundry baseline with the named gas measurements, configuration, seed, source revision, protected layouts and method identifiers.
+- Promise: A successful `baseline` seals a green, clean Foundry baseline with the named gas measurements, configuration, seed, source revision, protected layouts, method identifiers and the validated rule corpus with its digest.
 - Evidence: The run directory, baseline snapshot, full test log, Foundry version, canonical configuration, Git and source records, storage layouts and method maps.
 - Evidence classes: checked, measured, recorded
 - Boundary: The baseline describes one repository state and environment; it does not establish that a later candidate preserves behaviour or improves gas.
 - Authorises: Evaluation of one declared optimisation class against the sealed baseline and fixed measurement set.
 - Consequence: 1
-- Refuses: Beginning a candidate comparison from a dirty tree, red suite, missing snapshot, unresolved protected set or changed exclusions.
+- Refuses: Beginning a candidate comparison from a dirty tree, red suite, missing snapshot, unresolved protected set, changed exclusions or a corpus that fails its own schema.
 - Recovery: Restore a clean green repository, re-derive the protected and measured sets and take a fresh baseline.
+- Exceptions: none
+
+### hermes-corpus-selection
+
+- Promise: A successful Gate 2 corpus selection establishes that the named rule exists in the corpus the baseline sealed, that it names the declared optimisation class, that the target's pinned compiler, fork and pipeline fall inside the rule's declared scope, and that every obligation the rule's own statement makes carries a recorded answer.
+- Evidence: The sealed corpus digest, the corpus schema result, the selected rule with its grade and automation level, the resolved compiler, fork and pipeline read from the sealed Foundry configuration, the paired obligation answers and the `refusal` field on any rejection.
+- Evidence classes: checked, recorded
+- Boundary: Selection establishes that the candidate is in scope for reviewed advice and that its obligations were answered; it does not establish that the answers are correct, that the optimisation saves gas, or that behaviour is preserved. Obligation answers are recorded judgement rather than measurement and the six gates do not move because of them.
+- Authorises: Measurement of that one candidate against the sealed baseline under the named rule, with the rule id and corpus digest carried into the accepted record.
+- Consequence: 1
+- Refuses: An unknown rule, a rejected universal rule named as a candidate or cited as a justification, a rule that names no class, a declared class the rule does not name, a compiler, fork or pipeline outside the declared scope, a scope that cannot be resolved from the sealed configuration, an unanswered or malformed obligation, a corpus that moved after the baseline, and a corpus that fails its own schema.
+- Recovery: Select the rule the candidate actually implements, answer each of its obligations, pin the target's `solc_version` and `evm_version` where the scope cannot be resolved, or add the missing rule to the corpus in separate work before starting a new run.
 - Exceptions: none
 
 ### hermes-candidate-acceptance
 
-- Promise: A successful `verify` with `result.json` status `accepted` establishes measured savings for every named target, no deterministic regression, passing pinned and unpinned behaviour suites, preserved protected layouts and selectors, and the required unchecked-arithmetic evidence for one declared class.
-- Evidence: The sealed baseline, candidate Solidity diff, gas snapshot comparison, gas report, both full test runs, layout and selector comparisons, targeted property result when required and accepted `result.json`.
+- Promise: A successful `verify` with `result.json` status `accepted` establishes measured savings for every named target, no deterministic regression, passing pinned and unpinned behaviour suites, preserved protected layouts and selectors, and the required unchecked-arithmetic evidence for one declared class, under one named corpus rule whose scope the target satisfies.
+- Evidence: The sealed baseline, candidate Solidity diff, gas snapshot comparison, gas report, both full test runs, layout and selector comparisons, targeted property result when required, the corpus digest with the selected rule and its answered obligations, and accepted `result.json`.
 - Evidence classes: checked, measured, recomputed, recorded
 - Boundary: Acceptance covers one candidate, repository state, toolchain, measurement set and optimisation class; it is not a general security proof or permission to combine another change.
 - Authorises: Retaining and reviewing that exact gas candidate as a repository mutation with its complete evidence directory.
 - Consequence: 2
-- Refuses: Acceptance after any gate fails, a target lacks a saving, the measurement set moves, a protected interface changes or sensitive unchecked arithmetic lacks its named property evidence.
+- Refuses: Acceptance after any gate fails, a target lacks a saving, the measurement set moves, a protected interface changes, sensitive unchecked arithmetic lacks its named property evidence, or the candidate names no corpus rule.
 - Recovery: Remove only the rejected candidate, return to the sealed green state, correct prerequisite tests separately and start a new Hermes run.
 - Exceptions: none
 

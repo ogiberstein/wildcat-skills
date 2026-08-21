@@ -144,7 +144,7 @@ The short map of what each plugin does and what is honestly left to build.
 | [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them. |
 | [Berean](./plugins/berean) | Releasing and verifying evidence-backed protocol agents against pinned corpora, preserved chain reads and an evaluation record. | The reference release answers against a frozen demonstration corpus and preserved Goldfinch mainnet reads; no release yet cites live Wildcat documentation or a captured Wildcat market read, and no Ariadne statement binds a berean release. |
 | [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
-| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | No complete, reproducible live Wildcat evidence bundle is published. |
+| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates. |
 | [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
 | [Horos](./plugins/horos) | Classifying a repository's token sinks with evidence and emitting the reading boundary agents respect. | The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains. |
 | [Janus](./plugins/janus) | Stating and enforcing what a contract hook may observe and change around a host action, checked by a manifest and a stateful Foundry harness. | Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model. |
@@ -254,7 +254,7 @@ Use Alexandria to preserve this lending-data capture and query its source-bound 
 Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
 Use Berean to verify this release's citations, chain readings and promotion record against its pinned corpus.
 Use Brevitas to enforce evidence-preserving structural budgets on this engineering review.
-Use Hermes to optimise gas in this Foundry repository.
+Use Hermes to optimise gas in this Foundry repository. Name the corpus rule each candidate implements.
 Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
 Use Hexaemeron Fizz to generate a stateful fuzz suite.
 Use Hexaemeron Kronos to rank the held frontier jobs and run the best through Fiat until none remain.
@@ -394,7 +394,7 @@ The budgets, evidence precedence and exception rule live in
 Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
 
 ```text
-Use $hermes to optimise gas in this repository. Work one optimisation class at a time and keep the complete verification record.
+Use $hermes to optimise gas in this repository. Name the corpus rule each candidate implements, work one optimisation class at a time, and keep the complete verification record.
 ```
 
 The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes/skills/hermes/SKILL.md).
