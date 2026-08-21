@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any, Sequence
 from unittest import mock
 
 
@@ -37,7 +38,13 @@ if args == ["--version"]:
     raise SystemExit(0)
 
 if args == ["config", "--json"]:
-    print(json.dumps({"profile": "default", "optimizer": True, "optimizer_runs": 200}))
+    config = {"profile": "default", "optimizer": True, "optimizer_runs": 200,
+              "solc": "0.8.25", "evm_version": "cancun", "via_ir": False}
+    import os
+    override = os.environ.get("HERMES_TEST_CONFIG_OVERRIDE")
+    if override and Path(override).exists():
+        config.update(json.loads(Path(override).read_text()))
+    print(json.dumps(config))
     raise SystemExit(0)
 
 if args and args[0] == "snapshot":
@@ -137,7 +144,15 @@ contract C {
 """
 
 
-class HermesHarnessTests(unittest.TestCase):
+class HarnessFixture:
+    """The hermetic repository, fake Forge and baseline every gate case needs.
+
+    Deliberately not a TestCase: a fixture that is one gets collected, and a
+    subclass then re-runs every case it inherited under whatever the subclass
+    overrode. That is how this file briefly ran its fourteen harness cases
+    twice, the second time through a `verify` the subclass had changed.
+    """
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="hermes-tests-")
         self.root = Path(self.temporary.name)
@@ -190,7 +205,32 @@ class HermesHarnessTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(json.loads((self.run_dir / "state.json").read_text())["status"], "baseline_ready")
 
-    def verify(self, *extra: str, optimisation_class: str = "storage-load-caching") -> int:
+    # One rule per class the cases use, with an answer for each obligation the
+    # rule's own statement makes. STO-09 states one, CTL-05 states two.
+    RULES = {
+        "storage-load-caching": ("STO-09", [
+            "1=The cache lives inside the one function and dies with the call frame.",
+        ]),
+        "unchecked-arithmetic": ("CTL-05", [
+            "1=Every intermediate is bounded by the array length, proved at the loop head.",
+            "2=The unchecked region is three lines and the bound is stated beside it.",
+        ]),
+        "constants-immutables": ("STO-15", []),
+        "storage-packing": ("STO-01", []),
+    }
+
+    def override_config(self, **fields: Any) -> None:
+        """Point the fake Forge at a configuration written outside the
+        repository, so Gate 1 still sees a clean tree."""
+        path = self.root / "forge-config-override.json"
+        path.write_text(json.dumps(fields))
+        os.environ["HERMES_TEST_CONFIG_OVERRIDE"] = str(path)
+        self.addCleanup(os.environ.pop, "HERMES_TEST_CONFIG_OVERRIDE", None)
+
+    def verify(self, *extra: str, optimisation_class: str = "storage-load-caching",
+               rule: str | None = None, obligations: Sequence[str] | None = None) -> int:
+        default_rule, default_obligations = self.RULES[optimisation_class]
+        answers = default_obligations if obligations is None else obligations
         return hermes.main(
             [
                 "verify",
@@ -199,6 +239,9 @@ class HermesHarnessTests(unittest.TestCase):
                 "--optimisation-class",
                 optimisation_class,
                 "--attest-single-class",
+                "--rule",
+                rule or default_rule,
+                *[argument for answer in answers for argument in ("--obligation", answer)],
                 "--gas-target",
                 "testGas_target",
                 *extra,
@@ -209,6 +252,8 @@ class HermesHarnessTests(unittest.TestCase):
         (self.repo / "src" / "C.sol").write_text(source)
         (self.repo / ".candidate-gas").write_text(str(gas))
 
+
+class HermesHarnessTests(HarnessFixture, unittest.TestCase):
     def test_accepts_and_promotes_a_fully_verified_candidate(self) -> None:
         self.baseline()
         self.prepare_candidate()
@@ -566,6 +611,209 @@ def _rule_record(**overrides) -> dict:
     record.update(overrides)
     return record
 
+
+
+class CorpusGateTests(HarnessFixture, unittest.TestCase):
+    """Gate 2 refuses seven ways before Gate 3 spends a Forge run.
+
+    Inherits the harness fixture: same fake Forge, same baseline, same
+    candidate. Each case asserts the exit code, the failed gate and the
+    machine-readable refusal reason, because the exit code names the gate and
+    the reason names the condition.
+    """
+
+    def refusal(self) -> dict:
+        return json.loads((self.run_dir / "result.json").read_text())
+
+    def verify(self, *extra: str, **kwargs) -> int:  # type: ignore[override]
+        """Every case here is an ordinary candidate unless it says otherwise,
+        so the classification flag the parser demands is supplied once."""
+        if not any(argument.endswith("sensitive-unchecked") for argument in extra):
+            extra = ("--no-sensitive-unchecked", *extra)
+        return super().verify(*extra, **kwargs)
+
+    def assert_refused(self, code: int, reason: str) -> dict:
+        self.assertEqual(code, 20)
+        result = self.refusal()
+        self.assertEqual(result["failed_gate"], 2)
+        self.assertEqual(result["refusal"], reason)
+        return result
+
+    def test_an_unknown_rule_id_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        self.assert_refused(self.verify(rule="STO-99"), "corpus/unknown-rule")
+
+    def test_a_rejected_universal_rule_cannot_be_selected(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(self.verify(rule="MYTH-02"), "corpus/myth-selected")
+        self.assertIn("canonical loops are automatically handled", result["reason"])
+
+    def test_a_rule_naming_no_class_is_refused(self) -> None:
+        """58 of the 120 rules are advice the record carries, not candidates."""
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(self.verify(rule="CMP-01"), "corpus/rule-names-no-class")
+        self.assertIn("not a candidate", result["reason"])
+
+    def test_a_class_disagreement_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(
+            self.verify(rule="STO-15", obligations=[]), "corpus/class-disagreement")
+        self.assertIn("constants-immutables", result["reason"])
+
+    def test_a_myth_cited_as_justification_is_refused(self) -> None:
+        """Naming a rejected rule as the reason a candidate is sound is
+        refused with the correction quoted back."""
+        self.baseline()
+        self.prepare_candidate(source=SOURCE_UNCHECKED)
+        code = self.verify(
+            "--no-sensitive-unchecked",
+            "--non-sensitive-rationale",
+            "Safe by MYTH-28: ordinary unit tests cover the unchecked block.",
+            optimisation_class="unchecked-arithmetic",
+        )
+        result = self.assert_refused(code, "corpus/myth-cited")
+        self.assertIn("every intermediate bound needs a durable proof", result["reason"])
+
+    def test_an_unanswered_obligation_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(
+            self.verify(obligations=[]), "corpus/obligation-unanswered")
+        self.assertIn("keep the cache", result["reason"])
+
+    def test_a_blank_obligation_answer_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        self.assert_refused(self.verify(obligations=["1=    "]),
+                            "corpus/obligation-unanswered")
+
+    def test_an_obligation_index_the_rule_does_not_have_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(
+            self.verify(obligations=["1=The cache lives inside one call frame and dies with it.",
+                                     "2=There is no second obligation to answer here."]),
+            "corpus/obligation-malformed")
+        self.assertIn("there is no obligation 2", result["reason"])
+
+    def test_a_malformed_obligation_answer_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        self.assert_refused(self.verify(obligations=["no index here at all, just prose"]),
+                            "corpus/obligation-malformed")
+
+    def test_an_unpinned_solc_refuses_rather_than_assuming_one(self) -> None:
+        """The failure the source document sets up: its header pins 0.8.25, and
+        a target that pins nothing at all must not be read as matching it."""
+        self.override_config(solc=None)
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(self.verify(), "corpus/scope-unresolved")
+        self.assertIn("does not pin a readable solc", result["reason"])
+        self.assertIn("foundry.toml", result["reason"])
+
+    def test_a_fork_below_the_rules_floor_is_refused(self) -> None:
+        """Istanbul, not Paris: Paris is later than Berlin in the order and so
+        satisfies STO-09's floor. Reaching for the newest-sounding name is how
+        a scope check gets a passing test that proves nothing."""
+        self.override_config(evm_version="istanbul")
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(self.verify(), "corpus/out-of-scope")
+        self.assertIn("needs berlin or later", result["reason"])
+        self.assertIn("EIP-2929", result["reason"])
+
+    def test_a_fork_above_the_floor_is_in_scope(self) -> None:
+        """Ordering, not string equality. The source was written against
+        Cancun and the Foundry build in this checkout defaults to Osaka, so an
+        equality check would refuse every correct candidate."""
+        self.override_config(evm_version="osaka")
+        self.baseline()
+        self.prepare_candidate()
+        self.assertEqual(self.verify(), 0)
+        self.assertEqual(self.refusal()["status"], "accepted")
+
+    def test_an_unknown_fork_name_refuses(self) -> None:
+        self.override_config(evm_version="verkle")
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(self.verify(), "corpus/scope-unresolved")
+        self.assertIn("not a fork this corpus orders", result["reason"])
+
+    def test_a_compiler_outside_the_rules_range_is_refused(self) -> None:
+        self.override_config(solc="0.7.6")
+        self.baseline()
+        self.prepare_candidate()
+        result = self.assert_refused(self.verify(), "corpus/out-of-scope")
+        self.assertIn("0.7.6", result["reason"])
+
+    def test_a_pipeline_outside_the_rules_set_is_refused(self) -> None:
+        """No rule in the corpus is single-pipeline today, so this drives the
+        check through a rule whose scope is narrowed in place."""
+        self.baseline()
+        self.prepare_candidate()
+        self.assertTrue((self.run_dir / "baseline.gas-rule-corpus.json").is_file())
+        corpus, schema, _digest = hermes.load_corpus()
+        for rule in corpus["rules"]:
+            if rule["id"] == "STO-09":
+                rule["scope"]["pipelines"] = ["via-ir"]
+        state = json.loads((self.run_dir / "state.json").read_text())
+        with mock.patch.object(
+            hermes, "load_corpus",
+            return_value=(corpus, schema, state["baseline"]["corpus_sha256"]),
+        ):
+            result = self.assert_refused(self.verify(), "corpus/out-of-scope")
+        self.assertIn("legacy", result["reason"])
+
+    def test_a_corpus_edited_after_the_baseline_is_refused(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        corpus, schema, _digest = hermes.load_corpus()
+        with mock.patch.object(hermes, "load_corpus",
+                               return_value=(corpus, schema, "0" * 64)):
+            result = self.assert_refused(self.verify(), "corpus/digest-moved")
+        self.assertIn("changed after the baseline", result["reason"])
+
+    def test_verify_without_a_rule_is_refused_by_the_parser(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        with self.assertRaises(SystemExit) as raised:
+            hermes.main(["verify", "--run-dir", str(self.run_dir),
+                         "--optimisation-class", "storage-load-caching",
+                         "--attest-single-class", "--gas-target", "testGas_target"])
+        self.assertNotEqual(raised.exception.code, 0)
+
+    def test_an_accepted_candidate_records_the_corpus_that_judged_it(self) -> None:
+        self.baseline()
+        self.prepare_candidate()
+        self.assertEqual(self.verify(), 0)
+        result = self.refusal()
+        self.assertEqual(result["status"], "accepted")
+        rule = result["rule"]
+        self.assertEqual(rule["id"], "STO-09")
+        self.assertEqual(rule["evidence_grade"], "A")
+        self.assertEqual(rule["automation"], "safe")
+        self.assertEqual(len(rule["corpus_sha256"]), 64)
+        self.assertEqual(rule["scope_resolution"],
+                         {"solc": "0.8.25", "evm_version": "cancun", "pipeline": "legacy"})
+        self.assertEqual(len(rule["obligations"]), 1)
+        self.assertEqual(rule["obligations"][0]["kind"], "recorded judgement")
+        self.assertIn("one function", rule["obligations"][0]["answer"])
+
+    def test_the_baseline_seals_the_corpus_beside_the_configuration(self) -> None:
+        self.baseline()
+        state = json.loads((self.run_dir / "state.json").read_text())
+        _corpus, _schema, digest = hermes.load_corpus()
+        self.assertEqual(state["baseline"]["corpus_sha256"], digest)
+        self.assertEqual(state["baseline"]["forge_config"],
+                         {"solc": "0.8.25", "evm_version": "cancun", "via_ir": False})
+        sealed = self.run_dir / "baseline.gas-rule-corpus.json"
+        self.assertIn(str(sealed.relative_to(self.run_dir)),
+                      state["baseline"]["artifact_hashes"])
 
 
 def _repository_root() -> Path:
