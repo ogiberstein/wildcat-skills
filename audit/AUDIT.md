@@ -7587,3 +7587,38 @@ subscripts both fire on both language sides alike, a parity-preserving rule
 decision nobody has asked to change; a constant backtick literal now counts
 as a string in every constant-key position, semantically identical to the
 quoted forms, with the self-lint and clone run clean under it.
+
+## Ephoros wallet-address telemetry, step 3, round 3 -- 2026-08-21
+
+The round audited the tree at `82e7274` with round 2's fix seams as its
+focus and one converging sweep. All thirteen earlier fixes held: the backward
+chain parser was differentialed against the old grammar over a 65-shape
+corpus, four thousand seeded fuzz cases and a findings-level comparison across
+all 882 clone TypeScript files with zero unexpected deltas, and the pragma,
+backtick and regression seams each held under execution. The three lints and
+both suites were green; the findings below came from the sweep's mandated
+adversarial shapes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | medium | scripts/ephoros.py | deeply nested brackets scanned quadratically through `_matching`, extrapolating to roughly 1.9 hours at the 1 MiB cap, the `ts-lexer-input` register class | fixed in 7295cfe |
+| S3-R3-02 | low | scripts/ephoros.py | a findings-saturated file paid a per-finding newline count, 9.9 seconds for fifty thousand findings | fixed in 7295cfe |
+
+Both fixes are structural and measured before and after through the real
+check path, as metron requires: one linear stack pass maps every opening
+bracket to its closer and cheap sink-name gates precede all span work, taking
+the nested specimen at cap scale from an extrapolated 1.9 hours to 0.814
+seconds; a per-file newline table with bisect takes the saturated specimen
+from 9.877 to 0.526 seconds with line numbers pinned identical at the first,
+middle and last finding. Two guard tests land the specimens at runtime,
+asserting completion, exact counts and exact line numbers rather than
+wall-clock. After the fixes the focused suite passes 112, the Hexaemeron suite
+706/706, the root suite 107/107, the tree lint exits 0 and the clone run stays
+clean at exit 0 in 0.886 seconds with an empty porcelain.
+
+Leads not pursued: a generic-call type argument hides the chain from both the
+old and new grammars alike, a lexical depth the study declares a non-goal; a
+name carrying both dashboard and log words reports the dashboard reading by
+deterministic precedence, contrived and consistent; wider fuzzing past four
+thousand cases, marginal after the corpus and clone differentials came back
+with zero unexpected deltas.
