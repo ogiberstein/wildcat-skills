@@ -6618,3 +6618,277 @@ per-file Brevitas checks, Phylax, Ephoros, Hypomnema, Horos and the folded diff
 check exit 0.
 
 Further leads: none.
+
+## Fiat delegation packets, step 3, round 1 -- 2026-08-21
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I320-S3-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1003-1015,1194-1238` | Implement and push validate the declared branch name and the supplied base-to-head range separately, but never require the supplied head to be the declared step branch tip. A different signed descendant of the base can therefore be receipted as that branch and pushed as its range. Resolve the declared branch and require exact equality with the supplied head; bind the pushed PR head to the same SHA. | open |
+| I320-S3-R1-02 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1315-1355,1361-1412` | `merge-step` and `integrate` require only a valid GitHub verification response for the supplied value. They do not establish that it is the named step-to-run or run-to-base merge, or that it belongs to the recorded PR. Any GitHub-valid commit in the selected repository can advance either receipt. Bind each receipt to the exact PR, expected head/base and resulting merge SHA. | open |
+| I320-S3-R1-03 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1194-1250,1375-1411,1712-1756` | Repository identity and publication identity are separate unchecked claims. `gh repo view` supplies an owner/name which is not cross-checked with the target remote, while `--pr-url` is any non-empty text and is not checked against that repository. The fresh test passes in a temporary repository with the fake repository `wildcat-finance/example` while receipting `https://x/...`. Bind the GitHub repository to the target and require the PR response and URL to name that repository and the expected refs. | open |
+| I320-S3-R1-04 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1731-1756` | GitHub verification does not validate each input with `COMMIT_RE` before placing it in the endpoint and refusal text. A direct fake-GitHub probe accepted `not-a-sha`; a token-shaped value can be repeated in an API refusal. Require one full SHA before any command or error is built and keep unvalidated values out of diagnostics. | open |
+| I320-S3-R1-05 | medium | `plugins/hexaemeron/tests/test_hexctl.py:789-838` | The named fresh lifecycle calls `to_steps` before its first packet assertion, so it neither observes the study and runbook directives nor proves second-process reconstruction at each transition. It also uses arbitrary commit labels and unrelated PR URLs accepted by the fake binaries. Extend the proof from the first study directive through every transition with repository-, ref- and SHA-realistic evidence. | open |
+
+### Independent probes
+
+The local range reader refuses empty, malformed, non-descendant and oversized
+ranges, verifies every enumerated intermediate commit, counts both exact
+trailers once and discards raw signature output. Its missing control is the
+relation between that range head and the branch it is said to represent.
+
+The GitHub reader rejects malformed response JSON, missing or mismatched
+response SHAs, false verification, every non-valid reason, tool failure,
+timeout and oversized output. Against its shipped fake boundary,
+`verify_github_commits` returned `['not-a-sha']`. The same boundary accepts a
+repository name without a target-remote comparison. Fixed argv, target cwd,
+`shell=False`, the 30-second timeout and 2 MiB output cap remain intact.
+
+The current pre-generation run remains compatible: `hexctl next` emits the
+held Step 3 audit directive with its state digest and explicit `agent: null`,
+`brief: {}`. Packet, artefact, Protasis and path controls from Step 2 remain
+unchanged.
+
+### Publication and gates
+
+The Fiat release is an ordinary `fiat-v4.9.1` generation. Its
+`receipted-lint-rounds` revision, frontier text and digest remain unchanged;
+the held `load_state` job is not displaced. The Hexaemeron package, both plugin
+manifests and both marketplace records agree on `1.5.2`. Source commit
+`cc7e81f7789d4748abac678dfbd464c2c70702c7` has a good local signature and
+exactly one required co-author and origin trailer.
+
+The Step 3 focused set passes 196/196, the named lifecycle 1/1, root tests
+104/104 and Hexaemeron 616/616. Promise Machine reports 14 plugins and 14
+copies clean. Both Protasis modes, Imprimatur, all per-file Brevitas checks,
+Phylax, Ephoros, Hypomnema, Horos and the folded diff check exit 0.
+
+### Risk-register disposition
+
+`file-range-confusion` and `local-signature-gap` remain open through
+I320-S3-R1-01. `merge-origin-confusion` remains open through I320-S3-R1-02.
+`remote-verification-gap` remains open through I320-S3-R1-03 and
+I320-S3-R1-04. `subprocess-control` remains open only for the unvalidated
+GitHub value and diagnostic in I320-S3-R1-04; its execution controls pass.
+`packet-state-drift`, `artefact-drift`, `protasis-grammar-drift`,
+`legacy-state-overclaim` and `path-escape` are clean in the folded diff.
+
+Further leads: none beyond I320-S3-R1-01 through I320-S3-R1-05.
+
+## Fiat delegation packets, step 3, round 1 resolution -- 2026-08-21
+
+All five findings are closed.
+
+### Fixes
+
+- I320-S3-R1-01: implement and push now resolve the declared step branch and
+  require its tip to equal the supplied head before verifying the exact owned
+  range. Push also requires the PR head OID to equal that verified tip.
+- I320-S3-R1-02: `merge-step` and `integrate` inspect the recorded PR and
+  require the expected head, base, merged state and exact merge OID before
+  accepting GitHub verification.
+- I320-S3-R1-03: the repository is derived from the target's GitHub origin,
+  cross-checked against `gh repo view`, and required on the supplied and
+  returned PR URLs.
+- I320-S3-R1-04: every GitHub-bound value must be one full commit SHA before a
+  command or SHA-bearing refusal is built. Invalid input gets a generic
+  refusal and reaches no `gh` process.
+- I320-S3-R1-05: the named fresh lifecycle now starts at `init`, observes the
+  Surveyor, runbook, Mason, Warden and Scribe transitions, compares two fresh
+  `next` processes at every transition, and uses full SHAs, GitHub PR URLs and
+  fake branch/PR topology bound to the target repository.
+
+### Evidence
+
+Seven focused guards cover branch-tip binding, pushed PR identity,
+target-origin identity, pre-command SHA rejection, and both merge topologies.
+They were red before the fix (the initial bounded run failed 6/6; the separate
+push-tip case extends the same branch control) and now pass 7/7. Versions and
+the held Fiat frontier are unchanged. No remote operation was performed.
+
+## Fiat delegation packets, step 3, round 2 -- 2026-08-21
+
+### Finding
+
+I320-S3-R2-01 (high), open at
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1444-1451`: integration
+inspects the expected run-branch and base names and the supplied merge OID,
+but passes `expected_head_sha=None`. A merged PR carrying a different head OID
+therefore completes the run. Bind the integration PR head OID to the actual
+merged run-branch tip, or to equivalent stored topology evidence, before
+accepting the merge.
+
+### Replay and review
+
+Seven product guards replayed against pre-fix `cc7e81f7789d4748abac678dfbd464c2c70702c7`
+fail 7/7 and pass 7/7 at `afd180dae569a7a24df1c8e5d624685f6c5e56d8`.
+They cover declared implementation and push tips, cross-repository PRs, target
+origin identity, pre-command full-SHA rejection and both recorded merge
+topologies. The fresh lifecycle proof passes 1/1 and now starts at `init`,
+observes every directive and checks two-process reconstruction; this closes
+R1-05's former evidence-shape gap rather than a previously failing runtime
+predicate.
+
+The residual probe supplied the correct integration PR URL, run-branch name,
+base name, merged state and merge OID, but a deliberately different 40-byte
+head OID. `done integrate` returned 0 and marked the run complete. The other
+four round-1 mechanisms are closed. Repository parsing, PR identity, step PR
+head binding, full-SHA validation and generic secret-safe refusals showed no
+further bypass in this round.
+
+### Gates and risk disposition
+
+The Step 3 focused set passes 203/203, the named lifecycle 1/1, root tests
+104/104 and Hexaemeron 623/623. Promise Machine reports 14 plugins and 14
+copies clean. Both Protasis modes, Imprimatur, all per-file Brevitas checks,
+Phylax, Ephoros, Hypomnema, Horos and the folded diff check exit 0. Fix commit
+`afd180dae569a7a24df1c8e5d624685f6c5e56d8` has a good local signature and
+exactly one required co-author and origin trailer.
+
+`merge-origin-confusion` and `remote-verification-gap` remain open only through
+I320-S3-R2-01. The other eight risk ids are clean in the folded diff.
+
+Further leads: none beyond I320-S3-R2-01.
+
+## Fiat delegation packets, step 3, round 2 resolution -- 2026-08-21
+
+### Fix
+
+I320-S3-R2-01 is closed.
+
+- Before integration inspects the PR, the controller runs bounded, no-shell
+  `git ls-remote --refs origin` for the exact recorded run-branch ref.
+- It accepts exactly one tab-separated full SHA and matching ref. An absent,
+  duplicate, malformed or differently named result stops the receipt.
+- The integration PR's `headRefOid` must equal that remote tip alongside the
+  existing repository, URL, head name, base name, merged state, merge OID and
+  GitHub verification checks.
+
+### Evidence
+
+The wrong-head lifecycle guard was red before the fix: a PR with every other
+field correct completed the run. It now refuses. The focused positive and
+absent, malformed and duplicate remote-ref cases pass, and the fresh lifecycle
+uses the same remote topology. Versions and the held frontier are unchanged;
+no remote mutation was performed.
+
+## Fiat delegation packets, step 3, round 3 -- 2026-08-21
+
+### Finding
+
+I320-S3-R3-01 (high), open at
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1444-1453`: integration now
+binds the PR head to the remote run-branch tip, but does not bind that tip to
+the last step merge recorded by the controller. After recording step merge
+`eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee`, a probe replaced the remote tip
+and PR head with `8888888888888888888888888888888888888888`; every other PR
+and verification field matched, and `done integrate` returned 0. Require the
+remote run tip to equal the final recorded step merge before integration.
+
+### Replay and gates
+
+The R2 wrong-head guard is red against
+`afd180dae569a7a24df1c8e5d624685f6c5e56d8` and green at
+`5f076d66e5c37435f74dd8dd7127b794eedf748f`. Remote-tip parsing accepts one
+exact full SHA and matching ref and refuses absent, malformed and duplicate
+results. Repository, PR, local signature, trailer, GitHub predicate and
+secret-safe error controls show no further bypass in this bounded review.
+
+The Step 3 focused set passes 205/205, the lifecycle 1/1, root tests 104/104
+and Hexaemeron 625/625. Promise Machine reports 14 plugins and 14 copies
+clean. Both Protasis modes, Imprimatur, every per-file Brevitas check, Phylax,
+Ephoros, Hypomnema, Horos and the folded diff check exit 0. Fix commit
+`5f076d66e5c37435f74dd8dd7127b794eedf748f` has a good local signature and
+exactly one required co-author and origin trailer.
+
+`merge-origin-confusion` and `remote-verification-gap` remain open only through
+I320-S3-R3-01. The other eight risk ids are clean in the folded diff.
+
+Further leads: none beyond I320-S3-R3-01.
+
+## Fiat delegation packets, step 3, round 3 resolution -- 2026-08-21
+
+### Fix
+
+I320-S3-R3-01 is closed. `done integrate` reads the last step's recorded
+`merge_commit`, requires it to be a full SHA, and refuses unless it equals the
+exact remote run-branch tip. The existing PR inspection then requires its
+`headRefOid` to equal that same tip before the integration merge can be
+receipted. The terminal receipt records both `run_head` and
+`final_step_merge`, which must therefore be identical.
+
+### Evidence
+
+The divergent recorded-step/remote-tip guard was red before the fix: a remote
+tip and PR head that agreed with each other but not with the last step receipt
+completed the run. It now refuses. The fresh lifecycle records the last step
+merge as both terminal head fields and remains green. Versions and the held
+frontier are unchanged; no remote mutation was performed.
+
+## Fiat delegation packets, step 3, round 4 -- 2026-08-21
+
+### Verdict
+
+Zero findings. I320-S3-R3-01 is closed, and no further leads remain.
+
+### Replay and bounded review
+
+The recorded-step/remote-tip divergence guard is red against
+`5f076d66e5c37435f74dd8dd7127b794eedf748f` and green at
+`e037a895cda39a1505d5c98e2c16fd55b1ea2bf8`. Integration now requires one full
+SHA to be identical across the final recorded step merge, the exact remote
+run-branch tip and the integration PR head OID. The PR repository, URL, head
+and base names, merged state and merge OID remain independently bound, and the
+merge SHA still requires GitHub's exact valid verification result.
+
+The final bounded signing review found no gap in the owned local ranges,
+intermediate commit enumeration, branch-tip checks, exact trailer counts,
+local signature checks, remote repository identity, pushed PR topology,
+step-merge topology, input validation, resource caps, no-shell execution or
+secret-safe refusals. Legacy null packets, source-bound delegation and the
+published generation and frontier identities remain unchanged.
+
+### Gates
+
+The Step 3 focused set passes 206/206, the lifecycle 1/1, root tests 104/104
+and Hexaemeron 626/626. Promise Machine reports 14 plugins and 14 copies
+clean. Both Protasis modes, Imprimatur, every per-file Brevitas check, Phylax,
+Ephoros, Hypomnema, Horos and the folded diff check exit 0. Fix commit
+`e037a895cda39a1505d5c98e2c16fd55b1ea2bf8` has a good local signature and
+exactly one required co-author and origin trailer.
+
+All ten study risk ids are clean in the folded Step 3 diff.
+
+Further leads: none.
+
+## Fiat delegation packets, post-push merge incident -- 2026-08-21
+
+### Incident
+
+The live controller remained in `integrate` after the reported
+`done merge-step --step 1 --merge-commit 570ad2...` attempt refused with
+`recorded step pull request has no verified head`. No controller transition
+occurred. Work stopped at that receipt; this repair did not retry it.
+
+### Cause and fix
+
+- Step pull requests created before the verification receipt shipped can name
+  the exact PR but carry no `verified_commits` or `github_verified` list.
+- A signed repair committed after push can also make those recorded lists
+  stale even though the PR now names the repaired head.
+- At merge time the controller now inspects the exact recorded PR and merged
+  topology, resolves the exact remote step-branch head, and requires both to
+  agree. When the push evidence is missing or stale, it verifies every local
+  commit and exact trailer in the recorded `pr_base..head` range, then requires
+  GitHub `verified: true` with `reason: valid` for every SHA. Only that earned
+  evidence becomes the merge receipt's `effective_push`; the old push receipt
+  is not rewritten.
+
+### Red-to-green evidence
+
+The missing-legacy-evidence and signed-post-push-head guards both failed on the
+old controller and now pass. Invalid local signature, invalid GitHub
+verification, remote/PR head disagreement and PR topology mismatch all refuse.
+The ordinary lifecycle records `repaired: false`. Versions and the held
+frontier are unchanged, and no controller or remote state was mutated.

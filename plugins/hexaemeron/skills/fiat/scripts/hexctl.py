@@ -513,6 +513,19 @@ def current_step(state: dict) -> dict:
     die(f"state corrupt: current_step={n} not found; run `hexctl verify`", 1)
 
 
+def last_local_commit(step: dict):
+    """The last commit whose local signature and trailers were receipted."""
+    for round_entry in reversed(as_dict(step.get("audit")).get("rounds") or []):
+        verified = as_dict(round_entry).get("verified_commits") or []
+        if verified:
+            return verified[-1]
+    implement = as_dict(as_dict(step.get("receipts")).get("implement"))
+    verified = implement.get("verified_commits") or []
+    if verified:
+        return verified[-1]
+    return implement.get("commit")
+
+
 def require_global_phase(state: dict, phase: str) -> None:
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
@@ -996,10 +1009,23 @@ def done_implement(args, state: dict) -> None:
                 f"--branch must be '{expected}', chained off "
                 f"'{step_pr_base(state, step)}'; got '{args.branch}'"
             )
+    range_base = step_pr_base(state, step) if run_branch_of(state) else state["base"]
+    branch_tip = resolved_commit(
+        args.dir, args.branch, f"step {step['n']} implementation branch"
+    )
+    supplied_head = resolved_commit(
+        args.dir, args.commit, f"step {step['n']} implementation head"
+    )
+    if branch_tip != supplied_head:
+        die(f"step {step['n']} implementation head is not the declared branch tip")
+    verified_commits = verify_local_range(
+        args.dir, range_base, args.commit, f"step {step['n']} implementation"
+    )
     step["receipts"]["implement"] = {
         "branch": args.branch,
         "commit": args.commit,
         "tests": args.tests,
+        "verified_commits": verified_commits,
     }
     step["phase"] = "audit"
     commit(
@@ -1010,6 +1036,7 @@ def done_implement(args, state: dict) -> None:
             "step": step["n"],
             "branch": args.branch,
             "commit": args.commit,
+            "verified_commits": verified_commits,
             "legacy_issue_phase_skipped": legacy_phase,
         },
     )
@@ -1063,11 +1090,20 @@ def cmd_audit_round(args) -> None:
             + "; a non-zero lint exit is a finding like any other"
         )
 
+    verified_commits = []
+    if args.fixes_commit:
+        base = last_local_commit(step)
+        if not base:
+            die(f"step {step['n']} has no verified implementation commit")
+        verified_commits = verify_local_range(
+            args.dir, base, args.fixes_commit, f"step {step['n']} audit fixes"
+        )
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
         "log": args.log,
         "fixes_commit": args.fixes_commit,
+        "verified_commits": verified_commits,
         "lints": recorded or None,
         "ts": now(),
     }
@@ -1109,6 +1145,18 @@ def done_audit(args, state: dict) -> None:
             "findings were recorded but no fixes reference exists; pass "
             "--fixes-ref or record fixes commits on the rounds"
         )
+    verified_fixes = []
+    recorded_fix = next(
+        (r.get("fixes_commit") for r in reversed(rounds) if r.get("fixes_commit")),
+        None,
+    )
+    if fixes_ref and fixes_ref != recorded_fix:
+        base = last_local_commit(step)
+        if not base:
+            die(f"step {step['n']} has no verified commit before its fixes reference")
+        verified_fixes = verify_local_range(
+            args.dir, base, fixes_ref, f"step {step['n']} audit closure fixes"
+        )
     step["receipts"]["audit"] = {
         "rounds": len(rounds),
         "clean": clean,
@@ -1116,6 +1164,7 @@ def done_audit(args, state: dict) -> None:
         "reason": args.reason,
         "fixes_ref": fixes_ref,
         "log": args.log or last.get("log"),
+        "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
     commit(
@@ -1190,12 +1239,43 @@ def done_push(args, state: dict) -> None:
                 "--closed-issue-url does not match the recorded task_issue "
                 f"({expected_issue})"
             )
+    range_base = args.pr_base if stacked else state["base"]
+    branch = (
+        step_branch_name(state, step)
+        if stacked
+        else as_dict(step["receipts"].get("implement")).get("branch")
+    )
+    if not isinstance(branch, str) or not branch:
+        die("step push has no recorded implementation branch")
+    branch_tip = resolved_commit(args.dir, branch, f"step {step['n']} pushed branch")
+    supplied_head = resolved_commit(args.dir, args.head_commit, f"step {step['n']} push head")
+    if branch_tip != supplied_head:
+        die(f"step {step['n']} push head is not the pushed branch tip")
+    verified_commits = verify_local_range(
+        args.dir, range_base, args.head_commit, f"step {step['n']} push"
+    )
+    pr_record = inspect_pull_request(
+        args.dir,
+        args.pr_url,
+        expected_head=branch,
+        expected_base=(args.pr_base if stacked else state["base"]),
+        expected_head_sha=verified_commits[-1],
+        expected_merge_sha=args.merge_commit,
+    )
+    github_verified = verify_github_commits(args.dir, verified_commits)
+    merge_verified = []
+    if args.merge_commit:
+        merge_verified = verify_github_commits(args.dir, [args.merge_commit])
     step["receipts"]["push"] = {
         "pr_url": args.pr_url,
         "head_commit": args.head_commit,
         "pr_base": args.pr_base,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
+        "verified_commits": verified_commits,
+        "github_verified": github_verified,
+        "github_merge_verified": merge_verified,
+        "pull_request": pr_record,
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -1280,12 +1360,66 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    step = state["steps"][args.step - 1]
+    push_receipt = as_dict(step["receipts"].get("push"))
+    pr_record = inspect_pull_request(
+        args.dir,
+        pending["pr_url"],
+        expected_head=pending["branch"],
+        expected_base=pending["into"],
+        expected_head_sha=None,
+        expected_merge_sha=args.merge_commit,
+    )
+    remote_head = remote_branch_tip(args.dir, pending["branch"])
+    if pr_record["head_sha"] != remote_head:
+        die("recorded pull request head does not match its remote branch tip")
+    recorded_local = push_receipt.get("verified_commits")
+    recorded_github = push_receipt.get("github_verified")
+    recorded_current = (
+        isinstance(recorded_local, list)
+        and isinstance(recorded_github, list)
+        and recorded_local == recorded_github
+        and bool(recorded_local)
+        and all(isinstance(sha, str) and COMMIT_RE.fullmatch(sha) for sha in recorded_local)
+        and recorded_local[-1] == remote_head
+    )
+    if recorded_current:
+        effective_push = {
+            "repaired": False,
+            "pr_base": push_receipt.get("pr_base"),
+            "head": remote_head,
+            "verified_commits": recorded_local,
+            "github_verified": recorded_github,
+        }
+    else:
+        expected_pr_base = step_pr_base(state, step)
+        pr_base = push_receipt.get("pr_base")
+        if not isinstance(pr_base, str) or pr_base != expected_pr_base:
+            die("recorded step pull request has no exact PR base for repair")
+        repaired_local = verify_local_range(
+            args.dir,
+            pr_base,
+            remote_head,
+            f"step {step['n']} merge-time push repair",
+        )
+        repaired_github = verify_github_commits(args.dir, repaired_local)
+        effective_push = {
+            "repaired": True,
+            "pr_base": pr_base,
+            "head": remote_head,
+            "verified_commits": repaired_local,
+            "github_verified": repaired_github,
+        }
+    github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
     integrate.setdefault("merged", []).append(args.step)
     integrate.setdefault("merges", {})[str(args.step)] = {
         "branch": pending["branch"],
         "into": pending["into"],
         "merge_commit": args.merge_commit,
+        "github_verified": github_verified,
+        "pull_request": pr_record,
+        "effective_push": effective_push,
     }
     commit(
         args.dir,
@@ -1296,6 +1430,9 @@ def done_merge_step(args, state: dict) -> None:
             "branch": pending["branch"],
             "into": pending["into"],
             "merge_commit": args.merge_commit,
+            "github_verified": github_verified,
+            "pull_request": pr_record,
+            "effective_push": effective_push,
         },
     )
     remaining = len(state["steps"]) - len(integrate["merged"])
@@ -1345,6 +1482,23 @@ def done_integrate(args, state: dict) -> None:
     carried = carried_forward_fault(run_pr_path(args.dir))
     if carried:
         die(carried)
+    remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
+    recorded_tip = require_full_sha(final_merge, "final recorded step merge")
+    if remote_tip != recorded_tip:
+        die("remote run branch tip does not match the final recorded step merge")
+    pr_record = inspect_pull_request(
+        args.dir,
+        args.pr_url,
+        expected_head=run_branch_of(state),
+        expected_base=state["base"],
+        expected_head_sha=remote_tip,
+        expected_merge_sha=args.merge_commit,
+        expected_head_label="remote run branch tip",
+    )
+    github_verified = verify_github_commits(args.dir, [args.merge_commit])
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
         "base": state["base"],
@@ -1352,6 +1506,10 @@ def done_integrate(args, state: dict) -> None:
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
         "carried_forward": carried_forward_record(run_pr_path(args.dir)),
+        "github_verified": github_verified,
+        "pull_request": pr_record,
+        "run_head": remote_tip,
+        "final_step_merge": recorded_tip,
     }
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
@@ -1504,18 +1662,24 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
-    """Run Git without a shell and stop on time, output or exit-status faults."""
+def bounded_tool(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    refusal: str | None = None,
+) -> bytes:
+    """Run one fixed-argv tool without exposing its output in failures."""
+    operation = f"{program} {argv[0]}" if argv else program
     try:
         process = subprocess.Popen(
-            ["git", *argv],
+            [program, *argv],
             cwd=os.path.realpath(base_dir),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=False,
         )
     except OSError as exc:
-        die(f"git {' '.join(argv)} could not start: {exc}")
+        die(f"{operation} could not start")
     assert process.stdout is not None
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
@@ -1527,7 +1691,7 @@ def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> b
             if remaining <= 0:
                 process.kill()
                 process.wait()
-                die(f"git {' '.join(argv)} timed out after {GIT_TIMEOUT} seconds")
+                die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
             events = selector.select(min(remaining, 0.1))
             if not events and process.poll() is not None:
                 events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
@@ -1540,20 +1704,287 @@ def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> b
                 if len(output) > GIT_OUTPUT_MAX:
                     process.kill()
                     process.wait()
-                    die(f"git {' '.join(argv)} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+                    die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
         returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
-        die(f"git {' '.join(argv)} timed out after {GIT_TIMEOUT} seconds")
+        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
     finally:
         selector.close()
+        process.stdout.close()
     if returncode != 0:
         if refusal is not None:
             die(refusal)
-        message = output.decode("utf-8", errors="replace").strip()
-        die(f"git {' '.join(argv)} failed with exit {returncode}: {message}")
+        die(f"{operation} failed with exit {returncode}")
     return bytes(output)
+
+
+def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
+    return bounded_tool(base_dir, "git", argv, refusal)
+
+
+def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
+    return bounded_tool(base_dir, "gh", argv, refusal)
+
+
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+COAUTHOR_TRAILER = "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>"
+ORIGIN_TRAILER = "Wildcat-Origin: shoggoth"
+
+
+def tool_text(data: bytes, label: str) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        die(f"{label} returned non-UTF-8 output")
+
+
+def resolved_commit(base_dir: str, ref: str, label: str) -> str:
+    data = bounded_git(
+        base_dir,
+        ["rev-parse", "--verify", f"{ref}^{{commit}}"],
+        f"{label} does not resolve to a commit",
+    )
+    lines = [line.strip() for line in tool_text(data, label).splitlines() if line.strip()]
+    if len(lines) != 1 or not COMMIT_RE.fullmatch(lines[0]):
+        die(f"{label} did not resolve to one full commit SHA")
+    return lines[0]
+
+
+def remote_branch_tip(base_dir: str, branch: str) -> str:
+    check_branch_name(branch)
+    expected_ref = f"refs/heads/{branch}"
+    data = bounded_git(
+        base_dir,
+        ["ls-remote", "--refs", "origin", expected_ref],
+        "remote run branch tip could not be read",
+    )
+    lines = [line for line in tool_text(data, "remote run branch tip").splitlines() if line]
+    if len(lines) != 1:
+        die("remote run branch tip must contain exactly one ref")
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        die("remote run branch tip is malformed")
+    return fields[0]
+
+
+def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
+    base = resolved_commit(base_dir, base_ref, f"{label} base")
+    head = resolved_commit(base_dir, head_ref, f"{label} head")
+    bounded_git(
+        base_dir,
+        ["merge-base", "--is-ancestor", base, head],
+        f"{label} head is not descended from its declared base",
+    )
+    data = bounded_git(
+        base_dir,
+        ["rev-list", "--reverse", f"--max-count={GIT_PATHS_MAX + 1}", f"{base}..{head}"],
+        f"{label} commit range cannot be enumerated",
+    )
+    commits = [line.strip() for line in tool_text(data, label).splitlines() if line.strip()]
+    if len(commits) > GIT_PATHS_MAX:
+        die(f"{label} commit range exceeds {GIT_PATHS_MAX} commits")
+    if any(not COMMIT_RE.fullmatch(commit) for commit in commits):
+        die(f"{label} commit range returned a malformed SHA")
+    if not commits or commits[-1] != head:
+        die(f"{label} commit range does not end at the declared head")
+    if base in commits:
+        die(f"{label} commit range includes its base")
+    return commits
+
+
+def verify_local_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
+    """Verify every locally created commit in one exact base-to-head range."""
+    commits = exact_commit_range(base_dir, base_ref, head_ref, label)
+    for commit_sha in commits:
+        bounded_git(
+            base_dir,
+            ["verify-commit", commit_sha],
+            f"{label} commit {commit_sha} has no valid local signature",
+        )
+        body = tool_text(
+            bounded_git(
+                base_dir,
+                ["show", "-s", "--no-show-signature", "--format=%B", commit_sha],
+                f"{label} commit {commit_sha} message cannot be read",
+            ),
+            f"{label} commit message",
+        )
+        lines = body.splitlines()
+        coauthors = lines.count(COAUTHOR_TRAILER)
+        origins = lines.count(ORIGIN_TRAILER)
+        if coauthors != 1:
+            die(
+                f"{label} commit {commit_sha} has {coauthors} exact Shoggoth "
+                "co-author trailers; expected 1"
+            )
+        if origins != 1:
+            die(
+                f"{label} commit {commit_sha} has {origins} exact Wildcat-Origin "
+                "trailers; expected 1"
+            )
+    return commits
+
+
+REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+GITHUB_HTTPS_RE = re.compile(
+    r"^https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+GITHUB_SSH_RE = re.compile(
+    r"^(?:git@github\.com:|ssh://git@github\.com/)(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+GITHUB_PR_RE = re.compile(
+    r"^https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pull/(?P<number>[1-9][0-9]*)/?$"
+)
+
+
+def require_full_sha(value: object, label: str) -> str:
+    if not isinstance(value, str) or not COMMIT_RE.fullmatch(value):
+        die(f"{label} must be a full commit SHA")
+    return value
+
+
+def target_repository(base_dir: str) -> str:
+    data = bounded_git(
+        base_dir,
+        ["remote", "get-url", "origin"],
+        "target origin could not be resolved",
+    )
+    lines = [line.strip() for line in tool_text(data, "target origin").splitlines() if line.strip()]
+    if len(lines) != 1:
+        die("target origin does not name one GitHub repository")
+    match = GITHUB_HTTPS_RE.fullmatch(lines[0]) or GITHUB_SSH_RE.fullmatch(lines[0])
+    if match is None:
+        die("target origin does not name one GitHub repository")
+    return match.group("repo")
+
+
+def github_repository(base_dir: str) -> str:
+    target = target_repository(base_dir)
+    data = bounded_gh(
+        base_dir,
+        ["repo", "view", "--json", "nameWithOwner"],
+        "GitHub repository identity could not be resolved",
+    )
+    try:
+        payload = json.loads(tool_text(data, "GitHub repository identity"))
+    except ValueError:
+        die("GitHub repository identity returned invalid JSON")
+    repository = payload.get("nameWithOwner") if isinstance(payload, dict) else None
+    if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
+        die("GitHub repository identity is missing nameWithOwner")
+    if repository.casefold() != target.casefold():
+        die("GitHub repository identity does not match target origin")
+    return target
+
+
+def pull_request_repository(pr_url: object, repository: str) -> str:
+    if not isinstance(pr_url, str):
+        die("pull request URL is invalid")
+    match = GITHUB_PR_RE.fullmatch(pr_url)
+    if match is None or match.group("repo").casefold() != repository.casefold():
+        die("pull request URL does not match target repository")
+    return pr_url.rstrip("/")
+
+
+def inspect_pull_request(
+    base_dir: str,
+    pr_url: object,
+    *,
+    expected_head: str,
+    expected_base: str,
+    expected_head_sha: str | None,
+    expected_merge_sha: str | None,
+    expected_head_label: str = "verified pushed branch tip",
+) -> dict:
+    head_sha = (
+        require_full_sha(expected_head_sha, "pull request head")
+        if expected_head_sha is not None
+        else None
+    )
+    merge_sha = (
+        require_full_sha(expected_merge_sha, "pull request merge")
+        if expected_merge_sha is not None
+        else None
+    )
+    repository = github_repository(base_dir)
+    url = pull_request_repository(pr_url, repository)
+    data = bounded_gh(
+        base_dir,
+        [
+            "pr", "view", url, "--repo", repository, "--json",
+            "url,state,headRefName,headRefOid,baseRefName,mergeCommit",
+        ],
+        "pull request topology could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, "pull request topology"))
+    except ValueError:
+        die("pull request topology returned invalid JSON")
+    if not isinstance(payload, dict):
+        die("pull request topology is invalid")
+    returned_url = payload.get("url")
+    if not isinstance(returned_url, str):
+        die("pull request topology is missing its URL")
+    pull_request_repository(returned_url, repository)
+    if returned_url.rstrip("/") != url:
+        die("pull request topology did not name the recorded pull request")
+    if payload.get("headRefName") != expected_head or payload.get("baseRefName") != expected_base:
+        die("pull request topology does not match the expected head and base")
+    returned_head = payload.get("headRefOid")
+    if not isinstance(returned_head, str) or not COMMIT_RE.fullmatch(returned_head):
+        die("pull request topology has no full head SHA")
+    if head_sha is not None and returned_head != head_sha:
+        die(f"pull request head does not match the {expected_head_label}")
+    merge = payload.get("mergeCommit")
+    returned_merge = merge.get("oid") if isinstance(merge, dict) else None
+    if merge_sha is not None:
+        if payload.get("state") != "MERGED" or returned_merge != merge_sha:
+            die("pull request is not the expected merged topology")
+    elif payload.get("state") == "MERGED":
+        die("step pull request was already merged before integrate")
+    return {
+        "url": url,
+        "head": expected_head,
+        "base": expected_base,
+        "head_sha": returned_head,
+        "state": payload.get("state"),
+        "merge_sha": returned_merge,
+    }
+
+
+def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
+    """Require GitHub's valid verification result for each exact SHA."""
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
+    repository = github_repository(base_dir)
+    verified = []
+    for commit_sha in commits:
+        data = bounded_gh(
+            base_dir,
+            ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
+            f"GitHub verification for {commit_sha} could not be read",
+        )
+        try:
+            payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
+        except ValueError:
+            die(f"GitHub verification for {commit_sha} returned invalid JSON")
+        if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+            die(f"GitHub verification response did not name exact SHA {commit_sha}")
+        commit = payload.get("commit")
+        verification = commit.get("verification") if isinstance(commit, dict) else None
+        if not isinstance(verification, dict):
+            die(f"GitHub verification for {commit_sha} is missing")
+        if verification.get("verified") is not True:
+            die(f"GitHub verification for {commit_sha} is not verified:true")
+        if verification.get("reason") != "valid":
+            die(f"GitHub verification for {commit_sha} reason is not valid")
+        verified.append(commit_sha)
+    return verified
 
 
 def scribe_files(base_dir: str, pr_base: str, branch: str) -> list[str]:
