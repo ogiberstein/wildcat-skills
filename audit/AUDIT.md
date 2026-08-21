@@ -6035,3 +6035,12 @@ Leads not pursued: none
 ### Resolution: E319-S1-R1-01 -- 2026-08-21
 
 Resolved on the audit branch by regenerating `.horos/boundary.json` after the two specification documents were tracked. The committed document and a fresh tracked-universe scan are now byte-identical at 1,369 files walked, with 89 classified entries and none unreadable. The complete step-1 gate set remains clean: document copies, Protasis, Imprimatur, per-file Brevitas, Promise Machine, evolution 18/18, root 104/104, Hexaemeron 548/548, boundary currency 4/4, diff check and the Phylax, Ephoros and Hypomnema tree lints all exit 0. No new leads.
+
+## Ephoros alert-runbook annotations, step 1, round 2 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Re-reviewed the folded scope `0bfad60bb482245dd08d9747139d26824392a2c7..04c0df48073f79efe82e6e9999b87344e7a80e40`, including the two specification documents, corrected Horos boundary and round-1 audit history. The boundary and a fresh tracked-universe scan are byte-identical at 1,369 files walked, with 89 classified entries and none unreadable. Both documents remain byte-identical to the receipted copies. Protasis, Imprimatur, per-file Brevitas, Promise Machine, evolution 18/18, root 104/104, Hexaemeron 548/548, boundary currency 4/4, diff check and the Phylax, Ephoros and Hypomnema tree lints all exit 0.
+
+No further leads remain.
