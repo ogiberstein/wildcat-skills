@@ -254,7 +254,7 @@
     },
     "hypomnema-record-placement": {
       "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md",
-      "sha256": "9936f86ae7ebf5a9bf90baedf076a0c13fc13ce62050555e953cfb41160eacd6",
+      "sha256": "d7c0e071f93743f4f3a44eafb5cad28aae6ca5881121df7a10dac9e78e8435dc",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "named decision and changed repository surface",
