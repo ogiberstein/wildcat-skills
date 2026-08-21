@@ -6575,3 +6575,46 @@ tree and diff gates pass.
 ### Boundary
 
 No Step 3 signing, remote, version or publication rule is changed.
+
+## Fiat delegation packets, step 2, round 2 -- 2026-08-21
+
+### Verdict
+
+Zero findings. I320-S2-R1-01 and I320-S2-R1-02 are closed, with no further
+leads.
+
+### Red-to-green evidence
+
+The two round-1 guards were replayed unchanged against pre-fix commit
+`6d9a69bf90eec1b353d417d133ba7f01036134e7`: selector parity errored on the
+Protasis-accepted trailing-space heading, and the Warden guard failed because
+the invalid assembled branch was emitted. The same guards pass 2/2 at fix
+`0f9ec96217ad917b5aa9bbb99eaa9d81cf9f62ab`. The selector test also exercises
+the Protasis-accepted spaced `risk-register` opener. The fix commit has a good
+local signature and exactly one required co-author and origin trailer.
+
+### Bounded review
+
+The folded packet diff was rechecked against the four agent contracts and the
+study risk register. The exact Surveyor, Mason, Warden and Scribe schemas,
+total null envelope, state and artefact binding, duplicate selectors,
+containment and size caps, deterministic reconstruction, legacy null packet,
+Scribe range and sort, and bounded no-shell Git remain intact. The complete
+Warden ref is now checked before emission, and the source selectors accept the
+same spacing forms as Protasis without admitting fenced decoys.
+
+`packet-state-drift`, `artefact-drift`, `protasis-grammar-drift`,
+`file-range-confusion`, `subprocess-control`, `legacy-state-overclaim` and
+`path-escape` are closed by the reviewed implementation and evidence.
+`local-signature-gap` is closed for the fix. `remote-verification-gap` and
+`merge-origin-confusion` remain inapplicable before push and merge.
+
+### Gates
+
+The two focused guards pass 2/2, the packet-focused suites 161/161, the full
+Hexaemeron suite 612/612 and root tests 104/104. Promise Machine reports 14
+plugins and 14 copies clean. Both Protasis modes, Imprimatur, all four
+per-file Brevitas checks, Phylax, Ephoros, Hypomnema, Horos and the folded diff
+check exit 0.
+
+Further leads: none.
