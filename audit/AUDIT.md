@@ -6111,3 +6111,14 @@ Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
 Hypomnema each exit 0 over their required trees. All other YAML behaviour,
 finding codes, ownership, versions and held frontier digests are unchanged.
 No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 3 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R3-01 | medium | `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Hypomnema's separate YAML comment splitter still treats every unquoted `#` as a comment marker. An alert pointer such as `runbook: runbooks/missing#book.md` is accepted by Ephoros as a relative Markdown annotation, then truncated before `.md` and ignored by H003, so the missing target passes both ownership gates. | open |
+| E319-S2-R3-02 | low | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | The YAML/Python directory walk does not require discovered paths to be files. A directory whose name ends in `.yaml`, `.yml` or `.py` is passed to `check()` and produces E000 instead of being left outside the source set; Hypomnema's parallel walk already guards this boundary with `is_file()`. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..ed3785f0b6669b9c45a9ffa4874b8569984628c8`. Both round-2 guards were run against `a0af48ee6f162b7602414105a59e26929863627a` in memory and failed once each; both pass against the fixed tree. The exact round-2 suppression cases are closed, but the remaining YAML boundary probes found the two cases above. Focused tests pass 105/105; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 578/578. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, E004/H003 ownership, unchanged H007 and both ordinary-generation frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R3-01 and E319-S2-R3-02.
