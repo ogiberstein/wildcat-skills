@@ -6772,3 +6772,37 @@ field correct completed the run. It now refuses. The focused positive and
 absent, malformed and duplicate remote-ref cases pass, and the fresh lifecycle
 uses the same remote topology. Versions and the held frontier are unchanged;
 no remote mutation was performed.
+
+## Fiat delegation packets, step 3, round 3 -- 2026-08-21
+
+### Finding
+
+I320-S3-R3-01 (high), open at
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1444-1453`: integration now
+binds the PR head to the remote run-branch tip, but does not bind that tip to
+the last step merge recorded by the controller. After recording step merge
+`eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee`, a probe replaced the remote tip
+and PR head with `8888888888888888888888888888888888888888`; every other PR
+and verification field matched, and `done integrate` returned 0. Require the
+remote run tip to equal the final recorded step merge before integration.
+
+### Replay and gates
+
+The R2 wrong-head guard is red against
+`afd180dae569a7a24df1c8e5d624685f6c5e56d8` and green at
+`5f076d66e5c37435f74dd8dd7127b794eedf748f`. Remote-tip parsing accepts one
+exact full SHA and matching ref and refuses absent, malformed and duplicate
+results. Repository, PR, local signature, trailer, GitHub predicate and
+secret-safe error controls show no further bypass in this bounded review.
+
+The Step 3 focused set passes 205/205, the lifecycle 1/1, root tests 104/104
+and Hexaemeron 625/625. Promise Machine reports 14 plugins and 14 copies
+clean. Both Protasis modes, Imprimatur, every per-file Brevitas check, Phylax,
+Ephoros, Hypomnema, Horos and the folded diff check exit 0. Fix commit
+`5f076d66e5c37435f74dd8dd7127b794eedf748f` has a good local signature and
+exactly one required co-author and origin trailer.
+
+`merge-origin-confusion` and `remote-verification-gap` remain open only through
+I320-S3-R3-01. The other eight risk ids are clean in the folded diff.
+
+Further leads: none beyond I320-S3-R3-01.
