@@ -7454,3 +7454,44 @@ The review covered all 8 source-bound risks: `ts-lexer-input`,
 this documents-only step records them without implementing or weakening any.
 
 Leads not pursued: none.
+
+## Ephoros wallet-address telemetry, step 2, round 1 -- 2026-08-21
+
+The exact range `485023a30468f898068454fb92e10ae2b547a604..a88b649c1993c95babe2d848c220efc1e4f966bc`
+holds the E005 recognisers in Python and block-YAML, ten fixtures under
+`telemetry-keys/` and 21 new checker tests. No Solidity changed, so the
+recorded security-suite waiver applies and the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Phylax, Ephoros and Hypomnema each exit 0. The focused checker suite passes
+67/67, the Hexaemeron suite 661/661 and the root suite 107/107. The step head
+has a valid local signature and exactly one of each required Shoggoth trailer.
+
+The review ran roughly seventy adversarial specimens against the checker
+beyond the committed tests. The register ids in this step's reach were each
+worked by execution: `e002-reassignment` (overlap labels such as
+`wallet_hash` and `address_url` yield exactly one code, E005; `tx_hash` keeps
+E002; a mixed label set yields one of each), `yaml-label-keys` (25 probes:
+block scalars, quoted keys, list forms, flow mappings, comment interruptions,
+alert-boundary containment and `annotations:` nesting all behave inside the
+E004 subset, and E004 and E005 co-fire where both apply), `suppression-parity`
+in its Python half (a reasoned pragma on the line and the line above
+suppresses all three shapes, a bare pragma suppresses none, and pragma-shaped
+text inside scalars is inert) and `fixture-exclusion` (the walk reaches zero
+`telemetry-keys/` files while an identical specimen outside a fixtures
+directory is caught, exit 1). A parent-to-head differential over every
+pre-existing fixture shows E001 to E004 unmoved; the one modified test is the
+sanctioned E002-to-E005 guard re-pin. `ts-lexer-input`, the TypeScript half of
+`suppression-parity`, `false-positive-cache-keys` and `walk-widening` are not
+applicable until step 3 opens that surface.
+
+Leads not pursued: the `s?` suffix shared by `ADDRESS_KEY` and the
+pre-existing `UNBOUNDED` regex misses `-es` plurals such as `addresses` and
+`hashes`, a checker-wide lexical gap that predates this commit and belongs to
+a deliberate rule-widening decision; the E005 message says wallet address for
+any `address`-fragment key such as `ip_address`, a wording the SKILL.md prose
+in step 4 should state; nested mappings under `labels:` pass silently because
+recognition is direct-children-only, worth a line in the same step 4 prose.
