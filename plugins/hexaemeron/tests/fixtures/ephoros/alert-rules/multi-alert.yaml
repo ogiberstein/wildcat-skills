@@ -1,0 +1,8 @@
+groups:
+  - name: submissions
+    rules:
+      - alert: AnnotatedAlert
+        annotations:
+          runbook: runbooks/pending-submission-too-old.md
+      - alert: UnannotatedNeighbour
+        expr: failures > 0

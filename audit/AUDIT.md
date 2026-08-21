@@ -6021,3 +6021,326 @@ marketplace prose 13/13. Promise Machine checks 14 plugins and copies clean;
 Horos scans 1,360 files with 89 classified entries and none unreadable.
 
 Leads not pursued: none
+
+## Ephoros alert-runbook annotations, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S1-R1-01 | low | `.horos/boundary.json` | The committed tracked-universe document reports 1,367 files walked; a fresh scan of the committed step tree reports 1,369. Removing only `counts.files_walked` makes the documents byte-identical, so the hard boundary is current but its published walk count omits the two tracked study/runbook files. | open |
+
+Scope: `0bfad60bb482245dd08d9747139d26824392a2c7..a8f2a13f9143b0335cba514c4ef0f9dd9afa34ed`, limited to the two tracked specification documents and regenerated Horos boundary. Both documents are byte-identical to the receipted working copies; Protasis study/runbook, Imprimatur, per-file Brevitas and diff checks exit 0. Phylax, Ephoros and Hypomnema tree lints each exit 0. Evolution 18/18, root 104/104 and Hexaemeron 548/548 pass; Promise Machine reports 14 plugins and copies clean. The step commit has a good local signature and exactly one required co-author and origin trailer.
+
+Leads not pursued: none
+
+### Resolution: E319-S1-R1-01 -- 2026-08-21
+
+Resolved on the audit branch by regenerating `.horos/boundary.json` after the two specification documents were tracked. The committed document and a fresh tracked-universe scan are now byte-identical at 1,369 files walked, with 89 classified entries and none unreadable. The complete step-1 gate set remains clean: document copies, Protasis, Imprimatur, per-file Brevitas, Promise Machine, evolution 18/18, root 104/104, Hexaemeron 548/548, boundary currency 4/4, diff check and the Phylax, Ephoros and Hypomnema tree lints all exit 0. No new leads.
+
+## Ephoros alert-runbook annotations, step 1, round 2 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Re-reviewed the folded scope `0bfad60bb482245dd08d9747139d26824392a2c7..04c0df48073f79efe82e6e9999b87344e7a80e40`, including the two specification documents, corrected Horos boundary and round-1 audit history. The boundary and a fresh tracked-universe scan are byte-identical at 1,369 files walked, with 89 classified entries and none unreadable. Both documents remain byte-identical to the receipted copies. Protasis, Imprimatur, per-file Brevitas, Promise Machine, evolution 18/18, root 104/104, Hexaemeron 548/548, boundary currency 4/4, diff check and the Phylax, Ephoros and Hypomnema tree lints all exit 0.
+
+No further leads remain.
+
+## Ephoros alert-runbook annotations, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R1-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | E004 suppression searches the raw alert line and its raw predecessor. A pragma-shaped string in a quoted scalar, or the last line of a block scalar immediately above an unannotated alert, therefore suppresses E004 even though it is not a YAML comment. | open |
+| E319-S2-R1-02 | low | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | `BLOCK_SCALAR` recognises only a mapping-key header containing `:`. A valid bare sequence scalar such as `- |` or `- >` is not entered as scalar content, so an example `- alert:` or `runbook:` line in its body produces E004 or H003. | open |
+| E319-S2-R1-03 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Both YAML paths call `Path.read_bytes()` before comparing the result with `MAX_YAML_BYTES`. Oversize inputs fail visibly, but the process has already read the complete caller-named file into memory, so the promised 1 MiB read boundary is not enforced. | open |
+| E319-S2-R1-04 | low | `.horos/boundary.json` | The step did not regenerate the tracked-tree document after adding seven fixtures. The committed boundary reports 1,369 files walked and a fresh tracked scan reports 1,376; removing only `counts.files_walked` makes the documents byte-identical. | open |
+| E319-S2-R1-05 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | The `alert`, `annotations` and `runbook` key recognisers are case-insensitive. Consequently `- Alert:` is classified although it is outside the exact supported key shape, while an exact `alert:` entry carrying `Annotations.Runbook` passes E004 even though it lacks the required lowercase nested keys. | open |
+
+Scope: `3b2d58955d483586f326ab68ed73994532a0d7bf..cefd3735b447cd916b086881aaff936c0d9cf7f5`, the complete folded step-2 diff. Focused checker tests pass 96/96; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 569/569. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and the Phylax, Ephoros and Hypomnema tree lints exit 0. The boundary-currency unit module passes 4/4 because its comparison names entry drift but does not compare `counts.files_walked`; the direct fresh-document comparison above fails. The step commit has a good local signature and exactly one required co-author and origin trailer. The two generation rows retain their prior frontier revisions, digests, statuses and held jobs, and H007 is unchanged.
+
+Leads not pursued: non-HTTP URI schemes and unquoted hashes in plain scalar paths remain outside the documented relative-path prototype; neither changes the five findings above.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 1 -- 2026-08-21
+
+All five findings are resolved on the audit branch. E319-S2-R1-01 now derives
+E004 suppression only from reasoned YAML comments outside quoted and block
+scalar text. E319-S2-R1-02 extends both bounded lexers to recognise bare
+sequence block scalars introduced by `- |` and `- >`. E319-S2-R1-03 replaces
+whole-file `read_bytes()` calls with one binary read capped at 1 MiB plus one
+byte, and guards the requested read size. E319-S2-R1-04 regenerates the Horos
+document over 1,376 tracked files with 89 entries and none unreadable.
+E319-S2-R1-05 makes the supported YAML keys exact-case, so `Alert`,
+`Annotations` and `Runbook` remain outside the lowercase prototype.
+
+The seven new guard tests were observed red before the fixes: the focused
+suite ran 103 tests with ten assertion failures covering the two scalar
+markers and two suppression specimens separately. After repair, the focused
+suite passes 103/103, evolution and version propagation 23/23, marketplace
+prose 13/13, root 104/104 and Hexaemeron 576/576. Protasis accepts both
+documents; Imprimatur and per-file Brevitas accept the six named prose files;
+Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
+Hypomnema each exit 0 over their required trees. E000 to E004 and H000 to H007
+retain their ownership and numbers, H007 is unchanged, and both held frontier
+digests remain unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 2 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R2-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | `_split_yaml_comment` treats every unquoted `#` as a comment marker, although a hash without separating whitespace remains plain-scalar content. A preceding list item such as `- note: literal# ephoros: allow not-a-comment` therefore suppresses E004 on the next unannotated alert. | open |
+| E319-S2-R2-02 | low | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | `_yaml_allow_lines` handles a comment-only line before checking whether its indentation ended the active block scalar. A real dedented reasoned comment immediately after a scalar and immediately before an alert is therefore discarded as scalar text, and the documented E004 suppression does not apply. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..89bff0f5a5415cf9900efd26d7121cffe6225763`. All seven round-1 regression tests were run against `ba37b42d5890ca45e59d24f5034b32e4dfe9ddb4` in memory and produced ten failures; the same seven pass against the fixed tree. This closes the five exact round-1 specimens, including capped reads and boundary identity, but the two adjacent suppression-state cases above remain open. Focused tests pass 103/103; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 576/576. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Ownership remains E004 presence, H003 pointer existence and unchanged H007 Markdown shape; both ordinary-generation frontier digests remain unchanged.
+
+Further leads: none beyond E319-S2-R2-01 and E319-S2-R2-02.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 2 -- 2026-08-21
+
+Both findings are resolved on the audit branch. E319-S2-R2-01 now recognises
+an unquoted `#` as a YAML comment marker only at the start of a line or after
+separating whitespace, so pragma-shaped plain-scalar content cannot suppress
+E004. E319-S2-R2-02 checks a comment-only line's indentation against active
+block-scalar state first, so a genuinely dedented reasoned comment exits the
+scalar and can suppress the alert immediately below it.
+
+The two guards were observed red before repair: the focused suite ran 105
+tests with two failures, one for each mechanism. After repair, the focused
+suite passes 105/105, evolution and version propagation 23/23, marketplace
+prose 13/13, root 104/104 and Hexaemeron 578/578. Protasis accepts both
+documents; Imprimatur and per-file Brevitas accept the six named prose files;
+Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
+Hypomnema each exit 0 over their required trees. All other YAML behaviour,
+finding codes, ownership, versions and held frontier digests are unchanged.
+No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 3 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R3-01 | medium | `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Hypomnema's separate YAML comment splitter still treats every unquoted `#` as a comment marker. An alert pointer such as `runbook: runbooks/missing#book.md` is accepted by Ephoros as a relative Markdown annotation, then truncated before `.md` and ignored by H003, so the missing target passes both ownership gates. | open |
+| E319-S2-R3-02 | low | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py` | The YAML/Python directory walk does not require discovered paths to be files. A directory whose name ends in `.yaml`, `.yml` or `.py` is passed to `check()` and produces E000 instead of being left outside the source set; Hypomnema's parallel walk already guards this boundary with `is_file()`. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..ed3785f0b6669b9c45a9ffa4874b8569984628c8`. Both round-2 guards were run against `a0af48ee6f162b7602414105a59e26929863627a` in memory and failed once each; both pass against the fixed tree. The exact round-2 suppression cases are closed, but the remaining YAML boundary probes found the two cases above. Focused tests pass 105/105; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 578/578. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, E004/H003 ownership, unchanged H007 and both ordinary-generation frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R3-01 and E319-S2-R3-02.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 3 -- 2026-08-21
+
+Both findings are resolved on the audit branch. E319-S2-R3-01 gives
+Hypomnema the same whitespace-bounded YAML comment marker as Ephoros, so the
+plain-scalar path `runbooks/missing#book.md` remains whole and emits H003 when
+absent; the paired E004 presence guard stays clean. E319-S2-R3-02 now requires
+recursive Ephoros walk candidates to be files, leaving suffix-matching
+directories outside the checker input set.
+
+The two fault guards were observed red before repair: the focused suite ran
+108 tests with two failures, one for each finding. After repair, the focused
+suite passes 108/108, evolution and version propagation 23/23, marketplace
+prose 13/13, root 104/104 and Hexaemeron 581/581. Protasis accepts both
+documents; Imprimatur and per-file Brevitas accept the six named prose files;
+Promise Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and
+Hypomnema each exit 0 over their required trees. A fresh Horos scan remains
+at 1,376 tracked files, 89 entries and none unreadable. All other semantics,
+finding codes, ownership, versions and held frontier digests are unchanged.
+No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 4 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R4-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Both bounded YAML lexers reset quote state on every physical line. In a valid multi-line single- or double-quoted scalar, alert-shaped text is therefore treated as real keys: quoted `annotations.runbook` text can satisfy E004 for an unannotated alert, quoted `- alert:` text can produce E004, and quoted `runbook:` text can produce H003. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..9e3be06a062c79138ad6aed1776ad824bf642a03`. The two round-3 fault guards were run against `3008376882d955c7a7168c013d57cbfc24d44c91` in memory and failed once each; both pass against the fixed tree, and the paired Ephoros hash-path presence guard is also green. The round-3 path and walk boundaries are closed; the remaining material YAML review found only the multi-line quoted-scalar case above. Focused tests pass 108/108; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 581/581. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 files walked, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, E004/H003 ownership, unchanged H007 and both ordinary-generation frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R4-01.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 4 -- 2026-08-21
+
+E319-S2-R4-01 is resolved on the audit branch. Both bounded YAML lexers now
+carry single- and double-quoted scalar state across physical lines. Lines
+inside those scalars cannot supply an alert, an alert annotation, a reasoned
+suppression pragma or a generic runbook pointer. Block scalar bodies remain
+opaque before quote scanning, preserving the earlier scalar boundary.
+
+The four guards cover both quote styles and were observed red before repair:
+the focused suite ran 112 tests with eight subtest failures across false E004
+alert detection, false E004 satisfaction, false E004 suppression and false
+H003 detection. After repair, the focused suite passes 112/112, evolution and
+version propagation 23/23, marketplace prose 13/13, root 104/104 and
+Hexaemeron 585/585. Protasis accepts both documents; Imprimatur and per-file
+Brevitas accept the six named prose files; Promise Machine reports 14 plugins
+and 14 copies clean; Phylax, Ephoros and Hypomnema each exit 0 over their
+required trees. All other semantics, finding codes, ownership, versions and
+held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 5 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R5-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | The cross-line quote state opens on every apostrophe or double quote, including one inside a plain scalar. A preceding value such as `O'Brien` or `six" pipe` therefore hides a later `- alert:` or `runbook:` key, allowing missing E004 or H003 evidence to pass. | open |
+| E319-S2-R5-02 | low | `plugins/hexaemeron/tests/test_ephoros_checker.py`, `audit/AUDIT.md` | The quoted-runbook-satisfaction guard is already green against the pre-fix round-4 tree. Independent replay produces six red subtests, not the eight recorded in the round-4 resolution, so this guard does not establish the claimed false-E004-satisfaction mechanism and the resolution overstates its red evidence. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..914099ab3daed011b6f147303214c7d62b3c61f6`. The four round-4 guard methods were run against `91fdc4c2904040d548b75900978c7de3c8c18af6` in memory: false alert detection, false suppression and false H003 detection produced six subtest failures across both quote styles, while the claimed false-satisfaction guard remained green. All four methods pass against the fixed tree. Direct current-tree probes then found E319-S2-R5-01 for both quote characters and both ownership gates. Focused tests pass 112/112; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 585/585. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. H007 remains unchanged; per-alert isolation, pointer base, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R5-01 and E319-S2-R5-02.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 5 -- 2026-08-21
+
+Both findings are resolved on the audit branch. E319-S2-R5-01 restricts
+cross-line quote state to a quote at a supported quoted-scalar start. An
+apostrophe or double quote embedded in a plain scalar no longer hides a later
+alert or runbook pointer, while genuine multi-line quoted scalars remain
+opaque. E319-S2-R5-02 corrects the round-4 evidence: independent replay found
+six red subtests, two each for false alert detection, false suppression and
+false H003 detection. The quoted-runbook-satisfaction guard was already green
+for both quote styles and remains a regression guard, not red evidence.
+
+The two round-5 guard methods were observed red before repair: the focused
+suite ran 114 tests with four subtest failures across both quote styles and
+both ownership gates. After repair, the focused suite passes 114/114,
+evolution and version propagation 23/23, marketplace prose 13/13, root
+104/104 and Hexaemeron 587/587. Protasis accepts both documents; Imprimatur
+and per-file Brevitas accept the six named prose files; Promise Machine
+reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema each
+exit 0 over their required trees. All other semantics, finding codes,
+ownership, versions and held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 6 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R6-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | `_yaml_quote_starts` accepts a mapping-looking colon or sequence-looking dash without requiring YAML separation before the quote. Valid plain scalars such as `- note: plain:"text` and an indented `-"text` therefore open cross-line quote state and hide later alert or runbook keys, allowing missing E004 or H003 evidence to pass. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..80a43d1be67eb9d2c71501e51fa1db97446cf829`. The two round-5 guard methods were run against `49bbe00b2d3aff9fbdd121a9a87f3984db5dcd78` in memory and produced four subtest failures, one for each quote style and ownership gate; both methods pass against the fixed tree. The four round-4 methods were also replayed against `91fdc4c2904040d548b75900978c7de3c8c18af6` and produced six subtest failures while the quoted-runbook-satisfaction guard remained green, matching the corrected audit record. Entry and exit probes for ordinary quoted scalars, escaped quotes and embedded plain-scalar quotes remain clean; the remaining material plain-scalar review found E319-S2-R6-01. Focused tests pass 114/114; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 587/587. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R6-01.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 6 -- 2026-08-21
+
+E319-S2-R6-01 is resolved on the audit branch. Both quoted-scalar start
+predicates now require YAML whitespace separation between a mapping colon or
+sequence dash and the opening quote. A quote remains valid as the first
+non-space character, but `plain:"text` and `-"text` remain plain-scalar
+content and cannot hide a later alert or runbook pointer.
+
+The two guard methods were observed red before repair: the focused suite ran
+116 tests with eight subtest failures across both unseparated shapes, both
+quote styles and both ownership gates. After repair, the focused suite passes
+116/116, evolution and version propagation 23/23, marketplace prose 13/13,
+root 104/104 and Hexaemeron 589/589. Protasis accepts both documents;
+Imprimatur and per-file Brevitas accept the six named prose files; Promise
+Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema
+each exit 0 over their required trees. All other semantics, finding codes,
+ownership, versions and held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 7 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R7-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Neither lexer tracks an active multi-line plain scalar. A continuation line whose first non-space character is an unmatched quote is valid plain-scalar content, but `_yaml_quote_starts` opens quoted-scalar state and hides the following alert or runbook key, allowing missing E004 or H003 evidence to pass. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..7114c05310bd95a072e4a3503d30096a40005d9c`. The two round-6 guard methods were run against `3588e21b3c46efa119db5b8df43375d90b3b5ce0` in memory and produced eight subtest failures across both unseparated shapes, both quote styles and both ownership gates; both methods pass against the fixed tree. The penultimate documented-subset review then reproduced E319-S2-R7-01 for both quote styles and both checkers: `- note: first` followed by an indented `"continued` is one valid plain-scalar specimen before a real alert, with a parallel top-level mapping before a real runbook pointer. Focused tests pass 116/116; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 589/589. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Quote entry separation, quote exit and escape handling, block scalars, comments, suppression scope, per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R7-01.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 7 -- 2026-08-21
+
+E319-S2-R7-01 is resolved on the audit branch. Both bounded YAML lexers now
+carry the key indentation of a supported inline plain scalar. More-indented
+continuation content is consumed before quote-start recognition, while a
+dedent ends the state before a later alert or runbook pointer. Comment lines
+remain available to the existing YAML comment and suppression handling.
+
+The two guard methods were observed red before repair: the focused suite ran
+118 tests with four subtest failures across both quote styles and both
+ownership gates. After repair, the focused suite passes 118/118, evolution
+and version propagation 23/23, marketplace prose 13/13, root 104/104 and
+Hexaemeron 591/591. Protasis accepts both documents; Imprimatur and per-file
+Brevitas accept the six named prose files; Promise Machine reports 14 plugins
+and 14 copies clean; Phylax, Ephoros and Hypomnema each exit 0 over their
+required trees. All other semantics, finding codes, ownership, versions and
+held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, round 8 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-R8-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | Both checkers bind a multi-line plain `runbook` scalar from its first physical line before discarding its continuation. With a present decoy `runbooks/present.md`, the valid YAML value `runbooks/present.md extra` therefore satisfies E004 and passes H003 even though that actual pointer is neither the checked Markdown path nor a resolving target. | open |
+
+Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..c578496aa8fa8b94e8a66a62cdce8c14b05b5016`. The two round-7 guard methods were run against `f95f35b90ed927d6c1ce44da1662c47f19221624` in memory and produced four subtest failures across both quote styles and both ownership gates; both methods pass against the fixed tree. The final documented block-YAML and folded-diff review then reproduced E319-S2-R8-01 with `runbook: runbooks/present.md` followed by a more-indented `extra`: YAML binds the folded value `runbooks/present.md extra`, Ephoros emits no E004, and Hypomnema emits no H003 when the first-line decoy exists. Focused tests pass 118/118; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 591/591. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. Lexer state transitions, suppression scope, per-alert isolation, pointer base, H007, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
+
+Further leads: none beyond E319-S2-R8-01.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 8 -- 2026-08-21
+
+E319-S2-R8-01 is resolved on the audit branch. Both bounded YAML passes now
+fold more-indented continuation text into a supported plain `runbook` value
+before Ephoros validates the annotation or Hypomnema resolves the pointer.
+The first physical line can no longer stand in for the actual YAML value;
+single-line pointers and folded pointers that name a real path remain clean.
+
+The five guard methods were observed before repair: the focused suite ran 123
+tests with four failures covering the E004 decoy, the H003 decoy and the two
+valid-fold outcomes; the single-line guard was already clean. After repair,
+the focused suite passes 123/123, evolution and version propagation 23/23,
+marketplace prose 13/13, root 104/104 and Hexaemeron 596/596. Protasis accepts
+both documents; Imprimatur and per-file Brevitas accept the six named prose
+files; Promise Machine reports 14 plugins and 14 copies clean; Phylax,
+Ephoros and Hypomnema each exit 0 over their required trees. All other
+semantics, finding codes, ownership, versions and held frontier digests are
+unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, post-cap closure verification -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| E319-S2-PC-01 | medium | `plugins/hexaemeron/skills/ephoros/scripts/ephoros.py`, `plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py` | The new plain-scalar fold drops blank physical lines and joins the next continuation with a space, although YAML preserves the blank as a line break. A present decoy `runbooks/present target.md` therefore makes E004 and H003 clean for the actual YAML value `runbooks/present\ntarget.md`. | open |
+
+This is an independent verification after the controller's eighth and final round, not a ninth round. The five round-8 guard methods were run against `9af605d8ff9e6a0b4af58ddbde96f2d9411a3091` in memory and produced four failures: the E004 and H003 decoys and both valid nonblank-fold outcomes were red, while the single-line case was already green. All five methods pass at `4983ed99b86226cda585e936ec9d812b70137d65`, so the exact nonblank-continuation mechanism in E319-S2-R8-01 is closed. Review of that fix then reproduced E319-S2-PC-01 with one blank line before the continuation: the checkers resolve a space-folded decoy while YAML binds a newline-containing scalar, so closure is incomplete. Focused tests pass 123/123; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 596/596. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer.
+
+Further leads: none beyond E319-S2-PC-01.
+
+### Resolution: Ephoros alert-runbook annotations, post-cap closure -- 2026-08-21
+
+E319-S2-PC-01 is resolved on the audit branch. The supported plain-runbook
+fold now counts blank physical lines and inserts the corresponding line break
+before the next continuation. Ephoros rejects a newline-containing annotation
+path, while Hypomnema resolves the exact newline-containing YAML value rather
+than a space-collapsed decoy. The existing single-line and nonblank-fold
+guards remain clean.
+
+The three new guard methods were observed red before repair: the focused
+suite ran 126 tests with three failures covering E004, the H003 space decoy
+and the exact H003 newline path. After repair, the focused suite passes
+126/126, evolution and version propagation 23/23, marketplace prose 13/13,
+root 104/104 and Hexaemeron 599/599. Protasis accepts both documents;
+Imprimatur and per-file Brevitas accept the six named prose files; Promise
+Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema
+each exit 0 over their required trees. All other semantics, finding codes,
+ownership, versions and held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, final post-cap closure verification -- 2026-08-21
+
+### Guard replay
+
+This independent closure verification is not a ninth controller round.
+The three E319-S2-PC-01 guards fail three times against
+`69534e2149973cbcd043c7cdbc7ceee639c45b15` and pass 3/3 at
+`6934de985613e126c6f30f423106935aa4493b56`. Direct comparison with Ruby's
+YAML parser agrees for single-line values, ordinary nonblank folds, and one-
+and two-blank-line folds. The E004 validator rejects newline-containing paths,
+and H003 resolves the exact newline-containing value rather than its
+space-folded decoy. E319-S2-R8-01 and E319-S2-PC-01 are closed.
+
+### Regression gates
+
+Focused tests pass 126/126; evolution and version propagation 23/23;
+marketplace prose 13/13; root 104/104; Hexaemeron 599/599. Promise Machine
+reports 14 plugins and 14 copies clean. Both Protasis checks, Imprimatur,
+per-file Brevitas, diff check and the Phylax, Ephoros and Hypomnema tree lints
+exit 0. The fresh and committed Horos documents are byte-identical at 1,376
+tracked files, 89 entries and none unreadable. The fix has a good local
+signature and exactly one required co-author and origin trailer.
+
+### Verdict
+
+Further leads: none. All recorded round-8 and post-cap findings are closed.

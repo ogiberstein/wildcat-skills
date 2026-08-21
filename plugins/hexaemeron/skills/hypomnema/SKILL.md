@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "4.2.0"
+  version: "4.3.0"
 ---
 
 # Hypomnema
@@ -151,7 +151,8 @@ python3 "$PLUGIN_ROOT/skills/hypomnema/scripts/hypomnema.py" docs plugins
 ```
 
 It reports a relative link that resolves to nothing, a superseding pointer
-naming a record that is absent, an alert naming a runbook that is not there,
+naming a record that is absent, a Markdown or block-YAML `runbook:` pointer
+naming a local target that is not there,
 a decision record under a decisions directory missing its dated status or
 one of the template's five sections, and a source comment citing a record
 that does not exist. H007 also reports each absent or empty `What fired`,
@@ -164,6 +165,10 @@ and TypeScript, leaving string literals and URLs alone; in source files the
 pragma is the bare `hypomnema: allow <why>` after a comment marker. Test
 fixtures are skipped on a directory walk, since a specimen documenting a
 fault is not a record.
+
+The YAML H003 pass reads generic `runbook:` keys outside comments and block
+scalars, resolves relative Markdown targets from the YAML file's directory and
+does not classify alerts or require annotations.
 
 The bundled third-party skills are skipped, since they document files they
 generate in the target repository rather than files that live here. Pass
@@ -232,10 +237,10 @@ conflict somebody has to resolve, or the runbook an alert is waiting on.
 
 ### hypomnema-pointer-gate
 
-- Promise: A zero-exit Hypomnema lint establishes that the bounded checker found no unresolved relative links, absent superseding records, missing alert runbooks or absent and empty required runbook answers in the selected first-party documents.
+- Promise: A zero-exit Hypomnema lint establishes that the bounded checker found no unresolved relative links, absent superseding records, missing recognised Markdown or block-YAML runbook targets, or absent and empty required runbook answers in the selected first-party documents.
 - Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
 - Evidence classes: checked
-- Boundary: A clean lint proves only that recognised pointers resolve and recognised alert runbooks carry the three required answers at check time; it does not prove that records or operational answers are correct, complete, current or placed well.
+- Boundary: A clean lint proves only that recognised pointers resolve and recognised alert runbooks carry the three required answers at check time; the YAML pass does not classify alerts or establish annotation presence, and the lint does not prove that records or operational answers are correct, complete, current or placed well.
 - Authorises: Passing the mechanical record and runbook-shape gate for the exact paths and checker version recorded.
 - Consequence: 1
 - Refuses: Unsafe, unreadable or oversized paths, unresolved recognised pointers, a missing or empty required runbook answer, an unexplained suppression or a claim about documents excluded from the run.

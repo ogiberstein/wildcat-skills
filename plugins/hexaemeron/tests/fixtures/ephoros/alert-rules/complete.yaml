@@ -1,0 +1,7 @@
+groups:
+  - name: submissions
+    rules:
+      - alert: PendingSubmissionTooOld
+        expr: pending_submission_blocks > 20
+        annotations:
+          runbook: runbooks/pending-submission-too-old.md
