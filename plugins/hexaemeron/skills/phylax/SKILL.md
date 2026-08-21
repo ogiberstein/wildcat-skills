@@ -259,6 +259,11 @@ that joins declared holdings to an external profile each creates the thing the
 marketplace refuses to produce. Keep only what the source supports, and say
 what could not be established.
 
+The one address rule that is telemetry shape rather than boundary control
+belongs to ephoros, and
+[ADR-010](../../../../docs/decisions/ADR-010-split-address-telemetry-from-boundary-control.md)
+draws that line once, over the same TypeScript files both lints read.
+
 ## The mechanical subset
 
 Seven of these rules are settled by a parser rather than by reading. Run the

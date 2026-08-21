@@ -7693,3 +7693,40 @@ pre-existing hypomnema pointer hits inside historical Hermes entries of this
 log, outside this step's diff and outside the acceptance lint scope; the
 study's file-count note from round 1, resolved -- the pinned clone reads
 exactly 882 tracked TypeScript files today.
+
+## Ephoros wallet-address telemetry, step 4, round 1 -- 2026-08-21
+
+The exact range `fdd187a809d1aba0da0ef807b00dff3bbca13979..1fc0a2aaff4d2d216ada128da2ef098c21aabc51`
+holds documentation and records only: the E005 section of the ephoros
+SKILL.md with its three stated limits, the `ephoros-v1.2.0` evolution row,
+ADR-010, one phylax boundary sentence pointing at it, and the two re-pinned
+promise digests. No product source or Solidity changed, so the recorded
+security-suite waiver applies and the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The review checked the prose against the run's measured evidence rather than
+against itself: every claimed behaviour in the new SKILL.md section -- the
+three surfaces, the cap and fail-closed path, the E002 subset move, both
+pragma grammars, bare-pragma inertness and the three stated limits -- was
+established by execution in the step 2 and step 3 rounds above, and the
+ledger row's successor job names a live specimen in the pinned clone. One
+correction is on the page rather than silent: the study and runbook wrote the
+completed-frontier label as `ephoros-v0.3.0`, and the versioning contract's
+own arithmetic, enforced by `tests.test_evolution_contract`, makes a
+completed frontier increment the first counter, so the recorded label is
+`ephoros-v1.2.0` with generation and epoch retained. The demo path from study
+item 1 ran green in order on the finished tree: the focused suite 116, both
+tree lints exit 0, the clone clean at exit 0, the Hexaemeron suite 710/710,
+the root suite 107/107 and the evolution contract 8 tests. Promise Machine
+reports 14 plugins and 14 copies clean after the digest re-pins, imprimatur
+scores 100 on each changed prose file, hypomnema exits 0 with every ADR
+pointer resolving, and the step head carries a valid local signature with
+exactly one of each required Shoggoth trailer.
+
+The register ids are prose-inapplicable here and each stands at its step 2
+and 3 disposition; this step records them without weakening any.
+
+Leads not pursued: none.
