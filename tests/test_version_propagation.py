@@ -40,7 +40,7 @@ DELIVERY_PACKAGE_VERSIONS = {
     "berean": "0.1.1",
     "brevitas": "0.2.1",
     "hermes": "0.1.1",
-    "hexaemeron": "1.5.3",
+    "hexaemeron": "1.5.4",
     "horos": "0.1.1",
     "janus": "0.1.1",
     "lazarus": "1.1.1",
@@ -121,6 +121,36 @@ class PluginVersionPropagationTests(unittest.TestCase):
             }
             with self.subTest(plugin=name):
                 self.assertEqual(actual, {key: expected for key in actual})
+
+    def test_hexaemeron_version_reaches_both_marketplaces(self):
+        expected = DELIVERY_PACKAGE_VERSIONS["hexaemeron"]
+        agents = json.loads(
+            (ROOT / ".agents" / "plugins" / "marketplace.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        agents_entry = next(
+            entry for entry in agents["plugins"] if entry["name"] == "hexaemeron"
+        )
+        directory = PLUGINS / "hexaemeron"
+        self.assertEqual(
+            {
+                "agents_marketplace": agents_entry["version"],
+                "claude_marketplace": self.marketplace["hexaemeron"],
+                "claude_manifest": manifest_version(
+                    directory / ".claude-plugin" / "plugin.json"
+                ),
+                "codex_manifest": manifest_version(
+                    directory / ".codex-plugin" / "plugin.json"
+                ),
+            },
+            {
+                "agents_marketplace": expected,
+                "claude_marketplace": expected,
+                "claude_manifest": expected,
+                "codex_manifest": expected,
+            },
+        )
 
     def test_a_codex_manifest_exists_wherever_codex_metadata_ships(self):
         """A plugin shipping a .codex-plugin directory must put a manifest in it.

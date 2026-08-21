@@ -154,6 +154,21 @@ class MarketplaceProseTests(unittest.TestCase):
         self.assertIn("validating the controller state containers", agent)
         self.assertIn("validates its required state containers", codex["interface"]["longDescription"])
 
+    def test_fiat_public_prose_binds_a_known_task_issue_during_init(self):
+        plugin = ROOT / "plugins" / "hexaemeron"
+        skill = (plugin / "skills" / "fiat" / "SKILL.md").read_text(encoding="utf-8")
+        readme = (plugin / "README.md").read_text(encoding="utf-8")
+        push = (plugin / "skills" / "fiat" / "references" / "push-discipline.md").read_text(
+            encoding="utf-8"
+        )
+        codex = json.loads(
+            (plugin / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("init --task-issue <url>", " ".join(skill.split()))
+        self.assertIn("--task-issue", readme)
+        self.assertIn("fiat/<issue>-", push)
+        self.assertIn("issue number in its run branch", codex["interface"]["longDescription"])
+
     def test_root_readme_maps_every_plugin(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("## Current status", readme)

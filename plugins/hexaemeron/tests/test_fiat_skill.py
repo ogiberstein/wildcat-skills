@@ -129,6 +129,15 @@ class FiatSkillContractTests(unittest.TestCase):
             " ".join(self.fiat.split()),
         )
 
+    def test_known_task_issue_is_bound_during_init_and_names_the_run(self):
+        flat = " ".join(self.fiat.split())
+        push = " ".join(self.push_discipline.split())
+        self.assertIn("init --task-issue <url>", flat)
+        self.assertIn("before branch creation", flat)
+        self.assertIn("fiat/<issue>-", flat)
+        self.assertIn("fiat/<issue>-", push)
+        self.assertNotIn("record its URL after init", flat)
+
     def test_steps_stack_and_only_the_run_branch_merges_into_the_base(self):
         flat = " ".join(self.push_discipline.split())
         fiat = " ".join(self.fiat.split())

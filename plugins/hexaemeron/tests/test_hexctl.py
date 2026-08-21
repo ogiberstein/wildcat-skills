@@ -1603,6 +1603,10 @@ class TestProseAndPush(HexctlCase):
         self.assertEqual(entries[0]["state"], hexctl_module().state_fingerprint(state))
         self.run_ctl("verify")
 
+    def test_init_help_describes_the_issue_aware_branch_default(self):
+        proc = self.run_ctl("init", "--help")
+        self.assertIn("prefixed by task issue when supplied", proc.stdout)
+
     def test_task_issue_prefix_survives_a_long_topic(self):
         issue = "https://github.com/wildcat-finance/skills/issues/438"
         self.init("x" * 100, task_issue=issue)

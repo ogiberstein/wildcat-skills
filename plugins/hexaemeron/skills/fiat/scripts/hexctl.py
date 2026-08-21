@@ -2524,7 +2524,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument(
         "--run-branch",
         dest="run_branch",
-        help="integration branch for the whole run (default: slug of --topic)",
+        help="exact integration branch (default: topic slug, prefixed by task "
+             "issue when supplied)",
     )
     sp.add_argument(
         "--frontier",
