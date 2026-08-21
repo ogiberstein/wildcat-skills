@@ -10,6 +10,7 @@ though the reason exists and was checked. This settles the part a parser can.
   H004  a decision record missing one of the template's five sections
   H005  a decision record whose status is not dated
   H006  a source comment citing a record that does not exist
+  H007  an alert runbook missing one of its three required answers
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
@@ -31,6 +32,11 @@ ISO date, and the five sections Status, Context, Decision, Alternatives
 and Consequences. Directory walks skip `fixtures` directories relative to
 the walked root, because a specimen documenting a fault is not a record;
 naming a fixtures path directly still reads it.
+
+An alert runbook is a Markdown file below a directory named `runbooks`.
+It carries non-empty `## What fired`, `## First check` and `## Who to wake`
+sections outside fenced examples. A reasoned pragma suppresses H007 only on
+the file's first line or on the relevant heading.
 
 Deliberate exceptions state a reason: `<!-- hypomnema: allow <why> -->`,
 for a shape finding on the record's first line or the status heading.
@@ -58,6 +64,7 @@ SKIP_SCHEME = ("http", "https", "mailto", "tel", "ftp")
 RECORD_NAME = re.compile(r"^ADR-\d+.*\.md$", re.IGNORECASE)
 SECTION = re.compile(r"^##\s+(?P<name>\S.*?)\s*$")
 SECTIONS = ("Status", "Context", "Decision", "Alternatives", "Consequences")
+RUNBOOK_SECTIONS = ("What fired", "First check", "Who to wake")
 DATED = re.compile(r"^[A-Za-z]+, \d{4}-\d{2}-\d{2}")
 # One marker family per suffix; the // family also reads /* */ blocks.
 COMMENT_MARKERS = {".py": "#", ".sh": "#", ".sol": "//", ".js": "//",
@@ -133,6 +140,49 @@ def _record_findings(path: Path, lines: list[str]) -> list[Finding]:
                 path, status_line, "H005",
                 "status is not dated; the shape is a status word, a comma "
                 "and an ISO date"))
+    return findings
+
+
+def _runbook_findings(path: Path, lines: list[str]) -> list[Finding]:
+    """Require the three operator answers outside fenced examples."""
+    headings: dict[str, int] = {}
+    content: set[str] = set()
+    current: str | None = None
+    in_fence = False
+    for number, line in enumerate(lines, start=1):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        match = SECTION.match(line)
+        if match:
+            name = ALLOW.sub("", match.group("name")).strip()
+            current = name if name in RUNBOOK_SECTIONS else None
+            if current is not None:
+                headings.setdefault(current, number)
+            continue
+        if line.startswith("#"):
+            current = None
+            continue
+        if current is not None and line.strip() and not ALLOW.fullmatch(line.strip()):
+            content.add(current)
+
+    findings: list[Finding] = []
+    for name in RUNBOOK_SECTIONS:
+        line = headings.get(name, 1)
+        if name not in headings:
+            message = f"alert runbook is missing its `## {name}` answer"
+        elif name not in content:
+            message = f"alert runbook has an empty `## {name}` answer"
+        else:
+            continue
+        finding = Finding(path, line, "H007", message)
+        first_line_allows = bool(lines and ALLOW.search(lines[0]))
+        heading_allows = bool(
+            name in headings and ALLOW.search(lines[headings[name] - 1]))
+        if not first_line_allows and not heading_allows:
+            findings.append(finding)
     return findings
 
 
@@ -222,6 +272,8 @@ def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
     findings: list[Finding] = []
     if RECORD_NAME.match(path.name) and "decisions" in path.parts:
         findings.extend(_record_findings(path, lines))
+    if "runbooks" in path.parts[:-1]:
+        findings.extend(_runbook_findings(path, lines))
     in_fence = False
 
     for number, line in enumerate(lines, start=1):
@@ -254,7 +306,8 @@ def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
                 findings.append(Finding(path, number, "H003",
                                         f"alert names runbook `{target}`, which is not there"))
 
-    return [f for f in findings if not suppressed(lines, f.line)]
+    return [f for f in findings
+            if f.code == "H007" or not suppressed(lines, f.line)]
 
 
 def adr_index(paths: list[Path]) -> set[str]:
@@ -275,6 +328,8 @@ def walk(paths: list[str], include_vendored: bool = False) -> list[Path]:
             found = (child for suffix in suffixes
                      for child in root.rglob(f"*{suffix}"))
             for child in sorted(set(found)):
+                if not child.is_file():
+                    continue
                 if ".git" in child.parts:
                     continue
                 if not include_vendored and VENDORED & set(child.parts):

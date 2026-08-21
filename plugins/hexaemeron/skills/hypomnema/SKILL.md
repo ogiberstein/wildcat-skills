@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "3.2.0"
+  version: "4.2.0"
 ---
 
 # Hypomnema
@@ -121,7 +121,8 @@ promising work you could do now.
   the ledger the versioning contract already checks.
 - **What an alert means and what to check first.** `docs/runbooks/`, one file
   per alert, named for the alert so the link in the alert can find it. Three
-  lines is a runbook: what fired, the first thing to look at, who to wake.
+  answers make a runbook: `## What fired`, `## First check` and
+  `## Who to wake`, each with a non-empty answer.
 - **How to start the project.** The README: what it is, how to run it, the
   commands, and a pointer onward.
 - **What shipped.** The commit message, in the convention the repository
@@ -139,10 +140,11 @@ schema is the documentation and prose describes only what the schema cannot.
 
 ## The mechanical subset
 
-Three rules here are settled by a parser: whether the things a record points
-at exist, whether a decision record carries the template's shape, and whether
-a source comment's record reference resolves. Run it over the documents a step
-touched, and require exit 0.
+Four rules here are settled by a parser: whether the things a record points at
+exist, whether a decision record carries the template's shape, whether a
+source comment's record reference resolves, and whether each Markdown file
+below a `runbooks` directory carries the three runbook answers. Run it over
+the documents a step touched, and require exit 0.
 
 ```bash
 python3 "$PLUGIN_ROOT/skills/hypomnema/scripts/hypomnema.py" docs plugins
@@ -152,21 +154,25 @@ It reports a relative link that resolves to nothing, a superseding pointer
 naming a record that is absent, an alert naming a runbook that is not there,
 a decision record under a decisions directory missing its dated status or
 one of the template's five sections, and a source comment citing a record
-that does not exist. A record pointing at something absent is worse than no
-record, because it reads as though the reason exists and was checked. The
-walk reads `#` comments in Python and shell and `//` comments with `/* */`
-blocks in Solidity, JavaScript and TypeScript, leaving string literals and
-URLs alone; in source files the pragma is the bare `hypomnema: allow <why>`
-after a comment marker. Test fixtures are skipped on a directory walk, since
-a specimen documenting a fault is not a record.
+that does not exist. H007 also reports each absent or empty `What fired`,
+`First check` or `Who to wake` answer in a Markdown file below a directory
+named `runbooks`; headings and bodies inside fenced examples do not count. A
+record pointing at something absent is worse than no record, because it reads
+as though the reason exists and was checked. The walk reads `#` comments in
+Python and shell and `//` comments with `/* */` blocks in Solidity, JavaScript
+and TypeScript, leaving string literals and URLs alone; in source files the
+pragma is the bare `hypomnema: allow <why>` after a comment marker. Test
+fixtures are skipped on a directory walk, since a specimen documenting a
+fault is not a record.
 
 The bundled third-party skills are skipped, since they document files they
 generate in the target repository rather than files that live here. Pass
 `--include-vendored` to check them anyway.
 
 Deliberate exceptions state a reason: `<!-- hypomnema: allow <why> -->`, on the
-line or the one above it. Deciding what deserves a record stays judgement; this
-only checks that what you wrote down leads somewhere.
+line or the one above it. For H007, only a reasoned pragma on the file's first
+line or the relevant heading suppresses the finding. Deciding what deserves a
+record stays judgement; this only checks the mechanical subset named above.
 
 ## Rationalisations
 
@@ -226,14 +232,14 @@ conflict somebody has to resolve, or the runbook an alert is waiting on.
 
 ### hypomnema-pointer-gate
 
-- Promise: A zero-exit Hypomnema lint establishes that the bounded checker found no unresolved relative links, absent superseding records or missing alert runbooks in the selected first-party documents.
+- Promise: A zero-exit Hypomnema lint establishes that the bounded checker found no unresolved relative links, absent superseding records, missing alert runbooks or absent and empty required runbook answers in the selected first-party documents.
 - Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
 - Evidence classes: checked
-- Boundary: A clean lint proves only that the recognised pointers resolve at check time; it does not prove that records are correct, complete, current or placed well.
-- Authorises: Passing the mechanical record-pointer gate for the exact paths and checker version recorded.
+- Boundary: A clean lint proves only that recognised pointers resolve and recognised alert runbooks carry the three required answers at check time; it does not prove that records or operational answers are correct, complete, current or placed well.
+- Authorises: Passing the mechanical record and runbook-shape gate for the exact paths and checker version recorded.
 - Consequence: 1
-- Refuses: Unsafe, unreadable or oversized paths, unresolved recognised pointers, an unexplained suppression or a claim about documents excluded from the run.
-- Recovery: Restore or correct the target, mark supersession accurately, add the missing runbook and rerun the same bounded lint.
+- Refuses: Unsafe, unreadable or oversized paths, unresolved recognised pointers, a missing or empty required runbook answer, an unexplained suppression or a claim about documents excluded from the run.
+- Recovery: Restore or correct the target, mark supersession accurately, add the missing runbook or answer, and rerun the same bounded lint.
 - Exceptions: none
 
 ### hypomnema-record-placement

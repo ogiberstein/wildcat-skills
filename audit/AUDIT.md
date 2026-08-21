@@ -5976,3 +5976,48 @@ row. Phylax, ephoros and hypomnema exit 0. Root 104/104; hexaemeron
 532/534 with the two recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema runbook shape check, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The step contains the study and runbook byte-identical to the
+receipted working copies and a regenerated Horos boundary for those two paths.
+The Protasis checks are clean, the root suite passes 104/104 and the
+Hexaemeron suite passes 536/536. Phylax, Ephoros and Hypomnema each exit 0 over
+the changed tree. The risk-register concerns are not yet applicable: this step
+changes no path classifier, heading scan, pragma, handoff interface, stable
+code, frontier row or marketplace description.
+
+Leads not pursued: none
+
+## Hypomnema runbook shape check, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings open. H007 applies only to Markdown below a `runbooks` directory,
+requires the three exact level-two headings and non-empty bodies outside code
+fences, and accepts a reasoned exception only on line 1 or the relevant
+heading. Six fixtures isolate the missing and empty cases; the complete
+fixture, outside-scope file, fenced examples and pragma boundaries stay clean.
+H003 remains existence-only, and no alert-rule parsing moves out of Ephoros.
+H000 to H006 retain their tests and scope. The frontier row advances exactly
+from v3.2.0 to v4.2.0, its digest and Promise Machine binding recompute, and
+the skills#314 design-bridge lead becomes the evidenced successor.
+
+The frontier prose review covered 288 tracked mutable first-party surfaces.
+It found four stale descriptions, all corrected in this step: Hypomnema's
+SKILL and ledger, Hexaemeron's Codex long description and its README test
+description. Historical studies and runbooks remain point-in-time records.
+One earlier environment failure was worked under Elenchus: the walker tried
+to read generated directories whose names ended in `.sol`; an `is_file()`
+guard and its regression test now keep directories out of the source set.
+
+Phylax, Ephoros and Hypomnema each exit 0. The focused Hypomnema suite passes
+58/58, the root suite 104/104, Hexaemeron 548/548, evolution 7/7 and
+marketplace prose 13/13. Promise Machine checks 14 plugins and copies clean;
+Horos scans 1,360 files with 89 classified entries and none unreadable.
+
+Leads not pursued: none
