@@ -5842,3 +5842,39 @@ the promise_machine check exit 0. Root 104/104; hexaemeron 490/492 with
 the two recorded environment failures.
 
 Leads not pursued: none
+
+## Protasis register check, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check and the runbook check exit 0 over them, and the
+regenerated boundary carries exactly the two new paths. Per the register:
+false-clean, interface-drift, fixture-coverage and history-pragma not
+applicable, no scanner, code or pragma changes this step;
+ledger-arithmetic not applicable, no row cut this step. Phylax, ephoros
+and hypomnema exit 0. Root 104/104; hexaemeron 490/492 with the two
+recorded environment failures.
+
+Leads not pursued: none
+
+## Protasis register check, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: false-clean reviewed, the fixture tests
+prove a register quoted inside another fence and an item 5 duplicated by
+S004 earn no verdict; interface-drift reviewed, S000 to S004 and P000 to
+P004 keep their numbers and firing conditions, the new codes join the
+docstring, the SKILL.md subset and the fixtures, and the one test that
+changed did so because the incomplete fixture honestly gained an S005
+under the new rule; fixture-coverage reviewed, each fault class has a
+fixture line and a test naming its code; history-pragma reviewed, the
+pragma on the pre-block study states its reason and no other historical
+study changed; ledger-arithmetic reviewed, the evolution suite passes
+over the v4.5.0 row. Phylax, ephoros and hypomnema exit 0. Root 104/104;
+hexaemeron 505/507 with the two recorded environment failures.
+
+Leads not pursued: none

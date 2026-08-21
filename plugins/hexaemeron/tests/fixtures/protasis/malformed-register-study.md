@@ -22,11 +22,14 @@ One option, chosen for being the only one.
 ## 5. Risk register seed
 
 ```risk-register
-partial-write | the release directory during a long run | a killed run leaves no half-written file that verifies
-subprocess-input | the argv of the spawned tool | inputs are pinned and no shell is used
+short-line | only two fields
+long-line | one | field | too many
+Bad_Id | an id that is not kebab-case | flagged
+twice-used | the first use is sound | flagged only on reuse
+twice-used | the second use of one id | flagged
+empty-boundary |  | a check with no boundary
+empty-check | a boundary with no check |
 ```
-
-Look hardest at partial writes.
 
 ## 6. Glossary seeds
 

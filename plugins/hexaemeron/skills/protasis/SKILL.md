@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "3.5.0"
+  version: "4.5.0"
 ---
 
 # Protasis
@@ -264,13 +264,16 @@ python3 "$PLUGIN_ROOT/skills/protasis/scripts/protasis.py" --study <study>
 python3 "$PLUGIN_ROOT/skills/protasis/scripts/protasis.py" <runbook>
 ```
 
-The study mode reads items as `## N. Title` headings, 1 to 12, and refuses
-silence and a bare none on items 8 through 12. The runbook mode reads the step
-schema above. Codes P000 to P004 and S000 to S004 are stable interfaces other
+The study mode reads items as `## N. Title` headings, 1 to 12, refuses
+silence and a bare none on items 8 through 12, and reads item 5's
+risk-register block against the shape above: S005 when no block names a
+concern, S006 when a line does not split into the three pipe-separated
+fields, S007 when a field is malformed. The runbook mode reads the step
+schema above. Codes P000 to P004 and S000 to S007 are stable interfaces other
 tools cite. Deliberate exceptions state a reason:
 `<!-- protasis: allow <why> -->` on the heading line or the line above it.
-Presence is all the parser settles; whether an answer is any good stays with
-the reviewer and the rest of this contract.
+Presence and shape are all the parser settles; whether an answer is any good
+stays with the reviewer and the rest of this contract.
 
 ## The spec stays alive
 

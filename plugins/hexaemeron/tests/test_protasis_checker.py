@@ -403,9 +403,9 @@ class StudyDocuments(unittest.TestCase):
             found = protasis.check_study(Path(directory))
         self.assertEqual([f.code for f in found], ["S000"])
 
-    def test_the_incomplete_fixture_names_both_faults(self):
+    def test_the_incomplete_fixture_names_each_fault(self):
         found = protasis.check_study(FIXTURES / "incomplete-study.md")
-        self.assertEqual(sorted(f.code for f in found), ["S001", "S002"])
+        self.assertEqual(sorted(f.code for f in found), ["S001", "S002", "S005"])
 
     def test_the_run_that_shipped_this_mode_passes_its_own_study(self):
         study = REPO / "docs" / "protasis-study-schema-check-study.md"
@@ -425,3 +425,90 @@ class StudyDocuments(unittest.TestCase):
         with redirect_stdout(buffer):
             code = protasis.main([str(FIXTURES / "complete-runbook.md")])
         self.assertEqual(code, 0)
+
+
+REGISTER_BLOCK = """```risk-register
+partial-write | the release directory during a long run | a killed run leaves no half-written file
+subprocess-input | the argv of the spawned tool | inputs are pinned and no shell is used
+```"""
+
+
+class RiskRegisterBlocks(unittest.TestCase):
+    def test_a_study_whose_block_carries_every_field_is_clean(self):
+        self.assertEqual(study_codes(with_answer(5, REGISTER_BLOCK)), [])
+
+    def test_a_prose_item_5_is_a_finding(self):
+        found = study_findings(with_answer(5, "Look hardest at partial writes."))
+        self.assertEqual([f.code for f in found], ["S005"])
+        self.assertIn("Risk register seed", found[0].message)
+
+    def test_an_empty_block_is_a_finding(self):
+        source = with_answer(5, "```risk-register\n```")
+        self.assertEqual(study_codes(source), ["S005"])
+
+    def test_a_block_with_another_info_string_is_not_a_register(self):
+        source = with_answer(5, REGISTER_BLOCK.replace("risk-register", "text", 1))
+        self.assertEqual(study_codes(source), ["S005"])
+
+    def test_a_register_quoted_inside_another_fence_earns_no_verdict(self):
+        """The guard for the false clean.
+
+        A study explaining the shape quotes a register block inside a tilde
+        fence, and the quoted lines must not answer for item 5: every recorded
+        protasis finding is a verdict the scanner had not earned on fenced
+        content.
+        """
+        source = with_answer(5, "~~~markdown\n" + REGISTER_BLOCK + "\n~~~")
+        self.assertEqual(study_codes(source), ["S005"])
+
+    def test_a_tilde_register_fence_is_a_register(self):
+        block = REGISTER_BLOCK.replace("```risk-register", "~~~risk-register").replace("\n```", "\n~~~")
+        self.assertEqual(study_codes(with_answer(5, block)), [])
+
+    def test_a_two_field_line_is_a_finding(self):
+        source = with_answer(5, "```risk-register\nshort-line | only two fields\n```")
+        self.assertEqual(study_codes(source), ["S006"])
+
+    def test_a_four_field_line_is_a_finding(self):
+        source = with_answer(5, "```risk-register\na | b | c | d\n```")
+        self.assertEqual(study_codes(source), ["S006"])
+
+    def test_an_id_that_is_not_kebab_case_is_a_finding(self):
+        source = with_answer(5, "```risk-register\nBad_Id | a boundary | a check\n```")
+        found = study_findings(source)
+        self.assertEqual([f.code for f in found], ["S007"])
+        self.assertIn("kebab-case", found[0].message)
+
+    def test_a_duplicated_id_is_a_finding_on_the_reuse(self):
+        source = with_answer(5, "```risk-register\ntwice | a | b\ntwice | c | d\n```")
+        found = study_findings(source)
+        self.assertEqual([f.code for f in found], ["S007"])
+        self.assertIn("more than once", found[0].message)
+
+    def test_an_empty_boundary_or_check_is_a_finding(self):
+        source = with_answer(5, "```risk-register\nid-one |  | a check\nid-two | a boundary |\n```")
+        self.assertEqual(study_codes(source), ["S007", "S007"])
+
+    def test_a_duplicate_item_5_earns_no_register_verdict(self):
+        source = with_answer(5, "prose, no block") + "\n## 5. Risk register seed\n\nAgain.\n"
+        found = study_codes(source)
+        self.assertIn("S004", found)
+        self.assertNotIn("S005", found)
+
+    def test_an_allow_comment_on_item_5_suppresses_the_register_checks(self):
+        source = with_answer(5, "prose, no block").replace(
+            "## 5. Risk register seed",
+            "## 5. Risk register seed <!-- protasis: allow predates the block shape -->")
+        self.assertEqual(study_codes(source), [])
+
+    def test_the_malformed_fixture_catches_each_missing_or_malformed_field(self):
+        found = protasis.check_study(FIXTURES / "malformed-register-study.md")
+        self.assertEqual(sorted(f.code for f in found),
+                         ["S006", "S006", "S007", "S007", "S007", "S007"])
+
+    def test_the_shape_run_and_this_run_pass_their_own_studies(self):
+        for name in ("protasis-risk-register-block-study.md",
+                     "protasis-risk-register-block-check-study.md"):
+            with self.subTest(study=name):
+                found = protasis.check_study(REPO / "docs" / name)
+                self.assertEqual([f.code for f in found], [])
