@@ -23,6 +23,7 @@ import ast
 import json
 import re
 import sys
+from bisect import bisect_left
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
@@ -501,8 +502,22 @@ def _yaml_findings(path: Path, text: str) -> list[Finding]:
                 "alert entry has no nested `annotations.runbook` Markdown path"))
     return findings
 
-def _line_of(text: str, offset: int) -> int:
-    return text.count("\n", 0, offset) + 1
+def _newline_offsets(text: str) -> list[int]:
+    """Offsets of every newline, built once per file so lookups can bisect.
+
+    Counting from the top of the file for every finding cost quadratic time
+    on findings-saturated files; one table and a bisection keep it linear.
+    """
+    offsets = []
+    index = text.find("\n")
+    while index != -1:
+        offsets.append(index)
+        index = text.find("\n", index + 1)
+    return offsets
+
+
+def _line_of(newlines: list[int], offset: int) -> int:
+    return bisect_left(newlines, offset) + 1
 
 
 def _masked(text: str, spans) -> str:
@@ -517,20 +532,24 @@ def _masked(text: str, spans) -> str:
     return "".join(parts)
 
 
-def _matching(mask: str, opening: int) -> int | None:
+def _bracket_matches(mask: str) -> dict[int, int]:
+    """Map every opening bracket's offset to its closing offset, or nothing.
+
+    One linear stack pass per file: a closer pops only the innermost opener
+    it actually pairs with, and a mismatched closer is inert, exactly as the
+    old per-bracket forward scan behaved.  That scan restarted at every
+    bracket with a chain before it, so fully overlapping nested spans cost
+    quadratic time; the table answers every lookup in constant time.
+    """
     pairs = {"(": ")", "[": "]", "{": "}"}
-    if opening >= len(mask) or mask[opening] not in pairs:
-        return None
-    stack = [pairs[mask[opening]]]
-    for index in range(opening + 1, len(mask)):
-        current = mask[index]
+    matches: dict[int, int] = {}
+    stack: list[tuple[int, str]] = []
+    for index, current in enumerate(mask):
         if current in pairs:
-            stack.append(pairs[current])
-        elif stack and current == stack[-1]:
-            stack.pop()
-            if not stack:
-                return index
-    return None
+            stack.append((index, pairs[current]))
+        elif stack and current == stack[-1][1]:
+            matches[stack.pop()[0]] = index
+    return matches
 
 
 def _split_ranges(mask: str, start: int, end: int) -> list[tuple[int, int]]:
@@ -637,9 +656,9 @@ def _ts_address_expression(text: str, mask: str, start: int, end: int) -> str:
     return ""
 
 
-def _ts_keyed_by_address(path: Path, text: str, offset: int,
+def _ts_keyed_by_address(path: Path, newlines: list[int], offset: int,
                          position: str, key: str) -> Finding:
-    return Finding(path, _line_of(text, offset), "E005",
+    return Finding(path, _line_of(newlines, offset), "E005",
                    f"{position} `{key}` keys telemetry by wallet address; "
                    "put it in an event")
 
@@ -668,36 +687,39 @@ def _ts_object_keys(text: str, mask: str, opening: int,
     return keys
 
 
-def _ts_label_container(path: Path, text: str, mask: str, opening: int,
-                        closing: int) -> list[Finding]:
+def _ts_label_container(path: Path, text: str, mask: str, newlines: list[int],
+                        opening: int, closing: int) -> list[Finding]:
     """E005 findings for address keys inside one label set container."""
     findings = []
     if mask[opening] == "{":
         for offset, key in _ts_object_keys(text, mask, opening, closing):
             findings.append(_ts_keyed_by_address(
-                path, text, offset, "metric label", key))
+                path, newlines, offset, "metric label", key))
     else:
         for start, end in _split_ranges(mask, opening + 1, closing):
             value = _ts_string_value(text[start:end])
             if value is not None and _ts_address_string(value):
                 findings.append(_ts_keyed_by_address(
-                    path, text, start, "metric label", value))
+                    path, newlines, start, "metric label", value))
     return findings
 
 
-def _ts_label_properties(path: Path, text: str, mask: str, start: int,
+def _ts_label_properties(path: Path, text: str, mask: str, newlines: list[int],
+                         matches: dict[int, int], start: int,
                          end: int) -> list[Finding]:
     """Label/tag/attribute sets inside one telemetry sink call's arguments."""
     findings = []
     for match in TS_LABEL_PROPERTY.finditer(mask, start, end):
         opening = match.start("open")
-        closing = _matching(mask, opening)
+        closing = matches.get(opening)
         if closing is not None:
-            findings.extend(_ts_label_container(path, text, mask, opening, closing))
+            findings.extend(_ts_label_container(
+                path, text, mask, newlines, opening, closing))
     return findings
 
 
-def _ts_labels_call(path: Path, text: str, mask: str, start: int,
+def _ts_labels_call(path: Path, text: str, mask: str, newlines: list[int],
+                    matches: dict[int, int], start: int,
                     end: int) -> list[Finding]:
     """The Prometheus instance style: `.labels({...})` or a literal address."""
     findings = []
@@ -705,21 +727,21 @@ def _ts_labels_call(path: Path, text: str, mask: str, start: int,
         argument = mask[arg_start:arg_end].strip()
         if argument.startswith("{"):
             opening = mask.index("{", arg_start, arg_end)
-            closing = _matching(mask, opening)
+            closing = matches.get(opening)
             if closing is not None:
                 for offset, key in _ts_object_keys(text, mask, opening, closing):
                     findings.append(_ts_keyed_by_address(
-                        path, text, offset, "metric label", key))
+                        path, newlines, offset, "metric label", key))
         else:
             value = _ts_string_value(text[arg_start:arg_end])
             if value is not None and HEX_ADDRESS.fullmatch(value):
                 findings.append(_ts_keyed_by_address(
-                    path, text, arg_start, "metric label", value))
+                    path, newlines, arg_start, "metric label", value))
     return findings
 
 
-def _ts_index_properties(path: Path, text: str, mask: str, start: int,
-                         end: int) -> list[Finding]:
+def _ts_index_properties(path: Path, text: str, mask: str, newlines: list[int],
+                         start: int, end: int) -> list[Finding]:
     """`index:` properties inside one logger or log-store call's arguments."""
     findings = []
     for match in TS_INDEX_PROPERTY.finditer(mask, start, end):
@@ -743,11 +765,11 @@ def _ts_index_properties(path: Path, text: str, mask: str, start: int,
         key = _ts_address_expression(text, mask, match.end(), value_end)
         if key:
             findings.append(_ts_keyed_by_address(
-                path, text, match.start(), "log index", key))
+                path, newlines, match.start(), "log index", key))
     return findings
 
 
-def _ts_allow_lines(text: str, spans) -> set[int]:
+def _ts_allow_lines(text: str, spans, newlines: list[int]) -> set[int]:
     """Return reasoned pragma lines that are genuine `//` line comments.
 
     The documented grammar is a `//` line comment, so block comments are
@@ -759,7 +781,7 @@ def _ts_allow_lines(text: str, spans) -> set[int]:
         if kind != "line_comment":
             continue
         for match in TS_ALLOW.finditer(text, start, end):
-            allowed.add(_line_of(text, match.start()))
+            allowed.add(_line_of(newlines, match.start()))
     return allowed
 
 
@@ -773,12 +795,14 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
         return [Finding(path, 1, "E000", "could not lex: recursion limit")]
     except Exception as err:  # noqa: BLE001 -- any lexer failure fails closed
         return [Finding(path, 1, "E000", f"could not lex: {err}")]
+    newlines = _newline_offsets(text)
     if errors:
-        return [Finding(path, _line_of(text, offset), "E000",
+        return [Finding(path, _line_of(newlines, offset), "E000",
                         f"could not lex: {reason}")
                 for offset, reason in errors]
-    allowed = _ts_allow_lines(text, spans)
+    allowed = _ts_allow_lines(text, spans, newlines)
     mask = _masked(text, spans)
+    matches = _bracket_matches(mask)
     findings: list[Finding] = []
     for bracket in TS_OPEN.finditer(mask):
         opening = bracket.start()
@@ -787,29 +811,42 @@ def check_typescript(path: Path, text: str) -> list[Finding]:
             continue
         if segments[0] == "console":
             continue  # command-line output is not telemetry
-        closing = _matching(mask, opening)
-        if closing is None:
-            continue
+        # The cheap sink-name gates come before any per-bracket span work:
+        # a bracket whose chain names no sink costs nothing further.
         last_words = _ts_words(segments[-1])
         if mask[opening] == "[":
+            if not last_words & (TS_DASHBOARD_WORDS | TS_LOG_WORDS):
+                continue
+            closing = matches.get(opening)
+            if closing is None:
+                continue
             key = _ts_address_expression(text, mask, opening + 1, closing)
             if key and last_words & TS_DASHBOARD_WORDS:
                 findings.append(_ts_keyed_by_address(
-                    path, text, opening + 1, "dashboard key", key))
+                    path, newlines, opening + 1, "dashboard key", key))
             elif key and last_words & TS_LOG_WORDS:
                 findings.append(_ts_keyed_by_address(
-                    path, text, opening + 1, "log index", key))
+                    path, newlines, opening + 1, "log index", key))
             continue
         chain_words = set().union(*(_ts_words(s) for s in segments))
-        if chain_words & TS_METRIC_WORDS:
+        metric_sink = bool(chain_words & TS_METRIC_WORDS)
+        labels_call = len(segments) >= 2 and segments[-1] == "labels"
+        log_call = len(segments) >= 2 and bool(
+            _ts_words(segments[-2]) & TS_LOG_WORDS)
+        if not (metric_sink or labels_call or log_call):
+            continue
+        closing = matches.get(opening)
+        if closing is None:
+            continue
+        if metric_sink:
             findings.extend(_ts_label_properties(
-                path, text, mask, opening + 1, closing))
-        if len(segments) >= 2 and segments[-1] == "labels":
+                path, text, mask, newlines, matches, opening + 1, closing))
+        if labels_call:
             findings.extend(_ts_labels_call(
-                path, text, mask, opening + 1, closing))
-        if len(segments) >= 2 and _ts_words(segments[-2]) & TS_LOG_WORDS:
+                path, text, mask, newlines, matches, opening + 1, closing))
+        if log_call:
             findings.extend(_ts_index_properties(
-                path, text, mask, opening + 1, closing))
+                path, text, mask, newlines, opening + 1, closing))
     return [finding for finding in findings
             if finding.line not in allowed and finding.line - 1 not in allowed]
 

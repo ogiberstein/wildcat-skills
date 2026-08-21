@@ -364,6 +364,37 @@ class TypeScriptBoundaries(unittest.TestCase):
             specimen.write_text("a . " * 25_000, encoding="utf-8")
             self.assertEqual([], ephoros.check(specimen))
 
+    def test_a_deeply_nested_bracket_chain_completes_with_zero_findings(self):
+        # Every bracket in a[a[a[...]]] carries a chain, and the old
+        # per-bracket forward scan to its closer re-read the fully
+        # overlapping nested spans quadratically: 28s at N=16000, hours at
+        # the 1 MiB cap. One linear stack pass now matches every bracket up
+        # front, and the unnamed chain yields nothing even at cap scale.
+        depth = 250_000
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "nested.ts"
+            specimen.write_text("a[" * depth + "x" + "]" * depth,
+                                encoding="utf-8")
+            self.assertEqual([], ephoros.check(specimen))
+
+    def test_a_findings_saturated_file_keeps_every_line_number(self):
+        # Counting newlines from the top of the file for every finding cost
+        # quadratic time on findings-saturated files (10s at this size); a
+        # bisected newline table built once per file keeps it linear. The
+        # first, middle, and last findings pin the exact line numbers the
+        # counting implementation reported.
+        lines = 50_000
+        with tempfile.TemporaryDirectory() as base:
+            specimen = Path(base) / "saturated.ts"
+            specimen.write_text("log[walletAddress]\n" * lines,
+                                encoding="utf-8")
+            findings = ephoros.check(specimen)
+        self.assertEqual(["E005"] * lines,
+                         [finding.code for finding in findings])
+        self.assertEqual(1, findings[0].line)
+        self.assertEqual(25_001, findings[lines // 2].line)
+        self.assertEqual(50_000, findings[-1].line)
+
     def test_the_walk_skips_node_modules(self):
         with tempfile.TemporaryDirectory() as base:
             vendored = Path(base) / "node_modules" / "left-pad"
