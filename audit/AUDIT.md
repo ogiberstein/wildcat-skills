@@ -7495,3 +7495,57 @@ a deliberate rule-widening decision; the E005 message says wallet address for
 any `address`-fragment key such as `ip_address`, a wording the SKILL.md prose
 in step 4 should state; nested mappings under `labels:` pass silently because
 recognition is direct-children-only, worth a line in the same step 4 prose.
+
+## Ephoros wallet-address telemetry, step 3, round 1 -- 2026-08-21
+
+The exact range `e78a3cac6d684e474dbf5d78c65bd8faa5d84417..41f5da1d637826851bdc8c647da3df3dc590d49f`
+opens the TypeScript surface: `check_typescript` through the shared masked
+lexer, the widened walk, and 20 new checker tests. No Solidity changed, so the
+recorded security-suite waiver applies and the Pashov pair did not run. The
+three lints and both suites were green; every finding below came from
+adversarial probes beyond the committed tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | high | scripts/ephoros.py | a ~3 KB nested-template file raises RecursionError through the shared lexer, crashes the run and drops sibling findings, falsifying the E000 fail-closed claim | fixed in 2a464fe |
+| S3-R1-02 | medium | scripts/ephoros.py | pragma text inside a TS string or template suppresses a real E005; allow lines were read from raw text rather than comment spans | fixed in 2a464fe |
+| S3-R1-03 | medium | scripts/ephoros.py | TS E000 findings were suppressible, so a crafted unterminated file plus a pragma vanished with exit 0 | fixed in 2a464fe |
+| S3-R1-04 | medium | scripts/ephoros.py | the widened ALLOW grammar leaked `//` pragma semantics into Python files, changing parent behaviour out of step scope | fixed in 2a464fe |
+| S3-R1-05 | medium | scripts/ephoros.py | `index:` string-literal values were missed because the property regex ran over the blanked mask | fixed in 2a464fe |
+| S3-R1-06 | low | scripts/ephoros.py | canonical prom-client `labelNames:` spelling unrecognised | fixed in 2a464fe |
+| S3-R1-07 | low | scripts/ephoros.py | optional chaining `?.` defeated every recogniser | fixed in 2a464fe |
+| S3-R1-08 | low | tests/test_ephoros_checker.py | five YAML alert-label tests were absorbed into a TypeScript-named class | fixed in 2a464fe |
+| S3-R1-09 | info | scripts/ephoros.py | `#` pragmas suppressed inside `.ts` files under the same un-gated grammar | fixed in 2a464fe |
+
+Each fix landed under the guard-test convention, red observed then green: 13
+tests over the step head's 87, for 100 focused cases. After the fixes the
+clone run stays clean at exit 0 with zero pragmas and an empty porcelain, the
+tree lint exits 0, the Hexaemeron suite passes 694/694 and the root suite
+107/107. Phylax still exits 0 over the changed checker and over the clone's
+`src`, and a mixed secret-plus-address specimen draws exactly one code from
+each lint, so the boundary between the two holds. A parent-to-head
+differential over E001 to E003, the Python E005 shapes, Python suppression and
+the YAML shapes shows zero mismatches beyond the sanctioned fixes.
+
+The register ids this step opens were each worked by execution:
+`ts-lexer-input` (cap exact at 1 MiB and applied before lexing, 0.2 ms refusal
+on cap-plus-one; unterminated constructs, invalid UTF-8, BOM, CRLF, JSX and
+regex ambiguity all E000 or clean; no execution or import of inspected
+source), `false-positive-cache-keys` (the clone's five real address patterns
+stay clean while tags shorthand, statsd tags, instance labels, positional hex
+and attributes fire), `suppression-parity` in its TypeScript half (line and
+line-above suppress, bare and block-comment pragmas do not), `walk-widening`
+(`node_modules` excluded by test and probe, symlinked directories not
+traversed, and the walked `dist`/`build` question checked against both named
+trees, which hold no tracked build output today) and `rule-boundary-drift`
+(no P004 to P007 pattern duplicated or moved).
+
+Leads not pursued: the shared lexer's recursion defect itself stays in
+`plugins/hexaemeron/lib/typescript_lexer.py` and reproduces identically under
+phylax, which predates this run; ephoros now contains it at its own boundary,
+and the lexer fix belongs to a deliberate change on the owning surface,
+carried forward for the run report. Computed object keys and method-call
+dashboard access pass on both language sides alike, parity holds and widening
+either is a rule decision nobody has asked for. The study's count of 882
+tracked TypeScript files reads 875 at the pinned clone commit, a
+study-document discrepancy with no bearing on any acceptance command.
