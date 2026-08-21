@@ -6706,3 +6706,47 @@ target-origin identity, pre-command SHA rejection, and both merge topologies.
 They were red before the fix (the initial bounded run failed 6/6; the separate
 push-tip case extends the same branch control) and now pass 7/7. Versions and
 the held Fiat frontier are unchanged. No remote operation was performed.
+
+## Fiat delegation packets, step 3, round 2 -- 2026-08-21
+
+### Finding
+
+I320-S3-R2-01 (high), open at
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1444-1451`: integration
+inspects the expected run-branch and base names and the supplied merge OID,
+but passes `expected_head_sha=None`. A merged PR carrying a different head OID
+therefore completes the run. Bind the integration PR head OID to the actual
+merged run-branch tip, or to equivalent stored topology evidence, before
+accepting the merge.
+
+### Replay and review
+
+Seven product guards replayed against pre-fix `cc7e81f7789d4748abac678dfbd464c2c70702c7`
+fail 7/7 and pass 7/7 at `afd180dae569a7a24df1c8e5d624685f6c5e56d8`.
+They cover declared implementation and push tips, cross-repository PRs, target
+origin identity, pre-command full-SHA rejection and both recorded merge
+topologies. The fresh lifecycle proof passes 1/1 and now starts at `init`,
+observes every directive and checks two-process reconstruction; this closes
+R1-05's former evidence-shape gap rather than a previously failing runtime
+predicate.
+
+The residual probe supplied the correct integration PR URL, run-branch name,
+base name, merged state and merge OID, but a deliberately different 40-byte
+head OID. `done integrate` returned 0 and marked the run complete. The other
+four round-1 mechanisms are closed. Repository parsing, PR identity, step PR
+head binding, full-SHA validation and generic secret-safe refusals showed no
+further bypass in this round.
+
+### Gates and risk disposition
+
+The Step 3 focused set passes 203/203, the named lifecycle 1/1, root tests
+104/104 and Hexaemeron 623/623. Promise Machine reports 14 plugins and 14
+copies clean. Both Protasis modes, Imprimatur, all per-file Brevitas checks,
+Phylax, Ephoros, Hypomnema, Horos and the folded diff check exit 0. Fix commit
+`afd180dae569a7a24df1c8e5d624685f6c5e56d8` has a good local signature and
+exactly one required co-author and origin trailer.
+
+`merge-origin-confusion` and `remote-verification-gap` remain open only through
+I320-S3-R2-01. The other eight risk ids are clean in the folded diff.
+
+Further leads: none beyond I320-S3-R2-01.
