@@ -22,12 +22,6 @@ it. Code records what was built. This records why, and what was turned down.
 
 Hypomnema owns what gets recorded and where it goes.
 
-**Use another tool when.** `imprimatur` lints the words and `vulgate` sets
-their register, both after this skill has decided there is something to write.
-`protasis` says what a study must contain before code exists; this covers what
-survives after it. `ephoros` chooses the signals, and this says where the
-runbook behind an alert lives.
-
 Serves the `prose` phase. Fiat's prose pass owns the mask order, the PR text
 and the receipt, and none of that moves here.
 

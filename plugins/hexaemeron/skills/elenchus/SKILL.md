@@ -23,12 +23,6 @@ about why the thing broke. The job is to try to refute it, not to confirm it.
 Elenchus owns root-cause work on a failure that has already happened: a red
 test, a broken build, a returned counterexample, a behaviour that changed.
 
-**Use another tool when.** `solidity-auditor` and `x-ray` look for findings
-nobody has observed yet; elenchus starts from an observation. `fizz` produces
-the campaign, and elenchus works the counterexample it hands back. `ephoros`
-owns telemetry meant to stay; elenchus adds instrumentation and removes it.
-`metron` owns something that works and is slow.
-
 Serves the `implement` and `audit-round` phases. Fiat has no counterpart for
 this work today, so nothing is superseded.
 

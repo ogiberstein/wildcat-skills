@@ -5,8 +5,6 @@
 
 Horos classifies a repository's token sinks with evidence and emits the reading boundary agents respect.
 
-**Try something else when.** Use Lemma to chunk source for retrieval, Brevitas for prose budgets, and Hexaemeron's Metron for runtime cost. Horos decides what goes unread; it never rewrites what is read.
-
 **Current frontier.** The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains.
 
 **Next Fiat job.** Use /hexaemeron:fiat to reopen this mature frontier only after new external evidence is recorded as an epoch entry on the ledger; the controller refuses a mature run otherwise. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.

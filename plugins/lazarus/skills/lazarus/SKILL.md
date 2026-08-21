@@ -24,8 +24,6 @@ another frontier pass after that ledger becomes mature.
 
 Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests.
 
-**Use another tool when.** Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence.
-
 **Current frontier.** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 <!-- marketplace-context:end -->
 

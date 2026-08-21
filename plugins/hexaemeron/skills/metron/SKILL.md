@@ -21,11 +21,6 @@ a number, and the number comes first.
 Metron owns every measurement except gas: the page, the route, the query, the
 harvest, the release build.
 
-**Use another tool when.** `hermes` owns Solidity gas through its own
-fail-closed Foundry loop, and this skill applies the same discipline everywhere
-else. `ephoros` decides which signals get emitted; metron reads them to make a
-decision. `elenchus` works something broken rather than something slow.
-
 Serves the `implement` phase. Fiat has no counterpart for this work today, so
 nothing is superseded.
 

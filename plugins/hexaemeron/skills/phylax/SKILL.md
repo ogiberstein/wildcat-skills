@@ -26,11 +26,6 @@ and the agent skills. A TypeScript application: Next.js routes, Prisma against
 Postgres, rendered markdown, sessions and wallet connection. A long-running
 service that holds a signer and submits transactions.
 
-**Use another tool when.** `solidity-auditor` and `x-ray` review contract
-source. `fizz` builds the invariant harness that covers the on-chain half.
-`elenchus` works a failure that has already happened. `ephoros` decides what
-telemetry stays.
-
 Serves the `implement` phase. Fiat has no counterpart for this work today, so
 nothing is superseded.
 
