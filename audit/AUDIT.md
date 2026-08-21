@@ -6317,3 +6317,30 @@ Imprimatur and per-file Brevitas accept the six named prose files; Promise
 Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema
 each exit 0 over their required trees. All other semantics, finding codes,
 ownership, versions and held frontier digests are unchanged. No new leads.
+
+## Ephoros alert-runbook annotations, step 2, final post-cap closure verification -- 2026-08-21
+
+### Guard replay
+
+This independent closure verification is not a ninth controller round.
+The three E319-S2-PC-01 guards fail three times against
+`69534e2149973cbcd043c7cdbc7ceee639c45b15` and pass 3/3 at
+`6934de985613e126c6f30f423106935aa4493b56`. Direct comparison with Ruby's
+YAML parser agrees for single-line values, ordinary nonblank folds, and one-
+and two-blank-line folds. The E004 validator rejects newline-containing paths,
+and H003 resolves the exact newline-containing value rather than its
+space-folded decoy. E319-S2-R8-01 and E319-S2-PC-01 are closed.
+
+### Regression gates
+
+Focused tests pass 126/126; evolution and version propagation 23/23;
+marketplace prose 13/13; root 104/104; Hexaemeron 599/599. Promise Machine
+reports 14 plugins and 14 copies clean. Both Protasis checks, Imprimatur,
+per-file Brevitas, diff check and the Phylax, Ephoros and Hypomnema tree lints
+exit 0. The fresh and committed Horos documents are byte-identical at 1,376
+tracked files, 89 entries and none unreadable. The fix has a good local
+signature and exactly one required co-author and origin trailer.
+
+### Verdict
+
+Further leads: none. All recorded round-8 and post-cap findings are closed.
