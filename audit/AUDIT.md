@@ -5976,3 +5976,18 @@ row. Phylax, ephoros and hypomnema exit 0. Root 104/104; hexaemeron
 532/534 with the two recorded environment failures.
 
 Leads not pursued: none
+
+## Hypomnema runbook shape check, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. The step contains the study and runbook byte-identical to the
+receipted working copies and a regenerated Horos boundary for those two paths.
+The Protasis checks are clean, the root suite passes 104/104 and the
+Hexaemeron suite passes 536/536. Phylax, Ephoros and Hypomnema each exit 0 over
+the changed tree. The risk-register concerns are not yet applicable: this step
+changes no path classifier, heading scan, pragma, handoff interface, stable
+code, frontier row or marketplace description.
+
+Leads not pursued: none
