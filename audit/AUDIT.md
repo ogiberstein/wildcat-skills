@@ -6198,3 +6198,66 @@ candidates.
 
 Leads not pursued: the class-vocabulary hole recorded in round 1 stands as a
 successor-frontier candidate.
+
+## Hermes rule corpus, step 4, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | MEM-12 mapped to `hashing-encoding`. The rule states its own implementation is scratch-memory `KECCAK256`, and Gate 2 already refuses added assembly outside the `assembly` class, so a candidate declared under that mapping would have been refused every time it was attempted. Now `assembly`. | fixed in this round |
+| S4-R1-02 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | DEP-07 and DEP-08 floored at Shanghai on the strength of EIP-3860. Both rules hold wherever EIP-170's runtime limit applies, so the floor refused correct advice on every earlier fork. The same shape as step 3's TRN-07 finding. Now floored at Homestead with the initcode half named in the reason. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+49/49. `corpus --validate` is clean at 120 rules, 28 myths and 40 references,
+and a test now asserts the corpus id set equals the source's rather than only
+the count.
+
+S4-R1-01 is the more useful of the two, because it is the first case where the
+class mapping had to be decided against an existing gate rather than against a
+description. Gate 2 refuses a candidate that adds assembly under any class but
+`assembly`, so a rule whose own statement names an assembly implementation has
+only one correct mapping whatever its subject matter is. That reading was
+applied across the group: MEM-06, MEM-10, MEM-11, MEM-13, CTL-18 and all
+fourteen YUL rules take `assembly` for the same reason.
+
+CTL-13 was examined under the same test and kept as `loop-arithmetic`. Its
+canonical implementation is Uniswap v3's tick bitmap, whose `BitMath` is
+ordinary Solidity, so a candidate under it does not have to add assembly and
+the mapping does not set up a refusal.
+
+The review read all 58 assignments and all 58 scopes. 62 of the 120 rules now
+name a class and 58 do not. All twelve DEP rules are null and carry
+`architecture` as their kind, all fourteen YUL rules take `assembly`, and a
+bidirectional test holds the mapping from the other side: every class the
+harness knows is named by at least one rule, so the vocabulary is not
+over-broad even though it is plainly under-broad.
+
+The unclassed CTL and EXT rules are the ones worth naming, because unlike DEP
+they are real source changes with measurable savings that no class describes:
+removing a generic SafeMath wrapper, omitting a redundant zero initialisation,
+batching, pull settlement, and adopting a mature safe-transfer implementation.
+With STO-12 from step 3 they are the evidence behind the successor-frontier
+candidate.
+
+Leads not pursued: the class vocabulary itself. Twelve classes cover 62 of the
+120 documented rules, and widening them is a change to the harness's public
+interface that the study's constraints put out of scope for this run.
+
+## Hermes rule corpus, step 4, round 2 -- 2026-08-21
+
+Round 1's two fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 49/49. `corpus --validate` is clean at 120 rules.
+
+The second look re-read both fixes and the guards now holding them. MEM-12
+takes `assembly` and its guard asserts the mapping beside the word
+`scratch-memory` in the rule's own statement, so the reason travels with the
+assertion. DEP-07 and DEP-08 floor at Homestead and their guard requires
+EIP-3860 to stay named in the reason, so the initcode half of each rule cannot
+quietly disappear from the record while the floor moves. `hashing-encoding`
+remains reachable through MEM-14, which is what keeps the bidirectional
+mapping test meaningful after MEM-12 moved.
+
+Leads not pursued: the class vocabulary, unchanged from round 1.
