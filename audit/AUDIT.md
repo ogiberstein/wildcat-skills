@@ -6179,3 +6179,22 @@ Leads not pursued: the step 2 extractor lead is now closed for the transcribed
 fields, since `statement`, `title`, `priority`, `evidence_grade`, `automation`
 and `references` are each compared against the pinned source by test. The
 authored fields cannot be closed that way and stay a reading task.
+
+## Hermes rule corpus, step 3, round 2 -- 2026-08-21
+
+Round 1's three fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 42/42. `corpus --validate` is clean at 62 rules.
+
+The second look re-read the three fixes and the tests now holding them. TRN-07
+floors at Homestead with its reason naming why it sits outside the transient
+group, and a test asserts both that and the Cancun floor on TRN-01 through
+TRN-06, so the exception cannot spread by accident. STO-12 and MEM-09 carry
+null and are named in the unclassed test alongside the count, now 31 of 62, so
+neither can be quietly reclassified later. 31 rules remain selectable as
+candidates.
+
+Leads not pursued: the class-vocabulary hole recorded in round 1 stands as a
+successor-frontier candidate.
