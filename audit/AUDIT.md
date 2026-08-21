@@ -6182,3 +6182,24 @@ held frontier digests are unchanged. No new leads.
 Scope: the complete folded tree `3b2d58955d483586f326ab68ed73994532a0d7bf..914099ab3daed011b6f147303214c7d62b3c61f6`. The four round-4 guard methods were run against `91fdc4c2904040d548b75900978c7de3c8c18af6` in memory: false alert detection, false suppression and false H003 detection produced six subtest failures across both quote styles, while the claimed false-satisfaction guard remained green. All four methods pass against the fixed tree. Direct current-tree probes then found E319-S2-R5-01 for both quote characters and both ownership gates. Focused tests pass 112/112; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 585/585. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer. H007 remains unchanged; per-alert isolation, pointer base, stable finding codes, ordinary generation and held frontier digests otherwise remain intact.
 
 Further leads: none beyond E319-S2-R5-01 and E319-S2-R5-02.
+
+### Resolution: Ephoros alert-runbook annotations, step 2, round 5 -- 2026-08-21
+
+Both findings are resolved on the audit branch. E319-S2-R5-01 restricts
+cross-line quote state to a quote at a supported quoted-scalar start. An
+apostrophe or double quote embedded in a plain scalar no longer hides a later
+alert or runbook pointer, while genuine multi-line quoted scalars remain
+opaque. E319-S2-R5-02 corrects the round-4 evidence: independent replay found
+six red subtests, two each for false alert detection, false suppression and
+false H003 detection. The quoted-runbook-satisfaction guard was already green
+for both quote styles and remains a regression guard, not red evidence.
+
+The two round-5 guard methods were observed red before repair: the focused
+suite ran 114 tests with four subtest failures across both quote styles and
+both ownership gates. After repair, the focused suite passes 114/114,
+evolution and version propagation 23/23, marketplace prose 13/13, root
+104/104 and Hexaemeron 587/587. Protasis accepts both documents; Imprimatur
+and per-file Brevitas accept the six named prose files; Promise Machine
+reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema each
+exit 0 over their required trees. All other semantics, finding codes,
+ownership, versions and held frontier digests are unchanged. No new leads.

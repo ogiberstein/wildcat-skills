@@ -183,6 +183,12 @@ class YamlRunbooks(unittest.TestCase):
                           f"  {quote}\n")
                 self.assertEqual([], yaml_codes(source))
 
+    def test_quotes_inside_plain_scalars_do_not_hide_runbook_pointers(self):
+        for quote, value in (("'", "O'Brien"), ('"', 'six" pipe')):
+            with self.subTest(quote=quote):
+                source = f"note: {value}\nrunbook: runbooks/missing.md\n"
+                self.assertEqual(["H003"], yaml_codes(source))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 

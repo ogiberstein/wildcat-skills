@@ -161,28 +161,41 @@ class Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+def _yaml_quote_starts(line: str, index: int) -> bool:
+    """Return whether a quote occupies a supported quoted-scalar start."""
+    prefix = line[:index]
+    stripped = prefix.strip()
+    return not stripped or stripped == "-" or prefix.rstrip().endswith(":")
+
+
 def _split_yaml_comment(
         line: str, quote: str | None = None) -> tuple[str, str, str | None]:
     """Split YAML content and comment while carrying a quoted scalar."""
-    single = quote == "'"
-    double = quote == '"'
+    active = quote
     escaped = False
     for index, character in enumerate(line):
         if escaped:
             escaped = False
             continue
-        if double and character == "\\":
-            escaped = True
+        if active == '"':
+            if character == "\\":
+                escaped = True
+            elif character == '"':
+                active = None
             continue
-        if character == "'" and not double:
-            single = not single
-        elif character == '"' and not single:
-            double = not double
-        elif (character == "#" and not single and not double
+        if active == "'":
+            if character == "'" and index + 1 < len(line) \
+                    and line[index + 1] == "'":
+                escaped = True
+            elif character == "'":
+                active = None
+            continue
+        if character in "'\"" and _yaml_quote_starts(line, index):
+            active = character
+        elif (character == "#"
               and (index == 0 or line[index - 1] in " \t")):
             return line[:index], line[index:], None
-    carried = "'" if single else '"' if double else None
-    return line, "", carried
+    return line, "", active
 
 
 def _yaml_allow_lines(lines: list[str]) -> set[int]:
