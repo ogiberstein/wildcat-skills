@@ -5937,3 +5937,19 @@ hypomnema exit 0. Root 104/104; hexaemeron 519/521 with the two recorded
 environment failures.
 
 Leads not pursued: none
+
+## Hypomnema source-comment references, step 1, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Two committed documents, byte-identical to the run's working
+copies; the study check and the runbook check exit 0 over them, and the
+regenerated boundary carries exactly the two new paths. Per the register:
+string-false-positive, tree-self-trip, index-reuse and interface-drift
+not applicable, no scanner, test or code changes this step;
+ledger-arithmetic not applicable, no row cut this step. Phylax, ephoros
+and hypomnema exit 0. Root 104/104; hexaemeron 519/521 with the two
+recorded environment failures.
+
+Leads not pursued: none
