@@ -7294,3 +7294,36 @@ changed prose, three tree lints and diff check are clean; historical audit-log
 lexicon signals remain outside this appended closure.
 
 Further leads: none.
+
+## Fiat state-shape validation, step 1, round 1 -- 2026-08-21
+
+The exact range `6980aef4c33ece8614b21e4ef8ff32dd19c3e7fc..7f4600dec3b66f5d5781f5f7b9992587bda7357b`
+contains the two byte-identical tracked specification copies and the matching
+Horos census update. No product source or Solidity changed, so the recorded
+security-suite waiver applies and the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The Horos red specimen reproduced from the exact parent: its document digest
+changed from `17bf1887627572f15612f3e7ebe39f8204afba0bd16e4b78bcc8fac1fdc63942`
+to `dbfe1e25e5aadf1747318de7d1192f8797d49fd4e3a4b51786a4f20d79a0a4d4`
+when the two Markdown files entered the census. The regenerated document is
+byte-identical to the tracked document and a second scan leaves it unchanged
+at 1,387 walked files, 89 classified entries and zero unreadable files.
+
+Protasis accepts both tracked specifications. Imprimatur and the runbook's
+Brevitas check are clean. Phylax, Ephoros and Hypomnema each exit 0. The
+boundary suite passes 4/4, the root suite 104/104 and Hexaemeron 637/637.
+Promise Machine reports 14 plugins and 14 copies clean. The Mason head has a
+valid local signature and exactly one of each required Shoggoth trailer.
+
+The review covered all 12 source-bound risks: `validation-bypass`,
+`path-diagnostic-drift`, `validation-order`, `legacy-state-rejection`,
+`semantic-scope-creep`, `secret-echo`, `verify-parity`, `partial-write`,
+`round-indexing`, `frontier-arithmetic`, `marketplace-prose-drift` and
+`signing-provenance`. Step 1 preserves those acceptance boundaries without
+implementing or weakening them.
+
+Leads not pursued: none.
