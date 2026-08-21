@@ -7549,3 +7549,41 @@ dashboard access pass on both language sides alike, parity holds and widening
 either is a rule decision nobody has asked for. The study's count of 882
 tracked TypeScript files reads 875 at the pinned clone commit, a
 study-document discrepancy with no bearing on any acceptance command.
+
+## Ephoros wallet-address telemetry, step 3, round 2 -- 2026-08-21
+
+The round audited the fixed tree at `2a464fe` with the seams of round 1's nine
+fixes as its focus. All nine held: the recursion containment survives five
+other lexer stress paths and an exception-injection probe, the comment-span
+pragma collection holds under CRLF, JSX, template-expression and
+file-boundary edges, E000 stays unsuppressible without over-rotating real
+findings, and a three-way differential shows parent Python behaviour exactly
+restored. The three lints and both suites were green; the findings below came
+from fresh probes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | low | scripts/ephoros.py | the `?.[` bracket form of optional chaining still defeated the subscript recognisers, an ordinary shape with 16 occurrences in the pinned clone | fixed in 82e7274 |
+| S3-R2-02 | low | scripts/ephoros.py | a whitespace-separated dotted chain scanned quadratically, 62.8 seconds at 100 KB and hours at the cap, inside the untrusted-read boundary; introduced by this step's range and missed in round 1 | fixed in 82e7274 |
+| S3-R2-03 | info | scripts/ephoros.py | a `//` pragma inside a block comment suppressed, against the documented line-comment grammar | fixed in 82e7274 |
+| S3-R2-04 | info | scripts/ephoros.py | a constant template-literal index value was missed while the quoted forms fired | fixed in 82e7274 |
+
+The scan fix is structural rather than a cap: chain parsing is anchored to
+bracket positions and runs once, backwards, per bracket, taking the
+adversarial 100 KB specimen from 58.7 seconds to 0.017 and the same content at
+the full 1 MiB cap to 0.177 seconds, with a normal 1 MiB file at 0.295
+seconds -- measured before and after through the real check path, as metron
+requires. Ten guard tests landed with the fixes, six observed red first and
+four pinning negatives, for 110 focused cases. After the fixes the clone run
+stays clean at exit 0 with zero pragmas and an empty porcelain, the tree lint
+exits 0, the Hexaemeron suite passes 704/704, the root suite 107/107, and
+phylax and hypomnema each exit 0.
+
+Leads not pursued: the Python `#` pragma matches inside a Python string, a
+line-based behaviour identical at the step-2 parent and outside this step's
+diff, belonging to a deliberate decision on that surface; the shared lexer's
+recursion defect stays carried forward for the owning surface; read and write
+subscripts both fire on both language sides alike, a parity-preserving rule
+decision nobody has asked to change; a constant backtick literal now counts
+as a string in every constant-key position, semantically identical to the
+quoted forms, with the self-lint and clone run clean under it.
