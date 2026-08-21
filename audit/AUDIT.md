@@ -6487,3 +6487,134 @@ before push and merge. The other seven study risks remain inapplicable to the
 docs-and-boundary step and are held for steps 2 and 3.
 
 Further leads: none.
+
+## Fiat delegation packets, step 2, round 1 -- 2026-08-21
+
+### Findings
+
+Two findings remain open.
+
+I320-S2-R1-01 (medium), `protasis-grammar-drift`:
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1409-1411` defines private
+source selectors that are narrower than the Protasis grammar which accepts the
+study and runbook. A runbook step heading with trailing spaces passes the
+Protasis runbook check but `source_runbook_step` refuses it as having no exact
+source block. A ` ``` risk-register` opener likewise passes the Protasis study
+check but `source_risk_register` reports no fenced register. The packet builder
+must select every source form accepted by the authoritative grammar, or the
+authoritative checker and selector must share one grammar.
+
+I320-S2-R1-02 (medium), `path-escape`: the Warden packet concatenates mutable
+`audit.stacked_suffix` at
+`plugins/hexaemeron/skills/fiat/scripts/hexctl.py:1616-1624` without validating
+the resulting ref. Setting the suffix to `" bad"` emits a `stacked_branch`
+which `git check-ref-format --branch` rejects. Validate the complete emitted
+branch name before returning the packet.
+
+### Review evidence
+
+The four total envelopes and exact Surveyor, Mason, Warden and Scribe brief
+schemas were reviewed against their agent contracts. Receipt digests bind the
+study and runbook source bytes; mutation, duplicate-selector, missing-source,
+containment, input-size and legacy cases have focused guards. The current run
+is deliberately legacy: `hexctl next` emitted the held audit directive with
+the current state digest, `agent: null` and `brief: {}` because its study
+receipt predates the new digest fields.
+
+Scribe uses the exact two-dot PR-base-to-step-branch range, NUL-delimited Git
+output, containment checks, sorted unique files, a 500-path cap and bounded
+output. Git calls use fixed argument vectors with `shell=False`; direct fake-Git
+probes confirmed fail-visible timeout and output-cap behaviour. Packet
+reconstruction is state-bound and deterministic. No issue was found in those
+mechanisms.
+
+### Gates and provenance
+
+The packet-focused suites pass 159/159 and the full Hexaemeron suite 610/610;
+root tests pass 104/104. Promise Machine reports 14 plugins and 14 copies
+clean. Imprimatur and all four per-file Brevitas checks exit 0. Phylax,
+Ephoros and Hypomnema tree lints, Horos and the folded diff check exit 0.
+Source commit `d98010622f18f40ded9dccc10e60b04bcfaeeb19` has a good local
+signature and exactly one required co-author and origin trailer.
+
+### Risk-register disposition
+
+`packet-state-drift`, `artefact-drift`, `file-range-confusion`,
+`subprocess-control` and `legacy-state-overclaim` are covered by the reviewed
+implementation and green evidence. `protasis-grammar-drift` and `path-escape`
+remain open as I320-S2-R1-01 and I320-S2-R1-02. `local-signature-gap` is closed
+for the step source commit. `remote-verification-gap` and
+`merge-origin-confusion` are inapplicable before push and merge.
+
+Further leads: none beyond I320-S2-R1-01 and I320-S2-R1-02.
+
+## Fiat delegation packets, step 2, round 1 resolution -- 2026-08-21
+
+Both findings are closed.
+
+### Fixes
+
+- I320-S2-R1-01: the source selectors now use the step-heading grammar and
+  fence-info split accepted by Protasis. Trailing-space step headings and
+  spaced `risk-register` openers retain their exact source bytes. Fenced
+  decoys remain excluded, and Protasis remains the shape authority.
+- I320-S2-R1-02: the controller assembles the complete Warden stacked branch,
+  then runs bounded, no-shell `git check-ref-format --branch` on that value.
+  An invalid mutable suffix stops packet emission with the named
+  `stacked_branch` refusal.
+
+### Red-to-green evidence
+
+The two focused guards were red before the fix: selector parity exited with
+one error, and the invalid suffix guard failed because the controller emitted
+the malformed ref. They now pass 2/2. The focused suite passes 161/161, the
+root suite 104/104 and Hexaemeron 612/612. Promise Machine reports 14 plugins
+and 14 copies clean. Both Protasis modes pass. The remaining Step 2 prose,
+tree and diff gates pass.
+
+### Boundary
+
+No Step 3 signing, remote, version or publication rule is changed.
+
+## Fiat delegation packets, step 2, round 2 -- 2026-08-21
+
+### Verdict
+
+Zero findings. I320-S2-R1-01 and I320-S2-R1-02 are closed, with no further
+leads.
+
+### Red-to-green evidence
+
+The two round-1 guards were replayed unchanged against pre-fix commit
+`6d9a69bf90eec1b353d417d133ba7f01036134e7`: selector parity errored on the
+Protasis-accepted trailing-space heading, and the Warden guard failed because
+the invalid assembled branch was emitted. The same guards pass 2/2 at fix
+`0f9ec96217ad917b5aa9bbb99eaa9d81cf9f62ab`. The selector test also exercises
+the Protasis-accepted spaced `risk-register` opener. The fix commit has a good
+local signature and exactly one required co-author and origin trailer.
+
+### Bounded review
+
+The folded packet diff was rechecked against the four agent contracts and the
+study risk register. The exact Surveyor, Mason, Warden and Scribe schemas,
+total null envelope, state and artefact binding, duplicate selectors,
+containment and size caps, deterministic reconstruction, legacy null packet,
+Scribe range and sort, and bounded no-shell Git remain intact. The complete
+Warden ref is now checked before emission, and the source selectors accept the
+same spacing forms as Protasis without admitting fenced decoys.
+
+`packet-state-drift`, `artefact-drift`, `protasis-grammar-drift`,
+`file-range-confusion`, `subprocess-control`, `legacy-state-overclaim` and
+`path-escape` are closed by the reviewed implementation and evidence.
+`local-signature-gap` is closed for the fix. `remote-verification-gap` and
+`merge-origin-confusion` remain inapplicable before push and merge.
+
+### Gates
+
+The two focused guards pass 2/2, the packet-focused suites 161/161, the full
+Hexaemeron suite 612/612 and root tests 104/104. Promise Machine reports 14
+plugins and 14 copies clean. Both Protasis modes, Imprimatur, all four
+per-file Brevitas checks, Phylax, Ephoros, Hypomnema, Horos and the folded diff
+check exit 0.
+
+Further leads: none.

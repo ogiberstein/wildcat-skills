@@ -28,6 +28,8 @@ import hashlib
 import json
 import os
 import re
+import selectors
+import subprocess
 import sys
 import time
 
@@ -122,6 +124,52 @@ whose first word is this, ignoring case and surrounding space. Preflight writes
 
 def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+SOURCE_BYTES_MAX = 2 * 1024 * 1024
+GIT_OUTPUT_MAX = 2 * 1024 * 1024
+GIT_PATHS_MAX = 500
+GIT_TIMEOUT = 30
+
+
+def scoped_path(base_dir: str, supplied: str, label: str) -> str:
+    """Resolve one path and refuse anything outside the target directory."""
+    root = os.path.realpath(base_dir)
+    candidate = supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
+    resolved = os.path.realpath(candidate)
+    try:
+        inside = os.path.commonpath((root, resolved)) == root
+    except ValueError:
+        inside = False
+    if not inside:
+        die(f"{label} escapes target directory: {supplied}")
+    return resolved
+
+
+def read_bounded_source(base_dir: str, supplied: str, label: str) -> tuple[str, bytes]:
+    """Read a source artefact once, with containment and a hard byte ceiling."""
+    path = scoped_path(base_dir, supplied, label)
+    if not os.path.isfile(path):
+        die(f"{label} is not a regular file: {supplied}")
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(SOURCE_BYTES_MAX + 1)
+    except OSError as exc:
+        die(f"{label} cannot be read: {exc}")
+    if len(data) > SOURCE_BYTES_MAX:
+        die(f"{label} exceeds {SOURCE_BYTES_MAX}-byte cap")
+    return path, data
+
+
+def decoded_source(data: bytes, label: str) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        die(f"{label} is not UTF-8 text")
+
+
+def plugin_root() -> str:
+    return os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
 def die(msg: str, code: int = 2) -> None:
@@ -862,20 +910,32 @@ def _require_file(path: str, label: str) -> str:
 def done_study(args, state: dict) -> None:
     require_global_phase(state, "study")
     artifact = _require_file(args.artifact, "artifact")
+    _, artifact_bytes = read_bounded_source(args.dir, artifact, "study artefact")
     skills = [s for s in (args.skills or "").split(",") if s]
-    state["receipts"]["study"] = {"artifact": artifact, "skills": skills}
+    digest = hashlib.sha256(artifact_bytes).hexdigest()
+    state["receipts"]["study"] = {
+        "artifact": artifact,
+        "sha256": digest,
+        "skills": skills,
+    }
     state["phase"] = "runbook"
-    commit(args.dir, state, "done:study", {"artifact": artifact, "skills": skills})
+    commit(
+        args.dir,
+        state,
+        "done:study",
+        {"artifact": artifact, "sha256": digest, "skills": skills},
+    )
     print("study receipted; phase -> runbook")
 
 
 def done_runbook(args, state: dict) -> None:
     require_global_phase(state, "runbook")
     artifact = _require_file(args.artifact, "artifact")
+    _, artifact_bytes = read_bounded_source(args.dir, artifact, "runbook artefact")
     steps_file = _require_file(args.steps_file, "steps-file")
+    _, steps_bytes = read_bounded_source(args.dir, steps_file, "steps file")
     try:
-        with open(steps_file, "r", encoding="utf-8") as fh:
-            raw = json.load(fh)
+        raw = json.loads(decoded_source(steps_bytes, "steps file"))
     except ValueError as exc:
         die(f"steps-file is not valid JSON: {exc}")
     if not isinstance(raw, list) or not raw:
@@ -906,7 +966,13 @@ def done_runbook(args, state: dict) -> None:
     state["current_step"] = 1
     state["phase"] = "steps"
     receipt = {"artifact": artifact, "steps": titles}
-    state["receipts"]["runbook"] = {"artifact": artifact, "step_count": len(titles)}
+    digest = hashlib.sha256(artifact_bytes).hexdigest()
+    state["receipts"]["runbook"] = {
+        "artifact": artifact,
+        "sha256": digest,
+        "step_count": len(titles),
+    }
+    receipt["sha256"] = digest
     commit(args.dir, state, "done:runbook", receipt)
     print(f"runbook receipted; {len(titles)} steps registered; step 1 -> implement")
 
@@ -1315,9 +1381,291 @@ def cmd_done(args) -> None:
     handler(args, state)
 
 
+def receipted_source(base_dir: str, state: dict, name: str):
+    """Return a verified source artefact, or None for a legacy receipt."""
+    receipt = as_dict(as_dict(state.get("receipts")).get(name))
+    expected = receipt.get("sha256")
+    if expected is None:
+        return None
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        die(f"{name} receipt has an invalid sha256")
+    artifact = receipt.get("artifact")
+    if not isinstance(artifact, str) or not artifact:
+        die(f"{name} receipt has no artefact path")
+    path, data = read_bounded_source(base_dir, artifact, f"{name} artefact")
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != expected:
+        die(
+            f"{name} artefact digest changed: expected {expected}, got {actual}; "
+            "restore the receipted bytes or halt the run"
+        )
+    return {
+        "path": path,
+        "sha256": expected,
+        "text": decoded_source(data, f"{name} artefact"),
+    }
+
+
+# This is Protasis's accepted STEP grammar with only the number-group name
+# changed for this packet shape. The selector carries bytes accepted by that
+# authority; it does not impose a narrower second grammar.
+STEP_HEADING_RE = re.compile(
+    r"^##\s+Step\s+(?P<number>\d+)\s*:\s*(?P<title>.*?)\s*$"
+)
+MARKDOWN_FENCE_RE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
+RISK_REGISTER_INFO = "risk-register"
+
+
+def markdown_lines(text: str):
+    """Yield source offsets and fence state without treating quoted headings as real."""
+    offset = 0
+    open_mark = None
+    for physical in text.splitlines(keepends=True):
+        line = physical.rstrip("\r\n")
+        fence = MARKDOWN_FENCE_RE.match(line)
+        was_open = open_mark
+        if fence:
+            mark = fence.group("mark")[0]
+            if open_mark is None:
+                open_mark = mark
+            elif mark == open_mark:
+                open_mark = None
+            yield offset, offset + len(physical), line, True, was_open
+        else:
+            yield offset, offset + len(physical), line, open_mark is not None, was_open
+        offset += len(physical)
+
+
+def source_runbook_step(source: dict, step: dict) -> dict:
+    """Select one exact numbered step block without interpreting its schema."""
+    text = source["text"]
+    headings = []
+    for start, _, line, in_fence, _ in markdown_lines(text):
+        if in_fence:
+            continue
+        match = STEP_HEADING_RE.fullmatch(line)
+        if match:
+            headings.append((start, match))
+    matches = []
+    for index, (start, heading) in enumerate(headings):
+        if int(heading.group("number")) != step["n"]:
+            continue
+        if heading.group("title") != step["title"]:
+            continue
+        end = headings[index + 1][0] if index + 1 < len(headings) else len(text)
+        matches.append(text[start:end])
+    if not matches:
+        die(
+            f"runbook step {step['n']} '{step['title']}' has no exact source block"
+        )
+    if len(matches) != 1:
+        die(f"ambiguous runbook step {step['n']} '{step['title']}'")
+    return {
+        "markdown": matches[0],
+        "path": source["path"],
+        "sha256": source["sha256"],
+        "number": step["n"],
+        "title": step["title"],
+    }
+
+
+def source_risk_register(source: dict) -> dict:
+    """Carry the unique fenced register; Protasis remains its shape authority."""
+    text = source["text"]
+    matches = []
+    start = None
+    risk_mark = None
+    for line_start, line_end, line, is_fence, was_open in markdown_lines(text):
+        if start is None and was_open is None and is_fence:
+            opened = MARKDOWN_FENCE_RE.match(line)
+            if opened:
+                mark = opened.group("mark")
+                info = line.strip()[len(mark):].strip()
+            else:
+                info = None
+            if info == RISK_REGISTER_INFO:
+                start = line_start
+                risk_mark = mark[0]
+            continue
+        if start is not None and is_fence and was_open == risk_mark:
+            fence = MARKDOWN_FENCE_RE.match(line)
+            if fence and fence.group("mark")[0] == risk_mark:
+                matches.append(text[start:line_end])
+                start = None
+                risk_mark = None
+    if not matches:
+        die("study artefact has no fenced risk-register block")
+    if len(matches) != 1:
+        die("study artefact has an ambiguous fenced risk-register block")
+    return {
+        "markdown": matches[0],
+        "path": source["path"],
+        "sha256": source["sha256"],
+    }
+
+
+def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
+    """Run Git without a shell and stop on time, output or exit-status faults."""
+    try:
+        process = subprocess.Popen(
+            ["git", *argv],
+            cwd=os.path.realpath(base_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+        )
+    except OSError as exc:
+        die(f"git {' '.join(argv)} could not start: {exc}")
+    assert process.stdout is not None
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ)
+    output = bytearray()
+    deadline = time.monotonic() + GIT_TIMEOUT
+    try:
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                process.kill()
+                process.wait()
+                die(f"git {' '.join(argv)} timed out after {GIT_TIMEOUT} seconds")
+            events = selector.select(min(remaining, 0.1))
+            if not events and process.poll() is not None:
+                events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
+            for key, _ in events:
+                chunk = os.read(key.fd, 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                output.extend(chunk)
+                if len(output) > GIT_OUTPUT_MAX:
+                    process.kill()
+                    process.wait()
+                    die(f"git {' '.join(argv)} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+        returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        die(f"git {' '.join(argv)} timed out after {GIT_TIMEOUT} seconds")
+    finally:
+        selector.close()
+    if returncode != 0:
+        if refusal is not None:
+            die(refusal)
+        message = output.decode("utf-8", errors="replace").strip()
+        die(f"git {' '.join(argv)} failed with exit {returncode}: {message}")
+    return bytes(output)
+
+
+def scribe_files(base_dir: str, pr_base: str, branch: str) -> list[str]:
+    check_branch_name(pr_base)
+    check_branch_name(branch)
+    raw = bounded_git(base_dir, ["diff", "--name-only", "-z", f"{pr_base}..{branch}", "--"])
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        die("git diff path list is not UTF-8")
+    paths = [path for path in decoded.split("\0") if path]
+    unique = sorted(set(paths))
+    if len(unique) > GIT_PATHS_MAX:
+        die(f"git diff returned more than {GIT_PATHS_MAX} paths")
+    for path in unique:
+        if os.path.isabs(path) or path in (".", ".."):
+            die(f"git diff returned an unsafe path: {path}")
+        scoped_path(base_dir, path, "git diff path")
+    return unique
+
+
+def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
+    """Add the total packet envelope and build only the four delegated briefs."""
+    packet = {
+        **directive,
+        "state_sha256": state_fingerprint(state),
+        "agent": None,
+        "brief": {},
+    }
+    action = directive.get("do")
+    root = os.path.realpath(base_dir)
+    if action == "study":
+        packet["agent"] = "surveyor"
+        packet["brief"] = {
+            "topic": state["topic"],
+            "target_dir": root,
+            "base_ref": state["base"],
+            "output_path": scoped_path(
+                root, os.path.join(STATE_DIR_NAME, "study.md"), "study output"
+            ),
+        }
+        return packet
+
+    if action not in ("implement", "audit-round", "prose"):
+        return packet
+
+    if not run_branch_of(state):
+        return packet
+
+    runbook = receipted_source(root, state, "runbook")
+    study = receipted_source(root, state, "study")
+    if runbook is None or study is None:
+        # A pre-generation state cannot establish the source claims needed by
+        # the four new briefs, so it retains an explicit inline directive.
+        return packet
+
+    step = current_step(state)
+    plan = branch_plan(state, step)
+    if action == "implement":
+        packet["agent"] = "mason"
+        packet["brief"] = {
+            "runbook_step": source_runbook_step(runbook, step),
+            "branch": plan["branch"],
+            "branch_from": plan["branch_from"],
+        }
+        return packet
+
+    root_plugin = plugin_root()
+    if action == "audit-round":
+        audit = as_dict(as_dict(state.get("config")).get("audit"))
+        log = audit.get("log_path")
+        suffix = audit.get("stacked_suffix")
+        if not isinstance(log, str) or not log:
+            die("audit config has no log_path for the warden packet")
+        if not isinstance(suffix, str) or not suffix:
+            die("audit config has no stacked_suffix for the warden packet")
+        stacked_branch = plan["branch"] + suffix
+        bounded_git(
+            root,
+            ["check-ref-format", "--branch", stacked_branch],
+            "stacked_branch is not a valid Git branch",
+        )
+        packet["agent"] = "warden"
+        packet["brief"] = {
+            "step_branch": plan["branch"],
+            "stacked_branch": stacked_branch,
+            "security_suite": as_dict(state.get("receipts")).get("security_suite"),
+            "plugin_root": root_plugin,
+            "audit_log_path": scoped_path(root, log, "audit log path"),
+            "round": directive["round"],
+            "risk_register": source_risk_register(study),
+        }
+        return packet
+
+    pr_base = plan["pr_base"]
+    packet["agent"] = "scribe"
+    packet["brief"] = {
+        "files": scribe_files(root, pr_base, plan["branch"]),
+        "pr_base": pr_base,
+        "pr_draft_path": scoped_path(
+            root,
+            os.path.join(STATE_DIR_NAME, "steps", str(step["n"]), "pr.md"),
+            "PR draft path",
+        ),
+        "plugin_root": root_plugin,
+    }
+    return packet
+
+
 def cmd_next(args) -> None:
     state = load_state(args.dir)
-    out = _next_directive(state)
+    out = delegation_packet(args.dir, state, _next_directive(state))
     print(json.dumps(out))
 
 
