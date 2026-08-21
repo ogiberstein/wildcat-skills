@@ -5894,3 +5894,20 @@ not applicable, no row cut this step. Phylax, ephoros and hypomnema exit
 failures.
 
 Leads not pursued: none
+
+## Hypomnema ADR shape check, step 2, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+No findings. Per the register: backfill-fidelity reviewed, each of the
+six new alternative entries traces to a named line of the Promise
+Machine study -- option D and the option C trade for ADR-002, the
+non-goals list and the release context for ADR-004 -- and the records'
+other sections are byte-identical to base; shape-source, false-positive
+and interface-drift not applicable, no rule or code changes this step;
+ledger-arithmetic not applicable, no row cut this step. Phylax, ephoros
+and hypomnema exit 0. Root 104/104; hexaemeron 505/507 with the two
+recorded environment failures.
+
+Leads not pursued: none
