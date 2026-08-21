@@ -6021,3 +6021,46 @@ marketplace prose 13/13. Promise Machine checks 14 plugins and copies clean;
 Horos scans 1,360 files with 89 classified entries and none unreadable.
 
 Leads not pursued: none
+
+## Hermes rule corpus, step 1, round 1 -- 2026-08-21
+
+The committed non-Solidity diff has no open finding. Status: clean.
+
+The Pashov pair did not run: the `security_suite` receipt records a waiver
+because the run ships Python, JSON and Markdown and creates or changes no
+Solidity, contract or Foundry project. Phylax, Ephoros and Hypomnema each
+exit 0 over `plugins`, `tests` and the document set. The root suite passes
+104/104 and the Hermes suite 14/14. Protasis is clean over both artefacts and
+Imprimatur scores each 100/100.
+
+The look the lints cannot do covered the three risk-register concerns this
+step can carry. On `frontier-displacement`: the study states the displacement
+in its assumptions, its amendment, its risk register and item 12, and the
+runbook puts the single epoch row and its reopening text in step 6. The body
+of the study still describes two ledger rows where the amendment describes
+one; that is the append-rather-than-edit rule the spec contract states, and
+the amendment carries the correction, so it is reviewed rather than fixed. On
+`successor-judgement`: neither document names the successor frontier, which
+matches the study's position that the choice is an end-of-run judgement
+against the run's own evidence. On `cli-break` and the ten remaining
+concerns: not reachable from a Markdown and boundary-counter diff.
+
+One in-step fault, found before this round and fixed at its cause. The study
+quoted the rolling-job marker verbatim while describing the constraint that
+governs it, and `test_rolling_fiat_jobs_exist_only_in_plugin_landing_readmes`
+scans every tracked Markdown file for that literal, so the document tripped
+the guard it was describing. The detector cannot tell a quotation from a
+declaration and should not try; the sentence now names the line without
+reproducing its marker. The existing test is the guard, so no new one was
+written.
+
+The boundary regeneration moved `files_walked` from 1,360 to 1,369 with the
+entry set unchanged at 89. Two of the nine are this step's documents. The
+other seven are the Hypomnema runbook fixtures that landed after that round
+wrote its boundary, which is why its own log reports 1,360 beside them.
+
+Leads not pursued: the boundary currency guard compares entry sets and not
+the counts beside them, so a stale `files_walked` ships without a test
+noticing, as it just did. Correcting it here was a side effect of following
+the regeneration rule rather than a fix, and widening that guard belongs to
+Horos rather than to a Hermes corpus run.
