@@ -6128,3 +6128,73 @@ rejects. Its guard adds a fourth class in a temporary copy and requires the
 corpus holding it to validate.
 
 Leads not pursued: the extractor gap recorded in round 1 stands unchanged.
+
+## Hermes rule corpus, step 3, round 1 -- 2026-08-21
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | TRN-07's scope floored at Cancun. That rule is the chain-capability check itself, so the floor refused it on exactly the targets it exists to protect: a Paris deployment is where somebody most needs to be told that bytecode reaching `TLOAD` will fail. | fixed in this round |
+| S3-R1-02 | medium | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | STO-12 mapped to `storage-load-caching`. Its saving is fewer `SSTORE`s, and no Hermes class names that, so the mapping was the nearest-sounding one rather than a real one. Now null. | fixed in this round |
+| S3-R1-03 | low | `plugins/hermes/skills/hermes/references/gas-rule-corpus.json` | MEM-09 mapped to `calldata-memory`. Memory-expansion discipline and bounds checking on attacker-controlled offsets are neither a parameter-location change nor a copy removal. Now null. | fixed in this round |
+
+The Pashov pair did not run under the recorded waiver. Phylax, Ephoros and
+Hypomnema each exit 0. The root suite passes 104/104 and the Hermes suite
+42/42. `corpus --validate` reports 62 rules, 28 myths and 40 references clean.
+
+The review read all 62 class assignments and all 62 scopes one by one, which is
+what the study's risk register asks of the two authored fields. Three were
+wrong and are fixed above. The rest hold, and the reasoning worth keeping is
+this: `storage-packing` takes the rules that move a storage representation,
+because that is the Hermes class whose gate already expects a declared layout
+change; `control-flow` takes STO-13, STO-14 and STO-21, all of which add or
+reorder a branch around a write; and `calldata-memory` keeps MEM-07 and MEM-16
+on the strength of its catalogue row naming needless copies, which is what both
+rules remove.
+
+S3-R1-02 is worth more than its severity. Hermes has twelve classes and none
+of them names a reduction in the number of storage writes, so STO-12, a P0
+grade A rule and one of the most valuable in the source, cannot be run as a
+candidate at all. The corpus made that hole visible by refusing to let it be
+papered over. It is a candidate for the successor frontier rather than
+something to fix by inventing a thirteenth class inside a transcription step,
+which the study's constraints forbid.
+
+31 of the 62 rules now name no class. That is the honest count: twelve
+measurement rules constrain how a run is conducted, seven transient-storage
+rules have no class at all, and the rest are accounting or collection
+architecture. The count is asserted by a test so that a later change cannot
+quietly map one of them to something plausible.
+
+The obligations were read in full, 37 across the group. Each is an exact
+substring of its own rule's statement, checked by a test rather than by eye.
+One is a mechanism sentence rather than an instruction: STO-03's "updating one
+packed field requires loading, masking, and rewriting the shared slot" matched
+the requirement-verb heuristic through a descriptive "requires". The heuristic
+keeps it and the schema now records the false-positive class, because the cost
+is an operator explaining a mechanism in one sentence and the alternative is a
+field that is part derived and part hand-curated with no record of which is
+which.
+
+Leads not pursued: the step 2 extractor lead is now closed for the transcribed
+fields, since `statement`, `title`, `priority`, `evidence_grade`, `automation`
+and `references` are each compared against the pinned source by test. The
+authored fields cannot be closed that way and stay a reading task.
+
+## Hermes rule corpus, step 3, round 2 -- 2026-08-21
+
+Round 1's three fixes introduced no regression and this round found nothing.
+Status: clean.
+
+Phylax, Ephoros and Hypomnema each exit 0. The root suite passes 104/104 and
+the Hermes suite 42/42. `corpus --validate` is clean at 62 rules.
+
+The second look re-read the three fixes and the tests now holding them. TRN-07
+floors at Homestead with its reason naming why it sits outside the transient
+group, and a test asserts both that and the Cancun floor on TRN-01 through
+TRN-06, so the exception cannot spread by accident. STO-12 and MEM-09 carry
+null and are named in the unclassed test alongside the count, now 31 of 62, so
+neither can be quietly reclassified later. 31 rules remain selectable as
+candidates.
+
+Leads not pursued: the class-vocabulary hole recorded in round 1 stands as a
+successor-frontier candidate.

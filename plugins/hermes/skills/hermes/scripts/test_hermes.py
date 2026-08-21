@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -531,9 +532,15 @@ class CorpusValidationTests(unittest.TestCase):
 
 
 def _rule_record(**overrides) -> dict:
-    """A minimal rule record in the shape the schema declares."""
+    """A rule record in the shape the schema declares.
+
+    `STO-99` deliberately matches the id pattern without naming a rule the
+    corpus holds, so appending it does not collide with real data.
+    """
+    statement = ("load storage once when no mutation or callback can invalidate "
+                 "the value. keep the cache's lifetime narrow.")
     record = {
-        "id": "STO-09",
+        "id": "STO-99",
         "title": "cache repeated storage reads",
         "kind": "technique",
         "category": "state-model-and-storage",
@@ -541,14 +548,8 @@ def _rule_record(**overrides) -> dict:
         "evidence_grade": "A",
         "automation": "safe",
         "hermes_class": "storage-load-caching",
-        "summary": "Copy a storage value to a stack local when it is read repeatedly.",
-        "mechanism": "Even a warm SLOAD costs more than a stack operation.",
-        "recommendation": "Load once after the last preceding mutation.",
-        "detector_signals": ["same storage expression read more than once"],
-        "preconditions": ["no internal write invalidates the cached value"],
-        "proof_obligations": ["every use observes the same version of the value"],
-        "failure_modes": ["stale state after a callback"],
-        "validation": ["success and failure gas snapshots"],
+        "statement": statement,
+        "obligations": ["keep the cache's lifetime narrow."],
         "references": ["REF-10"],
         "source_section": "5",
         "verified_on": {"compiler": "0.8.25", "evm": "cancun"},
@@ -564,6 +565,127 @@ def _rule_record(**overrides) -> dict:
     }
     record.update(overrides)
     return record
+
+
+
+def _repository_root() -> Path:
+    """The checkout this skill ships from, or None when it ships alone.
+
+    The source document lives under the repository's `docs/`, which a plugin
+    install does not carry, so the fidelity checks below skip rather than fail
+    outside the source tree.
+    """
+    for candidate in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+class CorpusFidelityTests(unittest.TestCase):
+    """The transcribed fields have to be the source's words, not a paraphrase
+    that drifted. Structure is the shipped validator's job; equality with the
+    pinned document is this repository's."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.root = _repository_root()
+        if cls.root is None:
+            raise unittest.SkipTest("not running from the source checkout")
+        cls.corpus, _schema, _digest = hermes.load_corpus()
+        source = cls.root / cls.corpus["source"]["path"]
+        if not source.is_file():
+            raise unittest.SkipTest(f"pinned source not in this tree: {source}")
+        cls.source_text = source.read_text(encoding="utf-8")
+        cls.source_bytes = source.read_bytes()
+
+    def test_the_pinned_source_matches_its_recorded_digest(self) -> None:
+        self.assertEqual(hermes.sha256_bytes(self.source_bytes),
+                         self.corpus["source"]["sha256"])
+
+    def source_rules(self) -> dict:
+        pattern = re.compile(
+            r"(?m)^### (?P<id>(?:CMP|STO|TRN|MEM|CTL|EXT|DEP|YUL)-\d{2}) — (?P<title>.+?)\n+"
+            r"\*\*(?P<priority>P\d) · (?P<grade>[ABCX]) · (?P<automation>safe|guarded|never)\*\*\n"
+            r"(?P<body>.*?)(?=\n#{2,3} |\Z)", re.S)
+        found = {}
+        for match in pattern.finditer(self.source_text):
+            body = re.sub(r"\[\^REF-\d{2}\]", "", match.group("body"))
+            found[match.group("id")] = {
+                "title": match.group("title").strip(),
+                "priority": match.group("priority"),
+                "evidence_grade": match.group("grade"),
+                "automation": match.group("automation"),
+                "statement": " ".join(body.split()),
+                "references": sorted(set(re.findall(r"\[\^(REF-\d{2})\]", match.group("body")))),
+            }
+        return found
+
+    def test_the_source_states_one_hundred_and_twenty_rules(self) -> None:
+        self.assertEqual(len(self.source_rules()), 120)
+
+    def test_every_transcribed_field_matches_the_source(self) -> None:
+        source = self.source_rules()
+        for rule in self.corpus["rules"]:
+            with self.subTest(rule=rule["id"]):
+                self.assertIn(rule["id"], source)
+                expected = source[rule["id"]]
+                for field in ("title", "priority", "evidence_grade",
+                              "automation", "statement", "references"):
+                    self.assertEqual(rule[field], expected[field], field)
+
+    def test_every_obligation_is_a_substring_of_its_own_statement(self) -> None:
+        for rule in self.corpus["rules"]:
+            for obligation in rule["obligations"]:
+                with self.subTest(rule=rule["id"], obligation=obligation[:40]):
+                    self.assertIn(obligation, rule["statement"])
+
+    def test_the_section_counts_the_corpus_holds_so_far(self) -> None:
+        counts = {}
+        for rule in self.corpus["rules"]:
+            prefix = rule["id"].split("-")[0]
+            counts[prefix] = counts.get(prefix, 0) + 1
+        self.assertEqual(counts, {"CMP": 12, "STO": 27, "TRN": 7, "MEM": 16})
+        self.assertEqual(len(self.corpus["rules"]), 62)
+
+    def test_a_rule_with_no_class_is_recorded_rather_than_guessed(self) -> None:
+        """Half of this group constrains the run or the architecture, so it
+        names no candidate. The count is asserted because quietly mapping one
+        of them to the nearest-sounding class is the failure to catch."""
+        unclassed = [r["id"] for r in self.corpus["rules"] if r["hermes_class"] is None]
+        self.assertEqual(len(unclassed), 31)
+        for identifier in ("CMP-01", "TRN-01", "STO-23", "MEM-15",
+                           "STO-12", "MEM-09"):
+            self.assertIn(identifier, unclassed)
+
+    def test_every_measurement_rule_names_no_class(self) -> None:
+        for rule in self.corpus["rules"]:
+            if rule["kind"] == "measurement":
+                with self.subTest(rule=rule["id"]):
+                    self.assertIsNone(rule["hermes_class"])
+
+    def test_every_scope_reason_is_written_out(self) -> None:
+        for rule in self.corpus["rules"]:
+            scope = rule["scope"]
+            with self.subTest(rule=rule["id"]):
+                for field in ("compiler_reason", "evm_reason", "pipeline_reason"):
+                    self.assertGreater(len(scope[field]), 40, field)
+
+    def test_a_transient_rule_floors_at_cancun(self) -> None:
+        """The scope bound that would otherwise ship advice a Paris chain
+        cannot execute. TRN-07 is deliberately outside it: that rule is the
+        capability check itself, so flooring it at Cancun would refuse it on
+        exactly the targets it exists to protect."""
+        for rule in self.corpus["rules"]:
+            if rule["id"].startswith("TRN-") and rule["id"] != "TRN-07":
+                with self.subTest(rule=rule["id"]):
+                    self.assertEqual(rule["scope"]["evm_floor"], "cancun")
+                    self.assertEqual(rule["scope"]["compiler_min"], "0.8.25")
+
+    def test_the_chain_capability_gate_applies_below_cancun(self) -> None:
+        gate = next(r for r in self.corpus["rules"] if r["id"] == "TRN-07")
+        self.assertEqual(gate["scope"]["evm_floor"], "homestead")
+        self.assertIn("below Cancun", gate["scope"]["evm_reason"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

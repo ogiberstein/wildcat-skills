@@ -6,7 +6,7 @@ one pull request each, stacked on the run branch
 `0bfad60bb482245dd08d9747139d26824392a2c7`, with `main` as the single merge
 target at the end.
 
-Steps 3 and 4 split the 120-rule transcription in half on purpose. Each half is
+Steps 3 and 4 split the 120-rule transcription in half on purpose. Their titles say 61 and 58, which is a miscount made when this runbook was written: the groups are 62 and 58. The step branch and the controller's step title keep the original wording so nobody reads them as different steps, and the counts each step asserts are 62 and 58. Each half is
 one audit round of the same kind of review, rule by rule, against the two
 authored fields the study's risk register calls out; one round of 120 records
 is the shape that gets skimmed.
@@ -52,7 +52,7 @@ The document commits byte for byte, including the two lines that end in whitespa
 
 ## Step 3: The first 61 rules
 
-**Goal.** The `CMP`, `STO`, `TRN` and `MEM` rules are in the corpus, each tracing to its source section, each carrying its Hermes class or none, and each carrying a declared scope with the reason for its bounds.
+**Goal.** All 62 `CMP`, `STO`, `TRN` and `MEM` rules are in the corpus, each tracing to its source section, each carrying its Hermes class or none, and each carrying a declared scope with the reason for its bounds.
 **Entry.** Step 2's exit state, on a branch cut from the step 2 branch.
 **Exit.** The validator passes over the larger corpus and the counts are asserted:
 
@@ -63,7 +63,7 @@ python3 -m unittest discover -s tests
 ```
 
 **Files.** `plugins/hermes/skills/hermes/references/gas-rule-corpus.json`, `plugins/hermes/skills/hermes/scripts/test_hermes.py`, `.horos/boundary.json`.
-**Tests.** Per-section counts asserted at 12, 27, 7 and 16; every rule's class resolving to one of the twelve or to none; every rule carrying a source section, a scope range, a fork floor and a stated reason per bound; every automation value inside `safe`, `guarded`, `never`; every evidence grade inside `A`, `B`, `C`, `X`. Expected around six new cases.
+**Tests.** The total asserted at 62 with per-section counts at 12, 27, 7 and 16; every rule's class resolving to one of the twelve or to none; every rule carrying a source section, a scope range, a fork floor and a stated reason per bound; every automation value inside `safe`, `guarded`, `never`; every evidence grade inside `A`, `B`, `C`, `X`. Expected around six new cases.
 **Disciplines.** hypomnema: the identifier namespace becomes public here, and the decision record naming it is cut in step 6 against this data. elenchus: a transcription fault found in the round is worked to its cause in the source section rather than patched in the record. phylax: none beyond step 2's corpus read, which this step only feeds. ephoros: none, nothing runs unattended. metron: none, no performance claim.
 
 ## Step 4: The remaining 58 rules
