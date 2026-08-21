@@ -10,7 +10,7 @@ description: >-
   which belongs to elenchus, and do not use it to measure something slow, which
   belongs to metron.
 metadata:
-  version: "0.2.0"
+  version: "1.2.0"
 ---
 
 # Ephoros
@@ -163,7 +163,7 @@ credential or an address that should not be there.
 
 ## The mechanical subset
 
-Four of these rules are settled by a parser. Run the lint over the paths a
+Five of these rules are settled by a parser. Run the lint over the paths a
 step touched, and require exit 0.
 
 ```bash
@@ -176,17 +176,38 @@ block-YAML list entry starting with `alert:` that lacks its own nested
 `annotations.runbook` Markdown path. Comments, block scalars, top-level keys
 and neighbouring alert entries do not satisfy E004. The YAML pass establishes
 presence only: Hypomnema H003 resolves the path and H007 checks the target's
-answers. The other three rules read Python, and the lint says nothing about
-the TypeScript surface.
+answers. E001 to E003 read Python only.
 
-Two things it deliberately leaves alone. A `print` is command-line output
-rather than telemetry, and this marketplace writes a great deal of it. A mean
-of something that is not a duration is arithmetic, so sentence lengths and
-layout positions pass untouched.
+E005 reports telemetry keyed by wallet address: an address-shaped name or a
+40-hex literal used as a metric label, a dashboard key or a log index. It
+reads Python, address-named keys directly under a supported block-YAML
+`labels:` mapping, and `.ts`/`.tsx` source through the shared masked lexer
+phylax already uses, with the same input boundary: at most 1 MiB per
+TypeScript file, and a file the lexer cannot read or terminate reports E000
+and fails the run. Address-shaped metric labels that E002 used to claim now
+report E005, so one concern carries one code; every other unbounded fragment
+keeps E002. Where the line between this lint and phylax runs over the same
+TypeScript files is decided once, in
+[ADR-010](../../../../docs/decisions/ADR-010-split-address-telemetry-from-boundary-control.md).
 
-Deliberate exceptions state a reason: `# ephoros: allow <why>`, on the line or
-the one above it. A bare pragma suppresses nothing. Everything else here stays
-judgement, and a clean exit says only that these four found nothing.
+Three limits are part of the rule rather than defects in it. The finding
+message says wallet address for any address-fragment key, so `ip_address`
+draws the same words. Recognition under a YAML `labels:` mapping is
+direct-children-only, so a key nested one mapping deeper passes silently. And
+the `s?` suffix family E005 shares with E002 misses `-es` plurals, so
+`addresses` passes where `address` fires.
+
+Two things it deliberately leaves alone. A `print` in Python and `console.*`
+in TypeScript are command-line output rather than telemetry, and this
+marketplace writes a great deal of the first. A mean of something that is not
+a duration is arithmetic, so sentence lengths and layout positions pass
+untouched.
+
+Deliberate exceptions state a reason: `# ephoros: allow <why>` in Python and
+YAML, `// ephoros: allow <why>` as a genuine line comment in TypeScript, on
+the finding line or the one above it. A bare pragma suppresses nothing, in
+either form. Everything else here stays judgement, and a clean exit says only
+that these five found nothing.
 
 ## Rationalisations
 
@@ -247,10 +268,10 @@ signal behind it, or the sampled output someone should read.
 
 ### ephoros-mechanical-gate
 
-- Promise: A zero-exit Ephoros lint establishes that the bounded parser found none of its specified formatted-log, unbounded-metric-label or mean-duration patterns in the selected Python paths, and no supported block-YAML alert entry without its own nested runbook annotation.
+- Promise: A zero-exit Ephoros lint establishes that the bounded parser found none of its specified formatted-log, unbounded-metric-label or mean-duration patterns in the selected Python paths, no supported block-YAML alert entry without its own nested runbook annotation, and no wallet-address key on a metric label, dashboard key or log index in the selected Python, TypeScript and supported block-YAML label surfaces.
 - Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
 - Evidence classes: checked
-- Boundary: A clean lint covers only the three implemented Python rules and E004 annotation presence in the supported block-YAML subset; it does not prove useful observability, safe output, correct alerting, a resolving or useful runbook, general YAML semantics or conformance of another language.
+- Boundary: A clean lint covers only the four implemented Python rules, E004 annotation presence and E005 address-key recognition in the supported block-YAML subset, and E005 alone on the TypeScript surface; it does not prove useful observability, safe output, correct alerting, a resolving or useful runbook, general YAML semantics or any other rule in another language.
 - Authorises: Passing the mechanical Ephoros gate for the exact paths and checker version recorded.
 - Consequence: 1
 - Refuses: Unreadable or oversized input, an unexplained suppression, a non-zero result or any broader observability claim.
