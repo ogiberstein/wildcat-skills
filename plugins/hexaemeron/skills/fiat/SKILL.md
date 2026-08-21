@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "4.8.1"
+  version: "4.9.1"
 ---
 
 # Fiat
@@ -279,6 +279,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
 | `push` | Stage and commit final changes, push the step branch, open its stacked PR against `pr_base`, and leave it open | [push-discipline.md](references/push-discipline.md) | `done push --pr-url <url> --head-commit <sha> --pr-base <ref>` |
 | `merge-step` | Merge the named step's PR into the run branch, bottom of the stack first | [push-discipline.md](references/push-discipline.md) | `done merge-step --step <n> --merge-commit <sha>` |
+| `sync-run` | When the base advanced and the integration PR conflicts, receipt one signed two-parent merge of the exact remote base tip into the completed run stack | [push-discipline.md](references/push-discipline.md) | `done sync-run --commit <sha> --base-commit <sha>` |
 | `integrate` | Open and merge one PR from the run branch into the base, name what the run leaves unfinished in `.hexaemeron/run-pr.md`, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
 | `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
@@ -338,7 +339,8 @@ constant. Both are bundled: run the lint script by path, read the mask's
 SKILL.md by path and apply it. The receipt refuses a skills list missing
 either configured id.
 
-**Push.** Stage and commit every intended final change, push the step branch,
+**Push.** Stage and commit every intended final change with a valid local
+signature and the two exact provenance trailers, push the step branch,
 and open its pull request against the `pr_base` the directive names, using the
 prepared prose. Wait for its gates but leave it open: a step's work lands in the
 integrate phase, not here. Do not add an issue reference unless one was
@@ -351,23 +353,29 @@ step's, and delete no branch here; receipt each merge before starting the next.
 Deleting a merged step's branch closes the pull request stacked on it, and a
 closed pull request whose base ref is gone can be neither reopened nor
 retargeted, so the order is not a preference. With the stack landed, open one
-pull request from the run branch into the recorded base, name everything the run
+pull request from the run branch into the recorded base. If concurrent work
+advanced the base and that pull request conflicts, merge the exact remote base
+tip into the run branch once with a signed two-parent commit whose first parent
+is the final recorded step merge, push it, require GitHub valid verification,
+and receipt it with `done sync-run`; never rebase or rewrite the signed stack.
+Then name everything the run
 left unfinished in its body under `## Carried forward`, wait for its gates,
-merge it without bypassing them, delete the run branch and the step branches
+merge it without bypassing them, require GitHub to report `verified: true` and
+`reason: valid` for every pushed commit and merge SHA, delete the run branch and the step branches
 where policy allows, and close any recorded task issue. That merge is the only
 one into the base for the whole run. A routine publish or closure action is not
 a handoff to a human.
 
 ## Delegation and context
 
-For long runs, hand research and implementation bulk to the bundled agents
-(`surveyor`, `mason`) through the runtime's subagent mechanism, passing the
-controller path, the state directory, and the current directive verbatim. If
-the runtime has no subagent mechanism, perform the work in the main session
-and keep the controller receipt as the boundary. Keep the audit and prose
-phases in the main session when a delegated context cannot load the bundled
-skills. After each `done push`, compact if the runtime supports it: the
-receipts carry everything a fresh context needs.
+Every `next` envelope carries `state_sha256`, an explicit `agent`, and a
+source-bound `brief`. Delegate the exact packet to `surveyor`, `mason`,
+`warden`, or `scribe` when the runtime supports isolated agents. An inline
+directive carries explicit null packet fields. Refuse an artefact whose digest
+has drifted; do not reconstruct its study block, runbook step, risk register,
+or sorted prose diff from chat. If delegation is unavailable, execute the same
+packet in the main session. After compaction, rerun `next`: the receipted
+artefacts and state digest deterministically reconstruct the packet.
 
 ## Stop conditions
 
@@ -380,6 +388,9 @@ Use `hexctl halt --reason ...` so the stop itself is on the ledger.
 - Never advance past a phase whose receipt command failed.
 - Never reconstruct progress from chat; `status` and `next` are the truth.
 - Never claim a lint, audit round, or test run happened when it did not.
+- Never receipt a Fiat-created commit without a valid local signature and one
+  exact copy of each provenance trailer. Never receipt a pushed commit or
+  GitHub merge SHA unless GitHub reports `verified: true` and `reason: valid`.
 - Never force-push over someone else's work or bypass a merge gate.
 - Never target the base or the repository default branch with a step pull
   request, and never merge one during the steps; the stack lands in
@@ -413,9 +424,9 @@ the study and runbook live.
 ### fiat-receipted-delivery
 
 - Promise: A successful `hexctl verify` establishes that the controller state and append-only ledger agree and that every recorded phase transition occurred in the required order with the required receipt shape.
-- Evidence: The exact study and runbook receipts, step branches and commits, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
+- Evidence: The exact study and runbook receipts, step branches and locally verified commit ranges, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
 - Evidence classes: checked, recorded
-- Boundary: Controller verification proves receipt order and integrity, not the truth of a test summary, audit judgement, external check, implementation claim or user authority merely written into a receipt.
+- Boundary: Controller verification proves receipt order, integrity, and the recorded local and GitHub signature checks; it does not prove a test summary, audit judgement, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
 - Authorises: Advancing only to the single next controller directive and reporting the recorded workflow state without strengthening any underlying receipt.
 - Consequence: 2
 - Refuses: Skipping a phase, reconstructing progress from chat, accepting a malformed or missing receipt, or describing an unrun check as complete.
@@ -425,7 +436,7 @@ the study and runbook live.
 ### fiat-final-integration
 
 - Promise: A successful integration receipt establishes that every stacked step was merged in controller order, the run branch passed its required gates and exactly one recorded merge landed the run on the named base under the user's delivery authority.
-- Evidence: The user's explicit Fiat request, green step and integration checks, stacked PR URLs and head commits, merge-step receipts, integration PR and merge commit, final controller state and verified ledger.
+- Evidence: The user's explicit Fiat request, green step and integration checks, stacked PR URLs, exact GitHub-verified pushed ranges, GitHub-verified merge-step and integration SHAs, final controller state and verified ledger.
 - Evidence classes: checked, recorded
 - Boundary: Integration establishes the recorded repository transition; it does not prove the software defect-free, make audit judgements independent or authorise a deployment, financial action or another repository.
 - Authorises: Publication of the complete run to the named base and a final report limited to the merged artefacts and recorded evidence.

@@ -36,7 +36,7 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 4. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
 5. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
 6. Push the step branch, open its pull request against the step below it, and move to the next step.
-7. Once every step is pushed, merge the stack into the run branch in order, then merge the run branch into the base once.
+7. Once every step is pushed, merge the stack into the run branch in order, receipt one signed base sync if concurrent work created an integration conflict, then merge the run branch into the base once.
 
 A run works on one integration branch cut from the base (`fiat/<run slug>` by
 default) with a chain of descriptively named step branches on top of it. Each
@@ -56,7 +56,7 @@ merge per run.
 
 ## Day to day
 
-**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one pull request per step, with the audit suite run against each before it is pushed.
+**Developers.** A half-formed idea and a week to find out whether it holds. Hexaemeron turns it into a study, a runbook of discrete steps, and one pull request per step. Each directive carries a source-bound agent packet; each Fiat-created commit is verified locally, and pushed ranges and merge SHAs must carry GitHub's valid verification before their receipts advance.
 
 **Security and audit.** You want the Pashov suite over a contract and nothing else. `x-ray`, `solidity-auditor` and `fizz` are vendored whole and run on their own, without taking on the loop around them.
 

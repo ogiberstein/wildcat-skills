@@ -28,6 +28,8 @@ import hashlib
 import json
 import os
 import re
+import selectors
+import subprocess
 import sys
 import time
 
@@ -122,6 +124,52 @@ whose first word is this, ignoring case and surrounding space. Preflight writes
 
 def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+SOURCE_BYTES_MAX = 2 * 1024 * 1024
+GIT_OUTPUT_MAX = 2 * 1024 * 1024
+GIT_PATHS_MAX = 500
+GIT_TIMEOUT = 30
+
+
+def scoped_path(base_dir: str, supplied: str, label: str) -> str:
+    """Resolve one path and refuse anything outside the target directory."""
+    root = os.path.realpath(base_dir)
+    candidate = supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
+    resolved = os.path.realpath(candidate)
+    try:
+        inside = os.path.commonpath((root, resolved)) == root
+    except ValueError:
+        inside = False
+    if not inside:
+        die(f"{label} escapes target directory: {supplied}")
+    return resolved
+
+
+def read_bounded_source(base_dir: str, supplied: str, label: str) -> tuple[str, bytes]:
+    """Read a source artefact once, with containment and a hard byte ceiling."""
+    path = scoped_path(base_dir, supplied, label)
+    if not os.path.isfile(path):
+        die(f"{label} is not a regular file: {supplied}")
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(SOURCE_BYTES_MAX + 1)
+    except OSError as exc:
+        die(f"{label} cannot be read: {exc}")
+    if len(data) > SOURCE_BYTES_MAX:
+        die(f"{label} exceeds {SOURCE_BYTES_MAX}-byte cap")
+    return path, data
+
+
+def decoded_source(data: bytes, label: str) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        die(f"{label} is not UTF-8 text")
+
+
+def plugin_root() -> str:
+    return os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
 def die(msg: str, code: int = 2) -> None:
@@ -463,6 +511,19 @@ def current_step(state: dict) -> dict:
         if step["n"] == n:
             return step
     die(f"state corrupt: current_step={n} not found; run `hexctl verify`", 1)
+
+
+def last_local_commit(step: dict):
+    """The last commit whose local signature and trailers were receipted."""
+    for round_entry in reversed(as_dict(step.get("audit")).get("rounds") or []):
+        verified = as_dict(round_entry).get("verified_commits") or []
+        if verified:
+            return verified[-1]
+    implement = as_dict(as_dict(step.get("receipts")).get("implement"))
+    verified = implement.get("verified_commits") or []
+    if verified:
+        return verified[-1]
+    return implement.get("commit")
 
 
 def require_global_phase(state: dict, phase: str) -> None:
@@ -862,20 +923,32 @@ def _require_file(path: str, label: str) -> str:
 def done_study(args, state: dict) -> None:
     require_global_phase(state, "study")
     artifact = _require_file(args.artifact, "artifact")
+    _, artifact_bytes = read_bounded_source(args.dir, artifact, "study artefact")
     skills = [s for s in (args.skills or "").split(",") if s]
-    state["receipts"]["study"] = {"artifact": artifact, "skills": skills}
+    digest = hashlib.sha256(artifact_bytes).hexdigest()
+    state["receipts"]["study"] = {
+        "artifact": artifact,
+        "sha256": digest,
+        "skills": skills,
+    }
     state["phase"] = "runbook"
-    commit(args.dir, state, "done:study", {"artifact": artifact, "skills": skills})
+    commit(
+        args.dir,
+        state,
+        "done:study",
+        {"artifact": artifact, "sha256": digest, "skills": skills},
+    )
     print("study receipted; phase -> runbook")
 
 
 def done_runbook(args, state: dict) -> None:
     require_global_phase(state, "runbook")
     artifact = _require_file(args.artifact, "artifact")
+    _, artifact_bytes = read_bounded_source(args.dir, artifact, "runbook artefact")
     steps_file = _require_file(args.steps_file, "steps-file")
+    _, steps_bytes = read_bounded_source(args.dir, steps_file, "steps file")
     try:
-        with open(steps_file, "r", encoding="utf-8") as fh:
-            raw = json.load(fh)
+        raw = json.loads(decoded_source(steps_bytes, "steps file"))
     except ValueError as exc:
         die(f"steps-file is not valid JSON: {exc}")
     if not isinstance(raw, list) or not raw:
@@ -906,7 +979,13 @@ def done_runbook(args, state: dict) -> None:
     state["current_step"] = 1
     state["phase"] = "steps"
     receipt = {"artifact": artifact, "steps": titles}
-    state["receipts"]["runbook"] = {"artifact": artifact, "step_count": len(titles)}
+    digest = hashlib.sha256(artifact_bytes).hexdigest()
+    state["receipts"]["runbook"] = {
+        "artifact": artifact,
+        "sha256": digest,
+        "step_count": len(titles),
+    }
+    receipt["sha256"] = digest
     commit(args.dir, state, "done:runbook", receipt)
     print(f"runbook receipted; {len(titles)} steps registered; step 1 -> implement")
 
@@ -930,10 +1009,23 @@ def done_implement(args, state: dict) -> None:
                 f"--branch must be '{expected}', chained off "
                 f"'{step_pr_base(state, step)}'; got '{args.branch}'"
             )
+    range_base = step_pr_base(state, step) if run_branch_of(state) else state["base"]
+    branch_tip = resolved_commit(
+        args.dir, args.branch, f"step {step['n']} implementation branch"
+    )
+    supplied_head = resolved_commit(
+        args.dir, args.commit, f"step {step['n']} implementation head"
+    )
+    if branch_tip != supplied_head:
+        die(f"step {step['n']} implementation head is not the declared branch tip")
+    verified_commits = verify_local_range(
+        args.dir, range_base, args.commit, f"step {step['n']} implementation"
+    )
     step["receipts"]["implement"] = {
         "branch": args.branch,
         "commit": args.commit,
         "tests": args.tests,
+        "verified_commits": verified_commits,
     }
     step["phase"] = "audit"
     commit(
@@ -944,6 +1036,7 @@ def done_implement(args, state: dict) -> None:
             "step": step["n"],
             "branch": args.branch,
             "commit": args.commit,
+            "verified_commits": verified_commits,
             "legacy_issue_phase_skipped": legacy_phase,
         },
     )
@@ -997,11 +1090,20 @@ def cmd_audit_round(args) -> None:
             + "; a non-zero lint exit is a finding like any other"
         )
 
+    verified_commits = []
+    if args.fixes_commit:
+        base = last_local_commit(step)
+        if not base:
+            die(f"step {step['n']} has no verified implementation commit")
+        verified_commits = verify_local_range(
+            args.dir, base, args.fixes_commit, f"step {step['n']} audit fixes"
+        )
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
         "log": args.log,
         "fixes_commit": args.fixes_commit,
+        "verified_commits": verified_commits,
         "lints": recorded or None,
         "ts": now(),
     }
@@ -1043,6 +1145,18 @@ def done_audit(args, state: dict) -> None:
             "findings were recorded but no fixes reference exists; pass "
             "--fixes-ref or record fixes commits on the rounds"
         )
+    verified_fixes = []
+    recorded_fix = next(
+        (r.get("fixes_commit") for r in reversed(rounds) if r.get("fixes_commit")),
+        None,
+    )
+    if fixes_ref and fixes_ref != recorded_fix:
+        base = last_local_commit(step)
+        if not base:
+            die(f"step {step['n']} has no verified commit before its fixes reference")
+        verified_fixes = verify_local_range(
+            args.dir, base, fixes_ref, f"step {step['n']} audit closure fixes"
+        )
     step["receipts"]["audit"] = {
         "rounds": len(rounds),
         "clean": clean,
@@ -1050,6 +1164,7 @@ def done_audit(args, state: dict) -> None:
         "reason": args.reason,
         "fixes_ref": fixes_ref,
         "log": args.log or last.get("log"),
+        "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
     commit(
@@ -1124,12 +1239,43 @@ def done_push(args, state: dict) -> None:
                 "--closed-issue-url does not match the recorded task_issue "
                 f"({expected_issue})"
             )
+    range_base = args.pr_base if stacked else state["base"]
+    branch = (
+        step_branch_name(state, step)
+        if stacked
+        else as_dict(step["receipts"].get("implement")).get("branch")
+    )
+    if not isinstance(branch, str) or not branch:
+        die("step push has no recorded implementation branch")
+    branch_tip = resolved_commit(args.dir, branch, f"step {step['n']} pushed branch")
+    supplied_head = resolved_commit(args.dir, args.head_commit, f"step {step['n']} push head")
+    if branch_tip != supplied_head:
+        die(f"step {step['n']} push head is not the pushed branch tip")
+    verified_commits = verify_local_range(
+        args.dir, range_base, args.head_commit, f"step {step['n']} push"
+    )
+    pr_record = inspect_pull_request(
+        args.dir,
+        args.pr_url,
+        expected_head=branch,
+        expected_base=(args.pr_base if stacked else state["base"]),
+        expected_head_sha=verified_commits[-1],
+        expected_merge_sha=args.merge_commit,
+    )
+    github_verified = verify_github_commits(args.dir, verified_commits)
+    merge_verified = []
+    if args.merge_commit:
+        merge_verified = verify_github_commits(args.dir, [args.merge_commit])
     step["receipts"]["push"] = {
         "pr_url": args.pr_url,
         "head_commit": args.head_commit,
         "pr_base": args.pr_base,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
+        "verified_commits": verified_commits,
+        "github_verified": github_verified,
+        "github_merge_verified": merge_verified,
+        "pull_request": pr_record,
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -1214,12 +1360,66 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    step = state["steps"][args.step - 1]
+    push_receipt = as_dict(step["receipts"].get("push"))
+    pr_record = inspect_pull_request(
+        args.dir,
+        pending["pr_url"],
+        expected_head=pending["branch"],
+        expected_base=pending["into"],
+        expected_head_sha=None,
+        expected_merge_sha=args.merge_commit,
+    )
+    remote_head = remote_branch_tip(args.dir, pending["branch"])
+    if pr_record["head_sha"] != remote_head:
+        die("recorded pull request head does not match its remote branch tip")
+    recorded_local = push_receipt.get("verified_commits")
+    recorded_github = push_receipt.get("github_verified")
+    recorded_current = (
+        isinstance(recorded_local, list)
+        and isinstance(recorded_github, list)
+        and recorded_local == recorded_github
+        and bool(recorded_local)
+        and all(isinstance(sha, str) and COMMIT_RE.fullmatch(sha) for sha in recorded_local)
+        and recorded_local[-1] == remote_head
+    )
+    if recorded_current:
+        effective_push = {
+            "repaired": False,
+            "pr_base": push_receipt.get("pr_base"),
+            "head": remote_head,
+            "verified_commits": recorded_local,
+            "github_verified": recorded_github,
+        }
+    else:
+        expected_pr_base = step_pr_base(state, step)
+        pr_base = push_receipt.get("pr_base")
+        if not isinstance(pr_base, str) or pr_base != expected_pr_base:
+            die("recorded step pull request has no exact PR base for repair")
+        repaired_local = verify_local_range(
+            args.dir,
+            pr_base,
+            remote_head,
+            f"step {step['n']} merge-time push repair",
+        )
+        repaired_github = verify_github_commits(args.dir, repaired_local)
+        effective_push = {
+            "repaired": True,
+            "pr_base": pr_base,
+            "head": remote_head,
+            "verified_commits": repaired_local,
+            "github_verified": repaired_github,
+        }
+    github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
     integrate.setdefault("merged", []).append(args.step)
     integrate.setdefault("merges", {})[str(args.step)] = {
         "branch": pending["branch"],
         "into": pending["into"],
         "merge_commit": args.merge_commit,
+        "github_verified": github_verified,
+        "pull_request": pr_record,
+        "effective_push": effective_push,
     }
     commit(
         args.dir,
@@ -1230,11 +1430,72 @@ def done_merge_step(args, state: dict) -> None:
             "branch": pending["branch"],
             "into": pending["into"],
             "merge_commit": args.merge_commit,
+            "github_verified": github_verified,
+            "pull_request": pr_record,
+            "effective_push": effective_push,
         },
     )
     remaining = len(state["steps"]) - len(integrate["merged"])
     tail = f"{remaining} step(s) left in the stack" if remaining else "stack merged"
     print(f"step {args.step} merged into {pending['into']}; {tail}")
+
+
+def done_sync_run(args, state: dict) -> None:
+    """Receipt one signed merge of the current base into a completed run stack."""
+    if state["phase"] != "integrate":
+        die(
+            "sync-run is an integrate-phase receipt; the run is in phase "
+            f"'{state['phase']}'"
+        )
+    if state.get("halted"):
+        die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
+    pending = _integrate_directive(state)
+    if pending["do"] != "integrate":
+        die(
+            f"step {pending['step']} still has to merge into "
+            f"'{run_branch_of(state)}' before the run can sync"
+        )
+    integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
+    if integrate.get("sync") is not None:
+        die("the run branch already has a recorded integration sync")
+    if not args.commit:
+        die("--commit is required for sync-run")
+    if not args.base_commit:
+        die("--base-commit is required for sync-run")
+    sync_tip = require_full_sha(args.commit, "run sync commit")
+    base_tip = require_full_sha(args.base_commit, "run sync base commit")
+    remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
+    if remote_tip != sync_tip:
+        die("run sync commit does not match the remote run branch tip")
+    remote_base = remote_branch_tip(
+        args.dir, state["base"], "remote base branch tip"
+    )
+    if remote_base != base_tip:
+        die("run sync base commit does not match the remote base branch tip")
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(integrate.get("merges"))
+    final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
+    recorded_tip = require_full_sha(final_merge, "final recorded step merge")
+    parents = commit_parents(args.dir, sync_tip, "run sync commit")
+    expected_parents = [recorded_tip, base_tip]
+    if parents != expected_parents:
+        die(
+            "run sync merge parents do not match the final recorded step merge "
+            "and the exact remote base tip"
+        )
+    verify_local_commit(args.dir, sync_tip, "run branch integration sync")
+    github_verified = verify_github_commits(args.dir, [sync_tip])
+    integrate["sync"] = {
+        "commit": sync_tip,
+        "base_head": base_tip,
+        "parents": parents,
+        "github_verified": github_verified,
+    }
+    commit(args.dir, state, "done:sync-run", integrate["sync"])
+    print(
+        f"{run_branch_of(state)} synced with {state['base']} at {base_tip}; "
+        "integration may continue"
+    )
 
 
 def done_integrate(args, state: dict) -> None:
@@ -1279,6 +1540,30 @@ def done_integrate(args, state: dict) -> None:
     carried = carried_forward_fault(run_pr_path(args.dir))
     if carried:
         die(carried)
+    remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
+    final_step = state["steps"][-1]["n"]
+    integrate = as_dict(state.get("integrate"))
+    merge_records = as_dict(integrate.get("merges"))
+    final_merge = as_dict(merge_records.get(str(final_step))).get("merge_commit")
+    recorded_tip = require_full_sha(final_merge, "final recorded step merge")
+    sync = as_dict(integrate.get("sync"))
+    expected_tip = recorded_tip
+    if sync:
+        expected_tip = require_full_sha(sync.get("commit"), "recorded run sync commit")
+    if remote_tip != expected_tip:
+        if sync:
+            die("remote run branch tip does not match the recorded run sync commit")
+        die("remote run branch tip does not match the final recorded step merge")
+    pr_record = inspect_pull_request(
+        args.dir,
+        args.pr_url,
+        expected_head=run_branch_of(state),
+        expected_base=state["base"],
+        expected_head_sha=remote_tip,
+        expected_merge_sha=args.merge_commit,
+        expected_head_label="remote run branch tip",
+    )
+    github_verified = verify_github_commits(args.dir, [args.merge_commit])
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
         "base": state["base"],
@@ -1286,7 +1571,13 @@ def done_integrate(args, state: dict) -> None:
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
         "carried_forward": carried_forward_record(run_pr_path(args.dir)),
+        "github_verified": github_verified,
+        "pull_request": pr_record,
+        "run_head": remote_tip,
+        "final_step_merge": recorded_tip,
     }
+    if sync:
+        state["receipts"]["integrate"]["sync"] = sync
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
     print(
@@ -1303,6 +1594,7 @@ DONE_HANDLERS = {
     "prose": done_prose,
     "push": done_push,
     "merge-step": done_merge_step,
+    "sync-run": done_sync_run,
     "integrate": done_integrate,
 }
 
@@ -1315,9 +1607,586 @@ def cmd_done(args) -> None:
     handler(args, state)
 
 
+def receipted_source(base_dir: str, state: dict, name: str):
+    """Return a verified source artefact, or None for a legacy receipt."""
+    receipt = as_dict(as_dict(state.get("receipts")).get(name))
+    expected = receipt.get("sha256")
+    if expected is None:
+        return None
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        die(f"{name} receipt has an invalid sha256")
+    artifact = receipt.get("artifact")
+    if not isinstance(artifact, str) or not artifact:
+        die(f"{name} receipt has no artefact path")
+    path, data = read_bounded_source(base_dir, artifact, f"{name} artefact")
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != expected:
+        die(
+            f"{name} artefact digest changed: expected {expected}, got {actual}; "
+            "restore the receipted bytes or halt the run"
+        )
+    return {
+        "path": path,
+        "sha256": expected,
+        "text": decoded_source(data, f"{name} artefact"),
+    }
+
+
+# This is Protasis's accepted STEP grammar with only the number-group name
+# changed for this packet shape. The selector carries bytes accepted by that
+# authority; it does not impose a narrower second grammar.
+STEP_HEADING_RE = re.compile(
+    r"^##\s+Step\s+(?P<number>\d+)\s*:\s*(?P<title>.*?)\s*$"
+)
+MARKDOWN_FENCE_RE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
+RISK_REGISTER_INFO = "risk-register"
+
+
+def markdown_lines(text: str):
+    """Yield source offsets and fence state without treating quoted headings as real."""
+    offset = 0
+    open_mark = None
+    for physical in text.splitlines(keepends=True):
+        line = physical.rstrip("\r\n")
+        fence = MARKDOWN_FENCE_RE.match(line)
+        was_open = open_mark
+        if fence:
+            mark = fence.group("mark")[0]
+            if open_mark is None:
+                open_mark = mark
+            elif mark == open_mark:
+                open_mark = None
+            yield offset, offset + len(physical), line, True, was_open
+        else:
+            yield offset, offset + len(physical), line, open_mark is not None, was_open
+        offset += len(physical)
+
+
+def source_runbook_step(source: dict, step: dict) -> dict:
+    """Select one exact numbered step block without interpreting its schema."""
+    text = source["text"]
+    headings = []
+    for start, _, line, in_fence, _ in markdown_lines(text):
+        if in_fence:
+            continue
+        match = STEP_HEADING_RE.fullmatch(line)
+        if match:
+            headings.append((start, match))
+    matches = []
+    for index, (start, heading) in enumerate(headings):
+        if int(heading.group("number")) != step["n"]:
+            continue
+        if heading.group("title") != step["title"]:
+            continue
+        end = headings[index + 1][0] if index + 1 < len(headings) else len(text)
+        matches.append(text[start:end])
+    if not matches:
+        die(
+            f"runbook step {step['n']} '{step['title']}' has no exact source block"
+        )
+    if len(matches) != 1:
+        die(f"ambiguous runbook step {step['n']} '{step['title']}'")
+    return {
+        "markdown": matches[0],
+        "path": source["path"],
+        "sha256": source["sha256"],
+        "number": step["n"],
+        "title": step["title"],
+    }
+
+
+def source_risk_register(source: dict) -> dict:
+    """Carry the unique fenced register; Protasis remains its shape authority."""
+    text = source["text"]
+    matches = []
+    start = None
+    risk_mark = None
+    for line_start, line_end, line, is_fence, was_open in markdown_lines(text):
+        if start is None and was_open is None and is_fence:
+            opened = MARKDOWN_FENCE_RE.match(line)
+            if opened:
+                mark = opened.group("mark")
+                info = line.strip()[len(mark):].strip()
+            else:
+                info = None
+            if info == RISK_REGISTER_INFO:
+                start = line_start
+                risk_mark = mark[0]
+            continue
+        if start is not None and is_fence and was_open == risk_mark:
+            fence = MARKDOWN_FENCE_RE.match(line)
+            if fence and fence.group("mark")[0] == risk_mark:
+                matches.append(text[start:line_end])
+                start = None
+                risk_mark = None
+    if not matches:
+        die("study artefact has no fenced risk-register block")
+    if len(matches) != 1:
+        die("study artefact has an ambiguous fenced risk-register block")
+    return {
+        "markdown": matches[0],
+        "path": source["path"],
+        "sha256": source["sha256"],
+    }
+
+
+def bounded_tool(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    refusal: str | None = None,
+) -> bytes:
+    """Run one fixed-argv tool without exposing its output in failures."""
+    operation = f"{program} {argv[0]}" if argv else program
+    try:
+        process = subprocess.Popen(
+            [program, *argv],
+            cwd=os.path.realpath(base_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+        )
+    except OSError as exc:
+        die(f"{operation} could not start")
+    assert process.stdout is not None
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ)
+    output = bytearray()
+    deadline = time.monotonic() + GIT_TIMEOUT
+    try:
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                process.kill()
+                process.wait()
+                die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+            events = selector.select(min(remaining, 0.1))
+            if not events and process.poll() is not None:
+                events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
+            for key, _ in events:
+                chunk = os.read(key.fd, 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                output.extend(chunk)
+                if len(output) > GIT_OUTPUT_MAX:
+                    process.kill()
+                    process.wait()
+                    die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+        returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+    finally:
+        selector.close()
+        process.stdout.close()
+    if returncode != 0:
+        if refusal is not None:
+            die(refusal)
+        die(f"{operation} failed with exit {returncode}")
+    return bytes(output)
+
+
+def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
+    return bounded_tool(base_dir, "git", argv, refusal)
+
+
+def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
+    return bounded_tool(base_dir, "gh", argv, refusal)
+
+
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+COAUTHOR_TRAILER = "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>"
+ORIGIN_TRAILER = "Wildcat-Origin: shoggoth"
+
+
+def tool_text(data: bytes, label: str) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        die(f"{label} returned non-UTF-8 output")
+
+
+def resolved_commit(base_dir: str, ref: str, label: str) -> str:
+    data = bounded_git(
+        base_dir,
+        ["rev-parse", "--verify", f"{ref}^{{commit}}"],
+        f"{label} does not resolve to a commit",
+    )
+    lines = [line.strip() for line in tool_text(data, label).splitlines() if line.strip()]
+    if len(lines) != 1 or not COMMIT_RE.fullmatch(lines[0]):
+        die(f"{label} did not resolve to one full commit SHA")
+    return lines[0]
+
+
+def remote_branch_tip(
+    base_dir: str, branch: str, label: str = "remote run branch tip"
+) -> str:
+    check_branch_name(branch)
+    expected_ref = f"refs/heads/{branch}"
+    data = bounded_git(
+        base_dir,
+        ["ls-remote", "--refs", "origin", expected_ref],
+        f"{label} could not be read",
+    )
+    lines = [line for line in tool_text(data, label).splitlines() if line]
+    if len(lines) != 1:
+        die(f"{label} must contain exactly one ref")
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        die(f"{label} is malformed")
+    return fields[0]
+
+
+def commit_parents(base_dir: str, commit_sha: str, label: str) -> list[str]:
+    commit_sha = require_full_sha(commit_sha, label)
+    data = bounded_git(
+        base_dir,
+        ["show", "-s", "--no-show-signature", "--format=%P", commit_sha],
+        f"{label} parents cannot be read",
+    )
+    parents = tool_text(data, f"{label} parents").strip().split()
+    if any(not COMMIT_RE.fullmatch(parent) for parent in parents):
+        die(f"{label} returned a malformed parent SHA")
+    return parents
+
+
+def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
+    base = resolved_commit(base_dir, base_ref, f"{label} base")
+    head = resolved_commit(base_dir, head_ref, f"{label} head")
+    bounded_git(
+        base_dir,
+        ["merge-base", "--is-ancestor", base, head],
+        f"{label} head is not descended from its declared base",
+    )
+    data = bounded_git(
+        base_dir,
+        ["rev-list", "--reverse", f"--max-count={GIT_PATHS_MAX + 1}", f"{base}..{head}"],
+        f"{label} commit range cannot be enumerated",
+    )
+    commits = [line.strip() for line in tool_text(data, label).splitlines() if line.strip()]
+    if len(commits) > GIT_PATHS_MAX:
+        die(f"{label} commit range exceeds {GIT_PATHS_MAX} commits")
+    if any(not COMMIT_RE.fullmatch(commit) for commit in commits):
+        die(f"{label} commit range returned a malformed SHA")
+    if not commits or commits[-1] != head:
+        die(f"{label} commit range does not end at the declared head")
+    if base in commits:
+        die(f"{label} commit range includes its base")
+    return commits
+
+
+def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
+    """Verify one exact locally created commit and its required trailers."""
+    commit_sha = require_full_sha(commit_sha, label)
+    bounded_git(
+        base_dir,
+        ["verify-commit", commit_sha],
+        f"{label} commit {commit_sha} has no valid local signature",
+    )
+    body = tool_text(
+        bounded_git(
+            base_dir,
+            ["show", "-s", "--no-show-signature", "--format=%B", commit_sha],
+            f"{label} commit {commit_sha} message cannot be read",
+        ),
+        f"{label} commit message",
+    )
+    lines = body.splitlines()
+    coauthors = lines.count(COAUTHOR_TRAILER)
+    origins = lines.count(ORIGIN_TRAILER)
+    if coauthors != 1:
+        die(
+            f"{label} commit {commit_sha} has {coauthors} exact Shoggoth "
+            "co-author trailers; expected 1"
+        )
+    if origins != 1:
+        die(
+            f"{label} commit {commit_sha} has {origins} exact Wildcat-Origin "
+            "trailers; expected 1"
+        )
+    return commit_sha
+
+
+def verify_local_range(base_dir: str, base_ref: str, head_ref: str, label: str) -> list[str]:
+    """Verify every locally created commit in one exact base-to-head range."""
+    commits = exact_commit_range(base_dir, base_ref, head_ref, label)
+    for commit_sha in commits:
+        verify_local_commit(base_dir, commit_sha, label)
+    return commits
+
+
+REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+GITHUB_HTTPS_RE = re.compile(
+    r"^https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+GITHUB_SSH_RE = re.compile(
+    r"^(?:git@github\.com:|ssh://git@github\.com/)(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+GITHUB_PR_RE = re.compile(
+    r"^https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pull/(?P<number>[1-9][0-9]*)/?$"
+)
+
+
+def require_full_sha(value: object, label: str) -> str:
+    if not isinstance(value, str) or not COMMIT_RE.fullmatch(value):
+        die(f"{label} must be a full commit SHA")
+    return value
+
+
+def target_repository(base_dir: str) -> str:
+    data = bounded_git(
+        base_dir,
+        ["remote", "get-url", "origin"],
+        "target origin could not be resolved",
+    )
+    lines = [line.strip() for line in tool_text(data, "target origin").splitlines() if line.strip()]
+    if len(lines) != 1:
+        die("target origin does not name one GitHub repository")
+    match = GITHUB_HTTPS_RE.fullmatch(lines[0]) or GITHUB_SSH_RE.fullmatch(lines[0])
+    if match is None:
+        die("target origin does not name one GitHub repository")
+    return match.group("repo")
+
+
+def github_repository(base_dir: str) -> str:
+    target = target_repository(base_dir)
+    data = bounded_gh(
+        base_dir,
+        ["repo", "view", "--json", "nameWithOwner"],
+        "GitHub repository identity could not be resolved",
+    )
+    try:
+        payload = json.loads(tool_text(data, "GitHub repository identity"))
+    except ValueError:
+        die("GitHub repository identity returned invalid JSON")
+    repository = payload.get("nameWithOwner") if isinstance(payload, dict) else None
+    if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
+        die("GitHub repository identity is missing nameWithOwner")
+    if repository.casefold() != target.casefold():
+        die("GitHub repository identity does not match target origin")
+    return target
+
+
+def pull_request_repository(pr_url: object, repository: str) -> str:
+    if not isinstance(pr_url, str):
+        die("pull request URL is invalid")
+    match = GITHUB_PR_RE.fullmatch(pr_url)
+    if match is None or match.group("repo").casefold() != repository.casefold():
+        die("pull request URL does not match target repository")
+    return pr_url.rstrip("/")
+
+
+def inspect_pull_request(
+    base_dir: str,
+    pr_url: object,
+    *,
+    expected_head: str,
+    expected_base: str,
+    expected_head_sha: str | None,
+    expected_merge_sha: str | None,
+    expected_head_label: str = "verified pushed branch tip",
+) -> dict:
+    head_sha = (
+        require_full_sha(expected_head_sha, "pull request head")
+        if expected_head_sha is not None
+        else None
+    )
+    merge_sha = (
+        require_full_sha(expected_merge_sha, "pull request merge")
+        if expected_merge_sha is not None
+        else None
+    )
+    repository = github_repository(base_dir)
+    url = pull_request_repository(pr_url, repository)
+    data = bounded_gh(
+        base_dir,
+        [
+            "pr", "view", url, "--repo", repository, "--json",
+            "url,state,headRefName,headRefOid,baseRefName,mergeCommit",
+        ],
+        "pull request topology could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, "pull request topology"))
+    except ValueError:
+        die("pull request topology returned invalid JSON")
+    if not isinstance(payload, dict):
+        die("pull request topology is invalid")
+    returned_url = payload.get("url")
+    if not isinstance(returned_url, str):
+        die("pull request topology is missing its URL")
+    pull_request_repository(returned_url, repository)
+    if returned_url.rstrip("/") != url:
+        die("pull request topology did not name the recorded pull request")
+    if payload.get("headRefName") != expected_head or payload.get("baseRefName") != expected_base:
+        die("pull request topology does not match the expected head and base")
+    returned_head = payload.get("headRefOid")
+    if not isinstance(returned_head, str) or not COMMIT_RE.fullmatch(returned_head):
+        die("pull request topology has no full head SHA")
+    if head_sha is not None and returned_head != head_sha:
+        die(f"pull request head does not match the {expected_head_label}")
+    merge = payload.get("mergeCommit")
+    returned_merge = merge.get("oid") if isinstance(merge, dict) else None
+    if merge_sha is not None:
+        if payload.get("state") != "MERGED" or returned_merge != merge_sha:
+            die("pull request is not the expected merged topology")
+    elif payload.get("state") == "MERGED":
+        die("step pull request was already merged before integrate")
+    return {
+        "url": url,
+        "head": expected_head,
+        "base": expected_base,
+        "head_sha": returned_head,
+        "state": payload.get("state"),
+        "merge_sha": returned_merge,
+    }
+
+
+def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
+    """Require GitHub's valid verification result for each exact SHA."""
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
+    repository = github_repository(base_dir)
+    verified = []
+    for commit_sha in commits:
+        data = bounded_gh(
+            base_dir,
+            ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
+            f"GitHub verification for {commit_sha} could not be read",
+        )
+        try:
+            payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
+        except ValueError:
+            die(f"GitHub verification for {commit_sha} returned invalid JSON")
+        if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+            die(f"GitHub verification response did not name exact SHA {commit_sha}")
+        commit = payload.get("commit")
+        verification = commit.get("verification") if isinstance(commit, dict) else None
+        if not isinstance(verification, dict):
+            die(f"GitHub verification for {commit_sha} is missing")
+        if verification.get("verified") is not True:
+            die(f"GitHub verification for {commit_sha} is not verified:true")
+        if verification.get("reason") != "valid":
+            die(f"GitHub verification for {commit_sha} reason is not valid")
+        verified.append(commit_sha)
+    return verified
+
+
+def scribe_files(base_dir: str, pr_base: str, branch: str) -> list[str]:
+    check_branch_name(pr_base)
+    check_branch_name(branch)
+    raw = bounded_git(base_dir, ["diff", "--name-only", "-z", f"{pr_base}..{branch}", "--"])
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        die("git diff path list is not UTF-8")
+    paths = [path for path in decoded.split("\0") if path]
+    unique = sorted(set(paths))
+    if len(unique) > GIT_PATHS_MAX:
+        die(f"git diff returned more than {GIT_PATHS_MAX} paths")
+    for path in unique:
+        if os.path.isabs(path) or path in (".", ".."):
+            die(f"git diff returned an unsafe path: {path}")
+        scoped_path(base_dir, path, "git diff path")
+    return unique
+
+
+def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
+    """Add the total packet envelope and build only the four delegated briefs."""
+    packet = {
+        **directive,
+        "state_sha256": state_fingerprint(state),
+        "agent": None,
+        "brief": {},
+    }
+    action = directive.get("do")
+    root = os.path.realpath(base_dir)
+    if action == "study":
+        packet["agent"] = "surveyor"
+        packet["brief"] = {
+            "topic": state["topic"],
+            "target_dir": root,
+            "base_ref": state["base"],
+            "output_path": scoped_path(
+                root, os.path.join(STATE_DIR_NAME, "study.md"), "study output"
+            ),
+        }
+        return packet
+
+    if action not in ("implement", "audit-round", "prose"):
+        return packet
+
+    if not run_branch_of(state):
+        return packet
+
+    runbook = receipted_source(root, state, "runbook")
+    study = receipted_source(root, state, "study")
+    if runbook is None or study is None:
+        # A pre-generation state cannot establish the source claims needed by
+        # the four new briefs, so it retains an explicit inline directive.
+        return packet
+
+    step = current_step(state)
+    plan = branch_plan(state, step)
+    if action == "implement":
+        packet["agent"] = "mason"
+        packet["brief"] = {
+            "runbook_step": source_runbook_step(runbook, step),
+            "branch": plan["branch"],
+            "branch_from": plan["branch_from"],
+        }
+        return packet
+
+    root_plugin = plugin_root()
+    if action == "audit-round":
+        audit = as_dict(as_dict(state.get("config")).get("audit"))
+        log = audit.get("log_path")
+        suffix = audit.get("stacked_suffix")
+        if not isinstance(log, str) or not log:
+            die("audit config has no log_path for the warden packet")
+        if not isinstance(suffix, str) or not suffix:
+            die("audit config has no stacked_suffix for the warden packet")
+        stacked_branch = plan["branch"] + suffix
+        bounded_git(
+            root,
+            ["check-ref-format", "--branch", stacked_branch],
+            "stacked_branch is not a valid Git branch",
+        )
+        packet["agent"] = "warden"
+        packet["brief"] = {
+            "step_branch": plan["branch"],
+            "stacked_branch": stacked_branch,
+            "security_suite": as_dict(state.get("receipts")).get("security_suite"),
+            "plugin_root": root_plugin,
+            "audit_log_path": scoped_path(root, log, "audit log path"),
+            "round": directive["round"],
+            "risk_register": source_risk_register(study),
+        }
+        return packet
+
+    pr_base = plan["pr_base"]
+    packet["agent"] = "scribe"
+    packet["brief"] = {
+        "files": scribe_files(root, pr_base, plan["branch"]),
+        "pr_base": pr_base,
+        "pr_draft_path": scoped_path(
+            root,
+            os.path.join(STATE_DIR_NAME, "steps", str(step["n"]), "pr.md"),
+            "PR draft path",
+        ),
+        "plugin_root": root_plugin,
+    }
+    return packet
+
+
 def cmd_next(args) -> None:
     state = load_state(args.dir)
-    out = _next_directive(state)
+    out = delegation_packet(args.dir, state, _next_directive(state))
     print(json.dumps(out))
 
 
@@ -1581,6 +2450,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--steps-file", dest="steps_file")
     sp.add_argument("--branch")
     sp.add_argument("--commit")
+    sp.add_argument("--base-commit", dest="base_commit")
     sp.add_argument("--tests")
     sp.add_argument("--no-further-leads", dest="no_further_leads", action="store_true")
     sp.add_argument("--reason")

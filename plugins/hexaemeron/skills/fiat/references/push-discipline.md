@@ -30,6 +30,11 @@ git push -u origin <run branch>
   Co-authored-by: Shoggoth <shoggoth@wildcat.finance>
   Wildcat-Origin: shoggoth
   ```
+- Before accepting an implement commit, an audit-fix commit, or the final
+  pushed head, the controller resolves the exact base-to-head range and checks
+  every commit in it with `git verify-commit`. It also requires exactly one
+  copy of each trailer above. A missing intermediate commit, malformed range,
+  timeout, tool error, or oversized output blocks the receipt.
 
 ## The stacked pull request
 
@@ -90,6 +95,11 @@ Verify the pull request URL after creation. Wait for required checks and
 convert the PR from draft if necessary, then stop: a step's pull request stays
 open until the whole stack is ready. Receipt it and move to the next step.
 
+Before the push receipt is accepted, GitHub must report `verified: true` and
+`reason: valid` for every SHA in the exact pushed range. The controller uses
+bounded argv-only `git` and `gh` calls and records only the verified SHAs; it
+does not store raw signature material or command output.
+
 ```text
 hexctl done push --pr-url <url> --head-commit <sha> --pr-base <ref>
 ```
@@ -116,7 +126,8 @@ bottom. For each one:
    permitted merge method, without bypassing a gate. Do not pass
    `--delete-branch`, and do not delete the branch here. Branch cleanup is the
    integrate phase's last act, once the whole stack has landed.
-3. Verify the merge commit, then receipt it before touching the next one:
+3. Require GitHub to report `verified: true` and `reason: valid` for the merge
+   commit, then receipt it before touching the next one:
 
    ```text
    hexctl done merge-step --step <n> --merge-commit <sha>
@@ -144,6 +155,23 @@ run-level title and body, and apply the same provenance markers:
 gh pr create --base <recorded base> --head <run branch> ...
 ```
 
+If concurrent work advanced the base and this pull request conflicts, do not
+rebase or rewrite the signed stack. Fetch the exact remote base tip, merge it
+into the run branch once with `--no-ff`, resolve only the reported conflicts,
+and sign that merge with the two exact provenance trailers. Its first parent
+must be the final recorded step merge and its second parent the supplied base
+tip. Push it, require GitHub `verified: true` with `reason: valid`, then record
+the exact topology before the integration pull request merges:
+
+```text
+hexctl done sync-run --commit <signed merge sha> --base-commit <remote base sha>
+```
+
+The controller compares both remote tips, reads the two parents, verifies the
+local signature and trailers, and checks GitHub's result. It accepts at most
+one sync and makes that commit the only permitted integration PR head. A base
+that moved again or any extra run-branch commit stops the receipt.
+
 **Carry the unfinished forward.** The run-level body lives at
 `.hexaemeron/run-pr.md`, written in the prose phase, and the integration pull
 request is opened from it. Before the receipt will take it, that file has to
@@ -160,13 +188,14 @@ from an unasked question.
 
 `done integrate` refuses without it, and names which of the three faults it
 found: the file unreadable, the heading absent, or the heading standing empty.
-Reading stops at the next heading, so a later section cannot stand in for this
+A later heading ends the section, so later sections cannot stand in for this
 one. What passes is recorded on the receipt as the line count and the digest of
 the body, so the ledger holds what the run published rather than a promise that
 it did.
 
-Wait for required checks, merge without bypassing them, and verify the merge
-commit. Then delete the run branch and every step branch where policy permits:
+Wait for required checks, merge without bypassing them, and require GitHub to
+report `verified: true` and `reason: valid` for the merge commit. Then delete
+the run branch and every step branch where policy permits:
 this is the one place branch cleanup happens, and by now nothing is stacked on
 any of them, so deleting cannot close a pull request that still has work to do.
 If a `task_issue` receipt exists, close that exact issue now with a short

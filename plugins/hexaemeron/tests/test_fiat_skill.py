@@ -15,6 +15,10 @@ CONTRIBUTOR_CHECK = ROOT / "skills" / "fiat" / "scripts" / "check_wildcat_contri
 PUSH_DISCIPLINE = ROOT / "skills" / "fiat" / "references" / "push-discipline.md"
 PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
 KRONOS = ROOT / "skills" / "kronos" / "SKILL.md"
+AGENTS = {
+    name: (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
+    for name in ("surveyor", "mason", "warden", "scribe")
+}
 
 
 def load_contributor_check():
@@ -85,6 +89,21 @@ class FiatSkillContractTests(unittest.TestCase):
             self.push_discipline,
         )
         self.assertIn("Wildcat-Origin: shoggoth", self.push_discipline)
+
+    def test_agent_contracts_own_the_exact_delegation_brief_fields(self):
+        clauses = {
+            "surveyor": "`topic`, `target_dir`, `base_ref`, and `output_path`",
+            "mason": "`runbook_step`, `branch`, and `branch_from`",
+            "warden": (
+                "`step_branch`, `stacked_branch`, `security_suite`, `plugin_root`, "
+                "`audit_log_path`, `round`, and `risk_register`"
+            ),
+            "scribe": "`files`, `pr_base`, `pr_draft_path`, and `plugin_root`",
+        }
+        for role, clause in clauses.items():
+            with self.subTest(role=role):
+                contract = " ".join(AGENTS[role].split())
+                self.assertIn(f"one `brief` object with exactly {clause}", contract)
 
     def test_provenance_is_verified_without_reclassifying_human_work(self):
         # Flattened: these assert what the instruction says, and a reflow of the
@@ -383,4 +402,3 @@ class PhaseSkillInventoryTests(unittest.TestCase):
         for name in self.PHASES:
             with self.subTest(skill=name):
                 self.assertTrue((root / "skills" / name / "SKILL.md").is_file())
-

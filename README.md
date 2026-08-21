@@ -53,7 +53,7 @@ and Sapheneia owns AuDHD interaction shape.
 
 ### Hexaemeron
 
-[Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working prototype through one receipted loop.
+[Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working prototype through one receipted loop, with source-bound agent packets and verified commit receipts.
 
 
 ### Horos
