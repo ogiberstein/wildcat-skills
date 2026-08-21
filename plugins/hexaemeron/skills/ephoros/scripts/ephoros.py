@@ -8,6 +8,7 @@ reading intent. Everything else in SKILL.md stays a judgement.
   E002  a metric label drawn from an unbounded source
   E003  a duration summarised as a mean
   E004  a supported YAML alert entry has no local runbook annotation
+  E005  telemetry keyed by wallet address: a metric label, dashboard key or log index
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 
@@ -35,6 +36,12 @@ UNBOUNDED = re.compile(
     re.IGNORECASE,
 )
 
+# One concern, one code: E005 claims the address-shaped labels, E002 keeps
+# every other unbounded fragment.
+ADDRESS_KEY = re.compile(r"(?:^|_)(?:address|wallet|addr)s?(?:_|$)", re.IGNORECASE)
+HEX_ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
+DASHBOARD_NAME = re.compile(r"(?:^|_|\.)(?:dashboard|panel)s?$", re.IGNORECASE)
+
 DURATION = re.compile(
     r"(?:^|_)(?:duration|latency|elapsed|seconds|secs|millis|ms|runtime|response_?time"
     r"|took|wait|time)s?(?:_|$)",
@@ -47,6 +54,8 @@ YAML_SUFFIXES = {".yaml", ".yml"}
 MAX_YAML_BYTES = 1 << 20
 ALERT = re.compile(r"^-\s+alert\s*:")
 ANNOTATIONS = re.compile(r"^annotations\s*:\s*$")
+LABELS = re.compile(r"^labels\s*:\s*$")
+YAML_KEY = re.compile(r"^(?P<key>[^\s:#-][^:]*?)\s*:")
 RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.DOTALL)
 BLOCK_SCALAR = re.compile(
     r"^(?:[^:#][^:]*:\s*|-\s+)[|>](?:[+-]?\d?|\d[+-]?)\s*$")
@@ -84,6 +93,21 @@ def _name_of(node: ast.AST) -> str:
 
 def _is_str_literal(node: ast.AST) -> bool:
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
+
+
+def _address_key(label: str) -> bool:
+    return bool(ADDRESS_KEY.search(label) or HEX_ADDRESS.fullmatch(label))
+
+
+def _address_shaped(node: ast.AST) -> str:
+    """Return the address-shaped name or literal in a key position, or ""."""
+    if isinstance(node, ast.Name) and ADDRESS_KEY.search(node.id):
+        return node.id
+    if isinstance(node, ast.Attribute) and ADDRESS_KEY.search(node.attr):
+        return node.attr
+    if _is_str_literal(node) and _address_key(node.value):
+        return node.value
+    return ""
 
 
 def _built_by_formatting(node: ast.AST) -> bool:
@@ -128,6 +152,11 @@ class Visitor(ast.NodeVisitor):
     def _add(self, node: ast.AST, code: str, message: str) -> None:
         self.findings.append(Finding(self.path, node.lineno, code, message))
 
+    def _keyed_by_address(self, node: ast.AST, position: str, key: str) -> None:
+        self._add(node, "E005",
+                  f"{position} `{key}` keys telemetry by wallet address; "
+                  "put it in an event")
+
     def visit_Call(self, node: ast.Call) -> None:
         func = node.func
         if isinstance(func, ast.Attribute) and func.attr in LOG_METHODS \
@@ -136,12 +165,39 @@ class Visitor(ast.NodeVisitor):
                 self._add(node, "E001",
                           "log message built by formatting; use a stable name and fields")
 
+        if isinstance(func, ast.Attribute):
+            if func.attr == "labels":
+                for keyword in node.keywords:
+                    if keyword.arg and ADDRESS_KEY.search(keyword.arg):
+                        self._keyed_by_address(node, "metric label", keyword.arg)
+                for arg in node.args:
+                    if _is_str_literal(arg) and HEX_ADDRESS.fullmatch(arg.value):
+                        self._keyed_by_address(node, "metric label", arg.value)
+            if LOGGER_NAME.search(_name_of(func.value)):
+                for keyword in node.keywords:
+                    if keyword.arg == "index":
+                        key = _address_shaped(keyword.value)
+                        if key:
+                            self._keyed_by_address(node, "log index", key)
+
         for keyword in node.keywords:
             if keyword.arg in LABEL_KWARGS:
                 for label in self._label_names(keyword.value):
-                    if UNBOUNDED.search(label):
+                    if _address_key(label):
+                        self._keyed_by_address(node, "metric label", label)
+                    elif UNBOUNDED.search(label):
                         self._add(node, "E002",
                                   f"metric label `{label}` is unbounded; put it in an event")
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        key = _address_shaped(node.slice)
+        if key:
+            target = _name_of(node.value)
+            if DASHBOARD_NAME.search(target):
+                self._keyed_by_address(node, "dashboard key", key)
+            elif LOGGER_NAME.search(target):
+                self._keyed_by_address(node, "log index", key)
         self.generic_visit(node)
 
     @staticmethod
@@ -332,6 +388,34 @@ def _relative_markdown(value: str) -> bool:
                 and "://" not in value)
 
 
+def _alert_label_findings(
+        path: Path, significant: list[tuple[int, int, str]], allowed: set[int],
+        index: int, end: int, child_indent: int | None) -> list[Finding]:
+    """Return E005 findings for address-named keys under one alert's labels."""
+    findings: list[Finding] = []
+    cursor = index + 1
+    while cursor < end:
+        _, labels_indent, nested = significant[cursor]
+        cursor += 1
+        if labels_indent != child_indent or not LABELS.match(nested):
+            continue
+        key_child_indent = significant[cursor][1] if cursor < end else None
+        while cursor < end:
+            number, key_indent, candidate = significant[cursor]
+            if key_indent <= labels_indent:
+                break
+            match = YAML_KEY.match(candidate)
+            if key_indent == key_child_indent and match \
+                    and _address_key(match.group("key")) \
+                    and number not in allowed and number - 1 not in allowed:
+                findings.append(Finding(
+                    path, number, "E005",
+                    f"alert label `{match.group('key')}` keys telemetry by "
+                    "wallet address; put it in an event"))
+            cursor += 1
+    return findings
+
+
 def _yaml_findings(path: Path, text: str) -> list[Finding]:
     lines = text.splitlines()
     significant = _yaml_lines(lines)
@@ -349,6 +433,8 @@ def _yaml_findings(path: Path, text: str) -> list[Finding]:
 
         alert_child_indent = (significant[index + 1][1]
                               if index + 1 < end else None)
+        findings.extend(_alert_label_findings(
+            path, significant, allowed, index, end, alert_child_indent))
         annotated = False
         cursor = index + 1
         while cursor < end:

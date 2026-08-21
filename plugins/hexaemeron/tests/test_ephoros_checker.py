@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "ephoros" / "scripts" / "ephoros.py"
 ALERT_FIXTURES = ROOT / "tests" / "fixtures" / "ephoros" / "alert-rules"
+TELEMETRY_FIXTURES = ROOT / "tests" / "fixtures" / "ephoros" / "telemetry-keys"
 
 spec = importlib.util.spec_from_file_location("ephoros_lint", SCRIPT)
 ephoros = importlib.util.module_from_spec(spec)
@@ -61,8 +62,8 @@ class LogMessages(unittest.TestCase):
 
 
 class MetricLabels(unittest.TestCase):
-    def test_it_flags_an_address_label(self):
-        self.assertIn("E002", codes(
+    def test_it_flags_an_address_label_as_e005_since_the_subset_moved(self):
+        self.assertEqual(["E005"], codes(
             "h = Histogram('d', labels={'address': a, 'venue': v})\n"))
 
     def test_it_flags_a_hash_label_in_a_list(self):
@@ -88,6 +89,104 @@ class Durations(unittest.TestCase):
 
     def test_it_allows_a_mean_of_layout_positions(self):
         self.assertEqual([], codes("order = sum(positions) / len(positions)\n"))
+
+
+class TelemetryKeys(unittest.TestCase):
+    def test_it_flags_an_address_label_in_the_constructor_style(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "metric-label-constructor.py")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_the_labels_instance_call_style(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "metric-label-instance.py")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_a_forty_hex_literal_label_value(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "metric-label-hex-literal.py")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_a_forty_hex_literal_in_a_constructor_label_set(self):
+        self.assertEqual(["E005"], codes(
+            "m = metric('m', tags=['0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'])\n"))
+
+    def test_it_flags_an_address_shaped_dashboard_key(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "dashboard-key.py")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_an_address_shaped_log_index_key(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "log-index-key.py")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_flags_an_address_index_argument(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "log-index-argument.py")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_it_allows_an_address_in_an_events_fields(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "event-fields.py"))
+
+    def test_it_allows_an_address_in_a_message_argument(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "message-argument.py"))
+
+    def test_it_ignores_print_which_is_not_telemetry(self):
+        self.assertEqual([], ephoros.check(TELEMETRY_FIXTURES / "print.py"))
+
+    def test_an_address_key_on_an_unnamed_store_does_not_fire(self):
+        self.assertEqual([], codes("cache[wallet_address] = market\n"))
+
+    def test_a_wallet_address_label_yields_e005_and_not_e002(self):
+        self.assertEqual(["E005"], codes(
+            "c = Counter('c', labelnames=['wallet_address'])\n"))
+
+    def test_a_hash_named_label_keeps_e002(self):
+        self.assertEqual(["E002"], codes("c = Counter('c', labelnames=['tx_hash'])\n"))
+
+    def test_a_reasoned_pragma_on_the_line_suppresses_e005(self):
+        self.assertEqual([], codes(
+            "c.labels(wallet_address=a).inc()"
+            "  # ephoros: allow one aggregate treasury row\n"))
+
+    def test_a_reasoned_pragma_on_the_line_above_suppresses_e005(self):
+        self.assertEqual([], codes(
+            "# ephoros: allow one aggregate treasury row\n"
+            "c.labels(wallet_address=a).inc()\n"))
+
+    def test_a_bare_pragma_does_not_suppress_e005(self):
+        self.assertIn("E005", codes(
+            "c.labels(wallet_address=a).inc()  # ephoros: allow\n"))
+
+
+class AlertLabelKeys(unittest.TestCase):
+    def test_an_address_named_key_under_alert_labels_reports_e005(self):
+        findings = ephoros.check(TELEMETRY_FIXTURES / "alert-labels.yaml")
+        self.assertEqual(["E005"], [finding.code for finding in findings])
+
+    def test_a_bounded_label_key_is_clean(self):
+        source = ("- alert: Bounded\n"
+                  "  labels:\n"
+                  "    severity: page\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/bounded.md\n")
+        self.assertEqual([], yaml_findings(source))
+
+    def test_a_labels_mapping_outside_an_alert_entry_is_ignored(self):
+        source = "service:\n  labels:\n    wallet_address: primary\n"
+        self.assertEqual([], yaml_findings(source))
+
+    def test_a_reasoned_pragma_suppresses_an_alert_label_key(self):
+        source = ("- alert: Suppressed\n"
+                  "  labels:\n"
+                  "    # ephoros: allow one aggregate treasury row\n"
+                  "    wallet_address: treasury\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/suppressed.md\n")
+        self.assertEqual([], yaml_findings(source))
+
+    def test_a_bare_pragma_does_not_suppress_an_alert_label_key(self):
+        source = ("- alert: StillKeyed\n"
+                  "  labels:\n"
+                  "    wallet_address: treasury  # ephoros: allow\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/still-keyed.md\n")
+        self.assertEqual(["E005"], [finding.code for finding in yaml_findings(source)])
 
 
 class Suppression(unittest.TestCase):
