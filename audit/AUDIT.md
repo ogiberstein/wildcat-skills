@@ -7374,3 +7374,57 @@ and all 67 coverage rows clean. Phylax, Ephoros and Hypomnema each exit 0;
 Python compilation and the diff check are clean.
 
 Leads not pursued: none.
+
+## Fiat state-shape validation, step 3, round 1 -- 2026-08-21
+
+The exact range `6530928e82e68d96bdfa5fcd3204e785942efef2..dd41bdf375f7ef4fbd0f0e778f1a5988000716c2`
+publishes the completed Fiat frontier, synchronises Hexaemeron's release
+surfaces and reconciles the mutable first-party marketplace prose made stale
+by the new load boundary. No Solidity changed, so the recorded security-suite
+waiver applies and the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The frontier advances exactly once, from `fiat-v4.9.1` to `fiat-v5.9.1` on
+the evolution axis. An independent reconstruction of the four frontier fields
+hashes to the recorded
+`e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa`.
+The new row closes issue 321's held state-shape job and holds issue 363's
+delegated task-identity failure as the open successor without importing that
+work. Fiat frontmatter agrees with the ledger. The two plugin manifests and
+two marketplaces agree on Hexaemeron `1.5.3`, and the controller source hashes
+to the Promise Machine coverage digest
+`f8aa8214615ddcb6f329b5b78ed6469215ba12f0996d6381744d0253a53c84c3`.
+
+The prose inventory enumerated 204 candidate root, landing, runtime, skill,
+evolution, agent, reference, manifest and marketplace surfaces. Generated
+Promise Machine copies, vendored Pashov instructions, fixtures,
+content-addressed evidence, completed studies and historical audit text remain
+outside the mutable publication set. A stale-term search found the old frontier
+revision only in its evolution history and completed receipted-lint-rounds
+records. The public Fiat skill, Hexaemeron README, Fiat agent prompt and Codex
+runtime description all name the state-container gate; the remaining mutable
+first-party surfaces do not make a stale state-validation, version or successor
+claim.
+
+All 12 source-bound risks were reviewed. The publication diff does not change
+the central validator. Its three malformed-state guards pass and retain
+command and verify parity, value-free diagnostics and byte-identical refusal,
+covering `validation-bypass`, `path-diagnostic-drift`, `validation-order`,
+`legacy-state-rejection`, `semantic-scope-creep`, `secret-echo`,
+`verify-parity`, `partial-write` and `round-indexing`. The independent ledger,
+publication and signature checks cover `frontier-arithmetic`,
+`marketplace-prose-drift` and `signing-provenance`.
+
+The focused suite passes 227/227, the root suite 106/106 and Hexaemeron
+640/640. Promise Machine reports 14 plugins, 14 copies and all 67 coverage
+rows clean. Horos reports 1,387 files, 89 classified entries and none
+unreadable; its boundary suite passes 4/4. Imprimatur is clean on every changed
+prose-bearing surface, Brevitas is clean on each applicable document, and
+Phylax, Ephoros and Hypomnema each exit 0. The diff check is clean. Mason head
+`dd41bdf375f7ef4fbd0f0e778f1a5988000716c2` has a valid local signature and
+exactly one copy of each required Shoggoth trailer.
+
+Leads not pursued: none.
