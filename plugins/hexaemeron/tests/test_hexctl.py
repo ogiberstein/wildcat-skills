@@ -2328,10 +2328,11 @@ class RoundClassifierTests(unittest.TestCase):
             with self.subTest(receipt=value, expect=False):
                 self.assertFalse(self.ctl.is_waiver(value))
 
-    def test_a_state_whose_config_or_receipts_is_not_an_object_does_not_raise(self):
-        """load_state validates no shape, so a hand-edited or half-written state
-        reaches the classifier. A traceback out of the controller is a worse answer
-        than the one every other fault here gets."""
+    def test_direct_classifier_calls_with_non_object_containers_do_not_raise(self):
+        """The load boundary rejects these shapes for state-backed commands.
+
+        Keep the classifier itself total for isolated callers and optional leaves.
+        """
         for config in (None, [], "auto", 7):
             with self.subTest(config=config):
                 self.assertIsInstance(

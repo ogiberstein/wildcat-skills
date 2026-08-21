@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "d28ab206eedb5623dc05dfbc2a19684d66dc74359505f50fdb8399e7121b90a5",
+      "sha256": "f8aa8214615ddcb6f329b5b78ed6469215ba12f0996d6381744d0253a53c84c3",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -142,14 +142,14 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "d28ab206eedb5623dc05dfbc2a19684d66dc74359505f50fdb8399e7121b90a5",
+      "sha256": "f8aa8214615ddcb6f329b5b78ed6469215ba12f0996d6381744d0253a53c84c3",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
-        "subject": "topic, run branch, step branch and head commit",
-        "scope": "current step and phase",
-        "evidence_references": "append-only ledger receipt payload and previous hash",
+        "subject": "validated state, topic, run branch, step branch and head commit",
+        "scope": "required state-container spine, current step and phase",
+        "evidence_references": "ordered state-container check, append-only ledger receipt payload and previous hash",
         "evidence_classes": "receipt kind joined to the canonical Evidence classes field",
-        "unknowns": "unrun checks and receipt assertions not independently proved",
+        "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved",
         "transition": "single next controller directive joined to the canonical Authorises field",
         "exception": "canonical Exceptions field"
       }
