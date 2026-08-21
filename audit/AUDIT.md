@@ -6675,3 +6675,34 @@ GitHub value and diagnostic in I320-S3-R1-04; its execution controls pass.
 `legacy-state-overclaim` and `path-escape` are clean in the folded diff.
 
 Further leads: none beyond I320-S3-R1-01 through I320-S3-R1-05.
+
+## Fiat delegation packets, step 3, round 1 resolution -- 2026-08-21
+
+All five findings are closed.
+
+### Fixes
+
+- I320-S3-R1-01: implement and push now resolve the declared step branch and
+  require its tip to equal the supplied head before verifying the exact owned
+  range. Push also requires the PR head OID to equal that verified tip.
+- I320-S3-R1-02: `merge-step` and `integrate` inspect the recorded PR and
+  require the expected head, base, merged state and exact merge OID before
+  accepting GitHub verification.
+- I320-S3-R1-03: the repository is derived from the target's GitHub origin,
+  cross-checked against `gh repo view`, and required on the supplied and
+  returned PR URLs.
+- I320-S3-R1-04: every GitHub-bound value must be one full commit SHA before a
+  command or SHA-bearing refusal is built. Invalid input gets a generic
+  refusal and reaches no `gh` process.
+- I320-S3-R1-05: the named fresh lifecycle now starts at `init`, observes the
+  Surveyor, runbook, Mason, Warden and Scribe transitions, compares two fresh
+  `next` processes at every transition, and uses full SHAs, GitHub PR URLs and
+  fake branch/PR topology bound to the target repository.
+
+### Evidence
+
+Seven focused guards cover branch-tip binding, pushed PR identity,
+target-origin identity, pre-command SHA rejection, and both merge topologies.
+They were red before the fix (the initial bounded run failed 6/6; the separate
+push-tip case extends the same branch control) and now pass 7/7. Versions and
+the held Fiat frontier are unchanged. No remote operation was performed.
