@@ -276,6 +276,14 @@ class AlertRules(unittest.TestCase):
         self.assertEqual([], yaml_findings(single))
         self.assertEqual([], yaml_findings(folded))
 
+    def test_a_blank_plain_fold_cannot_collapse_to_a_valid_pointer(self):
+        source = ("- alert: BlankFold\n"
+                  "  annotations:\n"
+                  "    runbook: runbooks/present\n"
+                  "\n"
+                  "      target.md\n")
+        self.assertEqual(["E004"], [finding.code for finding in yaml_findings(source)])
+
 
 class OverTheMarketplace(unittest.TestCase):
     def test_suffix_matching_directories_are_not_walked_as_files(self):

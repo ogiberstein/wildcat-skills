@@ -220,6 +220,16 @@ class YamlRunbooks(unittest.TestCase):
         self.assertEqual(
             [], yaml_codes(source, siblings=("runbooks/present.md",)))
 
+    def test_a_blank_plain_fold_cannot_resolve_through_a_space_decoy(self):
+        source = "runbook: runbooks/present\n\n  target.md\n"
+        self.assertEqual(["H003"], yaml_codes(
+            source, siblings=("runbooks/present target.md",)))
+
+    def test_a_blank_plain_fold_resolves_the_newline_path(self):
+        source = "runbook: runbooks/present\n\n  target.md\n"
+        self.assertEqual([], yaml_codes(
+            source, siblings=("runbooks/present\ntarget.md",)))
+
 
 COMPLETE_RUNBOOK = """# Pending age
 

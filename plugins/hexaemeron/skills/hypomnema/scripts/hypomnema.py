@@ -57,7 +57,7 @@ ADR_NUMBER = re.compile(r"ADR-(\d+)", re.IGNORECASE)
 # A path, not whatever word follows a colon: "a runbook: what fired" is prose.
 RUNBOOK = re.compile(r"runbook:\s*[`\"']?(?P<path>[\w./-]+\.md|[\w./-]+/[\w./-]+)[`\"']?",
                      re.IGNORECASE)
-YAML_RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$")
+YAML_RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.DOTALL)
 YAML_SUFFIXES = {".yaml", ".yml"}
 MAX_YAML_BYTES = 1 << 20
 BLOCK_SCALAR = re.compile(
@@ -186,6 +186,7 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, str, bool]]:
     plain_indent: int | None = None
     plain_out_index: int | None = None
     plain_candidate = False
+    plain_breaks = 0
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -197,6 +198,8 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, str, bool]]:
             scalar_indent = None
         if plain_indent is not None:
             if not raw.strip():
+                if plain_out_index is not None:
+                    plain_breaks += 1
                 continue
             if not raw.lstrip().startswith("#"):
                 raw_indent = len(raw) - len(raw.lstrip(" "))
@@ -205,13 +208,20 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, str, bool]]:
                         continuation = _yaml_plain_continuation(raw)
                         if continuation:
                             first = out[plain_out_index]
+                            separator = "\n" * plain_breaks if plain_breaks else " "
+                            logical = f"{first[1]}{separator}{continuation}"
+                            match = YAML_RUNBOOK.match(logical)
+                            spaced_candidate = bool(match and _relative_markdown(
+                                _yaml_target(match.group("path")).replace("\n", " ")))
                             out[plain_out_index] = (
-                                first[0], f"{first[1]} {continuation}",
-                                first[2] or plain_candidate)
+                                first[0], logical,
+                                first[2] or plain_candidate or spaced_candidate)
+                            plain_breaks = 0
                     continue
             plain_indent = None
             plain_out_index = None
             plain_candidate = False
+            plain_breaks = 0
         started_in_quote = quote is not None
         content, quote = _strip_yaml_comment(raw, quote)
         if started_in_quote:

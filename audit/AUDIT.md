@@ -6298,3 +6298,22 @@ unchanged. No new leads.
 This is an independent verification after the controller's eighth and final round, not a ninth round. The five round-8 guard methods were run against `9af605d8ff9e6a0b4af58ddbde96f2d9411a3091` in memory and produced four failures: the E004 and H003 decoys and both valid nonblank-fold outcomes were red, while the single-line case was already green. All five methods pass at `4983ed99b86226cda585e936ec9d812b70137d65`, so the exact nonblank-continuation mechanism in E319-S2-R8-01 is closed. Review of that fix then reproduced E319-S2-PC-01 with one blank line before the continuation: the checkers resolve a space-folded decoy while YAML binds a newline-containing scalar, so closure is incomplete. Focused tests pass 123/123; evolution and version propagation 23/23; marketplace prose 13/13; root 104/104; Hexaemeron 596/596. Promise Machine, Protasis, Imprimatur, per-file Brevitas, diff check and Phylax, Ephoros and Hypomnema tree lints exit 0. The committed and fresh Horos documents are byte-identical at 1,376 tracked files, 89 entries and none unreadable. The fix commit has a good local signature and exactly one required co-author and origin trailer.
 
 Further leads: none beyond E319-S2-PC-01.
+
+### Resolution: Ephoros alert-runbook annotations, post-cap closure -- 2026-08-21
+
+E319-S2-PC-01 is resolved on the audit branch. The supported plain-runbook
+fold now counts blank physical lines and inserts the corresponding line break
+before the next continuation. Ephoros rejects a newline-containing annotation
+path, while Hypomnema resolves the exact newline-containing YAML value rather
+than a space-collapsed decoy. The existing single-line and nonblank-fold
+guards remain clean.
+
+The three new guard methods were observed red before repair: the focused
+suite ran 126 tests with three failures covering E004, the H003 space decoy
+and the exact H003 newline path. After repair, the focused suite passes
+126/126, evolution and version propagation 23/23, marketplace prose 13/13,
+root 104/104 and Hexaemeron 599/599. Protasis accepts both documents;
+Imprimatur and per-file Brevitas accept the six named prose files; Promise
+Machine reports 14 plugins and 14 copies clean; Phylax, Ephoros and Hypomnema
+each exit 0 over their required trees. All other semantics, finding codes,
+ownership, versions and held frontier digests are unchanged. No new leads.

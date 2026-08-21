@@ -47,7 +47,7 @@ YAML_SUFFIXES = {".yaml", ".yml"}
 MAX_YAML_BYTES = 1 << 20
 ALERT = re.compile(r"^-\s+alert\s*:")
 ANNOTATIONS = re.compile(r"^annotations\s*:\s*$")
-RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$")
+RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.DOTALL)
 BLOCK_SCALAR = re.compile(
     r"^(?:[^:#][^:]*:\s*|-\s+)[|>](?:[+-]?\d?|\d[+-]?)\s*$")
 
@@ -272,6 +272,7 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
     scalar_indent: int | None = None
     plain_indent: int | None = None
     plain_out_index: int | None = None
+    plain_breaks = 0
     quote: str | None = None
     for number, raw in enumerate(lines, start=1):
         if scalar_indent is not None:
@@ -283,6 +284,8 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
             scalar_indent = None
         if plain_indent is not None:
             if not raw.strip():
+                if plain_out_index is not None:
+                    plain_breaks += 1
                 continue
             if not raw.lstrip().startswith("#"):
                 raw_indent = len(raw) - len(raw.lstrip(" "))
@@ -291,11 +294,15 @@ def _yaml_lines(lines: list[str]) -> list[tuple[int, int, str]]:
                         continuation = _yaml_plain_continuation(raw)
                         if continuation:
                             first = out[plain_out_index]
+                            separator = "\n" * plain_breaks if plain_breaks else " "
                             out[plain_out_index] = (
-                                first[0], first[1], f"{first[2]} {continuation}")
+                                first[0], first[1],
+                                f"{first[2]}{separator}{continuation}")
+                            plain_breaks = 0
                     continue
             plain_indent = None
             plain_out_index = None
+            plain_breaks = 0
         started_in_quote = quote is not None
         content, _, quote = _split_yaml_comment(raw, quote)
         if started_in_quote:
@@ -320,6 +327,7 @@ def _relative_markdown(value: str) -> bool:
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
         value = value[1:-1].strip()
     return bool(value and value.lower().endswith(".md")
+                and "\n" not in value and "\r" not in value
                 and not value.startswith(("/", "\\"))
                 and "://" not in value)
 
