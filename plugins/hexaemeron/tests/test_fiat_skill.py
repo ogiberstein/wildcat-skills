@@ -175,6 +175,19 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("step receipts refuse to advance", flat)
         self.assertIn("separately specified runbook-repair transition", flat)
 
+    def test_blocked_is_a_terminal_loop_outcome_with_no_implied_receipt(self):
+        loop = self.fiat.split("## The loop", 1)[1].split("## Phase notes", 1)[0]
+        self.assertIn("`blocked`", loop)
+        self.assertRegex(loop, r"\| `blocked` \|.*\| -- \|")
+
+    def test_amendment_mutation_has_its_own_promise_authorisation(self):
+        promise = self.fiat.split("### fiat-study-amendment", 1)[1]
+        promise = promise.split("### ", 1)[0]
+        self.assertIn("- Consequence: 2", promise)
+        self.assertIn("- Authorises:", promise)
+        self.assertIn("re-pinning", promise)
+        self.assertIn("durable blocked directive", promise)
+
 
 class StackBringDownTests(unittest.TestCase):
     """The order the stack comes down in, and why deleting early is fatal.

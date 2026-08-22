@@ -8144,3 +8144,66 @@ delivery. The two published documents are exact copies of the receipted
 sources, so this audit does not revise the accepted specification.
 
 Leads not pursued: none.
+
+## Fiat receipted study amendments, step 2, round 1 -- 2026-08-22
+
+The Pashov `x-ray`, `solidity-auditor`, and `fizz` suite did not run under the
+recorded waiver because this step changes Fiat's Python controller, tests and
+instructions and ships no Solidity. The audit reviewed the exact Step 2 commit
+`6edcf7f72ca12ec797aead542dd8d7dc17ff7696` against its parent
+`de7090b7c107241dac13d4655c8dc2f68bf12574`, then reviewed every fix on the
+stacked audit branch.
+
+Findings: 3.
+
+| id | severity | file | mechanism | status |
+| --- | --- | --- | --- | --- |
+| FSA-S2-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`; `plugins/hexaemeron/tests/test_hexctl.py` | `_replace_study_bytes` ran before the ledger/state `commit`. An interruption in that gap left the new study with the old receipt and ledger, while `hexctl verify` still exited 0. An interruption after the ledger append could also make recovery append the same `amend:study` event twice. | fixed in this round with a fsynced write-ahead marker, refusal of every other controller command while it exists, exact-byte revalidation, finish-or-rollback recovery, final cross-file verification before marker removal, and non-duplicating completion of an already-written ledger event; both guards were observed red before the fix |
+| FSA-S2-R1-02 | medium | `plugins/hexaemeron/skills/fiat/SKILL.md`; `plugins/hexaemeron/tests/test_fiat_skill.py`; `tests/promise_machine_coverage.json`; `tests/test_promise_machine_contract.py` | The new consequence-2 durable mutation had no Promise whose `Authorises` field permitted canonical study replacement and receipt re-pinning. The new `blocked` directive was also absent from Fiat's loop terminal set, action table and stop contract. | fixed in this round with `fiat-study-amendment`, operation-specific positive/missing/stale/overclaim/recovery bindings, and an explicit receipt-free `blocked` stop; the contract guards were observed red before the fix |
+| FSA-S2-R1-03 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`; `plugins/hexaemeron/tests/test_hexctl.py` | The Markdown selector tracked only the fence character, so three backticks closed a four-backtick fence. A heading still inside the longer Markdown fence could therefore be selected as the live amendment. | fixed in this round by tracking the opening delimiter length and accepting only a same-character closing delimiter at least as long; the adversarial guard was observed accepting the fenced heading before the fix |
+
+### Risk-register dispositions
+
+| risk id | status | disposition |
+| --- | --- | --- |
+| `prefix-forgery` | closed | The candidate prefix is hashed against the current receipt before mutation; the original prefix-drift guard leaves artefact, state and ledger unchanged. |
+| `amendment-selection` | fixed | FSA-S2-R1-03 makes fenced decoys respect delimiter character and length; duplicate final blocks and trailing sections refuse. |
+| `field-ambiguity` | closed | Date validity, exact cardinality, non-empty values and accepted order are covered by named guards. |
+| `step-verdict-coverage` | closed | Every non-done step gets one exact entry-and-exit verdict; missing, duplicate, ambiguous, unknown and completed-step cases refuse. |
+| `broken-step-transition` | fixed | FSA-S2-R1-02 records a broken current-step amendment, makes `next` emit the source-bound `blocked` outcome, refuses step receipts, and names inspection, halt or a separately specified repair as recovery. |
+| `checker-binding` | closed | The controller writes the captured bytes to a private temporary file, invokes the sibling Protasis checker with `sys.executable` and a fixed argv list, bounds time and output, suppresses raw diagnostics, and refuses a non-zero exit. |
+| `path-scope` | closed | Candidate and canonical paths use the existing real-path containment and byte cap; outside paths, non-files and oversized inputs refuse before the write-ahead transition. |
+| `partial-write` | fixed | FSA-S2-R1-01 adds a durable pending record before replacement; recovery distinguishes prior, candidate and already-committed states and verifies artefact, state and ledger before clearing it. |
+| `receipt-history` | closed | State and ledger carry prior, new and amendment digests plus normalized touched-step and verdict metadata; interruption recovery records the event exactly once. |
+| `post-amend-drift` | closed | Both `next` and `verify` recompute the receipted study digest, and the general verify path now checks every source-bound study rather than only one already carrying amendment history. |
+| `legacy-state` | closed | A study receipt with no amendment member retains ordinary packet behavior; an unbound legacy receipt may still be read but cannot use the new mutation. |
+| `evidence-overclaim` | fixed | FSA-S2-R1-02 establishes checked byte continuity, structure, checker exit and recorded operator verdicts, not correction truth, verdict correctness or runbook repair. |
+
+### Evidence and checks
+
+The two implementation guards were applied to detached parent
+`de7090b7c107241dac13d4655c8dc2f68bf12574`: the parser rejected the absent
+`amend` command and the append demonstration remained unable to replace the
+ordinary digest refusal. The three audit mechanisms were then observed red
+against unfixed Step 2 commit `6edcf7f72ca12ec797aead542dd8d7dc17ff7696`:
+the long-fence specimen was accepted, no pending transaction survived the
+replace/commit interruption, and Fiat had neither the `blocked` loop outcome
+nor an amendment `Authorises` block. The ledger-before-state interruption
+guard additionally reproduced two amendment events before the recovery fix.
+
+The fixed temporary-repository demonstration records a holding amendment,
+finds all three digests in state and ledger, and reconstructs the amended Mason
+packet. Its second run records a broken current step and receives the durable
+blocked directive. No fixture is described as a production run.
+
+The focused controller, Fiat prose and Protasis suite passes 313/313; the root
+suite passes 113/113; the complete Hexaemeron suite passes 765/765. Promise
+Machine contract and coverage checks are clean at 68 promises and 68 selected
+rows. Phylax, Ephoros and Hypomnema each exit 0 on their required scopes.
+Imprimatur finds no defect in the changed Fiat skill; Brevitas exits 0 on that
+skill and on this appended audit entry.
+
+Leads not pursued: a general transaction rewrite for controller mutations
+other than `amend study`, the deliberately separate runbook-repair transition,
+and the truth of amendment prose or operator verdicts. None is authorised or
+claimed by this step.
