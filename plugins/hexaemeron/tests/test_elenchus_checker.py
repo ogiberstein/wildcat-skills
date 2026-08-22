@@ -560,11 +560,14 @@ class HexaemeronUnittestReport(unittest.TestCase):
         original.write_text("keep\n", encoding="utf-8")
         symlink = root / "report-link"
         symlink.symlink_to(original)
+        dangling = root / "dangling-link"
+        dangling.symlink_to(root / "missing")
 
         for name, target in (
             ("directory", directory),
             ("regular", original),
             ("symlink", symlink),
+            ("dangling-symlink", dangling),
         ):
             with self.subTest(name=name):
                 result = self.run_runner(
@@ -573,6 +576,49 @@ class HexaemeronUnittestReport(unittest.TestCase):
                 self.assertEqual(2, result.returncode)
 
         self.assertEqual("keep\n", original.read_text(encoding="utf-8"))
+
+    def test_suite_cannot_redirect_report_through_replaced_parent(self):
+        outside = tempfile.TemporaryDirectory(prefix="hexaemeron-report-outside-")
+        outside_root = Path(outside.name)
+        temporary, root = self.fixture("import unittest\n")
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(outside.cleanup)
+        fixture = root / "test_fixture.py"
+        fixture.write_text(
+            "from pathlib import Path\n"
+            "import unittest\n\n"
+            f"report_parent = Path({str(root / 'reports')!r})\n"
+            f"report_parent.symlink_to(Path({str(outside_root)!r}), "
+            "target_is_directory=True)\n\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n",
+            encoding="utf-8",
+        )
+        report = root / "reports" / "result.json"
+
+        result = self.run_runner(root, "--elenchus-report", str(report))
+
+        self.assertEqual(2, result.returncode)
+        self.assertFalse((outside_root / "result.json").exists())
+
+    def test_relative_report_stays_anchored_when_suite_changes_cwd(self):
+        outside = tempfile.TemporaryDirectory(prefix="hexaemeron-cwd-outside-")
+        outside_root = Path(outside.name)
+        temporary, root = self.fixture(
+            "import os\n"
+            "import unittest\n\n"
+            f"os.chdir({str(outside_root)!r})\n\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(outside.cleanup)
+
+        result = self.run_runner(root, "--elenchus-report", "result.json")
+
+        self.assertEqual(0, result.returncode)
+        self.assertTrue((root / "result.json").is_file())
+        self.assertFalse((outside_root / "result.json").exists())
 
     def test_report_write_failure_has_a_distinct_exit_and_no_report(self):
         with tempfile.TemporaryDirectory(prefix="hexaemeron-write-failure-") as root:
@@ -604,6 +650,46 @@ class HexaemeronUnittestReport(unittest.TestCase):
             self.assertEqual(2, exit_code)
             self.assertFalse(report.exists())
             self.assertIn("report write failed", stderr.getvalue())
+
+    def test_partial_report_write_is_removed_before_failure_returns(self):
+        with tempfile.TemporaryDirectory(prefix="hexaemeron-partial-write-") as root:
+            report = Path(root) / "report.json"
+            suite = unittest.TestSuite([unittest.FunctionTestCase(lambda: None)])
+            real_write = os.write
+            writes = 0
+
+            def short_then_fail(descriptor, body):
+                nonlocal writes
+                writes += 1
+                if writes == 1:
+                    return real_write(descriptor, body[: max(1, len(body) // 2)])
+                raise OSError("write blocked")
+
+            with (
+                mock.patch.object(
+                    hexaemeron_runner.unittest.defaultTestLoader,
+                    "discover",
+                    return_value=suite,
+                ),
+                mock.patch.object(
+                    hexaemeron_runner.os,
+                    "write",
+                    side_effect=short_then_fail,
+                ),
+                mock.patch.object(
+                    hexaemeron_runner.Path,
+                    "cwd",
+                    return_value=Path(root),
+                ),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                exit_code = hexaemeron_runner.main(
+                    ["--elenchus-report", str(report)]
+                )
+
+            self.assertEqual(2, exit_code)
+            self.assertEqual(2, writes)
+            self.assertFalse(report.exists())
 
 
 class LaunchFailures(RunnerCase):
