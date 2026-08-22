@@ -8647,3 +8647,80 @@ findings with the reason-bearing pragma as the escape. An exploratory
 whole-file Hypomnema scan reported H003 at `audit/AUDIT.md:6119` and
 `audit/AUDIT.md:6269`; both are quoted prior findings outside the step paths,
 so neither enters this round's required lint exits.
+
+## Phylax unsafe deserialization, step 1, round 2 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 324 changes the Python
+Phylax lint, fixtures, and governed prose; it has no Solidity target`. The
+complete base-to-stacked diff and the round 2 fix contain no `.sol` path.
+X-Ray and Solidity Auditor did not run. Their active instruction digests match
+the Promise Machine overlays; the waiver applies only to those two operations.
+
+The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0 on the
+repository-mandated scopes. The manual pass re-read the full diff and checked
+all thirteen receipted risks against the fixed tree.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | low | `plugins/hexaemeron/skills/phylax/scripts/phylax.py:305` | Conflicting imports retained several possible call identities, but sorted iteration let the first unsafe candidate supply a false family-specific diagnostic. | fixed and guarded in round 2 |
+| S1-R2-review | none | full base-to-stacked diff | No other code, test, record or payload-disclosure finding was confirmed. | clean |
+| S1-R2-records | none | study, runbook, evolution and Promise Machine binding | The committed records still match their receipted bytes and generation-only boundary. | clean |
+
+Finding count: 1.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `source-parse` | P008 uses `ast.parse`, `ast.walk` and the existing visitor; no target import, deserialization or execution was added. | clean |
+| `call-identity` | Late module and direct imports resolve from functions and class bodies; nested imports remain conservative source-local evidence. | clean |
+| `pickle-scope` | `load` and `loads` report; dump calls, JSON and unrelated readers remain clean. | clean |
+| `marshal-scope` | `load` reports and the named `loads` exclusion stays clean. | clean |
+| `yaml-loader` | Positional and keyword safe-loader forms pass; absent, unsafe, unknown and conflicting loader bindings report. | clean |
+| `dynamic-source` | Names, calls and f-strings report; inline string and bytes constants pass. | clean |
+| `alias-rebinding` | Conflicting import identities retain one conservative finding without inventing one family; assignment and lexical-scope dataflow remain excluded. | fixed by S1-R2-01 |
+| `suppression-line` | Reason-bearing and bare pragmas retain opposite results. | clean |
+| `diagnostic-output` | Text and JSON use a fixed unresolved-family message for ambiguous imports and omit the sentinel payload. | fixed by S1-R2-01 |
+| `classification-drift` | P000 through P007 guards and the full focused, plugin and root suites pass. | clean |
+| `analysis-work` | Binding classification adds one bounded pass over the import identities already collected; no recursion, dataflow or target execution enters. | clean |
+| `partial-run` | Every result below reached a terminal zero exit; no partial dot stream was counted. | clean |
+| `ledger-integrity` | `phylax-v1.3.0`, the mature frontier fields and its digest remain unchanged; Promise Machine verification is clean. | clean |
+
+### Evidence
+
+The review started on the exact stacked branch at signed commit
+`116819e77574e116e5f5ddcaed57ef4e22d2c4af` and inspected all eight paths in
+the full diff from `64096f4d89fc821ab9d91d075cd86be7e7bb92b5`.
+The tracked and receipted study copies both hash to
+`5eac7e9c171969933bf9d08a07a50aefd0e3f52ff353fada05691271373f397f`;
+the runbook copies both hash to
+`678e406845563e2bb51cae9dbbcc6d0b3d6f048ee3d3e8a68ceb84b71decdf07`.
+
+The reduced guard
+`UnsafeDeserialization.test_conflicting_imports_do_not_claim_one_call_family`
+failed on the unfixed tree for all four module, direct, neighbour and explicit
+bare-shadow specimens. It passes after the fix, which records ambiguity from
+all visible import identities and emits one fixed unresolved-family message.
+The same guard checks text and JSON for the sentinel payload.
+
+The focused Phylax suite passes 79/79 on Python 3.9.6 and 3.12.13. With the
+checksum-verified Node v26.6.0 fixture first on `PATH`, the full Hexaemeron
+suite passes 851/851. The root suite passes 118/118 and the evolution contract
+passes 8/8. The full Promise Machine check, both Protasis checks, the Horos
+boundary check, the changed-tree Phylax scan and `git diff --check` each exit
+0. The active-plugin Phylax, Ephoros and Hypomnema lint exits are `0`, `0` and
+`0`.
+
+### Leads not pursued
+
+Leads not pursued: `marshal.loads`; wildcard and dynamic imports; assignment,
+lexical-scope, taint and control-flow analysis; custom-loader proofs; the
+accepted pragma-in-string quirk; and Python file-size policy. In particular,
+reassigning an imported safe YAML alias or importing it in another lexical
+scope can retain source-local trust. The study names both limits, and the
+public contract says assignments are not followed, so changing either requires
+a study amendment rather than an audit-side widening.

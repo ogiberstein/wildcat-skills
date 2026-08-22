@@ -147,6 +147,43 @@ class UnsafeDeserialization(unittest.TestCase):
             "decode('literal')\n"
         ))
 
+    def test_conflicting_imports_do_not_claim_one_call_family(self):
+        sentinel = "conflicting-import-sentinel"
+        specimens = {
+            "module-boundaries": (
+                "import pickle as codec\n"
+                "import yaml as codec\n"
+                "codec.load(payload)\n"
+            ),
+            "direct-boundaries": (
+                "from pickle import load as decode\n"
+                "from yaml import load as decode\n"
+                "decode(payload)\n"
+            ),
+            "boundary-and-neighbour": (
+                "from pickle import load as decode\n"
+                "from json import load as decode\n"
+                "decode(payload)\n"
+            ),
+            "explicit-bare-shadow": (
+                "from ast import literal_eval as eval\n"
+                "eval(payload)\n"
+            ),
+        }
+        for label, source in specimens.items():
+            with self.subTest(label=label):
+                result = findings(
+                    f'payload = "{sentinel}"\n' + source,
+                    "sample.py",
+                )
+                self.assertEqual(["P008"], [finding.code for finding in result])
+                self.assertEqual(
+                    "source-local bindings leave the boundary call family unresolved",
+                    result[0].message,
+                )
+                self.assertNotIn(sentinel, str(result[0]))
+                self.assertNotIn(sentinel, json.dumps(result[0].as_dict()))
+
     def test_safe_yaml_loaders_are_allowed_in_keyword_and_positional_forms(self):
         specimens = {
             "module-safe-keyword": (

@@ -46,6 +46,9 @@ P008_MESSAGES = {
     "yaml": "yaml.load has no resolved SafeLoader or CSafeLoader",
     "builtins": "dynamic execution receives non-literal source",
 }
+P008_AMBIGUOUS_MESSAGE = (
+    "source-local bindings leave the boundary call family unresolved"
+)
 
 CREDENTIAL = re.compile(
     r"(?:^|_)(?:priv(?:ate)?_?key|secret|passwd|password|mnemonic|seed_?phrase"
@@ -137,7 +140,13 @@ def _is_dynamic_literal(node: ast.AST) -> bool:
 
 def _boundary_bindings(
     tree: ast.AST,
-) -> tuple[dict[str, set[str]], dict[str, set[str]], set[str], set[str]]:
+) -> tuple[
+    dict[str, set[str]],
+    dict[str, set[str]],
+    set[str],
+    set[str],
+    set[str],
+]:
     """Collect source-local import evidence before descending function bodies.
 
     A depth-first visitor reaches a function's calls before module imports that
@@ -189,7 +198,31 @@ def _boundary_bindings(
             for level, module, name in imported
         )
     }
-    return modules, direct, safe_yaml_modules, safe_yaml_loaders
+    ambiguous_calls = set()
+    for local, imported in identities.items():
+        families = set()
+        for level, module, name in imported:
+            if level == -1 and module in BOUNDARY_CALLS:
+                families.add(module)
+            elif (
+                level == 0
+                and module in BOUNDARY_CALLS
+                and name in BOUNDARY_CALLS[module]
+            ):
+                families.add(module)
+            else:
+                families.add(None)
+        if local in BOUNDARY_CALLS["builtins"] and local not in direct:
+            families.add("builtins")
+        if len(families) > 1:
+            ambiguous_calls.add(local)
+    return (
+        modules,
+        direct,
+        safe_yaml_modules,
+        safe_yaml_loaders,
+        ambiguous_calls,
+    )
 
 
 class Visitor(ast.NodeVisitor):
@@ -209,6 +242,7 @@ class Visitor(ast.NodeVisitor):
             self.boundary_direct,
             self.safe_yaml_modules,
             self.safe_yaml_loaders,
+            self.ambiguous_boundary_calls,
         ) = _boundary_bindings(tree)
 
     def visit_Import(self, node: ast.Import) -> None:
@@ -258,6 +292,12 @@ class Visitor(ast.NodeVisitor):
         return isinstance(loader, ast.Name) and loader.id in self.safe_yaml_loaders
 
     def _check_p008(self, node: ast.Call) -> None:
+        binding = (
+            node.func.value.id
+            if isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            else node.func.id if isinstance(node.func, ast.Name) else None
+        )
         loader = next(
             (keyword.value for keyword in node.keywords if keyword.arg == "Loader"),
             node.args[1] if len(node.args) > 1 else None,
@@ -269,7 +309,12 @@ class Visitor(ast.NodeVisitor):
             elif module == "builtins":
                 if not node.args or _is_dynamic_literal(node.args[0]):
                     continue
-            self._add(node, "P008", P008_MESSAGES[module])
+            message = (
+                P008_AMBIGUOUS_MESSAGE
+                if binding in self.ambiguous_boundary_calls
+                else P008_MESSAGES[module]
+            )
+            self._add(node, "P008", message)
             return
 
     def visit_Call(self, node: ast.Call) -> None:
