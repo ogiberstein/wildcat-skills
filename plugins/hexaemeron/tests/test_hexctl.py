@@ -1998,10 +1998,10 @@ class TestControls(HexctlCase):
         self.integrate_run()
         self.assertEqual(self.next_json()["do"], "done")
 
-        # `reset` clears the state, after which the breadcrumb no longer resolves
-        # and `target` falls back to the checkout. The archive is in the run's
-        # own tree, so hold that path before the reset rather than after.
-        root = os.path.join(self.target, ".hexaemeron")
+        # A run that lived in a worktree archives into the checkout it was
+        # started from, because archiving inside the tree and then removing the
+        # tree would destroy the archive in the same breath.
+        root = os.path.join(self.dir, ".hexaemeron")
         self.run_ctl("reset")
         self.assertFalse(os.path.exists(os.path.join(root, "state.json")))
         archives = os.listdir(os.path.join(root, "archive"))
@@ -3391,3 +3391,133 @@ class WorktreeCreationTests(HexctlCase):
         self.assertEqual(again.returncode, 2)
         self.assertIn(existing, again.stderr)
         self.assertIn("--dir", again.stderr)
+
+
+class ResumeAndRetirementTests(HexctlCase):
+    """Finding the run again, and putting its tree away once it has landed."""
+
+    def origin_ctl(self, *args):
+        return subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, *args],
+            capture_output=True, text=True,
+        )
+
+    def state_dir_listing(self):
+        return sorted(os.listdir(os.path.join(self.dir, ".hexaemeron")))
+
+    # -- resume -----------------------------------------------------------
+
+    def test_status_from_the_checkout_names_the_runs_worktree(self):
+        self.init()
+        proc = self.origin_ctl("status")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn(self.target, proc.stderr)
+        self.assertIn(f"hexctl --dir {self.target} next", proc.stderr)
+
+    def test_next_from_the_checkout_names_the_runs_worktree(self):
+        self.init()
+        proc = self.origin_ctl("next")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn(f"hexctl --dir {self.target} next", proc.stderr)
+
+    def test_pointing_at_the_checkout_changes_nothing(self):
+        self.init()
+        before = self.state_dir_listing()
+        self.origin_ctl("status")
+        self.origin_ctl("next")
+        self.assertEqual(self.state_dir_listing(), before)
+        self.assertFalse(os.path.exists(
+            os.path.join(self.dir, ".hexaemeron", "state.json")))
+
+    def test_both_runs_are_named_when_the_checkout_started_two(self):
+        self.init("run alpha")
+        alpha = self.target
+        subprocess.run([sys.executable, HEXCTL, "--dir", self.dir, "init",
+                        "--topic", "run beta"], capture_output=True, check=True)
+        beta = os.path.join(self.dir, "tmp", "fiat", "fiat-run-beta")
+        proc = self.origin_ctl("status")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn(alpha, proc.stderr)
+        self.assertIn(beta, proc.stderr)
+
+    def test_a_recorded_worktree_that_is_gone_refuses_by_name(self):
+        self.init()
+        recorded = self.target
+        shutil.rmtree(recorded)
+        proc = self.origin_ctl("status")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn(recorded, proc.stderr)
+        self.assertIn("no longer there", proc.stderr)
+
+    def test_a_recorded_worktree_that_is_gone_does_not_start_a_second_run(self):
+        self.init()
+        shutil.rmtree(self.target)
+        self.origin_ctl("next")
+        self.assertFalse(os.path.exists(
+            os.path.join(self.dir, ".hexaemeron", "state.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "tmp", "fiat",
+                                                     "fiat-test-topic")))
+
+    def test_state_already_in_a_checkout_still_resumes(self):
+        """A run that predates the worktree keeps working where it is."""
+        legacy = os.path.join(self.dir, ".hexaemeron")
+        os.makedirs(legacy, exist_ok=True)
+        self.init()
+        shutil.copytree(os.path.join(self.target, ".hexaemeron"),
+                        legacy, dirs_exist_ok=True)
+        os.remove(os.path.join(legacy, "worktree"))
+        proc = self.origin_ctl("status", "--json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout)["topic"], "test topic")
+
+    # -- retirement -------------------------------------------------------
+
+    def land_a_run(self):
+        """A one-step run, driven all the way to the integrate phase."""
+        self.to_steps(titles=("Scaffold",))
+        self.run_ctl("record", "security_suite", '"waived: fixture"')
+        self.finish_step(1)
+
+    def test_reset_removes_a_clean_tree_and_archives_its_evidence(self):
+        self.land_a_run()
+        self.integrate_run()
+        self.assertTrue(os.path.isdir(self.retired),
+                        "integrate leaves the tree so status and verify still run")
+        self.run_ctl("reset")
+        self.assertFalse(os.path.isdir(self.retired))
+        archives = os.listdir(os.path.join(self.dir, ".hexaemeron", "archive"))
+        self.assertEqual(len(archives), 1)
+        archived = os.path.join(self.dir, ".hexaemeron", "archive", archives[0])
+        for name in ("state.json", "ledger.jsonl"):
+            self.assertTrue(os.path.exists(os.path.join(archived, name)), name)
+
+    def test_the_integrate_receipt_records_the_tree_as_clean(self):
+        self.land_a_run()
+        self.integrate_run()
+        self.assertIs(self.state()["receipts"]["integrate"]["worktree_clean"], True)
+
+    def test_a_tree_holding_work_is_kept_and_never_forced(self):
+        self.land_a_run()
+        held = self.target
+        with open(os.path.join(held, "someone-was-working.txt"), "w",
+                  encoding="utf-8") as handle:
+            handle.write("do not lose me\n")
+        self.integrate_run()
+        self.run_ctl("reset")
+        self.assertTrue(os.path.isdir(held))
+        self.assertTrue(os.path.exists(
+            os.path.join(held, "someone-was-working.txt")))
+        archives = os.listdir(os.path.join(self.dir, ".hexaemeron", "archive"))
+        self.assertEqual(len(archives), 1)
+
+    def test_a_retired_run_drops_out_of_the_breadcrumb(self):
+        self.land_a_run()
+        self.integrate_run()
+        self.run_ctl("reset")
+        with open(os.path.join(self.dir, ".hexaemeron", "worktree"),
+                  encoding="utf-8") as handle:
+            self.assertEqual(handle.read().strip(), "")
+
+    @property
+    def retired(self):
+        return os.path.join(self.dir, "tmp", "fiat", "fiat-test-topic")
