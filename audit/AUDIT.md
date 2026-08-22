@@ -8572,3 +8572,78 @@ separately assigned argv, star-expanded call forms, `**kwargs`, runner-name
 rebinding and flag interpretation remain outside the receipted source-local
 boundary. Widening any of them would change the approved finding grammar or
 runner-resolution contract rather than repair this implementation.
+
+## Phylax unsafe deserialization, step 1, round 1 -- 2026-08-22
+
+### Suite disposition
+
+The controller recorded this waiver: `waived: issue 324 changes the Python
+Phylax lint, fixtures, and governed prose; it has no Solidity target`. No
+`.sol` file appears in the full step or stacked diff. X-Ray and Solidity
+Auditor did not run; the waiver applies only to that pair.
+
+The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0 over every
+step-changed path. The manual review covered the full diff and every receipted risk.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/phylax/scripts/phylax.py:138` | Depth-first import discovery missed dangerous calls inside functions defined before their module or direct import. | fixed and guarded |
+| S1-R1-02 | low | `plugins/hexaemeron/skills/phylax/scripts/phylax.py:187` | Conflicting imports could select one safe identity and hide an unsafe loader or deserializer under the same alias. | fixed and guarded |
+| S1-R1-review | none | full step diff | No further code, test, record or payload-disclosure finding was confirmed. | clean |
+
+Finding count: 2.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `source-parse` | `ast.parse`, one `ast.walk` and the existing visitor inspect source without importing, executing or deserializing it. | clean |
+| `call-identity` | Module, module-alias, direct and direct-alias fixtures include imports after function definitions; relative imports remain excluded. | fixed by S1-R1-01 |
+| `pickle-scope` | `load` and `loads` report; `dump`, `dumps` and unrelated loaders stay clean. | clean |
+| `marshal-scope` | `load` reports and `loads` has an explicit negative fixture. | clean |
+| `yaml-loader` | Positional and keyword `SafeLoader` and `CSafeLoader` aliases pass; absent, unknown, unsafe and conflicting bindings report. | fixed by S1-R1-02 |
+| `dynamic-source` | Names, calls and f-strings report; inline string and bytes constants pass; no-argument and keyword-only shapes follow the stated first-positional-argument grammar. | clean |
+| `alias-rebinding` | Assignment rebinding remains outside analysis; conflicting import evidence is conservative, and a bare/local `eval` collision still reports. | clean within scope |
+| `suppression-line` | A reason-bearing pragma suppresses P008 and a bare pragma does not. | clean |
+| `diagnostic-output` | Text and JSON carry fixed family messages and omit the sentinel payload. | clean |
+| `classification-drift` | P000 through P007 guards and the full focused and plugin suites pass. | clean |
+| `analysis-work` | The change adds one linear AST import pass and constant-time checks per relevant call, with no dataflow or target execution. | clean |
+| `partial-run` | Every required lint and relevant test was read to completion; no interrupted result is counted as clean. | clean |
+| `ledger-integrity` | `phylax-v1.3.0` advances generation only; the mature frontier fields and digest remain unchanged, and Promise Machine verification passes. | clean |
+
+### Evidence
+
+The review read all seven files changed from
+`64096f4d89fc821ab9d91d075cd86be7e7bb92b5` through
+`3766c516bf6960945774aeaa0b2b0c819bbbde95`, then reviewed the stacked fixes.
+The tracked study matches `.hexaemeron/study.md` at
+`5eac7e9c171969933bf9d08a07a50aefd0e3f52ff353fada05691271373f397f`.
+
+The fix collects import evidence before call classification, retains exact
+absolute module and direct-import resolution, and trusts a YAML module or
+loader alias only when all explicit imports under that local name belong to
+the safe family. Guards at
+`plugins/hexaemeron/tests/test_phylax_checker.py:104` cover late module and
+direct imports; the adjacent cases cover conflicting bindings, loader
+precedence, relative imports, bare/local eval collisions, no-argument and
+keyword-only shapes, and one finding per nested boundary call.
+
+The focused Phylax suite passes 78/78 on Python 3.9.6 and 3.12.13. With the
+fixture-pinned Node v26.6.0 first on `PATH`, the full Hexaemeron suite passes
+850/850. The root suite passes 118/118, the evolution contract passes 8/8,
+the full Promise Machine check is clean, the Horos boundary matches the tree,
+and `git diff --check` exits 0. The ambient Node v22.22.3 run stopped at the
+fixture's exact-version assertion before the pinned-version rerun passed.
+
+### Leads not pursued
+
+Leads not pursued: `marshal.loads`; wildcard and dynamic imports; assignment,
+scope, taint and control-flow analysis; custom-loader proofs; the accepted
+pragma-in-string quirk; and Python file-size policy. The receipted study names
+these as exclusions. Bare/local `eval` collisions remain conservative P008
+findings with the reason-bearing pragma as the escape. An exploratory
+whole-file Hypomnema scan reported H003 at `audit/AUDIT.md:6119` and
+`audit/AUDIT.md:6269`; both are quoted prior findings outside the step paths,
+so neither enters this round's required lint exits.
