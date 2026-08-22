@@ -523,9 +523,10 @@ def held_lock(base_dir: str, command: str):
             die(
                 "another hexctl is holding this run: pid {pid} running "
                 "`{cmd}` since {since}.\n"
-                "Two agents in one directory share one run and one ledger. "
-                "Give each its own working directory, for example "
-                "`git worktree add ../<name> main`, and run one there.".format(
+                "Two agents in one run's worktree share one run and one "
+                "ledger. Each run gets its own tree at init, so start a "
+                "separate run with `hexctl --dir <checkout> init --topic "
+                "...`, or wait for this one.".format(
                     pid=holder.get("pid", "unknown"),
                     cmd=holder.get("command", "unknown"),
                     since=holder.get("ts", "unknown"),

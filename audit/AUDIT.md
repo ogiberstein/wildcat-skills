@@ -8317,3 +8317,41 @@ Machine checks clean.
 No new findings.
 
 Leads not pursued: the three from round 1, all unchanged.
+
+## Fiat run worktree, step 5, round 1 -- 2026-08-22
+
+Reviewed the corrected contract, the ledger row and the demonstrations.
+
+The ledger row was checked the way the `done integrate` gate reads it, not by
+eye. The axis arithmetic goes `fiat-v5.10.1` to `fiat-v5.11.1` on the generation
+counter alone, the row retains `state-shape-validation` and the digest
+`e413d604...` byte for byte from the row before it, the header and the row name
+the same version, and the digest recomputed over the live
+`{status}|{revision}|{frontier}|{next job}` line matches. The held
+[skills#363](https://github.com/wildcat-finance/skills/issues/363) job is
+byte-identical, which is what a generation row owes.
+
+Eight cases hold the contract text, including that `git worktree add ../` is
+gone from both `SKILL.md` and `hexctl.py`. The advice it replaces was contract
+text as well, and it was wrong in the ordinary case for as long as it stood, so
+the replacement is asserted rather than trusted. Two more run the study's demo
+path instead of describing it: one from a deliberately dirty checkout, asserting
+the branch, `HEAD` and `git status --short` are identical afterwards, and one
+against a directory that is not a repository, asserting the refusal writes no
+state, ledger or breadcrumb.
+
+An existing lock test asserted the old advice and now asserts its absence and
+the new command, which is the same test doing the opposite job.
+
+Imprimatur reports zero defects on all five changed documents. The Horos
+boundary matches the tree. Phylax, Ephoros and Hypomnema each exit 0 across the
+three changed sources and the five documents.
+
+No findings.
+
+Leads not pursued: the three carried from step 4, all unchanged. Worth naming
+once, though it is a property of this shell rather than of the change: zsh does
+not word-split an unquoted variable, so a lint invoked as `lint $FILES` receives
+one argument naming a file that does not exist and reports it unreadable. It was
+caught here because the exit status was read; a round that only read the word
+`clean` would not have seen it.

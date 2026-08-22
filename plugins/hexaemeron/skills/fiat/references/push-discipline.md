@@ -10,10 +10,10 @@ after initialization: the stored branch might already be published.
 ## Branches and commits
 
 A run owns one integration branch off the base, named at `init` and held in
-state. Cut it before step 1 and push it:
+state. `init` cuts it when it creates the run's worktree, so it exists before
+step 1 and only needs pushing:
 
 ```text
-git checkout -b <run branch> <base>
 git push -u origin <run branch>
 ```
 
