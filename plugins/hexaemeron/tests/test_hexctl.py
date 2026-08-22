@@ -18,6 +18,7 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
 PROTASIS = os.path.join(HERE, "..", "skills", "protasis", "scripts", "protasis.py")
+COMPLETE_STUDY = os.path.join(HERE, "fixtures", "protasis", "complete-study.md")
 
 SUITE = '["hexaemeron:x-ray", "hexaemeron:solidity-auditor"]'
 """A security_suite receipt shaped like the one preflight records.
@@ -443,6 +444,45 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         for step in state["steps"]:
             self.git("branch", self.step_branch(step["n"], state))
 
+    def to_amendable_steps(self, titles=("Core", "Finish")):
+        self.init()
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            original = handle.read()
+        study = self.write("study.md", original)
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n" + "\n".join(
+                f"## Step {number}: {title}\n\n**Goal.** {title}.\n"
+                for number, title in enumerate(titles, 1)
+            ),
+        )
+        steps = self.write("steps.json", json.dumps(list(titles)))
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+        return original
+
+    @staticmethod
+    def amendment(
+        verdicts=(
+            "Step 1: entry holds; exit holds. "
+            "Step 2: entry holds; exit holds."
+        ),
+        *,
+        date="2026-08-22",
+        what="The fixture assumption was corrected.",
+        why="The receipted baseline disproved it.",
+        touched="Steps 1 and 2.",
+    ):
+        return (
+            f"\n### Amendment -- {date}\n\n"
+            f"**What changed.** {what}\n"
+            f"**Why.** {why}\n"
+            f"**Steps touched.** {touched}\n"
+            f"**Still holding.** {verdicts}\n"
+        )
+
     def git(self, *args, expect=0):
         proc = subprocess.run(
             ["git", *args], cwd=self.dir, capture_output=True, text=True
@@ -647,6 +687,48 @@ class TestDelegationPackets(HexctlCase):
         proc = self.run_ctl("next", expect=2)
         self.assertIn("runbook artefact digest changed", proc.stderr)
 
+    def test_amend_study_command_is_registered(self):
+        self.to_steps(("Core",))
+        parser = hexctl_module().build_parser()
+        args = parser.parse_args(
+            ["--dir", self.dir, "amend", "study", "--artifact", "study.md"]
+        )
+        self.assertEqual(args.fn.__name__, "cmd_amend_study")
+
+    def test_amend_study_replaces_the_digest_refusal_before_next(self):
+        self.init()
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            original = handle.read()
+        study = self.write("study.md", original)
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            "## Step 1: Core\n\n**Goal.** Core.\n\n"
+            "## Step 2: Finish\n\n**Goal.** Finish.\n",
+        )
+        steps = self.write("steps.json", '["Core", "Finish"]')
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+        amendment = (
+            "\n### Amendment -- 2026-08-22\n\n"
+            "**What changed.** The fixture assumption was corrected.\n"
+            "**Why.** The receipted baseline disproved it.\n"
+            "**Steps touched.** Steps 1 and 2.\n"
+            "**Still holding.** Step 1: entry holds; exit holds. "
+            "Step 2: entry holds; exit holds.\n"
+        )
+        candidate = self.write("candidate.md", original + amendment)
+        self.write("study.md", original + amendment)
+
+        refused = self.run_ctl("next", expect=2)
+        self.assertIn("study artefact digest changed", refused.stderr)
+
+        self.run_ctl("amend", "study", "--artifact", candidate)
+        packet = self.next_json()
+        self.assertEqual((packet["do"], packet["agent"]), ("implement", "mason"))
+
     def test_risk_block_drift_and_ambiguous_step_refuse(self):
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
@@ -819,6 +901,350 @@ class TestDelegationPackets(HexctlCase):
             with self.assertRaises(SystemExit):
                 module.bounded_git(self.dir, ["diff"])
         self.assertIn("2097152-byte output cap", error.getvalue())
+
+
+class TestStudyAmendments(HexctlCase):
+    def test_temporary_git_repositories_demonstrate_holding_and_broken_runs(self):
+        original = self.to_amendable_steps()
+        self.git("init", "-b", "main")
+        self.git("config", "user.email", "tests@example.com")
+        self.git("config", "user.name", "Hexctl Tests")
+        self.git("add", "study.md", "runbook.md", "steps.json")
+        self.git("commit", "-m", "temporary holding run")
+        candidate_text = original + self.amendment()
+        candidate = self.write("candidate.md", candidate_text)
+        self.run_ctl("amend", "study", "--artifact", candidate)
+        state = self.state()
+        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        with open(ledger_path, encoding="utf-8") as handle:
+            ledger = [json.loads(line) for line in handle if line.strip()]
+        self.assertEqual(state["receipts"]["study"]["sha256"],
+                         hashlib.sha256(candidate_text.encode()).hexdigest())
+        self.assertEqual(ledger[-1]["event"], "amend:study")
+        self.assertEqual((self.next_json()["do"], self.next_json()["agent"]),
+                         ("implement", "mason"))
+
+        broken = HexctlCase(methodName="runTest")
+        broken.setUp()
+        try:
+            original = broken.to_amendable_steps()
+            broken.git("init", "-b", "main")
+            broken.git("config", "user.email", "tests@example.com")
+            broken.git("config", "user.name", "Hexctl Tests")
+            broken.git("add", "study.md", "runbook.md", "steps.json")
+            broken.git("commit", "-m", "temporary broken run")
+            candidate = broken.write(
+                "candidate.md",
+                original + broken.amendment(
+                    "Step 1: entry holds; exit broken. "
+                    "Step 2: entry holds; exit holds."
+                ),
+            )
+            broken.run_ctl("amend", "study", "--artifact", candidate)
+            directive = broken.next_json()
+            self.assertEqual((directive["do"], directive["agent"], directive["brief"]),
+                             ("blocked", None, {}))
+            self.assertIn("exit broken", directive["reason"])
+        finally:
+            broken.tearDown()
+
+    def test_valid_append_records_digest_history_and_reconstructs_the_packet(self):
+        original = self.to_amendable_steps()
+        prior = hashlib.sha256(original.encode()).hexdigest()
+        candidate_text = original + self.amendment()
+        candidate = self.write("candidate.md", candidate_text)
+
+        result = self.run_ctl("amend", "study", "--artifact", candidate)
+        state = self.state()
+        receipt = state["receipts"]["study"]
+        amendment = receipt["amendments"][0]
+        new = hashlib.sha256(candidate_text.encode()).hexdigest()
+        suffix = candidate_text[len(original):].encode()
+
+        self.assertEqual(receipt["sha256"], new)
+        self.assertEqual(amendment["prior_sha256"], prior)
+        self.assertEqual(amendment["new_sha256"], new)
+        self.assertEqual(amendment["amendment_sha256"], hashlib.sha256(suffix).hexdigest())
+        self.assertEqual(amendment["steps_touched"], [1, 2])
+        self.assertEqual(
+            amendment["step_verdicts"],
+            [
+                {"step": 1, "entry": "holds", "exit": "holds"},
+                {"step": 2, "entry": "holds", "exit": "holds"},
+            ],
+        )
+        self.assertIn(prior, result.stdout)
+        self.assertIn(new, result.stdout)
+        with open(os.path.join(self.dir, "study.md"), encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), candidate_text)
+        with open(os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"), encoding="utf-8") as handle:
+            ledger = [json.loads(line) for line in handle if line.strip()]
+        self.assertEqual(ledger[-1]["event"], "amend:study")
+        self.assertEqual(ledger[-1]["data"], amendment)
+        first = self.next_json()
+        second = self.next_json()
+        self.assertEqual(first, second)
+        self.assertEqual((first["do"], first["agent"]), ("implement", "mason"))
+
+    def test_broken_current_step_is_recorded_and_durably_blocks_work(self):
+        original = self.to_amendable_steps()
+        candidate = self.write(
+            "candidate.md",
+            original + self.amendment(
+                "Step 1: entry broken; exit holds. "
+                "Step 2: entry holds; exit holds."
+            ),
+        )
+        result = self.run_ctl("amend", "study", "--artifact", candidate)
+        self.assertIn("dependent work is blocked", result.stdout)
+        blocked = self.next_json()
+        self.assertEqual((blocked["do"], blocked["agent"], blocked["brief"]),
+                         ("blocked", None, {}))
+        self.assertRegex(blocked["amendment_sha256"], r"^[0-9a-f]{64}$")
+        self.assertIn("runbook-repair transition", blocked["recovery"])
+        proc = self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc", expect=2,
+        )
+        self.assertIn("study amendment blocks step 1", proc.stderr)
+        self.assertIn("BLOCKED:", self.run_ctl("status").stdout)
+        self.run_ctl("verify")
+
+    def test_prefix_drift_refuses_without_mutating_any_durable_record(self):
+        original = self.to_amendable_steps()
+        state_before = self.state()
+        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        with open(ledger_path, "rb") as handle:
+            ledger_before = handle.read()
+        candidate = self.write("candidate.md", "changed\n" + original + self.amendment())
+        proc = self.run_ctl("amend", "study", "--artifact", candidate, expect=2)
+        self.assertIn("exact prefix", proc.stderr)
+        self.assertEqual(self.state(), state_before)
+        with open(ledger_path, "rb") as handle:
+            self.assertEqual(handle.read(), ledger_before)
+        with open(os.path.join(self.dir, "study.md"), encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), original)
+
+    def test_date_and_four_field_shape_are_exact(self):
+        cases = {
+            "invalid date": (self.amendment(date="2026-02-30"), "invalid calendar date"),
+            "missing field": (
+                self.amendment().replace(
+                    "**Why.** The receipted baseline disproved it.\n", ""
+                ),
+                "field 'Why' must occur exactly once",
+            ),
+            "duplicate field": (
+                self.amendment().replace(
+                    "**Why.** The receipted baseline disproved it.\n",
+                    "**Why.** First.\n**Why.** Second.\n",
+                ),
+                "field 'Why' must occur exactly once",
+            ),
+            "empty field": (
+                self.amendment(what=""), "field 'What changed' must not be empty"
+            ),
+            "wrong order": (
+                self.amendment().replace(
+                    "**What changed.** The fixture assumption was corrected.\n"
+                    "**Why.** The receipted baseline disproved it.\n",
+                    "**Why.** The receipted baseline disproved it.\n"
+                    "**What changed.** The fixture assumption was corrected.\n",
+                ),
+                "accepted four-field order",
+            ),
+        }
+        for label, (suffix, message) in cases.items():
+            with self.subTest(label=label):
+                other = HexctlCase(methodName="runTest")
+                other.setUp()
+                try:
+                    original = other.to_amendable_steps()
+                    candidate = other.write("candidate.md", original + suffix)
+                    proc = other.run_ctl(
+                        "amend", "study", "--artifact", candidate, expect=2
+                    )
+                    self.assertIn(message, proc.stderr)
+                finally:
+                    other.tearDown()
+
+    def test_every_unbuilt_step_gets_one_unambiguous_entry_and_exit_verdict(self):
+        cases = {
+            "missing": ("Step 1: entry holds; exit holds.", "missing verdict(s)"),
+            "duplicate": (
+                "Step 1: entry holds; exit holds. "
+                "Step 1: entry holds; exit holds. "
+                "Step 2: entry holds; exit holds.",
+                "duplicate step verdict",
+            ),
+            "ambiguous": (
+                "Step 1 probably holds. Step 2 should hold.", "only unambiguous"
+            ),
+            "unknown": (
+                "Step 1: entry holds; exit holds. "
+                "Step 2: entry holds; exit holds. "
+                "Step 3: entry holds; exit holds.",
+                "completed or unknown step",
+            ),
+        }
+        for label, (verdicts, message) in cases.items():
+            with self.subTest(label=label):
+                other = HexctlCase(methodName="runTest")
+                other.setUp()
+                try:
+                    original = other.to_amendable_steps()
+                    candidate = other.write(
+                        "candidate.md", original + other.amendment(verdicts)
+                    )
+                    proc = other.run_ctl(
+                        "amend", "study", "--artifact", candidate, expect=2
+                    )
+                    self.assertIn(message, proc.stderr)
+                finally:
+                    other.tearDown()
+
+    def test_completed_step_cannot_be_touched_or_given_a_new_verdict(self):
+        original = self.to_amendable_steps()
+        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["steps"][0]["status"] = "done"
+        state["steps"][0]["phase"] = "push"
+        state["steps"][1]["status"] = "open"
+        state["steps"][1]["phase"] = "implement"
+        state["current_step"] = 2
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+        candidate = self.write("candidate.md", original + self.amendment())
+        proc = self.run_ctl("amend", "study", "--artifact", candidate, expect=2)
+        self.assertIn("cannot rewrite completed step(s): [1]", proc.stderr)
+
+    def test_wrong_phase_and_legacy_unbound_receipt_refuse(self):
+        self.init()
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            original = handle.read()
+        study = self.write("study.md", original)
+        self.run_ctl("done", "study", "--artifact", study)
+        candidate = self.write("candidate.md", original + self.amendment())
+        proc = self.run_ctl("amend", "study", "--artifact", candidate, expect=2)
+        self.assertIn("only while build steps are active", proc.stderr)
+
+        other = HexctlCase(methodName="runTest")
+        other.setUp()
+        try:
+            original = other.to_amendable_steps()
+            state_path = os.path.join(other.dir, ".hexaemeron", "state.json")
+            with open(state_path, encoding="utf-8") as handle:
+                state = json.load(handle)
+            state["receipts"]["study"].pop("sha256")
+            with open(state_path, "w", encoding="utf-8") as handle:
+                json.dump(state, handle)
+            candidate = other.write("candidate.md", original + other.amendment())
+            proc = other.run_ctl(
+                "amend", "study", "--artifact", candidate, expect=2
+            )
+            self.assertIn("source-bound study receipt", proc.stderr)
+        finally:
+            other.tearDown()
+
+    def test_candidate_path_and_size_bounds_refuse(self):
+        original = self.to_amendable_steps()
+        outside = tempfile.NamedTemporaryFile("w", delete=False)
+        try:
+            outside.write(original + self.amendment())
+            outside.close()
+            proc = self.run_ctl(
+                "amend", "study", "--artifact", outside.name, expect=2
+            )
+            self.assertIn("escapes target directory", proc.stderr)
+        finally:
+            os.unlink(outside.name)
+
+        large = self.write(
+            "large.md", original + self.amendment() + "x" * (2 * 1024 * 1024)
+        )
+        proc = self.run_ctl("amend", "study", "--artifact", large, expect=2)
+        self.assertIn("exceeds 2097152-byte cap", proc.stderr)
+
+    def test_complete_candidate_must_pass_the_bundled_protasis_checker(self):
+        self.to_steps(("Core", "Finish"))
+        with open(os.path.join(self.dir, "study.md"), encoding="utf-8") as handle:
+            original = handle.read()
+        candidate = self.write("candidate.md", original + self.amendment())
+        proc = self.run_ctl("amend", "study", "--artifact", candidate, expect=2)
+        self.assertIn("Protasis rejected the amendment candidate", proc.stderr)
+        self.assertNotIn("S001", proc.stderr)
+
+    def test_live_controller_writer_blocks_amendment_mutation(self):
+        original = self.to_amendable_steps()
+        candidate = self.write("candidate.md", original + self.amendment())
+        holder, _, release = self.start_lock_holder(command="cmd_record")
+        try:
+            proc = self.run_ctl("amend", "study", "--artifact", candidate, expect=1)
+            self.assertIn("another hexctl is holding this run", proc.stderr)
+        finally:
+            self.release_lock_holder(holder, release)
+
+    def test_fenced_decoy_is_ignored_but_duplicate_block_and_trailing_section_refuse(self):
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            fixture = handle.read()
+        decoy = fixture.replace(
+            "## 1. Problem statement",
+            "```markdown\n### Amendment -- 2026-01-01\n```\n\n"
+            "## 1. Problem statement",
+        )
+        self.init()
+        study = self.write("study.md", decoy)
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md", "## Step 1: Core\n\n**Goal.** Core.\n"
+            "## Step 2: Finish\n\n**Goal.** Finish.\n"
+        )
+        steps = self.write("steps.json", '["Core", "Finish"]')
+        self.run_ctl("done", "runbook", "--artifact", runbook, "--steps-file", steps)
+        candidate = self.write("candidate.md", decoy + self.amendment())
+        self.run_ctl("amend", "study", "--artifact", candidate)
+
+        for label, suffix, message in (
+            ("duplicate", self.amendment() + self.amendment(), "more than one"),
+            ("trailing", self.amendment() + "\n## Notes\n\nLater.\n", "final section"),
+        ):
+            with self.subTest(label=label):
+                other = HexctlCase(methodName="runTest")
+                other.setUp()
+                try:
+                    original = other.to_amendable_steps()
+                    candidate = other.write("candidate.md", original + suffix)
+                    proc = other.run_ctl(
+                        "amend", "study", "--artifact", candidate, expect=2
+                    )
+                    self.assertIn(message, proc.stderr)
+                finally:
+                    other.tearDown()
+
+    def test_same_path_candidate_and_multiple_holding_amendments_are_supported(self):
+        original = self.to_amendable_steps()
+        first_text = original + self.amendment()
+        self.write("study.md", first_text)
+        self.run_ctl("amend", "study", "--artifact", "study.md")
+        second_text = first_text + self.amendment(
+            date="2026-08-23", what="A second baseline fact changed."
+        )
+        second = self.write("second.md", second_text)
+        self.run_ctl("amend", "study", "--artifact", second)
+        history = self.state()["receipts"]["study"]["amendments"]
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[1]["prior_sha256"], history[0]["new_sha256"])
+
+    def test_post_amendment_drift_refuses_next_and_verify(self):
+        original = self.to_amendable_steps()
+        candidate = self.write("candidate.md", original + self.amendment())
+        self.run_ctl("amend", "study", "--artifact", candidate)
+        self.write("study.md", original + self.amendment() + "drift\n")
+        for command in (("next",), ("verify",)):
+            with self.subTest(command=command[0]):
+                proc = self.run_ctl(*command, expect=2)
+                self.assertIn("study artefact digest changed", proc.stderr)
 
 
 class TestCommitVerification(HexctlCase):

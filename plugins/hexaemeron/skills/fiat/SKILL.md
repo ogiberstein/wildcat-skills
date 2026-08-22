@@ -320,6 +320,33 @@ Run the `imprimatur` lint on each artefact before receipting it, and pass the
 skills that ran to the receipt. Repo copies are committed later, in step 1 of
 the runbook, after the prose pass.
 
+**Amending a receipted study.** After the study and runbook receipts exist,
+and only while build steps are active, append one final dated Protasis
+amendment to the receipted study and run:
+
+```text
+hexctl amend study --artifact <candidate>
+```
+
+The candidate keeps the currently receipted study bytes as its exact prefix.
+Its suffix is one `### Amendment -- YYYY-MM-DD` block with `What changed`,
+`Why`, `Steps touched`, and `Still holding` fields, in that order. The last
+field contains one exact verdict for every current or pending step:
+`Step N: entry holds|broken; exit holds|broken.` The command checks the whole
+candidate with the bundled Protasis checker, copies captured candidate bytes
+to the canonical study path atomically, records the prior, new, and amendment
+digests with bounded step verdicts in state and the ledger, and re-pins the
+study receipt. It does not establish that the amendment is true or that a
+holding verdict is correct.
+
+Arbitrary drift, an edited prefix, a malformed block, incomplete or ambiguous
+step verdicts, a checker failure, an unsafe or oversized path, and an attempt
+outside the steps phase leave the current receipt unchanged. A broken entry or
+exit verdict for the current step is recorded, then `next` returns a durable
+blocked directive and step receipts refuse to advance. Inspect the amendment,
+halt the run, or use a separately specified runbook-repair transition; do not
+resume dependent work by editing state or repeating `done study`.
+
 **Implementation.** Pick the construction that takes the least effort to
 comprehend, then stop. The step runs under the phase skills: `phylax` names
 the boundaries the step introduces and the control each needs, `ephoros` names

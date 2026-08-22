@@ -31,6 +31,7 @@ import re
 import selectors
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 
@@ -412,6 +413,7 @@ MUTATING = frozenset(
         "cmd_init",
         "cmd_record",
         "cmd_config",
+        "cmd_amend_study",
         "cmd_done",
         "cmd_audit_round",
         "cmd_halt",
@@ -607,11 +609,53 @@ def require_global_phase(state: dict, phase: str) -> None:
         die(f"out of order: expected phase '{state['phase']}', got '{phase}'")
 
 
+def amendment_block(state: dict) -> dict | None:
+    """Return the latest recorded broken verdict for the current step."""
+    if state.get("phase") != "steps" or state.get("current_step") is None:
+        return None
+    amendments = as_dict(as_dict(state.get("receipts")).get("study")).get(
+        "amendments"
+    )
+    if not isinstance(amendments, list):
+        return None
+    step_number = state["current_step"]
+    for amendment in reversed(amendments):
+        verdicts = as_dict(amendment).get("step_verdicts")
+        if not isinstance(verdicts, list):
+            continue
+        for verdict in verdicts:
+            item = as_dict(verdict)
+            if item.get("step") != step_number:
+                continue
+            if item.get("entry") == "holds" and item.get("exit") == "holds":
+                return None
+            return {
+                "step": step_number,
+                "entry": item.get("entry"),
+                "exit": item.get("exit"),
+                "amendment_sha256": amendment.get("amendment_sha256"),
+                "study_sha256": amendment.get("new_sha256"),
+            }
+    return None
+
+
+def require_no_amendment_block(state: dict) -> None:
+    blocked = amendment_block(state)
+    if blocked is None:
+        return
+    die(
+        "study amendment blocks step {step}: entry {entry}, exit {exit}; "
+        "inspect the amendment, halt the run, or use a separately specified "
+        "runbook-repair transition".format(**blocked)
+    )
+
+
 def require_step_phase(state: dict, phase: str) -> dict:
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     if state["phase"] != "steps":
         die(f"out of order: run is in phase '{state['phase']}', not working steps")
+    require_no_amendment_block(state)
     step = current_step(state)
     if step["phase"] != phase:
         die(
@@ -1118,6 +1162,7 @@ def done_implement(args, state: dict) -> None:
     # Treat that legacy phase as implementation-ready and retire it in the
     # implementation receipt rather than forcing a GitHub side effect.
     step = current_step(state)
+    require_no_amendment_block(state)
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     if state["phase"] != "steps" or step["phase"] not in ("issue", "implement"):
@@ -1763,6 +1808,21 @@ STEP_HEADING_RE = re.compile(
 )
 MARKDOWN_FENCE_RE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
 RISK_REGISTER_INFO = "risk-register"
+AMENDMENT_HEADING_RE = re.compile(
+    r"^###\s+Amendment\s+--\s+(?P<date>\d{4}-\d{2}-\d{2})\s*$"
+)
+AMENDMENT_FIELDS = ("What changed", "Why", "Steps touched", "Still holding")
+AMENDMENT_FIELD_RE = re.compile(
+    r"^\*\*(?P<name>What changed|Why|Steps touched|Still holding)\.\*\*"
+    r"(?:\s*(?P<value>.*))?$"
+)
+ANY_AMENDMENT_FIELD_RE = re.compile(r"^\*\*[^*\n]+\.\*\*(?:\s*.*)?$")
+STEP_VERDICT_RE = re.compile(
+    r"Step\s+(?P<step>[1-9]\d*)\s*:\s*"
+    r"entry\s+(?P<entry>holds|broken)\s*;\s*"
+    r"exit\s+(?P<exit>holds|broken)\s*\.",
+    re.IGNORECASE,
+)
 
 
 def markdown_lines(text: str):
@@ -1783,6 +1843,264 @@ def markdown_lines(text: str):
         else:
             yield offset, offset + len(physical), line, open_mark is not None, was_open
         offset += len(physical)
+
+
+def _study_amendment_boundary(text: str, expected: str) -> tuple[int, int, str]:
+    """Find the one real final amendment whose byte prefix has the receipt hash."""
+    headings = []
+    for start, _, line, in_fence, _ in markdown_lines(text):
+        if in_fence:
+            continue
+        match = AMENDMENT_HEADING_RE.fullmatch(line)
+        if match:
+            headings.append((start, match.group("date")))
+
+    matches = []
+    for heading_start, date_text in headings:
+        boundary = heading_start
+        candidates = [boundary]
+        while boundary > 0 and text[boundary - 1] in "\r\n":
+            boundary -= 1
+            candidates.append(boundary)
+        for candidate in candidates:
+            digest = hashlib.sha256(text[:candidate].encode("utf-8")).hexdigest()
+            if digest == expected:
+                matches.append((candidate, heading_start, date_text))
+
+    if not matches:
+        die(
+            "amendment candidate does not preserve the currently receipted "
+            "study bytes as its exact prefix"
+        )
+    if len(matches) != 1:
+        die("amendment candidate has an ambiguous receipted prefix boundary")
+    boundary, heading_start, date_text = matches[0]
+    later = [start for start, _ in headings if start > heading_start]
+    if later:
+        die("amendment candidate appends more than one final amendment block")
+    try:
+        datetime.date.fromisoformat(date_text)
+    except ValueError:
+        die(f"amendment heading has an invalid calendar date: {date_text}")
+    return boundary, heading_start, date_text
+
+
+def _study_amendment_fields(text: str, heading_start: int) -> dict[str, str]:
+    """Read the four ordered fields in the final amendment and nothing else."""
+    fields = []
+    headings_after = []
+    for start, end, line, in_fence, _ in markdown_lines(text):
+        if start <= heading_start or in_fence:
+            continue
+        if re.fullmatch(r"#{1,3}\s+.*", line):
+            headings_after.append(line)
+        match = AMENDMENT_FIELD_RE.fullmatch(line)
+        if match:
+            fields.append((start, end, match.group("name"), match.group("value") or ""))
+            continue
+        if ANY_AMENDMENT_FIELD_RE.fullmatch(line):
+            die(f"amendment carries an unexpected field: {line}")
+    if headings_after:
+        die("amendment block must be the final section of the study")
+
+    names = [item[2] for item in fields]
+    if names != list(AMENDMENT_FIELDS):
+        for name in AMENDMENT_FIELDS:
+            count = names.count(name)
+            if count != 1:
+                die(f"amendment field '{name}' must occur exactly once (got {count})")
+        die("amendment fields must appear in the accepted four-field order")
+
+    values = {}
+    for index, (_, end, name, first_line) in enumerate(fields):
+        stop = fields[index + 1][0] if index + 1 < len(fields) else len(text)
+        value = " ".join((first_line + "\n" + text[end:stop]).split())
+        if not value:
+            die(f"amendment field '{name}' must not be empty")
+        values[name] = value
+    return values
+
+
+def _study_step_verdicts(fields: dict[str, str], state: dict) -> tuple[list[int], list[dict]]:
+    """Bind touched steps and exact entry/exit verdicts to every unbuilt step."""
+    touched_text = fields["Steps touched"]
+    if re.search(r"\bsteps?\b", touched_text, re.IGNORECASE) is None:
+        die("amendment field 'Steps touched' must name at least one step number")
+    touched = sorted({int(value) for value in re.findall(r"\b\d+\b", touched_text)})
+    if not touched:
+        die("amendment field 'Steps touched' must name at least one step number")
+
+    all_steps = {step["n"]: step for step in state["steps"]}
+    unknown_touched = [number for number in touched if number not in all_steps]
+    if unknown_touched:
+        die(f"amendment names unknown touched step(s): {unknown_touched}")
+    completed_touched = [
+        number for number in touched if all_steps[number].get("status") == "done"
+    ]
+    if completed_touched:
+        die(f"amendment cannot rewrite completed step(s): {completed_touched}")
+
+    verdict_text = fields["Still holding"]
+    verdicts = []
+    cursor = 0
+    for match in STEP_VERDICT_RE.finditer(verdict_text):
+        if verdict_text[cursor:match.start()].strip():
+            die(
+                "amendment field 'Still holding' must contain only unambiguous "
+                "'Step N: entry holds|broken; exit holds|broken.' verdicts"
+            )
+        verdicts.append(
+            {
+                "step": int(match.group("step")),
+                "entry": match.group("entry").lower(),
+                "exit": match.group("exit").lower(),
+            }
+        )
+        cursor = match.end()
+    if verdict_text[cursor:].strip():
+        die(
+            "amendment field 'Still holding' must contain only unambiguous "
+            "'Step N: entry holds|broken; exit holds|broken.' verdicts"
+        )
+
+    numbers = [verdict["step"] for verdict in verdicts]
+    duplicates = sorted({number for number in numbers if numbers.count(number) > 1})
+    if duplicates:
+        die(f"amendment has duplicate step verdict(s): {duplicates}")
+
+    unbuilt = sorted(
+        step["n"] for step in state["steps"] if step.get("status") != "done"
+    )
+    completed = sorted(set(numbers) - set(unbuilt))
+    if completed:
+        die(f"amendment cannot rewrite completed or unknown step(s): {completed}")
+    missing = sorted(set(unbuilt) - set(numbers))
+    if missing:
+        die(f"amendment is missing verdict(s) for unbuilt step(s): {missing}")
+    return touched, sorted(verdicts, key=lambda item: item["step"])
+
+
+def _check_amended_study(base_dir: str, candidate: bytes) -> None:
+    """Run Protasis over the exact captured bytes through a controlled file."""
+    root = state_root(base_dir)
+    os.makedirs(root, exist_ok=True)
+    descriptor, path = tempfile.mkstemp(prefix="amended-study-", suffix=".md", dir=root)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(candidate)
+            handle.flush()
+            os.fsync(handle.fileno())
+        checker = os.path.join(plugin_root(), "skills", "protasis", "scripts", "protasis.py")
+        bounded_tool(
+            base_dir,
+            sys.executable,
+            [checker, "--study", path],
+            "Protasis rejected the amendment candidate",
+        )
+    finally:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+
+
+def _replace_study_bytes(path: str, data: bytes) -> None:
+    """Replace the canonical study atomically after every validation has passed."""
+    directory = os.path.dirname(path)
+    descriptor, temporary = tempfile.mkstemp(prefix=".hexctl-study-", dir=directory)
+    try:
+        os.fchmod(descriptor, os.stat(path).st_mode & 0o777)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError as exc:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        die(f"study artefact could not be replaced atomically: {exc}", 1)
+
+
+def cmd_amend_study(args) -> None:
+    """Receipt one append-only Protasis amendment while build steps are active."""
+    state = load_state(args.dir)
+    if state.get("halted"):
+        die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
+    if state.get("phase") != "steps":
+        die("study amendments are accepted only while build steps are active")
+    require_no_amendment_block(state)
+
+    receipt = as_dict(as_dict(state.get("receipts")).get("study"))
+    expected = receipt.get("sha256")
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        die("study amendment requires a source-bound study receipt with sha256")
+    artifact = receipt.get("artifact")
+    if not isinstance(artifact, str) or not artifact:
+        die("study receipt has no artefact path")
+
+    candidate_arg = _require_file(args.artifact, "artifact")
+    candidate_path, candidate = read_bounded_source(
+        args.dir, candidate_arg, "study amendment candidate"
+    )
+    canonical_path, canonical_bytes = read_bounded_source(
+        args.dir, artifact, "study artefact"
+    )
+    if candidate_path != canonical_path:
+        actual = hashlib.sha256(canonical_bytes).hexdigest()
+        if actual != expected and canonical_bytes != candidate:
+            die(
+                f"study artefact digest changed: expected {expected}, got {actual}; "
+                "restore the receipted bytes or halt the run"
+            )
+
+    text = decoded_source(candidate, "study amendment candidate")
+    boundary, heading_start, date_text = _study_amendment_boundary(text, expected)
+    fields = _study_amendment_fields(text, heading_start)
+    touched, verdicts = _study_step_verdicts(fields, state)
+    _check_amended_study(args.dir, candidate)
+
+    prefix_bytes = text[:boundary].encode("utf-8")
+    amendment_bytes = candidate[len(prefix_bytes):]
+    prior_sha256 = hashlib.sha256(prefix_bytes).hexdigest()
+    new_sha256 = hashlib.sha256(candidate).hexdigest()
+    amendment_sha256 = hashlib.sha256(amendment_bytes).hexdigest()
+    amendment = {
+        "date": date_text,
+        "prior_sha256": prior_sha256,
+        "new_sha256": new_sha256,
+        "amendment_sha256": amendment_sha256,
+        "steps_touched": touched,
+        "step_verdicts": verdicts,
+    }
+    existing_history = receipt.get("amendments")
+    if existing_history is not None and not isinstance(existing_history, list):
+        die("study receipt amendments history must be an array", 1)
+
+    # Replace from the captured bytes even when the candidate is already the
+    # canonical path. An editor can change that path after the bounded read;
+    # the receipt must name the bytes this command validated, not a later read.
+    _replace_study_bytes(canonical_path, candidate)
+    receipt["sha256"] = new_sha256
+    history = receipt.setdefault("amendments", [])
+    history.append(amendment)
+    commit(args.dir, state, "amend:study", amendment)
+
+    current = state["current_step"]
+    verdict = next(item for item in verdicts if item["step"] == current)
+    disposition = (
+        "holds" if verdict["entry"] == "holds" and verdict["exit"] == "holds"
+        else "broken; dependent work is blocked"
+    )
+    print(
+        f"study amended: prior {prior_sha256}; new {new_sha256}; "
+        f"amendment {amendment_sha256}; step {current} {disposition}"
+    )
 
 
 def source_runbook_step(source: dict, step: dict) -> dict:
@@ -2316,6 +2634,21 @@ def cmd_next(args) -> None:
 def _next_directive(state: dict) -> dict:
     if state.get("halted"):
         return {"do": "halted", "reason": state["halted"]["reason"]}
+    blocked = amendment_block(state)
+    if blocked is not None:
+        return {
+            "do": "blocked",
+            "reason": (
+                f"study amendment marks step {blocked['step']} entry "
+                f"{blocked['entry']} and exit {blocked['exit']}"
+            ),
+            "amendment_sha256": blocked["amendment_sha256"],
+            "study_sha256": blocked["study_sha256"],
+            "recovery": (
+                "inspect the amendment, halt the run, or use a separately "
+                "specified runbook-repair transition"
+            ),
+        }
     phase = state["phase"]
     if phase == "study":
         return {
@@ -2389,6 +2722,12 @@ def cmd_status(args) -> None:
         print(f"run:   {state['run_branch']} -> {state['base']}")
     if state.get("halted"):
         print(f"HALTED: {state['halted']['reason']}")
+    blocked = amendment_block(state)
+    if blocked is not None:
+        print(
+            f"BLOCKED: study amendment marks step {blocked['step']} "
+            f"entry {blocked['entry']} and exit {blocked['exit']}"
+        )
     phase = state["phase"]
     if phase in ("study", "runbook"):
         print(f"phase: {phase} (day {DAY[phase]})")
@@ -2471,6 +2810,11 @@ def verify_run(base_dir: str) -> int:
             "state file does not match the last ledger entry; "
             "state.json was edited outside hexctl", 1
         )
+    amendments = as_dict(as_dict(state.get("receipts")).get("study")).get(
+        "amendments"
+    )
+    if amendments:
+        receipted_source(base_dir, state, "study")
     if state["phase"] == "integrate":
         merged = as_dict(state.get("integrate")).get("merged") or []
         expected = [s["n"] for s in state["steps"][: len(merged)]]
@@ -2565,6 +2909,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("key")
     sp.add_argument("value")
     sp.set_defaults(fn=cmd_record)
+
+    sp = sub.add_parser("amend", help="receipt a bounded mid-run amendment")
+    amend = sp.add_subparsers(dest="amend_subject", required=True)
+    study = amend.add_parser("study", help="receipt one append-only study amendment")
+    study.add_argument("--artifact", required=True)
+    study.set_defaults(fn=cmd_amend_study)
 
     sp = sub.add_parser("config", help="get or set a config value")
     sp.add_argument("action", choices=["get", "set"])

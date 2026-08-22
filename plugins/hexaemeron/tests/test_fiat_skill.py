@@ -157,6 +157,24 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("Never merge into the base more than once in a run", self.fiat)
         self.assertIn("nothing merges while the steps run", fiat.lower())
 
+    def test_receipted_study_amendment_command_and_phase_boundary_are_explicit(self):
+        flat = " ".join(self.fiat.split())
+        self.assertIn("hexctl amend study --artifact <candidate>", self.fiat)
+        self.assertIn("only while build steps are active", flat)
+        self.assertIn("currently receipted study bytes as its exact prefix", flat)
+
+    def test_amendment_receipt_names_digests_verdicts_and_evidence_boundary(self):
+        flat = " ".join(self.fiat.split())
+        self.assertIn("prior, new, and amendment digests", flat)
+        self.assertIn("bounded step verdicts in state and the ledger", flat)
+        self.assertIn("does not establish that the amendment is true", flat)
+
+    def test_broken_current_step_has_a_durable_block_and_recovery(self):
+        flat = " ".join(self.fiat.split())
+        self.assertIn("`next` returns a durable blocked directive", flat)
+        self.assertIn("step receipts refuse to advance", flat)
+        self.assertIn("separately specified runbook-repair transition", flat)
+
 
 class StackBringDownTests(unittest.TestCase):
     """The order the stack comes down in, and why deleting early is fatal.
