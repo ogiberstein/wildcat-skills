@@ -159,9 +159,9 @@ The state schema addition and the breadcrumb format are documented in `SKILL.md`
 
 ### Provenance and baseline -- 2026-08-22
 
-**Where this specification came from.** It was written earlier the same day and then backed out. That run reached the end of step 1: the study and runbook below, two audit rounds with one low finding fixed and the second clean, and a voice pass, over four signed commits on [PR #465](https://github.com/wildcat-finance/skills/pull/465). What stopped it was not the change. `hexctl done push` resolves repository identity with `gh repo view --json nameWithOwner`, and that session's proxy answered GraphQL with 403, so the push receipt could not be written. The branches were deleted and the pull request closed.
+**Where this specification came from.** It was written earlier the same day and then backed out. That run reached the end of step 1 over four signed commits on [PR #465](https://github.com/wildcat-finance/skills/pull/465). It shipped the study and runbook below, ran two audit rounds, fixed the one low finding the first raised, and took a voice pass over both documents. What stopped it was not the change. `hexctl done push` resolves repository identity with `gh repo view --json nameWithOwner`, and that session's proxy answered GraphQL with 403, so the push receipt could not be written. The branches were deleted and the pull request closed.
 
-The same call answers `wildcat-finance/skills` in this session, so the receipt that blocked the run is available. The four commits were recovered from `refs/pull/465/head`, which GitHub retains after a branch is deleted, and this run adopts them at the operator's direction rather than deriving the same conclusions a second time. Everything below is the recovered text, with the corrections named next.
+The same call answers `wildcat-finance/skills` in this session, so the receipt that blocked the run is available. GitHub retains a closed pull request's commits after its branch is deleted, so the four were recovered from `refs/pull/465/head`. This run adopts them at the operator's direction rather than deriving the same conclusions twice. Everything below is the recovered text, with the corrections named next.
 
 **The baseline this run measured.** All four suite commands were run on the run branch at `main` `52b3b45c3d72cb2f163b1dfe88c920035d1385d5` before any change:
 
@@ -172,7 +172,7 @@ python3 scripts/promise_machine.py check           clean: 14 plugin(s), 14 copy/
 python3 scripts/promise_machine.py coverage --check clean: promises=67 coverage_rows=67 coverage_selected=67
 ```
 
-Green at both ends therefore means green, with no carried exception. The recovered copy recorded two failures in `plugins/hexaemeron/tests/test_elenchus_checker.py`, where fixtures assert forge `1.7.1` and node `v26.6.0`. Both pass here, because this machine carries forge `1.7.1` and node `v26.6.0` and the earlier container carried `1.5.1` and `v22.22.2`. Those assertions describe the toolchain a run is executed on, not the repository, so the exception was a fact about one container and is not inherited. A later round that sees them fail should read its own toolchain before reading the test.
+Green at both ends therefore means green, with no carried exception. The recovered copy recorded two failures in `plugins/hexaemeron/tests/test_elenchus_checker.py`, where fixtures assert forge `1.7.1` and node `v26.6.0`. Both pass here, because this machine carries forge `1.7.1` and node `v26.6.0` and the earlier container carried `1.5.1` and `v22.22.2`. Those assertions describe the toolchain a run executes on, not the repository. The exception was a fact about one container, so it is not inherited. A later round that sees them fail should read its own toolchain before reading the test.
 
 **The other correction.** The Hexaemeron suite is invoked as `python3 plugins/hexaemeron/tests/run_tests.py`, the form `AGENTS.md:138` lists. The `unittest discover -s plugins/hexaemeron/tests` form fails with `Start directory is not importable`, because that directory carries no `__init__.py`, so it could not have proved any step's exit.
 
