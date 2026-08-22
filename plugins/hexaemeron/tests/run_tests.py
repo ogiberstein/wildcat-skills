@@ -11,7 +11,7 @@ import unittest
 
 
 def report_target(argv):
-    """Parse one fresh report path and pin its worktree directory."""
+    """Parse one fresh report path and bind its worktree identity."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--elenchus-report",
@@ -65,32 +65,43 @@ def report_target(argv):
     if existing is not None:
         parser.error("--elenchus-report target must not already exist")
 
-    required = (os.open, os.mkdir, os.stat, os.unlink)
-    if (
-        not hasattr(os, "O_DIRECTORY")
-        or not hasattr(os, "O_NOFOLLOW")
-        or any(operation not in os.supports_dir_fd for operation in required)
-        or os.stat not in os.supports_follow_symlinks
+    missing = []
+    for name in ("O_DIRECTORY", "O_NOFOLLOW"):
+        if not hasattr(os, name):
+            missing.append(f"os.{name}")
+    supports_dir_fd = getattr(os, "supports_dir_fd", ())
+    for operation, name in (
+        (os.open, "os.open(dir_fd)"),
+        (os.mkdir, "os.mkdir(dir_fd)"),
+        (os.stat, "os.stat(dir_fd)"),
+        (os.unlink, "os.unlink(dir_fd)"),
     ):
-        parser.error("--elenchus-report requires secure directory operations")
+        if operation not in supports_dir_fd:
+            missing.append(name)
+    supports_follow_symlinks = getattr(os, "supports_follow_symlinks", ())
+    if os.stat not in supports_follow_symlinks:
+        missing.append("os.stat(follow_symlinks)")
+    if missing:
+        parser.error(
+            "--elenchus-report requires secure directory operations: "
+            + ", ".join(missing)
+        )
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
         root_stat = root.stat()
         root_fd = os.open(root, directory_flags)
+        try:
+            opened_stat = os.fstat(root_fd)
+        finally:
+            os.close(root_fd)
     except OSError:
-        parser.error("--elenchus-report worktree cannot be opened")
-    try:
-        opened_stat = os.fstat(root_fd)
-    except OSError:
-        os.close(root_fd)
-        parser.error("--elenchus-report worktree cannot be inspected")
+        parser.error("--elenchus-report worktree cannot be opened and inspected")
     if (opened_stat.st_dev, opened_stat.st_ino) != (
         root_stat.st_dev,
         root_stat.st_ino,
     ):
-        os.close(root_fd)
         parser.error("--elenchus-report worktree changed during inspection")
-    return root_fd, relative.parts
+    return root, (opened_stat.st_dev, opened_stat.st_ino), relative.parts
 
 
 def result_payload(result):
@@ -129,6 +140,20 @@ def report_parent(root_fd, parts):
         raise
 
 
+def report_root(root, identity):
+    """Reopen the bound worktree and refuse a replaced directory."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(root, flags)
+    try:
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino) != identity:
+            raise OSError("report worktree identity changed")
+        return descriptor
+    except OSError:
+        os.close(descriptor)
+        raise
+
+
 def remove_created_report(parent_fd, name, created):
     """Remove a failed write only while the target is still our inode."""
     try:
@@ -144,65 +169,64 @@ def remove_created_report(parent_fd, name, created):
 
 
 def write_report(target, payload):
-    """Create the declared report through its pinned worktree descriptor."""
-    root_fd, parts = target
+    """Create the declared report through its bound worktree identity."""
+    root, identity, parts = target
     if not parts:
         raise OSError("report path has no filename")
-    parent_fd = report_parent(root_fd, parts[:-1])
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-    flags |= os.O_NOFOLLOW
-    descriptor = None
-    created = None
+    root_fd = report_root(root, identity)
     try:
-        descriptor = os.open(parts[-1], flags, 0o600, dir_fd=parent_fd)
-        created = os.fstat(descriptor)
-        if not stat.S_ISREG(created.st_mode):
-            raise OSError("report target is not a regular file")
-        body = (json.dumps(payload, sort_keys=True) + "\n").encode("utf-8")
-        remaining = memoryview(body)
-        while remaining:
-            written = os.write(descriptor, remaining)
-            if written <= 0:
-                raise OSError("report write made no progress")
-            remaining = remaining[written:]
-        os.close(descriptor)
+        parent_fd = report_parent(root_fd, parts[:-1])
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
         descriptor = None
-    except OSError:
-        if descriptor is not None:
-            try:
-                os.close(descriptor)
-            except OSError:
-                pass
-        if created is not None:
-            remove_created_report(parent_fd, parts[-1], created)
-        raise
+        created = None
+        try:
+            descriptor = os.open(parts[-1], flags, 0o600, dir_fd=parent_fd)
+            created = os.fstat(descriptor)
+            if not stat.S_ISREG(created.st_mode):
+                raise OSError("report target is not a regular file")
+            body = (json.dumps(payload, sort_keys=True) + "\n").encode("utf-8")
+            remaining = memoryview(body)
+            while remaining:
+                written = os.write(descriptor, remaining)
+                if written <= 0:
+                    raise OSError("report write made no progress")
+                remaining = remaining[written:]
+            os.close(descriptor)
+            descriptor = None
+        except OSError:
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+            if created is not None:
+                remove_created_report(parent_fd, parts[-1], created)
+            raise
+        finally:
+            os.close(parent_fd)
     finally:
-        os.close(parent_fd)
+        os.close(root_fd)
 
 
 def main(argv=None):
     """Run the suite, optionally emit its report, and preserve suite exits."""
     target = report_target(sys.argv[1:] if argv is None else argv)
-    try:
-        here = os.path.dirname(os.path.abspath(__file__))
-        suite = unittest.defaultTestLoader.discover(here, pattern="test_*.py")
-        runner = unittest.TextTestRunner(verbosity=1)
-        result = runner.run(suite)
-        total = result.testsRun
-        failed = len(result.failures) + len(result.errors)
+    here = os.path.dirname(os.path.abspath(__file__))
+    suite = unittest.defaultTestLoader.discover(here, pattern="test_*.py")
+    runner = unittest.TextTestRunner(verbosity=1)
+    result = runner.run(suite)
+    total = result.testsRun
+    failed = len(result.failures) + len(result.errors)
 
-        if target is not None:
-            try:
-                write_report(target, result_payload(result))
-            except OSError:
-                print("run_tests.py: report write failed", file=sys.stderr)
-                return 2
+    if target is not None:
+        try:
+            write_report(target, result_payload(result))
+        except OSError:
+            print("run_tests.py: report write failed", file=sys.stderr)
+            return 2
 
-        print(f"{total - failed}/{total} tests passed")
-        return 1 if failed else 0
-    finally:
-        if target is not None:
-            os.close(target[0])
+    print(f"{total - failed}/{total} tests passed")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

@@ -620,6 +620,77 @@ class HexaemeronUnittestReport(unittest.TestCase):
         self.assertTrue((root / "result.json").is_file())
         self.assertFalse((outside_root / "result.json").exists())
 
+    def test_suite_cannot_rebind_a_saved_report_root_descriptor(self):
+        outside = tempfile.TemporaryDirectory(prefix="hexaemeron-fd-outside-")
+        outside_root = Path(outside.name)
+        temporary, root = self.fixture("import unittest\n")
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(outside.cleanup)
+        fixture = root / "test_fixture.py"
+        fixture.write_text(
+            "import os\n"
+            "from pathlib import Path\n"
+            "import unittest\n\n"
+            f"worktree = Path({str(root)!r})\n"
+            f"outside = Path({str(outside_root)!r})\n"
+            "identity = worktree.stat()\n"
+            "for candidate in range(3, 256):\n"
+            "    try:\n"
+            "        opened = os.fstat(candidate)\n"
+            "    except OSError:\n"
+            "        continue\n"
+            "    if (opened.st_dev, opened.st_ino) == "
+            "(identity.st_dev, identity.st_ino):\n"
+            "        os.close(candidate)\n"
+            "        replacement = os.open(\n"
+            "            outside, os.O_RDONLY | os.O_DIRECTORY\n"
+            "        )\n"
+            "        if replacement != candidate:\n"
+            "            raise AssertionError('descriptor slot was not reused')\n"
+            "        break\n\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n",
+            encoding="utf-8",
+        )
+        report = root / "nested" / "result.json"
+
+        result = self.run_runner(root, "--elenchus-report", str(report))
+
+        self.assertEqual(0, result.returncode)
+        self.assertTrue(report.is_file())
+        self.assertFalse((outside_root / "nested" / "result.json").exists())
+
+    def test_unsupported_directory_operations_are_named_before_tests(self):
+        temporary, root = self.fixture(
+            "raise AssertionError('the suite must not run')\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(hexaemeron_runner.Path, "cwd", return_value=root),
+            mock.patch.object(
+                hexaemeron_runner.os, "supports_dir_fd", set()
+            ),
+            mock.patch.object(
+                hexaemeron_runner.os, "supports_follow_symlinks", set()
+            ),
+            contextlib.redirect_stderr(stderr),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            hexaemeron_runner.main(
+                ["--elenchus-report", str(root / "result.json")]
+            )
+
+        self.assertEqual(2, raised.exception.code)
+        for name in (
+            "os.open(dir_fd)",
+            "os.mkdir(dir_fd)",
+            "os.stat(dir_fd)",
+            "os.unlink(dir_fd)",
+            "os.stat(follow_symlinks)",
+        ):
+            self.assertIn(name, stderr.getvalue())
+
     def test_report_write_failure_has_a_distinct_exit_and_no_report(self):
         with tempfile.TemporaryDirectory(prefix="hexaemeron-write-failure-") as root:
             report = Path(root) / "report.json"
