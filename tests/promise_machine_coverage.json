@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "74237cb2a4cf2d0dd7d456b7125befe95fd6674566e2f6ecc4ddee6b1e2f3edb",
+      "sha256": "5fdf2272242eb858ff6587b00066fd49b4a41443895b256d448733f0e2571be1",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -142,7 +142,7 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "74237cb2a4cf2d0dd7d456b7125befe95fd6674566e2f6ecc4ddee6b1e2f3edb",
+      "sha256": "5fdf2272242eb858ff6587b00066fd49b4a41443895b256d448733f0e2571be1",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "validated state, topic, run branch, step branch and head commit",
