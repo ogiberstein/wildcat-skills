@@ -273,7 +273,7 @@ the whole delivery.
 
 ## The loop
 
-Repeat until `next` returns `done`, `halted`, or `audit-verdict`:
+Repeat until `next` returns `done`, `halted`, `blocked`, or `audit-verdict`:
 
 ```text
 hexctl next
@@ -295,6 +295,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `sync-run` | When the base advanced and the integration PR conflicts, receipt one signed two-parent merge of the exact remote base tip into the completed run stack | [push-discipline.md](references/push-discipline.md) | `done sync-run --commit <sha> --base-commit <sha>` |
 | `integrate` | Open and merge one PR from the run branch into the base, name what the run leaves unfinished in `.hexaemeron/run-pr.md`, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
+| `blocked` | A receipted study amendment broke the current step; inspect it, halt, or use a separately specified repair transition | below | -- |
 | `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
 | `done` | Final report | below | -- |
 
@@ -334,10 +335,13 @@ Its suffix is one `### Amendment -- YYYY-MM-DD` block with `What changed`,
 field contains one exact verdict for every current or pending step:
 `Step N: entry holds|broken; exit holds|broken.` The command checks the whole
 candidate with the bundled Protasis checker, copies captured candidate bytes
-to the canonical study path atomically, records the prior, new, and amendment
-digests with bounded step verdicts in state and the ledger, and re-pins the
-study receipt. It does not establish that the amendment is true or that a
-holding verdict is correct.
+to the canonical study path through a recoverable write-ahead transaction,
+records the prior, new, and amendment digests with bounded step verdicts in
+state and the ledger, and re-pins the study receipt. A pending transaction
+blocks every other controller command; rerun `amend study` against the
+canonical study to finish or roll back the labelled transition. The command
+does not establish that the amendment is true or that a holding verdict is
+correct.
 
 Arbitrary drift, an edited prefix, a malformed block, incomplete or ambiguous
 step verdicts, a checker failure, an unsafe or oversized path, and an attempt
@@ -419,7 +423,7 @@ artefacts and state digest deterministically reconstruct the packet.
 
 ## Stop conditions
 
-Stop and ask the user when: `next` says `audit-verdict`; a push is rejected;
+Stop and ask the user when: `next` says `audit-verdict` or `blocked`; a push is rejected;
 the security suite cannot be resolved for a Solidity repo; or `verify` fails.
 Use `hexctl halt --reason ...` so the stop itself is on the ledger.
 
@@ -461,6 +465,18 @@ its merge SHA, audit rounds per step with the closing state of each, and where
 the study and runbook live.
 
 ## Promise Machine contract
+
+### fiat-study-amendment
+
+- Promise: A successful `hexctl amend study` establishes that the captured candidate preserved the currently receipted study bytes as its exact prefix, carried one structurally accepted final amendment, passed the bundled Protasis check, and recorded bounded digest and unbuilt-step verdict evidence.
+- Evidence: Scoped bounded reads of the receipted study and candidate, exact prefix SHA-256, deterministic amendment and field parsing, complete unbuilt-step verdict coverage, the bundled checker exit, the write-ahead transaction, canonical artefact digest, state receipt and `amend:study` ledger event.
+- Evidence classes: checked, recorded
+- Boundary: The receipt establishes candidate structure, byte continuity, checker acceptance and recorded operator verdicts; it does not establish that the correction is true, that a holding verdict is correct, or that a broken runbook has been repaired.
+- Authorises: Recoverably replacing the canonical study with the exact checked candidate, re-pinning its receipt, and either continuing to the existing next directive when the current step holds or emitting a durable blocked directive when it does not.
+- Consequence: 2
+- Refuses: An edited prefix, ambiguous or malformed amendment, incomplete verdict coverage, unsafe or oversized path, failed checker, unlabelled interrupted mutation, or dependent work after a broken current-step verdict.
+- Recovery: Inspect the pending record and study, rerun `hexctl amend study --artifact <canonical-study>` to finish or roll back an interrupted transaction, halt safely, or use a separately specified runbook-repair transition after a recorded broken verdict.
+- Exceptions: none
 
 ### fiat-receipted-delivery
 

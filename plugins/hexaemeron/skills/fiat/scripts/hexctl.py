@@ -38,6 +38,7 @@ import urllib.parse
 STATE_DIR_NAME = ".hexaemeron"
 STATE_FILE = "state.json"
 LEDGER_FILE = "ledger.jsonl"
+STUDY_AMENDMENT_PENDING_FILE = "study-amendment-pending.json"
 
 # The run-level pull request body the prose phase writes and the integrate
 # phase opens the integration pull request from. It is the last thing a run
@@ -396,7 +397,89 @@ def validate_state_shape(state) -> dict:
     return root
 
 
-def load_state(base_dir: str) -> dict:
+def study_amendment_pending_path(base_dir: str) -> str:
+    return os.path.join(state_root(base_dir), STUDY_AMENDMENT_PENDING_FILE)
+
+
+def load_study_amendment_pending(base_dir: str) -> dict | None:
+    """Read the bounded write-ahead record for an interrupted amendment."""
+    path = study_amendment_pending_path(base_dir)
+    if not os.path.exists(path):
+        return None
+    if os.path.islink(path) or not os.path.isfile(path):
+        die("study amendment pending record is not a regular file", 1)
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read(65537)
+    except OSError as exc:
+        die(f"study amendment pending record cannot be read: {exc}", 1)
+    if len(raw) > 65536:
+        die("study amendment pending record exceeds 65536-byte cap", 1)
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        die("study amendment pending record is malformed", 1)
+    if not isinstance(value, dict) or value.get("version") != 1:
+        die("study amendment pending record has an unsupported shape", 1)
+    if not isinstance(value.get("artifact"), str) or not value["artifact"]:
+        die("study amendment pending record has no artefact path", 1)
+    before = value.get("state_before_sha256")
+    if not isinstance(before, str) or not re.fullmatch(r"[0-9a-f]{64}", before):
+        die("study amendment pending record has an invalid state digest", 1)
+    amendment = value.get("amendment")
+    if not isinstance(amendment, dict):
+        die("study amendment pending record has no amendment object", 1)
+    return value
+
+
+def write_study_amendment_pending(base_dir: str, value: dict) -> None:
+    """Publish a durable marker before replacing any receipted study bytes."""
+    root = state_root(base_dir)
+    path = study_amendment_pending_path(base_dir)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=".study-amendment-pending-", dir=root
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        directory = os.open(root, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    except OSError as exc:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        die(f"study amendment pending record could not be written: {exc}", 1)
+
+
+def clear_study_amendment_pending(base_dir: str) -> None:
+    """Remove the write-ahead marker only after the receipt commit is durable."""
+    path = study_amendment_pending_path(base_dir)
+    try:
+        os.unlink(path)
+        directory = os.open(state_root(base_dir), os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        die(f"study amendment pending record could not be cleared: {exc}", 1)
+
+
+def load_state(base_dir: str, *, allow_pending_amendment: bool = False) -> dict:
     path = state_path(base_dir)
     if not os.path.exists(path):
         die(f"no state at {path}; run `hexctl init --topic ...` first")
@@ -405,7 +488,13 @@ def load_state(base_dir: str) -> dict:
             state = json.load(fh)
     except (ValueError, OSError) as exc:
         die(f"state file unreadable at {path}: {exc}", 1)
-    return validate_state_shape(state)
+    state = validate_state_shape(state)
+    if not allow_pending_amendment and load_study_amendment_pending(base_dir):
+        die(
+            "study amendment transaction is pending; rerun `hexctl amend study "
+            "--artifact <canonical-study>` to recover before continuing"
+        )
+    return state
 
 
 MUTATING = frozenset(
@@ -1829,16 +1918,24 @@ def markdown_lines(text: str):
     """Yield source offsets and fence state without treating quoted headings as real."""
     offset = 0
     open_mark = None
+    open_length = None
     for physical in text.splitlines(keepends=True):
         line = physical.rstrip("\r\n")
         fence = MARKDOWN_FENCE_RE.match(line)
         was_open = open_mark
         if fence:
-            mark = fence.group("mark")[0]
+            sequence = fence.group("mark")
+            mark = sequence[0]
             if open_mark is None:
                 open_mark = mark
-            elif mark == open_mark:
+                open_length = len(sequence)
+            elif (
+                mark == open_mark
+                and len(sequence) >= open_length
+                and not line[fence.end():].strip()
+            ):
                 open_mark = None
+                open_length = None
             yield offset, offset + len(physical), line, True, was_open
         else:
             yield offset, offset + len(physical), line, open_mark is not None, was_open
@@ -2015,6 +2112,11 @@ def _replace_study_bytes(path: str, data: bytes) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
+        parent = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(parent)
+        finally:
+            os.close(parent)
     except OSError as exc:
         try:
             os.close(descriptor)
@@ -2027,9 +2129,134 @@ def _replace_study_bytes(path: str, data: bytes) -> None:
         die(f"study artefact could not be replaced atomically: {exc}", 1)
 
 
+def _study_amendment_record(
+    state: dict, expected: str, candidate: bytes
+) -> dict:
+    """Validate captured candidate bytes and return only bounded receipt data."""
+    text = decoded_source(candidate, "study amendment candidate")
+    boundary, heading_start, date_text = _study_amendment_boundary(text, expected)
+    fields = _study_amendment_fields(text, heading_start)
+    touched, verdicts = _study_step_verdicts(fields, state)
+    prefix_bytes = text[:boundary].encode("utf-8")
+    amendment_bytes = candidate[len(prefix_bytes):]
+    return {
+        "date": date_text,
+        "prior_sha256": hashlib.sha256(prefix_bytes).hexdigest(),
+        "new_sha256": hashlib.sha256(candidate).hexdigest(),
+        "amendment_sha256": hashlib.sha256(amendment_bytes).hexdigest(),
+        "steps_touched": touched,
+        "step_verdicts": verdicts,
+    }
+
+
+def _apply_study_amendment_receipt(receipt: dict, amendment: dict) -> None:
+    history = receipt.setdefault("amendments", [])
+    history.append(amendment)
+    receipt["sha256"] = amendment["new_sha256"]
+
+
+def _commit_or_complete_study_amendment(
+    base_dir: str, state: dict, amendment: dict
+) -> None:
+    """Do not duplicate an event written before an interrupted state replace."""
+    last = None
+    path = ledger_path(base_dir)
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            lines = [line for line in handle.read().splitlines() if line.strip()]
+        if lines:
+            last = json.loads(lines[-1])
+    except (OSError, ValueError):
+        last = None
+    expected_state = state_fingerprint(state)
+    if (
+        isinstance(last, dict)
+        and last.get("event") == "amend:study"
+        and last.get("data") == amendment
+        and last.get("state") == expected_state
+    ):
+        save_state(base_dir, state)
+        return
+    commit(base_dir, state, "amend:study", amendment)
+
+
+def _recover_study_amendment(
+    base_dir: str, state: dict, pending: dict
+) -> bool:
+    """Finish or roll back the labelled gap left by an interrupted command.
+
+    Returns True after the pending amendment is committed or visibly rolled
+    back. A later command may retry a rolled-back candidate as a fresh
+    transaction.
+    """
+    receipt = as_dict(as_dict(state.get("receipts")).get("study"))
+    artifact = receipt.get("artifact")
+    if artifact != pending["artifact"]:
+        die("pending study amendment does not match the current artefact path", 1)
+    amendment = pending["amendment"]
+    prior = amendment.get("prior_sha256")
+    new = amendment.get("new_sha256")
+    if not all(
+        isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+        for value in (prior, new)
+    ):
+        die("pending study amendment has invalid receipt digests", 1)
+
+    canonical_path, canonical = read_bounded_source(
+        base_dir, artifact, "study artefact"
+    )
+    actual = hashlib.sha256(canonical).hexdigest()
+    current = receipt.get("sha256")
+
+    if current == new:
+        history = receipt.get("amendments")
+        if (
+            actual != new
+            or not isinstance(history, list)
+            or not history
+            or history[-1] != amendment
+        ):
+            die("pending study amendment disagrees with the committed receipt", 1)
+        verify_run(base_dir, allow_pending_amendment=True)
+        clear_study_amendment_pending(base_dir)
+        print(f"study amendment recovered: committed {new}")
+        return True
+
+    if current != prior or state_fingerprint(state) != pending["state_before_sha256"]:
+        die("pending study amendment no longer matches controller state", 1)
+    if actual == prior:
+        verify_run(base_dir, allow_pending_amendment=True)
+        clear_study_amendment_pending(base_dir)
+        print(f"study amendment recovered: rolled back to {prior}")
+        return True
+    if actual != new:
+        die(
+            "pending study amendment found neither the prior nor candidate bytes; "
+            "restore one recorded digest before recovery",
+            1,
+        )
+
+    recovered = _study_amendment_record(state, prior, canonical)
+    _check_amended_study(base_dir, canonical)
+    if recovered != amendment:
+        die("pending study amendment metadata does not match the candidate bytes", 1)
+    existing_history = receipt.get("amendments")
+    if existing_history is not None and not isinstance(existing_history, list):
+        die("study receipt amendments history must be an array", 1)
+    _apply_study_amendment_receipt(receipt, amendment)
+    _commit_or_complete_study_amendment(base_dir, state, amendment)
+    verify_run(base_dir, allow_pending_amendment=True)
+    clear_study_amendment_pending(base_dir)
+    print(f"study amendment recovered: recorded {new}")
+    return True
+
+
 def cmd_amend_study(args) -> None:
     """Receipt one append-only Protasis amendment while build steps are active."""
-    state = load_state(args.dir)
+    state = load_state(args.dir, allow_pending_amendment=True)
+    pending = load_study_amendment_pending(args.dir)
+    if pending is not None and _recover_study_amendment(args.dir, state, pending):
+        return
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     if state.get("phase") != "steps":
@@ -2059,47 +2286,38 @@ def cmd_amend_study(args) -> None:
                 "restore the receipted bytes or halt the run"
             )
 
-    text = decoded_source(candidate, "study amendment candidate")
-    boundary, heading_start, date_text = _study_amendment_boundary(text, expected)
-    fields = _study_amendment_fields(text, heading_start)
-    touched, verdicts = _study_step_verdicts(fields, state)
+    amendment = _study_amendment_record(state, expected, candidate)
     _check_amended_study(args.dir, candidate)
-
-    prefix_bytes = text[:boundary].encode("utf-8")
-    amendment_bytes = candidate[len(prefix_bytes):]
-    prior_sha256 = hashlib.sha256(prefix_bytes).hexdigest()
-    new_sha256 = hashlib.sha256(candidate).hexdigest()
-    amendment_sha256 = hashlib.sha256(amendment_bytes).hexdigest()
-    amendment = {
-        "date": date_text,
-        "prior_sha256": prior_sha256,
-        "new_sha256": new_sha256,
-        "amendment_sha256": amendment_sha256,
-        "steps_touched": touched,
-        "step_verdicts": verdicts,
-    }
     existing_history = receipt.get("amendments")
     if existing_history is not None and not isinstance(existing_history, list):
         die("study receipt amendments history must be an array", 1)
 
+    pending = {
+        "version": 1,
+        "artifact": artifact,
+        "state_before_sha256": state_fingerprint(state),
+        "amendment": amendment,
+    }
+    write_study_amendment_pending(args.dir, pending)
     # Replace from the captured bytes even when the candidate is already the
     # canonical path. An editor can change that path after the bounded read;
     # the receipt must name the bytes this command validated, not a later read.
     _replace_study_bytes(canonical_path, candidate)
-    receipt["sha256"] = new_sha256
-    history = receipt.setdefault("amendments", [])
-    history.append(amendment)
+    _apply_study_amendment_receipt(receipt, amendment)
     commit(args.dir, state, "amend:study", amendment)
+    verify_run(args.dir, allow_pending_amendment=True)
+    clear_study_amendment_pending(args.dir)
 
     current = state["current_step"]
-    verdict = next(item for item in verdicts if item["step"] == current)
+    verdict = next(item for item in amendment["step_verdicts"] if item["step"] == current)
     disposition = (
         "holds" if verdict["entry"] == "holds" and verdict["exit"] == "holds"
         else "broken; dependent work is blocked"
     )
     print(
-        f"study amended: prior {prior_sha256}; new {new_sha256}; "
-        f"amendment {amendment_sha256}; step {current} {disposition}"
+        f"study amended: prior {amendment['prior_sha256']}; "
+        f"new {amendment['new_sha256']}; amendment "
+        f"{amendment['amendment_sha256']}; step {current} {disposition}"
     )
 
 
@@ -2772,8 +2990,10 @@ def cmd_resume(args) -> None:
     print("resumed")
 
 
-def verify_run(base_dir: str) -> int:
-    state = load_state(base_dir)
+def verify_run(base_dir: str, *, allow_pending_amendment: bool = False) -> int:
+    state = load_state(
+        base_dir, allow_pending_amendment=allow_pending_amendment
+    )
     path = ledger_path(base_dir)
     if not os.path.exists(path):
         die("ledger missing", 1)
@@ -2810,10 +3030,8 @@ def verify_run(base_dir: str) -> int:
             "state file does not match the last ledger entry; "
             "state.json was edited outside hexctl", 1
         )
-    amendments = as_dict(as_dict(state.get("receipts")).get("study")).get(
-        "amendments"
-    )
-    if amendments:
+    study_receipt = as_dict(as_dict(state.get("receipts")).get("study"))
+    if study_receipt.get("sha256") is not None:
         receipted_source(base_dir, state, "study")
     if state["phase"] == "integrate":
         merged = as_dict(state.get("integrate")).get("merged") or []

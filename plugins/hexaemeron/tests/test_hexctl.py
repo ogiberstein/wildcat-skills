@@ -1,5 +1,6 @@
 """End-to-end tests for hexctl, run through the CLI the way the skill uses it."""
 
+import argparse
 import glob
 import json
 import hashlib
@@ -1221,6 +1222,96 @@ class TestStudyAmendments(HexctlCase):
                     self.assertIn(message, proc.stderr)
                 finally:
                     other.tearDown()
+
+    def test_short_fence_cannot_expose_an_amendment_heading_inside_a_long_fence(self):
+        self.init()
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            original = handle.read() + "\n````markdown\n```\n"
+        study = self.write("study.md", original)
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            "## Step 1: Core\n\n**Goal.** Core.\n\n"
+            "## Step 2: Finish\n\n**Goal.** Finish.\n",
+        )
+        steps = self.write("steps.json", '["Core", "Finish"]')
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+        candidate = self.write("candidate.md", original + self.amendment())
+
+        proc = self.run_ctl("amend", "study", "--artifact", candidate, expect=2)
+        self.assertIn("exact prefix", proc.stderr)
+
+    def test_interrupted_replacement_is_durable_pending_work_and_recovers(self):
+        original = self.to_amendable_steps()
+        candidate_text = original + self.amendment()
+        candidate = self.write("candidate.md", candidate_text)
+        candidate_path = os.path.join(self.dir, candidate)
+        module = hexctl_module()
+
+        with mock.patch.object(
+            module,
+            "commit",
+            side_effect=KeyboardInterrupt(
+                "simulated interruption after artefact replacement"
+            ),
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                module.cmd_amend_study(
+                    argparse.Namespace(dir=self.dir, artifact=candidate_path)
+                )
+
+        with open(os.path.join(self.dir, "study.md"), encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), candidate_text)
+        pending = os.path.join(
+            self.dir, ".hexaemeron", "study-amendment-pending.json"
+        )
+        self.assertTrue(os.path.isfile(pending))
+        refused = self.run_ctl("verify", expect=2)
+        self.assertIn("study amendment transaction is pending", refused.stderr)
+
+        recovered = self.run_ctl(
+            "amend", "study", "--artifact", os.path.join(self.dir, "study.md")
+        )
+        self.assertIn("recovered", recovered.stdout)
+        self.assertFalse(os.path.exists(pending))
+        self.run_ctl("verify")
+        self.assertEqual(
+            self.state()["receipts"]["study"]["sha256"],
+            hashlib.sha256(candidate_text.encode()).hexdigest(),
+        )
+
+    def test_recovery_completes_a_written_ledger_event_without_duplicating_it(self):
+        original = self.to_amendable_steps()
+        candidate_text = original + self.amendment()
+        candidate = self.write("candidate.md", candidate_text)
+        module = hexctl_module()
+
+        with mock.patch.object(
+            module,
+            "save_state",
+            side_effect=OSError("simulated interruption before state replacement"),
+        ):
+            with self.assertRaises(OSError):
+                module.cmd_amend_study(
+                    argparse.Namespace(
+                        dir=self.dir, artifact=os.path.join(self.dir, candidate)
+                    )
+                )
+
+        recovered = self.run_ctl(
+            "amend", "study", "--artifact", os.path.join(self.dir, "study.md")
+        )
+        self.assertIn("recovered", recovered.stdout)
+        with open(
+            os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),
+            encoding="utf-8",
+        ) as handle:
+            events = [json.loads(line)["event"] for line in handle if line.strip()]
+        self.assertEqual(events.count("amend:study"), 1)
+        self.run_ctl("verify")
 
     def test_same_path_candidate_and_multiple_holding_amendments_are_supported(self):
         original = self.to_amendable_steps()
