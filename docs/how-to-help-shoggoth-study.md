@@ -4,8 +4,8 @@ Assuming, unless corrected:
 
 1. The public audience is an intelligent contributor who can use GitHub but does not need to understand the controller internals.
 2. The explainer describes what works now and labels the volunteer selector as a proposal; it must not present an unimplemented command as live.
-3. The highest numbered open `**Wave:**` block in issue metadata is the current wave. On 2026-08-22 that is Wave 12, with six open, unassigned issues.
-4. A named issue URL overrides every inferred selection. Without one, ordinary volunteer help should prefer the current wave rather than a skill frontier.
+3. The earliest `**Wave:**` block that still has an open issue is the default Wave. On 2026-08-22 that is Wave 3, with six open, unassigned issues.
+4. A named issue URL overrides every inferred selection. Without one, ordinary volunteer help should prefer the earliest open Wave rather than a skill frontier.
 5. Frontier work remains opt-in and subject to the owning skill's maturity gate. Maintenance may instead refresh Horos, census issues, or produce a new ranking proposal without claiming a frontier advance.
 6. The PDF follows the Promise Machine field-guide V2 design and uses the Wildcat Shoggoth as a humanoid figure with a faceted geometric head. It must not depict a literal cat.
 7. The run starts from `98d0cded34bc559ba7ed2466988c40f0c3e28937`, the merge of external-contributor PR #445.
@@ -36,7 +36,7 @@ The relevant audit record was read. PR #445's step 2 round 1 found that the task
 
 The Shoggoth Interceptor protocol already fetches open issues, excludes assigned work, ranks candidates, resolves the implementation repository and sends one issue through Fiat. It detects issue trails in branches and pull requests. It has no explicit volunteer lane and its issue reader is deliberately read-only. Those constraints matter: a volunteer signal cannot silently assign, label or comment without separate authority.
 
-The issue corpus carries `**Wave:**` metadata. On the study snapshot, Waves 3 through 12 remain open; Wave 12 is the latest and contains issues #418 through #423, all six open and unassigned. Ten other open issues have no wave metadata, including later observations and Fiat wishes. Kronos already supports recorded rank-only passes over held frontier jobs, but that is a different candidate universe from the Wave backlog.
+The issue corpus carries `**Wave:**` metadata. On the study snapshot, Waves 3 through 12 remain open; Wave 3 is the earliest and contains issues #323 through #328, all six open and unassigned. Ten other open issues have no wave metadata, including later observations and Fiat wishes. Kronos already supports recorded rank-only passes over held frontier jobs, but that is a different candidate universe from the Wave backlog.
 
 ## 3. Constraints and non-goals
 
@@ -47,7 +47,7 @@ The issue corpus carries `**Wave:**` metadata. On the study snapshot, Waves 3 th
 - The issue is a discussion artefact, not an implementation of the selector.
 - No skill frontier, evolution ledger, package version, controller receipt shape or Shoggoth write policy changes in this run.
 - No automatic issue assignment, label, comment or closure is added.
-- No claim that the highest wave is objectively the most important work; it is the default backlog slice selected by stated metadata.
+- No claim that the earliest open Wave is objectively the most important work; it is the default backlog slice selected by stated metadata.
 - No performance claim or new runtime dependency.
 
 Always: run the root tests before each implementation receipt, lint every shipped prose file, validate the PDF text and page count, and inspect rendered pages. Ask first: adding a dependency, changing issue metadata, implementing write access, or changing a public command. Never: edit protected Shoggoth guardrails, present a proposed selector as live, invent the contributor's results, mutate unrelated issue metadata, or claim a check ran when it did not.
@@ -60,7 +60,7 @@ Interpret words such as “evolve”, “help” and “next” to choose a job.
 
 ### Option B: an explicit volunteer intent packet
 
-Propose one visible volunteer signal with three lanes: `wave`, `frontier` and `maintenance`. A named issue wins. With no issue and no lane, `wave` is the default and selects from the highest open Wave metadata. `frontier` invokes the owning ledgers and maturity gates. `maintenance` names a bounded task such as refreshing Horos or producing a census/ranking proposal. This is cheapest to explain and preserves current specialist boundaries.
+Propose one visible volunteer signal with three lanes: `wave`, `frontier` and `maintenance`. A named issue wins. With no issue and no lane, `wave` is the default and selects from the earliest Wave that still has an open issue. `frontier` invokes the owning ledgers and maturity gates. `maintenance` names a bounded task such as refreshing Horos or producing a census/ranking proposal. This is cheapest to explain and preserves current specialist boundaries.
 
 Trade: it adds a small grammar and requires a decision about where volunteer intent becomes publicly visible before a pull request exists.
 
@@ -82,7 +82,7 @@ Use Option B in the discussion issue and explainer, while describing the present
 selection-overclaim | the guide's proposed command examples | proposed syntax is visibly marked as not implemented
 mascot-identity | the generated artwork and PDF composition | every figure is checked against the humanoid geometric-head references and carries no literal-cat anatomy
 contributor-attribution | the external contribution summary | dates links commits findings and outcomes match GitHub and the merged audit record
-wave-drift | the issue snapshot behind the default lane | the PDF dates the Wave 12 snapshot and does not claim it remains current forever
+wave-drift | the issue snapshot behind the default lane | the PDF dates the Wave 3 snapshot and does not claim it remains current forever
 duplicate-work | the gap between local volunteer intent and public visibility | the proposal names assignment branch PR and comment boundaries without claiming any is already automatic
 issue-authority | filing the discussion issue | the issue requests design discussion and performs no assignment label or metadata mutation beyond the authorised observation label
 binary-review | the generated PDF and infographic | source prose remains reviewable and the final binary is rendered text-extracted and page-count checked
