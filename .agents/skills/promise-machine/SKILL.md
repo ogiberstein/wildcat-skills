@@ -27,7 +27,7 @@ canonical skill only when the selected workflow requires a named handoff.
 | Classify evidenced reading sinks | [Horos](../../../plugins/horos/AGENTS.md) | `horos` |
 | Check hook effects around a host action | [Janus](../../../plugins/janus/AGENTS.md) | `janus` |
 | Preserve finite historical Ethereum state and exact RPC traffic | [Lazarus](../../../plugins/lazarus/AGENTS.md) | `lazarus` |
-| Produce source-linked Solidity or Markdown chunks | [Lemma](../../../plugins/lemma/AGENTS.md) | `chunk` |
+| Produce source-linked Solidity or Markdown chunks | [Lemma](../../../plugins/lemma/AGENTS.md) | `lemma` |
 | Apply executable credit laws | [Pandects](../../../plugins/pandects/AGENTS.md) | `pandects` |
 | Build a declared-address counterparty dossier | [Probitas](../../../plugins/probitas/AGENTS.md) | `probitas` |
 | Shape the agent's own replies for an AuDHD reader | [Sapheneia](../../../plugins/sapheneia/AGENTS.md) | `sapheneia` |

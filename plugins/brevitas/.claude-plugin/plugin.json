@@ -17,5 +17,6 @@
     "evidence",
     "brevity"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "license": "Apache-2.0"
 }

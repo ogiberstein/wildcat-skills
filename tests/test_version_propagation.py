@@ -44,7 +44,7 @@ DELIVERY_PACKAGE_VERSIONS = {
     "horos": "0.1.1",
     "janus": "0.1.1",
     "lazarus": "1.1.1",
-    "lemma": "0.1.1",
+    "lemma": "0.1.2",
     "pandects": "0.1.1",
     "probitas": "0.1.1",
     "sapheneia": "0.1.1",
