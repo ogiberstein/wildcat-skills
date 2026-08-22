@@ -2997,3 +2997,166 @@ class FrontierGateLegacySnapshotTests(unittest.TestCase):
             version="widget-v2.1.0", status=self.NEXT[0], revision=self.NEXT[1],
             frontier=self.NEXT[2], job=self.NEXT[3])
         self.assertIn("no longer carries the init-time version row", self.fault())
+
+
+class WorktreePathTests(unittest.TestCase):
+    """Deriving one run's worktree path, and refusing every path that is not it.
+
+    These call the deriver and the validator directly. Neither touches state, a
+    ledger or the filesystem, so driving them through a command would only report
+    them indirectly, and the point of the step is that a bad path is refused
+    before anything exists to inspect.
+    """
+
+    def setUp(self):
+        self.module = hexctl_module()
+        self.dir = tempfile.mkdtemp()
+        self.repo = os.path.join(self.dir, "repo")
+        os.makedirs(self.repo)
+        subprocess.run(["git", "init", "-q"], cwd=self.repo, check=True)
+        self.root = os.path.realpath(self.repo)
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def refuse(self, *args, **kwargs):
+        """Call the validator and return the single refusal line it printed."""
+        error = StringIO()
+        with redirect_stderr(error):
+            with self.assertRaises(SystemExit) as caught:
+                self.module.check_worktree_path(*args, **kwargs)
+        self.assertNotEqual(caught.exception.code, 0)
+        lines = [line for line in error.getvalue().splitlines() if line.strip()]
+        self.assertEqual(len(lines), 1, f"expected one refusal line, got {lines}")
+        return lines[0]
+
+    # -- the deriver ----------------------------------------------------
+
+    def test_plain_run_branch_derives_the_expected_path(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/worktree-demo")
+        self.assertEqual(
+            derived,
+            os.path.join(self.root, "tmp", "fiat", "fiat-worktree-demo"),
+        )
+
+    def test_issue_backed_branch_keeps_its_leading_number(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/439-run-in-a-worktree")
+        self.assertEqual(os.path.basename(derived), "fiat-439-run-in-a-worktree")
+
+    def test_one_run_branch_maps_to_one_path(self):
+        first = self.module.run_worktree_path(self.repo, "fiat/a-topic")
+        second = self.module.run_worktree_path(self.repo, "fiat/a-topic")
+        other = self.module.run_worktree_path(self.repo, "fiat/another-topic")
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, other)
+
+    def test_deriver_creates_nothing(self):
+        before = sorted(os.listdir(self.repo))
+        derived = self.module.run_worktree_path(self.repo, "fiat/untouched")
+        self.assertFalse(os.path.exists(derived))
+        self.assertEqual(sorted(os.listdir(self.repo)), before)
+
+    def test_a_target_that_is_not_a_repository_refuses(self):
+        plain = os.path.join(self.dir, "not-a-repo")
+        os.makedirs(plain)
+        error = StringIO()
+        with redirect_stderr(error):
+            with self.assertRaises(SystemExit) as caught:
+                self.module.run_worktree_path(plain, "fiat/topic")
+        self.assertNotEqual(caught.exception.code, 0)
+        self.assertIn("not a git repository", error.getvalue())
+
+    # -- the validator --------------------------------------------------
+
+    def test_a_fresh_derived_path_is_accepted(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/fresh")
+        self.assertEqual(
+            self.module.check_worktree_path(self.root, derived), derived
+        )
+
+    def test_this_runs_registered_worktree_is_accepted_when_it_exists(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/resumed")
+        os.makedirs(derived)
+        self.assertEqual(
+            self.module.check_worktree_path(self.root, derived, registered=derived),
+            derived,
+        )
+
+    def test_a_path_that_already_exists_as_a_file_refuses(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/occupied")
+        os.makedirs(os.path.dirname(derived))
+        with open(derived, "w", encoding="utf-8") as handle:
+            handle.write("not a worktree")
+        self.assertIn("occupied", self.refuse(self.root, derived))
+
+    def test_a_path_that_already_exists_as_an_unrelated_directory_refuses(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/squatted")
+        os.makedirs(derived)
+        with open(os.path.join(derived, "someone-elses.txt"), "w", encoding="utf-8") as h:
+            h.write("work")
+        self.assertIn("occupied", self.refuse(self.root, derived))
+
+    def test_a_path_escaping_the_root_by_dotdot_refuses(self):
+        self.assertIn(
+            "escapes", self.refuse(self.root, os.path.join("tmp", "fiat", "..", "..", "..", "away"))
+        )
+
+    def test_an_absolute_path_outside_the_repository_refuses(self):
+        outside = os.path.join(self.dir, "outside")
+        self.assertIn("escapes", self.refuse(self.root, outside))
+
+    def test_a_component_symlink_leaving_the_repository_refuses(self):
+        outside = os.path.join(self.dir, "elsewhere")
+        os.makedirs(outside)
+        home = os.path.join(self.root, "tmp")
+        os.symlink(outside, home)
+        derived = os.path.join(home, "fiat", "fiat-topic")
+        self.assertIn("symlink", self.refuse(self.root, derived))
+
+    def test_a_final_component_symlink_leaving_the_repository_refuses(self):
+        outside = os.path.join(self.dir, "target")
+        os.makedirs(outside)
+        os.makedirs(os.path.join(self.root, "tmp", "fiat"))
+        derived = os.path.join(self.root, "tmp", "fiat", "fiat-linked")
+        os.symlink(outside, derived)
+        self.assertIn("symlink", self.refuse(self.root, derived))
+
+    def test_the_repository_root_itself_refuses(self):
+        self.assertIn("escapes", self.refuse(self.root, self.root))
+
+    def test_a_refusal_leaves_no_state_no_ledger_and_no_breadcrumb(self):
+        before = sorted(os.listdir(self.repo))
+        self.refuse(self.root, os.path.join(self.dir, "outside"))
+        self.assertEqual(sorted(os.listdir(self.repo)), before)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, ".hexaemeron")))
+
+    def test_a_refusal_names_the_path_without_echoing_its_contents(self):
+        derived = self.module.run_worktree_path(self.repo, "fiat/secret")
+        os.makedirs(os.path.dirname(derived))
+        with open(derived, "w", encoding="utf-8") as handle:
+            handle.write("SENSITIVE-TOKEN-VALUE")
+        line = self.refuse(self.root, derived)
+        self.assertIn("fiat-secret", line)
+        self.assertNotIn("SENSITIVE-TOKEN-VALUE", line)
+
+    def test_a_dangling_symlink_at_the_derived_path_refuses(self):
+        """A link that resolves nowhere still occupies the path.
+
+        Occupancy was read off the resolved target, and a dangling link resolves
+        to a path that does not exist, so the check saw a free path. It then
+        returned the link's target rather than the path it was asked about, which
+        would put the run's tree somewhere the deriver never chose.
+        """
+        derived = self.module.run_worktree_path(self.repo, "fiat/dangling")
+        os.makedirs(os.path.dirname(derived))
+        os.symlink(os.path.join(self.root, "nowhere-yet"), derived)
+        self.assertIn("symlink", self.refuse(self.root, derived))
+
+    def test_a_symlink_to_a_real_directory_inside_the_repository_refuses(self):
+        """The run's tree is a real directory at the derived path, or it is nothing."""
+        derived = self.module.run_worktree_path(self.repo, "fiat/redirected")
+        inside = os.path.join(self.root, "real-dir")
+        os.makedirs(inside)
+        os.makedirs(os.path.dirname(derived))
+        os.symlink(inside, derived)
+        self.assertIn("symlink", self.refuse(self.root, derived))
