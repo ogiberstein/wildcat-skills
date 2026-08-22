@@ -8234,3 +8234,24 @@ as untracked; overwriting somebody else's ignore file is the worse of the two.
 And the check-to-create race carried from step 2 is unchanged: `git worktree
 add` refuses an occupied path, so it closes into a refusal rather than a wrong
 tree.
+
+## Fiat run worktree, step 3, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S3-R1-01 is closed. Two runs started from one
+checkout each take their own tree and their own branch, the checkout stays on
+its own branch with its `HEAD` and `git status --short` unchanged, and the
+breadcrumb carries both. A repeat of the same run refuses and names that run's
+own tree. A breadcrumb entry whose state has gone is dropped on the next read,
+so a finished or reset run stops being offered while its neighbours stay.
+
+The same eleven risk-register entries were read again. Nothing in the fix widens
+a boundary: it changes how many lines the breadcrumb holds and which path a
+refusal names. `uncommitted-work-loss` and `resume-orphan` still belong to
+step 4.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 773/773, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the two carried from round 1, both unchanged.
