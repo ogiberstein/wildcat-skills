@@ -7469,3 +7469,101 @@ for the governed decision. Issue 363's implementation and evolution surfaces
 are untouched.
 
 Leads not pursued: none.
+
+## Fiat task-issue branch names, step 2, round 1 -- 2026-08-22
+
+The exact range
+`17397f180e7f0ce0ac36df232b569f30a912af3d..6da8ec6609bd7900fb4ff9af237b46454c8eb9ea`
+adds issue-aware initialization, immutable task-issue recording, focused
+controller guards and the corresponding Promise Machine digest. No Solidity
+changed, so the recorded security-suite waiver applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I438-S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:256-267`; `plugins/hexaemeron/tests/test_hexctl.py:1618-1625` | `task_issue_number` checks only the path returned by `urlsplit`. Relative text, hostless or non-HTTP URLs, and raw controls removed by `urlsplit` can therefore supply an issue number and be stored unchanged as the task-issue receipt. Require raw whitespace, C0 and DEL rejection, then an absolute HTTP(S) URL with a hostname; add each counterexample to the no-state-on-refusal guard. | open |
+
+Direct probes return issue `438` for `not-a-url/issues/438`,
+`https:///issues/438`, `javascript:payload/issues/438` and a literal newline
+inside `https://example.test/issues/438`. The last value demonstrates a split
+between the normalized path used for branch identity and the unchanged invalid
+receipt written by `cmd_init`. The current invalid-input test covers a bare
+non-URL, zero, leading zero, a trailing path component and a pull-request path,
+but none of these accepted shapes.
+
+Phylax 1.1.0, Ephoros 0.2.0 and Hypomnema 4.3.0 each inspect the three changed
+paths and exit 0. The nine issue-focused guards pass 9/9. The implementation
+receipt records the complete controller suite at 158 tests, the root suite at
+107/107 and Hexaemeron at 649/649. Promise Machine reports 14 plugins and 14
+copies clean, the controller digest is
+`3cfbb2dcf06aee9760893de2b122c6ee3fe06b9e49f7832b126ead4da21edba7`,
+and both coverage bindings carry that digest. The exact diff check is clean.
+
+All 12 risk-register ids were reviewed. `issue-url-parse` remains open as
+I438-S2-R1-01. `issue-receipt-drift` is otherwise bound by one successful
+parse, the unchanged state receipt, init-ledger data and fingerprint test.
+`truncation-loss` keeps `438-` at the front of a 48-character composite slug.
+`override-escape` accepts `fiat/438-prep` and refuses a different namespace,
+missing issue and colliding number before state creation. `late-rename` keeps
+state and ledger bytes exact on refusal and matching replay. The legacy-state
+fixture covers `legacy-branch-mutation`; the unchanged automatic and explicit
+paths cover `no-issue-regression`; and the two-step fixture covers
+`step-propagation`.
+
+`topology-regression` is unchanged: branch-tip, remote-tip, pull-request and
+repository checks receive the stored branch without a new exception, and the
+complete controller suite is green. `frontier-drift` is unchanged because no
+evolution or version surface moved and issue 363 remains untouched.
+`controller-version-gap` stays explicit: current behavior is exercised through
+the checked-in controller, not inferred from this run's older phase receipts.
+`fork-completion-overclaim` is not reached by this local initialization step;
+the diff performs no network action and records no upstream merge or closure.
+
+The controller remains interactive and adds no unattended path, log, metric,
+trace or alert. Its bounded exit status, stderr, init output, state and next
+directive remain the operator signals. The permanent Fiat record and mutable
+procedure stay assigned to the step-3 evolution and prose pass.
+
+Leads not pursued: none.
+
+## Fiat task-issue branch names, step 2, round 2 -- 2026-08-22
+
+Round 2 reviews fix range
+`6da8ec6609bd7900fb4ff9af237b46454c8eb9ea..63861895b98585cf597ae1fb3a2ec749ae3c9ef7`
+against I438-S2-R1-01 and the full accepted step contract. No Solidity changed,
+so the recorded security-suite waiver still applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I438-S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:256-281`; `plugins/hexaemeron/tests/test_hexctl.py:1618-1640` | The parser now rejects raw whitespace, C0 and DEL before parsing, then requires HTTP(S), a hostname and the positive terminal issue path. The no-state-on-refusal guard carries the round-1 relative, hostless, non-HTTP and normalized-newline counterexamples. | fixed in `63861895b98585cf597ae1fb3a2ec749ae3c9ef7` |
+
+Independent function probes refuse relative text, a hostless HTTPS URL, a
+JavaScript URL, space, tab, newline, NUL and DEL with exit 2 and the bounded
+task-issue diagnostic. Valid HTTP and uppercase HTTPS specimens return their
+exact issue numbers. The focused invalid-input and valid-binding tests pass
+2/2; the invalid-input test also proves that state and ledger files remain
+absent after each refusal.
+
+Fresh round evidence passes the task-issue focus 10/10, controller 158/158,
+root 107/107 and Hexaemeron 649/649. Promise Machine check and coverage are
+clean. The controller digest is
+`0fafe32c3ccf9799d681cd96154abd781a1e3c9dac50976bff199971d97af292`,
+and both coverage bindings carry it. Phylax, Ephoros and Hypomnema each exit 0,
+and the diff check is clean. Fix commit
+`63861895b98585cf597ae1fb3a2ec749ae3c9ef7` has a valid signature and exactly
+one copy of each required Shoggoth trailer.
+
+All 12 risk-register ids were re-reviewed. `issue-url-parse` is closed by the
+raw and parsed URL gates. `issue-receipt-drift` remains closed because only the
+validated original string reaches the initial state and ledger. The fix does
+not touch slug or branch construction, so `truncation-loss`, `override-escape`,
+`late-rename`, `legacy-branch-mutation`, `no-issue-regression` and
+`step-propagation` retain their round-1 guards. It adds no topology exception,
+network action, evolution surface or version change, so
+`topology-regression`, `frontier-drift`, `controller-version-gap` and
+`fork-completion-overclaim` remain unchanged. Issue 363 is untouched.
+
+No new findings.
+
+Leads not pursued: none.

@@ -304,8 +304,11 @@ print(json.dumps(payload))
             body += "\n## Carried forward\n\n" + carried
         return self.write(os.path.join(".hexaemeron", "run-pr.md"), body)
 
-    def init(self, topic="test topic"):
-        self.run_ctl("init", "--topic", topic)
+    def init(self, topic="test topic", task_issue=None):
+        args = ["init", "--topic", topic]
+        if task_issue is not None:
+            args += ["--task-issue", task_issue]
+        self.run_ctl(*args)
 
     def state(self):
         return json.loads(self.run_ctl("status", "--json").stdout)
@@ -409,8 +412,8 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         stdout, stderr = process.communicate(timeout=5)
         self.assertEqual(process.returncode, 0, (stdout, stderr))
 
-    def to_steps(self, titles=("Scaffold", "Core")):
-        self.init()
+    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None):
+        self.init(task_issue=task_issue)
         study = self.write(
             "study.md",
             "# Study\n\n```risk-register\n"
@@ -450,8 +453,8 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
             )
         return proc
 
-    def to_audit(self):
-        self.to_steps()
+    def to_audit(self, task_issue=None):
+        self.to_steps(task_issue=task_issue)
         self.run_ctl("done", "implement", "--branch", self.step_branch(1),
                      "--commit", "abc123")
 
@@ -1506,8 +1509,8 @@ class TestAuditLoop(HexctlCase):
 
 
 class TestProseAndPush(HexctlCase):
-    def to_prose(self):
-        self.to_audit()
+    def to_prose(self, task_issue=None):
+        self.to_audit(task_issue=task_issue)
         self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("audit-round", "--findings", "0")
         self.run_ctl("done", "audit")
@@ -1582,6 +1585,160 @@ class TestProseAndPush(HexctlCase):
         self.assertNotEqual(self.run_branch(), self.state()["base"])
         self.run_ctl("reset", expect=2)
 
+    def test_task_issue_is_bound_to_the_initial_state_and_run_branch(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.init("Carry the task issue number", task_issue=issue)
+        state = self.state()
+        self.assertEqual(state["version"], 1)
+        self.assertEqual(state["run_branch"], "fiat/438-carry-the-task-issue-number")
+        self.assertEqual(state["receipts"]["task_issue"], issue)
+        with open(
+            os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),
+            encoding="utf-8",
+        ) as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["event"], "init")
+        self.assertEqual(entries[0]["data"]["task_issue"], issue)
+        self.assertEqual(entries[0]["state"], hexctl_module().state_fingerprint(state))
+        self.run_ctl("verify")
+
+    def test_task_issue_prefix_survives_a_long_topic(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.init("x" * 100, task_issue=issue)
+        branch = self.run_branch()
+        self.assertEqual(branch, "fiat/438-" + "x" * 44)
+        self.assertEqual(len(branch.removeprefix("fiat/")), 48)
+
+    def test_task_issue_prefix_uses_run_for_an_empty_topic_slug(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.init("###", task_issue=issue)
+        self.assertEqual(self.run_branch(), "fiat/438-run")
+
+    def test_task_issue_and_override_are_validated_before_state_creation(self):
+        invalid_issues = (
+            "not-a-url",
+            "not-a-url/issues/438",
+            "https:///issues/438",
+            "javascript:payload/issues/438",
+            "https://github.com/wildcat-finance/skills/issues/4\n38",
+            "https://github.com/wildcat-finance/skills/issues/0",
+            "https://github.com/wildcat-finance/skills/issues/0438",
+            "https://github.com/wildcat-finance/skills/issues/438/extra",
+            "https://github.com/wildcat-finance/skills/pull/438",
+        )
+        for issue in invalid_issues:
+            with self.subTest(issue=issue):
+                proc = self.run_ctl(
+                    "init", "--topic", "t", "--task-issue", issue, expect=2
+                )
+                self.assertIn("--task-issue", proc.stderr)
+                root = os.path.join(self.dir, ".hexaemeron")
+                self.assertFalse(os.path.exists(os.path.join(root, "state.json")))
+                self.assertFalse(os.path.exists(os.path.join(root, "ledger.jsonl")))
+
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        for branch in ("release/438-prep", "fiat/prep", "fiat/1438-prep"):
+            with self.subTest(branch=branch):
+                proc = self.run_ctl(
+                    "init", "--topic", "t", "--task-issue", issue,
+                    "--run-branch", branch, expect=2,
+                )
+                self.assertIn("fiat/438-", proc.stderr)
+                root = os.path.join(self.dir, ".hexaemeron")
+                self.assertFalse(os.path.exists(os.path.join(root, "state.json")))
+                self.assertFalse(os.path.exists(os.path.join(root, "ledger.jsonl")))
+
+    def test_task_issue_allows_an_exact_issue_bearing_override(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.run_ctl(
+            "init", "--topic", "t", "--task-issue", issue,
+            "--run-branch", "fiat/438-prep",
+        )
+        self.assertEqual(self.run_branch(), "fiat/438-prep")
+
+    def test_task_issue_run_branch_propagates_to_step_directives(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.to_steps(("Scaffold", "Core"), task_issue=issue)
+        first = self.next_json()
+        self.assertEqual(first["run_branch"], "fiat/438-test-topic")
+        self.assertEqual(first["branch"], "fiat/438-test-topic-step-1-scaffold")
+        self.assertEqual(first["branch_from"], "fiat/438-test-topic")
+        self.assertEqual(first["pr_base"], "fiat/438-test-topic")
+        self.run_ctl("record", "security_suite", '"waived: prose-only repo"')
+        self.finish_step(1)
+        second = self.next_json()
+        self.assertEqual(second["branch"], "fiat/438-test-topic-step-2-core")
+        self.assertEqual(second["branch_from"], first["branch"])
+        self.assertEqual(second["pr_base"], first["branch"])
+
+    def test_task_issue_cannot_first_be_recorded_after_init(self):
+        self.init()
+        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, "rb") as handle:
+            state_before = handle.read()
+        with open(ledger_path, "rb") as handle:
+            ledger_before = handle.read()
+        proc = self.run_ctl(
+            "record", "task_issue",
+            '"https://github.com/wildcat-finance/skills/issues/438"', expect=2,
+        )
+        self.assertIn("--task-issue", proc.stderr)
+        with open(state_path, "rb") as handle:
+            self.assertEqual(handle.read(), state_before)
+        with open(ledger_path, "rb") as handle:
+            self.assertEqual(handle.read(), ledger_before)
+
+    def test_task_issue_repeat_is_idempotent_and_cannot_change(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.init(task_issue=issue)
+        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, "rb") as handle:
+            state_before = handle.read()
+        with open(ledger_path, "rb") as handle:
+            ledger_before = handle.read()
+
+        self.run_ctl("record", "task_issue", json.dumps(issue))
+        proc = self.run_ctl(
+            "record", "task_issue",
+            '"https://github.com/wildcat-finance/skills/issues/439"', expect=2,
+        )
+        self.assertIn("cannot be changed", proc.stderr)
+        with open(state_path, "rb") as handle:
+            self.assertEqual(handle.read(), state_before)
+        with open(ledger_path, "rb") as handle:
+            self.assertEqual(handle.read(), ledger_before)
+
+    def test_legacy_task_issue_state_keeps_its_stored_branch(self):
+        issue = "https://github.com/wildcat-finance/skills/issues/438"
+        self.to_steps(("One",))
+        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["receipts"]["task_issue"] = issue
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        controller = hexctl_module()
+        entry = entries[-1]
+        entry.pop("hash")
+        entry["state"] = controller.state_fingerprint(state)
+        entry["hash"] = hashlib.sha256(controller.canonical(entry).encode()).hexdigest()
+        with open(state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, indent=2)
+            handle.write("\n")
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for item in entries:
+                handle.write(json.dumps(item, sort_keys=True) + "\n")
+
+        self.run_ctl("verify")
+        self.assertEqual(self.state()["run_branch"], "fiat/test-topic")
+        directive = self.next_json()
+        self.assertEqual(directive["run_branch"], "fiat/test-topic")
+        self.assertEqual(directive["branch"], "fiat/test-topic-step-1-one")
+
     def test_named_run_branch_is_honoured_and_checked(self):
         proc = self.run_ctl("init", "--topic", "t", "--run-branch", "bad branch",
                             expect=2)
@@ -1622,8 +1779,7 @@ class TestProseAndPush(HexctlCase):
         self.assertNotIn("pr_base", out)
 
     def test_recorded_task_issue_must_be_closed_before_the_run_completes(self):
-        self.to_prose()
-        self.run_ctl("record", "task_issue", '"https://x/issues/74"')
+        self.to_prose(task_issue="https://x/issues/74")
         self.run_ctl(
             "done", "prose", "--files", "1",
             "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate",
