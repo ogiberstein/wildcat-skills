@@ -7,7 +7,7 @@ reading intent. Everything else in SKILL.md stays a judgement.
   P001  a shell invocation, which invites a command built from data
   P002  a subprocess command passed as a string rather than an argument list
   P003  a requirement with no exact pin
-  P004  a credential in source, or handed to something that writes output
+  P004  a credential in source, command arguments, or output
   P005  raw HTML reaches a renderer without a later trusted sanitiser
   P006  a session credential reaches persisted browser storage
   P007  a runtime-selected absolute fetch host has no prior allowlist check
@@ -159,6 +159,17 @@ class Visitor(ast.NodeVisitor):
             if node.args and _is_string(node.args[0]):
                 built = " built by formatting" if _is_formatted(node.args[0]) else ""
                 self._add(node, "P002", f"command passed as a string{built}; pass a list")
+            argv = node.args[0] if node.args else next(
+                (kw.value for kw in node.keywords if kw.arg == "args"), None
+            )
+            if argv is not None:
+                for value in ast.walk(argv):
+                    if isinstance(value, ast.Name) and CREDENTIAL.search(value.id):
+                        self._add(
+                            node,
+                            "P004",
+                            f"credential-named value `{value.id}` passed in command arguments",
+                        )
 
         if _attr_name(node.func) in WRITERS:
             for arg in node.args + [kw.value for kw in node.keywords]:
