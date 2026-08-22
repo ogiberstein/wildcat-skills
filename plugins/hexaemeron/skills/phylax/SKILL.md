@@ -10,7 +10,7 @@ description: >-
   it to diagnose a failure that has already happened, which belongs to
   elenchus.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Phylax
@@ -275,8 +275,8 @@ python3 "$PLUGIN_ROOT/skills/phylax/scripts/phylax.py" src tests
 
 For Python and requirements files it reports a shell invocation, a subprocess
 command passed as a string rather than an argument list, a requirement with no
-exact pin, and a credential in source or handed to something that writes
-output.
+exact pin, and a credential in source, in command arguments or handed to
+something that writes output.
 
 For tracked `.ts` and `.tsx` source it reports three source-local cases. A
 `rehype-raw` binding in a rendered plugin array needs a later
