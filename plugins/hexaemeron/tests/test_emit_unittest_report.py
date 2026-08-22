@@ -107,6 +107,12 @@ class EmitUnittestReportTests(unittest.TestCase):
             },
             payload,
         )
+        self.assertEqual(
+            '{"complete":true,"errors":0,"expectedFailures":0,'
+            '"failures":0,"schema":"elenchus.unittest.v1","skipped":0,'
+            '"testsRun":1,"unexpectedSuccesses":0}\n',
+            self.report.read_text(encoding="utf-8"),
+        )
 
     def test_zero_test_selector_is_recorded(self):
         run, payload = self.run_emitter("empty_module")
@@ -119,6 +125,52 @@ class EmitUnittestReportTests(unittest.TestCase):
         self.assertEqual(130, run.returncode)
         self.assertEqual(1, payload["testsRun"])
         self.assertFalse(payload["complete"])
+
+    def test_interrupted_selector_discovery_is_incomplete(self):
+        (self.root / "interrupt_import.py").write_text(
+            "raise KeyboardInterrupt()\n", encoding="utf-8"
+        )
+        run, payload = self.run_emitter("interrupt_import")
+        self.assertEqual(130, run.returncode)
+        self.assertEqual(0, payload["testsRun"])
+        self.assertFalse(payload["complete"])
+
+    def test_test_cannot_retarget_a_relative_report_by_changing_cwd(self):
+        shifted_root = Path(self.temporary.name)
+        (self.root / "change_directory.py").write_text(
+            textwrap.dedent(
+                f"""\
+                import os
+                import unittest
+
+
+                class ChangeDirectory(unittest.TestCase):
+                    def test_change_directory(self):
+                        os.chdir({str(shifted_root)!r})
+                """
+            ),
+            encoding="utf-8",
+        )
+        relative_report = Path(".elenchus") / "relative.json"
+        expected = self.root / relative_report
+        redirected = shifted_root / relative_report
+
+        run = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(relative_report),
+                "change_directory.ChangeDirectory.test_change_directory",
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(0, run.returncode)
+        self.assertTrue(expected.is_file())
+        self.assertFalse(redirected.exists())
 
     def test_invalid_selector_is_an_error_report(self):
         run, payload = self.run_emitter("test_outcomes.Outcomes.test_absent")
@@ -153,6 +205,28 @@ class EmitUnittestReportTests(unittest.TestCase):
         self.assertEqual(2, run.returncode)
         self.assertIsNone(payload)
         self.assertFalse(outside.exists())
+
+    def test_output_parent_cannot_be_a_symlink(self):
+        actual = self.root / "actual"
+        actual.mkdir()
+        alias = self.root / "alias"
+        alias.symlink_to(actual, target_is_directory=True)
+        target = alias / "report.json"
+        run, payload = self.run_emitter(
+            "test_outcomes.Outcomes.test_clean", report=target
+        )
+        self.assertEqual(2, run.returncode)
+        self.assertIsNone(payload)
+        self.assertFalse((actual / "report.json").exists())
+
+    def test_output_file_cannot_be_a_symlink(self):
+        self.report.parent.mkdir()
+        destination = self.report.parent / "destination.json"
+        self.report.symlink_to(destination)
+        run, payload = self.run_emitter("test_outcomes.Outcomes.test_clean")
+        self.assertEqual(2, run.returncode)
+        self.assertIsNone(payload)
+        self.assertFalse(destination.exists())
 
 
 if __name__ == "__main__":

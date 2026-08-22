@@ -30,15 +30,32 @@ class RecordingRunner(unittest.TextTestRunner):
         return self.result
 
 
-def _report_target(raw: str) -> Path:
+def _report_target(raw: str, *, root: Path | None = None) -> Path:
     if not raw:
         raise ReportWriteError("the report path is empty")
     supplied = Path(raw)
     if ".." in supplied.parts:
         raise ReportWriteError("the report path must stay inside the worktree")
 
-    root = Path.cwd().resolve()
+    root = (root or Path.cwd()).resolve()
     lexical = supplied if supplied.is_absolute() else root / supplied
+
+    def inside_root(path: Path) -> bool:
+        try:
+            path.relative_to(root)
+        except ValueError:
+            return False
+        return True
+
+    current = Path(lexical.anchor)
+    for part in lexical.parts[1:]:
+        current /= part
+        if current.is_symlink() and (
+            inside_root(current.parent.resolve())
+            or inside_root(current.resolve(strict=False))
+        ):
+            raise ReportWriteError("the report path cannot contain a symlink")
+
     target = lexical.resolve(strict=False)
     try:
         relative = target.relative_to(root)
@@ -59,6 +76,7 @@ def _report_target(raw: str) -> Path:
         if not current.is_dir():
             raise ReportWriteError("the report parent is not a directory")
 
+    target = current / relative.parts[-1]
     if target.is_symlink() or (target.exists() and not target.is_file()):
         raise ReportWriteError("the report path must be a regular file")
     return target
@@ -77,8 +95,13 @@ def _payload(result: unittest.TestResult, complete: bool) -> dict[str, object]:
     }
 
 
-def _write_report(raw_target: str, payload: dict[str, object]) -> None:
-    target = _report_target(raw_target)
+def _write_report(
+    raw_target: str,
+    payload: dict[str, object],
+    *,
+    root: Path | None = None,
+) -> None:
+    target = _report_target(raw_target, root=root)
     encoded = (
         json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
     ).encode("utf-8")
@@ -114,18 +137,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("selectors", nargs="+", help="named unittest selectors")
     args = parser.parse_args(argv)
 
-    sys.path.insert(0, str(Path.cwd()))
-    suite = unittest.defaultTestLoader.loadTestsFromNames(args.selectors)
+    invocation_root = Path.cwd().resolve()
+    sys.path.insert(0, str(invocation_root))
     runner = RecordingRunner(verbosity=1)
     interrupted = False
     try:
+        suite = unittest.defaultTestLoader.loadTestsFromNames(args.selectors)
         result = runner.run(suite)
     except BaseException:
         interrupted = True
         result = runner.result or unittest.TestResult()
 
     try:
-        _write_report(args.report, _payload(result, complete=not interrupted))
+        _write_report(
+            args.report,
+            _payload(result, complete=not interrupted),
+            root=invocation_root,
+        )
     except (OSError, ReportWriteError) as error:
         print(f"could not write unittest report: {error}", file=sys.stderr)
         return 2
