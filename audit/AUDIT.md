@@ -8080,3 +8080,22 @@ issue write, runtime claim channel, controller change or frontier movement, so
 `duplicate-work`, `issue-authority` and `scope-widening` remain unchanged.
 
 Leads not pursued: none.
+
+## Shoggoth contributor guide, step 3, round 2 -- 2026-08-22
+
+Re-reviewed the fixed committed tree against SCG-S3-R1-01 and all eight study
+risks. The fresh Horos document and committed boundary agree. The two new hard
+binary entries name the exact PNG and PDF paths and file signatures. The
+focused boundary suite passes 4/4 and the full root suite passes 109/109.
+
+The final assets are byte-identical to round 1. The five rendered pages retain
+their clear margins and readable type, the mascots remain human figures with
+faceted geometric masks, the proposed selector remains labelled as not live,
+and the Wave rule remains the earliest Wave with open issues. Phylax, Ephoros
+and Hypomnema each exit 0 on the extracted PDF text. Binary reopening,
+required-text and forbidden-name assertions pass. The controller verifies its
+22-entry receipt chain.
+
+No new findings.
+
+Leads not pursued: none.
