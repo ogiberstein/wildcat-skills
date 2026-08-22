@@ -8215,3 +8215,62 @@ replacement, including replacement of the invocation path itself, requires a
 concurrent or test-controlled actor already able to mutate the worktree. The
 emitter does not claim protection from a hostile local writer, and the Fiat
 controller separately prevents concurrent state writers.
+
+## Elenchus guard verdict, step 1, round 3 -- 2026-08-22
+
+Re-reviewed the cumulative corrected tree at
+`ad77bb0544612f402c3947c2f51ae2cb7c5d9612` against the four prior regression
+mechanisms, all 12 study risks and adjacent local reliability cases for the
+report writer and canonical Horos boundary. The recorded security-suite waiver
+still applies: this step ships no Solidity, so X-Ray, Solidity Auditor and Fizz
+did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The four prior mechanisms remain closed. Interrupted selector discovery writes
+an incomplete zero-test report and exits 130. In-worktree parent and final-file
+symlinks refuse without creating the destination. A fresh complete Horos
+document equals the committed record. A test changing process cwd cannot
+retarget a relative report outside the invocation root. These focused replays
+pass 5/5; the complete emitter focus passes 14/14 and the boundary focus passes
+5/5. This closes EGV-S1-R1-01, EGV-S1-R1-02, EGV-S1-R1-03 and EGV-S1-R2-01 on
+the cumulative tree.
+
+Adjacent probes also refuse the worktree root as a file, parent traversal, a
+regular-file parent, a final directory and a broken final symlink. Injected
+file-sync and replacement failures preserve the previous report and remove the
+temporary file. Two fresh Horos scans reproduce the same canonical bytes,
+schema 2, tracked universe, 1,422 walked files and 91 entries. The exact study
+and runbook copies match their receipts, both Protasis checks are clean, the
+root suite passes 114/114 and the Hexaemeron suite passes 755/755. Version,
+frontier, manifest and marketplace focus passes 41/41. Promise Machine reports
+14 plugins, 14 copies and all 67 coverage rows clean. Imprimatur scores both
+accepted documents 100 with no defect, Brevitas is clean, and Phylax, Ephoros
+and Hypomnema each exit 0.
+
+All 12 risk-register ids were dispositioned. `claim-omission` and
+`source-drift` remain closed for Step 1 by the exact tracked and receipted
+study and runbook bytes and the accepted study digest; the formal guard block
+remains a Step 2 obligation. `command-injection` remains closed within this
+step because selector loading adds no shell or subprocess and the output write
+is confined, symlink-refusing, bounded and atomic. `verdict-forgery`,
+`verdict-drift` and `ref-mismatch` remain assigned to Step 2 because this tree
+changes no controller field, accepted verdict set or implementation-ref
+binding.
+
+`diagnostic-leak` remains closed by the aggregate-only fixed report schema.
+`legacy-overclaim` is unchanged because Step 1 reads and writes no controller
+state. `later-issue-leak` remains closed because no synopsis or audit-close
+policy is added. `frontier-drift` remains closed because neither evolution
+ledger changes and the focused contracts pass. `package-staleness` remains a
+Step 3 publication obligation because Step 1 changes no installed controller
+behaviour. `self-hosting-gap` remains visible: the checked-in report writer and
+guards are direct test evidence and make no claim that the older live
+controller implements Step 2's future contract.
+
+Leads not pursued: the previously recorded check-to-use race requires a
+concurrent or test-controlled actor already able to mutate the worktree. The
+emitter does not claim protection from a hostile local writer, and the Fiat
+controller separately prevents concurrent state writers.
