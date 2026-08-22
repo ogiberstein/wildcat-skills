@@ -8255,3 +8255,46 @@ Machine checks clean.
 No new findings.
 
 Leads not pursued: the two carried from round 1, both unchanged.
+
+## Fiat run worktree, step 4, round 1 -- 2026-08-22
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| FRW-S4-R1-01 | medium | `docs/fiat-run-worktree-runbook.md` | The committed runbook puts worktree removal in `done integrate`. Built that way it removes the state and the ledger along with the tree, because both live in the tree, so the last act of a run is to delete its own evidence. Fiat's own contract then has the caller run `status` and `verify` after the run reports done, and neither has anywhere to read from. Seven existing integrate tests failed on exactly this. | fixed by moving retirement to `reset`, guarded by `test_reset_removes_a_clean_tree_and_archives_its_evidence` and `test_a_tree_holding_work_is_kept_and_never_forced` |
+
+The specification was wrong here and the code does not follow it. `reset` already
+means the run is finished and can be put away, it already archives, and it already
+refuses a run that is not done. `done integrate` records whether the tree was
+clean and says what `reset` will do with it, so the outcome is still named at the
+point the runbook wanted it named. The divergence is recorded here and in the
+pull request rather than resolved by editing the committed runbook, which is the
+frozen record of what the run believed when it started.
+
+A second thing fell out of the same reasoning. A run that lived in a worktree now
+archives into the checkout it was started from. Archiving inside the tree and then
+removing the tree would destroy the archive in the same breath.
+
+Reviewed against the eleven risk-register entries. `resume-orphan` is held: the
+breadcrumb and `git worktree list` agree, a recorded tree that is gone refuses
+naming that path instead of starting a second run, and a retired run drops out of
+the breadcrumb on the next read. `uncommitted-work-loss` is held by the rule and
+by a test: cleanliness is read before anything moves, a tree holding work is kept
+and named, and nothing anywhere passes `--force`. `legacy-state-resume` is held:
+state already sitting in a checkout still resumes, and the archived-run fixtures
+still verify. The other eight are unchanged from step 3.
+
+One incidental confirmation. An attempt to force a run to `done` by editing
+`state.json` directly was refused by the ledger chain check, which is the
+behaviour the state-shape rounds established and which this change does not
+weaken.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 784/784, 113 OK, both Promise
+Machine checks clean.
+
+1 finding, fixed.
+
+Leads not pursued: three. The two carried from step 3 are unchanged. New: if the
+archive move succeeds and the removal then fails, the tree is left without its
+state while the archive holds it; the tree is harmless at that point and the
+breadcrumb drops it, so the alternative would be to undo a completed archive to
+restore a directory nobody needs.
