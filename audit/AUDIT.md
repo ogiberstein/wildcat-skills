@@ -8298,3 +8298,22 @@ archive move succeeds and the removal then fails, the tree is left without its
 state while the archive holds it; the tree is harmless at that point and the
 breadcrumb drops it, so the alternative would be to undo a completed archive to
 restore a directory nobody needs.
+
+## Fiat run worktree, step 4, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S4-R1-01 is closed. `done integrate` leaves the
+tree in place and reports its cleanliness, `status` and `verify` still read the
+run after it reports done, and `reset` archives into the origin checkout before
+removing anything. A tree holding work survives `reset` with its file intact and
+the run archived beside it.
+
+The same eleven risk-register entries were read again and none moved. Nothing in
+the fix widens a boundary: it changes which command retires the tree and where
+the archive lands.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 784/784, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the three from round 1, all unchanged.
