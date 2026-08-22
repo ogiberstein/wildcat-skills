@@ -8127,3 +8127,34 @@ Phylax, Ephoros and Hypomnema each exit 0 on both documents.
 No findings.
 
 Leads not pursued: none.
+
+## Fiat run worktree, step 2, round 1 -- 2026-08-22
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| FRW-S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `check_worktree_path` read occupancy off the resolved path. A dangling symlink at the derived path resolves to something that does not exist, so the check saw a free path, accepted it, and returned the link's target rather than the path it was asked about. Step 3 would then create the run's tree at a location the deriver never chose, with the state and breadcrumb naming a different path, and the link left in place. Contained inside the repository root, so it redirects rather than escapes. | fixed in the same commit as this entry, guarded by `test_a_dangling_symlink_at_the_derived_path_refuses` and `test_a_symlink_to_a_real_directory_inside_the_repository_refuses` |
+
+Reviewed against the eleven risk-register entries. Two are exercised by this
+step. `path-escape` is the whole subject of the change and drew the finding
+above; the escape controls themselves hold. `subprocess-control` holds: the one
+git invocation is `rev-parse --show-toplevel` through the existing bounded
+fixed-argv reader, with no caller value reaching a shell. The other nine belong
+to steps that write something, and this step writes nothing.
+
+The finding was found by probing rather than by a lint. Both the escape checks
+and the live-symlink case behaved correctly; the dangling case was the one
+combination where occupancy and resolution disagree. Occupancy is now read off
+the supplied path with `lexists`, and a link at the derived path is refused
+whether it dangles or not, because the run's tree is a real directory there or
+it is nothing.
+
+Phylax, Ephoros and Hypomnema each exit 0 on both changed files.
+
+1 finding, fixed. Suites after the fix: 759/759, 113 OK, both Promise Machine
+checks clean.
+
+Leads not pursued: one. There is a gap between validating a path and creating
+something at it, so a path free at the check can be occupied by the time step 3
+runs. `git worktree add` refuses a path that exists, so the race closes into a
+refusal rather than a wrong tree, and closing it earlier would mean holding a
+lock over a directory that does not exist yet.

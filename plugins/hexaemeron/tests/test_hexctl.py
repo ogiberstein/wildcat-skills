@@ -3138,3 +3138,25 @@ class WorktreePathTests(unittest.TestCase):
         line = self.refuse(self.root, derived)
         self.assertIn("fiat-secret", line)
         self.assertNotIn("SENSITIVE-TOKEN-VALUE", line)
+
+    def test_a_dangling_symlink_at_the_derived_path_refuses(self):
+        """A link that resolves nowhere still occupies the path.
+
+        Occupancy was read off the resolved target, and a dangling link resolves
+        to a path that does not exist, so the check saw a free path. It then
+        returned the link's target rather than the path it was asked about, which
+        would put the run's tree somewhere the deriver never chose.
+        """
+        derived = self.module.run_worktree_path(self.repo, "fiat/dangling")
+        os.makedirs(os.path.dirname(derived))
+        os.symlink(os.path.join(self.root, "nowhere-yet"), derived)
+        self.assertIn("symlink", self.refuse(self.root, derived))
+
+    def test_a_symlink_to_a_real_directory_inside_the_repository_refuses(self):
+        """The run's tree is a real directory at the derived path, or it is nothing."""
+        derived = self.module.run_worktree_path(self.repo, "fiat/redirected")
+        inside = os.path.join(self.root, "real-dir")
+        os.makedirs(inside)
+        os.makedirs(os.path.dirname(derived))
+        os.symlink(inside, derived)
+        self.assertIn("symlink", self.refuse(self.root, derived))

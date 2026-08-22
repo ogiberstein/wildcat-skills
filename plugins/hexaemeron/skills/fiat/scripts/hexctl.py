@@ -1959,9 +1959,17 @@ def run_worktree_path(base_dir: str, run_branch: str) -> str:
 def check_worktree_path(root: str, candidate: str, registered: str | None = None) -> str:
     """Refuse a worktree path before anything is created at it.
 
-    Four ways a path fails: it leaves the repository once resolved, a component on
+    Five ways a path fails: it leaves the repository once resolved, a component on
     the way to it is a symlink leaving the repository, it is the repository root
-    itself, or it already exists as something other than this run's own tree.
+    itself, it is a symlink, or it already exists as something other than this
+    run's own tree.
+
+    Occupancy is read off the supplied path with `lexists`, not off the resolved
+    one. A dangling link resolves to a path that does not exist, so reading the
+    target saw a free path and then returned the target rather than the path it
+    was asked about -- which would put the run's tree somewhere the deriver never
+    chose. A link at the derived path is refused whether it dangles or not: the
+    run's tree is a real directory there, or it is nothing.
 
     The walk is over the supplied components rather than the resolved path. Horos
     finding S4-R1-01 is the reason: a control that inspects only the path it was
@@ -1993,11 +2001,11 @@ def check_worktree_path(root: str, candidate: str, registered: str | None = None
     resolved = os.path.realpath(walked)
     if not contained_in(root, resolved) or resolved == root:
         die(f"worktree path escapes the repository: {supplied}")
-    occupied = os.path.exists(resolved) or os.path.islink(resolved)
-    if occupied and (
-        registered is None or os.path.realpath(registered) != resolved
-    ):
-        die(f"worktree path is already occupied: {supplied}")
+    if os.path.lexists(walked):
+        if os.path.islink(walked):
+            die(f"worktree path is a symlink: {supplied}")
+        if registered is None or os.path.realpath(registered) != resolved:
+            die(f"worktree path is already occupied: {supplied}")
     return resolved
 
 
