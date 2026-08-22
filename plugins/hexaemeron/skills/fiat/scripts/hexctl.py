@@ -400,6 +400,25 @@ def validate_state_shape(state) -> dict:
 def load_state(base_dir: str) -> dict:
     path = state_path(base_dir)
     if not os.path.exists(path):
+        # A checkout that started a run has no state of its own: the run's state
+        # is in its worktree. Say which one and how to reach it, rather than
+        # reporting the absence and letting somebody start a second run over the
+        # top of the first.
+        live = read_breadcrumbs(base_dir)
+        if live:
+            named = "\n".join(f"  hexctl --dir {entry} next" for entry in live)
+            die(
+                f"no state here; this checkout's {'run works' if len(live) == 1 else 'runs work'} "
+                f"in {'its own worktree' if len(live) == 1 else 'their own worktrees'}:\n{named}"
+            )
+        recorded = raw_breadcrumbs(base_dir)
+        if recorded:
+            named = ", ".join(recorded)
+            die(
+                f"this checkout recorded a run worktree that is no longer "
+                f"there: {named}. Restore it or clear the breadcrumb at "
+                f"{breadcrumb_path(base_dir)}; a second run is not started for you"
+            )
         die(f"no state at {path}; run `hexctl init --topic ...` first")
     try:
         with open(path, "r", encoding="utf-8") as fh:
@@ -644,6 +663,7 @@ def parse_value(raw: str):
 # ------------------------------------------------------------------ commands
 
 def cmd_init(args) -> None:
+    origin_root = os.path.realpath(args.dir)
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
@@ -756,12 +776,13 @@ def cmd_init(args) -> None:
         "frontier": frontier,
     }
     state["worktree"] = worktree
+    state["origin"] = origin_root
     init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
     try:
         commit(worktree, state, "init", init_data)
-        write_breadcrumb(args.dir, worktree)
+        write_breadcrumbs(args.dir, worktree)
     except OSError:
         remove_run_worktree(args.dir, worktree)
         die(f"could not record the run at {root}")
@@ -1754,8 +1775,20 @@ def done_integrate(args, state: dict) -> None:
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
+    worktree = state.get("worktree")
+    if worktree and os.path.isdir(worktree):
+        state["receipts"]["integrate"]["worktree_clean"] = worktree_is_clean(worktree)
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
+    if worktree and os.path.isdir(worktree):
+        clean = state["receipts"]["integrate"]["worktree_clean"]
+        print(
+            f"run worktree {worktree} "
+            + ("is clean; `hexctl reset` will archive the run and remove it"
+               if clean else
+               "holds modifications; `hexctl reset` will archive the run and "
+               "keep the tree. Nothing is ever forced")
+        )
     print(
         f"{run_branch_of(state)} merged into {state['base']} "
         f"({args.merge_commit}); run complete"
@@ -2111,6 +2144,15 @@ def breadcrumb_path(base_dir: str) -> str:
     return os.path.join(state_root(base_dir), WORKTREE_FILE)
 
 
+def raw_breadcrumbs(base_dir: str) -> list[str]:
+    """Every run this checkout recorded, live or not, as written."""
+    try:
+        with open(breadcrumb_path(base_dir), encoding="utf-8") as handle:
+            return sorted({line.strip() for line in handle if line.strip()})
+    except OSError:
+        return []
+
+
 def read_breadcrumbs(base_dir: str) -> list[str]:
     """Every run this checkout started that still has state, in path order.
 
@@ -2128,7 +2170,7 @@ def read_breadcrumbs(base_dir: str) -> list[str]:
     return sorted({entry for entry in recorded if os.path.exists(state_path(entry))})
 
 
-def write_breadcrumb(base_dir: str, worktree: str) -> None:
+def write_breadcrumbs(base_dir: str, worktree: str | None = None) -> None:
     """Leave one line in the origin checkout naming the run's tree.
 
     This is the only thing a run writes into the checkout it was started from. A
@@ -2142,7 +2184,7 @@ def write_breadcrumb(base_dir: str, worktree: str) -> None:
     if not os.path.exists(gitignore):
         with open(gitignore, "w", encoding="utf-8") as handle:
             handle.write("*\n")
-    entries = sorted(set(read_breadcrumbs(base_dir)) | {worktree})
+    entries = sorted(set(read_breadcrumbs(base_dir)) | ({worktree} if worktree else set()))
     with open(breadcrumb_path(base_dir), "w", encoding="utf-8") as handle:
         handle.write("".join(f"{entry}\n" for entry in entries))
 
@@ -2160,6 +2202,23 @@ def remove_run_worktree(base_dir: str, worktree: str, force: bool = False) -> bo
     argv.append(worktree)
     bounded_tool_status(base_dir, "git", argv)
     return not os.path.exists(worktree)
+
+
+def archive_name(state: dict) -> str:
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    topic = re.sub(r"[^a-z0-9]+", "-", state["topic"].lower()).strip("-")[:48]
+    return f"{stamp}-{topic or 'completed-run'}"
+
+
+def worktree_is_clean(worktree: str) -> bool:
+    """True when git has nothing to lose in this tree.
+
+    Read before anything is moved. Removal is never forced, so a tree holding
+    work is kept and named instead, and the worst outcome here is a directory
+    somebody has to look at.
+    """
+    porcelain = bounded_git(worktree, ["status", "--porcelain"])
+    return not porcelain.strip()
 
 
 def contained_in(root: str, resolved: str) -> bool:
@@ -2747,7 +2806,19 @@ def cmd_verify(args) -> None:
 
 
 def cmd_reset(args) -> None:
-    """Archive a completed run inside its ignored state directory."""
+    """Archive a completed run, and retire the worktree it ran in.
+
+    Retirement belongs here rather than in `done integrate`, because the
+    controller's own contract has the caller run `status` and `verify` after the
+    run reports done. A tree removed at integrate would take the state and the
+    ledger those two commands read with it, so the last thing a run did would be
+    to delete its own evidence. `reset` is already the command that means the run
+    is finished and can be put away.
+
+    A run that lived in a worktree archives into the checkout it was started
+    from, because archiving inside the tree and then removing the tree would
+    destroy the archive in the same breath.
+    """
     count = verify_run(args.dir)
     state = load_state(args.dir)
     if state["phase"] != "done":
@@ -2757,7 +2828,11 @@ def cmd_reset(args) -> None:
         )
 
     root = state_root(args.dir)
-    archive_root = os.path.join(root, "archive")
+    origin = state.get("origin")
+    worktree = state.get("worktree")
+    retiring = bool(origin and worktree and os.path.isdir(worktree)
+                    and os.path.realpath(worktree) == os.path.realpath(args.dir))
+    archive_root = os.path.join(state_root(origin) if retiring else root, "archive")
     os.makedirs(archive_root, exist_ok=True)
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     topic = re.sub(r"[^a-z0-9]+", "-", state["topic"].lower()).strip("-")[:48]
@@ -2779,6 +2854,16 @@ def cmd_reset(args) -> None:
         f"archived completed run ({count} ledger entries) at {destination}; "
         "active state cleared"
     )
+    if retiring:
+        if worktree_is_clean(worktree) and remove_run_worktree(origin, worktree):
+            print(f"run worktree removed: {worktree}")
+        else:
+            print(
+                f"run worktree kept at {worktree}: it holds work git would not "
+                f"discard. Nothing was forced.",
+                file=sys.stderr,
+            )
+        write_breadcrumbs(origin)
 
 
 # ---------------------------------------------------------------------- cli
