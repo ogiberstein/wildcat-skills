@@ -1,12 +1,12 @@
 {
   "counts": {
-    "bytes_binary": 7224024,
+    "bytes_binary": 18478613,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 134192,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1415
+    "files_walked": 1420
   },
   "entries": [
     {
@@ -22,6 +22,13 @@
       "evidence": "file signature pdf",
       "grade": "hard",
       "path": "output/pdf/how-to-help-shoggoth.pdf"
+    },
+    {
+      "bytes": 11254589,
+      "category": "binary",
+      "evidence": "file signature pdf",
+      "grade": "hard",
+      "path": "output/pdf/the-promise-machine-explained-properly.pdf"
     },
     {
       "bytes": 3795,
