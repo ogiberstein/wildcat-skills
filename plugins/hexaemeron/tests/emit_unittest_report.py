@@ -39,6 +39,23 @@ def _report_target(raw: str) -> Path:
 
     root = Path.cwd().resolve()
     lexical = supplied if supplied.is_absolute() else root / supplied
+
+    def inside_root(path: Path) -> bool:
+        try:
+            path.relative_to(root)
+        except ValueError:
+            return False
+        return True
+
+    current = Path(lexical.anchor)
+    for part in lexical.parts[1:]:
+        current /= part
+        if current.is_symlink() and (
+            inside_root(current.parent.resolve())
+            or inside_root(current.resolve(strict=False))
+        ):
+            raise ReportWriteError("the report path cannot contain a symlink")
+
     target = lexical.resolve(strict=False)
     try:
         relative = target.relative_to(root)
@@ -59,6 +76,7 @@ def _report_target(raw: str) -> Path:
         if not current.is_dir():
             raise ReportWriteError("the report parent is not a directory")
 
+    target = current / relative.parts[-1]
     if target.is_symlink() or (target.exists() and not target.is_file()):
         raise ReportWriteError("the report path must be a regular file")
     return target
@@ -115,10 +133,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     sys.path.insert(0, str(Path.cwd()))
-    suite = unittest.defaultTestLoader.loadTestsFromNames(args.selectors)
     runner = RecordingRunner(verbosity=1)
     interrupted = False
     try:
+        suite = unittest.defaultTestLoader.loadTestsFromNames(args.selectors)
         result = runner.run(suite)
     except BaseException:
         interrupted = True

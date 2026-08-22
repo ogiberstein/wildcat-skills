@@ -8099,3 +8099,56 @@ required-text and forbidden-name assertions pass. The controller verifies its
 No new findings.
 
 Leads not pursued: none.
+
+## Elenchus guard verdict, step 1, round 1 -- 2026-08-22
+
+Reviewed exact implementation range
+`cd48583be2caeace32b14638dbdd85692b73a004..2ef61f297394d64cd7fd3a88b271d30fef507f44`
+against the accepted study, runbook and all 12 risk-register rows. The recorded
+security-suite waiver applies because the step changes Python tests,
+documentation and the Horos boundary, and ships no Solidity. X-Ray, Solidity
+Auditor and Fizz did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| EGV-S1-R1-01 | medium | `plugins/hexaemeron/tests/emit_unittest_report.py` | Unittest selector discovery ran outside the interruption guard. A module raising `KeyboardInterrupt` during import terminated the emitter with no fresh report, so the caller could not distinguish interrupted discovery from an absent or stale run. | fixed in this round by guarding discovery and writing an incomplete zero-test report with exit 130; the regression was observed red on the implementation tree and green after the fix |
+| EGV-S1-R1-02 | medium | `plugins/hexaemeron/tests/emit_unittest_report.py` | Resolving the supplied report path before checking its components erased in-worktree parent and final-file symlinks. Both forms were accepted and redirected the write to a different in-worktree file despite the stated no-symlink boundary. | fixed in this round by inspecting lexical components before canonical containment and retaining the final regular-file check; parent and file symlink regressions were observed red on the implementation tree and green after the fix |
+| EGV-S1-R1-03 | low | `.horos/boundary.json`; `tests/test_boundary_currency.py` | The committed boundary reported 1,418 walked files while a fresh tracked-tree scan reported 1,422. The existing currency test compared classified entries only, so stale canonical count metadata passed. | fixed in this round by regenerating the boundary to 1,422 and comparing the complete canonical document in the currency suite; two consecutive scans now render identical bytes |
+
+The report-writer focus passes 13/13. Its temporary-worktree cases cover
+assertion failure, infrastructure error, skip, clean and zero-test selection,
+runner and discovery interruption, an invalid selector, stale-output
+replacement, outside-worktree refusal, parent and final symlink refusal, the
+one-byte size limit preserving the previous file, and exact canonical JSON
+bytes. The boundary focus passes 5/5. The accepted study and runbook are
+byte-identical to their receipted sources, and both Protasis checks are clean.
+
+All 12 risk-register ids were dispositioned. `claim-omission` is closed for
+this step by the exact receipted and tracked runbook copies; the formal guard
+declaration remains in Step 2 rather than being inferred here. `source-drift`
+is closed by both byte comparisons and the accepted study digest.
+`command-injection` is closed within this step: selectors stay in the
+standard-library loader, no shell or subprocess is added, and the report write
+is confined, symlink-refusing, bounded and atomic. `verdict-forgery`,
+`verdict-drift` and `ref-mismatch` remain Step 2 obligations; this diff changes
+no controller field, accepted value or implementation-ref binding.
+
+`diagnostic-leak` is closed by the fixed report schema, which records counts
+and completion only. `legacy-overclaim` is unchanged because this step reads
+or writes no controller state. `later-issue-leak` remains closed: the study and
+runbook defer synopsis and audit-close policy to their named later issues.
+`frontier-drift` is closed because neither evolution ledger changes.
+`package-staleness` remains assigned to the Step 3 publication bump; Step 1
+changes no installed controller behaviour. `self-hosting-gap` remains visible:
+the report writer and its guards run directly from the checked-in tree and do
+not treat the live run's older controller as proof of Step 2's future contract.
+
+Phylax, Ephoros and Hypomnema each inspect the changed tree and exit 0.
+Imprimatur scores both accepted documents 100 with no defect, Brevitas is
+clean, Promise Machine reports 14 plugins, 14 copies and all 67 coverage rows
+clean, the root and Hexaemeron suites pass, and `git diff --check` is clean.
+
+Leads not pursued: the residual check-to-use race between path validation and
+replacement requires a concurrent actor already able to mutate the worktree;
+the emitter does not claim protection from a hostile local writer, and the
+Fiat controller prevents concurrent state writers separately.
