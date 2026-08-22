@@ -240,7 +240,7 @@
     },
     "horos-boundary-scan": {
       "source": "plugins/horos/skills/horos/scripts/horos.py",
-      "sha256": "8145f8b035b01f06c41cec470637e8670a0bd0caf4688bcd7cd4d490361d707c",
+      "sha256": "9962dd3f27445dde15ccb8763930b1d897df59e35819a7dfaaf1fc0fa4a64f01",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "repository root and tracked-tree identity",

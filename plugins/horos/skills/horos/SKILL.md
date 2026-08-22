@@ -142,9 +142,12 @@ confessions and every file oracle-parsed, recorded at
    to a repository-specific rule. Scans of git repositories cover tracked
    files by default, so local build products never contaminate a committed
    boundary; `--include-untracked` widens the universe deliberately. A
-   directory entry has to cover at least one file in that universe: one
-   holding nothing tracked excludes no bytes a reader would have reached, and
-   emitting it would make the same check answer differently on two machines.
+   directory entry, binding or advisory, has to cover at least one file in
+   that universe: one holding nothing tracked excludes no bytes a reader would
+   have reached, and emitting it would make the same check answer differently
+   on two machines. A checked-out worktree stays outside either report on the
+   same rule, even where nothing ignores the directory holding it: its files
+   belong to another checkout's index, never to this one's.
    Where git cannot answer at all, the fail-open position stands and the entry
    is kept.
 5. When writing a boundary into a repository other agents will work in, add
