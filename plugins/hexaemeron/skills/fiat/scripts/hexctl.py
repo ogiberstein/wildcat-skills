@@ -647,12 +647,6 @@ def cmd_init(args) -> None:
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
-    recorded = read_breadcrumb(args.dir)
-    if recorded is not None and os.path.exists(state_path(recorded)):
-        die(
-            f"this checkout already started a run in {recorded}; "
-            f"resume with `hexctl --dir {recorded} next`"
-        )
     prefix = DEFAULT_CONFIG["git"]["run_branch_prefix"]
     issue_number = (
         task_issue_number(args.task_issue) if args.task_issue is not None else None
@@ -698,7 +692,13 @@ def cmd_init(args) -> None:
     # refusal still costs nothing: no worktree, no state, no ledger, no
     # breadcrumb.
     repo_root = repository_root(args.dir)
-    worktree = check_worktree_path(repo_root, run_worktree_path(args.dir, run_branch))
+    candidate = run_worktree_path(args.dir, run_branch)
+    if os.path.exists(state_path(candidate)):
+        die(
+            f"this run already has a worktree at {candidate}; "
+            f"resume with `hexctl --dir {candidate} next`"
+        )
+    worktree = check_worktree_path(repo_root, candidate)
     refuse_checked_out_branch(args.dir, run_branch)
 
     home = os.path.dirname(worktree)
@@ -2111,14 +2111,21 @@ def breadcrumb_path(base_dir: str) -> str:
     return os.path.join(state_root(base_dir), WORKTREE_FILE)
 
 
-def read_breadcrumb(base_dir: str):
-    """The worktree this checkout last started a run in, or None."""
+def read_breadcrumbs(base_dir: str) -> list[str]:
+    """Every run this checkout started that still has state, in path order.
+
+    One line per run rather than one line per checkout. The issue asks for two
+    runs against one repository that do not contend, so a second run has to be
+    recordable rather than refused, and a resume has to be able to say which
+    trees it found. Entries whose state has gone are dropped on the way out, so
+    a finished or reset run stops being offered.
+    """
     try:
         with open(breadcrumb_path(base_dir), encoding="utf-8") as handle:
-            recorded = handle.read().strip()
+            recorded = [line.strip() for line in handle if line.strip()]
     except OSError:
-        return None
-    return recorded or None
+        return []
+    return sorted({entry for entry in recorded if os.path.exists(state_path(entry))})
 
 
 def write_breadcrumb(base_dir: str, worktree: str) -> None:
@@ -2135,8 +2142,9 @@ def write_breadcrumb(base_dir: str, worktree: str) -> None:
     if not os.path.exists(gitignore):
         with open(gitignore, "w", encoding="utf-8") as handle:
             handle.write("*\n")
+    entries = sorted(set(read_breadcrumbs(base_dir)) | {worktree})
     with open(breadcrumb_path(base_dir), "w", encoding="utf-8") as handle:
-        handle.write(f"{worktree}\n")
+        handle.write("".join(f"{entry}\n" for entry in entries))
 
 
 def remove_run_worktree(base_dir: str, worktree: str, force: bool = False) -> bool:

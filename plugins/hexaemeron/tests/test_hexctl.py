@@ -3336,18 +3336,6 @@ class WorktreeCreationTests(HexctlCase):
         finally:
             shutil.rmtree(plain, ignore_errors=True)
 
-    def test_a_second_init_from_the_same_checkout_names_the_recorded_tree(self):
-        self.init()
-        recorded = self.target
-        proc = subprocess.run(
-            [sys.executable, HEXCTL, "--dir", self.dir, "init",
-             "--topic", "another topic"],
-            capture_output=True, text=True,
-        )
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn(recorded, proc.stderr)
-        self.assertIn("--dir", proc.stderr)
-
     def assert_nothing_recorded(self):
         """A refusal leaves no state, no ledger, no breadcrumb and no tree."""
         state_dir = os.path.join(self.dir, ".hexaemeron")
@@ -3356,3 +3344,50 @@ class WorktreeCreationTests(HexctlCase):
         self.assertFalse(os.path.exists(os.path.join(state_dir, "ledger.jsonl")))
         derived = os.path.join(self.dir, "tmp", "fiat", "fiat-test-topic")
         self.assertFalse(os.path.exists(derived))
+
+    def test_two_runs_against_one_repository_each_get_their_own_tree(self):
+        """The issue asks for two runs that do not contend, not for a second
+        run that is refused."""
+        self.init("run alpha")
+        alpha = self.target
+        second = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "run beta"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(second.returncode, 0, second.stderr)
+        beta = os.path.join(self.dir, "tmp", "fiat", "fiat-run-beta")
+        self.assertNotEqual(os.path.realpath(alpha), os.path.realpath(beta))
+        for tree, branch in ((alpha, "fiat/run-alpha"), (beta, "fiat/run-beta")):
+            self.assertTrue(os.path.exists(os.path.join(tree, ".hexaemeron", "state.json")))
+            self.assertEqual(
+                subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=tree,
+                               capture_output=True, text=True).stdout.strip(),
+                branch,
+            )
+        self.assertEqual(self.origin("rev-parse", "--abbrev-ref", "HEAD"), "main")
+
+    def test_the_breadcrumb_records_every_live_run(self):
+        self.init("run alpha")
+        subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "run beta"],
+            capture_output=True, text=True, check=True,
+        )
+        with open(os.path.join(self.dir, ".hexaemeron", "worktree"),
+                  encoding="utf-8") as handle:
+            recorded = [line.strip() for line in handle if line.strip()]
+        self.assertEqual(len(recorded), 2)
+        self.assertEqual(
+            sorted(os.path.basename(entry) for entry in recorded),
+            ["fiat-run-alpha", "fiat-run-beta"],
+        )
+
+    def test_repeating_a_topic_refuses_and_names_the_existing_tree(self):
+        self.init("run alpha")
+        existing = self.target
+        again = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "run alpha"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(again.returncode, 2)
+        self.assertIn(existing, again.stderr)
+        self.assertIn("--dir", again.stderr)
