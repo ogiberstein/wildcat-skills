@@ -45,6 +45,8 @@ STUDY_AMENDMENT_PENDING_FILE = "study-amendment-pending.json"
 # writes into the repository, so it is where the work a run gave up on has to
 # be named: the next study over the same target reads it as prior art.
 RUN_PR_FILE = "run-pr.md"
+WORKTREE_FILE = "worktree"
+"""The one line the origin checkout keeps, naming the tree the run works in."""
 CARRIED_FORWARD_HEADING = "## Carried forward"
 
 # ``issue`` remains accepted only so runs created by older controllers can
@@ -482,6 +484,25 @@ def clear_study_amendment_pending(base_dir: str) -> None:
 def load_state(base_dir: str, *, allow_pending_amendment: bool = False) -> dict:
     path = state_path(base_dir)
     if not os.path.exists(path):
+        # A checkout that started a run has no state of its own: the run's state
+        # is in its worktree. Say which one and how to reach it, rather than
+        # reporting the absence and letting somebody start a second run over the
+        # top of the first.
+        live = read_breadcrumbs(base_dir)
+        if live:
+            named = "\n".join(f"  hexctl --dir {entry} next" for entry in live)
+            die(
+                f"no state here; this checkout's {'run works' if len(live) == 1 else 'runs work'} "
+                f"in {'its own worktree' if len(live) == 1 else 'their own worktrees'}:\n{named}"
+            )
+        recorded = raw_breadcrumbs(base_dir)
+        if recorded:
+            named = ", ".join(recorded)
+            die(
+                f"this checkout recorded a run worktree that is no longer "
+                f"there: {named}. Restore it or clear the breadcrumb at "
+                f"{breadcrumb_path(base_dir)}; a second run is not started for you"
+            )
         die(f"no state at {path}; run `hexctl init --topic ...` first")
     try:
         with open(path, "r", encoding="utf-8") as fh:
@@ -593,9 +614,10 @@ def held_lock(base_dir: str, command: str):
             die(
                 "another hexctl is holding this run: pid {pid} running "
                 "`{cmd}` since {since}.\n"
-                "Two agents in one directory share one run and one ledger. "
-                "Give each its own working directory, for example "
-                "`git worktree add ../<name> main`, and run one there.".format(
+                "Two agents in one run's worktree share one run and one "
+                "ledger. Each run gets its own tree at init, so start a "
+                "separate run with `hexctl --dir <checkout> init --topic "
+                "...`, or wait for this one.".format(
                     pid=holder.get("pid", "unknown"),
                     cmd=holder.get("command", "unknown"),
                     since=holder.get("ts", "unknown"),
@@ -775,6 +797,7 @@ def parse_value(raw: str):
 # ------------------------------------------------------------------ commands
 
 def cmd_init(args) -> None:
+    origin_root = os.path.realpath(args.dir)
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
@@ -818,11 +841,54 @@ def cmd_init(args) -> None:
             "version_at_init": ledger_field(text, "Current version"),
         }
 
-    os.makedirs(root, exist_ok=True)
-    # Self-ignoring: git never sees the state directory even in repos whose
-    # .gitignore was not touched. Nested .gitignore with `*` covers it.
-    with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
-        fh.write("*\n")
+    # Everything refusable happens before the first mutation. The path is derived
+    # and validated, and the branch is checked for an existing tree, while a
+    # refusal still costs nothing: no worktree, no state, no ledger, no
+    # breadcrumb.
+    repo_root = repository_root(args.dir)
+    candidate = run_worktree_path(args.dir, run_branch)
+    if os.path.exists(state_path(candidate)):
+        die(
+            f"this run already has a worktree at {candidate}; "
+            f"resume with `hexctl --dir {candidate} next`"
+        )
+    worktree = check_worktree_path(repo_root, candidate)
+    refuse_checked_out_branch(args.dir, run_branch)
+
+    home = os.path.dirname(worktree)
+    os.makedirs(home, exist_ok=True)
+    # Self-ignoring, the same trick the state directory uses. Without it the
+    # worktree home shows as untracked in the origin checkout, which both breaks
+    # the promise that a run leaves that checkout's `git status` alone and blocks
+    # the next run, because preflight refuses a dirty tree. Doing it here rather
+    # than leaning on the target repository's own rules means the promise holds
+    # whichever repository the run was started in.
+    home_gitignore = os.path.join(home, ".gitignore")
+    if not os.path.exists(home_gitignore):
+        with open(home_gitignore, "w", encoding="utf-8") as fh:
+            fh.write("*\n")
+    bounded_git(
+        args.dir,
+        ["worktree", "add", "-b", run_branch, worktree, args.base],
+        refusal=(
+            f"could not create the run worktree at {worktree} "
+            f"for '{run_branch}' off '{args.base}'"
+        ),
+    )
+
+    # From here the run's home is the worktree, so a failure has something to
+    # undo. Anything that goes wrong while writing state takes the tree with it,
+    # because a tree with no state is not a run anybody can resume.
+    root = state_root(worktree)
+    try:
+        os.makedirs(root, exist_ok=True)
+        # Self-ignoring: git never sees the state directory even in repos whose
+        # .gitignore was not touched. Nested .gitignore with `*` covers it.
+        with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
+            fh.write("*\n")
+    except OSError:
+        remove_run_worktree(args.dir, worktree)
+        die(f"could not write the run's state into {root}")
 
     receipts = {}
     if args.task_issue is not None:
@@ -843,14 +909,23 @@ def cmd_init(args) -> None:
         "halted": None,
         "frontier": frontier,
     }
+    state["worktree"] = worktree
+    state["origin"] = origin_root
     init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
-    commit(args.dir, state, "init", init_data)
+    try:
+        commit(worktree, state, "init", init_data)
+        write_breadcrumbs(args.dir, worktree)
+    except OSError:
+        remove_run_worktree(args.dir, worktree)
+        die(f"could not record the run at {root}")
     print(
         f"initialised {root} (topic: {args.topic}); "
         f"run branch {run_branch} off {args.base}"
     )
+    print(f"run worktree {worktree}")
+    print(f"work in it: hexctl --dir {worktree} next")
     if frontier is not None:
         print(
             f"frontier run: {frontier['ledger']} at {frontier['version_at_init']}, "
@@ -1835,8 +1910,20 @@ def done_integrate(args, state: dict) -> None:
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
+    worktree = state.get("worktree")
+    if worktree and os.path.isdir(worktree):
+        state["receipts"]["integrate"]["worktree_clean"] = worktree_is_clean(worktree)
     state["phase"] = "done"
     commit(args.dir, state, "done:integrate", state["receipts"]["integrate"])
+    if worktree and os.path.isdir(worktree):
+        clean = state["receipts"]["integrate"]["worktree_clean"]
+        print(
+            f"run worktree {worktree} "
+            + ("is clean; `hexctl reset` will archive the run and remove it"
+               if clean else
+               "holds modifications; `hexctl reset` will archive the run and "
+               "keep the tree. Nothing is ever forced")
+        )
     print(
         f"{run_branch_of(state)} merged into {state['base']} "
         f"({args.merge_commit}); run complete"
@@ -2389,13 +2476,15 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_tool(
-    base_dir: str,
-    program: str,
-    argv: list[str],
-    refusal: str | None = None,
-) -> bytes:
-    """Run one fixed-argv tool without exposing its output in failures."""
+def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
+    """Run one fixed-argv tool and return its status and output.
+
+    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
+    from the child's stream in any diagnosis. Callers that treat a non-zero
+    status as fatal go through `bounded_tool`; callers for which a refusal is a
+    real answer, such as git declining to remove a tree holding modifications,
+    read the status here.
+    """
     operation = f"{program} {argv[0]}" if argv else program
     try:
         process = subprocess.Popen(
@@ -2440,15 +2529,241 @@ def bounded_tool(
     finally:
         selector.close()
         process.stdout.close()
+    return returncode, bytes(output)
+
+
+def bounded_tool(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    refusal: str | None = None,
+) -> bytes:
+    """Run one fixed-argv tool without exposing its output in failures."""
+    returncode, output = bounded_run(base_dir, program, argv)
     if returncode != 0:
         if refusal is not None:
             die(refusal)
+        operation = f"{program} {argv[0]}" if argv else program
         die(f"{operation} failed with exit {returncode}")
-    return bytes(output)
+    return output
+
+
+def bounded_tool_status(base_dir: str, program: str, argv: list[str]) -> int:
+    """The exit status of one fixed-argv tool, for callers a refusal informs."""
+    return bounded_run(base_dir, program, argv)[0]
 
 
 def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
     return bounded_tool(base_dir, "git", argv, refusal)
+
+
+WORKTREE_HOME = ("tmp", "fiat")
+"""Where a run's worktree goes, under the repository's already-ignored scratch root.
+
+Ignoring the home is not what keeps a scan honest: git reports a nested worktree as
+one opaque directory either way. It is what keeps the next run startable, because
+preflight refuses a dirty tree and an unignored directory here would show as
+untracked.
+"""
+
+
+def flattened_run_branch(run_branch: str) -> str:
+    """A run branch as one directory name, so one run maps to one path."""
+    check_branch_name(run_branch)
+    return run_branch.replace("/", "-")
+
+
+def repository_root(base_dir: str) -> str:
+    """The worktree root git reports for `base_dir`.
+
+    A target that is not a Git repository refuses here rather than running in
+    place. That is the fail-closed fallback the study chose, and it is a breaking
+    change for anyone who relied on an in-place run.
+    """
+    root = os.path.realpath(base_dir)
+    reported = bounded_git(
+        base_dir,
+        ["rev-parse", "--show-toplevel"],
+        refusal=f"not a git repository: {root}",
+    ).decode("utf-8", "replace").strip()
+    if not reported:
+        die(f"not a git repository: {root}")
+    return os.path.realpath(reported)
+
+
+def run_worktree_path(base_dir: str, run_branch: str) -> str:
+    """The one path this run's worktree belongs at. Creates nothing."""
+    return os.path.join(
+        repository_root(base_dir), *WORKTREE_HOME, flattened_run_branch(run_branch)
+    )
+
+
+def check_worktree_path(root: str, candidate: str, registered: str | None = None) -> str:
+    """Refuse a worktree path before anything is created at it.
+
+    Five ways a path fails: it leaves the repository once resolved, a component on
+    the way to it is a symlink leaving the repository, it is the repository root
+    itself, it is a symlink, or it already exists as something other than this
+    run's own tree.
+
+    Occupancy is read off the supplied path with `lexists`, not off the resolved
+    one. A dangling link resolves to a path that does not exist, so reading the
+    target saw a free path and then returned the target rather than the path it
+    was asked about -- which would put the run's tree somewhere the deriver never
+    chose. A link at the derived path is refused whether it dangles or not: the
+    run's tree is a real directory there, or it is nothing.
+
+    The walk is over the supplied components rather than the resolved path. Horos
+    finding S4-R1-01 is the reason: a control that inspects only the path it was
+    given refuses a final-component symlink while stepping over one mid-path, and
+    `git -C` resolves symlinks before it answers, so the refusal has to happen
+    before git is asked anything. Traversal is refused on the raw components for
+    the same reason -- normalising `..` first is what lets a symlink be stepped
+    over lexically.
+
+    Every refusal names the path, reads nothing at it, and writes nothing.
+    """
+    root = os.path.realpath(root)
+    supplied = candidate
+    if os.path.isabs(candidate):
+        try:
+            relative = os.path.relpath(candidate, root)
+        except ValueError:
+            die(f"worktree path escapes the repository: {supplied}")
+    else:
+        relative = candidate
+    parts = [part for part in relative.split(os.sep) if part not in ("", ".")]
+    if not parts or any(part == os.pardir for part in parts):
+        die(f"worktree path escapes the repository: {supplied}")
+    walked = root
+    for part in parts:
+        walked = os.path.join(walked, part)
+        if os.path.islink(walked) and not contained_in(root, os.path.realpath(walked)):
+            die(f"worktree path crosses a symlink out of the repository: {walked}")
+    resolved = os.path.realpath(walked)
+    if not contained_in(root, resolved) or resolved == root:
+        die(f"worktree path escapes the repository: {supplied}")
+    if os.path.lexists(walked):
+        if os.path.islink(walked):
+            die(f"worktree path is a symlink: {supplied}")
+        if registered is None or os.path.realpath(registered) != resolved:
+            die(f"worktree path is already occupied: {supplied}")
+    return resolved
+
+
+def checked_out_worktrees(base_dir: str) -> dict:
+    """Branch -> worktree path, for every tree git currently knows about."""
+    porcelain = bounded_git(base_dir, ["worktree", "list", "--porcelain"]).decode(
+        "utf-8", "replace"
+    )
+    trees: dict[str, str] = {}
+    path = None
+    for line in porcelain.splitlines():
+        if line.startswith("worktree "):
+            path = line[len("worktree "):].strip()
+        elif line.startswith("branch ") and path is not None:
+            trees[line[len("branch "):].strip().removeprefix("refs/heads/")] = path
+    return trees
+
+
+def refuse_checked_out_branch(base_dir: str, run_branch: str) -> None:
+    """Git holds one branch in one tree, so a second checkout cannot be created.
+
+    Refusing by name here is what turns `git worktree add`'s own failure into a
+    sentence that says which branch and which tree, before anything is written.
+    """
+    existing = checked_out_worktrees(base_dir).get(run_branch)
+    if existing is not None:
+        die(f"run branch '{run_branch}' is already checked out at {existing}")
+
+
+def breadcrumb_path(base_dir: str) -> str:
+    return os.path.join(state_root(base_dir), WORKTREE_FILE)
+
+
+def raw_breadcrumbs(base_dir: str) -> list[str]:
+    """Every run this checkout recorded, live or not, as written."""
+    try:
+        with open(breadcrumb_path(base_dir), encoding="utf-8") as handle:
+            return sorted({line.strip() for line in handle if line.strip()})
+    except OSError:
+        return []
+
+
+def read_breadcrumbs(base_dir: str) -> list[str]:
+    """Every run this checkout started that still has state, in path order.
+
+    One line per run rather than one line per checkout. The issue asks for two
+    runs against one repository that do not contend, so a second run has to be
+    recordable rather than refused, and a resume has to be able to say which
+    trees it found. Entries whose state has gone are dropped on the way out, so
+    a finished or reset run stops being offered.
+    """
+    try:
+        with open(breadcrumb_path(base_dir), encoding="utf-8") as handle:
+            recorded = [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return []
+    return sorted({entry for entry in recorded if os.path.exists(state_path(entry))})
+
+
+def write_breadcrumbs(base_dir: str, worktree: str | None = None) -> None:
+    """Leave one line in the origin checkout naming the run's tree.
+
+    This is the only thing a run writes into the checkout it was started from. A
+    resume reads it so nobody has to remember the path, and it is one line rather
+    than state because two state directories for one run is the confusion the
+    breadcrumb exists to avoid.
+    """
+    root = state_root(base_dir)
+    os.makedirs(root, exist_ok=True)
+    gitignore = os.path.join(root, ".gitignore")
+    if not os.path.exists(gitignore):
+        with open(gitignore, "w", encoding="utf-8") as handle:
+            handle.write("*\n")
+    entries = sorted(set(read_breadcrumbs(base_dir)) | ({worktree} if worktree else set()))
+    with open(breadcrumb_path(base_dir), "w", encoding="utf-8") as handle:
+        handle.write("".join(f"{entry}\n" for entry in entries))
+
+
+def remove_run_worktree(base_dir: str, worktree: str, force: bool = False) -> bool:
+    """Take the run's tree away, and say whether it went.
+
+    Never forced by default. Git refuses to remove a tree holding modifications,
+    and that refusal is the point: the worst outcome here is a directory somebody
+    has to look at, never uncommitted work that vanished.
+    """
+    argv = ["worktree", "remove"]
+    if force:
+        argv.append("--force")
+    argv.append(worktree)
+    bounded_tool_status(base_dir, "git", argv)
+    return not os.path.exists(worktree)
+
+
+def archive_name(state: dict) -> str:
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    topic = re.sub(r"[^a-z0-9]+", "-", state["topic"].lower()).strip("-")[:48]
+    return f"{stamp}-{topic or 'completed-run'}"
+
+
+def worktree_is_clean(worktree: str) -> bool:
+    """True when git has nothing to lose in this tree.
+
+    Read before anything is moved. Removal is never forced, so a tree holding
+    work is kept and named instead, and the worst outcome here is a directory
+    somebody has to look at.
+    """
+    porcelain = bounded_git(worktree, ["status", "--porcelain"])
+    return not porcelain.strip()
+
+
+def contained_in(root: str, resolved: str) -> bool:
+    """True when `resolved` is `root` or sits underneath it."""
+    try:
+        return os.path.commonpath((root, resolved)) == root
+    except ValueError:
+        return False
 
 
 def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
@@ -3054,7 +3369,19 @@ def cmd_verify(args) -> None:
 
 
 def cmd_reset(args) -> None:
-    """Archive a completed run inside its ignored state directory."""
+    """Archive a completed run, and retire the worktree it ran in.
+
+    Retirement belongs here rather than in `done integrate`, because the
+    controller's own contract has the caller run `status` and `verify` after the
+    run reports done. A tree removed at integrate would take the state and the
+    ledger those two commands read with it, so the last thing a run did would be
+    to delete its own evidence. `reset` is already the command that means the run
+    is finished and can be put away.
+
+    A run that lived in a worktree archives into the checkout it was started
+    from, because archiving inside the tree and then removing the tree would
+    destroy the archive in the same breath.
+    """
     count = verify_run(args.dir)
     state = load_state(args.dir)
     if state["phase"] != "done":
@@ -3064,7 +3391,11 @@ def cmd_reset(args) -> None:
         )
 
     root = state_root(args.dir)
-    archive_root = os.path.join(root, "archive")
+    origin = state.get("origin")
+    worktree = state.get("worktree")
+    retiring = bool(origin and worktree and os.path.isdir(worktree)
+                    and os.path.realpath(worktree) == os.path.realpath(args.dir))
+    archive_root = os.path.join(state_root(origin) if retiring else root, "archive")
     os.makedirs(archive_root, exist_ok=True)
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     topic = re.sub(r"[^a-z0-9]+", "-", state["topic"].lower()).strip("-")[:48]
@@ -3086,6 +3417,16 @@ def cmd_reset(args) -> None:
         f"archived completed run ({count} ledger entries) at {destination}; "
         "active state cleared"
     )
+    if retiring:
+        if worktree_is_clean(worktree) and remove_run_worktree(origin, worktree):
+            print(f"run worktree removed: {worktree}")
+        else:
+            print(
+                f"run worktree kept at {worktree}: it holds work git would not "
+                f"discard. Nothing was forced.",
+                file=sys.stderr,
+            )
+        write_breadcrumbs(origin)
 
 
 # ---------------------------------------------------------------------- cli

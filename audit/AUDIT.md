@@ -8258,3 +8258,258 @@ Leads not pursued: the same bounded exclusions remain: a general transaction
 rewrite outside `amend study`, the separately specified runbook-repair
 transition, and the truth of amendment prose or operator verdicts. None is a
 new defect in the fixed Step 2 tree.
+## Fiat run worktree, step 1, round 1 -- 2026-08-22
+
+Reviewed the committed specification against all eleven risk-register entries.
+The step ships two documents and no executable path, so nine of the eleven are
+not exercised by anything here and are carried to the steps that build them.
+The two a document step can still get wrong were checked directly.
+
+`docs/fiat-run-worktree-study.md` and `docs/fiat-run-worktree-runbook.md` are
+byte-identical to the receipted artefacts, so the committed yardstick and the
+frozen run record agree. Neither document carries an absolute path under a home
+or root directory, which is the finding the earlier backed-out copy of this
+step recorded and fixed; the block that carried it is not present in this
+version. All five relative links resolve from `docs/`. The cited suite command
+at `AGENTS.md:138` is the line the study claims it is.
+
+The two inherited claims were re-measured rather than accepted. The four suite
+commands are green on this run's base with no exception: 741/741, 113 OK, and
+both Promise Machine checks clean. The earlier copy's two pinned-toolchain
+failures do not reproduce, because this machine carries the forge and node
+versions those fixtures assert; that is recorded in the study as a fact about a
+container rather than the repository.
+
+Phylax, Ephoros and Hypomnema each exit 0 on both documents.
+
+No findings.
+
+Leads not pursued: none.
+
+## Fiat run worktree, step 2, round 1 -- 2026-08-22
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| FRW-S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `check_worktree_path` read occupancy off the resolved path. A dangling symlink at the derived path resolves to something that does not exist, so the check saw a free path, accepted it, and returned the link's target rather than the path it was asked about. Step 3 would then create the run's tree at a location the deriver never chose, with the state and breadcrumb naming a different path, and the link left in place. Contained inside the repository root, so it redirects rather than escapes. | fixed in the same commit as this entry, guarded by `test_a_dangling_symlink_at_the_derived_path_refuses` and `test_a_symlink_to_a_real_directory_inside_the_repository_refuses` |
+
+Reviewed against the eleven risk-register entries. Two are exercised by this
+step. `path-escape` is the whole subject of the change and drew the finding
+above; the escape controls themselves hold. `subprocess-control` holds: the one
+git invocation is `rev-parse --show-toplevel` through the existing bounded
+fixed-argv reader, with no caller value reaching a shell. The other nine belong
+to steps that write something, and this step writes nothing.
+
+The finding was found by probing rather than by a lint. Both the escape checks
+and the live-symlink case behaved correctly; the dangling case was the one
+combination where occupancy and resolution disagree. Occupancy is now read off
+the supplied path with `lexists`, and a link at the derived path is refused
+whether it dangles or not, because the run's tree is a real directory there or
+it is nothing.
+
+Phylax, Ephoros and Hypomnema each exit 0 on both changed files.
+
+1 finding, fixed. Suites after the fix: 759/759, 113 OK, both Promise Machine
+checks clean.
+
+Leads not pursued: one. There is a gap between validating a path and creating
+something at it, so a path free at the check can be occupied by the time step 3
+runs. `git worktree add` refuses a path that exists, so the race closes into a
+refusal rather than a wrong tree, and closing it earlier would mean holding a
+lock over a directory that does not exist yet.
+
+## Fiat run worktree, step 2, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S2-R1-01 is closed: a dangling link, a live link
+to a real directory inside the repository, and a link leaving the repository are
+each refused, the first two naming the link and the third naming the crossing,
+and a free derived path is still accepted and returned unchanged. Both guards
+fail against the pre-fix validator and pass against this one.
+
+The same eleven risk-register entries were read again. `path-escape` and
+`subprocess-control` hold; the remaining nine are still not exercised by a step
+that writes nothing.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 759/759, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the check-to-create race recorded in round 1 is unchanged and
+belongs to step 3, where `git worktree add` turns it into a refusal.
+
+## Fiat run worktree, step 3, round 1 -- 2026-08-22
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| FRW-S3-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The breadcrumb held one line, so `init` refused any second run from the same checkout, naming the first run's tree. [skills#439](https://github.com/wildcat-finance/skills/issues/439) asks for the opposite: two runs against one repository that do not contend for `HEAD` or the index. The guard turned an acceptance condition into a refusal. | fixed in the same commit as this entry, guarded by `test_two_runs_against_one_repository_each_get_their_own_tree`, `test_the_breadcrumb_records_every_live_run` and `test_repeating_a_topic_refuses_and_names_the_existing_tree` |
+
+Reviewed against the eleven risk-register entries. Nine are exercised here.
+`operator-head-mutation`, `dirty-origin-tree` and `partial-write` are each held
+by a test: the checkout's branch, `HEAD` and `git status --short` are captured
+before and after a successful `init`, a run starts from a deliberately dirty
+checkout, and every refusal path leaves no state, no ledger, no breadcrumb and
+no directory. `branch-already-checked-out` refuses by name before anything is
+written, and names the tree holding the branch. `stale-tree-reuse` and
+`path-escape` are step 2's validator, called before the first mutation.
+`subprocess-control` holds: two fixed-argv git invocations through the bounded
+reader, no caller value near a shell. `cross-filesystem-atomicity` holds by
+construction, since the tree is created under the repository root.
+`legacy-state-resume` holds: an existing state directory in a checkout still
+resumes and the archived-run fixtures still pass. `uncommitted-work-loss` and
+`resume-orphan` belong to step 4.
+
+The finding came from reading the issue's acceptance list against the built
+behaviour rather than from a lint. The breadcrumb is now one line per live run,
+sorted, with entries whose state has gone dropped on read, so a finished or
+reset run stops being offered. A repeat of the same run still refuses, and now
+names its own tree rather than somebody else's.
+
+Two things about the origin checkout, recorded rather than fixed. It keeps a
+`.hexaemeron/` holding three files: the self-ignoring `.gitignore` the
+controller has always written, the kernel lock taken before any mutating
+command runs, and the breadcrumb. Only the breadcrumb is the run's own writing,
+and the study's phrase about narrowing write access to one breadcrumb line
+describes that rather than the lock that precedes it. ADR-012 states what is
+actually kept. Separately, a refusal in a directory that is not a repository
+still leaves that `.hexaemeron/` behind, because the lock is taken before any
+command can decide the target is unusable; no state, ledger or breadcrumb is
+written, which is the standard the state-shape rounds set.
+
+The bounded reader was split into `bounded_run`, `bounded_tool` and
+`bounded_tool_status`. The security-relevant behaviour is unchanged and now sits
+in one place: no shell, fixed argv, a hard timeout, a hard output cap, and
+nothing from the child's stream in any diagnosis.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites after the fix: 773/773,
+113 OK, both Promise Machine checks clean.
+
+1 finding, fixed.
+
+Leads not pursued: two. `init` writes the worktree home's self-ignoring
+`.gitignore` only when none is there, so a repository that already keeps a
+different `tmp/fiat/.gitignore` would not get the ignore and would see the tree
+as untracked; overwriting somebody else's ignore file is the worse of the two.
+And the check-to-create race carried from step 2 is unchanged: `git worktree
+add` refuses an occupied path, so it closes into a refusal rather than a wrong
+tree.
+
+## Fiat run worktree, step 3, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S3-R1-01 is closed. Two runs started from one
+checkout each take their own tree and their own branch, the checkout stays on
+its own branch with its `HEAD` and `git status --short` unchanged, and the
+breadcrumb carries both. A repeat of the same run refuses and names that run's
+own tree. A breadcrumb entry whose state has gone is dropped on the next read,
+so a finished or reset run stops being offered while its neighbours stay.
+
+The same eleven risk-register entries were read again. Nothing in the fix widens
+a boundary: it changes how many lines the breadcrumb holds and which path a
+refusal names. `uncommitted-work-loss` and `resume-orphan` still belong to
+step 4.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 773/773, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the two carried from round 1, both unchanged.
+
+## Fiat run worktree, step 4, round 1 -- 2026-08-22
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| FRW-S4-R1-01 | medium | `docs/fiat-run-worktree-runbook.md` | The committed runbook puts worktree removal in `done integrate`. Built that way it removes the state and the ledger along with the tree, because both live in the tree, so the last act of a run is to delete its own evidence. Fiat's own contract then has the caller run `status` and `verify` after the run reports done, and neither has anywhere to read from. Seven existing integrate tests failed on exactly this. | fixed by moving retirement to `reset`, guarded by `test_reset_removes_a_clean_tree_and_archives_its_evidence` and `test_a_tree_holding_work_is_kept_and_never_forced` |
+
+The specification was wrong here and the code does not follow it. `reset` already
+means the run is finished and can be put away, it already archives, and it already
+refuses a run that is not done. `done integrate` records whether the tree was
+clean and says what `reset` will do with it, so the outcome is still named at the
+point the runbook wanted it named. The divergence is recorded here and in the
+pull request rather than resolved by editing the committed runbook, which is the
+frozen record of what the run believed when it started.
+
+A second thing fell out of the same reasoning. A run that lived in a worktree now
+archives into the checkout it was started from. Archiving inside the tree and then
+removing the tree would destroy the archive in the same breath.
+
+Reviewed against the eleven risk-register entries. `resume-orphan` is held: the
+breadcrumb and `git worktree list` agree, a recorded tree that is gone refuses
+naming that path instead of starting a second run, and a retired run drops out of
+the breadcrumb on the next read. `uncommitted-work-loss` is held by the rule and
+by a test: cleanliness is read before anything moves, a tree holding work is kept
+and named, and nothing anywhere passes `--force`. `legacy-state-resume` is held:
+state already sitting in a checkout still resumes, and the archived-run fixtures
+still verify. The other eight are unchanged from step 3.
+
+One incidental confirmation. An attempt to force a run to `done` by editing
+`state.json` directly was refused by the ledger chain check, which is the
+behaviour the state-shape rounds established and which this change does not
+weaken.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 784/784, 113 OK, both Promise
+Machine checks clean.
+
+1 finding, fixed.
+
+Leads not pursued: three. The two carried from step 3 are unchanged. New: if the
+archive move succeeds and the removal then fails, the tree is left without its
+state while the archive holds it; the tree is harmless at that point and the
+breadcrumb drops it, so the alternative would be to undo a completed archive to
+restore a directory nobody needs.
+
+## Fiat run worktree, step 4, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S4-R1-01 is closed. `done integrate` leaves the
+tree in place and reports its cleanliness, `status` and `verify` still read the
+run after it reports done, and `reset` archives into the origin checkout before
+removing anything. A tree holding work survives `reset` with its file intact and
+the run archived beside it.
+
+The same eleven risk-register entries were read again and none moved. Nothing in
+the fix widens a boundary: it changes which command retires the tree and where
+the archive lands.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 784/784, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the three from round 1, all unchanged.
+
+## Fiat run worktree, step 5, round 1 -- 2026-08-22
+
+Reviewed the corrected contract, the ledger row and the demonstrations.
+
+The ledger row was checked the way the `done integrate` gate reads it, not by
+eye. The axis arithmetic goes `fiat-v5.10.1` to `fiat-v5.11.1` on the generation
+counter alone, the row retains `state-shape-validation` and the digest
+`e413d604...` byte for byte from the row before it, the header and the row name
+the same version, and the digest recomputed over the live
+`{status}|{revision}|{frontier}|{next job}` line matches. The held
+[skills#363](https://github.com/wildcat-finance/skills/issues/363) job is
+byte-identical, which is what a generation row owes.
+
+Eight cases hold the contract text, including that `git worktree add ../` is
+gone from both `SKILL.md` and `hexctl.py`. The advice it replaces was contract
+text as well, and it was wrong in the ordinary case for as long as it stood, so
+the replacement is asserted rather than trusted. Two more run the study's demo
+path instead of describing it: one from a deliberately dirty checkout, asserting
+the branch, `HEAD` and `git status --short` are identical afterwards, and one
+against a directory that is not a repository, asserting the refusal writes no
+state, ledger or breadcrumb.
+
+An existing lock test asserted the old advice and now asserts its absence and
+the new command, which is the same test doing the opposite job.
+
+Imprimatur reports zero defects on all five changed documents. The Horos
+boundary matches the tree. Phylax, Ephoros and Hypomnema each exit 0 across the
+three changed sources and the five documents.
+
+No findings.
+
+Leads not pursued: the three carried from step 4, all unchanged. Worth naming
+once, though it is a property of this shell rather than of the change: zsh does
+not word-split an unquoted variable, so a lint invoked as `lint $FILES` receives
+one argument naming a file that does not exist and reports it unreadable. It was
+caught here because the exit status was read; a round that only read the word
+`clean` would not have seen it.

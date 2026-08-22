@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.10.1"
+  version: "5.11.1"
 ---
 
 # Fiat
@@ -73,14 +73,38 @@ python3 "$FIAT_SKILL_DIR/scripts/hexctl.py" --dir "$PROJECT_ROOT" <cmd>
 ```
 
 Alias it as `hexctl` mentally; every command below means that invocation.
-State lives in `.hexaemeron/` beside a hash-chained ledger. The directory
-ships its own `.gitignore`, so git never sees it.
 
-Mutating commands hold a kernel lock for their whole run. If another writer is
-active, `hexctl` names it and prints a worktree command. Use another worktree;
-do not retry against the same state. `next`, `status`, and `verify` remain
-available while the writer runs, and a crashed process releases the lock
-without manual cleanup.
+## The run's worktree
+
+`init` creates a dedicated git worktree for the run and works in it for the
+whole run. Point `--dir` at the target repository once, at `init`, and at the
+worktree it prints for everything after that. The operator's checkout is never
+checked out, never branched, and never left on a branch the run created, so a
+run can start against a checkout somebody is standing in with uncommitted work
+of their own.
+
+- **Where it lives.** `tmp/fiat/<run branch with separators flattened>` under
+  the repository root. One run maps to one directory. The home ignores itself,
+  so it never shows in the checkout's `git status`.
+- **Where state lives.** `.hexaemeron/` inside the worktree, beside a
+  hash-chained ledger, with its own `.gitignore` so git never sees it. The
+  checkout keeps one breadcrumb line per live run at `.hexaemeron/worktree`, so
+  `status` and `next` run there name the tree and the exact `--dir` to use.
+- **Fail closed.** A target that is not a git repository, a derived path that is
+  occupied or escapes the repository, a run branch already checked out
+  somewhere, or a failing `git worktree add`, each refuse by name before any
+  state, ledger or breadcrumb is written. There is no in-place fallback.
+- **Cleanup.** `reset` archives a completed run into the checkout it was started
+  from, then removes the tree when git can remove it without force. A tree
+  holding work is kept and named instead. Nothing is ever forced. Retirement is
+  not at `integrate`, because `status` and `verify` still have to read the run
+  after it reports done.
+
+Mutating commands hold a kernel lock for their whole run. Separate runs get
+separate worktrees and separate state, so the lock only bites when two agents
+share one run's tree; if that happens, `hexctl` names the holder and either wait
+or start a separate run. `next`, `status`, and `verify` remain available while
+the writer runs, and a crashed process releases the lock without manual cleanup.
 
 ## Day to day
 
@@ -123,8 +147,9 @@ the second.
    `--base` defaults to `main`; honour any branch, repo, or commit the user
    named as the starting point. `init` also names the run branch, printed and
    held in state: one integration branch for the whole run, cut from the base.
-   Create it before the first step (`git checkout -b <run branch> <base>`) and
-   push it. An issue-free automatic name remains `fiat/<topic slug>`. A known
+   `init` cuts it, in the run's own worktree, so nothing needs creating by hand;
+   push it before the first step. An issue-free automatic name remains
+   `fiat/<topic slug>`. A known
    issue produces `fiat/<issue>-<topic slug>`, with the complete issue-bearing
    slug limited to 48 characters so the leading number survives truncation.
    Pass `--run-branch <name>` only when the user wants an exact override. With

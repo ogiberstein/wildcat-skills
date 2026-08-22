@@ -442,3 +442,119 @@ class PhaseSkillInventoryTests(unittest.TestCase):
         for name in self.PHASES:
             with self.subTest(skill=name):
                 self.assertTrue((root / "skills" / name / "SKILL.md").is_file())
+
+
+HEXCTL = ROOT / "skills" / "fiat" / "scripts" / "hexctl.py"
+
+
+class RunWorktreeContractTests(unittest.TestCase):
+    """The written contract has to match what `init` now builds.
+
+    The advice this replaces was contract text too, and it was wrong in the
+    ordinary case for two years of runs. A contract nothing checks is how that
+    happens.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fiat = FIAT.read_text(encoding="utf-8")
+        cls.push_discipline = PUSH_DISCIPLINE.read_text(encoding="utf-8")
+        cls.hexctl = HEXCTL.read_text(encoding="utf-8")
+
+    def test_the_contract_says_the_run_works_in_its_own_worktree(self):
+        self.assertIn("## The run's worktree", self.fiat)
+        self.assertIn("`init` creates a dedicated git worktree", self.fiat)
+
+    def test_the_contract_says_where_the_worktree_lives(self):
+        self.assertIn("tmp/fiat/", self.fiat)
+
+    def test_the_contract_says_dir_points_at_the_worktree(self):
+        collapsed = " ".join(self.fiat.split())
+        self.assertIn("Point `--dir` at the target repository once, at `init`, and at "
+                      "the worktree it prints for everything after that.", collapsed)
+
+    def test_the_contract_states_the_cleanup_rule(self):
+        collapsed = " ".join(self.fiat.split())
+        self.assertIn("Nothing is ever forced.", collapsed)
+        self.assertIn("removes the tree when git can remove it without force", collapsed)
+        self.assertIn("A tree holding work is kept and named instead", collapsed)
+
+    def test_the_contract_states_the_fail_closed_fallback(self):
+        self.assertIn("There is no in-place fallback.", self.fiat)
+
+    def test_the_unusable_advice_is_gone_everywhere(self):
+        """`git worktree add ../<name> main` fails whenever the base is
+        already checked out, which is the ordinary case."""
+        for name, text in (("SKILL.md", self.fiat), ("hexctl.py", self.hexctl)):
+            with self.subTest(file=name):
+                self.assertNotIn("git worktree add ../", text)
+
+    def test_the_lock_refusal_names_something_that_works(self):
+        self.assertIn("hexctl --dir <checkout> init --topic ", self.hexctl)
+
+    def test_the_run_branch_is_no_longer_cut_by_hand(self):
+        self.assertNotIn("git checkout -b <run branch> <base>", self.fiat)
+        self.assertNotIn("git checkout -b <run branch> <base>", self.push_discipline)
+        self.assertIn("`init` cuts it", self.fiat)
+        self.assertIn("`init` cuts it", self.push_discipline)
+
+
+class RunWorktreeDemoTests(unittest.TestCase):
+    """The study's demo path, run rather than described."""
+
+    def setUp(self):
+        import tempfile, shutil, os
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = os.path.join(self.tmp, "repo")
+        os.makedirs(self.repo)
+        for argv in (["init", "-q", "-b", "main"],
+                     ["config", "user.email", "demo@example.invalid"],
+                     ["config", "user.name", "Demo"],
+                     ["config", "commit.gpgsign", "false"],
+                     ["commit", "-q", "--allow-empty", "-m", "base"]):
+            subprocess.run(["git", *argv], cwd=self.repo, check=True, capture_output=True)
+
+    def git(self, *args, cwd=None):
+        return subprocess.run(["git", *args], cwd=cwd or self.repo,
+                              capture_output=True, text=True, check=True).stdout.strip()
+
+    def hexctl(self, *args):
+        import sys
+        return subprocess.run([sys.executable, str(HEXCTL), *args],
+                              capture_output=True, text=True)
+
+    def test_the_demo_path_leaves_a_dirty_checkout_exactly_as_it_found_it(self):
+        import os
+        with open(os.path.join(self.repo, "dirty-file.txt"), "w", encoding="utf-8") as fh:
+            fh.write("the operator's uncommitted work\n")
+        before_branch = self.git("rev-parse", "--abbrev-ref", "HEAD")
+        before_head = self.git("rev-parse", "HEAD")
+        before_status = self.git("status", "--short")
+
+        done = self.hexctl("--dir", self.repo, "init", "--topic", "worktree demo",
+                           "--base", "main")
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+        self.assertEqual(self.git("rev-parse", "--abbrev-ref", "HEAD"), before_branch)
+        self.assertEqual(self.git("rev-parse", "HEAD"), before_head)
+        self.assertEqual(self.git("status", "--short"), before_status)
+
+        worktree = os.path.join(self.repo, "tmp", "fiat", "fiat-worktree-demo")
+        self.assertIn(worktree, self.git("worktree", "list", "--porcelain"))
+        self.assertEqual(self.git("rev-parse", "--abbrev-ref", "HEAD", cwd=worktree),
+                         "fiat/worktree-demo")
+
+        status = self.hexctl("--dir", worktree, "status", "--json")
+        self.assertEqual(status.returncode, 0, status.stderr)
+        self.assertEqual(json.loads(status.stdout)["topic"], "worktree demo")
+
+    def test_a_directory_that_is_not_a_repository_refuses_and_creates_no_state(self):
+        import os
+        plain = os.path.join(self.tmp, "not-a-repo")
+        os.makedirs(plain)
+        done = self.hexctl("--dir", plain, "init", "--topic", "worktree demo")
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("not a git repository", done.stderr)
+        for name in ("state.json", "ledger.jsonl", "worktree"):
+            self.assertFalse(os.path.exists(os.path.join(plain, ".hexaemeron", name)), name)
