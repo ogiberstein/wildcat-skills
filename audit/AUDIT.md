@@ -8018,3 +8018,22 @@ contributor". `scope-widening` remains closed. `mascot-identity` and
 `binary-review` remain Step 3 obligations.
 
 Leads not pursued: none.
+
+## Shoggoth contributor guide, step 2, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree, both immutable correction receipts and the exact
+issue #447 readback against the two round-1 findings. The selector first finds
+the earliest Wave with open issues, then applies eligibility inside that Wave.
+If none is eligible, it stops instead of advancing to another Wave or silently
+falling through to frontier work. The issue no longer carries a count that its
+own creation invalidates.
+
+Wave 3 remains the earliest open snapshot group. Issues #323 through #328 are
+still open, unassigned and free of issue-number branch or open-pull-request
+trails. Phylax, Ephoros and Hypomnema each exit 0 on the corrected scope. The
+root suite passes 109/109, the controller verifies its 16-entry receipt chain,
+and the exact-selection and no-personal-name assertions pass.
+
+No new findings.
+
+Leads not pursued: none.
