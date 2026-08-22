@@ -36,11 +36,12 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 6. Push the step branch, open its pull request against the step below it, and move to the next step.
 7. Once every step is pushed, merge the stack into the run branch in order, receipt one signed base sync if concurrent work created an integration conflict, then merge the run branch into the base once.
 
-A run works on one integration branch cut from the base (`fiat/<run slug>` by
-default) with a chain of descriptively named step branches on top of it. Each
-step's pull request targets the step below it, step 1 targets the run branch,
-and nothing merges until the whole stack is ready. The base sees exactly one
-merge per run.
+A run works on one integration branch cut from the base. An issue-free run uses
+`fiat/<run slug>`. When a known task issue is supplied during initialization,
+the branch uses `fiat/<issue>-<run slug>` and every step branch keeps that
+prefix. Each step's pull request targets the step below it, step 1 targets the
+run branch, and nothing merges until the whole stack is ready. The base sees
+exactly one merge per run.
 
 ## What it ships
 
@@ -82,6 +83,7 @@ a human image, which is roughly the joke the name is carrying.
 ```text
 /hexaemeron:fiat "borrowing-base covenant hook for V2.5"   # start
 /hexaemeron:fiat --base release/v2.5 "..."                  # start from a ref
+/hexaemeron:fiat --task-issue https://example.test/issues/438 "..." # bind a known issue
 /hexaemeron:fiat                                            # resume
 /hexaemeron:fiat status                                     # report
 /hexaemeron:kronos                                          # rank and run frontier jobs until none remain
@@ -112,6 +114,7 @@ version-1 container spine in deterministic order and refuses a missing or
 wrong-kind container with a value-free path-and-kind diagnosis.
 
 ```text
+hexctl init --topic <topic> [--task-issue <url>]  # start; bind a known issue before branch creation
 hexctl next                 # the single next action, as JSON
 hexctl status [--json]      # where the run is
 hexctl done <phase> ...     # receipt a phase; validation lives here
@@ -121,6 +124,13 @@ hexctl halt / resume        # put a stop itself on the ledger
 hexctl reset                # archive a completed run and clear active state
 hexctl verify               # check state shape, then prove chain and state integrity
 ```
+
+`init --task-issue <url>` stores the exact issue URL in the initial transition
+and puts its positive issue number first in the automatic run branch. The
+complete issue-bearing slug keeps the existing 48-character limit. An exact
+override must start with `fiat/<issue>-`. A late first issue receipt is refused
+rather than renaming a stored branch; issue-free and legacy names stay
+unchanged.
 
 Mutating commands hold a kernel lock for their whole run. A second writer is
 refused with the first process's details and a worktree command; `next`,
@@ -168,7 +178,7 @@ Per-run, via `hexctl config set <path> <value>`:
 | `audit.fold` | `false` | Merge the stacked branch into the step branch on close |
 | `audit.log_path` | `audit/AUDIT.md` | Where rounds append |
 | `git.base` | `main` | Starting ref, and the only branch a run merges into |
-| `git.run_branch_prefix` | `fiat/` | Run branch is this plus the topic slug, unless `init --run-branch` names one |
+| `git.run_branch_prefix` | `fiat/` | Run branch is this plus the topic slug, or `<issue>-<topic slug>` when `init --task-issue` binds a known issue; an exact override must keep that issue prefix |
 
 The Pashov suite -- `x-ray`, `solidity-auditor`, and `fizz` -- is based on
 https://github.com/pashov/skills tag `v28062026` under the MIT licence. Each

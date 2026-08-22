@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.9.1"
+  version: "5.10.1"
 ---
 
 # Fiat
@@ -117,13 +117,18 @@ the second.
 4. Otherwise: say exactly `Let there be light.` and nothing else before it,
    run the read-only preflight checks below, then bring the base up to date
    before anything is cut from it, then `hexctl init --topic "<topic>" --base
-   <ref>`, record the post-init receipts, and enter the loop.
+   <ref>`, record the post-init receipts, and enter the loop. If a task issue is
+   already known, use `hexctl init --task-issue <url> --topic "<topic>" --base
+   <ref>` so the issue is bound before branch creation.
    `--base` defaults to `main`; honour any branch, repo, or commit the user
    named as the starting point. `init` also names the run branch, printed and
    held in state: one integration branch for the whole run, cut from the base.
    Create it before the first step (`git checkout -b <run branch> <base>`) and
-   push it. Pass `--run-branch <name>` only when the user wants a different
-   name than the topic slug.
+   push it. An issue-free automatic name remains `fiat/<topic slug>`. A known
+   issue produces `fiat/<issue>-<topic slug>`, with the complete issue-bearing
+   slug limited to 48 characters so the leading number survives truncation.
+   Pass `--run-branch <name>` only when the user wants an exact override. With
+   `--task-issue`, that override must start with `fiat/<issue>-`.
 
 **Sync the base first.** A run inherits every mistake in the ref it was cut
 from, and a local checkout that has been sitting is the normal case rather than
@@ -191,6 +196,10 @@ ordinary delivery, where there is no ledger row to owe. If the job turns out not
 to close after all, `hexctl halt --reason ...` puts that on the ledger; the gate
 refuses a silent finish, not a recorded stop.
 
+If that frontier run also has a known task issue, add `--task-issue <url>` to
+the same `init` command. The issue and frontier receipts then share the initial
+state transition.
+
 ## Preflight (new runs only)
 
 1. Run the fail-silent contributor and marketplace check in
@@ -228,21 +237,27 @@ refuses a silent finish, not a recorded stop.
    instead: `hexctl record security_suite '"waived: <reason>"'` -- and say so
    out loud. Never claim a tool ran when it did not.
 6. If the user supplied a task issue or a higher-priority target-repository
-   rule required one, record its URL after init with `hexctl record task_issue
-   '"<url>"'`. Do not invent an issue otherwise.
+   rule required one, pass its exact URL to `init --task-issue <url>`. Do not
+   invent an issue. A first `task_issue` record after initialization is refused
+   because the stored branch might already be published; an exact repeat of the
+   initial receipt is a no-op.
 7. Nothing else.
 
 ## Branches, stacks, and the one merge
 
 A run is one integration branch off the base and a stack of step branches on
-top of it. The controller names every branch and every pull request base; take
-them from the directive rather than inventing a name.
+top of it. An issue-free run uses `fiat/<topic slug>`. An issue-backed run uses
+`fiat/<issue>-<topic slug>`, and an explicit override must keep the exact
+`fiat/<issue>-` prefix. The controller stores that run branch once and prefixes
+every derived step branch with it; it never reparses the issue or renames a
+stored branch. Take every branch and pull request base from the directive rather
+than inventing a name.
 
 ```text
-main ─── fiat/<run slug>                                  the run branch
-          └── fiat/<run slug>-step-1-<slug>               PR -> run branch
-               └── fiat/<run slug>-step-2-<slug>          PR -> step 1
-                    └── fiat/<run slug>-step-3-<slug>     PR -> step 2
+main ─── <run branch>                                     the run branch
+          └── <run branch>-step-1-<slug>                  PR -> run branch
+               └── <run branch>-step-2-<slug>             PR -> step 1
+                    └── <run branch>-step-3-<slug>        PR -> step 2
 ```
 
 Each step branches from the step below it and its pull request targets that
@@ -397,6 +412,7 @@ Use `hexctl halt --reason ...` so the stop itself is on the ledger.
   branch straight off the base once a run branch exists.
 - Never invent a branch name the controller did not give, and never name a
   branch after its number alone.
+- Never attach the first task issue after `init` or rename a stored run branch.
 - Never call a plan or implementation complete while its own final changes,
   PR, task branch, or recorded issue still need routine stage, push, merge,
   deletion, or closure work.
