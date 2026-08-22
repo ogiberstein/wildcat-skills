@@ -70,6 +70,91 @@ class StringCommands(unittest.TestCase):
             "Client().call('eth_chainId', [])\n"))
 
 
+class SubprocessCredentialArguments(unittest.TestCase):
+    def test_it_flags_module_runner_argv(self):
+        self.assertEqual(["P004"], codes(
+            "import subprocess\napi_key = load()\n"
+            "subprocess.run(['tool', api_key])\n"))
+
+    def test_it_flags_module_alias_runner_argv(self):
+        self.assertEqual(["P004"], codes(
+            "import subprocess as sp\nsecret = load()\n"
+            "sp.check_call(['tool', secret])\n"))
+
+    def test_it_flags_direct_import_runner_argv(self):
+        self.assertEqual(["P004"], codes(
+            "from subprocess import run\nauth_token = load()\n"
+            "run(('tool', auth_token))\n"))
+
+    def test_it_flags_direct_import_alias_runner_argv(self):
+        self.assertEqual(["P004"], codes(
+            "from subprocess import Popen as spawn\nprivate_key = load()\n"
+            "spawn(['tool', private_key])\n"))
+
+    def test_it_flags_keyword_args_argv(self):
+        self.assertEqual(["P004"], codes(
+            "import subprocess\ncredential = load()\n"
+            "subprocess.run(args=['tool', credential])\n"))
+
+    def test_it_flags_list_concatenation_without_p002(self):
+        self.assertEqual(["P004"], codes(
+            "import subprocess\naccess_token = load()\n"
+            "subprocess.run(['tool'] + ['--auth', access_token])\n"))
+
+    def test_it_allows_ordinary_argv_values(self):
+        self.assertEqual([], codes(
+            "import subprocess\nmarket = load()\n"
+            "subprocess.run(['tool', market])\n"))
+
+    def test_it_ignores_a_local_runner_name(self):
+        self.assertEqual([], codes(
+            "def run(argv):\n    return argv\n\nsecret = load()\n"
+            "run(['tool', secret])\n"))
+
+    def test_it_ignores_an_unrelated_call_method(self):
+        self.assertEqual([], codes(
+            "class Client:\n    def call(self, argv):\n        return argv\n\n"
+            "api_key = load()\nClient().call(['tool', api_key])\n"))
+
+    def test_it_allows_a_credential_only_in_env(self):
+        self.assertEqual([], codes(
+            "import subprocess\napi_key = load()\n"
+            "subprocess.run(['tool'], env={'API_KEY': api_key})\n"))
+
+    def test_a_stated_reason_suppresses_the_argv_finding(self):
+        self.assertEqual([], codes(
+            "import subprocess\nsecret = load()\n"
+            "subprocess.run(['fixture', secret])  # phylax: allow hostile fixture\n"))
+
+    def test_a_bare_pragma_does_not_suppress_the_argv_finding(self):
+        self.assertEqual(["P004"], codes(
+            "import subprocess\nsecret = load()\n"
+            "subprocess.run(['fixture', secret])  # phylax: allow\n"))
+
+    def test_shell_classification_stays_p001_beside_p004(self):
+        self.assertEqual(["P001", "P004"], codes(
+            "import subprocess\nsecret = load()\n"
+            "subprocess.run(['tool', secret], shell=True)\n"))
+
+    def test_string_command_classification_stays_p002(self):
+        self.assertEqual(["P002"], codes(
+            "import subprocess\nsubprocess.run('tool --version')\n"))
+
+    def test_argv_findings_do_not_repeat_secret_material_in_text_or_json(self):
+        sample_value = "test-only-credential-value"
+        result = findings(
+            "import subprocess\n"
+            f'api_key = load("{sample_value}")\n'
+            "subprocess.run(['tool', api_key])\n",
+            "sample.py",
+        )
+        self.assertEqual(["P004"], [finding.code for finding in result])
+        rendered = "\n".join(str(finding) for finding in result)
+        encoded = json.dumps([finding.as_dict() for finding in result])
+        self.assertNotIn(sample_value, rendered)
+        self.assertNotIn(sample_value, encoded)
+
+
 class Requirements(unittest.TestCase):
     def test_it_flags_an_unpinned_requirement(self):
         self.assertIn("P003", codes("rlp>=4.0.0\n", name="requirements.txt"))
