@@ -212,7 +212,9 @@ def _boundary_bindings(
                 families.add(module)
             else:
                 families.add(None)
-        if local in BOUNDARY_CALLS["builtins"] and local not in direct:
+        # a direct import elsewhere in the file does not prove that it shadows
+        # a bare built-in at this call site; scope analysis is outside P008.
+        if local in BOUNDARY_CALLS["builtins"]:
             families.add("builtins")
         if len(families) > 1:
             ambiguous_calls.add(local)
@@ -276,11 +278,10 @@ class Visitor(ast.NodeVisitor):
                 if func.attr in BOUNDARY_CALLS[module]
             }
         if isinstance(func, ast.Name):
-            resolved = self.boundary_direct.get(func.id)
-            if resolved:
-                return resolved
+            resolved = set(self.boundary_direct.get(func.id, set()))
             if func.id in BOUNDARY_CALLS["builtins"]:
-                return {"builtins"}
+                resolved.add("builtins")
+            return resolved
         return set()
 
     def _safe_yaml_loader(self, loader: ast.AST) -> bool:

@@ -184,6 +184,32 @@ class UnsafeDeserialization(unittest.TestCase):
                 self.assertNotIn(sentinel, str(result[0]))
                 self.assertNotIn(sentinel, json.dumps(result[0].as_dict()))
 
+    def test_bare_dynamic_calls_survive_cross_scope_yaml_aliases(self):
+        specimens = {
+            "eval": (
+                "def run(payload, SafeLoader):\n"
+                "    return eval(payload, SafeLoader)\n"
+                "def imports_elsewhere():\n"
+                "    from yaml import load as eval\n"
+                "    from yaml import SafeLoader\n"
+            ),
+            "exec": (
+                "def run(payload, SafeLoader):\n"
+                "    exec(payload, SafeLoader)\n"
+                "def imports_elsewhere():\n"
+                "    from yaml import load as exec\n"
+                "    from yaml import SafeLoader\n"
+            ),
+        }
+        for label, source in specimens.items():
+            with self.subTest(label=label):
+                result = findings(source, "sample.py")
+                self.assertEqual(["P008"], [finding.code for finding in result])
+                self.assertEqual(
+                    "source-local bindings leave the boundary call family unresolved",
+                    result[0].message,
+                )
+
     def test_safe_yaml_loaders_are_allowed_in_keyword_and_positional_forms(self):
         specimens = {
             "module-safe-keyword": (

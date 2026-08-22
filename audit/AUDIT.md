@@ -8724,3 +8724,78 @@ reassigning an imported safe YAML alias or importing it in another lexical
 scope can retain source-local trust. The study names both limits, and the
 public contract says assignments are not followed, so changing either requires
 a study amendment rather than an audit-side widening.
+
+## Phylax unsafe deserialization, step 1, round 3 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 324 changes the Python
+Phylax lint, fixtures, and governed prose; it has no Solidity target`. No
+`.sol` path appears from `main` through the accumulated fixed tree. X-Ray and
+Solidity Auditor did not run; the waiver applies only to that pair.
+
+The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0 on the
+repository-mandated scopes. The manual pass read the complete base-to-stacked
+diff and checked all thirteen receipted risks against the round 2 fixes.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | `plugins/hexaemeron/skills/phylax/scripts/phylax.py:215` | A direct YAML boundary import under bare `eval` or `exec`, collected from another lexical scope, displaced the built-in candidate; paired safe-loader evidence could make an outer non-literal dynamic call produce no P008. | fixed and guarded in round 3 |
+| S1-R3-review | none | full base-to-stacked diff | No other code, test, record or payload-disclosure finding was confirmed. | clean |
+| S1-R3-records | none | study, runbook, evolution and Promise Machine binding | The tracked study remains byte-identical to the receipted artifact, and generation-only bookkeeping remains unchanged. | clean |
+
+Finding count: 1.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `source-parse` | P008 still uses `ast.parse`, `ast.walk` and the existing visitor without importing, executing or deserializing target source. | clean |
+| `call-identity` | Same-family, boundary-to-boundary and boundary-to-neighbour conflicts were exercised; bare built-ins now remain candidates beside direct imports. | fixed by S1-R3-01 |
+| `pickle-scope` | Module and direct aliases for `load` and `loads` report once; dumps and unrelated readers remain clean. | clean |
+| `marshal-scope` | `load` reports once while the receipted `loads` exclusion remains clean. | clean within scope |
+| `yaml-loader` | Module and loader aliases for `SafeLoader` and `CSafeLoader` pass; unsafe and conflicting evidence reports. Lexical-scope trust remains an explicit exclusion. | bounded by the receipted exclusion |
+| `dynamic-source` | Bare `eval` and `exec` with non-literal source report even when another scope imports YAML boundaries under those names. Literal source remains clean. | fixed by S1-R3-01 |
+| `alias-rebinding` | Conflicts now keep every possible call family, including the implicit built-in family. Assignment and general scope analysis remain excluded. | clean within scope |
+| `suppression-line` | The existing reason-bearing and bare pragma cases retain opposite results. | clean |
+| `diagnostic-output` | Conflict cases emit one fixed unresolved-family message per call, omit payload text in text and JSON, and retain stable order under two hash seeds. | clean |
+| `classification-drift` | P000 through P007 guards, both focused interpreter runs and the full plugin suite pass. | clean |
+| `analysis-work` | The fix adds one set member and a constant-size union per bare dynamic call; it adds no recursive walk, dataflow or target execution. | clean |
+| `partial-run` | Every recorded test and lint reached a terminal zero exit; the two expected red guard runs are identified separately. | clean |
+| `ledger-integrity` | `phylax-v1.3.0`, the mature frontier fields and its digest are unchanged; Promise Machine verification exits 0. | clean |
+
+### Evidence
+
+The review started from exact signed stacked head
+`f5a2ef2c23c22840dd8f06af62cc759d6a3fd1e3` and re-read all eight paths from
+`64096f4d89fc821ab9d91d075cd86be7e7bb92b5`. The tracked and receipted study
+copies still hash to
+`5eac7e9c171969933bf9d08a07a50aefd0e3f52ff353fada05691271373f397f`.
+
+The reduced guard
+`UnsafeDeserialization.test_bare_dynamic_calls_survive_cross_scope_yaml_aliases`
+failed twice on the unfixed tree, for both `eval` and `exec`. Each specimen
+places a YAML boundary and safe-loader import in another function while the
+outer function passes non-literal source and a globals mapping to the actual
+built-in. The fix retains the built-in family beside direct-import evidence,
+so both calls now emit one ambiguous P008 instead of escaping the rule.
+
+The focused Phylax suite passes 80/80 on Python 3.9.6 and 3.12.13. With the
+retained Node v26.6.0 fixture first on `PATH`, the full Hexaemeron suite passes
+852/852. The root suite passes 118/118 and the evolution contract passes 8/8.
+The full Promise Machine check, both Protasis checks, the Horos boundary check,
+the changed-tree Phylax scan and `git diff --check` each exit 0. The
+active-plugin Phylax, Ephoros and Hypomnema lint exits are `0`, `0` and `0`.
+
+### Leads not pursued
+
+Leads not pursued: `marshal.loads`; relative, wildcard, dynamic and dotted
+imports such as `import yaml.loader`; assignment, general lexical-scope, taint
+and control-flow analysis; custom-loader proofs; the accepted pragma-in-string
+quirk; and Python file-size policy. Cross-scope YAML module and loader aliases
+can still retain source-local trust for an actual `yaml.load` call. Those
+limits are inside the receipted exact-import grammar; widening them requires a
+study amendment. Bare `eval` and `exec` are no longer allowed to disappear
+behind that exclusion.
