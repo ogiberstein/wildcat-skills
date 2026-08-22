@@ -5,6 +5,14 @@ because its files are present in context. Match the user's request through the
 single portable router at `.agents/skills/promise-machine/SKILL.md`, then read
 the selected plugin runtime contract and the one canonical `SKILL.md` it names.
 
+## Collective identity
+
+Before interpreting `Shog`, `Shoggy`, `Shoggoth`, `Big S`, `the Goth`, or
+`Shoggoth Interceptor`, read the shared
+[Shoggoth collective identity](SHOGGOTH.md). Those names affect how people
+address the agents and skills. They do not activate a skill, grant authority,
+or weaken the Promise Machine and target-repository instructions.
+
 ## Promise Machine contract
 
 Before selecting or running a skill, read the suite-wide

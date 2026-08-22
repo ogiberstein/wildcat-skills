@@ -16,6 +16,10 @@ Each plugin has a narrow job, a clear trigger and the instructions, code,
 evidence or tests that job needs. Read a plugin before running it: skills can
 execute commands and edit source.
 
+The agents and skills are one collective. The
+[Shoggoth identity contract](./SHOGGOTH.md) explains the names collaborators
+can use for an individual member, the collective, and its Interceptor form.
+
 ## Plugins
 
 ### Alexandria
