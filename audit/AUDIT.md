@@ -8954,3 +8954,76 @@ declared output. Mechanical red-parent classification for an implementation
 under a test directory remains an evidence discrepancy; changing Elenchus's
 test-file boundary is outside step 1, and issue 453 owns the blocking policy.
 No further step-1 lead remained after the full diff review.
+
+## Elenchus audit-round verdict, step 1, round 2 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 327 changes Python
+controller state, Elenchus integration, tests, and governed prose; it has no
+Solidity target`. No Solidity path changed. X-Ray, Solidity Auditor and Fizz
+did not run. The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0
+on their repository scopes.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/tests/run_tests.py:13` | The round-1 fix held its worktree directory descriptor across arbitrary in-process tests. A test could close that descriptor and reopen an outside directory in the same numeric slot; the report writer then trusted the rebound slot and wrote outside the worktree. | fixed in `cc984ba`; manual guard red, Elenchus verdict `passed` |
+| S1-R2-02 | low | `plugins/hexaemeron/tests/run_tests.py:68` | The unsupported-platform gate collapsed every absent secure-directory primitive into one generic error, so an operator could not identify which required control was missing. | fixed in `cc984ba`; manual guard red |
+| S1-R2-review | none | full `454bf3c..cc984ba` diff | No further schema, exit-semantics, containment, descriptor-lifetime or record finding was confirmed. | clean |
+| S1-R2-records | none | study, runbook and generation rows | The changed contracts still describe a four-state declaration rather than report-byte attestation, and the governed frontiers remain fixed. | clean |
+
+Finding count: 2.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | This round has a signed fixes commit. Step 1 cannot yet store the verdict in Fiat state, so the audit record preserves `passed` without claiming a controller receipt that does not exist. | clean within step 1 |
+| `enum-drift` | The exact runbook invocation returned the existing `passed` status. The classifier and `elenchus.unittest.v1` fields are unchanged. | clean |
+| `command-substitution` | The comparison used the source runbook's exact command, `unittest-json-v1` format and `.elenchus/hexaemeron-unittest.json` path under pinned Node v26.6.0. | clean |
+| `legacy-round-breakage` | Step 1 still changes no Fiat state reader or writer. Legacy-round behavior remains step 2 work. | reviewed; not applicable |
+| `receipt-overclaim` | The audit record keeps mechanical `passed` separate from the two manual red-parent guards and does not relabel it `guarded`. | clean |
+| `downstream-loss` | No issue 429, 369 or 453 consumer changed in this step. | reviewed; not applicable |
+| `frontier-drift` | The evolution/version tests pass 14/14; Elenchus and Protasis retain their prior revision, digest, status and held target while advancing generation only. | clean |
+
+### Evidence
+
+The descriptor reproducer on `0eacf593` observed root slot 3 closed and an
+outside directory reopened as slot 3. `write_report` then left no inside file
+and created the declared nested report outside. The new black-box guard fails
+on that parent at `assertTrue(report.is_file())`. A second parent run fails
+because the old refusal names none of `os.open(dir_fd)`, `os.mkdir(dir_fd)`,
+`os.stat(dir_fd)`, `os.unlink(dir_fd)` or `os.stat(follow_symlinks)`.
+
+The fix retains the canonical root and its `(st_dev, st_ino)` identity rather
+than a live descriptor. It reopens and verifies that directory only after the
+suite, walks report parents through owned directory descriptors with
+`O_NOFOLLOW`, and closes root, parent and report handles on success and error
+paths. A partial write loops until complete; a zero, exception or failed close
+cannot produce a parseable complete report through this path. Unsupported
+hosts now fail before test discovery and name every missing primitive.
+
+The ten focused report-adapter cases pass on the fixed tree. Under offline,
+pinned Node v26.6.0, the Elenchus/Fiat/Protasis focus passes 155/155 and the
+complete Hexaemeron suite passes 862/862 in 153.871 seconds. The root suite
+passes 118/118. The evolution/version tests pass 14/14. Both Protasis checks,
+Promise Machine verification, all three active-plugin lints and
+`git diff --check` exit 0. The exact runbook Elenchus comparison on signed
+commit `cc984ba840d45105a20479331cec8622fc38fbe2` returns `passed`.
+
+The receipted study still hashes to
+`06f8e81b95c7ceba26ada998fe62b57a87d9afa3eea10a31813862842851abe0`.
+Every one of its seven risk ids has a disposition above.
+
+### Leads not pursued
+
+Leads not pursued: issue 429's audit schema, issue 453's evidence binding and
+production `guarded` gate, Fiat's step-2 controller field, and hostile
+background threads that continue manipulating descriptors after the suite
+returns. In-process tests already share the runner's operating-system
+authority; this fix removes the deterministic descriptor inherited across the
+whole suite and fails closed when the recorded root identity changes. A crash
+can still leave a partial fresh file, but Elenchus rejects malformed or
+incomplete JSON rather than accepting it as a completed report.
