@@ -135,6 +135,43 @@ class EmitUnittestReportTests(unittest.TestCase):
         self.assertEqual(0, payload["testsRun"])
         self.assertFalse(payload["complete"])
 
+    def test_test_cannot_retarget_a_relative_report_by_changing_cwd(self):
+        shifted_root = Path(self.temporary.name)
+        (self.root / "change_directory.py").write_text(
+            textwrap.dedent(
+                f"""\
+                import os
+                import unittest
+
+
+                class ChangeDirectory(unittest.TestCase):
+                    def test_change_directory(self):
+                        os.chdir({str(shifted_root)!r})
+                """
+            ),
+            encoding="utf-8",
+        )
+        relative_report = Path(".elenchus") / "relative.json"
+        expected = self.root / relative_report
+        redirected = shifted_root / relative_report
+
+        run = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(relative_report),
+                "change_directory.ChangeDirectory.test_change_directory",
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(0, run.returncode)
+        self.assertTrue(expected.is_file())
+        self.assertFalse(redirected.exists())
+
     def test_invalid_selector_is_an_error_report(self):
         run, payload = self.run_emitter("test_outcomes.Outcomes.test_absent")
         self.assertEqual(1, run.returncode)

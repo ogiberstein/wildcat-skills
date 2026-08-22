@@ -8152,3 +8152,66 @@ Leads not pursued: the residual check-to-use race between path validation and
 replacement requires a concurrent actor already able to mutate the worktree;
 the emitter does not claim protection from a hostile local writer, and the
 Fiat controller prevents concurrent state writers separately.
+
+## Elenchus guard verdict, step 1, round 2 -- 2026-08-22
+
+Re-reviewed the cumulative corrected tree at
+`b768992892b56b89c33762bbdb322c6c22c598f4` against all three round-1
+findings, all 12 study risks and adjacent ordinary Python failure modes. The
+recorded security-suite waiver still applies: this step ships no Solidity, so
+X-Ray, Solidity Auditor and Fizz did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| EGV-S1-R2-01 | medium | `plugins/hexaemeron/tests/emit_unittest_report.py` | A test that changed the process working directory could retarget a relative report path outside the worktree from which the emitter was invoked. The emitter resolved the report root after discovery and execution instead of binding it at entry. | fixed in this round by capturing the canonical invocation root before loading selectors and using it for report confinement; the regression was observed red on the round-1 tree and green after the fix |
+
+All three round-1 regressions were replayed explicitly. Interrupted selector
+discovery writes an incomplete zero-test report and exits 130. In-worktree
+parent and final-file symlinks are refused without creating the destination.
+The complete committed Horos document equals a fresh canonical scan, and two
+consecutive writes retain SHA-256
+`8ed91d402cb83c886bb9f3c9696d5d88cfb7e87e498a16df5c96fb067a263513`
+with 1,422 walked files and 91 entries.
+
+Adjacent path, replacement, interruption and truthfulness cases were also
+reviewed. The invocation-root regression proves a repository test cannot
+redirect a relative output by calling `os.chdir`. Absolute and relative
+targets remain confined, lexical symlinks are refused before canonical
+containment, and temporary output is written in the destination directory,
+flushed, synced and atomically replaced. Existing output is replaced only
+after a complete bounded encoding; the size-refusal case preserves the prior
+file. Assertion failures, infrastructure errors, skips, clean and zero-test
+selections, invalid selectors, discovery interruption and execution
+interruption retain distinct truthful counts and completion state. The report
+continues to contain only the fixed schema and aggregate counters.
+
+The emitter focus passes 14/14 and the boundary focus passes 5/5. The root
+suite passes 114/114 and the Hexaemeron suite passes 755/755. Both Protasis
+checks are clean, Imprimatur scores the accepted study and runbook 100 with no
+defect, Brevitas is clean on the accepted runbook, Promise Machine reports 14
+plugins, 14 copies and all 67 coverage rows clean, and `git diff --check` is
+clean. Phylax, Ephoros and Hypomnema each exit 0.
+
+All 12 risk-register ids were dispositioned. `claim-omission` and
+`source-drift` remain closed by the exact tracked and receipted study and
+runbook copies and the accepted study digest; the formal guard declaration is
+still a Step 2 obligation. `command-injection` is closed within this step:
+selectors stay in the standard-library loader, no shell or new subprocess is
+introduced, and report confinement is now bound before selector code runs.
+`verdict-forgery`, `verdict-drift` and `ref-mismatch` remain Step 2
+obligations because this tree changes no controller receipt or verdict.
+
+`diagnostic-leak` remains closed by the fixed aggregate-only schema.
+`legacy-overclaim` is unchanged because Step 1 reads and writes no controller
+state. `later-issue-leak` remains closed because no synopsis or audit-close
+policy is added. `frontier-drift` is closed because neither evolution ledger
+changes. `package-staleness` remains assigned to Step 3 because Step 1 changes
+no installed controller behaviour. `self-hosting-gap` remains visible: these
+guards execute the checked-in report writer directly and make no claim about
+the older live controller.
+
+Leads not pursued: the residual check-to-use race between validation and
+replacement, including replacement of the invocation path itself, requires a
+concurrent or test-controlled actor already able to mutate the worktree. The
+emitter does not claim protection from a hostile local writer, and the Fiat
+controller separately prevents concurrent state writers.
