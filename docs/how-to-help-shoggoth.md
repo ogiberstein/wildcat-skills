@@ -79,7 +79,7 @@ The suggested selection order is simple:
 4. If that Wave has no eligible issue, stop and explain why. Do not fall through to a frontier silently.
 5. Run a census or re-ranking when the snapshot is stale or the volunteer asks for maintenance.
 
-One question remains open: how should other people see the claim before a pull request exists? Assignment is clear but may require maintainer permission. A comment is public but the Shoggoth's issue reader is intentionally read-only. PR #445 makes the issue-number branch an early signal once the run starts. The discussion issue linked from this guide is where that boundary should be settled.
+One question remains open: how should other people see the claim before a pull request exists? Assignment is clear but may require maintainer permission. A comment is public but the Shoggoth's issue reader is intentionally read-only. PR #445 makes the issue-number branch an early signal once the run starts. [Issue #447](https://github.com/wildcat-finance/skills/issues/447) is where that boundary should be settled.
 
 ## What Fiat does with your offer
 
