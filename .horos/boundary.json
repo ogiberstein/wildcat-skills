@@ -1,14 +1,28 @@
 {
   "counts": {
-    "bytes_binary": 17,
+    "bytes_binary": 7224024,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 134192,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1410
+    "files_walked": 1415
   },
   "entries": [
+    {
+      "bytes": 2769793,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "docs/assets/how-to-help-shoggoth-infographic.png"
+    },
+    {
+      "bytes": 4454214,
+      "category": "binary",
+      "evidence": "file signature pdf",
+      "grade": "hard",
+      "path": "output/pdf/how-to-help-shoggoth.pdf"
+    },
     {
       "bytes": 3795,
       "category": "content_addressed",
