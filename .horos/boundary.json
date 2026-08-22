@@ -1,12 +1,12 @@
 {
   "counts": {
-    "bytes_binary": 7224024,
+    "bytes_binary": 39940100,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 134192,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1415
+    "files_walked": 1428
   },
   "entries": [
     {
@@ -17,11 +17,60 @@
       "path": "docs/assets/how-to-help-shoggoth-infographic.png"
     },
     {
-      "bytes": 4454214,
+      "bytes": 2168354,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "output/markdown/assets/hexaemeron-run.png"
+    },
+    {
+      "bytes": 2494851,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "output/markdown/assets/promise-machine-architecture.png"
+    },
+    {
+      "bytes": 2644096,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "output/markdown/assets/promise-machine-cover.png"
+    },
+    {
+      "bytes": 1993405,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "output/markdown/assets/promise-machine-flow.png"
+    },
+    {
+      "bytes": 2223259,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "output/markdown/assets/shoggoth-contributor-cover.png"
+    },
+    {
+      "bytes": 3036351,
+      "category": "binary",
+      "evidence": "file signature png",
+      "grade": "hard",
+      "path": "output/markdown/assets/shoggoth-help-queues.png"
+    },
+    {
+      "bytes": 8050442,
       "category": "binary",
       "evidence": "file signature pdf",
       "grade": "hard",
       "path": "output/pdf/how-to-help-shoggoth.pdf"
+    },
+    {
+      "bytes": 14559532,
+      "category": "binary",
+      "evidence": "file signature pdf",
+      "grade": "hard",
+      "path": "output/pdf/the-promise-machine-explained-properly.pdf"
     },
     {
       "bytes": 3795,

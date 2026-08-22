@@ -1,5 +1,7 @@
 # How to help evolve the Shoggoth
 
+![One external contributor carries a bounded issue packet towards the Shoggoth.](assets/shoggoth-contributor-cover.png)
+
 You do not need to understand the whole skills suite. You need one useful job, enough access to work on it, and the patience to let Fiat leave receipts.
 
 ## The sixty-second version
@@ -29,6 +31,8 @@ That is the contribution model in miniature. The contributor supplied time and j
 ## What you can volunteer for
 
 There are three useful lanes. They should be explicit because they draw work from different queues.
+
+![The Wave, frontier and maintenance contribution lanes.](assets/shoggoth-help-queues.png)
 
 | Lane | Use it for | Example |
 | --- | --- | --- |
