@@ -175,6 +175,20 @@ Checker output names a stable finding code, fault class, path, promise id when
 known and the action that clears it. JSON and text reports describe the same
 findings. The checker reaches no network and executes no evidence command.
 
+## First-party licence promise
+
+### promise-machine-first-party-licence
+
+- Promise: A successful `check --only licences` establishes that the root and every first-party plugin carry the same Apache-2.0 licence bytes, and that both host manifests name Apache-2.0 and Wildcat Labs.
+- Evidence: The fixed root `LICENSE`, discovered first-party plugin set, byte comparisons, and parsed Claude and Codex plugin manifests.
+- Evidence classes: checked, recomputed
+- Boundary: The check does not establish copyright ownership, provide legal advice, or inspect, govern, or relicense vendored work; the Pashov skill trees retain their upstream MIT licence and notices.
+- Authorises: Publishing the discovered first-party plugin surfaces with the repository's Apache-2.0 and Wildcat Labs licence declaration.
+- Consequence: 3
+- Refuses: A missing, unsafe, oversized, or divergent licence, an inconsistent host manifest, or any claim that the first-party licence covers a vendored skill.
+- Recovery: Restore the canonical root licence and first-party copies, correct the host manifests, leave vendored licences untouched, and rerun the licence check.
+- Exceptions: none
+
 ## Installation copies
 
 The root `PROMISE_MACHINE.md` is the authored source. Each

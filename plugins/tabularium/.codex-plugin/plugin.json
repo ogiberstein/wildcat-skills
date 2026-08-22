@@ -24,5 +24,6 @@
     "category": "Research",
     "capabilities": [],
     "defaultPrompt": "Use $tabularium to build or verify a source-bound Goldfinch, Euler v1 or Euler V2 credit-event release, or rebuild a Compound v3 Phase 0 witness offline."
-  }
+  },
+  "license": "Apache-2.0"
 }

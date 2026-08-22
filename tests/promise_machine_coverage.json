@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "87029c8f236ddcc4edbe01d356efe4512e5dbafef47512c92ef36936f86836f1",
+      "sha256": "6118483811cff145275fe04e82880b356bc182c92152039e88d13a941c5e2f13",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -140,9 +140,23 @@
         "exception": "canonical Exceptions field"
       }
     },
+    "fiat-study-amendment": {
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "sha256": "6118483811cff145275fe04e82880b356bc182c92152039e88d13a941c5e2f13",
+      "bindings": {
+        "promise_id": "coverage key joined to the canonical promise heading and amend:study event",
+        "subject": "current study receipt, captured candidate bytes and canonical study path",
+        "scope": "one append-only final amendment and every unbuilt-step verdict",
+        "evidence_references": "prefix digest, amendment fields, Protasis exit, write-ahead record, state receipt and ledger event",
+        "evidence_classes": "checked structure and recorded operator verdicts joined to the canonical Evidence classes field",
+        "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair",
+        "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
+        "exception": "canonical Exceptions field"
+      }
+    },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "87029c8f236ddcc4edbe01d356efe4512e5dbafef47512c92ef36936f86836f1",
+      "sha256": "6118483811cff145275fe04e82880b356bc182c92152039e88d13a941c5e2f13",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "validated state, topic, run branch, step branch and head commit",
@@ -615,6 +629,31 @@
       "selector": "test_ephoros_review_recovery",
       "claim": "The named review case records a recovery that supplies new operational evidence before review repeats.",
       "evidence_class": "recorded"
+    },
+    "fiat-amendment-p": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_valid_append_records_digest_history_and_reconstructs_the_packet",
+      "claim": "A valid append exercises the exact checked mutation and holding continuation authorised by the amendment promise."
+    },
+    "fiat-amendment-m": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_prefix_drift_refuses_without_mutating_any_durable_record",
+      "claim": "Missing exact-prefix evidence refuses the durable amendment transition before mutation."
+    },
+    "fiat-amendment-s": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_post_amendment_drift_refuses_next_and_verify",
+      "claim": "A later artefact no longer matching the amended receipt cannot inherit its authorisation."
+    },
+    "fiat-amendment-o": {
+      "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
+      "selector": "test_amendment_receipt_names_digests_verdicts_and_evidence_boundary",
+      "claim": "The command records checked structure and operator verdicts without claiming that the amendment is true."
+    },
+    "fiat-amendment-r": {
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_interrupted_replacement_is_durable_pending_work_and_recovers",
+      "claim": "An interrupted durable mutation remains labelled, blocks dependent work and can be recovered by the named rerun."
     },
     "fiat-p": {
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
@@ -1725,6 +1764,22 @@
       }
     },
     {
+      "promise_id": "fiat-study-amendment",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "fiat-amendment-p",
+        "M": "fiat-amendment-m",
+        "S": "fiat-amendment-s",
+        "O": "fiat-amendment-o",
+        "R": "fiat-amendment-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
       "promise_id": "fiat-receipted-delivery",
       "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md",
       "group": "executable",
@@ -2255,7 +2310,7 @@
     },
     {
       "promise_id": "lemma-chunk-validation",
-      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "skill_path": "plugins/lemma/skills/lemma/SKILL.md",
       "group": "executable",
       "cases": {
         "P": "chunk-solidity-p",
@@ -2271,7 +2326,7 @@
     },
     {
       "promise_id": "lemma-markdown-chunks",
-      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "skill_path": "plugins/lemma/skills/lemma/SKILL.md",
       "group": "executable",
       "cases": {
         "P": "chunk-markdown-p",
@@ -2287,7 +2342,7 @@
     },
     {
       "promise_id": "lemma-solidity-chunks",
-      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "skill_path": "plugins/lemma/skills/lemma/SKILL.md",
       "group": "executable",
       "cases": {
         "P": "chunk-solidity-p",

@@ -12,6 +12,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "promise_machine.py"
 LAW = ROOT / "PROMISE_MACHINE.md"
+LICENSE = ROOT / "LICENSE"
 FIXTURE = ROOT / "tests" / "fixtures" / "promise-machine" / "divergent-copy"
 FIXTURES = ROOT / "tests" / "fixtures" / "promise-machine"
 PROMISE_FIELDS = (
@@ -46,6 +47,21 @@ def make_plugin(root, name="example"):
             json.dumps({"name": name, "version": "0.0.0"}) + "\n",
             encoding="utf-8",
         )
+    return plugin
+
+
+def make_licensed_plugin(root, name="example"):
+    plugin = make_plugin(root, name)
+    licence = LICENSE.read_bytes()
+    (root / "LICENSE").write_bytes(licence)
+    (plugin / "LICENSE").write_bytes(licence)
+    for host in (".claude-plugin", ".codex-plugin"):
+        manifest = plugin / host / "plugin.json"
+        document = json.loads(manifest.read_text(encoding="utf-8"))
+        document["license"] = "Apache-2.0"
+        document["author"] = {"name": "Wildcat Labs"}
+        manifest.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    write_skill(plugin)
     return plugin
 
 
@@ -216,6 +232,67 @@ class PromiseLawTests(unittest.TestCase):
                         for line in copy.read_bytes().splitlines()[:5]
                     )
                 )
+
+
+class PromiseLicenceTests(unittest.TestCase):
+    def test_repository_first_party_licences_are_clean(self):
+        completed = run_cli("check", "--only", "licences", "--json")
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["counts"]["licensed_plugins"], 14)
+
+    def test_missing_root_licence_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_licensed_plugin(target)
+            (target / "LICENSE").unlink()
+            completed = run_cli(
+                "check", "--root", target, "--only", "licences", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM072", [item["code"] for item in report["findings"]])
+
+    def test_drifting_plugin_licence_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_licensed_plugin(target)
+            (plugin / "LICENSE").write_text("different\n", encoding="utf-8")
+            completed = run_cli(
+                "check", "--root", target, "--only", "licences", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM074", [item["code"] for item in report["findings"]])
+
+    def test_inconsistent_host_manifest_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_licensed_plugin(target)
+            manifest = plugin / ".codex-plugin" / "plugin.json"
+            document = json.loads(manifest.read_text(encoding="utf-8"))
+            document["license"] = "MIT"
+            manifest.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            completed = run_cli(
+                "check", "--root", target, "--only", "licences", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("PM075", [item["code"] for item in report["findings"]])
+
+    def test_vendored_skill_licence_is_outside_first_party_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            plugin = make_licensed_plugin(target)
+            vendored = write_vendored_skill(plugin)
+            self.assertNotEqual((vendored.parent / "LICENSE").read_bytes(), LICENSE.read_bytes())
+            completed = run_cli(
+                "check", "--root", target, "--only", "licences", "--json"
+            )
+        report = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(report["ok"])
 
     def test_json_report_matches_the_text_result(self):
         completed = run_cli("check", "--only", "law,copies", "--json")
@@ -473,7 +550,7 @@ class PromiseStructureTests(unittest.TestCase):
                 "lazarus-exact-replay",
                 "lazarus-preservation-release",
             },
-            "plugins/lemma/skills/chunk/SKILL.md": {
+            "plugins/lemma/skills/lemma/SKILL.md": {
                 "lemma-solidity-chunks",
                 "lemma-markdown-chunks",
                 "lemma-chunk-validation",
@@ -518,13 +595,17 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 62)
+        self.assertEqual(report["counts"]["promises"], 63)
 
     def test_hexaemeron_contract_population_is_complete(self):
         expected = {
             "elenchus": {"elenchus-fixed-and-guarded"},
             "ephoros": {"ephoros-mechanical-gate", "ephoros-observability-review"},
-            "fiat": {"fiat-receipted-delivery", "fiat-final-integration"},
+            "fiat": {
+                "fiat-study-amendment",
+                "fiat-receipted-delivery",
+                "fiat-final-integration",
+            },
             "hypomnema": {"hypomnema-pointer-gate", "hypomnema-record-placement"},
             "imprimatur": {"imprimatur-prose-gate"},
             "kronos": {
@@ -580,7 +661,7 @@ class PromiseOverlayTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 67)
+        self.assertEqual(report["counts"]["promises"], 68)
         self.assertEqual(report["counts"]["overlays"], 1)
 
     def test_one_byte_vendored_mutation_is_refused(self):
@@ -956,8 +1037,8 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 67)
-        self.assertEqual(report["counts"]["coverage_selected"], 51)
+        self.assertEqual(report["counts"]["coverage_rows"], 68)
+        self.assertEqual(report["counts"]["coverage_selected"], 52)
 
     def test_berean_and_janus_boundaries_are_explicit(self):
         coverage = json.loads(
@@ -1015,7 +1096,7 @@ class PromiseCoverageTests(unittest.TestCase):
             "transition",
             "exception",
         }
-        self.assertEqual(len(coverage["runtime"]), 29)
+        self.assertEqual(len(coverage["runtime"]), 30)
         for promise_id, binding in coverage["runtime"].items():
             with self.subTest(promise_id=promise_id):
                 self.assertEqual(set(binding), {"source", "sha256", "bindings"})
@@ -1155,7 +1236,7 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 67)
+        self.assertEqual(report["counts"]["coverage_rows"], 68)
         self.assertEqual(report["counts"]["coverage_selected"], 16)
 
     def test_prompt_and_vendored_evaluations_never_claim_proof(self):

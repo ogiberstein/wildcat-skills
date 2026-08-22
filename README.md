@@ -1,518 +1,247 @@
-# Wildcat Labs Skills
+<p align="center">
+  <img src="./assets/characters/shoggoth.png" width="1200">
+</p>
+
+# The Shoggoth
+
+The Shoggoth is a collective of specialist assistants built by
+[Wildcat Labs](https://wildcat.finance) to help crypto developers at both the
+protocol and frontend level. Its members preserve evidence, test contracts,
+measure gas, investigate failures, shape documentation, and carry engineering
+work through a controlled delivery loop.
+
+[Hexaemeron](./plugins/hexaemeron) has proved to be an effective engineer on
+work that can be reduced to explicit steps, tests, audits, and receipts. That is
+a claim about recorded repository work, not a claim that it is infallible or
+ready to operate without supervision.
+
+The illustrated [contributor guide](./docs/how-to-help-shoggoth.md), also
+available as a [PDF](./docs/pdf/how-to-help-shoggoth.pdf), explains how a
+Hexaemeron run moves from a named issue through study, implementation,
+independent review, and a pull request with evidence a maintainer can inspect.
+You do not need to understand the whole collective before taking one bounded
+job through that process.
+
+The [Shoggoth Interceptor](https://github.com/laurenceday/shoggoth-interceptor)
+puts the same collective into a harness for tearing through issue queues in
+external repositories. It is experimental and is not production-ready.
+
+The name Shoggoth can refer to one agent or the collective. The full convention
+lives in the [Shoggoth identity contract](./SHOGGOTH.md).
+
+## So, You Want To Build God?
+
+The [Shoggoth Wave Atlas](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/)
+draws at random from every open issue whose recorded hard dependencies are
+closed. Choose an assistant below. The button asks the Atlas for one issue,
+then opens a new chat with its number and a checkpoint-aware install and Fiat
+request filled in. Read it, then send it.
+
+[![OpenAI · ChatGPT](https://img.shields.io/badge/OpenAI-ChatGPT-10A37F?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/chatgpt)
+[![Anthropic · Claude](https://img.shields.io/badge/Anthropic-Claude-D97757?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/claude)
+
+You do not need to invent the work or choose among the whole backlog. The Atlas
+already holds the list and offers an eligible issue. What the project needs
+from you is the inference and judgement to understand that bounded problem and
+move it forward at one checkpoint. You do not have to carry the whole issue to
+the end. The job may be a missing regression test, an input a checker cannot
+yet handle, a weak handoff, or support for another environment. Each accepted
+piece makes the shared system more reliable, useful, or flexible for the next
+developer.
+
+The intended model lets you stop at a clean checkpoint and lets somebody else
+resume from its receipts. Durable parking of the run's `.hexaemeron` state is
+not finished yet, so reliable handover remains work in progress. The
+[contributor guide](./docs/how-to-help-shoggoth.md) and its
+[printable PDF](./docs/pdf/how-to-help-shoggoth.pdf) describe the route that
+works today. If a completed job is merged with your authorship intact, GitHub
+adds you to this repository's contributor list automatically.
+
+## What Is It?
+
+At the last recorded count, the Shoggoth had 24 members: 15 domain agents and
+9 phase agents. They are independent specialists with separate jobs, evidence,
+and refusal rules, but they can hand work to one another without pretending the
+next agent knows more than the previous one established.
+
+The collective works alongside the vendored
+[Pashov security suite](https://github.com/pashov/skills). That suite remains
+Pashov's work under its upstream MIT licence. It is included without being
+renamed, governed, or relicensed by Wildcat Labs.
 
 ## The Promise Machine
 
-Every skill in this suite is governed by the
-[Promise Machine](./PROMISE_MACHINE.md): no skill may claim more than its
-evidence establishes or authorise a more consequential transition than that
-evidence warrants. Each skill still owns its narrow job and its own evidence;
-the Promise Machine is the shared architecture that keeps those boundaries
-intact when skills, hosts and releases compose.
+Every first-party skill is governed by the
+[Promise Machine](./PROMISE_MACHINE.md). A promise says what a successful
+operation actually establishes, names the evidence behind it, and states what
+the result still does not prove. A handoff may narrow that evidence or add new
+evidence; it may not silently strengthen the claim.
 
-Agent skills written and used by [Wildcat Labs](https://wildcat.finance).
+Missing, stale, or mismatched evidence blocks only the transition that depends
+on it. Inspection, repair, rerun, rollback, and safe exit remain available.
+The machine checks the contracts, identities, installation copies, host
+manifests, evidence coverage, and first-party licence boundary. It does not
+turn a passing structural check into proof that a domain claim is true.
 
-This is where we publish workflows and agent contracts that are worth keeping.
-Each plugin has a narrow job, a clear trigger and the instructions, code,
-evidence or tests that job needs. Read a plugin before running it: skills can
-execute commands and edit source.
-
-The agents and skills are one collective. The
-[Shoggoth identity contract](./SHOGGOTH.md) explains the names collaborators
-can use for an individual member, the collective, and its Interceptor form.
-
-## Plugins
+## Meet the Shoggoth
 
 ### Alexandria
 
-[Alexandria](./plugins/alexandria) keeps heterogeneous lending data unchanged,
-then derives only the credit rows a reviewed mapping can defend.
-
+[Alexandria](./plugins/alexandria) keeps original lending and credit data intact
+and produces a smaller view whose sources and mapping choices can be checked.
+It is the archive desk: it preserves what arrived before anybody interprets it.
 
 ### Ariadne
 
-[Ariadne](./plugins/ariadne) binds a release to the evidence behind it, in a statement another person can check.
-
+[Ariadne](./plugins/ariadne) ties a released file to the evidence behind it in
+a receipt another person can inspect. It records what was built and checked;
+it does not claim that every statement inside the file is true.
 
 ### Berean
 
-[Berean](./plugins/berean) releases evidence-backed protocol agents: the
-corpus pinned by digest, every citation provable as exact bytes, every live
-value bound to a chain and block, and promotion held to an evaluation record,
-all checkable without the model that produced the answers.
-
+[Berean](./plugins/berean) tests a protocol research assistant against fixed
+source material and recorded questions. It checks whether citations point to
+the claimed bytes and whether live values belong to the stated chain and block.
 
 ### Brevitas
 
-[Brevitas](./plugins/brevitas) is the final structural pass for audit findings,
-security reviews, gas analysis, `invariant` discussion, diff review and protocol
-commentary. It controls line count, finding shape, headings, tables, code fences
-and connective prose. Imprimatur still owns vocabulary, Vulgate owns register,
-and Sapheneia owns AuDHD interaction shape.
-
+[Brevitas](./plugins/brevitas) keeps engineering writing short enough to use
+without throwing away addresses, numbers, counterexamples, reproduction steps,
+or other evidence that changes the decision.
 
 ### Hermes
 
-[Hermes](./plugins/hermes) treats Solidity gas work as a verification problem.
-
+[Hermes](./plugins/hermes) reduces the gas used by Solidity code one kind of
+change at a time. It measures the saving, reruns behaviour checks, and rejects
+an optimisation when the proof of safety or improvement does not hold.
 
 ### Hexaemeron
 
-[Hexaemeron](./plugins/hexaemeron) takes a topic from nothing to a working prototype through one receipted loop, with source-bound agent packets and verified commit receipts.
-
+[Hexaemeron](./plugins/hexaemeron) turns a request into a study, a runbook, an
+implementation, repeated independent audits, clear prose, and a controlled
+integration. Its phase agents each own one part of that process, while Fiat
+keeps the receipts and decides what may happen next.
 
 ### Horos
 
-[Horos](./plugins/horos) decides what an agent does not read. It classifies a
-repository's token sinks with evidence and emits the boundary agents consult
-before reading, so the budget goes to the code that matters.
-
+[Horos](./plugins/horos) identifies generated files, vendored trees, large data
+blobs, and other material an agent can usually leave unread. Every exclusion
+needs evidence, and no exclusion is allowed during security review.
 
 ### Janus
 
-[Janus](./plugins/janus) tests what a contract hook may observe or change
-around a host action, and what it must never touch. A host adapter and a JSON manifest state the
-permitted effects; a stateful Foundry harness records the real storage writes,
-call targets, value movements and gas across each threshold and fails when the
-delta exceeds the manifest. The first adapter is Wildcat's v2.5 market hooks.
-
+[Janus](./plugins/janus) checks what a smart-contract hook is allowed to see or
+change before and after a host action. It tests the real effects against a
+written permission boundary instead of assuming that a matching interface is
+safe.
 
 ### Lemma
 
-[Lemma](./plugins/lemma) turns Solidity compiler inputs and Markdown documents
-into JSONL chunks. The two chunkers share one schema and keep source text used
-for quotation separate from text prepared for a model or embedder.
-
+[Lemma](./plugins/lemma) divides Solidity compiler input or Markdown documents
+into source-linked JSONL records. Each record keeps quotation text separate
+from text prepared for a model or search system.
 
 ### Lazarus
 
-[Lazarus](./plugins/lazarus) preserves the finite part of historical Ethereum
-state and RPC evidence that one application test needs, then replays only the
-requests in that fixture. It also writes a preservation release: the fixture, an
-Ariadne statement about it, and a document binding the two, which a stranger can
-read back years later without either tool's authors.
-
+[Lazarus](./plugins/lazarus) preserves the finite slice of historical Ethereum
+state and RPC traffic needed by one application test. It can verify and replay
+that fixture later without quietly falling back to a live endpoint.
 
 ### Pandects
 
-[Pandects](./plugins/pandects) is a corpus of executable laws for credit
-contracts. Each law is a Solidity component with a deliberately broken
-contract it is proven to catch, a reduced counterexample, and a statement of
-the accounting model and observables it requires.
-
-The catalogue holds ten laws across conservation, accrual and withdrawal
-claims. Nine are exact.
-
+[Pandects](./plugins/pandects) turns important credit-accounting rules into
+executable Solidity checks. Each rule comes with a deliberately broken example
+that proves the test catches the failure it claims to catch.
 
 ### Probitas
 
-[Probitas](./plugins/probitas) builds a sourced dossier on what a counterparty has done across on-chain lending venues.
-
+[Probitas](./plugins/probitas) assembles a sourced picture of a counterparty's
+borrowing and repayment history from addresses they declared. Gaps remain
+visible, and the result is evidence for a human decision rather than a verdict.
 
 ### Sapheneia
 
-[Sapheneia](./plugins/sapheneia) shapes the agent's own replies for AuDHD
-engineers. It keeps the next action, task boundary, done condition, current
-state, evidence and unknowns visible from turn to turn.
-
+[Sapheneia](./plugins/sapheneia) shapes an assistant's replies for an AuDHD
+reader. It keeps the current action, boundaries, evidence, unknowns, and next
+step visible across a long task without changing the underlying facts.
 
 ### Tabularium
 
-[Tabularium](./plugins/tabularium) preserves on-chain credit events in a form
-another person can rebuild after the endpoint that served them is gone.
-Its checked-in releases include the reproducible
-[`goldfinch-v0`](./plugins/tabularium/examples/goldfinch-v0) specimen.
+[Tabularium](./plugins/tabularium) turns preserved source records into a
+rebuildable history of credit events. It keeps the source, mapping, coverage,
+and gaps beside the output so somebody else can reproduce it later.
 
+## How the members fit together
 
-## Who these are for
+The names are job boundaries, not personalities pasted onto the same general
+assistant. Alexandria preserves source material; Tabularium interprets it;
+Probitas uses it in a bounded dossier. Lemma prepares source-linked chunks;
+Berean evaluates an assistant that uses a pinned corpus. Lazarus preserves the
+historical state a test needs; Ariadne binds a finished release to its evidence.
+Pandects supplies accounting laws, Janus checks hook effects, and Hermes changes
+gas only against measurements and behavioural evidence.
 
-Scored out of 10 for doing the job, not for reading the output. A marketer can quote a verified gas number without having any use for Hermes itself.
+Hexaemeron coordinates delivery but does not absorb those jobs. It hands a
+task to the relevant specialist and records what came back. The Promise Machine
+is the shared rulebook that prevents any handoff from becoming an excuse to
+claim more.
 
-| Role | Alexandria | Ariadne | Berean | Brevitas | Hermes | Hexaemeron | Horos | Janus | Lemma | Lazarus | Pandects | Probitas | Sapheneia | Tabularium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Developers | 8 | 8 | 8 | 8 | 9 | 9 | 8 | 8 | 6 | 8 | 8 | 4 | 8 | 7 |
-| Security and audit | 8 | 9 | 7 | 10 | 7 | 8 | 2 | 9 | 4 | 8 | 9 | 5 | 7 | 7 |
-| Marketing | 1 | 1 | 2 | 1 | 3 | 6 | 1 | 1 | 1 | 1 | 1 | 1 | 3 | 1 |
-| Business development | 6 | 2 | 5 | 2 | 2 | 5 | 1 | 2 | 1 | 2 | 2 | 9 | 4 | 3 |
-| Finance | 8 | 1 | 3 | 2 | 3 | 4 | 1 | 1 | 1 | 2 | 2 | 7 | 4 | 7 |
-| Legal | 3 | 3 | 3 | 2 | 1 | 4 | 1 | 2 | 1 | 2 | 2 | 4 | 4 | 2 |
-
-Five is the barrier. At or above it, the plugin's entry carries a worked example of what that role would use it for. Below it there is no example, because there is no honest one to give. These are engineering tools, and a 2 means we could not find a reason for that desk to open the plugin rather than read what it produced.
-
-## Current status
-
-The short map of what each plugin does and what is honestly left to build.
-
-| Plugin | Use it for | Current frontier |
-| --- | --- | --- |
-| [Alexandria](./plugins/alexandria) | Preserving heterogeneous lending-source bytes, then deriving and querying reviewed credit views. | Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented. |
-| [Ariadne](./plugins/ariadne) | Binding an artefact digest to build, test, review and deployment evidence. | The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them. |
-| [Berean](./plugins/berean) | Releasing and verifying evidence-backed protocol agents against pinned corpora, preserved chain reads and an evaluation record. | The reference release answers against a frozen demonstration corpus and preserved Goldfinch mainnet reads; no release yet cites live Wildcat documentation or a captured Wildcat market read, and no Ariadne statement binds a berean release. |
-| [Brevitas](./plugins/brevitas) | Enforcing mechanical volume and structure budgets on engineering review prose while preserving evidence. | The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked. |
-| [Hermes](./plugins/hermes) | Measuring one Solidity gas-optimisation class through fail-closed Foundry checks. | Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates. |
-| [Hexaemeron](./plugins/hexaemeron) | Running an explicit, receipted delivery loop, ranking frontier work with Kronos, or using its fuzzing, audit and prose skills separately. | The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery. |
-| [Horos](./plugins/horos) | Classifying a repository's token sinks with evidence and emitting the reading boundary agents respect. | The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains. |
-| [Janus](./plugins/janus) | Stating and enforcing what a contract hook may observe and change around a host action, checked by a manifest and a stateful Foundry harness. | Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model. |
-| [Lemma](./plugins/lemma) | Producing source-linked chunks from Solidity compiler inputs or Markdown. | Callable-surface ABI validation does not independently check return types or state mutability. |
-| [Lazarus](./plugins/lazarus) | Capturing a finite fixed-block Ethereum fixture, checking proof-backed state, replaying exact requests without fallback, and releasing the fixture with a statement a stranger can check. | Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot. |
-| [Pandects](./plugins/pandects) | Supplying executable credit laws, broken specimens and reduced counterexamples. | The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records. |
-| [Probitas](./plugins/probitas) | Building a sourced counterparty dossier from declared addresses, without identity inference or a Wildcat verdict. | Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented. |
-| [Sapheneia](./plugins/sapheneia) | Shaping the agent's own replies so an AuDHD reader can see the action, boundaries, state and evidence. | Cross-model behaviour has not yet been held against a published AuDHD task corpus. |
-| [Tabularium](./plugins/tabularium) | Mapping preserved venue-native records into reproducible, venue-qualified credit events. | Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented. |
-
-## Install
-
-### Codex
-
-Add the Wildcat Labs marketplace from the Codex CLI, then list configured
-sources or fetch later updates:
-
-```bash
-codex plugin marketplace add wildcat-finance/skills
-codex plugin marketplace list
-codex plugin marketplace upgrade wildcat-labs
-```
-
-After adding it, restart the ChatGPT desktop app, open the Plugins Directory,
-select **Wildcat Labs**, and install the plugin you need.
-
-See OpenAI's [plugin packaging documentation](https://developers.openai.com/plugins/build/plugins) for the marketplace workflow.
-
-### Claude Code
-
-Add the same marketplace and install a plugin from inside Claude Code:
-
-```text
-/plugin marketplace add wildcat-finance/skills
-/plugin install alexandria@wildcat-labs
-/plugin install ariadne@wildcat-labs
-/plugin install berean@wildcat-labs
-/plugin install brevitas@wildcat-labs
-/plugin install hermes@wildcat-labs
-/plugin install hexaemeron@wildcat-labs
-/plugin install janus@wildcat-labs
-/plugin install lemma@wildcat-labs
-/plugin install lazarus@wildcat-labs
-/plugin install pandects@wildcat-labs
-/plugin install probitas@wildcat-labs
-/plugin install sapheneia@wildcat-labs
-/plugin install tabularium@wildcat-labs
-```
-
-If the install summary asks for it, run `/reload-plugins`.
-
-#### Invoke
-
-Claude namespaces plugin skills, so each entry skill answers as:
-
-```text
-/alexandria:alexandria
-/ariadne:ariadne
-/berean:berean
-/brevitas:brevitas
-/hermes:hermes
-/hexaemeron:fiat "<topic>"
-/hexaemeron:kronos
-/janus:janus
-/lemma:chunk
-/lazarus:lazarus
-/pandects:pandects
-/probitas:probitas
-/sapheneia:sapheneia
-/tabularium:tabularium
-```
-
-#### Hexaemeron's phase skills
-
-These answer on their own, without the controller:
-
-```text
-/hexaemeron:protasis
-/hexaemeron:elenchus
-/hexaemeron:phylax
-/hexaemeron:ephoros
-/hexaemeron:metron
-/hexaemeron:hypomnema
-```
-
-See Anthropic's [skills](https://code.claude.com/docs/en/skills) and [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) documentation for the underlying format.
-
-### Local agents
-
-Agents that support the open Agent Skills convention discover the single
-[Promise Machine router](./.agents/skills/promise-machine/SKILL.md). Point the
-agent at this repository and include `.agents/skills` in its project skill
-search path. The router reads the root and selected plugin runtime contracts
-before it loads one canonical skill; it does not copy their instructions or
-carry a separate behavioural version.
-
-A file-reading agent without automatic skill discovery should begin with
-[`AGENTS.md`](./AGENTS.md). That file identifies the entrypoints, path rules,
-and plugin-specific runtime contracts. Named tools in vendored skills describe
-capabilities; the Hexaemeron contract maps them to file, shell, search,
-planning, question, and subagent operations available in a local runtime.
-
-Plain-text activation works alongside host syntax:
-
-```text
-Use Alexandria to preserve this lending-data capture and query its source-bound credit view.
-Use Ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
-Use Berean to verify this release's citations, chain readings and promotion record against its pinned corpus.
-Use Brevitas to enforce evidence-preserving structural budgets on this engineering review.
-Use Hermes to optimise gas in this Foundry repository. Name the corpus rule each candidate implements.
-Use Hexaemeron Fiat to take "<topic>" through the delivery loop.
-Use Hexaemeron Fizz to generate a stateful fuzz suite.
-Use Hexaemeron Kronos to rank the held frontier jobs and run the best through Fiat until none remain.
-Use Hexaemeron Protasis to say whether this study and runbook are ready to build from.
-Use Hexaemeron Elenchus to find the root cause of this failure and guard it with a test.
-Use Hexaemeron Phylax to harden the off-chain surface of this change.
-Use Hexaemeron Ephoros to choose the events, metrics and alerts this step must emit.
-Use Hexaemeron Metron to baseline this slow path, change one thing and keep or revert on the numbers.
-Use Hexaemeron Hypomnema to record this decision where the next person will find it.
-Use Janus to check what this hook may observe and change around a host action, against a conformance manifest.
-Use Lemma to chunk this Solidity standard input into JSONL.
-Use Lazarus to capture, verify or replay this finite historical Ethereum fixture.
-Use Pandects to check this credit protocol against the executable laws in the corpus.
-Use Probitas to build a dossier on this counterparty from the addresses they declared.
-Use Sapheneia to shape your replies for an AuDHD reader for the rest of this task.
-Use Tabularium to build and verify a source-bound Goldfinch, Euler v1 or Euler V2 credit-event release.
-```
-
-Fiat remains explicit-only. Mentioning a similar delivery task does not start
-the controller unless the user names Hexaemeron or Fiat and asks to run it.
-
-## Publish
-
-Work lands here, in the public repository. What reaches an installed plugin
-depends on how that machine added the marketplace, and the two routes differ in
-who fetches the repository. Both share one way of going wrong: an installed
-plugin can sit a whole evolution behind while every link in the route it came by
-looks healthy. Neither route reports that, so both sections below end in how to
-read what a machine is actually serving.
-
-### Git-backed, which needs no publishing step
-
-A marketplace added with `/plugin marketplace add wildcat-finance/skills`, or the
-Codex equivalent, is a clone the host pulls with the operator's own git
-credentials. Pushing to `main` is the whole of publishing. Picking it up on a
-machine takes two commands that do different jobs:
-
-```bash
-claude plugin marketplace update wildcat-labs
-claude plugin update hexaemeron@wildcat-labs
-```
-
-Inside a session that is `/plugin marketplace update` and
-`/plugin update <plugin>@wildcat-labs`. In a provisioning script, pass `--yes`.
-
-Only the first of those is dependable. `marketplace update` advances the
-checkout to the repository head, so afterwards the machine does hold the new
-commits. `plugin update` then compares the version declared in the plugin's
-`.claude-plugin/plugin.json` against the version the install already records,
-and the cache is laid out to match:
-`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>` is keyed on that
-declared version and on nothing else. So a commit that changes a skill without
-bumping its plugin's version arrives in the checkout, maps to the cache slot
-already filled, and is reported as `already at the latest version`. The command
-exits zero and the machine keeps the old files.
-
-That gap was measured on 2026-08-22, over the 122 commits between an install at
-`793b112` and a head at `cd48583`. `plugin update` moved hexaemeron from 1.5.1
-to 1.5.4 and left the other thirteen plugins pinned at `793b112`, and all
-thirteen had real changes under `skills/*/SKILL.md`. Hermes was the worst of
-them: its plugin version stayed at 0.1.1 while the skill's own frontmatter went
-from 0.1.0 to 0.1.1, so the cached copy was short a 73-line `SKILL.md` diff
-carrying the pinned 120-rule gas corpus, the reference to that corpus JSON, and
-the rule refusing work outside the target's scope.
-
-Read it rather than trusting the exit code. Each install records the commit it
-was pinned to, so compare those against the head of the marketplace checkout:
-
-```bash
-git -C ~/.claude/plugins/marketplaces/wildcat-labs rev-parse HEAD
-jq -r '.plugins | to_entries[]
-  | select(.key | endswith("@wildcat-labs"))
-  | "\(.key) \(.value[0].version) \(.value[0].gitCommitSha[0:7])"' \
-  ~/.claude/plugins/installed_plugins.json
-```
-
-A plugin whose `gitCommitSha` is behind that head is serving stale files
-whatever its version says. Reinstalling it is what re-pins the commit, because
-the install is taken fresh from the checkout rather than diffed against it:
-
-```bash
-claude plugin uninstall <plugin>@wildcat-labs --keep-data
-claude plugin install <plugin>@wildcat-labs --yes
-```
-
-`--keep-data` preserves `~/.claude/plugins/data/{id}/`, and enabled status
-survived the round trip for all fourteen plugins. Do that for every plugin
-behind the head, not only the one being worked on.
-
-### Organisation-distributed, through the private mirror
-
-A marketplace distributed through
-[Organization settings > Plugins](https://claude.ai/admin-settings/plugins) is
-read server-side by the Claude GitHub App, and that repository has to be private
-or internal. Hence the second repository:
-
-- `wildcat-finance/skills` is public and holds the work.
-- `wildcat-finance/skills-marketplace` is private. A scheduled job in that
-  repository force-pushes every branch and tag from the public one into it. Its
-  cron asks for every five minutes; GitHub's scheduler has been delivering closer
-  to every twenty, so treat the interval as observed rather than declared.
-
-So the mirror is the publishing pipeline, and there is nothing to package or
-upload: organisation sync packages each plugin itself during distribution, which
-is why nobody installing needs access to a separate source repository. To
-release, merge to `main`, let the mirror run, and let organisation sync read it.
-Compare the two heads rather than waiting a fixed time, because a merge that
-lands a minute after a mirror run waits for the next one:
-
-```bash
-gh api repos/wildcat-finance/skills/commits/main --jq '.sha'
-gh api repos/wildcat-finance/skills-marketplace/commits/main --jq '.sha'
-```
-
-The job also takes a manual trigger, which is the way to release without waiting
-for the schedule:
-
-```bash
-gh workflow run sync-skills-marketplace.yml --repo wildcat-finance/skills-marketplace
-```
-
-Two constraints follow from that route rather than from taste. Plugin sources in
-`.claude-plugin/marketplace.json` stay relative paths, `./plugins/<name>`, so
-sync packages each plugin out of the mirror instead of fetching it from
-somewhere it may not be able to authenticate to. And a version bump is only
-released once it has crossed all three links: merged here, mirrored there,
-distributed by sync. Each of those links can look healthy while sitting behind
-the one before it, which is how this route produces the gap named above.
-
-### Which route a machine is on
-
-Read it rather than assuming, because the update commands above only work on one
-of them. A git-backed install holds a git checkout; an organisation-distributed
-one holds an extracted package under an opaque identifier, with a marketplace id
-and no remote, ref or commit recorded anywhere. Hexaemeron's Fiat states the
-same distinction, and what to do about a controller behind its own repository, in
-[plugin-currency.md](./plugins/hexaemeron/skills/fiat/references/plugin-currency.md).
-
-Anthropic's [marketplace documentation](https://code.claude.com/docs/en/plugin-marketplaces)
-carries the source rules, and the
-[organisation plugin workflow](https://support.claude.com/en/articles/13837433)
-carries the admin side.
+Installation, host-specific invocation, and publishing instructions live in
+[INSTALL.md](./INSTALL.md).
 
 ## Use
 
-Alexandria needs Python 3 and nothing else. Its checked-in demonstration and
-all verification paths run offline. Ask:
+### Requirements
+
+Requirements apply only to the skills and operations named in the last column.
+Checked-in examples and verification paths may need less.
+
+| Requirement | Skills | When it is needed |
+| --- | --- | --- |
+| Python 3 | Alexandria, Ariadne, Brevitas, Hermes, Hexaemeron, Horos, Janus, Pandects | Their standard-library tools and checks |
+| Python 3.9 or later | Berean, Probitas, Tabularium | Their release, dossier, and verification tools |
+| Python 3.10 or later | Lemma | All Lemma commands |
+| Python 3.11 or later plus its pinned packages | Lazarus | Capture, verification, replay, and release |
+| Git | Hermes, Hexaemeron | Worktree, diff, and receipt checks |
+| GitHub CLI (`gh`) | Hexaemeron | Issue, pull request, and integration phases |
+| Foundry | Hermes, Janus, Pandects; Ariadne and Hexaemeron when working with Foundry projects | Solidity builds, tests, measurements, and captures |
+| `solc`, Docker, or Podman | Lemma | Solidity chunking only |
+| Archive Ethereum RPC | Lazarus | Capture only; verification and replay are offline |
+| No local runtime | Sapheneia | It changes the assistant's interaction rather than running a tool |
+
+### Requests
+
+Each line below is a complete starting request for one first-party skill.
 
 ```text
 Use $alexandria to preserve this lending-data capture, derive its reviewed credit rows, and query the declared address without hiding coverage gaps.
-```
-
-The release contracts, mapping boundary and refusal rules live in
-[Alexandria's `SKILL.md`](./plugins/alexandria/skills/alexandria/SKILL.md).
-
-Ariadne needs Python 3 and nothing else. Capturing from a Foundry project needs
-that project's build output, which `forge build` already wrote. Ask:
-
-```text
 Use $ariadne to capture this release in an evidence statement, run its gates, and report its signature state without checking signatures.
-```
-
-The gates, the predicate and the refusals live in [Ariadne's `SKILL.md`](./plugins/ariadne/skills/ariadne/SKILL.md).
-
-Berean needs Python 3.9 or later and nothing else. Its checked-in reference
-release and every verification path run offline. Ask:
-
-```text
-Use $berean to verify this release's citations, chain readings and promotion record against its pinned corpus.
-```
-
-The release contract, the gates and the refusals live in
-[Berean's `SKILL.md`](./plugins/berean/skills/berean/SKILL.md).
-
-Brevitas needs Python 3 and no third-party package. Ask:
-
-```text
-Use $brevitas to compress this engineering review without dropping addresses, transaction hashes, file:line references, numbers, counterexamples or reproduction steps.
-```
-
-The budgets, evidence precedence and exception rule live in
-[Brevitas's `SKILL.md`](./plugins/brevitas/skills/brevitas/SKILL.md).
-
-Hermes needs Python 3, Git and [Foundry](https://getfoundry.sh/) available in the target repository. Start Codex from a clean Foundry worktree, then ask:
-
-```text
+Use $berean to verify this release's citations, chain readings, and promotion record against its pinned corpus.
+Use $brevitas to shorten this engineering review without dropping addresses, hashes, file-and-line references, numbers, counterexamples, or reproduction steps.
 Use $hermes to optimise gas in this repository. Name the corpus rule each candidate implements, work one optimisation class at a time, and keep the complete verification record.
-```
-
-The full command contract, layout rules and property standard live in [Hermes's `SKILL.md`](./plugins/hermes/skills/hermes/SKILL.md).
-
-Hexaemeron needs Python 3, Git and `gh` in the target repository (plus [Foundry](https://getfoundry.sh/) when the run ships Solidity). Ask:
-
-```text
-Use $hexaemeron to take "<topic>" from study to a merged delivery, one receipted phase at a time.
-```
-
-The loop, the receipt contract and the controller reference live in [Hexaemeron's `SKILL.md`](./plugins/hexaemeron/skills/fiat/SKILL.md).
-
-Lemma needs Python 3.10 or later. Solidity input also needs `solc`, Docker, or
-Podman. Ask:
-
-```text
-Use $chunk to turn this Solidity standard input into validated JSONL chunks.
-```
-
-The command selection and output rules live in [Lemma's `chunk` skill](./plugins/lemma/skills/chunk/SKILL.md).
-
-Lazarus needs Python 3.11 or later and the packages pinned in its lock file.
-Capture is the only command that needs an archive RPC; verification, replay and
-the shipped Goldfinch demonstration run offline. Ask:
-
-```text
+Use $fiat to take this issue from study to a merged delivery, one receipted phase at a time.
+Use $kronos to rank the held frontier jobs and run the best eligible one through Fiat until none remain.
+Use $protasis to decide whether this study and runbook are ready to build from.
+Use $elenchus to find the cause of this failure, fix it, and leave a test that fails without the fix.
+Use $phylax to harden the off-chain inputs, subprocesses, network calls, secrets, dependencies, and model-output boundary of this change.
+Use $ephoros to decide which events, metrics, traces, and alerts this step must emit so an operator can explain it later.
+Use $metron to measure this slow path, change one thing, measure it the same way, and keep or revert the change on the result.
+Use $hypomnema to record this decision, its alternatives, and its consequences where the next person will find them.
+Use $imprimatur to check this draft for banned wording and unsupported technical claims.
+Use $vulgate to rewrite this draft in plain human language without changing what it says.
+Use $horos to create or check an evidence-backed reading boundary for this repository; do not apply it during security review.
+Use $janus to check this hook against a conformance manifest for what it may observe and change around a host action.
+Use $lemma to turn this Solidity compiler input or Markdown tree into validated, source-linked JSONL chunks.
 Use $lazarus to capture this finite historical fixture, verify its proof-backed state, and replay only its exact requests.
-```
-
-The evidence boundary, refusal rules and commands live in [Lazarus's `SKILL.md`](./plugins/lazarus/skills/lazarus/SKILL.md).
-
-Pandects needs Python 3, and [Foundry](https://getfoundry.sh/) for the campaign
-its runner knows. Ask:
-
-```text
 Use $pandects to check this credit protocol against the executable laws in the corpus.
-```
-
-The laws, their broken specimens and the engine boundary live in
-[Pandects's `SKILL.md`](./plugins/pandects/skills/pandects/SKILL.md).
-
-Probitas needs Python 3 and nothing else. Neither shipped venue asks for a key, and `--fixtures` runs it with no network at all. Ask:
-
-```text
-Use $probitas to build a sourced dossier on "<entity>" from the addresses they declared.
-```
-
-The sequence, the five gates and the refusals live in [Probitas's `SKILL.md`](./plugins/probitas/skills/probitas/SKILL.md).
-
-Sapheneia needs no runtime dependency. Ask:
-
-```text
+Use $probitas to build a sourced dossier on this counterparty from the addresses they declared.
 Use $sapheneia to shape your replies for an AuDHD reader throughout this task.
+Use $tabularium to build or verify a reproducible release of sourced credit events without hiding coverage gaps.
 ```
 
-The activation contract and ten ranked rules live in
-[Sapheneia's `SKILL.md`](./plugins/sapheneia/skills/sapheneia/SKILL.md).
-
-Tabularium needs Python 3.9 or later and nothing else. Its shipped releases and
-tests use no network. Ask:
-
-```text
-Use $tabularium to rebuild the checked-in Euler V2 release and verify it offline.
-```
-
-The mapping, release rules and evidence boundary live in
-[Tabularium's `SKILL.md`](./plugins/tabularium/skills/tabularium/SKILL.md).
+Fiat remains explicit-only. Describing a delivery task does not start the
+controller unless the user names Fiat or Hexaemeron and asks it to run.
+The Pashov suite keeps its upstream invocation and operating instructions.
 
 ## Repository layout
 
@@ -524,66 +253,39 @@ plugins/<name>/
 ├── .claude-plugin/plugin.json    host manifests; discovery and installation only
 ├── .codex-plugin/plugin.json
 ├── AGENTS.md                     runtime contract and selection table
+├── LICENSE                       first-party plugin licence
 ├── README.md                     landing page
 ├── tests/
 └── skills/<skill>/SKILL.md       canonical instructions, one directory per skill
 ```
 
-Every plugin has that shape. What each adds beyond it:
+Hexaemeron also carries the Pashov suite as a vendored, upstream-owned set.
+Those skill directories keep their own MIT `LICENSE` and `NOTICE.md`; the
+first-party Apache licence does not replace or govern them.
 
-| Plugin | Skills | Also carries |
-| --- | --- | --- |
-| Alexandria | `alexandria` | docs, examples, schemas, scripts |
-| Ariadne | `ariadne` | audit, docs, examples, schemas, scripts |
-| Berean | `berean` | docs, examples, schemas, scripts |
-| Brevitas | `brevitas` | evals |
-| Hermes | `hermes` | references and scripts inside the skill |
-| Hexaemeron | `fiat`, `kronos`, `imprimatur`, `vulgate`, the vendored `x-ray`, `solidity-auditor` and `fizz`, and `protasis`, `elenchus`, `phylax`, `ephoros`, `metron`, `hypomnema` | agents, audit, docs |
-| Janus | `janus` | a Foundry harness, hook-manifest schema, hostile reference hooks, the Wildcat host adapter, scripts |
-| Lazarus | `lazarus` | docs, examples, schemas, scripts, pinned requirements |
-| Lemma | `chunk` | chunkers, baseline, schema, solc container, tools |
-| Pandects | `pandects` | Solidity under `src` and `test`, adapters, catalogue, specimens, integrations, audit |
-| Probitas | `probitas` | assets, audit, docs, scripts |
-| Sapheneia | `sapheneia` | nothing further |
-| Tabularium | `tabularium` | audit, docs, examples, schemas, scripts |
+Codex, Claude Code, and portable agents load the same canonical skill
+directories. Host manifests handle discovery and installation only. The target
+repository's own instructions and the active skill's checks still apply.
 
-Codex and Claude Code load the same skill directory. The host manifests only handle discovery and installation; each plugin's instructions, harness and acceptance conditions stay shared. Target-repository instructions still apply. More will turn up here as they become useful enough to keep.
+## Wildcat Commons
 
-Local agents load the same canonical directories through the Promise Machine
-router. The portable layer changes discovery only; it does not weaken a
-skill's checks, broaden its promise or invent receipts for work that did not
-run.
+The [Wildcat Commons](https://wildcat.finance) is in the process of creating an
+accessible, permanent repository of credit-related data. This suite supplies
+the tools needed to preserve original inputs, create reproducible credit-event
+records, state executable credit laws, preserve historical test fixtures,
+assemble evidence-bounded dossiers, evaluate source-grounded assistants, test
+Wildcat hook boundaries, and bind releases to their evidence.
 
-# Wildcat Commons
+Those tools have all been produced: [Alexandria](./plugins/alexandria),
+[Tabularium](./plugins/tabularium), [Pandects](./plugins/pandects),
+[Lazarus](./plugins/lazarus), [Probitas](./plugins/probitas),
+[Berean](./plugins/berean), [Janus](./plugins/janus), and
+[Ariadne](./plugins/ariadne). Their individual boundaries still apply; the
+Commons description does not turn a recorded source into verified truth or a
+dossier into a lending verdict.
 
-Wildcat Labs spends much of its time on trust roots, attestation,
-accountability and verification. That follows from the sphere it works in. In
-private credit, trust is the most valuable currency there is, and a promise is
-worth only as much as the evidence and recourse behind it.
+## Licence
 
-Doing that work keeps exposing the same missing tools: a durable public record
-of on-chain credit, shared laws for credit implementations, agents that can show
-their sources, a conformance suite for hooks and a way to replay chain state
-after the original infrastructure is gone. Carrying evidence with a release was
-the first of them, and `ariadne` above is the answer to it. Preserving the credit
-record was the next, and `tabularium` now has Goldfinch and two Euler protocol
-generations. `pandects` now
-carries the shared credit laws. `lazarus` preserves and replays a finite slice
-of historical state. Another protocol, auditor, researcher or agent builder
-should be able to use each one without needing to use Wildcat. `alexandria`
-now keeps the heterogeneous raw record and serves a reviewed address view to
-`probitas` without making either one own the other's claims. Agents that can
-show their sources were the next gap, and `berean` now carries the release
-contract, verifier and evaluation corpus for them. The conformance suite for
-hooks was the last, and [`janus`](./plugins/janus) now states what a hook may
-observe and change around a host action and checks a hook against that
-manifest, with the Wildcat v2.5 seam as its first host adapter.
-
-Both tools the Commons had named as still missing now ship.
-
-These are tools we wanted and then needed. Their formats, datasets, properties,
-fixtures and tests become more useful when other teams can inspect, run and
-improve them, so that is who they are for too.
-
-If Wildcat Labs means what it says about the Commons, publishing only the work
-that happens to be convenient is not enough. Fine. We'll do it ourselves.
+Wildcat Labs first-party work in this repository is licensed under
+[Apache-2.0](./LICENSE). The vendored Pashov skill set is explicitly excluded
+and remains under its upstream MIT licence and notices.

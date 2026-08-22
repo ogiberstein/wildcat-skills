@@ -26,5 +26,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $janus to check a contract hook against a conformance manifest for what it may observe and change around a host action."
-  }
+  },
+  "license": "Apache-2.0"
 }

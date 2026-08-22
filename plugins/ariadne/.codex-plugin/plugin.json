@@ -26,5 +26,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $ariadne to inspect what this attestation covers and which of its gates hold."
-  }
+  },
+  "license": "Apache-2.0"
 }
