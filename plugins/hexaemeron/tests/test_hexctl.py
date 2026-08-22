@@ -1,5 +1,6 @@
 """End-to-end tests for hexctl, run through the CLI the way the skill uses it."""
 
+import glob
 import json
 import hashlib
 import os
@@ -2842,3 +2843,157 @@ class FrontierGateTests(unittest.TestCase):
             held = json.load(fh)["frontier"]
         self.assertEqual(held["rows"], 1)
         self.assertEqual(held["sha256"], self.before["sha256"])
+
+
+def compact_row(version, axis, revision, digest, change="Did the thing."):
+    return f"- `{version}` | {axis} | `{revision}` | `{digest}` | [e](f) | {change}\n"
+
+
+class LedgerRowShapeTests(unittest.TestCase):
+    """The gate and the suite parse the same row set, whichever shape a
+    ledger spells its history in.
+
+    tests/test_evolution_contract.py accepts a table row and a compact bullet
+    row; the issue 322 run halted because the gate read only the first, saw a
+    two-row ledger as empty at init, and refused the one real new row at
+    integrate (skills#443).
+    """
+
+    def test_a_compact_bullet_row_parses(self):
+        digest = "a" * 64
+        rows = hexctl_module().ledger_rows(
+            compact_row("example-v0.1.0", "baseline", "held-job", digest))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["version"], "example-v0.1.0")
+        self.assertEqual(rows[0]["digest"], digest)
+
+    def test_a_table_row_still_parses(self):
+        digest = "b" * 64
+        rows = hexctl_module().ledger_rows(
+            row("example-v0.1.0", "baseline", "held-job", digest))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["version"], "example-v0.1.0")
+
+    def test_the_gate_parses_every_governed_ledger_in_the_tree(self):
+        repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        ledgers = sorted(
+            glob.glob(os.path.join(repo, "plugins", "*", "skills", "*", "EVOLUTION.md")))
+        self.assertTrue(ledgers)
+        module = hexctl_module()
+        for ledger in ledgers:
+            with self.subTest(ledger=os.path.relpath(ledger, repo)):
+                with open(ledger, encoding="utf-8") as fh:
+                    text = fh.read()
+                self.assertTrue(
+                    module.ledger_rows(text),
+                    "a governed ledger parsed as having no history rows")
+
+
+class FrontierGateCompactTests(FrontierGateTests):
+    """The whole gate, over a ledger spelled in the compact bullet shape."""
+
+    def setUp(self):
+        super().setUp()
+        self.base_row = compact_row(
+            "widget-v1.1.0", "baseline", self.HELD[1], self.base_digest,
+            "Versioning starts here.")
+        widget_ledger(self.ledger, [self.base_row], version="widget-v1.1.0",
+                      status=self.HELD[0], revision=self.HELD[1],
+                      frontier=self.HELD[2], job=self.HELD[3])
+        with open(self.ledger, "rb") as handle:
+            self.before["sha256"] = hashlib.sha256(handle.read()).hexdigest()
+
+    def close_with(self, version, axis, header=None, digest=None, extra=()):
+        header = header or self.NEXT
+        widget_ledger(
+            self.ledger,
+            [self.base_row, compact_row(version, axis, header[1],
+                                        digest or frontier_digest(*header)),
+             *extra],
+            version=version, status=header[0], revision=header[1],
+            frontier=header[2], job=header[3])
+
+    def test_two_new_rows_are_refused(self):
+        self.close_with("widget-v2.1.0", "evolution",
+                        extra=[compact_row("widget-v3.1.0", "evolution",
+                                           self.NEXT[1],
+                                           frontier_digest(*self.NEXT))])
+        self.assertIn("gained 2 history row(s)", self.fault())
+
+    def test_a_header_row_mismatch_is_refused(self):
+        widget_ledger(
+            self.ledger,
+            [self.base_row, compact_row("widget-v2.1.0", "evolution",
+                                        self.NEXT[1],
+                                        frontier_digest(*self.NEXT))],
+            version="widget-v7.7.7", status=self.NEXT[0], revision=self.NEXT[1],
+            frontier=self.NEXT[2], job=self.NEXT[3])
+        self.assertIn("they have to be the same row", self.fault())
+
+
+class FrontierGateLegacySnapshotTests(unittest.TestCase):
+    """A snapshot taken while the gate could not see compact rows counted a
+    real history as empty. The gate anchors on the init-time version instead
+    of trusting that count, so such a run can still close honestly."""
+
+    HELD = FrontierGateTests.HELD
+    NEXT = FrontierGateTests.NEXT
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.ledger = os.path.join(
+            self.dir, "plugins", "demo", "skills", "widget", "EVOLUTION.md")
+        digest = frontier_digest(*self.HELD)
+        self.rows = [
+            compact_row("widget-v0.1.0", "baseline", self.HELD[1], digest,
+                        "Versioning starts here."),
+            compact_row("widget-v1.1.0", "evolution", self.HELD[1], digest),
+        ]
+        widget_ledger(self.ledger, self.rows, version="widget-v1.1.0",
+                      status=self.HELD[0], revision=self.HELD[1],
+                      frontier=self.HELD[2], job=self.HELD[3])
+        with open(self.ledger, "rb") as handle:
+            ledger_sha256 = hashlib.sha256(handle.read()).hexdigest()
+        self.before = {
+            "ledger": os.path.relpath(self.ledger, self.dir),
+            "sha256": ledger_sha256,
+            "rows": 0,
+            "version_at_init": "widget-v1.1.0",
+        }
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def fault(self):
+        return hexctl_module().frontier_close_fault(self.ledger, self.before)
+
+    def test_one_row_after_the_init_version_closes(self):
+        widget_ledger(
+            self.ledger,
+            [*self.rows, compact_row("widget-v2.1.0", "evolution", self.NEXT[1],
+                                     frontier_digest(*self.NEXT))],
+            version="widget-v2.1.0", status=self.NEXT[0], revision=self.NEXT[1],
+            frontier=self.NEXT[2], job=self.NEXT[3])
+        self.assertIsNone(self.fault())
+
+    def test_two_rows_after_the_init_version_are_refused(self):
+        widget_ledger(
+            self.ledger,
+            [*self.rows,
+             compact_row("widget-v2.1.0", "evolution", self.NEXT[1],
+                         frontier_digest(*self.NEXT)),
+             compact_row("widget-v3.1.0", "evolution", self.NEXT[1],
+                         frontier_digest(*self.NEXT))],
+            version="widget-v3.1.0", status=self.NEXT[0], revision=self.NEXT[1],
+            frontier=self.NEXT[2], job=self.NEXT[3])
+        self.assertIn("gained 2 history row(s)", self.fault())
+
+    def test_a_vanished_init_version_row_is_refused(self):
+        widget_ledger(
+            self.ledger,
+            [compact_row("widget-v2.1.0", "evolution", self.NEXT[1],
+                         frontier_digest(*self.NEXT))],
+            version="widget-v2.1.0", status=self.NEXT[0], revision=self.NEXT[1],
+            frontier=self.NEXT[2], job=self.NEXT[3])
+        self.assertIn("no longer carries the init-time version row", self.fault())

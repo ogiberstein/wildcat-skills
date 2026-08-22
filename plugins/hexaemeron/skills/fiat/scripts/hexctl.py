@@ -757,15 +757,26 @@ LEDGER_ROW = re.compile(
     r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
     r"\| (?P<evidence>.*?) \| (?P<change>.*?) \|$"
 )
-"""One history row. Deliberately the same shape tests/test_evolution_contract.py
-matches, so the gate and the suite cannot disagree about what a row is."""
+LEDGER_ROW_COMPACT = re.compile(
+    r"^- `(?P<version>[^`]+)` \| (?P<axis>baseline|evolution|generation|epoch) "
+    r"\| `(?P<revision>[^`]+)` \| `(?P<digest>[0-9a-f]{64})` "
+    r"\| (?P<evidence>.*?) \| (?P<change>.*?)$"
+)
+"""One history row, in either spelling tests/test_evolution_contract.py
+accepts, so the gate and the suite cannot disagree about what a row is.
+Reading only the table shape counted a compact-list ledger as empty and
+refused a real completed frontier (skills#443)."""
 
 LEDGER_AXES = ("baseline", "evolution", "generation", "epoch")
 
 
 def ledger_rows(text: str) -> list[dict]:
-    return [m.groupdict() for m in
-            (LEDGER_ROW.fullmatch(line) for line in text.splitlines()) if m]
+    rows = []
+    for line in text.splitlines():
+        match = LEDGER_ROW.fullmatch(line) or LEDGER_ROW_COMPACT.fullmatch(line)
+        if match:
+            rows.append(match.groupdict())
+    return rows
 
 
 def ledger_field(text: str, name: str) -> str | None:
@@ -866,7 +877,16 @@ def frontier_close_fault(path: str, before: dict) -> str | None:
                 f"frontier job records one new row")
 
     rows = ledger_rows(text)
-    gained = len(rows) - before["rows"]
+    # Anchor on the init-time version rather than the stored count: a snapshot
+    # taken while the gate misread a ledger's row spelling counted a real
+    # history as empty, and the anchor survives that (skills#443).
+    anchor = before.get("version_at_init")
+    anchor_at = [i for i, r in enumerate(rows) if r["version"] == anchor]
+    if anchor is not None and not anchor_at:
+        return (f"{path} no longer carries the init-time version row "
+                f"{anchor!r}; history is append-only")
+    gained = (len(rows) - (anchor_at[-1] + 1) if anchor_at
+              else len(rows) - before["rows"])
     if gained != 1:
         return (f"{path} gained {gained} history row(s); the contract allows "
                 f"exactly one per completed frontier job")

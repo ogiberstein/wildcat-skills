@@ -1,0 +1,9 @@
+groups:
+  - name: markets
+    rules:
+      - alert: DepositStalled
+        expr: pending_deposits > 5
+        labels:
+          wallet_address: "{{ $labels.wallet_address }}"
+        annotations:
+          runbook: runbooks/deposit-stalled.md

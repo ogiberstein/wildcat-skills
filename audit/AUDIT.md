@@ -7429,6 +7429,308 @@ exactly one copy of each required Shoggoth trailer.
 
 Leads not pursued: none.
 
+## Ephoros wallet-address telemetry, step 1, round 1 -- 2026-08-21
+
+The exact range `6412c85d7cfd352e21fcc3dc0d8cef39a0649976..a1af4b888b1c181b2a0267b6feee2156abcee238`
+contains the two committed specification copies and nothing else. No product
+source or Solidity changed, so the recorded security-suite waiver applies and
+the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Protasis accepts both tracked specifications, study mode and runbook mode each
+exiting 0. Imprimatur exits 0 on each document. Phylax, Ephoros and Hypomnema
+each exit 0 over the two changed files. The Hexaemeron suite passes 640/640 and
+the root suite 107/107. Promise Machine reports 14 plugins and 14 copies clean.
+The step head has a valid local signature and exactly one of each required
+Shoggoth trailer.
+
+The review covered all 8 source-bound risks: `ts-lexer-input`,
+`false-positive-cache-keys`, `rule-boundary-drift`, `e002-reassignment`,
+`suppression-parity`, `yaml-label-keys`, `fixture-exclusion` and
+`walk-widening`. Each names an implementation obligation of steps 2 through 4;
+this documents-only step records them without implementing or weakening any.
+
+Leads not pursued: none.
+
+## Ephoros wallet-address telemetry, step 2, round 1 -- 2026-08-21
+
+The exact range `485023a30468f898068454fb92e10ae2b547a604..a88b649c1993c95babe2d848c220efc1e4f966bc`
+holds the E005 recognisers in Python and block-YAML, ten fixtures under
+`telemetry-keys/` and 21 new checker tests. No Solidity changed, so the
+recorded security-suite waiver applies and the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Phylax, Ephoros and Hypomnema each exit 0. The focused checker suite passes
+67/67, the Hexaemeron suite 661/661 and the root suite 107/107. The step head
+has a valid local signature and exactly one of each required Shoggoth trailer.
+
+The review ran roughly seventy adversarial specimens against the checker
+beyond the committed tests. The register ids in this step's reach were each
+worked by execution: `e002-reassignment` (overlap labels such as
+`wallet_hash` and `address_url` yield exactly one code, E005; `tx_hash` keeps
+E002; a mixed label set yields one of each), `yaml-label-keys` (25 probes:
+block scalars, quoted keys, list forms, flow mappings, comment interruptions,
+alert-boundary containment and `annotations:` nesting all behave inside the
+E004 subset, and E004 and E005 co-fire where both apply), `suppression-parity`
+in its Python half (a reasoned pragma on the line and the line above
+suppresses all three shapes, a bare pragma suppresses none, and pragma-shaped
+text inside scalars is inert) and `fixture-exclusion` (the walk reaches zero
+`telemetry-keys/` files while an identical specimen outside a fixtures
+directory is caught, exit 1). A parent-to-head differential over every
+pre-existing fixture shows E001 to E004 unmoved; the one modified test is the
+sanctioned E002-to-E005 guard re-pin. `ts-lexer-input`, the TypeScript half of
+`suppression-parity`, `false-positive-cache-keys` and `walk-widening` are not
+applicable until step 3 opens that surface.
+
+Leads not pursued: the `s?` suffix shared by `ADDRESS_KEY` and the
+pre-existing `UNBOUNDED` regex misses `-es` plurals such as `addresses` and
+`hashes`, a checker-wide lexical gap that predates this commit and belongs to
+a deliberate rule-widening decision; the E005 message says wallet address for
+any `address`-fragment key such as `ip_address`, a wording the SKILL.md prose
+in step 4 should state; nested mappings under `labels:` pass silently because
+recognition is direct-children-only, worth a line in the same step 4 prose.
+
+## Ephoros wallet-address telemetry, step 3, round 1 -- 2026-08-21
+
+The exact range `e78a3cac6d684e474dbf5d78c65bd8faa5d84417..41f5da1d637826851bdc8c647da3df3dc590d49f`
+opens the TypeScript surface: `check_typescript` through the shared masked
+lexer, the widened walk, and 20 new checker tests. No Solidity changed, so the
+recorded security-suite waiver applies and the Pashov pair did not run. The
+three lints and both suites were green; every finding below came from
+adversarial probes beyond the committed tests.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | high | scripts/ephoros.py | a ~3 KB nested-template file raises RecursionError through the shared lexer, crashes the run and drops sibling findings, falsifying the E000 fail-closed claim | fixed in 2a464fe |
+| S3-R1-02 | medium | scripts/ephoros.py | pragma text inside a TS string or template suppresses a real E005; allow lines were read from raw text rather than comment spans | fixed in 2a464fe |
+| S3-R1-03 | medium | scripts/ephoros.py | TS E000 findings were suppressible, so a crafted unterminated file plus a pragma vanished with exit 0 | fixed in 2a464fe |
+| S3-R1-04 | medium | scripts/ephoros.py | the widened ALLOW grammar leaked `//` pragma semantics into Python files, changing parent behaviour out of step scope | fixed in 2a464fe |
+| S3-R1-05 | medium | scripts/ephoros.py | `index:` string-literal values were missed because the property regex ran over the blanked mask | fixed in 2a464fe |
+| S3-R1-06 | low | scripts/ephoros.py | canonical prom-client `labelNames:` spelling unrecognised | fixed in 2a464fe |
+| S3-R1-07 | low | scripts/ephoros.py | optional chaining `?.` defeated every recogniser | fixed in 2a464fe |
+| S3-R1-08 | low | tests/test_ephoros_checker.py | five YAML alert-label tests were absorbed into a TypeScript-named class | fixed in 2a464fe |
+| S3-R1-09 | info | scripts/ephoros.py | `#` pragmas suppressed inside `.ts` files under the same un-gated grammar | fixed in 2a464fe |
+
+Each fix landed under the guard-test convention, red observed then green: 13
+tests over the step head's 87, for 100 focused cases. After the fixes the
+clone run stays clean at exit 0 with zero pragmas and an empty porcelain, the
+tree lint exits 0, the Hexaemeron suite passes 694/694 and the root suite
+107/107. Phylax still exits 0 over the changed checker and over the clone's
+`src`, and a mixed secret-plus-address specimen draws exactly one code from
+each lint, so the boundary between the two holds. A parent-to-head
+differential over E001 to E003, the Python E005 shapes, Python suppression and
+the YAML shapes shows zero mismatches beyond the sanctioned fixes.
+
+The register ids this step opens were each worked by execution:
+`ts-lexer-input` (cap exact at 1 MiB and applied before lexing, 0.2 ms refusal
+on cap-plus-one; unterminated constructs, invalid UTF-8, BOM, CRLF, JSX and
+regex ambiguity all E000 or clean; no execution or import of inspected
+source), `false-positive-cache-keys` (the clone's five real address patterns
+stay clean while tags shorthand, statsd tags, instance labels, positional hex
+and attributes fire), `suppression-parity` in its TypeScript half (line and
+line-above suppress, bare and block-comment pragmas do not), `walk-widening`
+(`node_modules` excluded by test and probe, symlinked directories not
+traversed, and the walked `dist`/`build` question checked against both named
+trees, which hold no tracked build output today) and `rule-boundary-drift`
+(no P004 to P007 pattern duplicated or moved).
+
+Leads not pursued: the shared lexer's recursion defect itself stays in
+`plugins/hexaemeron/lib/typescript_lexer.py` and reproduces identically under
+phylax, which predates this run; ephoros now contains it at its own boundary,
+and the lexer fix belongs to a deliberate change on the owning surface,
+carried forward for the run report. Computed object keys and method-call
+dashboard access pass on both language sides alike, parity holds and widening
+either is a rule decision nobody has asked for. The study's count of 882
+tracked TypeScript files reads 875 at the pinned clone commit, a
+study-document discrepancy with no bearing on any acceptance command.
+
+## Ephoros wallet-address telemetry, step 3, round 2 -- 2026-08-21
+
+The round audited the fixed tree at `2a464fe` with the seams of round 1's nine
+fixes as its focus. All nine held: the recursion containment survives five
+other lexer stress paths and an exception-injection probe, the comment-span
+pragma collection holds under CRLF, JSX, template-expression and
+file-boundary edges, E000 stays unsuppressible without over-rotating real
+findings, and a three-way differential shows parent Python behaviour exactly
+restored. The three lints and both suites were green; the findings below came
+from fresh probes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | low | scripts/ephoros.py | the `?.[` bracket form of optional chaining still defeated the subscript recognisers, an ordinary shape with 16 occurrences in the pinned clone | fixed in 82e7274 |
+| S3-R2-02 | low | scripts/ephoros.py | a whitespace-separated dotted chain scanned quadratically, 62.8 seconds at 100 KB and hours at the cap, inside the untrusted-read boundary; introduced by this step's range and missed in round 1 | fixed in 82e7274 |
+| S3-R2-03 | info | scripts/ephoros.py | a `//` pragma inside a block comment suppressed, against the documented line-comment grammar | fixed in 82e7274 |
+| S3-R2-04 | info | scripts/ephoros.py | a constant template-literal index value was missed while the quoted forms fired | fixed in 82e7274 |
+
+The scan fix is structural rather than a cap: chain parsing is anchored to
+bracket positions and runs once, backwards, per bracket, taking the
+adversarial 100 KB specimen from 58.7 seconds to 0.017 and the same content at
+the full 1 MiB cap to 0.177 seconds, with a normal 1 MiB file at 0.295
+seconds -- measured before and after through the real check path, as metron
+requires. Ten guard tests landed with the fixes, six observed red first and
+four pinning negatives, for 110 focused cases. After the fixes the clone run
+stays clean at exit 0 with zero pragmas and an empty porcelain, the tree lint
+exits 0, the Hexaemeron suite passes 704/704, the root suite 107/107, and
+phylax and hypomnema each exit 0.
+
+Leads not pursued: the Python `#` pragma matches inside a Python string, a
+line-based behaviour identical at the step-2 parent and outside this step's
+diff, belonging to a deliberate decision on that surface; the shared lexer's
+recursion defect stays carried forward for the owning surface; read and write
+subscripts both fire on both language sides alike, a parity-preserving rule
+decision nobody has asked to change; a constant backtick literal now counts
+as a string in every constant-key position, semantically identical to the
+quoted forms, with the self-lint and clone run clean under it.
+
+## Ephoros wallet-address telemetry, step 3, round 3 -- 2026-08-21
+
+The round audited the tree at `82e7274` with round 2's fix seams as its
+focus and one converging sweep. All thirteen earlier fixes held: the backward
+chain parser was differentialed against the old grammar over a 65-shape
+corpus, four thousand seeded fuzz cases and a findings-level comparison across
+all 882 clone TypeScript files with zero unexpected deltas, and the pragma,
+backtick and regression seams each held under execution. The three lints and
+both suites were green; the findings below came from the sweep's mandated
+adversarial shapes.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-01 | medium | scripts/ephoros.py | deeply nested brackets scanned quadratically through `_matching`, extrapolating to roughly 1.9 hours at the 1 MiB cap, the `ts-lexer-input` register class | fixed in 7295cfe |
+| S3-R3-02 | low | scripts/ephoros.py | a findings-saturated file paid a per-finding newline count, 9.9 seconds for fifty thousand findings | fixed in 7295cfe |
+
+Both fixes are structural and measured before and after through the real
+check path, as metron requires: one linear stack pass maps every opening
+bracket to its closer and cheap sink-name gates precede all span work, taking
+the nested specimen at cap scale from an extrapolated 1.9 hours to 0.814
+seconds; a per-file newline table with bisect takes the saturated specimen
+from 9.877 to 0.526 seconds with line numbers pinned identical at the first,
+middle and last finding. Two guard tests land the specimens at runtime,
+asserting completion, exact counts and exact line numbers rather than
+wall-clock. After the fixes the focused suite passes 112, the Hexaemeron suite
+706/706, the root suite 107/107, the tree lint exits 0 and the clone run stays
+clean at exit 0 in 0.886 seconds with an empty porcelain.
+
+Leads not pursued: a generic-call type argument hides the chain from both the
+old and new grammars alike, a lexical depth the study declares a non-goal; a
+name carrying both dashboard and log words reports the dashboard reading by
+deterministic precedence, contrived and consistent; wider fuzzing past four
+thousand cases, marginal after the corpus and clone differentials came back
+with zero unexpected deltas.
+
+## Ephoros wallet-address telemetry, step 3, round 4 -- 2026-08-21
+
+The round audited the tree at `7295cfe` with round 3's fix seams as its focus.
+Every seam held under the strongest equivalence evidence of the loop: a
+findings-tuple differential over all 882 clone TypeScript files, the 24
+committed fixtures, a 40-shape corpus of mismatched and cross-nested brackets
+and fourteen thousand seeded fuzz cases came back with zero deltas, line
+numbers pinned identically including on E000 paths, and every prior specimen
+kept its bound. The three lints and both suites were green; the finding below
+came from extending the adversarial shapes to sink-named nesting, which round
+3's unnamed-chain specimens could not reach.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R4-01 | medium | scripts/ephoros.py | overlapping spans that name a sink still paid per-span work behind the gates, 107 seconds at 160 KB and roughly 77 minutes at the cap on a nested `.labels(` shape | fixed in d21e5ea |
+
+The fix indexes each file once: both property regexes run a single pass over
+the whole mask with spans collecting their rows by bisection, depth-zero
+punctuation is attributed to its innermost matched pair in one scan, and key
+extraction reads a bounded window whose equivalence the grammar guarantees.
+Measured before and after through the real check path, the nested `.labels(`
+shape goes from an extrapolated 80 minutes at the cap to 1.16 seconds, the
+sink-named bracket nest from 12.2 to 1.08 seconds, and every earlier specimen
+keeps its bound with a normal 1 MiB file at 0.43 seconds. The fixer's own
+differential -- the clone, the fixtures and ten thousand seeded fuzz cases,
+10,906 ordered comparisons -- shows zero behaviour deltas. Four guard tests
+land the shapes with exact codes, counts and line numbers, for 116 focused
+cases; the Hexaemeron suite passes 710/710, the root suite 107/107, the tree
+lint exits 0 and the clone run stays clean at exit 0 in 0.86 seconds.
+
+Leads not pursued: shapes whose mandated output is itself quadratic, such as
+nested sinks each re-reporting their inner label containers, now run in
+output-proportional time and cannot be faster than what they must print; the
+shared lexer's recursion defect stays carried forward for the owning surface,
+unchanged since round 1.
+
+## Ephoros wallet-address telemetry, step 3, round 5 -- 2026-08-21
+
+The closing round audited the tree at `d21e5ea` with round 4's span-index fix
+as its focus, on evidence independent of the fixer's own harness: a fresh
+differential with its own generators and seed over the 882 clone files, the 24
+fixtures and 5,400 fuzz cases biased at the fix's edges, 6,306 ordered
+comparisons with zero deltas, plus 43 hand-directed attacks derived from a
+static read of the diff. The bounded-window equivalence argument was attacked
+directly and holds: no truncating constant exists, the one numeric literal is
+an exact-length gate beside an anchored hex match, and 500 KB values with the
+address word at the far end fire identically on both sides. Performance holds
+with nothing over 1.13 seconds at the cap, including a fresh shape aimed at
+the new index's bisection. The three lints exit 0, the focused suite passes
+116/116, the Hexaemeron suite 710/710, the root suite 107/107, and the clone
+runs clean at exit 0 in 0.86 seconds with zero pragmas and an empty porcelain
+at start and end.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The remaining lead set is stable and recorded: the shared lexer's recursion
+defect belongs to its owning surface and is contained at this checker's
+boundary by the unsuppressible E000 path, re-confirmed by 178 fail-closed fuzz
+cases; output-proportional shapes now do exactly the work their mandated
+output requires; the spec-accepted lexical misses are declared non-goals with
+parity across both language sides.
+
+Leads not pursued: fuzzing past the cumulative twenty-five thousand cases,
+marginal after two clone-wide differentials with zero unexpected deltas; two
+pre-existing hypomnema pointer hits inside historical Hermes entries of this
+log, outside this step's diff and outside the acceptance lint scope; the
+study's file-count note from round 1, resolved -- the pinned clone reads
+exactly 882 tracked TypeScript files today.
+
+## Ephoros wallet-address telemetry, step 4, round 1 -- 2026-08-21
+
+The exact range `fdd187a809d1aba0da0ef807b00dff3bbca13979..1fc0a2aaff4d2d216ada128da2ef098c21aabc51`
+holds documentation and records only: the E005 section of the ephoros
+SKILL.md with its three stated limits, the `ephoros-v1.2.0` evolution row,
+ADR-010, one phylax boundary sentence pointing at it, and the two re-pinned
+promise digests. No product source or Solidity changed, so the recorded
+security-suite waiver applies and the Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The review checked the prose against the run's measured evidence rather than
+against itself: every claimed behaviour in the new SKILL.md section -- the
+three surfaces, the cap and fail-closed path, the E002 subset move, both
+pragma grammars, bare-pragma inertness and the three stated limits -- was
+established by execution in the step 2 and step 3 rounds above, and the
+ledger row's successor job names a live specimen in the pinned clone. One
+correction is on the page rather than silent: the study and runbook wrote the
+completed-frontier label as `ephoros-v0.3.0`, and the versioning contract's
+own arithmetic, enforced by `tests.test_evolution_contract`, makes a
+completed frontier increment the first counter, so the recorded label is
+`ephoros-v1.2.0` with generation and epoch retained. The demo path from study
+item 1 ran green in order on the finished tree: the focused suite 116, both
+tree lints exit 0, the clone clean at exit 0, the Hexaemeron suite 710/710,
+the root suite 107/107 and the evolution contract 8 tests. Promise Machine
+reports 14 plugins and 14 copies clean after the digest re-pins, imprimatur
+scores 100 on each changed prose file, hypomnema exits 0 with every ADR
+pointer resolving, and the step head carries a valid local signature with
+exactly one of each required Shoggoth trailer.
+
+The register ids are prose-inapplicable here and each stands at its step 2
+and 3 disposition; this step records them without weakening any.
+
+Leads not pursued: none.
+
 ## Fiat task-issue branch names, step 1, round 1 -- 2026-08-21
 
 The exact range

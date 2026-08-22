@@ -114,7 +114,7 @@
     },
     "ephoros-observability-review": {
       "source": "plugins/hexaemeron/skills/ephoros/SKILL.md",
-      "sha256": "547f7c241af77a04e26d8df6284230c402c9d3da7ffe83e26b708ab510285f84",
+      "sha256": "54a4953fce631b2191d72ac70e527a9de864c7da2df70d5dd5c1783f0c55ff25",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step and build identity",
@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "2a509e311ae21f07e67cc60baffbe7f1623729fd9fe5443b19f001e88e2b8838",
+      "sha256": "adf0fc24d650fdbb9d38b5b7ccb52320e5d76c1fbed0f3e9f303fa79a4d48167",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -142,7 +142,7 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "2a509e311ae21f07e67cc60baffbe7f1623729fd9fe5443b19f001e88e2b8838",
+      "sha256": "adf0fc24d650fdbb9d38b5b7ccb52320e5d76c1fbed0f3e9f303fa79a4d48167",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "validated state, topic, run branch, step branch and head commit",
@@ -380,7 +380,7 @@
     },
     "phylax-boundary-review": {
       "source": "plugins/hexaemeron/skills/phylax/SKILL.md",
-      "sha256": "cb5dbd5a82b72cc06c3629c5cde1fc771a7e611ef1f88136b97d08f71802e85b",
+      "sha256": "4ec03afb88700211ef0679b368ec509fab9ee1c182f8ee0011f1333e1e6b92cf",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading",
         "subject": "reviewed step, source tree and external-input boundary",
