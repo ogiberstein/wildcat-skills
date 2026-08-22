@@ -1,6 +1,6 @@
 {
   "counts": {
-    "bytes_binary": 39939547,
+    "bytes_binary": 39940100,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 134192,
     "bytes_lockfile": 254,
@@ -66,7 +66,7 @@
       "path": "output/pdf/how-to-help-shoggoth.pdf"
     },
     {
-      "bytes": 14558979,
+      "bytes": 14559532,
       "category": "binary",
       "evidence": "file signature pdf",
       "grade": "hard",
