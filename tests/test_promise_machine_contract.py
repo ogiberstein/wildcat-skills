@@ -595,13 +595,17 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 62)
+        self.assertEqual(report["counts"]["promises"], 63)
 
     def test_hexaemeron_contract_population_is_complete(self):
         expected = {
             "elenchus": {"elenchus-fixed-and-guarded"},
             "ephoros": {"ephoros-mechanical-gate", "ephoros-observability-review"},
-            "fiat": {"fiat-receipted-delivery", "fiat-final-integration"},
+            "fiat": {
+                "fiat-study-amendment",
+                "fiat-receipted-delivery",
+                "fiat-final-integration",
+            },
             "hypomnema": {"hypomnema-pointer-gate", "hypomnema-record-placement"},
             "imprimatur": {"imprimatur-prose-gate"},
             "kronos": {
@@ -657,7 +661,7 @@ class PromiseOverlayTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 67)
+        self.assertEqual(report["counts"]["promises"], 68)
         self.assertEqual(report["counts"]["overlays"], 1)
 
     def test_one_byte_vendored_mutation_is_refused(self):
@@ -1033,8 +1037,8 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 67)
-        self.assertEqual(report["counts"]["coverage_selected"], 51)
+        self.assertEqual(report["counts"]["coverage_rows"], 68)
+        self.assertEqual(report["counts"]["coverage_selected"], 52)
 
     def test_berean_and_janus_boundaries_are_explicit(self):
         coverage = json.loads(
@@ -1092,7 +1096,7 @@ class PromiseCoverageTests(unittest.TestCase):
             "transition",
             "exception",
         }
-        self.assertEqual(len(coverage["runtime"]), 29)
+        self.assertEqual(len(coverage["runtime"]), 30)
         for promise_id, binding in coverage["runtime"].items():
             with self.subTest(promise_id=promise_id):
                 self.assertEqual(set(binding), {"source", "sha256", "bindings"})
@@ -1232,7 +1236,7 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 67)
+        self.assertEqual(report["counts"]["coverage_rows"], 68)
         self.assertEqual(report["counts"]["coverage_selected"], 16)
 
     def test_prompt_and_vendored_evaluations_never_claim_proof(self):

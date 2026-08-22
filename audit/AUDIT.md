@@ -8099,3 +8099,162 @@ required-text and forbidden-name assertions pass. The controller verifies its
 No new findings.
 
 Leads not pursued: none.
+
+## Fiat receipted study amendments, step 1, round 1 -- 2026-08-22
+
+The Pashov `x-ray`, `solidity-auditor`, and `fizz` suite did not run under the
+recorded waiver because this step publishes two Markdown specifications and a
+deterministic Horos boundary update, and ships no Solidity.
+
+Reviewed commit `f3555a06229edb169628bbddf6050c2b765718b9` against run branch
+`fiat/446-receipted-study-amendments`. The exact diff adds the byte-identical
+tracked study and runbook and changes only `files_walked` from 1427 to 1429 in
+`.horos/boundary.json`. The two `cmp` checks, both Protasis modes, Imprimatur,
+Brevitas, `git diff --check`, all 113 root tests, and all 741 Hexaemeron tests
+exit 0. Phylax, Ephoros, and Hypomnema each exit 0 on their required scopes.
+
+Findings: 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+### Risk-register dispositions
+
+| risk id | disposition |
+| --- | --- |
+| `prefix-forgery` | Specified for step 2 and not activated by this documentation-only step. The study requires an exact prefix hash against the current receipt before mutation, and the runbook requires named regression guards. |
+| `amendment-selection` | Specified for step 2 and not activated here. The study fixes selection to one final dated block and requires fenced-decoy, duplicate-final-block, and trailing-prose cases to refuse. |
+| `field-ambiguity` | Specified for step 2 and not activated here. The study requires each of the four fields exactly once with non-empty bounded content, and the runbook assigns invalid-field guards. |
+| `step-verdict-coverage` | Specified for step 2 and not activated here. Every unbuilt step must appear exactly once with entry-and-exit verdicts; missing, duplicate, ambiguous, and completed-step cases are assigned tests. |
+| `broken-step-transition` | Specified for step 2 and not activated here. A valid broken-current-step amendment must be recorded before durable state blocks all dependent packets, with explicit recovery left available. |
+| `checker-binding` | Specified for step 2 and not activated here. The study binds an argv-only invocation to the bundled checker, exact candidate bytes, its exit, timeout, and bounded diagnostics. |
+| `path-scope` | Specified for step 2 and not activated here. Candidate and canonical paths must remain inside the target; symlink escape, unreadable, and oversized sources refuse before mutation. |
+| `partial-write` | Specified for step 2 and not activated here. Validation must finish before the existing state lock and recoverable atomic-write sequence mutate the artefact, state, or ledger. |
+| `receipt-history` | Specified for step 2 and not activated here. The receipt and ledger must retain old, new, and amendment digests plus bounded verdict metadata without erasing prior transitions. |
+| `post-amend-drift` | Specified for step 2 and not activated here. `next` and `verify` must recompute the amended digest and retain the ordinary refusal for any later unreceipted edit. |
+| `legacy-state` | Specified for step 2 and not activated here. Runs without an amendments member retain their ordinary read and `next` behaviour until the new command is used. |
+| `evidence-overclaim` | Closed for the published specification and retained as an implementation boundary. The study limits the future receipt to checked structure, order, digests, and recorded operator verdicts, not the truth of the correction or correctness of the remaining plan. |
+
+The record-placement review found the chosen command and its rejected
+alternatives in the tracked study, the semantic origin linked to PR 307, and
+the durable behaviour explicitly assigned to Fiat's canonical skill and tests
+in step 2. No evolution row or standalone ADR is claimed by this ordinary
+delivery. The two published documents are exact copies of the receipted
+sources, so this audit does not revise the accepted specification.
+
+Leads not pursued: none.
+
+## Fiat receipted study amendments, step 2, round 1 -- 2026-08-22
+
+The Pashov `x-ray`, `solidity-auditor`, and `fizz` suite did not run under the
+recorded waiver because this step changes Fiat's Python controller, tests and
+instructions and ships no Solidity. The audit reviewed the exact Step 2 commit
+`6edcf7f72ca12ec797aead542dd8d7dc17ff7696` against its parent
+`de7090b7c107241dac13d4655c8dc2f68bf12574`, then reviewed every fix on the
+stacked audit branch.
+
+Findings: 3.
+
+| id | severity | file | mechanism | status |
+| --- | --- | --- | --- | --- |
+| FSA-S2-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`; `plugins/hexaemeron/tests/test_hexctl.py` | `_replace_study_bytes` ran before the ledger/state `commit`. An interruption in that gap left the new study with the old receipt and ledger, while `hexctl verify` still exited 0. An interruption after the ledger append could also make recovery append the same `amend:study` event twice. | fixed in this round with a fsynced write-ahead marker, refusal of every other controller command while it exists, exact-byte revalidation, finish-or-rollback recovery, final cross-file verification before marker removal, and non-duplicating completion of an already-written ledger event; both guards were observed red before the fix |
+| FSA-S2-R1-02 | medium | `plugins/hexaemeron/skills/fiat/SKILL.md`; `plugins/hexaemeron/tests/test_fiat_skill.py`; `tests/promise_machine_coverage.json`; `tests/test_promise_machine_contract.py` | The new consequence-2 durable mutation had no Promise whose `Authorises` field permitted canonical study replacement and receipt re-pinning. The new `blocked` directive was also absent from Fiat's loop terminal set, action table and stop contract. | fixed in this round with `fiat-study-amendment`, operation-specific positive/missing/stale/overclaim/recovery bindings, and an explicit receipt-free `blocked` stop; the contract guards were observed red before the fix |
+| FSA-S2-R1-03 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`; `plugins/hexaemeron/tests/test_hexctl.py` | The Markdown selector tracked only the fence character, so three backticks closed a four-backtick fence. A heading still inside the longer Markdown fence could therefore be selected as the live amendment. | fixed in this round by tracking the opening delimiter length and accepting only a same-character closing delimiter at least as long; the adversarial guard was observed accepting the fenced heading before the fix |
+
+### Risk-register dispositions
+
+| risk id | status | disposition |
+| --- | --- | --- |
+| `prefix-forgery` | closed | The candidate prefix is hashed against the current receipt before mutation; the original prefix-drift guard leaves artefact, state and ledger unchanged. |
+| `amendment-selection` | fixed | FSA-S2-R1-03 makes fenced decoys respect delimiter character and length; duplicate final blocks and trailing sections refuse. |
+| `field-ambiguity` | closed | Date validity, exact cardinality, non-empty values and accepted order are covered by named guards. |
+| `step-verdict-coverage` | closed | Every non-done step gets one exact entry-and-exit verdict; missing, duplicate, ambiguous, unknown and completed-step cases refuse. |
+| `broken-step-transition` | fixed | FSA-S2-R1-02 records a broken current-step amendment, makes `next` emit the source-bound `blocked` outcome, refuses step receipts, and names inspection, halt or a separately specified repair as recovery. |
+| `checker-binding` | closed | The controller writes the captured bytes to a private temporary file, invokes the sibling Protasis checker with `sys.executable` and a fixed argv list, bounds time and output, suppresses raw diagnostics, and refuses a non-zero exit. |
+| `path-scope` | closed | Candidate and canonical paths use the existing real-path containment and byte cap; outside paths, non-files and oversized inputs refuse before the write-ahead transition. |
+| `partial-write` | fixed | FSA-S2-R1-01 adds a durable pending record before replacement; recovery distinguishes prior, candidate and already-committed states and verifies artefact, state and ledger before clearing it. |
+| `receipt-history` | closed | State and ledger carry prior, new and amendment digests plus normalized touched-step and verdict metadata; interruption recovery records the event exactly once. |
+| `post-amend-drift` | closed | Both `next` and `verify` recompute the receipted study digest, and the general verify path now checks every source-bound study rather than only one already carrying amendment history. |
+| `legacy-state` | closed | A study receipt with no amendment member retains ordinary packet behavior; an unbound legacy receipt may still be read but cannot use the new mutation. |
+| `evidence-overclaim` | fixed | FSA-S2-R1-02 establishes checked byte continuity, structure, checker exit and recorded operator verdicts, not correction truth, verdict correctness or runbook repair. |
+
+### Evidence and checks
+
+The two implementation guards were applied to detached parent
+`de7090b7c107241dac13d4655c8dc2f68bf12574`: the parser rejected the absent
+`amend` command and the append demonstration remained unable to replace the
+ordinary digest refusal. The three audit mechanisms were then observed red
+against unfixed Step 2 commit `6edcf7f72ca12ec797aead542dd8d7dc17ff7696`:
+the long-fence specimen was accepted, no pending transaction survived the
+replace/commit interruption, and Fiat had neither the `blocked` loop outcome
+nor an amendment `Authorises` block. The ledger-before-state interruption
+guard additionally reproduced two amendment events before the recovery fix.
+
+The fixed temporary-repository demonstration records a holding amendment,
+finds all three digests in state and ledger, and reconstructs the amended Mason
+packet. Its second run records a broken current step and receives the durable
+blocked directive. No fixture is described as a production run.
+
+The focused controller, Fiat prose and Protasis suite passes 313/313; the root
+suite passes 113/113; the complete Hexaemeron suite passes 765/765. Promise
+Machine contract and coverage checks are clean at 68 promises and 68 selected
+rows. Phylax, Ephoros and Hypomnema each exit 0 on their required scopes.
+Imprimatur finds no defect in the changed Fiat skill; Brevitas exits 0 on that
+skill and on this appended audit entry.
+
+Leads not pursued: a general transaction rewrite for controller mutations
+other than `amend study`, the deliberately separate runbook-repair transition,
+and the truth of amendment prose or operator verdicts. None is authorised or
+claimed by this step.
+
+## Fiat receipted study amendments, step 2, round 2 -- 2026-08-22
+
+The fixed tree at `35d79f4eaa7515bb2dd4078d2bcf45bbc3f6bb5e` was
+re-audited against all three round-1 mechanisms and the complete twelve-item
+risk register. The recorded waiver still applies: no Solidity entered the
+tree, so `x-ray`, `solidity-auditor`, `fizz` and a Solidity campaign did not
+run.
+
+### Findings
+
+- Findings: 0. The round-1 fixes hold.
+
+### Risk-register dispositions
+
+| risk id | status | round-2 evidence |
+| --- | --- | --- |
+| `prefix-forgery` | clean | The fixed prefix-drift guard still refuses before any durable mutation. |
+| `amendment-selection` | clean | Fence state now retains delimiter character and opening length; the long-fence specimen, ordinary fenced decoy, duplicate block and trailing section all refuse as intended. |
+| `field-ambiguity` | clean | Calendar date, exact four-field cardinality, order and non-empty values remain guarded. |
+| `step-verdict-coverage` | clean | Missing, duplicate, ambiguous, unknown and completed-step verdict cases remain refused; each non-done step receives one normalized verdict. |
+| `broken-step-transition` | clean | The broken demonstration records its amendment, emits `blocked`, emits no delegated agent brief, and every step receipt remains refused. Fiat's loop and stop contract names that receipt-free terminal outcome. |
+| `checker-binding` | clean | The fixed sibling checker path, captured private temporary file, argv-only invocation, timeout, output cap and bounded refusal remain unchanged. |
+| `path-scope` | clean | Real-path containment, regular-file checks and the source byte ceiling remain ahead of the write-ahead transition. |
+| `partial-write` | clean | Round 2 exercised marker-before-replacement rollback and post-commit marker cleanup in addition to the two committed interruption guards. All four windows recover with matching artefact, state and ledger. |
+| `receipt-history` | clean | Recovery after a written ledger event completes state without appending a second `amend:study`; holding and broken histories retain all three digests and normalized verdicts. |
+| `post-amend-drift` | clean | Both `next` and `verify` recompute the amended artefact digest and refuse later drift. |
+| `legacy-state` | clean | Source-bound receipts without an amendment member retain their ordinary packet behavior, while receipts lacking a digest cannot invoke the new transition. |
+| `evidence-overclaim` | clean | `fiat-study-amendment` remains consequence 2 and authorises only recoverable replacement, receipt re-pinning and the holding-or-blocked result. It still refuses correction truth, verdict correctness and runbook repair. |
+
+The write-ahead order is marker, canonical artefact, ledger, state,
+cross-file verification, then marker removal. A probe interrupted before the
+canonical replacement and recovered by visibly rolling back to the prior
+digest. A second probe interrupted after the state and ledger commit and
+recovered by verifying the recorded transition and clearing the marker. The
+two committed guards continue to cover interruption after artefact replacement
+and after ledger append but before state replacement; the latter still leaves
+exactly one amendment event.
+
+### Checks and bounded leads
+
+The temporary holding and broken demonstrations both pass. The focused
+controller, Fiat prose and Protasis suite passes 313/313; the root suite passes
+113/113; the complete Hexaemeron suite passes 765/765. Promise Machine checks
+are clean at 68 promises and 68 selected coverage rows. Phylax, Ephoros and
+Hypomnema each exit 0 on the source-bound plugin paths.
+
+Leads not pursued: the same bounded exclusions remain: a general transaction
+rewrite outside `amend study`, the separately specified runbook-repair
+transition, and the truth of amendment prose or operator verdicts. None is a
+new defect in the fixed Step 2 tree.
