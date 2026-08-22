@@ -8158,3 +8158,23 @@ something at it, so a path free at the check can be occupied by the time step 3
 runs. `git worktree add` refuses a path that exists, so the race closes into a
 refusal rather than a wrong tree, and closing it earlier would mean holding a
 lock over a directory that does not exist yet.
+
+## Fiat run worktree, step 2, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S2-R1-01 is closed: a dangling link, a live link
+to a real directory inside the repository, and a link leaving the repository are
+each refused, the first two naming the link and the third naming the crossing,
+and a free derived path is still accepted and returned unchanged. Both guards
+fail against the pre-fix validator and pass against this one.
+
+The same eleven risk-register entries were read again. `path-escape` and
+`subprocess-control` hold; the remaining nine are still not exercised by a step
+that writes nothing.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 759/759, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the check-to-create race recorded in round 1 is unchanged and
+belongs to step 3, where `git worktree add` turns it into a refusal.
