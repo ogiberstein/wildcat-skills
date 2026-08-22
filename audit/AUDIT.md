@@ -7927,3 +7927,51 @@ commit performs no remote action and claims no upstream merge or issue
 closure. Issue 363 remains untouched.
 
 Leads not pursued: none.
+
+## Shoggoth contributor guide, step 1, round 1 -- 2026-08-22
+
+Reviewed the three new documents against the eight study risks and the
+non-Solidity phase gates. The security-suite waiver applies: this step adds no
+Solidity, so X-Ray, Solidity Auditor and Fizz did not run. Phylax, Ephoros and
+Hypomnema each inspected the changed paths and exited 0. Imprimatur, Brevitas,
+the document assertions and the 109-test root suite had already exited 0 on
+the exact implementation commit.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| SCG-S1-R1-01 | medium | `docs/how-to-help-shoggoth-study.md`; `docs/how-to-help-shoggoth-runbook.md` | Step 1 shipped the study before the planned framework observation existed. The study named that issue as the standing home for the volunteer-selector trade, so Hypomnema's record-placement rule had no existing record to inspect when implementation was receipted. | fixed by filing [issue #447](https://github.com/wildcat-finance/skills/issues/447), which carries the chosen intent-packet design, rejected inference boundary, claim-channel alternatives and unresolved questions; exact title and labels were read back from GitHub |
+| SCG-S1-R1-02 | low | audit invocation | The first Hypomnema command included `audit/AUDIT.md`, whose historical failure specimens deliberately name absent runbooks. It reproduced two H003 findings at lines 6119 and 6269; the reduced command over the three changed documents exited 0. | fixed by applying the pointer gate to the changed documentation scope named by the audit contract; no checker or shipped-document defect existed, so no code guard was added |
+
+`selection-overclaim` is closed for this step: every selector example is under
+"The selector we should discuss" and the following sentence says the commands
+are proposed, not live. `contributor-attribution` is closed by PR #445, issue
+#438 and the merged audit rounds; no personal name or handle appears in the
+three documents. `wave-drift` is bounded by the 22 August 2026 date and the
+sentence refusing a permanent priority claim. `duplicate-work` stays visible:
+the guide names assignment, branches and pull requests, and says the
+pre-pull-request claim channel remains open. `scope-widening` is closed by the
+diff, which contains only the guide, study and runbook.
+
+`mascot-identity`, `issue-authority` and `binary-review` are not applicable to
+the step-1 repository diff. The standing issue was filed as the audit fix under
+the user's explicit request, with only the existing `observation` and
+`origin:ai` labels; the exact body differs from the preview only by GitHub's
+terminal newline. Artwork and binary inspection remain obligations of step 3.
+
+Leads not pursued: SCG-S1-R1-02 changed no code and has no regression test; the
+exact failing and corrected invocations are recorded above.
+
+## Shoggoth contributor guide, step 1, round 2 -- 2026-08-22
+
+Reviewed the fixed tree and issue #447 readback against both round-1 findings
+and all eight study risks. The discussion record exists, stays open, carries
+the exact expected title and the `observation` and `origin:ai` labels, and its
+body differs from the preview only by GitHub's terminal newline. The three
+changed documents still contain no personal name or handle, and proposed
+syntax remains marked as not live.
+
+Phylax, Ephoros and Hypomnema each inspected the three changed documents and
+exited 0. The security-suite waiver still applies; no Solidity entered the
+tree. Zero findings.
+
+Leads not pursued: none.
