@@ -64,8 +64,9 @@ let an agent update anything:
 - **A git-backed marketplace.** The host holds a clone or a remote it can pull,
   and names a repository. The Claude Code CLI adds one with
   `/plugin marketplace add <owner/repo>`; Codex points at a repository and
-  derives the plugin from it. Here an update is a command, and the agent can run
-  it.
+  derives the plugin from it. Here an update is a command and the agent can run
+  it, but the command can report success and copy nothing; see the version gate
+  below.
 - **A managed marketplace.** The host holds an extracted, packaged copy under an
   opaque id, with a marketplace name and no git remote, no ref and no commit
   recorded anywhere. Nothing in the install says which commit it came from, which
@@ -87,6 +88,29 @@ Which repository matters only on the git-backed route, and then it is whichever
 one that marketplace was added from. A private marketplace is added from the
 mirror; a public one from `wildcat-finance/skills` directly. Read the host's
 configuration rather than inferring it from the two names above.
+
+### The version gate on the git-backed route
+
+`plugin update` is gated on the version the plugin declares in
+`.claude-plugin/plugin.json`, not on the commit the checkout now holds, and the
+cache is keyed the same way. A skill that changed without its plugin's version
+being bumped is therefore reported as `already at the latest version` and is
+never copied, at exit code zero. Read the recorded pin rather than the exit
+code, and reinstall whatever is behind the head:
+
+```text
+git -C ~/.claude/plugins/marketplaces/<marketplace> rev-parse HEAD
+jq -r '.plugins | to_entries[] | "\(.key) \(.value[0].gitCommitSha[0:7])"' \
+  ~/.claude/plugins/installed_plugins.json
+claude plugin uninstall <plugin>@<marketplace> --keep-data
+claude plugin install <plugin>@<marketplace> --yes
+```
+
+Reinstalling re-pins the commit because the files are taken fresh from the
+checkout; `--keep-data` leaves `~/.claude/plugins/data/{id}/` alone. This is the
+one case where a run can be told its plugins are current and still be driving
+the previous controller, so check the pin before recording two versions as
+agreed. Every plugin behind the head needs it, not only the one the run touches.
 
 ### On a warning
 
@@ -112,8 +136,10 @@ Do not carry on and mention it.
    files over an installed plugin: the next legitimate update overwrites it, and
    nothing records that the run was driven by a tree nobody published.
 3. Refresh through the host boundary above, then re-resolve the paths.
-4. Confirm the versions now agree. `hexctl init` warns only at init, so check
-   the two ledgers directly:
+4. Confirm the versions now agree, and on a git-backed install confirm the pin
+   moved too, because a matching version string is exactly what the gate above
+   leaves behind. `hexctl init` warns only at init, so check the two ledgers
+   directly:
 
    ```text
    grep '^- Current version' "$FIAT_SKILL_DIR/EVOLUTION.md"
