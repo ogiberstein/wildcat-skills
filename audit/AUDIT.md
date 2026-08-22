@@ -8513,3 +8513,62 @@ not word-split an unquoted variable, so a lint invoked as `lint $FILES` receives
 one argument naming a file that does not exist and reports it unreadable. It was
 caught here because the exit status was read; a round that only read the word
 `clean` would not have seen it.
+
+## Phylax credential argv, step 1, round 1 -- 2026-08-22
+
+### Suite disposition
+
+The Solidity suite was waived exactly as recorded by the controller:
+`waived: issue 325 changes the Python Phylax lint, fixtures, and governed prose;
+it has no Solidity target`. No `.sol` file appears in the step diff. X-Ray,
+Solidity Auditor and Fizz therefore did not run, and this round does not count
+their absence as a clean Solidity review.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| review-code | none | `plugins/hexaemeron/skills/phylax/scripts/phylax.py` | No confirmed code finding. | clean |
+| review-tests | none | `plugins/hexaemeron/tests/test_phylax_checker.py` | No confirmed test or diagnostic-secrecy finding. | clean |
+| review-records | none | governed prose, ledgers and generated records | No confirmed specification, ledger, coverage or tracked-artifact finding. | clean |
+
+Finding count: 0.
+
+### Evidence
+
+The review read all eight changed files and the full diff from
+`4408597bcd0130b0cee8bd7aab0b55d64ff957c7` through
+`23c7b3d57e66d5da7c91ab027b6952d372d3413d`. Each of the ten risk-register
+rows was checked. Runner resolution remains the existing import-bound
+`_starts_process` decision; only the first positional argument or explicit
+`args=` value is walked; `env=` remains clean; nested names, tuples and list
+concatenation are covered; local and unrelated runners stay clean; reasoned
+and bare suppressions retain opposite results; P001 and P002 keep their prior
+classifications; and neither text nor JSON diagnostics contain the fixture
+credential value.
+
+The tracked study and runbook match their receipted artefacts byte for byte.
+The canonical frontier line recomputes to
+`3d0057bb195f303c0e40b5782bf59ab0cba53e3172478c6a331d5990236ac604`;
+only generation moves, from `phylax-v1.1.0` to `phylax-v1.2.0`. The Promise
+Machine coverage digest matches the changed `SKILL.md`, and the Horos boundary
+matches the tracked tree.
+
+The focused Phylax suite passes 61/61 on Python 3.9.6 and 3.12.13. The first
+full Hexaemeron run stopped because ambient Node v22.22.3 did not match the
+fixture's declared v26.6.0. The official v26.6.0 Darwin arm64 archive matched
+its published SHA-256,
+`75480cd43b6fcb35d8e772dd18983fbd9f691b2f03b1c94393206098e9944b5e`,
+and a PATH-scoped rerun passed 833/833 without changing the repository or
+system toolchain. The root suite passes 118/118, the evolution contract passes
+8/8, and the full Promise Machine check is clean. Phylax, Ephoros and
+Hypomnema each exit 0.
+
+### Leads not pursued
+
+Leads not pursued: `API_TOKEN` in the study's motivating specimen remains
+outside the existing `CREDENTIAL` grammar, and attribute/subscript values,
+separately assigned argv, star-expanded call forms, `**kwargs`, runner-name
+rebinding and flag interpretation remain outside the receipted source-local
+boundary. Widening any of them would change the approved finding grammar or
+runner-resolution contract rather than repair this implementation.
