@@ -1915,6 +1915,100 @@ def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> b
     return bounded_tool(base_dir, "git", argv, refusal)
 
 
+WORKTREE_HOME = ("tmp", "fiat")
+"""Where a run's worktree goes, under the repository's already-ignored scratch root.
+
+Ignoring the home is not what keeps a scan honest: git reports a nested worktree as
+one opaque directory either way. It is what keeps the next run startable, because
+preflight refuses a dirty tree and an unignored directory here would show as
+untracked.
+"""
+
+
+def flattened_run_branch(run_branch: str) -> str:
+    """A run branch as one directory name, so one run maps to one path."""
+    check_branch_name(run_branch)
+    return run_branch.replace("/", "-")
+
+
+def repository_root(base_dir: str) -> str:
+    """The worktree root git reports for `base_dir`.
+
+    A target that is not a Git repository refuses here rather than running in
+    place. That is the fail-closed fallback the study chose, and it is a breaking
+    change for anyone who relied on an in-place run.
+    """
+    root = os.path.realpath(base_dir)
+    reported = bounded_git(
+        base_dir,
+        ["rev-parse", "--show-toplevel"],
+        refusal=f"not a git repository: {root}",
+    ).decode("utf-8", "replace").strip()
+    if not reported:
+        die(f"not a git repository: {root}")
+    return os.path.realpath(reported)
+
+
+def run_worktree_path(base_dir: str, run_branch: str) -> str:
+    """The one path this run's worktree belongs at. Creates nothing."""
+    return os.path.join(
+        repository_root(base_dir), *WORKTREE_HOME, flattened_run_branch(run_branch)
+    )
+
+
+def check_worktree_path(root: str, candidate: str, registered: str | None = None) -> str:
+    """Refuse a worktree path before anything is created at it.
+
+    Four ways a path fails: it leaves the repository once resolved, a component on
+    the way to it is a symlink leaving the repository, it is the repository root
+    itself, or it already exists as something other than this run's own tree.
+
+    The walk is over the supplied components rather than the resolved path. Horos
+    finding S4-R1-01 is the reason: a control that inspects only the path it was
+    given refuses a final-component symlink while stepping over one mid-path, and
+    `git -C` resolves symlinks before it answers, so the refusal has to happen
+    before git is asked anything. Traversal is refused on the raw components for
+    the same reason -- normalising `..` first is what lets a symlink be stepped
+    over lexically.
+
+    Every refusal names the path, reads nothing at it, and writes nothing.
+    """
+    root = os.path.realpath(root)
+    supplied = candidate
+    if os.path.isabs(candidate):
+        try:
+            relative = os.path.relpath(candidate, root)
+        except ValueError:
+            die(f"worktree path escapes the repository: {supplied}")
+    else:
+        relative = candidate
+    parts = [part for part in relative.split(os.sep) if part not in ("", ".")]
+    if not parts or any(part == os.pardir for part in parts):
+        die(f"worktree path escapes the repository: {supplied}")
+    walked = root
+    for part in parts:
+        walked = os.path.join(walked, part)
+        if os.path.islink(walked) and not contained_in(root, os.path.realpath(walked)):
+            die(f"worktree path crosses a symlink out of the repository: {walked}")
+    resolved = os.path.realpath(walked)
+    if not contained_in(root, resolved) or resolved == root:
+        die(f"worktree path escapes the repository: {supplied}")
+    occupied = os.path.exists(resolved) or os.path.islink(resolved)
+    if occupied and (
+        registered is None or os.path.realpath(registered) != resolved
+    ):
+        die(f"worktree path is already occupied: {supplied}")
+    return resolved
+
+
+def contained_in(root: str, resolved: str) -> bool:
+    """True when `resolved` is `root` or sits underneath it."""
+    try:
+        return os.path.commonpath((root, resolved)) == root
+    except ValueError:
+        return False
+
+
 def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
     return bounded_tool(base_dir, "gh", argv, refusal)
 
