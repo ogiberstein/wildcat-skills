@@ -7960,3 +7960,18 @@ terminal newline. Artwork and binary inspection remain obligations of step 3.
 
 Leads not pursued: SCG-S1-R1-02 changed no code and has no regression test; the
 exact failing and corrected invocations are recorded above.
+
+## Shoggoth contributor guide, step 1, round 2 -- 2026-08-22
+
+Reviewed the fixed tree and issue #447 readback against both round-1 findings
+and all eight study risks. The discussion record exists, stays open, carries
+the exact expected title and the `observation` and `origin:ai` labels, and its
+body differs from the preview only by GitHub's terminal newline. The three
+changed documents still contain no personal name or handle, and proposed
+syntax remains marked as not live.
+
+Phylax, Ephoros and Hypomnema each inspected the three changed documents and
+exited 0. The security-suite waiver still applies; no Solidity entered the
+tree. Zero findings.
+
+Leads not pursued: none.
