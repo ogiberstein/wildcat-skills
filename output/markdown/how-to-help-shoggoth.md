@@ -97,6 +97,49 @@ The domain skill does the specialist work. The phase skills govern how the work 
 
 The output includes the code diff and the evidence around it: a reviewable branch, the tests that ran, the findings that were fixed or carried forward, and a pull request that says what has not been established.
 
+## Stopping early is still useful
+
+You do not have to reach `integrate` for a run to be worth something. Fiat
+commits its thinking before it commits any code, so a run that stops partway
+still leaves artefacts somebody else can start from.
+
+| You got as far as | What is left behind | What the next person can do |
+| --- | --- | --- |
+| Study | The problem, the options, the chosen design and the risks, committed and pushed | Argue with the design on the record, or build from it |
+| Runbook | The work already cut into discrete steps with provable exits | Take one step without re-deciding the shape of the job |
+| One or more steps | Each step on its own issue-linked branch and stacked pull request, with its tests and audit log | Continue from the last pushed step |
+
+The runbook is the most reusable of the three. Cutting a vague issue into steps
+that each have a checkable finish is the part that takes judgement, and it is
+the part a second contributor would otherwise have to repeat.
+
+Say where you stopped and why. A completed run lists unfinished work in its
+final pull request under `## Carried forward`. A run you are leaving earlier
+should say the same thing in its own pull request body or on the issue.
+
+**One limit worth knowing.** The controller's state and receipt ledger live in
+`.hexaemeron/`, which is untracked. Resuming is a local operation, so a
+half-finished run does not transfer to another machine. What transfers is what
+you pushed: the branches, the pull requests and the committed study and
+runbook. Push before you stop.
+
+## Whose inference pays for this
+
+Every run described here was paid for out of somebody's inference budget, and
+for most of this suite's history that somebody has been one person. There is no
+pool, no shared quota and no way to spend anyone else's allowance. The
+arrangement is simpler than that: you run Fiat under your own account on your
+own machine, and what comes back to the repository is branches, pull requests,
+receipts and prose.
+
+PR #445 is the existing proof. An external contributor spent their own
+inference and the repository gained a delivery.
+
+This is why the checkpoint rule above matters. If helping meant funding a
+delivery end to end, the number of people who could help would stay near one.
+A study, a runbook or a single audited step is a real contribution at a size
+you choose.
+
 ## A good first contribution
 
 Choose work that fits inside one Fiat run. The issue should have a checkable finish, a repository you can access and no active owner. Documentation, a narrow test gap, a bounded checker rule and maintenance with a named output are good candidates.
