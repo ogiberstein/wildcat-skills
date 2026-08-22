@@ -11,6 +11,7 @@ reading intent. Everything else in SKILL.md stays a judgement.
   P005  raw HTML reaches a renderer without a later trusted sanitiser
   P006  a session credential reaches persisted browser storage
   P007  a runtime-selected absolute fetch host has no prior allowlist check
+  P008  unsafe deserialization or non-literal dynamic execution
 
 Exit 0 clean, 1 findings, 2 bad invocation.
 """
@@ -32,6 +33,22 @@ from lib.typescript_lexer import lex  # noqa: E402
 
 RUNNERS = {"run", "call", "check_call", "check_output", "Popen"}
 WRITERS = {"print", "debug", "info", "warning", "warn", "error", "critical", "exception"}
+BOUNDARY_CALLS = {
+    "pickle": frozenset({"load", "loads"}),
+    "marshal": frozenset({"load"}),
+    "yaml": frozenset({"load"}),
+    "builtins": frozenset({"eval", "exec"}),
+}
+SAFE_YAML_LOADERS = frozenset({"SafeLoader", "CSafeLoader"})
+P008_MESSAGES = {
+    "pickle": "pickle deserialization may execute untrusted code",
+    "marshal": "marshal deserialization accepts untrusted data",
+    "yaml": "yaml.load has no resolved SafeLoader or CSafeLoader",
+    "builtins": "dynamic execution receives non-literal source",
+}
+P008_AMBIGUOUS_MESSAGE = (
+    "source-local bindings leave the boundary call family unresolved"
+)
 
 CREDENTIAL = re.compile(
     r"(?:^|_)(?:priv(?:ate)?_?key|secret|passwd|password|mnemonic|seed_?phrase"
@@ -114,19 +131,121 @@ def _is_string(node: ast.AST) -> bool:
     return _is_str_literal(node) or _is_formatted(node)
 
 
-class Visitor(ast.NodeVisitor):
-    """Flag only calls that resolve to subprocess.
+def _is_dynamic_literal(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, (str, bytes))
+    )
 
-    A bare name match is worthless here: this marketplace has a test helper
-    called `run` and an RPC client with a `.call`, and neither starts a
-    process.
+
+def _boundary_bindings(
+    tree: ast.AST,
+) -> tuple[
+    dict[str, set[str]],
+    dict[str, set[str]],
+    set[str],
+    set[str],
+    set[str],
+]:
+    """Collect source-local import evidence before descending function bodies.
+
+    A depth-first visitor reaches a function's calls before module imports that
+    follow its definition, even though those imports bind before normal calls.
+    Conflicting imports remain conservative evidence because scope and runtime
+    rebinding are outside this rule.
+    """
+    modules: dict[str, set[str]] = {}
+    direct: dict[str, set[str]] = {}
+    identities: dict[str, set[tuple[int, str | None, str]]] = {}
+    imports = (
+        node for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    )
+    for node in imports:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                local = alias.asname or alias.name.split(".", 1)[0]
+                identities.setdefault(local, set()).add((-1, alias.name, ""))
+                if alias.name in BOUNDARY_CALLS:
+                    modules.setdefault(local, set()).add(alias.name)
+            continue
+
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            local = alias.asname or alias.name
+            identities.setdefault(local, set()).add(
+                (node.level, node.module, alias.name)
+            )
+            if node.level != 0 or node.module not in BOUNDARY_CALLS:
+                continue
+            if alias.name in BOUNDARY_CALLS[node.module]:
+                direct.setdefault(local, set()).add(node.module)
+
+    safe_yaml_modules = {
+        local
+        for local, imported in identities.items()
+        if all(
+            level == -1 and module == "yaml"
+            for level, module, _name in imported
+        )
+    }
+    safe_yaml_loaders = {
+        local
+        for local, imported in identities.items()
+        if all(
+            level == 0 and module == "yaml" and name in SAFE_YAML_LOADERS
+            for level, module, name in imported
+        )
+    }
+    ambiguous_calls = set()
+    for local, imported in identities.items():
+        families = set()
+        for level, module, name in imported:
+            if level == -1 and module in BOUNDARY_CALLS:
+                families.add(module)
+            elif (
+                level == 0
+                and module in BOUNDARY_CALLS
+                and name in BOUNDARY_CALLS[module]
+            ):
+                families.add(module)
+            else:
+                families.add(None)
+        # a direct import elsewhere in the file does not prove that it shadows
+        # a bare built-in at this call site; scope analysis is outside P008.
+        if local in BOUNDARY_CALLS["builtins"]:
+            families.add("builtins")
+        if len(families) > 1:
+            ambiguous_calls.add(local)
+    return (
+        modules,
+        direct,
+        safe_yaml_modules,
+        safe_yaml_loaders,
+        ambiguous_calls,
+    )
+
+
+class Visitor(ast.NodeVisitor):
+    """Flag only calls resolved by the source-local import grammar.
+
+    A broad terminal-name match is worthless here: ordinary `.load`, `.loads`,
+    `run` and `.call` methods must stay outside the rule that owns each name.
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, tree: ast.AST) -> None:
         self.path = path
         self.findings: list[Finding] = []
         self.modules: set[str] = set()
         self.direct: set[str] = set()
+        (
+            self.boundary_modules,
+            self.boundary_direct,
+            self.safe_yaml_modules,
+            self.safe_yaml_loaders,
+            self.ambiguous_boundary_calls,
+        ) = _boundary_bindings(tree)
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -151,7 +270,56 @@ class Visitor(ast.NodeVisitor):
     def _add(self, node: ast.AST, code: str, message: str) -> None:
         self.findings.append(Finding(self.path, node.lineno, code, message))
 
+    def _boundary_modules(self, func: ast.AST) -> set[str]:
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            return {
+                module
+                for module in self.boundary_modules.get(func.value.id, set())
+                if func.attr in BOUNDARY_CALLS[module]
+            }
+        if isinstance(func, ast.Name):
+            resolved = set(self.boundary_direct.get(func.id, set()))
+            if func.id in BOUNDARY_CALLS["builtins"]:
+                resolved.add("builtins")
+            return resolved
+        return set()
+
+    def _safe_yaml_loader(self, loader: ast.AST) -> bool:
+        if isinstance(loader, ast.Attribute) and isinstance(loader.value, ast.Name):
+            return (
+                loader.value.id in self.safe_yaml_modules
+                and loader.attr in SAFE_YAML_LOADERS
+            )
+        return isinstance(loader, ast.Name) and loader.id in self.safe_yaml_loaders
+
+    def _check_p008(self, node: ast.Call) -> None:
+        binding = (
+            node.func.value.id
+            if isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            else node.func.id if isinstance(node.func, ast.Name) else None
+        )
+        loader = next(
+            (keyword.value for keyword in node.keywords if keyword.arg == "Loader"),
+            node.args[1] if len(node.args) > 1 else None,
+        )
+        for module in sorted(self._boundary_modules(node.func)):
+            if module == "yaml":
+                if loader is not None and self._safe_yaml_loader(loader):
+                    continue
+            elif module == "builtins":
+                if not node.args or _is_dynamic_literal(node.args[0]):
+                    continue
+            message = (
+                P008_AMBIGUOUS_MESSAGE
+                if binding in self.ambiguous_boundary_calls
+                else P008_MESSAGES[module]
+            )
+            self._add(node, "P008", message)
+            return
+
     def visit_Call(self, node: ast.Call) -> None:
+        self._check_p008(node)
         if self._starts_process(node.func):
             for kw in node.keywords:
                 if kw.arg == "shell" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
@@ -192,7 +360,7 @@ def check_python(path: Path, text: str) -> list[Finding]:
         tree = ast.parse(text)
     except SyntaxError as err:
         return [Finding(path, err.lineno or 1, "P000", f"could not parse: {err.msg}")]
-    visitor = Visitor(path)
+    visitor = Visitor(path, tree)
     visitor.visit(tree)
     return visitor.findings
 
