@@ -4,7 +4,7 @@ Assuming, unless corrected:
 
 1. The public audience is an intelligent contributor who can use GitHub but does not need to understand the controller internals.
 2. The explainer describes what works now and labels the volunteer selector as a proposal; it must not present an unimplemented command as live.
-3. The earliest `**Wave:**` block that still has an eligible open issue is the default Wave. On 2026-08-22 that is Wave 3, with six open, unassigned issues.
+3. The earliest `**Wave:**` block that still has an open issue is the default Wave. On 2026-08-22 that is Wave 3, with six open, unassigned issues.
 4. A named issue URL overrides every inferred selection. Without one, ordinary volunteer help should prefer the earliest open Wave rather than a skill frontier.
 5. Frontier work remains opt-in and subject to the owning skill's maturity gate. Maintenance may instead refresh Horos, census issues, or produce a new ranking proposal without claiming a frontier advance.
 6. The PDF follows the Promise Machine field-guide V2 design and uses the Wildcat Shoggoth as a humanoid figure with a faceted geometric head. It must not depict a literal cat.
@@ -60,7 +60,7 @@ Interpret words such as “evolve”, “help” and “next” to choose a job.
 
 ### Option B: an explicit volunteer intent packet
 
-Propose one visible volunteer signal with three lanes: `wave`, `frontier` and `maintenance`. A named issue wins. With no issue and no lane, `wave` is the default and selects from the earliest Wave that still has an eligible open issue. `frontier` invokes the owning ledgers and maturity gates. `maintenance` names a bounded task such as refreshing Horos or producing a census/ranking proposal. This is cheapest to explain and preserves current specialist boundaries.
+Propose one visible volunteer signal with three lanes: `wave`, `frontier` and `maintenance`. A named issue wins. With no issue and no lane, `wave` is the default and selects from the earliest Wave that still has an open issue. `frontier` invokes the owning ledgers and maturity gates. `maintenance` names a bounded task such as refreshing Horos or producing a census/ranking proposal. This is cheapest to explain and preserves current specialist boundaries.
 
 Trade: it adds a small grammar and requires a decision about where volunteer intent becomes publicly visible before a pull request exists.
 

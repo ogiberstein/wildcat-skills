@@ -7975,3 +7975,46 @@ exited 0. The security-suite waiver still applies; no Solidity entered the
 tree. Zero findings.
 
 Leads not pursued: none.
+
+## Shoggoth contributor guide, step 2, round 1 -- 2026-08-22
+
+Reviewed implementation range
+`eeed036b4f994104c9c1e7b5c03f6cdaea71ac13..c35dda9d02b88b9f489eb7c380e7ce61bcca88e6`,
+the corrected issue #447 readback and the user correction receipts. The
+security-suite waiver applies because the step changes documentation and one
+discussion issue, not Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| SCG-S2-R1-01 | medium | `docs/how-to-help-shoggoth.md`; `docs/how-to-help-shoggoth-study.md`; `docs/how-to-help-shoggoth-runbook.md`; issue #447 | The first correction described the default as the earliest Wave with an eligible open issue. That narrows the user's rule: first choose the earliest Wave that still has open issues, then apply eligibility inside it. | fixed in this round; the tracked prose and issue now use the open-issue boundary, while the second immutable correction receipt records how eligibility applies inside the chosen Wave |
+| SCG-S2-R1-02 | low | issue #447 | The issue body counted ten open issues without Wave metadata. Filing the issue made that count stale immediately because the observation itself has no Wave metadata. | fixed in this round by keeping the relevant fact without a self-invalidating count |
+
+The dated live census finds Waves 3 through 12 with open work. Wave 3 is the
+earliest and contains issues #323 through #328. All six are open and
+unassigned, and none has an issue-number branch or open-pull-request trail.
+The guide therefore uses issue #323 as its present-day named-issue example.
+This snapshot does not assert that Wave 3 remains the default after its open
+issues close.
+
+The first requirements correction remains byte-for-byte intact at digest
+`2b1cee87ec199012030e286d0047945ca47ef133c244adf3e0a316d0dcaaabca`.
+The clarification at digest
+`06fefa4266fc2ade47efe05d4a8619424d441641903c4ce29be4a249a8e03605`
+supersedes only its narrower eligibility phrase. `hexctl verify` accepts the
+15-entry chain.
+
+Phylax, Ephoros and Hypomnema each inspect the changed guide, study, runbook,
+issue preview and clarification and exit 0. The GitHub readback matches the
+previewed body, title and labels after ignoring only its terminal newline.
+The exact-selection, no-personal-name and current Wave assertions pass.
+Imprimatur reports no defect, Brevitas exits 0 and the root suite passes
+109/109.
+
+All eight study risks were reviewed. `selection-overclaim`, `wave-drift`,
+`duplicate-work` and `issue-authority` are bounded by the proposed-not-live
+label, dated snapshot, public-claim discussion and exact issue readback.
+`contributor-attribution` is clean: the public text says only "an external
+contributor". `scope-widening` remains closed. `mascot-identity` and
+`binary-review` remain Step 3 obligations.
+
+Leads not pursued: none.

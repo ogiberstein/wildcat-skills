@@ -32,7 +32,7 @@ There are three useful lanes. They should be explicit because they draw work fro
 
 | Lane | Use it for | Example |
 | --- | --- | --- |
-| Wave | The earliest backlog group that still has eligible open issues | Take one open, unassigned issue from Wave 3 |
+| Wave | The earliest backlog group that still has open issues | Take one open, unassigned issue from Wave 3 |
 | Frontier | A skill's held next improvement | Advance Fiat's recorded next job, after its maturity gate passes |
 | Maintenance | Upkeep or planning that need not move a frontier | Refresh Horos, census issues or propose a revised ranking |
 
@@ -75,7 +75,7 @@ The suggested selection order is simple:
 
 1. An explicit issue URL always wins.
 2. An explicit lane selects only from that lane.
-3. A bare volunteer offer defaults to the earliest Wave that still has an eligible open issue.
+3. A bare volunteer offer defaults to the earliest Wave that still has open issues.
 4. If that Wave has no eligible issue, stop and explain why. Do not fall through to a frontier silently.
 5. Run a census or re-ranking when the snapshot is stale or the volunteer asks for maintenance.
 

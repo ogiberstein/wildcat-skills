@@ -20,7 +20,7 @@
 
 **Entry.** Step 1's branch and guide, with no issue URL yet recorded in the guide.
 
-**Exit.** One open issue exists in `wildcat-finance/skills`, labelled `observation` and `origin:ai`; its body opens by giving Protasis ownership of skill selection, includes the proposed intent packet, records the Wave 3 snapshot as the earliest Wave with eligible open issues, names the read-only issue boundary, and asks the unresolved questions. `docs/how-to-help-shoggoth.md` links the exact issue and a `gh issue view` readback matches the previewed title and body.
+**Exit.** One open issue exists in `wildcat-finance/skills`, labelled `observation` and `origin:ai`; its body opens by giving Protasis ownership of skill selection, includes the proposed intent packet, records the Wave 3 snapshot as the earliest Wave with open issues, names the read-only issue boundary, and asks the unresolved questions. `docs/how-to-help-shoggoth.md` links the exact issue and a `gh issue view` readback matches the previewed title and body.
 
 **Files.** Update `docs/how-to-help-shoggoth.md`. Keep the exact issue preview in `.hexaemeron/` as run evidence; do not commit a second copy.
 
