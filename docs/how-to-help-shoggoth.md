@@ -10,7 +10,7 @@ You do not need to understand the whole skills suite. You need one useful job, e
 4. Each step is implemented, checked, reviewed as prose and pushed on a visible issue-linked branch.
 5. A maintainer reviews the pull request. The evidence says what ran and what remains open.
 
-The named issue matters. Friendly wording such as `/fiat how do i help evolve you` can suggest a useful direction, but it does not state whether you meant the current Wave, a skill frontier or maintenance. Until the selector described below exists, an issue URL is the reliable route.
+The named issue matters. Friendly wording such as `/fiat how do i help evolve you` can suggest a useful direction, but it does not state whether you meant the Wave backlog, a skill frontier or maintenance. Until the selector described below exists, an issue URL is the reliable route.
 
 ## An external contributor has already done it
 
@@ -32,11 +32,11 @@ There are three useful lanes. They should be explicit because they draw work fro
 
 | Lane | Use it for | Example |
 | --- | --- | --- |
-| Wave | The most recent backlog group named by issue metadata | Take one open, unassigned issue from Wave 12 |
+| Wave | The earliest backlog group that still has eligible open issues | Take one open, unassigned issue from Wave 3 |
 | Frontier | A skill's held next improvement | Advance Fiat's recorded next job, after its maturity gate passes |
 | Maintenance | Upkeep or planning that need not move a frontier | Refresh Horos, census issues or propose a revised ranking |
 
-As of the 22 August 2026 snapshot, the latest open group is **Wave 12 - voice**. It contains six open, unassigned issues, #418 through #423. That is a dated observation, not a permanent priority claim.
+As of the 22 August 2026 snapshot, Waves 3 through 12 still contain open work. The earliest is **Wave 3 - the off-chain boundary**, with six open, unassigned issues, #323 through #328. That is a dated observation, not a permanent priority claim.
 
 Frontier is not a grander word for ordinary work. It means the exact next job held in a skill's evolution ledger. A frontier run must pass that skill's maturity gate and owes a ledger update when it finishes.
 
@@ -47,7 +47,7 @@ Maintenance can still be valuable. A clean Horos boundary lowers future reading 
 Choose an issue before invoking Fiat:
 
 ```text
-/fiat https://github.com/wildcat-finance/skills/issues/418
+/fiat https://github.com/wildcat-finance/skills/issues/323
 ```
 
 Before you begin:
@@ -75,7 +75,7 @@ The suggested selection order is simple:
 
 1. An explicit issue URL always wins.
 2. An explicit lane selects only from that lane.
-3. A bare volunteer offer defaults to the latest open Wave.
+3. A bare volunteer offer defaults to the earliest Wave that still has an eligible open issue.
 4. If that Wave has no eligible issue, stop and explain why. Do not fall through to a frontier silently.
 5. Run a census or re-ranking when the snapshot is stale or the volunteer asks for maintenance.
 
