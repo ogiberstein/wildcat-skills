@@ -8099,3 +8099,48 @@ required-text and forbidden-name assertions pass. The controller verifies its
 No new findings.
 
 Leads not pursued: none.
+
+## Fiat receipted study amendments, step 1, round 1 -- 2026-08-22
+
+The Pashov `x-ray`, `solidity-auditor`, and `fizz` suite did not run under the
+recorded waiver because this step publishes two Markdown specifications and a
+deterministic Horos boundary update, and ships no Solidity.
+
+Reviewed commit `f3555a06229edb169628bbddf6050c2b765718b9` against run branch
+`fiat/446-receipted-study-amendments`. The exact diff adds the byte-identical
+tracked study and runbook and changes only `files_walked` from 1427 to 1429 in
+`.horos/boundary.json`. The two `cmp` checks, both Protasis modes, Imprimatur,
+Brevitas, `git diff --check`, all 113 root tests, and all 741 Hexaemeron tests
+exit 0. Phylax, Ephoros, and Hypomnema each exit 0 on their required scopes.
+
+Findings: 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+### Risk-register dispositions
+
+| risk id | disposition |
+| --- | --- |
+| `prefix-forgery` | Specified for step 2 and not activated by this documentation-only step. The study requires an exact prefix hash against the current receipt before mutation, and the runbook requires named regression guards. |
+| `amendment-selection` | Specified for step 2 and not activated here. The study fixes selection to one final dated block and requires fenced-decoy, duplicate-final-block, and trailing-prose cases to refuse. |
+| `field-ambiguity` | Specified for step 2 and not activated here. The study requires each of the four fields exactly once with non-empty bounded content, and the runbook assigns invalid-field guards. |
+| `step-verdict-coverage` | Specified for step 2 and not activated here. Every unbuilt step must appear exactly once with entry-and-exit verdicts; missing, duplicate, ambiguous, and completed-step cases are assigned tests. |
+| `broken-step-transition` | Specified for step 2 and not activated here. A valid broken-current-step amendment must be recorded before durable state blocks all dependent packets, with explicit recovery left available. |
+| `checker-binding` | Specified for step 2 and not activated here. The study binds an argv-only invocation to the bundled checker, exact candidate bytes, its exit, timeout, and bounded diagnostics. |
+| `path-scope` | Specified for step 2 and not activated here. Candidate and canonical paths must remain inside the target; symlink escape, unreadable, and oversized sources refuse before mutation. |
+| `partial-write` | Specified for step 2 and not activated here. Validation must finish before the existing state lock and recoverable atomic-write sequence mutate the artefact, state, or ledger. |
+| `receipt-history` | Specified for step 2 and not activated here. The receipt and ledger must retain old, new, and amendment digests plus bounded verdict metadata without erasing prior transitions. |
+| `post-amend-drift` | Specified for step 2 and not activated here. `next` and `verify` must recompute the amended digest and retain the ordinary refusal for any later unreceipted edit. |
+| `legacy-state` | Specified for step 2 and not activated here. Runs without an amendments member retain their ordinary read and `next` behaviour until the new command is used. |
+| `evidence-overclaim` | Closed for the published specification and retained as an implementation boundary. The study limits the future receipt to checked structure, order, digests, and recorded operator verdicts, not the truth of the correction or correctness of the remaining plan. |
+
+The record-placement review found the chosen command and its rejected
+alternatives in the tracked study, the semantic origin linked to PR 307, and
+the durable behaviour explicitly assigned to Fiat's canonical skill and tests
+in step 2. No evolution row or standalone ADR is claimed by this ordinary
+delivery. The two published documents are exact copies of the receipted
+sources, so this audit does not revise the accepted specification.
+
+Leads not pursued: none.
