@@ -8178,3 +8178,80 @@ No new findings.
 
 Leads not pursued: the check-to-create race recorded in round 1 is unchanged and
 belongs to step 3, where `git worktree add` turns it into a refusal.
+
+## Fiat run worktree, step 3, round 1 -- 2026-08-22
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| FRW-S3-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The breadcrumb held one line, so `init` refused any second run from the same checkout, naming the first run's tree. [skills#439](https://github.com/wildcat-finance/skills/issues/439) asks for the opposite: two runs against one repository that do not contend for `HEAD` or the index. The guard turned an acceptance condition into a refusal. | fixed in the same commit as this entry, guarded by `test_two_runs_against_one_repository_each_get_their_own_tree`, `test_the_breadcrumb_records_every_live_run` and `test_repeating_a_topic_refuses_and_names_the_existing_tree` |
+
+Reviewed against the eleven risk-register entries. Nine are exercised here.
+`operator-head-mutation`, `dirty-origin-tree` and `partial-write` are each held
+by a test: the checkout's branch, `HEAD` and `git status --short` are captured
+before and after a successful `init`, a run starts from a deliberately dirty
+checkout, and every refusal path leaves no state, no ledger, no breadcrumb and
+no directory. `branch-already-checked-out` refuses by name before anything is
+written, and names the tree holding the branch. `stale-tree-reuse` and
+`path-escape` are step 2's validator, called before the first mutation.
+`subprocess-control` holds: two fixed-argv git invocations through the bounded
+reader, no caller value near a shell. `cross-filesystem-atomicity` holds by
+construction, since the tree is created under the repository root.
+`legacy-state-resume` holds: an existing state directory in a checkout still
+resumes and the archived-run fixtures still pass. `uncommitted-work-loss` and
+`resume-orphan` belong to step 4.
+
+The finding came from reading the issue's acceptance list against the built
+behaviour rather than from a lint. The breadcrumb is now one line per live run,
+sorted, with entries whose state has gone dropped on read, so a finished or
+reset run stops being offered. A repeat of the same run still refuses, and now
+names its own tree rather than somebody else's.
+
+Two things about the origin checkout, recorded rather than fixed. It keeps a
+`.hexaemeron/` holding three files: the self-ignoring `.gitignore` the
+controller has always written, the kernel lock taken before any mutating
+command runs, and the breadcrumb. Only the breadcrumb is the run's own writing,
+and the study's phrase about narrowing write access to one breadcrumb line
+describes that rather than the lock that precedes it. ADR-012 states what is
+actually kept. Separately, a refusal in a directory that is not a repository
+still leaves that `.hexaemeron/` behind, because the lock is taken before any
+command can decide the target is unusable; no state, ledger or breadcrumb is
+written, which is the standard the state-shape rounds set.
+
+The bounded reader was split into `bounded_run`, `bounded_tool` and
+`bounded_tool_status`. The security-relevant behaviour is unchanged and now sits
+in one place: no shell, fixed argv, a hard timeout, a hard output cap, and
+nothing from the child's stream in any diagnosis.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites after the fix: 773/773,
+113 OK, both Promise Machine checks clean.
+
+1 finding, fixed.
+
+Leads not pursued: two. `init` writes the worktree home's self-ignoring
+`.gitignore` only when none is there, so a repository that already keeps a
+different `tmp/fiat/.gitignore` would not get the ignore and would see the tree
+as untracked; overwriting somebody else's ignore file is the worse of the two.
+And the check-to-create race carried from step 2 is unchanged: `git worktree
+add` refuses an occupied path, so it closes into a refusal rather than a wrong
+tree.
+
+## Fiat run worktree, step 3, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree. FRW-S3-R1-01 is closed. Two runs started from one
+checkout each take their own tree and their own branch, the checkout stays on
+its own branch with its `HEAD` and `git status --short` unchanged, and the
+breadcrumb carries both. A repeat of the same run refuses and names that run's
+own tree. A breadcrumb entry whose state has gone is dropped on the next read,
+so a finished or reset run stops being offered while its neighbours stay.
+
+The same eleven risk-register entries were read again. Nothing in the fix widens
+a boundary: it changes how many lines the breadcrumb holds and which path a
+refusal names. `uncommitted-work-loss` and `resume-orphan` still belong to
+step 4.
+
+Phylax, Ephoros and Hypomnema each exit 0. Suites: 773/773, 113 OK, both Promise
+Machine checks clean.
+
+No new findings.
+
+Leads not pursued: the two carried from round 1, both unchanged.

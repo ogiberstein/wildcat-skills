@@ -43,6 +43,8 @@ LEDGER_FILE = "ledger.jsonl"
 # writes into the repository, so it is where the work a run gave up on has to
 # be named: the next study over the same target reads it as prior art.
 RUN_PR_FILE = "run-pr.md"
+WORKTREE_FILE = "worktree"
+"""The one line the origin checkout keeps, naming the tree the run works in."""
 CARRIED_FORWARD_HEADING = "## Carried forward"
 
 # ``issue`` remains accepted only so runs created by older controllers can
@@ -685,11 +687,54 @@ def cmd_init(args) -> None:
             "version_at_init": ledger_field(text, "Current version"),
         }
 
-    os.makedirs(root, exist_ok=True)
-    # Self-ignoring: git never sees the state directory even in repos whose
-    # .gitignore was not touched. Nested .gitignore with `*` covers it.
-    with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
-        fh.write("*\n")
+    # Everything refusable happens before the first mutation. The path is derived
+    # and validated, and the branch is checked for an existing tree, while a
+    # refusal still costs nothing: no worktree, no state, no ledger, no
+    # breadcrumb.
+    repo_root = repository_root(args.dir)
+    candidate = run_worktree_path(args.dir, run_branch)
+    if os.path.exists(state_path(candidate)):
+        die(
+            f"this run already has a worktree at {candidate}; "
+            f"resume with `hexctl --dir {candidate} next`"
+        )
+    worktree = check_worktree_path(repo_root, candidate)
+    refuse_checked_out_branch(args.dir, run_branch)
+
+    home = os.path.dirname(worktree)
+    os.makedirs(home, exist_ok=True)
+    # Self-ignoring, the same trick the state directory uses. Without it the
+    # worktree home shows as untracked in the origin checkout, which both breaks
+    # the promise that a run leaves that checkout's `git status` alone and blocks
+    # the next run, because preflight refuses a dirty tree. Doing it here rather
+    # than leaning on the target repository's own rules means the promise holds
+    # whichever repository the run was started in.
+    home_gitignore = os.path.join(home, ".gitignore")
+    if not os.path.exists(home_gitignore):
+        with open(home_gitignore, "w", encoding="utf-8") as fh:
+            fh.write("*\n")
+    bounded_git(
+        args.dir,
+        ["worktree", "add", "-b", run_branch, worktree, args.base],
+        refusal=(
+            f"could not create the run worktree at {worktree} "
+            f"for '{run_branch}' off '{args.base}'"
+        ),
+    )
+
+    # From here the run's home is the worktree, so a failure has something to
+    # undo. Anything that goes wrong while writing state takes the tree with it,
+    # because a tree with no state is not a run anybody can resume.
+    root = state_root(worktree)
+    try:
+        os.makedirs(root, exist_ok=True)
+        # Self-ignoring: git never sees the state directory even in repos whose
+        # .gitignore was not touched. Nested .gitignore with `*` covers it.
+        with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
+            fh.write("*\n")
+    except OSError:
+        remove_run_worktree(args.dir, worktree)
+        die(f"could not write the run's state into {root}")
 
     receipts = {}
     if args.task_issue is not None:
@@ -710,14 +755,22 @@ def cmd_init(args) -> None:
         "halted": None,
         "frontier": frontier,
     }
+    state["worktree"] = worktree
     init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
-    commit(args.dir, state, "init", init_data)
+    try:
+        commit(worktree, state, "init", init_data)
+        write_breadcrumb(args.dir, worktree)
+    except OSError:
+        remove_run_worktree(args.dir, worktree)
+        die(f"could not record the run at {root}")
     print(
         f"initialised {root} (topic: {args.topic}); "
         f"run branch {run_branch} off {args.base}"
     )
+    print(f"run worktree {worktree}")
+    print(f"work in it: hexctl --dir {worktree} next")
     if frontier is not None:
         print(
             f"frontier run: {frontier['ledger']} at {frontier['version_at_init']}, "
@@ -1853,13 +1906,15 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_tool(
-    base_dir: str,
-    program: str,
-    argv: list[str],
-    refusal: str | None = None,
-) -> bytes:
-    """Run one fixed-argv tool without exposing its output in failures."""
+def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
+    """Run one fixed-argv tool and return its status and output.
+
+    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
+    from the child's stream in any diagnosis. Callers that treat a non-zero
+    status as fatal go through `bounded_tool`; callers for which a refusal is a
+    real answer, such as git declining to remove a tree holding modifications,
+    read the status here.
+    """
     operation = f"{program} {argv[0]}" if argv else program
     try:
         process = subprocess.Popen(
@@ -1904,11 +1959,28 @@ def bounded_tool(
     finally:
         selector.close()
         process.stdout.close()
+    return returncode, bytes(output)
+
+
+def bounded_tool(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    refusal: str | None = None,
+) -> bytes:
+    """Run one fixed-argv tool without exposing its output in failures."""
+    returncode, output = bounded_run(base_dir, program, argv)
     if returncode != 0:
         if refusal is not None:
             die(refusal)
+        operation = f"{program} {argv[0]}" if argv else program
         die(f"{operation} failed with exit {returncode}")
-    return bytes(output)
+    return output
+
+
+def bounded_tool_status(base_dir: str, program: str, argv: list[str]) -> int:
+    """The exit status of one fixed-argv tool, for callers a refusal informs."""
+    return bounded_run(base_dir, program, argv)[0]
 
 
 def bounded_git(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
@@ -2007,6 +2079,87 @@ def check_worktree_path(root: str, candidate: str, registered: str | None = None
         if registered is None or os.path.realpath(registered) != resolved:
             die(f"worktree path is already occupied: {supplied}")
     return resolved
+
+
+def checked_out_worktrees(base_dir: str) -> dict:
+    """Branch -> worktree path, for every tree git currently knows about."""
+    porcelain = bounded_git(base_dir, ["worktree", "list", "--porcelain"]).decode(
+        "utf-8", "replace"
+    )
+    trees: dict[str, str] = {}
+    path = None
+    for line in porcelain.splitlines():
+        if line.startswith("worktree "):
+            path = line[len("worktree "):].strip()
+        elif line.startswith("branch ") and path is not None:
+            trees[line[len("branch "):].strip().removeprefix("refs/heads/")] = path
+    return trees
+
+
+def refuse_checked_out_branch(base_dir: str, run_branch: str) -> None:
+    """Git holds one branch in one tree, so a second checkout cannot be created.
+
+    Refusing by name here is what turns `git worktree add`'s own failure into a
+    sentence that says which branch and which tree, before anything is written.
+    """
+    existing = checked_out_worktrees(base_dir).get(run_branch)
+    if existing is not None:
+        die(f"run branch '{run_branch}' is already checked out at {existing}")
+
+
+def breadcrumb_path(base_dir: str) -> str:
+    return os.path.join(state_root(base_dir), WORKTREE_FILE)
+
+
+def read_breadcrumbs(base_dir: str) -> list[str]:
+    """Every run this checkout started that still has state, in path order.
+
+    One line per run rather than one line per checkout. The issue asks for two
+    runs against one repository that do not contend, so a second run has to be
+    recordable rather than refused, and a resume has to be able to say which
+    trees it found. Entries whose state has gone are dropped on the way out, so
+    a finished or reset run stops being offered.
+    """
+    try:
+        with open(breadcrumb_path(base_dir), encoding="utf-8") as handle:
+            recorded = [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return []
+    return sorted({entry for entry in recorded if os.path.exists(state_path(entry))})
+
+
+def write_breadcrumb(base_dir: str, worktree: str) -> None:
+    """Leave one line in the origin checkout naming the run's tree.
+
+    This is the only thing a run writes into the checkout it was started from. A
+    resume reads it so nobody has to remember the path, and it is one line rather
+    than state because two state directories for one run is the confusion the
+    breadcrumb exists to avoid.
+    """
+    root = state_root(base_dir)
+    os.makedirs(root, exist_ok=True)
+    gitignore = os.path.join(root, ".gitignore")
+    if not os.path.exists(gitignore):
+        with open(gitignore, "w", encoding="utf-8") as handle:
+            handle.write("*\n")
+    entries = sorted(set(read_breadcrumbs(base_dir)) | {worktree})
+    with open(breadcrumb_path(base_dir), "w", encoding="utf-8") as handle:
+        handle.write("".join(f"{entry}\n" for entry in entries))
+
+
+def remove_run_worktree(base_dir: str, worktree: str, force: bool = False) -> bool:
+    """Take the run's tree away, and say whether it went.
+
+    Never forced by default. Git refuses to remove a tree holding modifications,
+    and that refusal is the point: the worst outcome here is a directory somebody
+    has to look at, never uncommitted work that vanished.
+    """
+    argv = ["worktree", "remove"]
+    if force:
+        argv.append("--force")
+    argv.append(worktree)
+    bounded_tool_status(base_dir, "git", argv)
+    return not os.path.exists(worktree)
 
 
 def contained_in(root: str, resolved: str) -> bool:

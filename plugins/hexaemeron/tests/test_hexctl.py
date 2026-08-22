@@ -32,6 +32,49 @@ LINTS_CLEAN = ("--phylax-exit", "0", "--ephoros-exit", "0", "--hypomnema-exit", 
 """What a non-Solidity round records when all three lints came back clean."""
 
 
+def make_origin_checkout(path):
+    """A real repository on `main` at `path`.
+
+    `init` creates a worktree, so every fixture it runs against has to be a real
+    repository. The fake git covers signatures, refs and pull requests; it cannot
+    stand in for repository structure.
+    """
+    for argv in (
+        ["init", "-q", "-b", "main"],
+        ["config", "user.email", "fixture@example.invalid"],
+        ["config", "user.name", "Fixture"],
+        ["config", "commit.gpgsign", "false"],
+        ["commit", "-q", "--allow-empty", "-m", "base"],
+    ):
+        subprocess.run(["git", *argv], cwd=path, check=True, capture_output=True)
+
+
+def run_target(base_dir):
+    """Where a run started in `base_dir` keeps its state.
+
+    `init` prints the run worktree and tells the caller to pass it as `--dir`.
+    The tests follow the same breadcrumb rather than reaching past it, so they
+    exercise the arrangement an operator actually gets.
+    """
+    crumb = os.path.join(base_dir, ".hexaemeron", "worktree")
+    try:
+        with open(crumb, encoding="utf-8") as handle:
+            recorded = handle.read().strip()
+    except OSError:
+        return base_dir
+    if recorded and os.path.exists(os.path.join(recorded, ".hexaemeron", "state.json")):
+        return recorded
+    return base_dir
+
+
+class OriginCheckoutMixin:
+    """A `target` that follows the run into its worktree."""
+
+    @property
+    def target(self):
+        return run_target(self.dir)
+
+
 def hexctl_module():
     """The controller imported as a module.
 
@@ -57,7 +100,7 @@ def protasis_module():
     return module
 
 
-class HexctlCase(unittest.TestCase):
+class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = self.tmp.name
@@ -67,6 +110,8 @@ class HexctlCase(unittest.TestCase):
         self.fake_prs = {}
         self.fake_parents = {}
         self.install_fake_delivery_tools()
+        make_origin_checkout(self.dir)
+
 
     def tearDown(self):
         for process in self.processes:
@@ -79,7 +124,7 @@ class HexctlCase(unittest.TestCase):
         pending_refs = dict(self.fake_refs)
         pending_prs = json.loads(json.dumps(self.fake_prs))
         pending_parents = json.loads(json.dumps(self.fake_parents))
-        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
         state = None
         if os.path.exists(state_path):
             try:
@@ -127,7 +172,7 @@ class HexctlCase(unittest.TestCase):
         env["FAKE_GH_PRS"] = json.dumps(pending_prs)
         proc = subprocess.run(
             [sys.executable, HEXCTL, *args],
-            cwd=self.dir,
+            cwd=self.target,
             capture_output=True,
             text=True,
             env=env,
@@ -174,7 +219,7 @@ import time
 
 args = sys.argv[1:]
 mode = os.environ.get("FAKE_GIT_MODE", "valid")
-if args and args[0] == "rev-parse":
+if args and args[0] == "rev-parse" and "--show-toplevel" not in args:
     if mode == "missing-commit":
         raise SystemExit(2)
     ref = args[-1].removesuffix("^{{commit}}")
@@ -292,8 +337,8 @@ print(json.dumps(payload))
         return json.loads(self.run_ctl("next").stdout)
 
     def write(self, name, content="stub\n"):
-        path = os.path.join(self.dir, name)
-        os.makedirs(os.path.dirname(path) or self.dir, exist_ok=True)
+        path = os.path.join(self.target, name)
+        os.makedirs(os.path.dirname(path) or self.target, exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(content)
         return name
@@ -331,7 +376,7 @@ print(json.dumps(payload))
 
     def strip_run_branch(self):
         """Make the state look like a run started before stacked branches."""
-        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
         with open(path, encoding="utf-8") as fh:
             state = json.load(fh)
         state.pop("run_branch", None)
@@ -373,12 +418,12 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
                 "-c",
                 program,
                 HEXCTL,
-                self.dir,
+                self.target,
                 command,
                 ready,
                 release,
             ],
-            cwd=self.dir,
+            cwd=self.target,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -433,19 +478,18 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         steps = self.write("steps.json", json.dumps(list(titles)))
         self.run_ctl("done", "runbook", "--artifact", runbook,
                      "--steps-file", steps)
-        self.git("init", "-b", "main")
-        self.git("config", "user.email", "tests@example.com")
-        self.git("config", "user.name", "Hexctl Tests")
+        # The repository and the run branch both exist already: the fixture is a
+        # real checkout, and `init` cut the run branch when it created the run's
+        # worktree. Only the step branches are still this helper's to make.
         self.git("add", study, runbook, steps)
         self.git("commit", "-m", "fixture")
         state = self.state()
-        self.git("branch", state["run_branch"])
         for step in state["steps"]:
             self.git("branch", self.step_branch(step["n"], state))
 
     def git(self, *args, expect=0):
         proc = subprocess.run(
-            ["git", *args], cwd=self.dir, capture_output=True, text=True
+            ["git", *args], cwd=self.target, capture_output=True, text=True
         )
         if proc.returncode != expect:
             raise AssertionError(
@@ -478,7 +522,7 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
 class TestLifecycle(HexctlCase):
     def test_init_creates_state_ledger_and_gitignore(self):
         self.init()
-        root = os.path.join(self.dir, ".hexaemeron")
+        root = os.path.join(self.target, ".hexaemeron")
         self.assertTrue(os.path.exists(os.path.join(root, "state.json")))
         self.assertTrue(os.path.exists(os.path.join(root, "ledger.jsonl")))
         with open(os.path.join(root, ".gitignore")) as fh:
@@ -545,11 +589,11 @@ class TestDelegationPackets(HexctlCase):
             ("topic", "target_dir", "base_ref", "output_path"),
         )
         self.assertEqual(out["brief"]["topic"], "packet work")
-        self.assertEqual(out["brief"]["target_dir"], os.path.realpath(self.dir))
+        self.assertEqual(out["brief"]["target_dir"], os.path.realpath(self.target))
         self.assertEqual(out["brief"]["base_ref"], "main")
         self.assertEqual(
             out["brief"]["output_path"],
-            os.path.realpath(os.path.join(self.dir, ".hexaemeron", "study.md")),
+            os.path.realpath(os.path.join(self.target, ".hexaemeron", "study.md")),
         )
         self.assertEqual(out["state_sha256"], hashlib.sha256(
             json.dumps(self.state(), sort_keys=True, separators=(",", ":")).encode()
@@ -571,13 +615,9 @@ class TestDelegationPackets(HexctlCase):
         steps = self.write("steps.json", '["Core"]')
         self.run_ctl("done", "runbook", "--artifact", runbook,
                      "--steps-file", steps)
-        self.git("init", "-b", "main")
-        self.git("config", "user.email", "tests@example.com")
-        self.git("config", "user.name", "Hexctl Tests")
         self.git("add", study, runbook, steps)
         self.git("commit", "-m", "base")
         state = self.state()
-        self.git("branch", state["run_branch"])
         self.git("branch", self.step_branch(1, state))
 
         mason = self.next_json()
@@ -757,7 +797,7 @@ class TestDelegationPackets(HexctlCase):
 
     def test_legacy_receipts_do_not_claim_source_binding(self):
         self.to_steps(("Core",))
-        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
         with open(path, encoding="utf-8") as handle:
             state = json.load(handle)
         state["receipts"]["runbook"].pop("sha256")
@@ -768,7 +808,7 @@ class TestDelegationPackets(HexctlCase):
 
     def test_missing_receipted_source_refuses(self):
         self.to_steps(("Core",))
-        os.unlink(os.path.join(self.dir, "runbook.md"))
+        os.unlink(os.path.join(self.target, "runbook.md"))
         proc = self.run_ctl("next", expect=2)
         self.assertIn("runbook artefact is not a regular file", proc.stderr)
 
@@ -929,7 +969,7 @@ class TestPublicationBindings(HexctlCase):
         self.write_run_pr()
 
     def edit_push_receipt(self, edit):
-        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
         with open(path, encoding="utf-8") as handle:
             state = json.load(handle)
         edit(state["steps"][0]["receipts"]["push"])
@@ -1258,13 +1298,9 @@ class TestDelegationPacketLifecycle(HexctlCase):
         self.run_ctl(
             "done", "runbook", "--artifact", runbook, "--steps-file", steps
         )
-        self.git("init", "-b", "main")
-        self.git("config", "user.email", "tests@example.com")
-        self.git("config", "user.name", "Hexctl Tests")
         self.git("add", study, runbook, steps)
         self.git("commit", "-m", "fixture")
         state = self.state()
-        self.git("branch", state["run_branch"])
         self.git("branch", self.step_branch(1, state))
         self.stable_next("implement", "mason")
         self.run_ctl(
@@ -1317,7 +1353,7 @@ class TestDelegationPacketLifecycle(HexctlCase):
             state["receipts"]["integrate"]["final_step_merge"], "e" * 40
         )
         with open(
-            os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
             encoding="utf-8",
         ) as handle:
             ledger = handle.read()
@@ -1356,7 +1392,7 @@ class TestRunLock(HexctlCase):
         self.init()
         holder, _, release = self.start_lock_holder()
         self.release_lock_holder(holder, release)
-        path = os.path.join(self.dir, ".hexaemeron", "lock")
+        path = os.path.join(self.target, ".hexaemeron", "lock")
         with open(path, "rb") as handle:
             self.assertEqual(handle.read(), b"")
 
@@ -1410,8 +1446,8 @@ class TestStepGates(HexctlCase):
 
     def test_legacy_issue_phase_advances_without_creating_an_issue(self):
         self.to_steps()
-        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
-        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(state_path, encoding="utf-8") as handle:
             state = json.load(handle)
         state["steps"][0]["phase"] = "issue"
@@ -1594,7 +1630,7 @@ class TestProseAndPush(HexctlCase):
         self.assertEqual(state["run_branch"], "fiat/438-carry-the-task-issue-number")
         self.assertEqual(state["receipts"]["task_issue"], issue)
         with open(
-            os.path.join(self.dir, ".hexaemeron", "ledger.jsonl"),
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
             encoding="utf-8",
         ) as handle:
             entries = [json.loads(line) for line in handle if line.strip()]
@@ -1638,7 +1674,7 @@ class TestProseAndPush(HexctlCase):
                     "init", "--topic", "t", "--task-issue", issue, expect=2
                 )
                 self.assertIn("--task-issue", proc.stderr)
-                root = os.path.join(self.dir, ".hexaemeron")
+                root = os.path.join(self.target, ".hexaemeron")
                 self.assertFalse(os.path.exists(os.path.join(root, "state.json")))
                 self.assertFalse(os.path.exists(os.path.join(root, "ledger.jsonl")))
 
@@ -1650,7 +1686,7 @@ class TestProseAndPush(HexctlCase):
                     "--run-branch", branch, expect=2,
                 )
                 self.assertIn("fiat/438-", proc.stderr)
-                root = os.path.join(self.dir, ".hexaemeron")
+                root = os.path.join(self.target, ".hexaemeron")
                 self.assertFalse(os.path.exists(os.path.join(root, "state.json")))
                 self.assertFalse(os.path.exists(os.path.join(root, "ledger.jsonl")))
 
@@ -1679,8 +1715,8 @@ class TestProseAndPush(HexctlCase):
 
     def test_task_issue_cannot_first_be_recorded_after_init(self):
         self.init()
-        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
-        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(state_path, "rb") as handle:
             state_before = handle.read()
         with open(ledger_path, "rb") as handle:
@@ -1698,8 +1734,8 @@ class TestProseAndPush(HexctlCase):
     def test_task_issue_repeat_is_idempotent_and_cannot_change(self):
         issue = "https://github.com/wildcat-finance/skills/issues/438"
         self.init(task_issue=issue)
-        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
-        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(state_path, "rb") as handle:
             state_before = handle.read()
         with open(ledger_path, "rb") as handle:
@@ -1719,8 +1755,8 @@ class TestProseAndPush(HexctlCase):
     def test_legacy_task_issue_state_keeps_its_stored_branch(self):
         issue = "https://github.com/wildcat-finance/skills/issues/438"
         self.to_steps(("One",))
-        state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
-        ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(state_path, encoding="utf-8") as handle:
             state = json.load(handle)
         state["receipts"]["task_issue"] = issue
@@ -1919,7 +1955,7 @@ class TestControls(HexctlCase):
     def test_verify_ok_and_tamper_detected(self):
         self.to_steps()
         self.run_ctl("verify")
-        ledger = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        ledger = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(ledger) as fh:
             lines = fh.read().splitlines()
         entry = json.loads(lines[0])
@@ -1962,8 +1998,11 @@ class TestControls(HexctlCase):
         self.integrate_run()
         self.assertEqual(self.next_json()["do"], "done")
 
+        # `reset` clears the state, after which the breadcrumb no longer resolves
+        # and `target` falls back to the checkout. The archive is in the run's
+        # own tree, so hold that path before the reset rather than after.
+        root = os.path.join(self.target, ".hexaemeron")
         self.run_ctl("reset")
-        root = os.path.join(self.dir, ".hexaemeron")
         self.assertFalse(os.path.exists(os.path.join(root, "state.json")))
         archives = os.listdir(os.path.join(root, "archive"))
         self.assertEqual(len(archives), 1)
@@ -1995,10 +2034,10 @@ class TestFuzzRegressions(HexctlCase):
     """Pins for the day-5 fuzz findings (F-01..F-09)."""
 
     def state_file(self):
-        return os.path.join(self.dir, ".hexaemeron", "state.json")
+        return os.path.join(self.target, ".hexaemeron", "state.json")
 
     def ledger_file(self):
-        return os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        return os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
 
     def to_audit_with_suite(self):
         self.to_audit()
@@ -2111,8 +2150,8 @@ class StateContainerValidationTests(HexctlCase):
         self.run_ctl(
             "audit-round", "--findings", "1", "--log", "audit/AUDIT.md"
         )
-        self.state_path = os.path.join(self.dir, ".hexaemeron", "state.json")
-        self.ledger_path = os.path.join(self.dir, ".hexaemeron", "ledger.jsonl")
+        self.state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        self.ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(self.state_path, "rb") as handle:
             self.valid_state_bytes = handle.read()
         with open(self.ledger_path, "rb") as handle:
@@ -2241,7 +2280,7 @@ class StateContainerValidationTests(HexctlCase):
         state["steps"][0]["audit"]["rounds"][0]["legacy_leaf"] = [None]
         self.write_state(state)
 
-        loaded = hexctl_module().load_state(self.dir)
+        loaded = hexctl_module().load_state(self.target)
 
         self.assertEqual(loaded, state)
         self.assertEqual(loaded["version"], 1)
@@ -2417,7 +2456,7 @@ class LintReceiptTests(HexctlCase):
         self.to_waived_audit()
         self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
                      *LINTS_CLEAN)
-        path = os.path.join(self.dir, ".hexaemeron", "state.json")
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
         with open(path, encoding="utf-8") as fh:
             state = json.load(fh)
         state["steps"][0]["audit"]["rounds"][0].pop("lints")
@@ -2566,7 +2605,7 @@ if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
-class StaleControllerTests(unittest.TestCase):
+class StaleControllerTests(OriginCheckoutMixin, unittest.TestCase):
     """A run driven by an installed plugin older than the repository it edits.
 
     A marketplace plugin is installed from a published copy, so a repository that
@@ -2650,6 +2689,7 @@ class StaleControllerTests(unittest.TestCase):
     def test_init_warns_on_stderr_without_failing_the_run(self):
         module_dir = tempfile.mkdtemp()
         try:
+            make_origin_checkout(module_dir)
             self._repo(module_dir, "fiat-v99.9.9")
             done = subprocess.run(
                 [sys.executable, HEXCTL, "--dir", module_dir, "init",
@@ -2705,7 +2745,7 @@ def row(version, axis, revision, digest, change="Did the thing."):
     return f"| `{version}` | {axis} | `{revision}` | `{digest}` | [e](f) | {change} |\n"
 
 
-class FrontierGateTests(unittest.TestCase):
+class FrontierGateTests(OriginCheckoutMixin, unittest.TestCase):
     """A frontier run proves its ledger update instead of asserting it.
 
     The maturity gate says to update the ledger exactly once per completed
@@ -2721,6 +2761,7 @@ class FrontierGateTests(unittest.TestCase):
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
+        make_origin_checkout(self.dir)
         self.ledger = os.path.join(
             self.dir, "plugins", "demo", "skills", "widget", "EVOLUTION.md")
         self.base_digest = frontier_digest(*self.HELD)
@@ -2826,7 +2867,7 @@ class FrontierGateTests(unittest.TestCase):
              "--base", "main"], capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotIn("frontier run:", done.stdout)
-        with open(os.path.join(self.dir, ".hexaemeron", "state.json"),
+        with open(os.path.join(self.target, ".hexaemeron", "state.json"),
                   encoding="utf-8") as fh:
             self.assertIsNone(json.load(fh)["frontier"])
 
@@ -2838,7 +2879,7 @@ class FrontierGateTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("frontier run:", done.stdout)
         self.assertIn("widget-v1.1.0", done.stdout)
-        with open(os.path.join(self.dir, ".hexaemeron", "state.json"),
+        with open(os.path.join(self.target, ".hexaemeron", "state.json"),
                   encoding="utf-8") as fh:
             held = json.load(fh)["frontier"]
         self.assertEqual(held["rows"], 1)
@@ -2931,7 +2972,7 @@ class FrontierGateCompactTests(FrontierGateTests):
         self.assertIn("they have to be the same row", self.fault())
 
 
-class FrontierGateLegacySnapshotTests(unittest.TestCase):
+class FrontierGateLegacySnapshotTests(OriginCheckoutMixin, unittest.TestCase):
     """A snapshot taken while the gate could not see compact rows counted a
     real history as empty. The gate anchors on the init-time version instead
     of trusting that count, so such a run can still close honestly."""
@@ -2941,6 +2982,7 @@ class FrontierGateLegacySnapshotTests(unittest.TestCase):
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
+        make_origin_checkout(self.dir)
         self.ledger = os.path.join(
             self.dir, "plugins", "demo", "skills", "widget", "EVOLUTION.md")
         digest = frontier_digest(*self.HELD)
@@ -3160,3 +3202,192 @@ class WorktreePathTests(unittest.TestCase):
         os.makedirs(os.path.dirname(derived))
         os.symlink(inside, derived)
         self.assertIn("symlink", self.refuse(self.root, derived))
+
+
+class WorktreeCreationTests(HexctlCase):
+    """`init` arranges the run's isolation, so no run can forget to.
+
+    The origin checkout is the thing under test as much as the worktree is: a run
+    that leaves it on a branch it created, or with a `git status` it did not have
+    before, has failed even if every receipt it wrote is correct.
+    """
+
+    def origin(self, *args):
+        proc = subprocess.run(["git", *args], cwd=self.dir, capture_output=True,
+                              text=True, check=True)
+        return proc.stdout.strip()
+
+    def worktree_entries(self):
+        listing = self.origin("worktree", "list", "--porcelain")
+        return [line[len("worktree "):] for line in listing.splitlines()
+                if line.startswith("worktree ")]
+
+    # -- what a successful init arranges ---------------------------------
+
+    def test_init_creates_the_tree_and_the_run_branch(self):
+        before = self.worktree_entries()
+        self.init()
+        after = self.worktree_entries()
+        self.assertEqual(len(after), len(before) + 1)
+        created = [entry for entry in after if entry not in before][0]
+        self.assertEqual(os.path.realpath(created), os.path.realpath(self.target))
+        self.assertEqual(
+            self.origin("rev-parse", "--abbrev-ref", "HEAD"), "main"
+        )
+        self.assertEqual(
+            subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                           cwd=self.target, capture_output=True, text=True).stdout.strip(),
+            "fiat/test-topic",
+        )
+
+    def test_the_runs_state_lands_in_the_tree_not_the_checkout(self):
+        self.init()
+        self.assertNotEqual(os.path.realpath(self.target), os.path.realpath(self.dir))
+        self.assertTrue(os.path.exists(
+            os.path.join(self.target, ".hexaemeron", "state.json")))
+        self.assertFalse(os.path.exists(
+            os.path.join(self.dir, ".hexaemeron", "state.json")))
+
+    def test_the_breadcrumb_names_the_tree(self):
+        self.init()
+        with open(os.path.join(self.dir, ".hexaemeron", "worktree"),
+                  encoding="utf-8") as handle:
+            recorded = handle.read().strip()
+        self.assertEqual(os.path.realpath(recorded), os.path.realpath(self.target))
+
+    def test_the_checkout_keeps_only_the_breadcrumb_and_the_lock(self):
+        """The breadcrumb is the only thing the run itself writes there.
+
+        The directory around it is the kernel lock's, taken before any command
+        runs, and the self-ignoring `.gitignore` the controller has always
+        written. No state, no ledger, and nothing git can see.
+        """
+        self.init()
+        kept = sorted(os.listdir(os.path.join(self.dir, ".hexaemeron")))
+        self.assertEqual(kept, [".gitignore", "lock", "worktree"])
+
+    def test_init_prints_the_dir_to_use_next(self):
+        proc = self.run_ctl("init", "--topic", "printed path")
+        self.assertIn(f"hexctl --dir {self.target} next", proc.stdout)
+
+    # -- what it leaves alone --------------------------------------------
+
+    def test_the_origin_checkout_is_unchanged_across_a_successful_init(self):
+        before_head = self.origin("rev-parse", "HEAD")
+        before_branch = self.origin("rev-parse", "--abbrev-ref", "HEAD")
+        before_status = self.origin("status", "--short")
+        self.init()
+        self.assertEqual(self.origin("rev-parse", "HEAD"), before_head)
+        self.assertEqual(self.origin("rev-parse", "--abbrev-ref", "HEAD"), before_branch)
+        self.assertEqual(self.origin("status", "--short"), before_status)
+
+    def test_the_worktree_home_does_not_show_as_untracked(self):
+        """The home ignores itself, so the promise does not depend on the
+        target repository already ignoring `tmp/`."""
+        before = self.origin("status", "--short")
+        self.init()
+        self.assertEqual(self.origin("status", "--short"), before)
+        self.assertNotIn("tmp/", self.origin("status", "--short"))
+
+    def test_a_run_starts_from_a_dirty_origin_checkout(self):
+        """The dirty tree is no longer the run's tree, so it no longer blocks."""
+        with open(os.path.join(self.dir, "operators-work.txt"), "w",
+                  encoding="utf-8") as handle:
+            handle.write("uncommitted\n")
+        before_status = self.origin("status", "--short")
+        self.assertIn("operators-work.txt", before_status)
+        self.init()
+        self.assertEqual(self.origin("status", "--short"), before_status)
+        self.assertTrue(os.path.exists(
+            os.path.join(self.target, ".hexaemeron", "state.json")))
+
+    # -- what it refuses --------------------------------------------------
+
+    def test_a_run_branch_already_checked_out_elsewhere_refuses(self):
+        other = os.path.join(self.dir, "other-tree")
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "fiat/test-topic",
+                        other, "main"], cwd=self.dir, check=True, capture_output=True)
+        proc = self.run_ctl("init", "--topic", "test topic", expect=2)
+        self.assertIn("already checked out", proc.stderr)
+        self.assertIn(other, proc.stderr)
+        self.assert_nothing_recorded()
+
+    def test_a_failing_worktree_add_refuses(self):
+        """A branch that exists but is checked out nowhere still stops `add -b`."""
+        subprocess.run(["git", "branch", "fiat/test-topic"], cwd=self.dir,
+                       check=True, capture_output=True)
+        proc = self.run_ctl("init", "--topic", "test topic", expect=2)
+        self.assertIn("could not create the run worktree", proc.stderr)
+        self.assert_nothing_recorded()
+
+    def test_a_target_that_is_not_a_repository_refuses(self):
+        plain = tempfile.mkdtemp()
+        try:
+            proc = subprocess.run(
+                [sys.executable, HEXCTL, "--dir", plain, "init", "--topic", "t"],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn("not a git repository", proc.stderr)
+            for name in ("state.json", "ledger.jsonl", "worktree"):
+                self.assertFalse(
+                    os.path.exists(os.path.join(plain, ".hexaemeron", name)), name
+                )
+        finally:
+            shutil.rmtree(plain, ignore_errors=True)
+
+    def assert_nothing_recorded(self):
+        """A refusal leaves no state, no ledger, no breadcrumb and no tree."""
+        state_dir = os.path.join(self.dir, ".hexaemeron")
+        self.assertFalse(os.path.exists(os.path.join(state_dir, "worktree")))
+        self.assertFalse(os.path.exists(os.path.join(state_dir, "state.json")))
+        self.assertFalse(os.path.exists(os.path.join(state_dir, "ledger.jsonl")))
+        derived = os.path.join(self.dir, "tmp", "fiat", "fiat-test-topic")
+        self.assertFalse(os.path.exists(derived))
+
+    def test_two_runs_against_one_repository_each_get_their_own_tree(self):
+        """The issue asks for two runs that do not contend, not for a second
+        run that is refused."""
+        self.init("run alpha")
+        alpha = self.target
+        second = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "run beta"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(second.returncode, 0, second.stderr)
+        beta = os.path.join(self.dir, "tmp", "fiat", "fiat-run-beta")
+        self.assertNotEqual(os.path.realpath(alpha), os.path.realpath(beta))
+        for tree, branch in ((alpha, "fiat/run-alpha"), (beta, "fiat/run-beta")):
+            self.assertTrue(os.path.exists(os.path.join(tree, ".hexaemeron", "state.json")))
+            self.assertEqual(
+                subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=tree,
+                               capture_output=True, text=True).stdout.strip(),
+                branch,
+            )
+        self.assertEqual(self.origin("rev-parse", "--abbrev-ref", "HEAD"), "main")
+
+    def test_the_breadcrumb_records_every_live_run(self):
+        self.init("run alpha")
+        subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "run beta"],
+            capture_output=True, text=True, check=True,
+        )
+        with open(os.path.join(self.dir, ".hexaemeron", "worktree"),
+                  encoding="utf-8") as handle:
+            recorded = [line.strip() for line in handle if line.strip()]
+        self.assertEqual(len(recorded), 2)
+        self.assertEqual(
+            sorted(os.path.basename(entry) for entry in recorded),
+            ["fiat-run-alpha", "fiat-run-beta"],
+        )
+
+    def test_repeating_a_topic_refuses_and_names_the_existing_tree(self):
+        self.init("run alpha")
+        existing = self.target
+        again = subprocess.run(
+            [sys.executable, HEXCTL, "--dir", self.dir, "init", "--topic", "run alpha"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(again.returncode, 2)
+        self.assertIn(existing, again.stderr)
+        self.assertIn("--dir", again.stderr)
