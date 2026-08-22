@@ -8207,3 +8207,54 @@ Leads not pursued: a general transaction rewrite for controller mutations
 other than `amend study`, the deliberately separate runbook-repair transition,
 and the truth of amendment prose or operator verdicts. None is authorised or
 claimed by this step.
+
+## Fiat receipted study amendments, step 2, round 2 -- 2026-08-22
+
+The fixed tree at `35d79f4eaa7515bb2dd4078d2bcf45bbc3f6bb5e` was
+re-audited against all three round-1 mechanisms and the complete twelve-item
+risk register. The recorded waiver still applies: no Solidity entered the
+tree, so `x-ray`, `solidity-auditor`, `fizz` and a Solidity campaign did not
+run.
+
+### Findings
+
+- Findings: 0. The round-1 fixes hold.
+
+### Risk-register dispositions
+
+| risk id | status | round-2 evidence |
+| --- | --- | --- |
+| `prefix-forgery` | clean | The fixed prefix-drift guard still refuses before any durable mutation. |
+| `amendment-selection` | clean | Fence state now retains delimiter character and opening length; the long-fence specimen, ordinary fenced decoy, duplicate block and trailing section all refuse as intended. |
+| `field-ambiguity` | clean | Calendar date, exact four-field cardinality, order and non-empty values remain guarded. |
+| `step-verdict-coverage` | clean | Missing, duplicate, ambiguous, unknown and completed-step verdict cases remain refused; each non-done step receives one normalized verdict. |
+| `broken-step-transition` | clean | The broken demonstration records its amendment, emits `blocked`, emits no delegated agent brief, and every step receipt remains refused. Fiat's loop and stop contract names that receipt-free terminal outcome. |
+| `checker-binding` | clean | The fixed sibling checker path, captured private temporary file, argv-only invocation, timeout, output cap and bounded refusal remain unchanged. |
+| `path-scope` | clean | Real-path containment, regular-file checks and the source byte ceiling remain ahead of the write-ahead transition. |
+| `partial-write` | clean | Round 2 exercised marker-before-replacement rollback and post-commit marker cleanup in addition to the two committed interruption guards. All four windows recover with matching artefact, state and ledger. |
+| `receipt-history` | clean | Recovery after a written ledger event completes state without appending a second `amend:study`; holding and broken histories retain all three digests and normalized verdicts. |
+| `post-amend-drift` | clean | Both `next` and `verify` recompute the amended artefact digest and refuse later drift. |
+| `legacy-state` | clean | Source-bound receipts without an amendment member retain their ordinary packet behavior, while receipts lacking a digest cannot invoke the new transition. |
+| `evidence-overclaim` | clean | `fiat-study-amendment` remains consequence 2 and authorises only recoverable replacement, receipt re-pinning and the holding-or-blocked result. It still refuses correction truth, verdict correctness and runbook repair. |
+
+The write-ahead order is marker, canonical artefact, ledger, state,
+cross-file verification, then marker removal. A probe interrupted before the
+canonical replacement and recovered by visibly rolling back to the prior
+digest. A second probe interrupted after the state and ledger commit and
+recovered by verifying the recorded transition and clearing the marker. The
+two committed guards continue to cover interruption after artefact replacement
+and after ledger append but before state replacement; the latter still leaves
+exactly one amendment event.
+
+### Checks and bounded leads
+
+The temporary holding and broken demonstrations both pass. The focused
+controller, Fiat prose and Protasis suite passes 313/313; the root suite passes
+113/113; the complete Hexaemeron suite passes 765/765. Promise Machine checks
+are clean at 68 promises and 68 selected coverage rows. Phylax, Ephoros and
+Hypomnema each exit 0 on the source-bound plugin paths.
+
+Leads not pursued: the same bounded exclusions remain: a general transaction
+rewrite outside `amend study`, the separately specified runbook-repair
+transition, and the truth of amendment prose or operator verdicts. None is a
+new defect in the fixed Step 2 tree.
