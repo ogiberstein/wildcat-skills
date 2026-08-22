@@ -1,6 +1,6 @@
 {
   "counts": {
-    "bytes_binary": 42275024,
+    "bytes_binary": 42333809,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 134647,
     "bytes_lockfile": 254,
@@ -66,14 +66,14 @@
       "path": "docs/assets/shoggoth-help-queues.png"
     },
     {
-      "bytes": 8050442,
+      "bytes": 8072367,
       "category": "binary",
       "evidence": "file signature pdf",
       "grade": "hard",
       "path": "docs/pdf/how-to-help-shoggoth.pdf"
     },
     {
-      "bytes": 14559532,
+      "bytes": 14596392,
       "category": "binary",
       "evidence": "file signature pdf",
       "grade": "hard",
