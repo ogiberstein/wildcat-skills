@@ -8099,3 +8099,31 @@ required-text and forbidden-name assertions pass. The controller verifies its
 No new findings.
 
 Leads not pursued: none.
+
+## Fiat run worktree, step 1, round 1 -- 2026-08-22
+
+Reviewed the committed specification against all eleven risk-register entries.
+The step ships two documents and no executable path, so nine of the eleven are
+not exercised by anything here and are carried to the steps that build them.
+The two a document step can still get wrong were checked directly.
+
+`docs/fiat-run-worktree-study.md` and `docs/fiat-run-worktree-runbook.md` are
+byte-identical to the receipted artefacts, so the committed yardstick and the
+frozen run record agree. Neither document carries an absolute path under a home
+or root directory, which is the finding the earlier backed-out copy of this
+step recorded and fixed; the block that carried it is not present in this
+version. All five relative links resolve from `docs/`. The cited suite command
+at `AGENTS.md:138` is the line the study claims it is.
+
+The two inherited claims were re-measured rather than accepted. The four suite
+commands are green on this run's base with no exception: 741/741, 113 OK, and
+both Promise Machine checks clean. The earlier copy's two pinned-toolchain
+failures do not reproduce, because this machine carries the forge and node
+versions those fixtures assert; that is recorded in the study as a fact about a
+container rather than the repository.
+
+Phylax, Ephoros and Hypomnema each exit 0 on both documents.
+
+No findings.
+
+Leads not pursued: none.
