@@ -20,6 +20,21 @@ PLUGINS = ROOT / "plugins"
 UNGOVERNED = {"fizz", "fizz-convert", "fizz-sync", "x-ray", "solidity-auditor"}
 
 AXES = ("baseline", "evolution", "generation", "epoch")
+FIAT_FRONTIER = (
+    "load_state validates the version-1 state container spine in deterministic "
+    "order before any command traverses it, with path-and-kind diagnostics shared "
+    "by verify and mutations; delegated task identities can still expose an "
+    "earlier issue when a collaboration handle is reused."
+)
+FIAT_NEXT_JOB = (
+    "Complete [skills#363](https://github.com/wildcat-finance/skills/issues/363): "
+    "bind every Fiat delegation task identity to the current issue or topic, step "
+    "number and role, refusing or replacing a stale reused handle. Accepted when a "
+    "task for issue N cannot retain issue M in its visible name, Surveyor, Mason, "
+    "Warden and Scribe expose current deterministic identities, resume and "
+    "post-compaction reconstruction preserve them, and an executable regression "
+    "rejects stale reuse."
+)
 
 
 def field(text, name):
@@ -69,10 +84,20 @@ class EvolutionContractTests(unittest.TestCase):
         ledger = (
             PLUGINS / "hexaemeron" / "skills" / "fiat" / "EVOLUTION.md"
         ).read_text(encoding="utf-8")
-        self.assertEqual(field(ledger, "Current version"), "fiat-v5.9.1")
+        self.assertEqual(field(ledger, "Current version"), "fiat-v5.10.1")
+        self.assertEqual(field(ledger, "Frontier status"), "open")
         self.assertEqual(field(ledger, "Frontier revision"), "state-shape-validation")
-        self.assertIn("load_state validates the version-1 state container spine", ledger)
-        self.assertIn("[skills#363](https://github.com/wildcat-finance/skills/issues/363)", ledger)
+        self.assertEqual(field(ledger, "Current frontier"), FIAT_FRONTIER)
+        self.assertEqual(field(ledger, "Next Fiat job"), FIAT_NEXT_JOB)
+        latest = history_rows(ledger)[-1]
+        self.assertEqual(latest["version"], "fiat-v5.10.1")
+        self.assertEqual(latest["axis"], "generation")
+        self.assertEqual(latest["revision"], "state-shape-validation")
+        self.assertEqual(
+            latest["digest"],
+            "e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa",
+        )
+        self.assertIn("skills/issues/438", latest["evidence"])
 
     def test_history_rows_accept_compact_list(self):
         digest = "a" * 64

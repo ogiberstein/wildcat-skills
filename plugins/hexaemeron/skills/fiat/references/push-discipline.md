@@ -3,7 +3,9 @@
 The stacked branches, their pull requests, the one merge into the base, and a
 closed task issue are the delivery trail. Fiat does not create an issue unless
 the user or a higher-priority target-repository rule requires one. If one
-exists, record it as `task_issue` and close it with the integration merge.
+exists, supply its exact URL through `init --task-issue <url>` and close the
+recorded issue with the integration merge. Do not attach the first task issue
+after initialization: the stored branch might already be published.
 
 ## Branches and commits
 
@@ -14,6 +16,13 @@ state. Cut it before step 1 and push it:
 git checkout -b <run branch> <base>
 git push -u origin <run branch>
 ```
+
+Without a task issue, the automatic run branch remains `fiat/<topic slug>`.
+With one, it is `fiat/<issue>-<topic slug>` and the complete slug keeps the
+existing 48-character limit. The leading issue number therefore survives a
+long topic. An explicit issue-backed override remains exact, but it must start
+with `fiat/<issue>-`. Every step branch inherits the stored run branch prefix;
+no later command reparses the issue or renames a branch.
 
 - Take the step branch and the ref to cut it from out of the `implement`
   directive (`branch`, `branch_from`); the controller refuses a receipt for

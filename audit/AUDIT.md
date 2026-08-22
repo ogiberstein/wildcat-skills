@@ -7730,3 +7730,200 @@ The register ids are prose-inapplicable here and each stands at its step 2
 and 3 disposition; this step records them without weakening any.
 
 Leads not pursued: none.
+
+## Fiat task-issue branch names, step 1, round 1 -- 2026-08-21
+
+The exact range
+`6412c85d7cfd352e21fcc3dc0d8cef39a0649976..7e2010b88f121a72239f00b2db595364f2043119`
+adds byte-identical tracked copies of the accepted issue 438 study and runbook,
+then refreshes the Horos tracked-file count for those two documents. No
+Solidity changed, so the recorded security-suite waiver applies and the
+Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Phylax 1.1.0 and Ephoros 0.2.0 each inspected the two Markdown files and
+`.horos/boundary.json`; both exit 0. Hypomnema 4.3.0 inspected the two changed
+documents and exits 0. The tracked study and runbook match their accepted
+`.hexaemeron` sources byte for byte. The committed Horos document matches a
+fresh tracked-tree scan at 1,390 files, and the boundary-currency suite passes
+4/4. The exact step diff also passes `git diff --check`.
+
+All 12 risk-register ids were reviewed. `issue-url-parse`,
+`issue-receipt-drift`, `truncation-loss`, `override-escape`, `late-rename`,
+`legacy-branch-mutation`, `no-issue-regression`, `step-propagation` and
+`topology-regression` each have an explicit construction, refusal or regression
+obligation in steps 2 and 3. This documentation-only step neither implements
+those controls nor claims their evidence. `frontier-drift` is unchanged: no
+evolution or version surface is in the diff, and the documents require the
+issue 363 frontier fields and digest to remain exact. `controller-version-gap`
+is explicit in both documents: old-controller phase receipts are kept separate
+from checked-in-controller evidence. `fork-completion-overclaim` is also
+explicit: the run cannot claim an upstream merge or issue closure until both
+are observed.
+
+The step introduces no executable boundary, dependency, subprocess, remote
+fetch, credential, telemetry or alert. The study and runbook remain run
+records, and they point to the step-3 Fiat evolution row as the durable home
+for the governed decision. Issue 363's implementation and evolution surfaces
+are untouched.
+
+Leads not pursued: none.
+
+## Fiat task-issue branch names, step 2, round 1 -- 2026-08-22
+
+The exact range
+`17397f180e7f0ce0ac36df232b569f30a912af3d..6da8ec6609bd7900fb4ff9af237b46454c8eb9ea`
+adds issue-aware initialization, immutable task-issue recording, focused
+controller guards and the corresponding Promise Machine digest. No Solidity
+changed, so the recorded security-suite waiver applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I438-S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:256-267`; `plugins/hexaemeron/tests/test_hexctl.py:1618-1625` | `task_issue_number` checks only the path returned by `urlsplit`. Relative text, hostless or non-HTTP URLs, and raw controls removed by `urlsplit` can therefore supply an issue number and be stored unchanged as the task-issue receipt. Require raw whitespace, C0 and DEL rejection, then an absolute HTTP(S) URL with a hostname; add each counterexample to the no-state-on-refusal guard. | open |
+
+Direct probes return issue `438` for `not-a-url/issues/438`,
+`https:///issues/438`, `javascript:payload/issues/438` and a literal newline
+inside `https://example.test/issues/438`. The last value demonstrates a split
+between the normalized path used for branch identity and the unchanged invalid
+receipt written by `cmd_init`. The current invalid-input test covers a bare
+non-URL, zero, leading zero, a trailing path component and a pull-request path,
+but none of these accepted shapes.
+
+Phylax 1.1.0, Ephoros 0.2.0 and Hypomnema 4.3.0 each inspect the three changed
+paths and exit 0. The nine issue-focused guards pass 9/9. The implementation
+receipt records the complete controller suite at 158 tests, the root suite at
+107/107 and Hexaemeron at 649/649. Promise Machine reports 14 plugins and 14
+copies clean, the controller digest is
+`3cfbb2dcf06aee9760893de2b122c6ee3fe06b9e49f7832b126ead4da21edba7`,
+and both coverage bindings carry that digest. The exact diff check is clean.
+
+All 12 risk-register ids were reviewed. `issue-url-parse` remains open as
+I438-S2-R1-01. `issue-receipt-drift` is otherwise bound by one successful
+parse, the unchanged state receipt, init-ledger data and fingerprint test.
+`truncation-loss` keeps `438-` at the front of a 48-character composite slug.
+`override-escape` accepts `fiat/438-prep` and refuses a different namespace,
+missing issue and colliding number before state creation. `late-rename` keeps
+state and ledger bytes exact on refusal and matching replay. The legacy-state
+fixture covers `legacy-branch-mutation`; the unchanged automatic and explicit
+paths cover `no-issue-regression`; and the two-step fixture covers
+`step-propagation`.
+
+`topology-regression` is unchanged: branch-tip, remote-tip, pull-request and
+repository checks receive the stored branch without a new exception, and the
+complete controller suite is green. `frontier-drift` is unchanged because no
+evolution or version surface moved and issue 363 remains untouched.
+`controller-version-gap` stays explicit: current behavior is exercised through
+the checked-in controller, not inferred from this run's older phase receipts.
+`fork-completion-overclaim` is not reached by this local initialization step;
+the diff performs no network action and records no upstream merge or closure.
+
+The controller remains interactive and adds no unattended path, log, metric,
+trace or alert. Its bounded exit status, stderr, init output, state and next
+directive remain the operator signals. The permanent Fiat record and mutable
+procedure stay assigned to the step-3 evolution and prose pass.
+
+Leads not pursued: none.
+
+## Fiat task-issue branch names, step 2, round 2 -- 2026-08-22
+
+Round 2 reviews fix range
+`6da8ec6609bd7900fb4ff9af237b46454c8eb9ea..63861895b98585cf597ae1fb3a2ec749ae3c9ef7`
+against I438-S2-R1-01 and the full accepted step contract. No Solidity changed,
+so the recorded security-suite waiver still applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I438-S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:256-281`; `plugins/hexaemeron/tests/test_hexctl.py:1618-1640` | The parser now rejects raw whitespace, C0 and DEL before parsing, then requires HTTP(S), a hostname and the positive terminal issue path. The no-state-on-refusal guard carries the round-1 relative, hostless, non-HTTP and normalized-newline counterexamples. | fixed in `63861895b98585cf597ae1fb3a2ec749ae3c9ef7` |
+
+Independent function probes refuse relative text, a hostless HTTPS URL, a
+JavaScript URL, space, tab, newline, NUL and DEL with exit 2 and the bounded
+task-issue diagnostic. Valid HTTP and uppercase HTTPS specimens return their
+exact issue numbers. The focused invalid-input and valid-binding tests pass
+2/2; the invalid-input test also proves that state and ledger files remain
+absent after each refusal.
+
+Fresh round evidence passes the task-issue focus 10/10, controller 158/158,
+root 107/107 and Hexaemeron 649/649. Promise Machine check and coverage are
+clean. The controller digest is
+`0fafe32c3ccf9799d681cd96154abd781a1e3c9dac50976bff199971d97af292`,
+and both coverage bindings carry it. Phylax, Ephoros and Hypomnema each exit 0,
+and the diff check is clean. Fix commit
+`63861895b98585cf597ae1fb3a2ec749ae3c9ef7` has a valid signature and exactly
+one copy of each required Shoggoth trailer.
+
+All 12 risk-register ids were re-reviewed. `issue-url-parse` is closed by the
+raw and parsed URL gates. `issue-receipt-drift` remains closed because only the
+validated original string reaches the initial state and ledger. The fix does
+not touch slug or branch construction, so `truncation-loss`, `override-escape`,
+`late-rename`, `legacy-branch-mutation`, `no-issue-regression` and
+`step-propagation` retain their round-1 guards. It adds no topology exception,
+network action, evolution surface or version change, so
+`topology-regression`, `frontier-drift`, `controller-version-gap` and
+`fork-completion-overclaim` remain unchanged. Issue 363 is untouched.
+
+No new findings.
+
+Leads not pursued: none.
+
+## Fiat task-issue branch names, step 3, round 1 -- 2026-08-22
+
+The exact range
+`d0b115314f603cb6b2af1cd9252635266582aeb7..c913f54fea7f8f71f60e6cd69df85c3734696a0f`
+publishes Fiat `v5.10.1`, reconciles its mutable instructions and public
+descriptions, and advances the Hexaemeron package to `1.5.4`. No Solidity
+changed, so the recorded security-suite waiver applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The Fiat ledger advances once on the generation axis from `fiat-v5.9.1` to
+`fiat-v5.10.1`. The frontier status, revision, current-frontier text and full
+issue 363 successor remain exact. Recomputing those four fields produces the
+recorded digest
+`e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa`.
+The new row cites issue 438 and leaves all earlier rows unchanged. Fiat
+frontmatter agrees with the ledger. Both manifests and both marketplaces agree
+on package `1.5.4`. The final controller source hashes to
+`2a509e311ae21f07e67cc60baffbe7f1623729fd9fe5443b19f001e88e2b8838`,
+which matches both Promise Machine coverage bindings.
+
+The checked-in CLI help names the issue-aware default. Fresh temporary CLI
+fixtures prove the exact issue receipt and `fiat/438-` run prefix, step-prefix
+inheritance, the unchanged issue-free name, no state after malformed issue or
+override refusal, and byte-identical state and ledger after a late first
+receipt refusal. The focused controller and publication set passes 241/241,
+the root suite passes 109/109 and Hexaemeron passes 651/651. Promise Machine
+reports 14 plugins, 14 copies and all 67 coverage rows clean. The exact diff
+check is clean.
+
+Phylax 1.1.0, Ephoros 0.2.0 and Hypomnema 4.3.0 each inspect the changed tree
+and exit 0. The step adds no network path, subprocess, dependency, secret,
+unattended path, telemetry or alert. The evolution row remains the established
+home for the governed choice. Imprimatur reports no defect on every changed
+prose-bearing publication surface. Brevitas exits 0 on each applicable
+Markdown document and on the changed Codex long description extracted from
+its JSON container. Commit
+`c913f54fea7f8f71f60e6cd69df85c3734696a0f` has a valid local signature and
+exactly one copy of each required Shoggoth trailer.
+
+All 12 risk-register ids were reviewed. The publication commit changes only
+controller help, not issue parsing, receipt storage or branch construction, so
+the step-2 guards retain `issue-url-parse`, `issue-receipt-drift`,
+`truncation-loss`, `override-escape`, `late-rename`,
+`legacy-branch-mutation`, `no-issue-regression` and `step-propagation`.
+`topology-regression` retains the existing branch-tip, remote-tip, pull-request
+and repository checks without a new exception. The exact ledger and
+publication checks close `frontier-drift`. `controller-version-gap` remains
+explicit: the current behavior is proved with the checked-in controller, not
+the older phase controller. `fork-completion-overclaim` is not reached: this
+commit performs no remote action and claims no upstream merge or issue
+closure. Issue 363 remains untouched.
+
+Leads not pursued: none.

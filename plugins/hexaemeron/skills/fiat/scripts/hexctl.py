@@ -32,6 +32,7 @@ import selectors
 import subprocess
 import sys
 import time
+import urllib.parse
 
 STATE_DIR_NAME = ".hexaemeron"
 STATE_FILE = "state.json"
@@ -241,6 +242,7 @@ def solidity_round(state: dict) -> bool:
 # ------------------------------------------------------------------ branches
 
 SLUG_RE = re.compile(r"[^a-z0-9]+")
+TASK_ISSUE_PATH_RE = re.compile(r".*/issues/([1-9][0-9]*)\Z")
 
 # Conservative subset of git's refname rules: no whitespace, no traversal, no
 # leading or trailing separator, nothing that needs quoting in a shell.
@@ -249,6 +251,35 @@ BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*[A-Za-z0-9]$")
 
 def slug(text: str, limit: int = 48) -> str:
     return SLUG_RE.sub("-", text.lower()).strip("-")[:limit].strip("-")
+
+
+def task_issue_number(value: str) -> str:
+    parsed = None
+    if isinstance(value, str) and not any(
+        character.isspace() or ord(character) < 32 or ord(character) == 127
+        for character in value
+    ):
+        try:
+            parsed = urllib.parse.urlsplit(value)
+            hostname = parsed.hostname
+        except ValueError:
+            parsed = None
+            hostname = None
+    else:
+        hostname = None
+    path = parsed.path if parsed is not None else ""
+    match = TASK_ISSUE_PATH_RE.fullmatch(path)
+    if (
+        match is None
+        or parsed is None
+        or parsed.scheme not in ("http", "https")
+        or hostname is None
+    ):
+        die(
+            "--task-issue must be an absolute HTTP(S) URL with a path ending in "
+            "/issues/<positive-number>"
+        )
+    return match.group(1)
 
 
 def check_branch_name(name: str) -> None:
@@ -614,14 +645,25 @@ def cmd_init(args) -> None:
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
-    os.makedirs(root, exist_ok=True)
-    # Self-ignoring: git never sees the state directory even in repos whose
-    # .gitignore was not touched. Nested .gitignore with `*` covers it.
-    with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
-        fh.write("*\n")
     prefix = DEFAULT_CONFIG["git"]["run_branch_prefix"]
-    run_branch = args.run_branch or f"{prefix}{slug(args.topic) or 'run'}"
+    issue_number = (
+        task_issue_number(args.task_issue) if args.task_issue is not None else None
+    )
+    topic_slug = slug(args.topic) or "run"
+    automatic_tail = (
+        topic_slug
+        if issue_number is None
+        else slug(f"{issue_number}-{topic_slug}", 48)
+    )
+    run_branch = args.run_branch or f"{prefix}{automatic_tail}"
     check_branch_name(run_branch)
+    if issue_number is not None:
+        required_prefix = f"{prefix}{issue_number}-"
+        if not run_branch.startswith(required_prefix):
+            die(
+                f"--run-branch for task issue {issue_number} must start with "
+                f"'{required_prefix}'"
+            )
     if run_branch == args.base:
         die("--run-branch must differ from --base; the run needs its own branch")
     frontier = None
@@ -643,6 +685,16 @@ def cmd_init(args) -> None:
             "version_at_init": ledger_field(text, "Current version"),
         }
 
+    os.makedirs(root, exist_ok=True)
+    # Self-ignoring: git never sees the state directory even in repos whose
+    # .gitignore was not touched. Nested .gitignore with `*` covers it.
+    with open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
+        fh.write("*\n")
+
+    receipts = {}
+    if args.task_issue is not None:
+        receipts["task_issue"] = args.task_issue
+
     state = {
         "version": 1,
         "controller": "hexctl",
@@ -653,17 +705,15 @@ def cmd_init(args) -> None:
         "phase": "study",
         "current_step": None,
         "steps": [],
-        "receipts": {},
+        "receipts": receipts,
         "config": json.loads(json.dumps(DEFAULT_CONFIG)),
         "halted": None,
         "frontier": frontier,
     }
-    commit(
-        args.dir,
-        state,
-        "init",
-        {"topic": args.topic, "base": args.base, "run_branch": run_branch},
-    )
+    init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
+    if args.task_issue is not None:
+        init_data["task_issue"] = args.task_issue
+    commit(args.dir, state, "init", init_data)
     print(
         f"initialised {root} (topic: {args.topic}); "
         f"run branch {run_branch} off {args.base}"
@@ -939,6 +989,16 @@ def cmd_record(args) -> None:
         # Recording context while halted is allowed; progress commands are not.
         pass
     value = parse_value(args.value)
+    if args.key == "task_issue":
+        if args.key not in state["receipts"]:
+            die(
+                "task_issue must be supplied by `init --task-issue`; "
+                "the stored run branch cannot be renamed"
+            )
+        if value != state["receipts"][args.key]:
+            die("task_issue is already recorded and cannot be changed")
+        print("task_issue already recorded")
+        return
     state["receipts"][args.key] = value
     commit(args.dir, state, "record", {"key": args.key, "value": value})
     print(f"recorded {args.key}")
@@ -2477,9 +2537,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--topic", required=True)
     sp.add_argument("--base", default="main")
     sp.add_argument(
+        "--task-issue",
+        dest="task_issue",
+        help="task issue URL whose positive terminal issue number names the run",
+    )
+    sp.add_argument(
         "--run-branch",
         dest="run_branch",
-        help="integration branch for the whole run (default: slug of --topic)",
+        help="exact integration branch (default: topic slug, prefixed by task "
+             "issue when supplied)",
     )
     sp.add_argument(
         "--frontier",
