@@ -7567,3 +7567,61 @@ network action, evolution surface or version change, so
 No new findings.
 
 Leads not pursued: none.
+
+## Fiat task-issue branch names, step 3, round 1 -- 2026-08-22
+
+The exact range
+`d0b115314f603cb6b2af1cd9252635266582aeb7..c913f54fea7f8f71f60e6cd69df85c3734696a0f`
+publishes Fiat `v5.10.1`, reconciles its mutable instructions and public
+descriptions, and advances the Hexaemeron package to `1.5.4`. No Solidity
+changed, so the recorded security-suite waiver applies and the Pashov pair did
+not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The Fiat ledger advances once on the generation axis from `fiat-v5.9.1` to
+`fiat-v5.10.1`. The frontier status, revision, current-frontier text and full
+issue 363 successor remain exact. Recomputing those four fields produces the
+recorded digest
+`e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa`.
+The new row cites issue 438 and leaves all earlier rows unchanged. Fiat
+frontmatter agrees with the ledger. Both manifests and both marketplaces agree
+on package `1.5.4`. The final controller source hashes to
+`2a509e311ae21f07e67cc60baffbe7f1623729fd9fe5443b19f001e88e2b8838`,
+which matches both Promise Machine coverage bindings.
+
+The checked-in CLI help names the issue-aware default. Fresh temporary CLI
+fixtures prove the exact issue receipt and `fiat/438-` run prefix, step-prefix
+inheritance, the unchanged issue-free name, no state after malformed issue or
+override refusal, and byte-identical state and ledger after a late first
+receipt refusal. The focused controller and publication set passes 241/241,
+the root suite passes 109/109 and Hexaemeron passes 651/651. Promise Machine
+reports 14 plugins, 14 copies and all 67 coverage rows clean. The exact diff
+check is clean.
+
+Phylax 1.1.0, Ephoros 0.2.0 and Hypomnema 4.3.0 each inspect the changed tree
+and exit 0. The step adds no network path, subprocess, dependency, secret,
+unattended path, telemetry or alert. The evolution row remains the established
+home for the governed choice. Imprimatur reports no defect on every changed
+prose-bearing publication surface. Brevitas exits 0 on each applicable
+Markdown document and on the changed Codex long description extracted from
+its JSON container. Commit
+`c913f54fea7f8f71f60e6cd69df85c3734696a0f` has a valid local signature and
+exactly one copy of each required Shoggoth trailer.
+
+All 12 risk-register ids were reviewed. The publication commit changes only
+controller help, not issue parsing, receipt storage or branch construction, so
+the step-2 guards retain `issue-url-parse`, `issue-receipt-drift`,
+`truncation-loss`, `override-escape`, `late-rename`,
+`legacy-branch-mutation`, `no-issue-regression` and `step-propagation`.
+`topology-regression` retains the existing branch-tip, remote-tip, pull-request
+and repository checks without a new exception. The exact ledger and
+publication checks close `frontier-drift`. `controller-version-gap` remains
+explicit: the current behavior is proved with the checked-in controller, not
+the older phase controller. `fork-completion-overclaim` is not reached: this
+commit performs no remote action and claims no upstream merge or issue
+closure. Issue 363 remains untouched.
+
+Leads not pursued: none.
