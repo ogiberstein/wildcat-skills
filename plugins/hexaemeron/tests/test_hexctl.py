@@ -1370,7 +1370,10 @@ class TestRunLock(HexctlCase):
         result = self.run_ctl("record", "key", '"value"', expect=1)
         self.assertIn(f"pid {holder.pid}", result.stderr)
         self.assertIn("`cmd_record`", result.stderr)
-        self.assertIn("git worktree add", result.stderr)
+        # `git worktree add ../<name> main` was the old advice and it fails
+        # whenever the base is already checked out, which is the ordinary case.
+        self.assertNotIn("git worktree add", result.stderr)
+        self.assertIn("hexctl --dir <checkout> init --topic", result.stderr)
         self.release_lock_holder(holder, release)
 
     def test_read_only_commands_answer_while_a_writer_holds_the_run(self):

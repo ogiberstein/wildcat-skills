@@ -132,10 +132,23 @@ override must start with `fiat/<issue>-`. A late first issue receipt is refused
 rather than renaming a stored branch; issue-free and legacy names stay
 unchanged.
 
-Mutating commands hold a kernel lock for their whole run. A second writer is
-refused with the first process's details and a worktree command; `next`,
-`status`, and `verify` still answer. The operating system releases the lock if
-the holder crashes, so a stale metadata file never needs manual cleanup.
+`init` creates a dedicated git worktree for the run, under `tmp/fiat/`, and the
+run works there for its whole length. The checkout it was started from is never
+checked out, never branched, and never left on a branch the run created, so a
+run can start against a tree somebody is standing in with uncommitted work. That
+checkout keeps one breadcrumb line per live run, and `status` or `next` there
+name the tree and the exact `--dir` to use. A target that is not a repository, an
+occupied or escaping path, a branch already checked out, or a failing
+`git worktree add` each refuse by name before anything is written; there is no
+in-place fallback. `reset` archives a completed run into the origin checkout and
+removes the tree when git can do it without force, keeping any tree that holds
+work.
+
+Mutating commands hold a kernel lock for their whole run. Separate runs get
+separate trees and separate state, so the lock only bites when two agents share
+one run's tree; a second writer is refused with the first process's details, and
+`next`, `status`, and `verify` still answer. The operating system releases the
+lock if the holder crashes, so a stale metadata file never needs manual cleanup.
 
 The receipts are opinionated where the process is: the audit phase will not
 open without a resolved (or explicitly waived) security suite; it will not
