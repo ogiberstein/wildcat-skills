@@ -63,7 +63,7 @@ so a reader knows which queue a thing came from without opening it.
   skill or skills it upgrades, because the filer is the wrong party to guess.
 
 `{skill}` is the skill's own governed name rather than its plugin's, so Lemma's
-is `chunk`. The reasoning, the alternatives and the two questions still open are
+is `lemma`. The reasoning, the alternatives and the two questions still open are
 in [ADR-009](docs/decisions/ADR-009-four-issue-queues-and-their-titles.md).
 Filing an issue merely to satisfy a workflow remains forbidden; these
 conventions say how to title one that was worth filing.

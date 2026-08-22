@@ -25,5 +25,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $brevitas to compress this engineering review without losing evidence."
-  }
+  },
+  "license": "Apache-2.0"
 }

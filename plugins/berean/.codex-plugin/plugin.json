@@ -24,5 +24,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $berean to verify this release's citations, chain readings and promotion record against its pinned corpus."
-  }
+  },
+  "license": "Apache-2.0"
 }

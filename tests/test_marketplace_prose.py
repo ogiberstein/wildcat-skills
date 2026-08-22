@@ -33,7 +33,7 @@ CANONICAL_SKILLS = {
     "hexaemeron": ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md",
     "horos": ROOT / "plugins" / "horos" / "skills" / "horos" / "SKILL.md",
     "janus": ROOT / "plugins" / "janus" / "skills" / "janus" / "SKILL.md",
-    "lemma": ROOT / "plugins" / "lemma" / "skills" / "chunk" / "SKILL.md",
+    "lemma": ROOT / "plugins" / "lemma" / "skills" / "lemma" / "SKILL.md",
     "lazarus": ROOT / "plugins" / "lazarus" / "skills" / "lazarus" / "SKILL.md",
     "pandects": ROOT / "plugins" / "pandects" / "skills" / "pandects" / "SKILL.md",
     "probitas": ROOT / "plugins" / "probitas" / "skills" / "probitas" / "SKILL.md",
@@ -81,24 +81,17 @@ def marketplace_frontiers(path):
     return frontiers
 
 
-def root_readme_frontier(name):
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    match = re.search(
-        rf"(?m)^\| \[[^\]]+\]\(\./plugins/{re.escape(name)}\) "
-        r"\| [^|\n]* \| (?P<frontier>[^|\n]+) \|$",
-        readme,
-    )
-    if match is None:
-        raise AssertionError(f"root selection table has no row for {name}")
-    return match.group("frontier").strip()
-
-
 class MarketplaceProseTests(unittest.TestCase):
     def test_wildcat_labs_identity_contains_the_promise_machine_architecture(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertTrue(readme.startswith("# Wildcat Labs Skills\n\n## The Promise Machine\n"))
-        self.assertIn("shared architecture", readme)
-        self.assertFalse(readme.startswith("# The Promise Machine"))
+        self.assertTrue(readme.startswith('<p align="center">\n'))
+        self.assertLess(
+            readme.index("./assets/characters/shoggoth.png"),
+            readme.index("# The Shoggoth"),
+        )
+        self.assertIn("## What Is It?", readme)
+        self.assertIn("## The Promise Machine", readme)
+        self.assertIn("24 members: 15 domain agents and\n9 phase agents", readme)
 
         marketplace = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
         self.assertIn("Wildcat Labs Skills", marketplace["description"])
@@ -171,7 +164,8 @@ class MarketplaceProseTests(unittest.TestCase):
 
     def test_root_readme_maps_every_plugin(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("## Current status", readme)
+        self.assertIn("## Meet the Shoggoth", readme)
+        self.assertNotIn("## Current status", readme)
         for name in PLUGINS:
             with self.subTest(plugin=name):
                 self.assertIn("[", readme)
@@ -184,8 +178,10 @@ class MarketplaceProseTests(unittest.TestCase):
         publishing step at all, so an operator who guessed wrong either ran an
         update that does nothing or waited for a sync that was never involved.
         """
-        readme = s_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        readme = s_readme = (ROOT / "INSTALL.md").read_text(encoding="utf-8")
         flat = " ".join(readme.split())
+        root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("## Publish", root_readme)
         self.assertIn("## Publish", readme)
         # Both routes, named.
         self.assertIn("claude plugin marketplace update wildcat-labs", readme)
@@ -204,14 +200,14 @@ class MarketplaceProseTests(unittest.TestCase):
         self.assertIn("stay relative paths", flat)
 
     def test_the_publish_section_sits_under_its_own_heading(self):
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        readme = (ROOT / "INSTALL.md").read_text(encoding="utf-8")
         install = readme.index("## Install")
         publish = readme.index("## Publish")
-        use = readme.index("## Use")
         self.assertLess(install, publish)
-        self.assertLess(publish, use)
-        # Local agents is an Install concern and must not have been absorbed.
         self.assertLess(readme.index("### Local agents"), publish)
+        root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("## Install", root_readme)
+        self.assertNotIn("## Publish", root_readme)
 
     def test_plugin_landing_readmes_publish_unique_rolling_fiat_jobs(self):
         landings = plugin_landing_readmes()
@@ -281,8 +277,8 @@ class MarketplaceProseTests(unittest.TestCase):
                     self.assertTrue(frontiers, path)
                     self.assertEqual(frontiers, [expected] * len(frontiers))
 
-            with self.subTest(plugin=name, surface="root selection table"):
-                self.assertEqual(root_readme_frontier(name), expected)
+        root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("**Current frontier.**", root_readme)
 
     def test_canonical_skills_state_where_they_sit_and_their_frontier(self):
         """The sibling-handoff paragraph is deliberately absent.
@@ -357,15 +353,6 @@ class MarketplaceProseTests(unittest.TestCase):
         ):
             with self.subTest(document="plugins/pandects/README.md", claim=claim):
                 self.assertIn(claim, landing)
-
-        root = (ROOT / "README.md").read_text(encoding="utf-8")
-        for claim in (
-            "The catalogue holds %s laws across conservation, accrual and withdrawal"
-            % total,
-            "%s are exact." % exact,
-        ):
-            with self.subTest(document="README.md", claim=claim):
-                self.assertIn(claim, root)
 
     def test_lazarus_release_readme_remains_digest_bound(self):
         manifest = json.loads(

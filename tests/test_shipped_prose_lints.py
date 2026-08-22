@@ -49,10 +49,15 @@ def imprimatur():
 def shipped_markdown():
     """Tracked Markdown this repository ships as its own prose."""
     listed = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "*.md"],
+        [
+            "git", "-C", str(ROOT), "ls-files", "--cached", "--others",
+            "--exclude-standard", "--", "*.md",
+        ],
         capture_output=True, text=True, check=True).stdout.split("\n")
     for name in listed:
         if not name:
+            continue
+        if not (ROOT / name).is_file():
             continue
         parts = Path(name).parts
         if parts[0] in ("audit", "docs"):

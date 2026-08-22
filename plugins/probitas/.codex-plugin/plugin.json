@@ -26,5 +26,6 @@
     "category": "Research",
     "capabilities": [],
     "defaultPrompt": "Use $probitas to build a sourced dossier on \"<entity>\" from the addresses they declared."
-  }
+  },
+  "license": "Apache-2.0"
 }

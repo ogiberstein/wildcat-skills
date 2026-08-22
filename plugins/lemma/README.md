@@ -18,11 +18,9 @@ It does not embed, index, retrieve, or answer from the chunks. Python 3.10 or
 later is the only runtime dependency. Solidity chunking also needs `solc`; the
 included wrapper can run the pinned compiler with Docker or Podman.
 
-The plugin is Lemma; its skill is `chunk`, giving the qualified name
-`lemma:chunk` (`/lemma:chunk` in Claude Code). The name states the operation
-instead of repeating the plugin name in the call.
-`lemmatise` was avoided because it already means reducing words to dictionary
-forms in natural-language processing, which this plugin does not do.
+The plugin and its canonical skill are both named `lemma`, giving the qualified
+name `lemma:lemma` (`/lemma:lemma` in Claude Code). The repeated name keeps
+discovery and invocation consistent with the rest of the marketplace.
 
 ## What it ships
 
@@ -34,9 +32,7 @@ forms in natural-language processing, which this plugin does not do.
 It stops after chunking. It does not embed, index, retrieve, or answer from the
 output.
 
-Its one skill is `chunk`, giving the qualified name `lemma:chunk`. The plain
-name matches the operation and avoids implying the unrelated NLP operation of
-lemmatisation.
+Its one skill is `lemma`, giving the qualified name `lemma:lemma`.
 
 ## Day to day
 

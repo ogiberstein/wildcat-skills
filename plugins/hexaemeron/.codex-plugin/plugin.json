@@ -26,5 +26,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $hexaemeron:fiat to start \"<topic>\" in the current repository without creating GitHub issues. Validate existing controller state before resuming; if it is complete, archive and reset it automatically before starting."
-  }
+  },
+  "license": "Apache-2.0"
 }

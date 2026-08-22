@@ -3,7 +3,7 @@
 Governed first-party marketplace skills use labels of the form
 `{skill}-v{evolution}.{generation}.{epoch}`. These labels are not SemVer and
 do not rename the skill: a label is built from the skill's own name, not its
-plugin's, so Lemma's skill is governed as `chunk`.
+plugin's, so Lemma's skill is governed as `lemma`.
 
 This contract governs a skill, not a plugin. A plugin whose skills each hold
 their own frontier keeps one ledger per skill. Vendored or third-party skills

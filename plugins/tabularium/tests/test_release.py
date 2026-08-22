@@ -143,9 +143,12 @@ class CheckedInReleaseTests(unittest.TestCase):
         root = (support.REPO_ROOT / "README.md").read_text()
         plugin = (support.PLUGIN_ROOT / "README.md").read_text()
         skill = (support.PLUGIN_ROOT / "skills/tabularium/SKILL.md").read_text()
-        for prose in (root, plugin, skill):
+        for prose in (plugin, skill):
             self.assertIn("goldfinch-v0", prose)
         self.assertIn("### Tabularium", root)
+        commons = root.split("## Wildcat Commons", 1)[1].split("\n## ", 1)[0]
+        for protocol in ("Compound", "Euler", "Goldfinch"):
+            self.assertNotIn(protocol, commons)
 
 
 if __name__ == "__main__":
