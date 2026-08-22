@@ -7428,3 +7428,44 @@ Phylax, Ephoros and Hypomnema each exit 0. The diff check is clean. Mason head
 exactly one copy of each required Shoggoth trailer.
 
 Leads not pursued: none.
+
+## Fiat task-issue branch names, step 1, round 1 -- 2026-08-21
+
+The exact range
+`6412c85d7cfd352e21fcc3dc0d8cef39a0649976..7e2010b88f121a72239f00b2db595364f2043119`
+adds byte-identical tracked copies of the accepted issue 438 study and runbook,
+then refreshes the Horos tracked-file count for those two documents. No
+Solidity changed, so the recorded security-suite waiver applies and the
+Pashov pair did not run.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Phylax 1.1.0 and Ephoros 0.2.0 each inspected the two Markdown files and
+`.horos/boundary.json`; both exit 0. Hypomnema 4.3.0 inspected the two changed
+documents and exits 0. The tracked study and runbook match their accepted
+`.hexaemeron` sources byte for byte. The committed Horos document matches a
+fresh tracked-tree scan at 1,390 files, and the boundary-currency suite passes
+4/4. The exact step diff also passes `git diff --check`.
+
+All 12 risk-register ids were reviewed. `issue-url-parse`,
+`issue-receipt-drift`, `truncation-loss`, `override-escape`, `late-rename`,
+`legacy-branch-mutation`, `no-issue-regression`, `step-propagation` and
+`topology-regression` each have an explicit construction, refusal or regression
+obligation in steps 2 and 3. This documentation-only step neither implements
+those controls nor claims their evidence. `frontier-drift` is unchanged: no
+evolution or version surface is in the diff, and the documents require the
+issue 363 frontier fields and digest to remain exact. `controller-version-gap`
+is explicit in both documents: old-controller phase receipts are kept separate
+from checked-in-controller evidence. `fork-completion-overclaim` is also
+explicit: the run cannot claim an upstream merge or issue closure until both
+are observed.
+
+The step introduces no executable boundary, dependency, subprocess, remote
+fetch, credential, telemetry or alert. The study and runbook remain run
+records, and they point to the step-3 Fiat evolution row as the durable home
+for the governed decision. Issue 363's implementation and evolution surfaces
+are untouched.
+
+Leads not pursued: none.
