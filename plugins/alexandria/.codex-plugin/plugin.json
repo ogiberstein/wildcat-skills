@@ -24,5 +24,6 @@
     "category": "Research",
     "capabilities": [],
     "defaultPrompt": "Use $alexandria to preserve or verify this lending-data release, query its source-bound credit view, or build and check a bounded Compound v3 Phase 0 method release."
-  }
+  },
+  "license": "Apache-2.0"
 }

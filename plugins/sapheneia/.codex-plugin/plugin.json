@@ -24,5 +24,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $sapheneia to shape your replies for an AuDHD engineer throughout this task."
-  }
+  },
+  "license": "Apache-2.0"
 }

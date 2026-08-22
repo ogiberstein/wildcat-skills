@@ -9,7 +9,7 @@
   },
   "homepage": "https://github.com/wildcat-finance/skills/tree/main/plugins/lazarus",
   "repository": "https://github.com/wildcat-finance/skills",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "ethereum",
     "historical-state",

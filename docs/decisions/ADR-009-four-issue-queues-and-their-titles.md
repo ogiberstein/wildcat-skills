@@ -48,7 +48,7 @@ Four queues, each identified by its title prefix and its label.
 | A run's system-wide observation | `framework-N` | `observation` |
 
 `{skill}` is the skill's own governed name rather than its plugin's, so Lemma's
-is `chunk`. A run's spin-off carries no `wish` label: that label belongs to the
+is `lemma`. A run's spin-off carries no `wish` label: that label belongs to the
 closed numbered set, and reusing it merges two queues that mean different
 things.
 

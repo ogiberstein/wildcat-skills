@@ -15,6 +15,7 @@ import tempfile
 
 CONTRACT_ID = "promise-machine/v1"
 LAW_NAME = "PROMISE_MACHINE.md"
+LICENSE_NAME = "LICENSE"
 MARKER = (
     "<!-- promise-machine: contract=promise-machine/v1; "
     "canonical=PROMISE_MACHINE.md; copies=generated -->"
@@ -23,6 +24,7 @@ MAX_MARKDOWN_BYTES = 256 * 1024
 MAX_JSON_BYTES = 64 * 1024
 MAX_COVERAGE_BYTES = 512 * 1024
 MAX_RUNTIME_SOURCE_BYTES = 1024 * 1024
+MAX_LICENSE_BYTES = 64 * 1024
 REQUIRED_HEADINGS = (
     "# Promise Machine contract",
     "## Contract identity",
@@ -36,6 +38,7 @@ REQUIRED_HEADINGS = (
     "## Refusal and recovery",
     "## Exceptions",
     "## Conformance",
+    "## First-party licence promise",
     "## Installation copies",
 )
 REQUIRED_FIELDS = (
@@ -2440,6 +2443,121 @@ def check_hosts(root: Path, inventory: Inventory):
     return len(claude), len(codex), claude_findings + codex_findings
 
 
+def read_licence(path: Path, root: Path, *, code: str):
+    shown = relative(path, root)
+    if path.is_symlink() or not confined(path, root):
+        return None, [
+            Finding(
+                code,
+                "identity",
+                shown,
+                "licence path is a symlink or resolves outside the repository",
+                "restore a regular licence at the fixed path",
+            )
+        ]
+    if not path.is_file():
+        return None, [
+            Finding(
+                code,
+                "structural",
+                shown,
+                "required first-party licence is absent",
+                "restore the Apache-2.0 licence at the fixed path",
+            )
+        ]
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        return None, [
+            Finding(
+                code,
+                "identity",
+                shown,
+                f"licence could not be read: {exc}",
+                "restore a readable regular licence inside the repository",
+            )
+        ]
+    if len(payload) > MAX_LICENSE_BYTES:
+        return None, [
+            Finding(
+                code,
+                "structural",
+                shown,
+                f"licence is {len(payload)} bytes; limit is {MAX_LICENSE_BYTES}",
+                "restore the bounded canonical Apache-2.0 licence",
+            )
+        ]
+    return payload, []
+
+
+def check_licences(root: Path, inventory: Inventory):
+    findings: list[Finding] = []
+    canonical, read_findings = read_licence(root / LICENSE_NAME, root, code="PM072")
+    findings.extend(read_findings)
+    if canonical is not None:
+        required = (b"Apache License", b"Version 2.0", b"Copyright 2026 Wildcat Labs")
+        missing = [marker.decode("ascii") for marker in required if marker not in canonical]
+        if missing:
+            findings.append(
+                Finding(
+                    "PM073",
+                    "structural",
+                    LICENSE_NAME,
+                    f"canonical first-party licence lacks markers: {missing!r}",
+                    "restore the Apache-2.0 text and Wildcat Labs copyright notice",
+                )
+            )
+
+    first_party_plugins = sorted(
+        {skill.plugin for skill in inventory.skills if skill.governance == "first-party"}
+    )
+    licensed_plugins = 0
+    for name in first_party_plugins:
+        plugin = root / "plugins" / name
+        plugin_clean = True
+        payload, plugin_findings = read_licence(
+            plugin / LICENSE_NAME, root, code="PM074"
+        )
+        findings.extend(plugin_findings)
+        if plugin_findings or canonical is None or payload != canonical:
+            plugin_clean = False
+            if payload is not None and canonical is not None and payload != canonical:
+                findings.append(
+                    Finding(
+                        "PM074",
+                        "drift",
+                        relative(plugin / LICENSE_NAME, root),
+                        "first-party plugin licence differs from the root licence",
+                        "restore the byte-identical root Apache-2.0 licence copy",
+                    )
+                )
+        for manifest_path in PLUGIN_MANIFESTS:
+            manifest, manifest_findings = read_json(plugin / manifest_path, root)
+            findings.extend(manifest_findings)
+            if manifest is None:
+                plugin_clean = False
+                continue
+            author = manifest.get("author")
+            if (
+                manifest.get("license") != "Apache-2.0"
+                or not isinstance(author, dict)
+                or author.get("name") != "Wildcat Labs"
+            ):
+                plugin_clean = False
+                findings.append(
+                    Finding(
+                        "PM075",
+                        "identity",
+                        relative(plugin / manifest_path, root),
+                        "first-party host manifest does not name Apache-2.0 and Wildcat Labs",
+                        "set license to Apache-2.0 and author.name to Wildcat Labs",
+                    )
+                )
+        if plugin_clean:
+            licensed_plugins += 1
+    return licensed_plugins, findings
+
+
 def check_copies(root: Path, law: bytes | None, plugins: list[Path]):
     findings: list[Finding] = []
     if law is None:
@@ -2559,6 +2677,7 @@ def report(
         "codex_plugins": 0,
         "package_versions": 0,
         "skill_versions": 0,
+        "licensed_plugins": 0,
     }
     if stats:
         counts.update(stats)
@@ -2630,6 +2749,7 @@ def parse_only(raw: str):
         "versions",
         "hosts",
         "coverage",
+        "licences",
     }
     unknown = sorted(set(requested) - allowed)
     if unknown or not requested:
@@ -2651,7 +2771,7 @@ def main(argv=None):
         "--only",
         default=(
             "law,copies,inventory,structure,contracts,overlays,identity,routers,"
-            "versions,hosts,coverage"
+            "versions,hosts,coverage,licences"
         ),
     )
     check_parser.add_argument("--root", help=argparse.SUPPRESS)
@@ -2754,6 +2874,7 @@ def main(argv=None):
             "versions",
             "hosts",
             "coverage",
+            "licences",
         }
         if only & inventory_components:
             inventory, inventory_findings = discover_inventory(root)
@@ -2787,6 +2908,10 @@ def main(argv=None):
             stats["claude_plugins"] = claude_plugins
             stats["codex_plugins"] = codex_plugins
             findings.extend(host_findings)
+        if "licences" in only and inventory is not None:
+            licensed_plugins, licence_findings = check_licences(root, inventory)
+            stats["licensed_plugins"] = licensed_plugins
+            findings.extend(licence_findings)
         if "coverage" in only and inventory is not None:
             coverage_rows, coverage_selected, coverage_findings = check_coverage(
                 root, inventory, {"executable", "prompt", "vendored"}

@@ -2310,7 +2310,7 @@
     },
     {
       "promise_id": "lemma-chunk-validation",
-      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "skill_path": "plugins/lemma/skills/lemma/SKILL.md",
       "group": "executable",
       "cases": {
         "P": "chunk-solidity-p",
@@ -2326,7 +2326,7 @@
     },
     {
       "promise_id": "lemma-markdown-chunks",
-      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "skill_path": "plugins/lemma/skills/lemma/SKILL.md",
       "group": "executable",
       "cases": {
         "P": "chunk-markdown-p",
@@ -2342,7 +2342,7 @@
     },
     {
       "promise_id": "lemma-solidity-chunks",
-      "skill_path": "plugins/lemma/skills/chunk/SKILL.md",
+      "skill_path": "plugins/lemma/skills/lemma/SKILL.md",
       "group": "executable",
       "cases": {
         "P": "chunk-solidity-p",

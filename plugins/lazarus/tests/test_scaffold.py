@@ -17,7 +17,7 @@ class ScaffoldTests(unittest.TestCase):
             self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(claude["version"], codex["version"])
         self.assertEqual(claude["description"], codex["description"])
-        self.assertEqual(claude["license"], "MIT")
+        self.assertEqual(claude["license"], "Apache-2.0")
 
     def test_the_host_manifests_follow_the_package_and_not_the_skill_or_writer(self):
         """Two axes, kept apart on purpose.

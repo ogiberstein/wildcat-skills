@@ -27,5 +27,6 @@
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": "Use $pandects to check this credit protocol against the executable laws in the corpus."
-  }
+  },
+  "license": "Apache-2.0"
 }
