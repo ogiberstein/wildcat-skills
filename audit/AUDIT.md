@@ -7927,3 +7927,175 @@ commit performs no remote action and claims no upstream merge or issue
 closure. Issue 363 remains untouched.
 
 Leads not pursued: none.
+
+## Shoggoth contributor guide, step 1, round 1 -- 2026-08-22
+
+Reviewed the three new documents against the eight study risks and the
+non-Solidity phase gates. The security-suite waiver applies: this step adds no
+Solidity, so X-Ray, Solidity Auditor and Fizz did not run. Phylax, Ephoros and
+Hypomnema each inspected the changed paths and exited 0. Imprimatur, Brevitas,
+the document assertions and the 109-test root suite had already exited 0 on
+the exact implementation commit.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| SCG-S1-R1-01 | medium | `docs/how-to-help-shoggoth-study.md`; `docs/how-to-help-shoggoth-runbook.md` | Step 1 shipped the study before the planned framework observation existed. The study named that issue as the standing home for the volunteer-selector trade, so Hypomnema's record-placement rule had no existing record to inspect when implementation was receipted. | fixed by filing [issue #447](https://github.com/wildcat-finance/skills/issues/447), which carries the chosen intent-packet design, rejected inference boundary, claim-channel alternatives and unresolved questions; exact title and labels were read back from GitHub |
+| SCG-S1-R1-02 | low | audit invocation | The first Hypomnema command included `audit/AUDIT.md`, whose historical failure specimens deliberately name absent runbooks. It reproduced two H003 findings at lines 6119 and 6269; the reduced command over the three changed documents exited 0. | fixed by applying the pointer gate to the changed documentation scope named by the audit contract; no checker or shipped-document defect existed, so no code guard was added |
+
+`selection-overclaim` is closed for this step: every selector example is under
+"The selector we should discuss" and the following sentence says the commands
+are proposed, not live. `contributor-attribution` is closed by PR #445, issue
+#438 and the merged audit rounds; no personal name or handle appears in the
+three documents. `wave-drift` is bounded by the 22 August 2026 date and the
+sentence refusing a permanent priority claim. `duplicate-work` stays visible:
+the guide names assignment, branches and pull requests, and says the
+pre-pull-request claim channel remains open. `scope-widening` is closed by the
+diff, which contains only the guide, study and runbook.
+
+`mascot-identity`, `issue-authority` and `binary-review` are not applicable to
+the step-1 repository diff. The standing issue was filed as the audit fix under
+the user's explicit request, with only the existing `observation` and
+`origin:ai` labels; the exact body differs from the preview only by GitHub's
+terminal newline. Artwork and binary inspection remain obligations of step 3.
+
+Leads not pursued: SCG-S1-R1-02 changed no code and has no regression test; the
+exact failing and corrected invocations are recorded above.
+
+## Shoggoth contributor guide, step 1, round 2 -- 2026-08-22
+
+Reviewed the fixed tree and issue #447 readback against both round-1 findings
+and all eight study risks. The discussion record exists, stays open, carries
+the exact expected title and the `observation` and `origin:ai` labels, and its
+body differs from the preview only by GitHub's terminal newline. The three
+changed documents still contain no personal name or handle, and proposed
+syntax remains marked as not live.
+
+Phylax, Ephoros and Hypomnema each inspected the three changed documents and
+exited 0. The security-suite waiver still applies; no Solidity entered the
+tree. Zero findings.
+
+Leads not pursued: none.
+
+## Shoggoth contributor guide, step 2, round 1 -- 2026-08-22
+
+Reviewed implementation range
+`eeed036b4f994104c9c1e7b5c03f6cdaea71ac13..c35dda9d02b88b9f489eb7c380e7ce61bcca88e6`,
+the corrected issue #447 readback and the user correction receipts. The
+security-suite waiver applies because the step changes documentation and one
+discussion issue, not Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| SCG-S2-R1-01 | medium | `docs/how-to-help-shoggoth.md`; `docs/how-to-help-shoggoth-study.md`; `docs/how-to-help-shoggoth-runbook.md`; issue #447 | The first correction described the default as the earliest Wave with an eligible open issue. That narrows the user's rule: first choose the earliest Wave that still has open issues, then apply eligibility inside it. | fixed in this round; the tracked prose and issue now use the open-issue boundary, while the second immutable correction receipt records how eligibility applies inside the chosen Wave |
+| SCG-S2-R1-02 | low | issue #447 | The issue body counted ten open issues without Wave metadata. Filing the issue made that count stale immediately because the observation itself has no Wave metadata. | fixed in this round by keeping the relevant fact without a self-invalidating count |
+
+The dated live census finds Waves 3 through 12 with open work. Wave 3 is the
+earliest and contains issues #323 through #328. All six are open and
+unassigned, and none has an issue-number branch or open-pull-request trail.
+The guide therefore uses issue #323 as its present-day named-issue example.
+This snapshot does not assert that Wave 3 remains the default after its open
+issues close.
+
+The first requirements correction remains byte-for-byte intact at digest
+`2b1cee87ec199012030e286d0047945ca47ef133c244adf3e0a316d0dcaaabca`.
+The clarification at digest
+`06fefa4266fc2ade47efe05d4a8619424d441641903c4ce29be4a249a8e03605`
+supersedes only its narrower eligibility phrase. `hexctl verify` accepts the
+15-entry chain.
+
+Phylax, Ephoros and Hypomnema each inspect the changed guide, study, runbook,
+issue preview and clarification and exit 0. The GitHub readback matches the
+previewed body, title and labels after ignoring only its terminal newline.
+The exact-selection, no-personal-name and current Wave assertions pass.
+Imprimatur reports no defect, Brevitas exits 0 and the root suite passes
+109/109.
+
+All eight study risks were reviewed. `selection-overclaim`, `wave-drift`,
+`duplicate-work` and `issue-authority` are bounded by the proposed-not-live
+label, dated snapshot, public-claim discussion and exact issue readback.
+`contributor-attribution` is clean: the public text says only "an external
+contributor". `scope-widening` remains closed. `mascot-identity` and
+`binary-review` remain Step 3 obligations.
+
+Leads not pursued: none.
+
+## Shoggoth contributor guide, step 2, round 2 -- 2026-08-22
+
+Re-reviewed the fixed tree, both immutable correction receipts and the exact
+issue #447 readback against the two round-1 findings. The selector first finds
+the earliest Wave with open issues, then applies eligibility inside that Wave.
+If none is eligible, it stops instead of advancing to another Wave or silently
+falling through to frontier work. The issue no longer carries a count that its
+own creation invalidates.
+
+Wave 3 remains the earliest open snapshot group. Issues #323 through #328 are
+still open, unassigned and free of issue-number branch or open-pull-request
+trails. Phylax, Ephoros and Hypomnema each exit 0 on the corrected scope. The
+root suite passes 109/109, the controller verifies its 16-entry receipt chain,
+and the exact-selection and no-personal-name assertions pass.
+
+No new findings.
+
+Leads not pursued: none.
+
+## Shoggoth contributor guide, step 3, round 1 -- 2026-08-22
+
+Reviewed commit `6ee76df52b506cfe511294c9e67086ba5aa542d3`, the
+final PNG, the five-page PDF, its extracted text, all five Poppler renders and
+the eight study risks. The security-suite waiver applies because this step
+adds documentation assets and no Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| SCG-S3-R1-01 | medium | `.horos/boundary.json`; `docs/assets/how-to-help-shoggoth-infographic.png`; `output/pdf/how-to-help-shoggoth.pdf` | The pre-commit Horos scan could not place the untracked artwork and PDF in the tracked-tree boundary. After the implementation commit, `test_the_committed_boundary_matches_a_fresh_scan` named both paths and the root suite failed 1/109. | fixed in this round by rerunning the required committed-tree scan; both assets now have hard binary entries backed by their PNG and PDF file signatures, the focused boundary suite passes 4/4 and the root suite passes 109/109 |
+
+The final artwork is a wide 1672 by 941 RGB PNG. The three foreground figures
+have human torsos, arms, hands and posture, with hard-surface faceted masks.
+The Shoggoth is identified by the dark tentacular mass and many eyes behind
+the central figure. Visual inspection finds no animal body, fur, paws,
+whiskers, tail or muzzle. An earlier uncommitted candidate with a more feline
+head silhouette was rejected and is not present in either shipped asset.
+
+The PDF is five A4 landscape pages and 4,454,214 bytes. It is unencrypted,
+contains no JavaScript and reopens with PyPDF. Text extraction contains the
+external-contributor example, the earliest-open-Wave rule, the proposed-not-
+live warning, the three lanes, the Promise Machine, domain skills, phase
+skills, Hex and Fiat, and issue #447. It contains no personal name or handle,
+no latest-Wave rule and no non-ASCII dash. Its three link annotations resolve
+to issue #323, PR #445 and issue #447. Poppler renders every page without
+clipping, overlap or missing type; the one selection-order overflow found
+during pre-receipt visual QA was corrected before the implementation commit.
+
+Phylax, Ephoros and Hypomnema each exit 0 on the extracted final text.
+Imprimatur scores it 100 with no defect, Brevitas exits 0, the binary and link
+assertions pass, the controller verifies its 21-entry chain, and the final
+commit has a valid local signature with both provenance trailers.
+
+All eight study risks were reviewed. `mascot-identity` and `binary-review` are
+closed by the reference-led regeneration, file checks, extracted-text checks
+and rendered-page inspection. `selection-overclaim`, `contributor-attribution`
+and `wave-drift` stay bounded in the PDF by the proposed-not-live label, the
+external-contributor wording and the dated Wave 3 snapshot. The assets add no
+issue write, runtime claim channel, controller change or frontier movement, so
+`duplicate-work`, `issue-authority` and `scope-widening` remain unchanged.
+
+Leads not pursued: none.
+
+## Shoggoth contributor guide, step 3, round 2 -- 2026-08-22
+
+Re-reviewed the fixed committed tree against SCG-S3-R1-01 and all eight study
+risks. The fresh Horos document and committed boundary agree. The two new hard
+binary entries name the exact PNG and PDF paths and file signatures. The
+focused boundary suite passes 4/4 and the full root suite passes 109/109.
+
+The final assets are byte-identical to round 1. The five rendered pages retain
+their clear margins and readable type, the mascots remain human figures with
+faceted geometric masks, the proposed selector remains labelled as not live,
+and the Wave rule remains the earliest Wave with open issues. Phylax, Ephoros
+and Hypomnema each exit 0 on the extracted PDF text. Binary reopening,
+required-text and forbidden-name assertions pass. The controller verifies its
+22-entry receipt chain.
+
+No new findings.
+
+Leads not pursued: none.
