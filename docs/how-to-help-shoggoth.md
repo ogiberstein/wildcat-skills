@@ -91,7 +91,7 @@ study -> runbook -> implement -> audit -> prose -> push -> integrate
 
 The domain skill does the specialist work. The phase skills govern how the work moves. The Promise Machine limits every claim to its evidence. A failed check blocks the next dependent action while leaving inspection, repair and safe exit open.
 
-The useful output is not merely a code diff. It is a reviewable branch, the tests that ran, the findings that were fixed or carried forward, and a pull request that says what has not been established.
+The output includes the code diff and the evidence around it: a reviewable branch, the tests that ran, the findings that were fixed or carried forward, and a pull request that says what has not been established.
 
 ## A good first contribution
 
