@@ -8037,3 +8037,65 @@ and the exact-selection and no-personal-name assertions pass.
 No new findings.
 
 Leads not pursued: none.
+
+## Shoggoth contributor guide, step 3, round 1 -- 2026-08-22
+
+Reviewed commit `6ee76df52b506cfe511294c9e67086ba5aa542d3`, the
+final PNG, the five-page PDF, its extracted text, all five Poppler renders and
+the eight study risks. The security-suite waiver applies because this step
+adds documentation assets and no Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| SCG-S3-R1-01 | medium | `.horos/boundary.json`; `docs/assets/how-to-help-shoggoth-infographic.png`; `output/pdf/how-to-help-shoggoth.pdf` | The pre-commit Horos scan could not place the untracked artwork and PDF in the tracked-tree boundary. After the implementation commit, `test_the_committed_boundary_matches_a_fresh_scan` named both paths and the root suite failed 1/109. | fixed in this round by rerunning the required committed-tree scan; both assets now have hard binary entries backed by their PNG and PDF file signatures, the focused boundary suite passes 4/4 and the root suite passes 109/109 |
+
+The final artwork is a wide 1672 by 941 RGB PNG. The three foreground figures
+have human torsos, arms, hands and posture, with hard-surface faceted masks.
+The Shoggoth is identified by the dark tentacular mass and many eyes behind
+the central figure. Visual inspection finds no animal body, fur, paws,
+whiskers, tail or muzzle. An earlier uncommitted candidate with a more feline
+head silhouette was rejected and is not present in either shipped asset.
+
+The PDF is five A4 landscape pages and 4,454,214 bytes. It is unencrypted,
+contains no JavaScript and reopens with PyPDF. Text extraction contains the
+external-contributor example, the earliest-open-Wave rule, the proposed-not-
+live warning, the three lanes, the Promise Machine, domain skills, phase
+skills, Hex and Fiat, and issue #447. It contains no personal name or handle,
+no latest-Wave rule and no non-ASCII dash. Its three link annotations resolve
+to issue #323, PR #445 and issue #447. Poppler renders every page without
+clipping, overlap or missing type; the one selection-order overflow found
+during pre-receipt visual QA was corrected before the implementation commit.
+
+Phylax, Ephoros and Hypomnema each exit 0 on the extracted final text.
+Imprimatur scores it 100 with no defect, Brevitas exits 0, the binary and link
+assertions pass, the controller verifies its 21-entry chain, and the final
+commit has a valid local signature with both provenance trailers.
+
+All eight study risks were reviewed. `mascot-identity` and `binary-review` are
+closed by the reference-led regeneration, file checks, extracted-text checks
+and rendered-page inspection. `selection-overclaim`, `contributor-attribution`
+and `wave-drift` stay bounded in the PDF by the proposed-not-live label, the
+external-contributor wording and the dated Wave 3 snapshot. The assets add no
+issue write, runtime claim channel, controller change or frontier movement, so
+`duplicate-work`, `issue-authority` and `scope-widening` remain unchanged.
+
+Leads not pursued: none.
+
+## Shoggoth contributor guide, step 3, round 2 -- 2026-08-22
+
+Re-reviewed the fixed committed tree against SCG-S3-R1-01 and all eight study
+risks. The fresh Horos document and committed boundary agree. The two new hard
+binary entries name the exact PNG and PDF paths and file signatures. The
+focused boundary suite passes 4/4 and the full root suite passes 109/109.
+
+The final assets are byte-identical to round 1. The five rendered pages retain
+their clear margins and readable type, the mascots remain human figures with
+faceted geometric masks, the proposed selector remains labelled as not live,
+and the Wave rule remains the earliest Wave with open issues. Phylax, Ephoros
+and Hypomnema each exit 0 on the extracted PDF text. Binary reopening,
+required-text and forbidden-name assertions pass. The controller verifies its
+22-entry receipt chain.
+
+No new findings.
+
+Leads not pursued: none.
