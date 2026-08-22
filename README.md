@@ -284,14 +284,17 @@ the controller unless the user names Hexaemeron or Fiat and asks to run it.
 
 Work lands here, in the public repository. What reaches an installed plugin
 depends on how that machine added the marketplace, and the two routes differ in
-who fetches the repository.
+who fetches the repository. Both share one way of going wrong: an installed
+plugin can sit a whole evolution behind while every link in the route it came by
+looks healthy. Neither route reports that, so both sections below end in how to
+read what a machine is actually serving.
 
 ### Git-backed, which needs no publishing step
 
 A marketplace added with `/plugin marketplace add wildcat-finance/skills`, or the
 Codex equivalent, is a clone the host pulls with the operator's own git
-credentials. Pushing to `main` is the whole of publishing. To pick up new
-commits:
+credentials. Pushing to `main` is the whole of publishing. Picking it up on a
+machine takes two commands that do different jobs:
 
 ```bash
 claude plugin marketplace update wildcat-labs
@@ -300,6 +303,50 @@ claude plugin update hexaemeron@wildcat-labs
 
 Inside a session that is `/plugin marketplace update` and
 `/plugin update <plugin>@wildcat-labs`. In a provisioning script, pass `--yes`.
+
+Only the first of those is dependable. `marketplace update` advances the
+checkout to the repository head, so afterwards the machine does hold the new
+commits. `plugin update` then compares the version declared in the plugin's
+`.claude-plugin/plugin.json` against the version the install already records,
+and the cache is laid out to match:
+`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>` is keyed on that
+declared version and on nothing else. So a commit that changes a skill without
+bumping its plugin's version arrives in the checkout, maps to the cache slot
+already filled, and is reported as `already at the latest version`. The command
+exits zero and the machine keeps the old files.
+
+That gap was measured on 2026-08-22, over the 122 commits between an install at
+`793b112` and a head at `cd48583`. `plugin update` moved hexaemeron from 1.5.1
+to 1.5.4 and left the other thirteen plugins pinned at `793b112`, and all
+thirteen had real changes under `skills/*/SKILL.md`. Hermes was the worst of
+them: its plugin version stayed at 0.1.1 while the skill's own frontmatter went
+from 0.1.0 to 0.1.1, so the cached copy was short a 73-line `SKILL.md` diff
+carrying the pinned 120-rule gas corpus, the reference to that corpus JSON, and
+the rule refusing work outside the target's scope.
+
+Read it rather than trusting the exit code. Each install records the commit it
+was pinned to, so compare those against the head of the marketplace checkout:
+
+```bash
+git -C ~/.claude/plugins/marketplaces/wildcat-labs rev-parse HEAD
+jq -r '.plugins | to_entries[]
+  | select(.key | endswith("@wildcat-labs"))
+  | "\(.key) \(.value[0].version) \(.value[0].gitCommitSha[0:7])"' \
+  ~/.claude/plugins/installed_plugins.json
+```
+
+A plugin whose `gitCommitSha` is behind that head is serving stale files
+whatever its version says. Reinstalling it is what re-pins the commit, because
+the install is taken fresh from the checkout rather than diffed against it:
+
+```bash
+claude plugin uninstall <plugin>@wildcat-labs --keep-data
+claude plugin install <plugin>@wildcat-labs --yes
+```
+
+`--keep-data` preserves `~/.claude/plugins/data/{id}/`, and enabled status
+survived the round trip for all fourteen plugins. Do that for every plugin
+behind the head, not only the one being worked on.
 
 ### Organisation-distributed, through the private mirror
 
@@ -338,8 +385,8 @@ Two constraints follow from that route rather than from taste. Plugin sources in
 sync packages each plugin out of the mirror instead of fetching it from
 somewhere it may not be able to authenticate to. And a version bump is only
 released once it has crossed all three links: merged here, mirrored there,
-distributed by sync. An installed plugin can sit a whole evolution behind while
-every one of those looks healthy.
+distributed by sync. Each of those links can look healthy while sitting behind
+the one before it, which is how this route produces the gap named above.
 
 ### Which route a machine is on
 
