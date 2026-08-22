@@ -37,6 +37,16 @@ def git(root, *args):
     )
 
 
+def is_ignored(root, relpath):
+    """Whether git excludes a path, by any of the mechanisms it consults."""
+    completed = subprocess.run(  # phylax: allow subprocess: fixed argv git in a test tempdir, no shell
+        ["git", "-C", root, "check-ignore", "-q", relpath],
+        capture_output=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
 @unittest.skipIf(GIT is None, "git unavailable")
 class UniverseTests(unittest.TestCase):
     def setUp(self):
@@ -164,6 +174,89 @@ class BindingDirectoryTests(unittest.TestCase):
         result = horos.scan_tree(outside.name)
         self.assertEqual(result["universe"], "filesystem")
         self.assertIn("node_modules/", self.paths(result))
+
+
+@unittest.skipIf(GIT is None, "git unavailable")
+class CandidateBindingTests(unittest.TestCase):
+    """The advisory pass answers to the universe the binding pass does.
+
+    A candidate directory is uncorroborated by construction, so it is never
+    excluded from reading. It is still written to a file a maintainer commits,
+    and a finding raised by a local virtualenv or a checked-out worktree cannot
+    be reproduced, promoted or even seen anywhere else: every scan on the
+    machine that has it dirties the report, and no scan on any other machine
+    agrees. Both outputs therefore cover the same files.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = self._tmp.name
+        self.addCleanup(self._tmp.cleanup)
+        git(self.root, "init", "-q")
+        write(self.root, ".gitignore", "local/\n")
+        write(self.root, "src/app.py", "value = 1\n")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "seed")
+
+    def outputs(self, **kwargs):
+        """Every path either output names, from one scan."""
+        result = horos.scan_tree(self.root, **kwargs)
+        return (
+            [entry["path"] for entry in result["entries"]],
+            [entry["path"] for entry in result["candidates"]],
+        )
+
+    def test_an_ignored_candidate_directory_appears_in_neither_output(self):
+        # Plain prose under a candidate name: the name alone is the signal, so
+        # nothing corroborates it and the directory takes the advisory path.
+        write(self.root, "local/build/notes.txt", "hand-written, not generated\n")
+        entries, candidates = self.outputs()
+        self.assertNotIn("local/build/", entries)
+        self.assertNotIn("local/build/", candidates)
+
+    def test_include_untracked_reaches_the_untracked_but_not_the_ignored(self):
+        write(self.root, "local/build/notes.txt", "hand-written, not generated\n")
+        write(self.root, "scratch/build/notes.txt", "hand-written, not generated\n")
+        entries, candidates = self.outputs(include_untracked=True)
+        self.assertNotIn("local/build/", entries)
+        self.assertNotIn("local/build/", candidates)
+        self.assertIn("scratch/build/", candidates)
+
+    def test_one_tracked_file_still_raises_the_candidate(self):
+        write(self.root, "pkg/build/notes.txt", "hand-written, not generated\n")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "tracked build")
+        _, candidates = self.outputs()
+        self.assertIn("pkg/build/", candidates)
+
+    def test_the_filesystem_fallback_still_raises_the_candidate(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        write(outside.name, "build/notes.txt", "hand-written, not generated\n")
+        result = horos.scan_tree(outside.name)
+        self.assertEqual(result["universe"], "filesystem")
+        self.assertIn("build/", [entry["path"] for entry in result["candidates"]])
+
+    def test_a_nested_worktree_is_invisible_even_when_nothing_ignores_it(self):
+        """A worktree is checked out, not ignored, and not every repository
+        excludes the directory its worktrees land in. It stays out anyway: its
+        files belong to another checkout's index, never to this one's, and git
+        reports the whole worktree as a single opaque directory rather than
+        enumerating what is inside it. Nothing under it can enter the universe,
+        so the build directory in the checkout binds nothing."""
+        git(self.root, "worktree", "add", "-q", ".claude/worktrees/wt", "-b", "other")
+        write(
+            self.root,
+            ".claude/worktrees/wt/build/notes.txt",
+            "hand-written, not generated\n",
+        )
+        nested = ".claude/worktrees/wt/build/"
+        self.assertFalse(is_ignored(self.root, ".claude/worktrees"))
+        for widened in (False, True):
+            with self.subTest(include_untracked=widened):
+                entries, candidates = self.outputs(include_untracked=widened)
+                self.assertNotIn(nested, entries)
+                self.assertNotIn(nested, candidates)
 
 
 if __name__ == "__main__":

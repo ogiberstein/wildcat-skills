@@ -495,8 +495,10 @@ def directory_entry(root, relpath, category, evidence, tally=None, grade="hard",
     }
 
 
-def binding_directory_entry(root, relpath, category, evidence, tally=None, universe=None):
-    """One hard directory entry, or None when it would bind no tracked file.
+def binding_directory_entry(
+    root, relpath, category, evidence, tally=None, grade="hard", universe=None
+):
+    """One directory entry, or None when it would bind no tracked file.
 
     A directory holding nothing tracked is not a token sink: excluding it saves
     no bytes an agent would ever read, and emitting it makes the same check
@@ -504,8 +506,14 @@ def binding_directory_entry(root, relpath, category, evidence, tally=None, unive
     stray worktree sits in one checkout and not the other. Fail-open still
     holds where git cannot answer: with no universe there is no tracked notion
     to test against, so the entry stands.
+
+    Both passes go through here. A candidate is advisory rather than binding,
+    but it is written to a file a maintainer commits, so it answers to the same
+    rule: a finding nobody in another checkout can see is drift, not advice.
     """
-    entry = directory_entry(root, relpath, category, evidence, tally, universe=universe)
+    entry = directory_entry(
+        root, relpath, category, evidence, tally, grade=grade, universe=universe
+    )
     if universe is not None and entry["files"] == 0:
         return None
     return entry
@@ -621,18 +629,20 @@ def scan_tree(root, census=False, include_untracked=False, scope=None):
                     # it holds nothing tracked for the walk to classify.
                     continue
                 # Name alone is a candidate signal; the subtree is walked
-                # file by file instead of being excluded.
-                candidates.append(
-                    directory_entry(
-                        root,
-                        relpath,
-                        named_category,
-                        f"directory name {dirname} alone, uncorroborated",
-                        None,
-                        grade="candidate",
-                        universe=universe,
-                    )
+                # file by file instead of being excluded. The finding still has
+                # to bind something in the universe, or it is a local artefact
+                # the next checkout cannot reproduce.
+                candidate = binding_directory_entry(
+                    root,
+                    relpath,
+                    named_category,
+                    f"directory name {dirname} alone, uncorroborated",
+                    None,
+                    grade="candidate",
+                    universe=universe,
                 )
+                if candidate is not None:
+                    candidates.append(candidate)
                 keep.append(dirname)
                 continue
             matched = match_attribute_scopes(scopes, relpath + "/")
