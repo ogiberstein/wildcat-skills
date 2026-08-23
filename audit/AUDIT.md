@@ -11516,3 +11516,20 @@ Leads not pursued: the link-resolution regex truncates a URL containing a
 closing parenthesis and would read `](` inside a fenced code block as a link.
 Neither occurs in the two files it checks, and a stricter parser would be more
 machinery than the defect justifies.
+
+## Step 1, round 5 -- 2026-08-24
+
+Against the tree with rounds 1 to 4 applied. Zero findings.
+
+Phylax, Ephoros and Hypomnema clean. Root suite 211 tests, all passing. The
+four guards installed across rounds 1 to 4 were each confirmed to fail without
+their fix, three of them by Elenchus returning `guarded` on a recorded parent
+assertion failure.
+
+The remaining question this round examined was whether `docs/contributors/`
+needed registering anywhere. It does not: nothing in the repository enumerates
+`docs/` subdirectories, and `docs/protasis-discipline-cores/study.md` is
+existing precedent for a nested study and runbook pair alongside the flat
+`docs/<topic>-study.md` form. No index to update and no convention broken.
+
+Leads not pursued: none.
