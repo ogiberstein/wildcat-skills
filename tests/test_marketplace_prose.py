@@ -162,6 +162,24 @@ class MarketplaceProseTests(unittest.TestCase):
         self.assertIn("fiat/<issue>-", push)
         self.assertIn("issue number in its run branch", codex["interface"]["longDescription"])
 
+    def test_sapheneia_public_prose_names_the_bounded_durable_record_operation(self):
+        plugin = ROOT / "plugins" / "sapheneia"
+        skill = (plugin / "skills" / "sapheneia" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        runtime = (plugin / "AGENTS.md").read_text(encoding="utf-8")
+        readme = (plugin / "README.md").read_text(encoding="utf-8")
+        agent = (plugin / "skills" / "sapheneia" / "agents" / "openai.yaml").read_text(
+            encoding="utf-8"
+        )
+        codex = json.loads(
+            (plugin / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        for text in (skill, runtime, readme, agent, codex["interface"]["longDescription"]):
+            self.assertIn("audit record", text)
+            self.assertIn("issue", text.lower())
+            self.assertIn("comment", text.lower())
+
     def test_root_readme_maps_every_plugin(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("## Meet the Shoggoth", readme)
