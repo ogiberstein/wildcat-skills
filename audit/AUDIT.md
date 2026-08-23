@@ -9815,3 +9815,19 @@ Elenchus verdict: guarded
 | S2-R8-02 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | `_table_cells` copied each growing cell repeatedly, so one accepted 1 MiB row took a 7.480113-second median in the recorded five-run CPU-time baseline. | fixed in abc65441b9018709a0a4431f7c8bf00b73c125bb; scaling guard red then green |
 
 Leads not pursued: no further step-2 defect after the two causal fixes and named gates; 100,297 parent/current full-render differential cases and 100,009 table-row cases preserved acceptance and rendered bytes, including multibyte input, separator and EOF variants, duplicate legacy fields, tables and leads, pinned drafts, and all six live outputs; the exact 1,048,576-byte Metron workload moved from a 7.480113-second median to 0.022997 seconds across five CPU-time samples, with correctness gates green; the live controller remains pinned to v5.12.1, step 3 owns disposable v5.13.1 proof, issue 453 owns report-byte binding, issue 369 owns downstream consumption, and issue 363 owns frontier identity
+
+## audit-record-schema-timestamp-synopsis, step 2, round 9 -- 2026-08-23T22:56:24Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=reviewed; synopsis-drift=reviewed; lead-omission=reviewed; partial-write=reviewed; path-boundary=reviewed; horos-self-defeat=reviewed; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: Solidity-only Pashov X-Ray and Auditor pair under the non-Solidity waiver; live-controller synopsis enforcement remains pinned to v5.12.1; step 3 disposable checked-in v5.13.1 proof; issue 453 report-byte and commit binding; issue 369 downstream synopsis consumption; issue 363 frontier identity
+
+Elenchus verdict: guarded
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R9-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | `validated_audit_record` formatted a declared renderer error inside its matching handler, so an error whose `__str__` raised `SystemExit(0)` bypassed the sibling handler and let `audit-round` exit successfully without a receipt. | fixed in 6bdcc8be4ca73ac51cd82b68a8117823ea4ae664; guard red then green; Elenchus `guarded` |
+
+Leads not pursued: no further step-2 defect after the cause-level fix and named gates; renderer `SystemExit(0)` at load, interface lookup, direct validation, and declared-error formatting now reaches a bounded code-2 refusal before state or ledger mutation, while `KeyboardInterrupt` and `GeneratorExit` remain distinct BaseException propagation; exhaustive old/new `_table_cells` comparison covered 960,800 strings through length seven over pipes, backslashes, whitespace, ASCII, Unicode, and astral input with zero acceptance or cell deltas, plus explicit empty-cell, backslash-parity, and 1 MiB rows, and the existing timing guard retained wide margin; 10,006 full renders spanning seeded strict and legacy mutations plus all six live logs had zero acceptance or output deltas against the pre-streaming renderer, and accepted 20,000-, 100,000-, and 150,000-line probes retained bounded memory scaling; schema-less H3 records remain legacy by explicit contract, the ten root draft exceptions remain bound to exact path, ordinal, and bytes, concurrent mutation after the final identity check remains outside the claimed snapshot, and sibling writes remain atomic rather than cross-file transactional; all six source/synopsis pairs, protected prefixes, risk coverage, leads, Promise bindings, and Horos boundaries passed; the live controller remains pinned to v5.12.1, step 3 owns disposable v5.13.1 proof, issue 453 owns report-byte binding, issue 369 owns downstream consumption, and issue 363 owns frontier identity
