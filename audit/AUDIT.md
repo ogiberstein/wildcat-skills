@@ -11224,3 +11224,58 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record makes
 no claim about capture completeness, external truth, cause, model quality,
 delivery correctness, deployment readiness, security, or mutation authority.
+
+## Issue 434 carryover 5, step 1, round 3 -- 2026-08-23
+
+Independent Warden review of signed HEAD
+`97f043fb3f794a6ec30dc9e9fd0d6a0c31f573b1` found no new product defect.
+The review began only after the committed C5 aggregate tree was present: 37
+tracked paths and the 61-entry map spanning all eight mandatory families.
+The halted C4 36-path reconstruction and its outputs remain non-evidence.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C5-S1-R3-01 | high | `audit/AUDIT.md` | The first version of this record used a one-row, five-column findings table. | reproduced twice as B011 |
+| I434-C5-S1-R3-01 | high | `audit/AUDIT.md` | Brevitas rejects that non-minimal table shape, blocking the required prose gate. | fixed in this audit record |
+| I434-C5-S1-R3-01 | high | `audit/AUDIT.md` | The three-row record retains the finding, cause, and remediation without the prohibited short table. | fixed-tree gates pending |
+
+Finding count: 1. The defect reproduced twice with
+`python3 plugins/brevitas/skills/brevitas/scripts/brevitas.py audit/AUDIT.md`.
+This document-only signed repair changes no test file, and the exact
+source-owned Elenchus command reports
+`unguarded`; a further Warden round is required after signing the final audit
+record.
+
+### Independent risk coverage
+
+| risk id | probe and evidence | disposition |
+| --- | --- | --- |
+| `carryover-union-gap` | Read C5 at SHA-256 `c00cbaf7a609c8b3b7ae930dc4836f17fc067eaa72785914c00b493a7abae517`; inspect the 37-path diff and cumulative 61-id bijection. | clean |
+| `partial-tree-evidence` | Confirmed audit starts from the signed full union; no C4 partial output was used. | clean |
+| `coverage-contract-gap` | Focused run executes `PromiseCoverageTests.test_run_observation_coverage_binds_the_exact_release_surface`; source reporter loads the Promise contract module. | clean |
+| `schema-runtime-drift` | Schema/runtime differential inoculations report 309 cases with no crash or unexpected clean result. | clean |
+| `wrong-kind-crash` | Recursive wrong-kind matrix reports 365 cases, zero crashes, and zero unexpected clean results. | clean |
+| `lifecycle-reference-gap` | Focused lifecycle tests and nine generated lifecycle/reference cases pass. | clean |
+| `file-replacement` | Reviewed input and report descriptor, reopen, identity, digest, confinement, FIFO, swap, and same-inode guards; eight replacement cases pass. | clean |
+| `path-representation` | Reviewed portable-path, NFC, control, bidi, component, complete-byte, display, and representational-error guards; 33 path cases pass. | clean |
+| `metadata-redaction-gap` | Normalised raw, hidden, actor, execution, source, instruction, and directive families report 384 refusal/descriptor cases with no unexpected clean result. | clean |
+| `diagnostic-echo` | Text and JSON findings use one sorted model; the eight parity/no-echo cases and control-character probes pass. | clean |
+| `context-binding-gap` | The 17-case work/repository context matrix covers issue/topic, role, skill, promise, paired Git identities, and ADR identity. | clean |
+| `promise-copy-drift` | `sync --check`, `check`, and `coverage --check` report 14 identical copies and 68 selected coverage rows. | clean |
+| `source-reporter-surface` | Source-owned reporter emits a complete `elenchus.unittest.v1` result for 143 tests; the detached-parent Elenchus command returns `passed`. | clean; no new fix claim |
+| `gate-command-arity` | Four valid CLIs exit 0; five invalid CLIs exit 1; Phylax, Ephoros, Hypomnema, Horos, per-file Imprimatur, per-file Brevitas, syntax, and `git diff --check` are rerun after this record-form repair. | pending fixed-tree gates |
+| `closure-overclaim` | This round found one documentation-gate defect; no receipt, push, pull request, issue action, merge, or integration occurred. | another independent round required |
+
+### Current evidence
+
+`python3 -m unittest tests.test_run_observation tests.test_run_observation_inoculation tests.test_promise_machine_contract -v` passed 143/143. Its inoculation summary reports 1,258 cases, zero crashes, and zero unexpected clean results. `python3 -m unittest discover -s tests` passed 191/191. The source-owned reporter passed 143/143 and its exact Elenchus command returned `passed`; that output is current-tree evidence, not a replacement for this independent Warden verdict.
+
+The four valid JSONL fixtures exit 0. The five invalid fixtures exit 1. Promise copy, contract, and coverage checks are clean. Phylax, Ephoros, Hypomnema, Horos, individual Imprimatur and Brevitas gates, Python syntax, and `git diff --check` are rerun after the record-form repair. Solidity remains waived because this step alters only Python, JSON, JSONL, and Markdown.
+
+Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
+cross-run diagnosis remain in their separate issues. The final bounded reread
+cannot stop a writer changing bytes after observation ends; the record neither
+claims capture completeness nor external truth, cause, model quality, delivery
+correctness, deployment readiness, security, or mutation authority.
