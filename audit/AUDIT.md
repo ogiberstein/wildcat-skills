@@ -9244,3 +9244,74 @@ Issues 429, 369, 453 and 363 remain open downstream work. Historical run-local
 hashes are not retained as evidence after their bytes are deleted; the replay
 instead proves the relations that carry the acceptance claim. No further
 step-3 lead remained.
+
+## Elenchus audit-round verdict, step 3, round 2 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 327 changes Python
+controller state, Elenchus integration, tests, and governed prose; it has no
+Solidity target`. No Solidity path changed. X-Ray, Solidity Auditor and Fizz
+did not run. The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | medium | `plugins/hexaemeron/docs/elenchus-audit-round-verdict/proof.md:21` | The committed reproduction copied its study, runbook and step list from the active run's untracked `.hexaemeron` files and created its fixture below that pre-existing directory. A clean detached checkout failed before the demo began, so the durable proof depended on state removed by Fiat reset. | fixed in `27f78d96`; the replay now uses tracked study and runbook bytes, reconstructs the receipted terminal newline and step list, and creates then removes the ignored state directory when absent |
+| S3-R2-02 | low | `plugins/hexaemeron/docs/elenchus-audit-round-verdict/proof.md:83` | The prose said every proof-owned commit carried both provenance trailers, but the script's signed demo-base commit does not. The executable check covers the receipted implementation and four fix commits. | fixed in `27f78d96`; the claim now names only receipted implementation and fix commits |
+| S3-R2-review | none | full `024a64d9..27f78d96` step diff | No controller, receipt-schema, legacy-reader, release, cleanup or record fault remained after the proof repair. | clean |
+| S3-R2-round1 | none | round 1 log and `d55da516` | Round 1 records its two findings and `unguarded` verdict without claiming a guard. Its fix has a valid signature and the two exact final provenance lines. | clean |
+
+Finding count: 2.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | The clean-checkout replay again requires a verdict only beside a non-empty signed fixes range. Each incomplete or unbound receipt exits 2 and independently preserves raw state and ledger bytes. | clean |
+| `enum-drift` | State and ledger assertions retain explicit null, a missing legacy key, and the four distinct values `guarded`, `unguarded`, `passed` and `inconclusive`. | clean |
+| `command-substitution` | Tracked runbook bytes hash to `a98c67bd`; appending the one recorded terminal newline reconstructs receipted SHA-256 `82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85`. Repeated Mason and Warden packets carry the same five-field source block. This round used Step 3's command, `unittest-json-v1` format and report path for `27f78d96`. | clean |
+| `legacy-round-breakage` | The replay repairs the state fingerprint and ledger tail after omitting both keys, then requires `status`, round-2 `next`, `verify`, a later signed round, close, final `verify` and phase `prose`. | clean |
+| `receipt-overclaim` | Generated packet, state, ledger and demo-commit hashes remain run-local diagnostics. Fixed values bind only tracked source, receipted artefact, amendment and frontier bytes. The `unguarded` result remains a recorded declaration, not report-byte attestation. | clean |
+| `downstream-loss` | The replay retains all four values independently in state and ledger. The public GitHub issue pages showed 429, 369, 453 and 363 open on 2026-08-22; this step changes none of their owned surfaces. | clean |
+| `frontier-drift` | The 14 evolution/version checks pass. Elenchus, Fiat and Protasis retain frontier digests `08e77bae`, `e413d604` and `10140710`; both manifests and both marketplaces retain Hexaemeron `1.5.5`. | clean |
+
+### Evidence
+
+A clean detached checkout at `773fb670d72fde9e936d321f57779dbd056f06d0`
+had no `.hexaemeron` directory. The original concatenated Bash replay exited 1
+when `mktemp` could not create its child there. That failure localised the
+mechanism before the proof changed.
+
+Signed fix `27f78d96d2f1b1f91c9e60ab70ebe0fb338d3c71` reads only tracked
+delivery documents, checks their fixed hashes, recreates the receipted
+runbook's one missing newline, writes the three step titles, and scopes cleanup
+to the generated prefix below `.hexaemeron`. The same concatenated replay at
+that detached commit starts with no state directory, exits 0, leaves no state
+directory or symlink, and leaves the checkout clean. It asserts every refusal,
+null, legacy repair, verdict, verified range, adjacent parent, trailer,
+signature, close and final phase named by the runbook.
+
+The exact runbook Elenchus invocation on `27f78d96` returns `unguarded` because
+the fix changes no test file. Under pinned Node v26.6.0, the current-tree report
+command passes 872/872 in 156.409 seconds. Its 161-byte, mode-0600 JSON object
+records schema `elenchus.unittest.v1`, `testsRun: 872`, `complete: true`, and
+zero failures, errors, skips, expected failures or unexpected successes. Its
+SHA-256 is
+`f0b0d7a7b6943d3907c5b17bb97fc30274d7d68a42a59a4c9b462acd8692cad9`.
+The generated report was removed after inspection.
+
+The root suite passes 118/118, Imprimatur's suite passes 62/62, and the
+evolution/version gate passes 14/14. Promise Machine verification, both
+Protasis checks, the Horos boundary check, all three active-plugin lints,
+Imprimatur and Brevitas over this round and the fixed proof, and
+`git diff --check` exit 0.
+
+### Leads not pursued
+
+Leads not pursued: the fix is documentation-only, so `unguarded` is the exact
+Elenchus result; issue 453 owns any later blocking policy. Issues 429, 369, 453
+and 363 remain open downstream work. The clean replay now depends only on
+tracked release bytes and its configured signing key. No further step-3 lead
+remained after the repair.
