@@ -1,0 +1,1024 @@
+{
+  "schema": "promise-machine-run-observation-carryover/v1",
+  "issue": 434,
+  "packet_chain": [
+    {
+      "name": "434-CARRYOVER.md",
+      "url": "https://github.com/user-attachments/files/31350358/434-CARRYOVER.md",
+      "sha256": "11bbf719ce1b2f59b0344d4ad92d69e467c503d758b35a1689a98c7231156784",
+      "source_run": "observable run record",
+      "source_run_branch": "fiat/434-observable-run-record",
+      "source_ref": "archive/434-observable-run-record-attempt-3@9158edb4b3d2c49298d8b2ba8092c7540caeb57a"
+    },
+    {
+      "name": "434-CARRYOVER-2.md",
+      "url": "https://github.com/user-attachments/files/31350830/434-CARRYOVER-2.md",
+      "sha256": "54469718c5949953dae414da664a65f940aca249868e00382f97139cda03fef0",
+      "source_run": "observable run record carryover inoculation",
+      "source_run_branch": "fiat/434-observable-run-record-carryover-inoculation",
+      "source_ref": "archive/434-observable-run-record-attempt-4@dd5b9269252acc0da860cae0d4a6ec2a012f3cda"
+    },
+    {
+      "name": "434-CARRYOVER-3.md",
+      "url": "https://github.com/user-attachments/files/31352421/434-CARRYOVER-3.md",
+      "sha256": "5f454dc466109ebaf138959986dcbdfb267d1c1e1291b0db000e18c4f567dcbe",
+      "source_run": "observable run record carryover inoculation 2",
+      "source_run_branch": "fiat/434-observable-run-record-carryover-inoculation",
+      "source_ref": "archive/434-observable-run-record-attempt-5@50a9129c8481e7519d8c640c152f58401035f323",
+      "source_implementation": "546b773f6ebd98a16b42c4f1c3a94f54465a5db0"
+    }
+  ],
+  "packet_sha256": "11bbf719ce1b2f59b0344d4ad92d69e467c503d758b35a1689a98c7231156784",
+  "source_ref": "archive/434-observable-run-record-attempt-3@9158edb4b3d2c49298d8b2ba8092c7540caeb57a",
+  "round_counts": [
+    6,
+    1,
+    5,
+    5,
+    6,
+    6,
+    4,
+    3
+  ],
+  "inoculation_families": [
+    "schema-runtime",
+    "recursive-wrong-kind",
+    "lifecycle-reference",
+    "file-replacement",
+    "path-representation",
+    "normalized-field-name",
+    "report-parity-no-echo",
+    "work-repository-context"
+  ],
+  "fixed_round_1_mechanisms": [
+    {
+      "id": "I434-C2-S1-R1-01",
+      "family": "schema-runtime",
+      "source_ref": "archive/434-observable-run-record-attempt-5@50a9129c8481e7519d8c640c152f58401035f323",
+      "guard": "tests.test_run_observation.RunObservationSchemaTests.test_schema_and_runtime_field_sets_and_enums_agree"
+    },
+    {
+      "id": "I434-C2-S1-R1-02",
+      "family": "normalized-field-name",
+      "source_ref": "archive/434-observable-run-record-attempt-5@50a9129c8481e7519d8c640c152f58401035f323",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_metadata_keys_name_observable_facts_and_redact_forbidden_names"
+    },
+    {
+      "id": "I434-C2-S1-R1-03",
+      "family": "report-parity-no-echo",
+      "source_ref": "archive/434-observable-run-record-attempt-5@50a9129c8481e7519d8c640c152f58401035f323",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_control_characters_do_not_split_text_reports"
+    },
+    {
+      "id": "I434-C2-S1-R1-04",
+      "family": "file-replacement",
+      "source_ref": "archive/434-observable-run-record-attempt-5@50a9129c8481e7519d8c640c152f58401035f323",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_reporter_rejects_named_target_swap_during_write"
+    }
+  ],
+  "current_repairs": [
+    {
+      "mechanism": "hidden-work-prefix-suffix-token-compact-camel-acronym",
+      "family": "normalized-field-name",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_metadata_keys_name_observable_facts_and_redact_forbidden_names"
+    },
+    {
+      "mechanism": "unicode-scalar-nfc-control-bidi-repository-path",
+      "family": "path-representation",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_repository_paths_are_portable_and_control_free"
+    },
+    {
+      "mechanism": "bounded-final-named-path-reread-and-digest",
+      "family": "file-replacement",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_equal_length_same_inode_rewrite_after_post_read_fstat_refuses"
+    }
+  ],
+  "reporter_lead": {
+    "status": "confirmed-and-guarded",
+    "mechanism": "equal-length same-inode rewrite after reporter fsync",
+    "source_ref": "archive/434-observable-run-record-attempt-5@50a9129c8481e7519d8c640c152f58401035f323",
+    "guard": "tests.test_run_observation.RunObservationRefusalTests.test_reporter_rejects_same_inode_rewrite_after_fsync"
+  },
+  "audit_round_1_mechanisms": [
+    {
+      "id": "I434-C3-S1-R1-01",
+      "family": "normalized-field-name",
+      "mechanism": "actor-payload, raw-payload, compact and JWT metadata aliases validated clean",
+      "remediation": "refuse systematic raw and actor-payload token and compact families while preserving bounded descriptor suffixes",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_suffixed_sensitive_and_hidden_aliases_refuse"
+    },
+    {
+      "id": "I434-C3-S1-R1-02",
+      "family": "path-representation",
+      "mechanism": "a 255-scalar repository path segment could exceed common UTF-8 checkout limits",
+      "remediation": "bound every NFC repository path segment to 255 UTF-8 bytes in runtime, schema annotation, prose and tests",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_repository_paths_are_portable_and_control_free"
+    },
+    {
+      "id": "I434-C3-S1-R1-03",
+      "family": "schema-runtime",
+      "mechanism": "the schema time pattern admitted leap seconds, impossible months and hour 24 while runtime refused them",
+      "remediation": "publish and share one canonical uppercase RFC-3339 civil-time profile without leap-second spelling",
+      "guard": "tests.test_run_observation.RunObservationSchemaTests.test_schema_and_runtime_placeholder_rules_agree"
+    }
+  ],
+  "audit_round_2_mechanisms": [
+    {
+      "id": "I434-C3-S1-R2-01",
+      "family": "normalized-field-name",
+      "mechanism": "developer, agent and human actor-payload aliases validated clean as metadata",
+      "remediation": "refuse systematic actor plus payload token and compact families while preserving bounded descriptor suffixes",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_actor_payload_aliases_refuse_but_descriptors_remain_valid"
+    },
+    {
+      "id": "I434-C3-S1-R2-02",
+      "family": "path-representation",
+      "mechanism": "a multi-segment repository path could remain under the character ceiling while exceeding it fourfold as UTF-8 bytes",
+      "remediation": "bound the complete NFC repository path to 4096 UTF-8 bytes in runtime, schema annotation, prose and tests",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_repository_path_total_utf8_bytes_are_bounded"
+    },
+    {
+      "id": "I434-C3-S1-R2-03",
+      "family": "schema-runtime",
+      "mechanism": "the schema time pattern admitted year zero and impossible month-day combinations that runtime civil-date validation refused",
+      "remediation": "make the shared schema and runtime pattern enforce real Gregorian dates including leap-year boundaries",
+      "guard": "tests.test_run_observation.RunObservationSchemaTests.test_schema_and_runtime_reject_impossible_civil_dates"
+    },
+    {
+      "id": "I434-C3-S1-R2-04",
+      "family": "schema-runtime",
+      "mechanism": "optional host and token facts accepted explicit estimate and approximation sources despite the exposed-fact contract",
+      "remediation": "give schema and runtime one estimate-free exposed-fact string rule for optional sources and identities",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_optional_facts_refuse_explicit_estimates"
+    }
+  ],
+  "audit_round_3_mechanisms": [
+    {
+      "id": "I434-C3-S1-R3-01",
+      "family": "normalized-field-name",
+      "mechanism": "raw actor payload synonyms for AI and LLM output, replies, queries, histories, and function or tool returns validated as metadata",
+      "remediation": "extend the actor and payload token families while retaining safe descriptor suffixes and value-free diagnostics",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_actor_payload_synonyms_refuse_but_descriptors_remain_valid"
+    },
+    {
+      "id": "I434-C3-S1-R3-02",
+      "family": "schema-runtime",
+      "mechanism": "optional host and token facts accepted guessed, heuristic, projected, and predicted sources despite the estimate-free exposed-fact contract",
+      "remediation": "extend the shared schema and runtime estimate markers across those explicit estimate families",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_optional_facts_refuse_explicit_estimates"
+    }
+  ],
+  "audit_round_4_mechanisms": [
+    {
+      "id": "I434-C3-S1-R4-01",
+      "family": "path-representation",
+      "mechanism": "Unicode format controls outside the earlier bidi and C0/C1 sets validated as portable repository paths",
+      "remediation": "refuse Unicode Cf format controls in runtime, schema declaration, prose and systematic path guards",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_repository_paths_are_portable_and_control_free"
+    },
+    {
+      "id": "I434-C3-S1-R4-02",
+      "family": "normalized-field-name",
+      "mechanism": "system or developer instructions and thinking or reflection payload names validated as metadata",
+      "remediation": "extend raw instruction and hidden-work synonym families while preserving bounded descriptor suffixes",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_instruction_and_hidden_work_synonyms_refuse_but_descriptors_remain_valid"
+    },
+    {
+      "id": "I434-C3-S1-R4-03",
+      "family": "schema-runtime",
+      "mechanism": "optional host and token facts accepted explicit forecast, ballpark, assumption, extrapolation and modeled estimate sources",
+      "remediation": "extend the shared schema and runtime estimate markers across the reproduced explicit estimate families",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_optional_facts_refuse_explicit_estimates"
+    }
+  ],
+  "audit_round_5_mechanisms": [
+    {
+      "id": "I434-C3-S1-R5-01",
+      "family": "normalized-field-name",
+      "mechanism": "raw or hidden metadata validated through uncovered directive, command, turn and cognition families, Unicode-confusable names, and untyped safe-descriptor suffixes",
+      "remediation": "require printable-ASCII names, extend systematic raw and hidden token families, and exempt descriptor suffixes only when their values match the descriptor",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_safe_descriptor_suffixes_require_descriptor_values"
+    },
+    {
+      "id": "I434-C3-S1-R5-02",
+      "family": "schema-runtime",
+      "mechanism": "optional host and token facts accepted rough, abbreviated approximate, derived, inferred, calculated, rounded and other explicit estimate sources",
+      "remediation": "extend the shared schema and runtime estimate-source language across the reproduced systematic families",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_optional_facts_refuse_explicit_estimates"
+    },
+    {
+      "id": "I434-C3-S1-R5-03",
+      "family": "path-representation",
+      "mechanism": "Windows-reserved COM and LPT device names written with superscript one, two or three validated as portable repository paths",
+      "remediation": "refuse the superscript device spellings in the shared schema and runtime path pattern, prose and path matrix",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_repository_paths_are_portable_and_control_free"
+    },
+    {
+      "id": "I434-C3-S1-R5-04",
+      "family": "normalized-field-name",
+      "mechanism": "compact safe descriptors such as promptcount and analysisdigest were refused even when their values satisfied the descriptor contract",
+      "remediation": "recognise compact descriptor suffixes and admit them only when the value passes the same type or digest check as separated and camel forms",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_hidden_work_descriptors_remain_bounded_metadata"
+    }
+  ],
+  "audit_round_6_mechanisms": [
+    {
+      "id": "I434-C3-S1-R6-01",
+      "family": "normalized-field-name",
+      "mechanism": "bare content names and content payload aliases validated clean as metadata",
+      "remediation": "refuse content and contents tokens before payload values are admitted while preserving only correctly typed count and digest descriptors",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_raw_content_names_refuse_but_typed_descriptors_remain_bounded"
+    },
+    {
+      "id": "I434-C3-S1-R6-02",
+      "family": "work-repository-context",
+      "mechanism": "the reconstructed audit history still named the observation decision ADR-014 after the distinct Wave Atlas decision took that number",
+      "remediation": "bind the observation file, heading, published references and reconstructed audit sentences to ADR-015 while leaving the distinct ADR-014 unchanged",
+      "guard": "tests.test_run_observation.RunObservationSchemaTests.test_observation_decision_is_adr_015_and_adr_014_remains_distinct"
+    }
+  ],
+  "audit_round_7_mechanisms": [
+    {
+      "id": "I434-C3-S1-R7-01",
+      "family": "normalized-field-name",
+      "mechanism": "raw execution, source, and trace aliases such as commandLine, shellScript, sourceCode, and stackTrace validated clean as metadata",
+      "remediation": "refuse raw execution, source, and trace token and compact families while retaining only correctly typed bounded descriptors",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_execution_source_and_trace_payload_aliases_refuse"
+    }
+  ],
+  "audit_round_8_mechanisms": [
+    {
+      "id": "I434-C3-S1-R8-01",
+      "family": "normalized-field-name",
+      "mechanism": "raw instruction and directive aliases such as instructionSet and directiveText validated clean as metadata",
+      "remediation": "refuse instruction and directive token and compact families while retaining only correctly typed bounded descriptors",
+      "guard": "tests.test_run_observation.RunObservationRefusalTests.test_instruction_and_hidden_work_synonyms_refuse_but_descriptors_remain_valid"
+    }
+  ],
+  "findings": [
+    {
+      "id": "S2-R1-01",
+      "round": 1,
+      "family": "file-replacement",
+      "remediation_family": "streaming-byte-ceiling",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_growth_between_identity_check_and_read_still_hits_total_limit"
+      }
+    },
+    {
+      "id": "S2-R1-02",
+      "round": 1,
+      "family": "recursive-wrong-kind",
+      "remediation_family": "typed-closed-shape",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_unhashable_and_non_string_typed_fields_refuse_without_crashing"
+      }
+    },
+    {
+      "id": "S2-R1-03",
+      "round": 1,
+      "family": "schema-runtime",
+      "remediation_family": "schema-runtime-parity",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationSchemaTests",
+        "method": "test_schema_and_runtime_field_sets_and_enums_agree"
+      }
+    },
+    {
+      "id": "S2-R1-04",
+      "round": 1,
+      "family": "lifecycle-reference",
+      "remediation_family": "evidence-relations",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_outcome_subject_must_match_bound_evidence"
+      }
+    },
+    {
+      "id": "S2-R1-05",
+      "round": 1,
+      "family": "normalized-field-name",
+      "remediation_family": "normalized-name-refusal",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_sensitive_and_hidden_field_aliases_refuse"
+      }
+    },
+    {
+      "id": "S2-R1-06",
+      "round": 1,
+      "family": "report-parity-no-echo",
+      "remediation_family": "bounded-diagnostics",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_control_characters_do_not_split_text_reports"
+      }
+    },
+    {
+      "id": "S2-R2-01",
+      "round": 2,
+      "family": "report-parity-no-echo",
+      "remediation_family": "bounded-diagnostics",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_control_characters_do_not_split_text_reports"
+      }
+    },
+    {
+      "id": "S2-R3-01",
+      "round": 3,
+      "family": "file-replacement",
+      "remediation_family": "file-identity",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_same_size_rewrite_during_read_refuses"
+      }
+    },
+    {
+      "id": "S2-R3-02",
+      "round": 3,
+      "family": "lifecycle-reference",
+      "remediation_family": "placeholder-refusal",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_placeholders_cannot_authorise_an_observed_outcome"
+      }
+    },
+    {
+      "id": "S2-R3-03",
+      "round": 3,
+      "family": "normalized-field-name",
+      "remediation_family": "normalized-name-refusal",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_compact_sensitive_and_hidden_aliases_refuse"
+      }
+    },
+    {
+      "id": "S2-R3-04",
+      "round": 3,
+      "family": "schema-runtime",
+      "remediation_family": "exact-number",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationSchemaTests",
+        "method": "test_schema_integral_numbers_are_runtime_integers"
+      }
+    },
+    {
+      "id": "S2-R3-05",
+      "round": 3,
+      "family": "path-representation",
+      "remediation_family": "portable-paths",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_repository_paths_are_portable_and_control_free"
+      }
+    },
+    {
+      "id": "S2-R4-01",
+      "round": 4,
+      "family": "file-replacement",
+      "remediation_family": "file-identity",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_fifo_swap_before_open_refuses_without_blocking"
+      }
+    },
+    {
+      "id": "S2-R4-02",
+      "round": 4,
+      "family": "schema-runtime",
+      "remediation_family": "exact-number",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationSchemaTests",
+        "method": "test_non_integral_numbers_do_not_round_into_runtime_integers"
+      }
+    },
+    {
+      "id": "S2-R4-03",
+      "round": 4,
+      "family": "report-parity-no-echo",
+      "remediation_family": "bounded-diagnostics",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_unknown_field_names_do_not_split_text_reports"
+      }
+    },
+    {
+      "id": "S2-R4-04",
+      "round": 4,
+      "family": "recursive-wrong-kind",
+      "remediation_family": "bounded-container-shape",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_object_key_strings_share_the_string_limit"
+      }
+    },
+    {
+      "id": "S2-R4-05",
+      "round": 4,
+      "family": "normalized-field-name",
+      "remediation_family": "normalized-name-refusal",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_suffixed_sensitive_and_hidden_aliases_refuse"
+      }
+    },
+    {
+      "id": "S2-R5-01",
+      "round": 5,
+      "family": "schema-runtime",
+      "remediation_family": "exact-number",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationSchemaTests",
+        "method": "test_exact_decimal_parser_is_total_and_matches_the_numeric_ceiling"
+      }
+    },
+    {
+      "id": "S2-R5-02",
+      "round": 5,
+      "family": "lifecycle-reference",
+      "remediation_family": "evidence-relations",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_inferred_evidence_names_a_prior_event_selector"
+      }
+    },
+    {
+      "id": "S2-R5-03",
+      "round": 5,
+      "family": "lifecycle-reference",
+      "remediation_family": "handoff-relations",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_handoff_evidence_is_carried_by_the_source_event"
+      }
+    },
+    {
+      "id": "S2-R5-04",
+      "round": 5,
+      "family": "lifecycle-reference",
+      "remediation_family": "lifecycle-relations",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_final_handoff_and_refusal_statuses_have_matching_events"
+      }
+    },
+    {
+      "id": "S2-R5-05",
+      "round": 5,
+      "family": "normalized-field-name",
+      "remediation_family": "known-unknown-binding",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_unknowns_do_not_repeat_or_contradict_supplied_facts"
+      }
+    },
+    {
+      "id": "S2-R5-06",
+      "round": 5,
+      "family": "normalized-field-name",
+      "remediation_family": "normalized-name-refusal",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_suffixed_sensitive_and_hidden_aliases_refuse"
+      }
+    },
+    {
+      "id": "S2-R6-01",
+      "round": 6,
+      "family": "schema-runtime",
+      "remediation_family": "schema-runtime-parity",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationSchemaTests",
+        "method": "test_schema_and_runtime_placeholder_rules_agree"
+      }
+    },
+    {
+      "id": "S2-R6-02",
+      "round": 6,
+      "family": "normalized-field-name",
+      "remediation_family": "known-unknown-binding",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_unknowns_do_not_repeat_or_contradict_supplied_facts"
+      }
+    },
+    {
+      "id": "S2-R6-03",
+      "round": 6,
+      "family": "lifecycle-reference",
+      "remediation_family": "handoff-relations",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_final_handoff_outcome_uses_handed_off_evidence"
+      }
+    },
+    {
+      "id": "S2-R6-04",
+      "round": 6,
+      "family": "normalized-field-name",
+      "remediation_family": "normalized-name-refusal",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_suffixed_sensitive_and_hidden_aliases_refuse"
+      }
+    },
+    {
+      "id": "S2-R6-05",
+      "round": 6,
+      "family": "path-representation",
+      "remediation_family": "portable-paths",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_repository_paths_are_portable_and_control_free"
+      }
+    },
+    {
+      "id": "S2-R6-06",
+      "round": 6,
+      "family": "path-representation",
+      "remediation_family": "bounded-diagnostics",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_display_paths_are_bounded_and_content_addressed"
+      }
+    },
+    {
+      "id": "S2-R7-01",
+      "round": 7,
+      "family": "file-replacement",
+      "remediation_family": "file-identity",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_named_path_replacement_during_read_refuses"
+      }
+    },
+    {
+      "id": "S2-R7-02",
+      "round": 7,
+      "family": "path-representation",
+      "remediation_family": "caller-path-representation",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_unrepresentable_caller_paths_refuse_without_crashing"
+      }
+    },
+    {
+      "id": "S2-R7-03",
+      "round": 7,
+      "family": "recursive-wrong-kind",
+      "remediation_family": "typed-closed-shape",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_unhashable_and_non_string_typed_fields_refuse_without_crashing"
+      }
+    },
+    {
+      "id": "S2-R7-04",
+      "round": 7,
+      "family": "work-repository-context",
+      "remediation_family": "context-binding",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_run_context_is_closed_and_binds_refusals_and_handoffs"
+      }
+    },
+    {
+      "id": "S2-R8-01",
+      "round": 8,
+      "family": "file-replacement",
+      "remediation_family": "repository-confinement",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_parent_path_replacement_outside_root_refuses"
+      }
+    },
+    {
+      "id": "S2-R8-02",
+      "round": 8,
+      "family": "work-repository-context",
+      "remediation_family": "repository-identity-pairing",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_repository_before_and_after_identities_are_bound"
+      }
+    },
+    {
+      "id": "S2-R8-03",
+      "round": 8,
+      "family": "work-repository-context",
+      "remediation_family": "handoff-relations",
+      "guard": {
+        "module": "tests.test_run_observation",
+        "class": "RunObservationRefusalTests",
+        "method": "test_run_context_is_closed_and_binds_refusals_and_handoffs"
+      }
+    }
+  ],
+  "aggregate_manifest": [
+    {
+      "id": "S2-R1-01",
+      "family": "file-replacement",
+      "owner": "scripts/run_observation.py",
+      "guard": "streaming/draining byte cap for overlong unterminated input after `lstat`"
+    },
+    {
+      "id": "S2-R1-02",
+      "family": "recursive-wrong-kind",
+      "owner": "scripts/run_observation.py",
+      "guard": "shape checks before set, regex, or numeric relation use"
+    },
+    {
+      "id": "S2-R1-03",
+      "family": "schema-runtime",
+      "owner": "schema and validator",
+      "guard": "shared finite selector, field, and enum validation"
+    },
+    {
+      "id": "S2-R1-04",
+      "family": "lifecycle-reference",
+      "owner": "validator and focused test",
+      "guard": "outcome subject equals evidence subject"
+    },
+    {
+      "id": "S2-R1-05",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "normalised credential and hidden-work refusal"
+    },
+    {
+      "id": "S2-R1-06",
+      "family": "report-parity-no-echo",
+      "owner": "validator and reporter test",
+      "guard": "escape display-path controls in text and JSON"
+    },
+    {
+      "id": "S2-R2-01",
+      "family": "report-parity-no-echo",
+      "owner": "validator and reporter test",
+      "guard": "validate identities and escape pointer controls"
+    },
+    {
+      "id": "S2-R3-01",
+      "family": "file-replacement",
+      "owner": "validator and replacement tests",
+      "guard": "compare post-read size, mtime, and ctime"
+    },
+    {
+      "id": "S2-R3-02",
+      "family": "lifecycle-reference",
+      "owner": "schema and validator",
+      "guard": "refuse `unknown` placeholders in required relations"
+    },
+    {
+      "id": "S2-R3-03",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "acronym-aware compact alias comparison"
+    },
+    {
+      "id": "S2-R3-04",
+      "family": "schema-runtime",
+      "owner": "schema and validator",
+      "guard": "finite non-Boolean integral-number predicate"
+    },
+    {
+      "id": "S2-R3-05",
+      "family": "path-representation",
+      "owner": "schema and validator",
+      "guard": "portable relative-path language"
+    },
+    {
+      "id": "S2-R4-01",
+      "family": "file-replacement",
+      "owner": "validator and replacement tests",
+      "guard": "nonblocking open plus regular-file and identity checks"
+    },
+    {
+      "id": "S2-R4-02",
+      "family": "schema-runtime",
+      "owner": "validator and focused test",
+      "guard": "exact decimal integral parsing without float rounding"
+    },
+    {
+      "id": "S2-R4-03",
+      "family": "report-parity-no-echo",
+      "owner": "validator and reporter test",
+      "guard": "bounded unknown-field count with no key echo"
+    },
+    {
+      "id": "S2-R4-04",
+      "family": "schema-runtime",
+      "owner": "schema and validator",
+      "guard": "metadata `propertyNames` and 4,096-character key limit"
+    },
+    {
+      "id": "S2-R4-05",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "suffixed compact sensitive-name refusal"
+    },
+    {
+      "id": "S2-R5-01",
+      "family": "schema-runtime",
+      "owner": "validator and focused test",
+      "guard": "finite magnitude ceiling and guarded exponent parsing"
+    },
+    {
+      "id": "S2-R5-02",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "source-name rule and prior-event selector relation"
+    },
+    {
+      "id": "S2-R5-03",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "handoff evidence defined or consumed by source event"
+    },
+    {
+      "id": "S2-R5-04",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "terminal handoff/refusal has matching earlier lifecycle event"
+    },
+    {
+      "id": "S2-R5-05",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "reject same-event fact contradiction and normalised duplicate unknown"
+    },
+    {
+      "id": "S2-R5-06",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "raw-value alias refusal with safe descriptors only"
+    },
+    {
+      "id": "S2-R6-01",
+      "family": "schema-runtime",
+      "owner": "schema and validator",
+      "guard": "identity, observed-string, time, unknown, and path patterns"
+    },
+    {
+      "id": "S2-R6-02",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "normalise fact families and refuse punctuation-only names"
+    },
+    {
+      "id": "S2-R6-03",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "final terminal evidence appears in handoff history"
+    },
+    {
+      "id": "S2-R6-04",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "message/body/argument/environment/header/token refusal"
+    },
+    {
+      "id": "S2-R6-05",
+      "family": "path-representation",
+      "owner": "schema and validator",
+      "guard": "URI/reserved/dot/control refusal and 255-character component bound"
+    },
+    {
+      "id": "S2-R6-06",
+      "family": "path-representation",
+      "owner": "validator and reporter test",
+      "guard": "512-character display bound with digest suffix"
+    },
+    {
+      "id": "S2-R7-01",
+      "family": "file-replacement",
+      "owner": "validator and replacement tests",
+      "guard": "recheck named regular non-symlink inode after read"
+    },
+    {
+      "id": "S2-R7-02",
+      "family": "path-representation",
+      "owner": "validator and focused test",
+      "guard": "representational path failures become bounded `RO001`"
+    },
+    {
+      "id": "S2-R7-03",
+      "family": "recursive-wrong-kind",
+      "owner": "validator and wrong-kind tests",
+      "guard": "only run terminal handoff relation over lists"
+    },
+    {
+      "id": "S2-R7-04",
+      "family": "work-repository-context",
+      "owner": "schema, validator, and context tests",
+      "guard": "issue/topic, step, role, skill/promise, and paired Git identity"
+    },
+    {
+      "id": "S2-R8-01",
+      "family": "file-replacement",
+      "owner": "validator and replacement tests",
+      "guard": "post-read re-resolve and confined named path check"
+    },
+    {
+      "id": "S2-R8-02",
+      "family": "work-repository-context",
+      "owner": "validator and context tests",
+      "guard": "both Git identities or neither"
+    },
+    {
+      "id": "S2-R8-03",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "distinct handoff consumer required"
+    },
+    {
+      "id": "I434-C3-S1-M-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "hidden-work suffix, camel, compact, and acronym refusal"
+    },
+    {
+      "id": "I434-C3-S1-M-02",
+      "family": "path-representation",
+      "owner": "schema, validator, and path tests",
+      "guard": "NFC scalar and bidi/control refusal"
+    },
+    {
+      "id": "I434-C3-S1-M-03",
+      "family": "file-replacement",
+      "owner": "validator and replacement tests",
+      "guard": "final named reopen/reread checks digest, identity, confinement, and stat"
+    },
+    {
+      "id": "I434-C3-S1-M-04",
+      "family": "file-replacement",
+      "owner": "reporter and replacement tests",
+      "guard": "post-`fsync` named report reread checks bytes and identity"
+    },
+    {
+      "id": "R1-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "token/compact raw actor, payload, and JWT refusal"
+    },
+    {
+      "id": "R1-02",
+      "family": "path-representation",
+      "owner": "schema, validator, and path tests",
+      "guard": "255 UTF-8-byte component limit"
+    },
+    {
+      "id": "R1-03",
+      "family": "schema-runtime",
+      "owner": "schema, validator, and focused test",
+      "guard": "one RFC-3339 civil-time profile"
+    },
+    {
+      "id": "R2-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "developer, agent, and human actor refusal"
+    },
+    {
+      "id": "R2-02",
+      "family": "path-representation",
+      "owner": "validator and path tests",
+      "guard": "4,096 UTF-8-byte complete-path ceiling"
+    },
+    {
+      "id": "R2-03",
+      "family": "schema-runtime",
+      "owner": "schema, validator, and focused test",
+      "guard": "Gregorian date and leap-year rule with no year zero"
+    },
+    {
+      "id": "R2-04",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "optional facts use estimate-free source rule"
+    },
+    {
+      "id": "R3-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "AI/LLM output, reply, history, and return refusal"
+    },
+    {
+      "id": "R3-02",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "guessed, heuristic, projected, and predicted source refusal"
+    },
+    {
+      "id": "R4-01",
+      "family": "path-representation",
+      "owner": "schema, validator, and path tests",
+      "guard": "refuse Unicode `Cc`, `Cf`, and `Cs` path scalars"
+    },
+    {
+      "id": "R4-02",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "system/developer instruction and hidden-work refusal"
+    },
+    {
+      "id": "R4-03",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "forecast, ballpark, assumption, extrapolation, and modelled source refusal"
+    },
+    {
+      "id": "R5-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "printable ASCII name gate and typed descriptor kind match"
+    },
+    {
+      "id": "R5-02",
+      "family": "lifecycle-reference",
+      "owner": "validator and lifecycle tests",
+      "guard": "explicit uncertainty-language refusal"
+    },
+    {
+      "id": "R5-03",
+      "family": "path-representation",
+      "owner": "schema, validator, and path tests",
+      "guard": "superscript Windows device-name refusal"
+    },
+    {
+      "id": "R5-04",
+      "family": "schema-runtime",
+      "owner": "validator and focused test",
+      "guard": "compact typed descriptor exemption"
+    },
+    {
+      "id": "R6-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "bare `content` and `contents` payload refusal; typed count/digest retained"
+    },
+    {
+      "id": "R6-02",
+      "family": "work-repository-context",
+      "owner": "ADR-015, map, and context test",
+      "guard": "observation decision binds ADR-015 and preserves ADR-014"
+    },
+    {
+      "id": "R7-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "command, source, and trace alias refusal"
+    },
+    {
+      "id": "R8-01",
+      "family": "normalized-field-name",
+      "owner": "validator and inoculation test",
+      "guard": "instruction and directive alias refusal"
+    },
+    {
+      "id": "RPT-C5-01",
+      "family": "report-parity-no-echo",
+      "owner": "tests/test_promise_machine_contract.py",
+      "guard": "exact release-surface coverage binds the `run_observation` coverage block"
+    }
+  ]
+}
