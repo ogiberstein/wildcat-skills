@@ -579,6 +579,13 @@ class RunObservationRefusalTests(unittest.TestCase):
                     reporter.write_report(parsed, payload)
             self.assertFalse(target.exists())
 
+    def test_reporter_includes_the_exact_coverage_guard(self):
+        self.assertIn(
+            Path("tests/test_promise_machine_contract.py"),
+            reporter.REQUIRED_SURFACE,
+        )
+        self.assertIn("tests.test_promise_machine_contract", reporter.MODULES)
+
     def test_boolean_token_count_refuses(self):
         with tempfile.TemporaryDirectory(dir=FIXTURES) as directory:
             target = Path(directory) / "tokens.jsonl"

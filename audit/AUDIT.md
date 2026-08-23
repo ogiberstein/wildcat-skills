@@ -11182,3 +11182,45 @@ Fix: `19156949f2810096ddaa85954be9e5c638edd823` converts each table to a lossles
 - `closure-overclaim`: open; this round found and repaired one defect, so another independent Warden round is required.
 
 Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and cross-run diagnosis remain assigned to their separate issues. The record makes no claim about capture completeness, external truth, cause, model quality, delivery correctness, deployment readiness, security, or mutation authority.
+
+## Issue 434 carryover 5, step 1, round 2 -- 2026-08-23
+
+Severity: high. The source-owned Elenchus reporter omitted the exact-release coverage guard.
+Location: `tests/emit_run_observation_report.py`.
+Mechanism: its required surface and module list ran only the two run-observation
+modules. The result therefore reported `70/70` while omitting
+`tests.test_promise_machine_contract`, including
+`PromiseCoverageTests.test_run_observation_coverage_binds_the_exact_release_surface`.
+Impact: the reporter could present a green product guard without exercising
+the CARRYOVER-5 coverage-contract repair that makes the aggregate tree whole.
+Fix: add the Promise contract test path and module, and make the reporter
+surface assertion live in the already-reported run-observation suite. Update
+the bound test-file digest after adding that guard.
+
+### Reproduction and repair
+
+- Parent: `1dfdf23dd5ea22a4de6cf57035e3388ea20e13dc`.
+- Red-first command: `python3 -m unittest tests.test_promise_machine_contract.PromiseCoverageTests.test_run_observation_reporter_includes_the_exact_coverage_guard -v` exited `1` twice. Both runs identified the absent contract-test path.
+- Causal repair: the reporter now requires and loads `tests.test_promise_machine_contract`; its fixed-tree result is `143/143`, including the 72 Promise tests and the 71 run-observation and inoculation tests.
+- Guard: the same assertion was red above and is retained as `RunObservationRefusalTests.test_reporter_includes_the_exact_coverage_guard`, which passes on the fixed tree. The source-owned Elenchus comparison reports `passed`: its parent reporter predates the new test and cannot execute it. The two red-first runs remain the guard evidence. The C5 coverage digest now binds the changed run-observation test surface.
+
+### Fixed-tree evidence
+
+- Full union remains `37/37` tracked paths and `61/61` unique manifest rows across the eight mandatory families.
+- Focused plus Promise tests and the source-owned reporter pass `143/143`. The inoculation matrix reports `1,258` cases, `0` crashes, and `0` unexpected clean results.
+- Root suite, valid and invalid CLI fixture checks, Promise sync/check/coverage, Phylax, Ephoros, Hypomnema, Horos, per-file Imprimatur and Brevitas, and `git diff --check` exit `0`.
+- Solidity stays waived because this tree changes Python, JSON, JSONL, and Markdown only.
+
+### Risk dispositions
+
+- `carryover-union-gap`: clean; the complete map is unique and current.
+- `partial-tree-evidence`: clean; this round began from the C5 aggregate tree and no halted partial result was used.
+- `coverage-contract-gap`: fixed; the exact release-surface guard is now inside the source-owned report.
+- `schema-runtime-drift`, `wrong-kind-crash`, `lifecycle-reference-gap`, `file-replacement`, `path-representation`, `metadata-redaction-gap`, and `diagnostic-echo`: clean under focused and inoculation evidence.
+- `context-binding-gap`, `origin-checkout-drift`, `absolute-write-boundary`, and `gate-command-arity`: clean on the named worktree and fixed-tree gates.
+- `closure-overclaim`: open; this round repaired a finding, so a further independent Warden round remains required.
+
+Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
+cross-run diagnosis remain assigned to their separate issues. This record makes
+no claim about capture completeness, external truth, cause, model quality,
+delivery correctness, deployment readiness, security, or mutation authority.

@@ -45,7 +45,7 @@
     },
     "tests": {
       "path": "tests/test_run_observation.py",
-      "sha256": "1f02c6d2eb163b36c3faf8cf7dec356212879d7fcf29cfefcdd6523166d7e9bd",
+      "sha256": "33fac7cffd243af7d8343df41621f6ccae4ea8ffc90132ad94e88972d2cd6f04",
       "selectors": [
         "test_schema_binds_the_contract_and_closed_event_union",
         "test_valid_records_are_accepted",

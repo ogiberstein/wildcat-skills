@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run both run-observation modules and emit one fresh Elenchus unittest report."""
+"""Run the complete run-observation surface and emit one fresh Elenchus report."""
 
 import argparse
 import json
@@ -17,11 +17,13 @@ if str(REPOSITORY_ROOT) not in sys.path:
 REQUIRED_SURFACE = (
     Path("schemas/promise-machine-run-observation-v1.schema.json"),
     Path("scripts/run_observation.py"),
+    Path("tests/test_promise_machine_contract.py"),
     Path("tests/test_run_observation.py"),
     Path("tests/test_run_observation_inoculation.py"),
     Path("tests/fixtures/run-observation/434-carryover-v1.json"),
 )
 MODULES = (
+    "tests.test_promise_machine_contract",
     "tests.test_run_observation",
     "tests.test_run_observation_inoculation",
 )
