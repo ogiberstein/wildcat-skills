@@ -17,6 +17,9 @@ another pass.
    `fizz` is in the suite, build or refresh the invariant fuzz suite on
    round 1 and re-run its campaigns on later rounds where contracts
    changed; campaign failures are findings like any other.
+   The Warden packet also carries the exact source-bound `runbook_step`.
+   For a fix, take the test command, report format, and report file from that
+   step, run Elenchus against the fixes commit, and return its exact verdict.
 2. Append every finding to the audit file (`config audit.log_path`,
    default `audit/AUDIT.md`), even when the count is zero:
 
@@ -37,10 +40,15 @@ another pass.
 4. Record the round:
 
    ```text
-   hexctl audit-round --findings <n> --log audit/AUDIT.md --fixes-commit <sha>
+   hexctl audit-round --findings <n> --log audit/AUDIT.md \
+     --fixes-commit <sha> --elenchus-verdict <value>
    ```
 
-   That form is complete for a Solidity round. A non-Solidity round owes the
+   `<value>` is exactly `guarded`, `unguarded`, `passed`, or `inconclusive`.
+   The two flags are conditional as a pair: a fixes commit without a verdict,
+   or a verdict without a fixes commit, is refused. A round with no fixes
+   commit omits both and records `elenchus_verdict: null`. That form is
+   complete for a Solidity round. A non-Solidity round owes the
    three lint exits as well, which the section below sets out; `hexctl next`
    names them when they are owed.
 
@@ -123,3 +131,9 @@ Log only rounds that ran. A findings count of zero asserts the suite
 executed against the current tree and returned nothing -- if the suite did
 not run, there is no round to record, and saying otherwise poisons the
 ledger the whole loop stands on.
+
+The verdict is checked-and-recorded operator evidence associated with a
+verified fixes range. Fiat does not attest the Elenchus report bytes or infer
+the value from stdout or an exit code. `unguarded`, `passed`, and
+`inconclusive` stay distinct, recordable, and non-blocking here; issue 453 owns
+the later evidence binding and production gate.

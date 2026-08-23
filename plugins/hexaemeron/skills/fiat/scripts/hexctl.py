@@ -99,6 +99,19 @@ Named here so the flags, the refusal message and the stored round all read from 
 list. `references/audit-loop.md` is the contract they satisfy.
 """
 
+ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive")
+"""The complete Elenchus result vocabulary accepted on an audit fix receipt."""
+
+
+def elenchus_verdict_obligation() -> dict:
+    """Describe the conditional audit-round input without claiming it was run."""
+    return {
+        "flag": "--elenchus-verdict",
+        "required_with": "--fixes-commit",
+        "choices": list(ELENCHUS_VERDICTS),
+    }
+
+
 SOLIDITY_MODES = ("auto", True, False)
 """What `config solidity` accepts.
 
@@ -1392,6 +1405,13 @@ def cmd_audit_round(args) -> None:
         )
     if args.findings is None or args.findings < 0:
         die("--findings must be a non-negative integer")
+    if args.fixes_commit and args.elenchus_verdict is None:
+        die(
+            "--elenchus-verdict is required with --fixes-commit; accepted values: "
+            + ", ".join(ELENCHUS_VERDICTS)
+        )
+    if args.elenchus_verdict is not None and not args.fixes_commit:
+        die("--elenchus-verdict requires --fixes-commit")
 
     exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
     for lint, value in exits.items():
@@ -1435,6 +1455,7 @@ def cmd_audit_round(args) -> None:
         "findings": args.findings,
         "log": args.log,
         "fixes_commit": args.fixes_commit,
+        "elenchus_verdict": args.elenchus_verdict,
         "verified_commits": verified_commits,
         "lints": recorded or None,
         "ts": now(),
@@ -1446,6 +1467,7 @@ def cmd_audit_round(args) -> None:
         tail = "; lints " + ", ".join(
             f"{lint} {recorded[lint]}" for lint in LINTS if lint in recorded
         )
+    tail += f"; Elenchus {entry['elenchus_verdict'] or 'null'}"
     print(
         f"step {step['n']} audit round {entry['round']} recorded "
         f"({args.findings} finding(s)){tail}"
@@ -3140,6 +3162,7 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
             "audit_log_path": scoped_path(root, log, "audit log path"),
             "round": directive["round"],
             "risk_register": source_risk_register(study),
+            "runbook_step": source_runbook_step(runbook, step),
         }
         return packet
 
@@ -3210,7 +3233,9 @@ def _next_directive(state: dict) -> dict:
         rounds = step["audit"]["rounds"]
         max_rounds = max_rounds_of(state)
         lints_owed = not solidity_round(state)
-        owed = {"lints": [f"--{lint}-exit" for lint in LINTS]} if lints_owed else {}
+        owed = {"elenchus_verdict": elenchus_verdict_obligation()}
+        if lints_owed:
+            owed["lints"] = [f"--{lint}-exit" for lint in LINTS]
         if not rounds:
             return {**base, "do": "audit-round", "round": 1, **owed}
         last = rounds[-1]
@@ -3507,6 +3532,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--findings", type=int, required=True)
     sp.add_argument("--log")
     sp.add_argument("--fixes-commit", dest="fixes_commit")
+    sp.add_argument(
+        "--elenchus-verdict",
+        dest="elenchus_verdict",
+        choices=ELENCHUS_VERDICTS,
+    )
     for lint in LINTS:
         sp.add_argument(
             f"--{lint}-exit",
