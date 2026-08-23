@@ -46,8 +46,10 @@ another pass.
    Use whole-second UTC `YYYY-MM-DDTHH:MM:SSZ`. `Covered` names every id in
    the source-bound study risk register exactly once as `reviewed` or
    `not-applicable`; it names no other id. `Not checked` and
-   `Leads not pursued` keep non-empty same-line values. A clean round uses the
-   exact row `| -- | -- | -- | none | -- |`. No-fix rounds write
+   `Leads not pursued` keep non-empty same-line values. Each field label and
+   the findings-table header follows a blank line, so multiline inline markup
+   cannot absorb required content. A clean round uses the exact row
+   `| -- | -- | -- | none | -- |`. No-fix rounds write the exact
    `Elenchus verdict: null`; fixed rounds write the exact returned verdict.
 
 3. Apply fixes on the stacked branch: `<step-branch><suffix>` (suffix from

@@ -1609,7 +1609,7 @@ def audit_mask_block_html(text: str) -> str:
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not fence.group("remainder").strip(" ")
+                and not fence.group("remainder").strip(" \t")
             ):
                 open_mark = None
                 open_length = None
@@ -1695,6 +1695,12 @@ def audit_covered(value: str, expected_ids: list[str]) -> None:
     missing = [risk_id for risk_id in expected_ids if risk_id not in dispositions]
     if missing:
         die("audit record Covered is missing a study risk id")
+
+
+def audit_standalone(lines: list[str], index: int, label: str) -> None:
+    """Require a top-level field boundary no multiline inline can cross."""
+    if index == 0 or not markdown_blank(lines[index - 1]):
+        die(f"audit record {label} must follow a blank line")
 
 
 def audit_findings(lines: list[str], findings: int) -> int:
@@ -1786,6 +1792,15 @@ def validated_audit_record(
         die("audit record Elenchus verdict does not match the receipt")
     findings_index = audit_findings(visible_lines, args.findings)
     leads_index, _ = audit_field(visible_lines, "Leads not pursued")
+    for label, index in (
+        ("Audit schema", schema_index),
+        ("Covered", covered_index),
+        ("Not checked", not_checked_index),
+        ("Elenchus verdict", verdict_index),
+        ("findings table", findings_index),
+        ("Leads not pursued", leads_index),
+    ):
+        audit_standalone(visible_lines, index, label)
     field_order = (
         schema_index,
         covered_index,
@@ -1903,6 +1918,9 @@ def done_audit(args, state: dict) -> None:
     if not rounds:
         die("no audit rounds recorded; run at least one round before closing")
     last = rounds[-1]
+    strict_log = last.get("schema") == AUDIT_RECORD_SCHEMA
+    if strict_log and args.log is not None and args.log != last.get("log"):
+        die("--log must name the final round's checked audit log")
     clean = last["findings"] == 0
     if not clean and not args.no_further_leads:
         die(
@@ -1938,7 +1956,9 @@ def done_audit(args, state: dict) -> None:
         "no_further_leads": bool(args.no_further_leads),
         "reason": args.reason,
         "fixes_ref": fixes_ref,
-        "log": args.log or last.get("log"),
+        "log": (
+            last.get("log") if strict_log else args.log or last.get("log")
+        ),
         "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
@@ -2491,7 +2511,7 @@ def markdown_lines(text: str):
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not fence.group("remainder").strip(" ")
+                and not fence.group("remainder").strip(" \t")
             ):
                 open_mark = None
                 open_length = None

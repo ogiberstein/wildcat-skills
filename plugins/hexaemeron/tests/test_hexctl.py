@@ -2494,6 +2494,28 @@ class AuditRecordSchemaTests(HexctlCase):
         Path(path).write_text("\n".join(lines), encoding="utf-8")
         self.refuse("non-empty same-line value", "--findings", "0")
 
+    def test_required_fields_hidden_in_multiline_inline_html_are_refused(self):
+        lines = self.record_lines()
+        table = lines.index("| id | severity | file | finding | status |")
+        hidden = [line for line in lines[2:table] if line]
+        visible = [
+            lines[0], "", '<x-audit data="', *hidden, '">', "", *lines[table:]
+        ]
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_text("\n".join(visible), encoding="utf-8")
+        self.refuse("Audit schema must follow a blank line", "--findings", "0")
+
+    def test_required_fields_hidden_in_a_multiline_link_title_are_refused(self):
+        lines = self.record_lines()
+        table = lines.index("| id | severity | file | finding | status |")
+        hidden = [line for line in lines[2:table] if line]
+        visible = [
+            lines[0], "", '[evidence](audit "', *hidden, '")', "", *lines[table:]
+        ]
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_text("\n".join(visible), encoding="utf-8")
+        self.refuse("Audit schema must follow a blank line", "--findings", "0")
+
     def test_a_record_hidden_by_commonmark_fence_rules_is_refused(self):
         path = self.write_record()
         text = Path(path).read_text(encoding="utf-8")
@@ -2507,6 +2529,15 @@ class AuditRecordSchemaTests(HexctlCase):
             with self.subTest(first_line=hidden.splitlines()[0]):
                 Path(path).write_text(hidden, encoding="utf-8")
                 self.refuse("no H2 record", "--findings", "0")
+
+    def test_commonmark_closing_fence_allows_a_trailing_tab(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        Path(path).write_text(
+            f"```markdown\nlegacy evidence\n```\t\n{text}",
+            encoding="utf-8",
+        )
+        self.run_ctl("audit-round", "--findings", "0")
 
     def test_a_record_hidden_by_the_commonmark_hgroup_block_is_refused(self):
         path = self.write_record()
@@ -2830,6 +2861,22 @@ class AuditRecordSchemaTests(HexctlCase):
         ]
         self.assertEqual(
             [event.get("elenchus_verdict") for event in events], expected_verdicts
+        )
+
+    def test_audit_closure_cannot_replace_the_checked_log_path(self):
+        self.write_record()
+        self.run_ctl("audit-round", "--findings", "0")
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "done", "audit", "--log", "other/AUDIT.md", expect=2
+        )
+        self.assertIn("final round", result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+        self.run_ctl("done", "audit", "--log", "audit/AUDIT.md")
+        self.assertEqual(
+            self.state()["steps"][0]["receipts"]["audit"]["log"],
+            "audit/AUDIT.md",
         )
 
 

@@ -54,7 +54,9 @@ Use a calendar-valid whole-second UTC heading, then `Audit schema`, `Covered`,
 `Not checked`, `Elenchus verdict`, the canonical five-column findings table,
 and `Leads not pursued`. Cover every id in the packet's source-bound risk
 register exactly once as `reviewed` or `not-applicable`. Keep negative space
-and leads non-empty on their label lines. A clean table contains only
+and leads non-empty on their label lines. Put a blank line before every field
+label and the findings-table header so multiline inline markup cannot absorb
+them. A clean table contains only
 `| -- | -- | -- | none | -- |`; a no-fix round records a null verdict. The
 complete example and refusal rules live in
 [`references/audit-loop.md`](../skills/fiat/references/audit-loop.md).
