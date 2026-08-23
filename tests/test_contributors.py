@@ -243,5 +243,34 @@ class EmitterContract(unittest.TestCase):
             self.assertIn(key, payload)
 
 
+class CommittedSpecLinks(unittest.TestCase):
+    """Every relative link in the published spec resolves.
+
+    The spec is authored inside the run's .hexaemeron directory, where
+    `../ephoros/SKILL.md` means the sibling skill. Copied to docs/contributors/
+    that same text points at docs/ephoros/, which does not exist. Copying a
+    document changes what its relative links mean, and nothing else in this
+    repository checks a link in a shipped document.
+    """
+
+    SPEC = ("docs/contributors/study.md", "docs/contributors/runbook.md")
+
+    def test_every_relative_link_resolves(self):
+        import re
+
+        dead = []
+        for relative in self.SPEC:
+            doc = REPOSITORY_ROOT / relative
+            self.assertTrue(doc.is_file(), f"{relative} is absent")
+            for match in re.finditer(r"\]\(([^)]+)\)", doc.read_text(encoding="utf-8")):
+                href = match.group(1)
+                if href.startswith(("http://", "https://", "#", "mailto:")):
+                    continue
+                target = (doc.parent / href.split("#", 1)[0]).resolve()
+                if not target.exists():
+                    dead.append(f"{relative}: {href}")
+        self.assertEqual(dead, [], "dead relative links in the published spec: " + "; ".join(dead))
+
+
 if __name__ == "__main__":
     unittest.main()

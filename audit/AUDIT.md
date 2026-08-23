@@ -11487,3 +11487,18 @@ what this round exists to catch.
 | S1-R2-02 | low | tests/test_contributors.py | Round 1's guard around `ast.literal_eval` caught `ValueError` only. That is the exception every non-literal argument raises on the interpreter in hand, 3.14, but the repository's declared floor is 3.9 and the round-1 change pinned an exception type to behaviour observed on one version. Broadened to `(ValueError, TypeError)`. The `tempfile` import was also moved to module level, so no test body reaches for an import mid-run. | fixed in this round |
 
 Leads not pursued: none.
+
+## Step 1, round 3 -- 2026-08-24
+
+Against the tree with rounds 1 and 2 applied. Phylax, Ephoros and Hypomnema
+clean again. One finding, in the committed spec rather than the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | docs/contributors/study.md | Five dead relative links in a shipped document. The study is authored in the run's `.hexaemeron` directory, where `../ephoros/SKILL.md` correctly names the sibling skill. Copied to `docs/contributors/`, that same text resolves to `docs/ephoros/SKILL.md`, which does not exist, so every one of the study's five discipline citations was broken in the published copy. Copying a document changes what its relative links mean, and nothing in this repository checked a link in a shipped document. Fixed by rewriting the five to `../../plugins/hexaemeron/skills/<name>/SKILL.md`, each verified present, and by a test that resolves every relative link in both published spec files. The canonical `.hexaemeron/study.md` keeps its plugin-relative form and is deliberately not edited: it is receipted and digest-pinned, and its links are correct where it lives. The published copy diverging from it in link paths alone is the intended outcome, not drift. | fixed in this round |
+
+Leads not pursued: the parity test reads the repository's vendored
+`hexctl.py` rather than the installed controller running the loop. That is the
+correct authority for a test that has to pass in CI, where no plugin cache
+exists, but the test does not say so. Left as is; a comment would restate what
+the path already shows.

@@ -273,7 +273,7 @@ by hand with a debugger.
 identity or field that caused it, per item 11. A stop that names nothing is
 indistinguishable from a crash.
 
-[ephoros](../ephoros/SKILL.md) owns what those signals must carry.
+[ephoros](../../plugins/hexaemeron/skills/ephoros/SKILL.md) owns what those signals must carry.
 
 ## 9. Boundaries, per capability
 
@@ -300,14 +300,14 @@ grouped so two runs cannot race the same branch.
 login has non-host authored work. Control: `git log` is invoked with a fixed
 argument vector and no shell, on a pinned ref, with bounded output.
 
-[phylax](../phylax/SKILL.md) owns the boundary list and the controls.
+[phylax](../../plugins/hexaemeron/skills/phylax/SKILL.md) owns the boundary list and the controls.
 
 ## 10. The budget, or its absence
 
 None, and here is why. The generator makes a small number of API calls and one
 git log read on a repository with 718 non-merge commits, and it runs weekly. No
 step in this run is made in the name of speed, so there is nothing for
-[metron](../metron/SKILL.md) to hold a before and after against. If a future
+[metron](../../plugins/hexaemeron/skills/metron/SKILL.md) to hold a before and after against. If a future
 run adds a full closed-issue crawl over a repository large enough for
 pagination to dominate, that run owns the budget; this one records its absence.
 
@@ -330,7 +330,7 @@ The run stops, rather than producing a list, on each of these:
   `hexctl.py`'s frozensets have diverged.
 - The owner login appearing in a rendered artefact.
 
-Guard-test convention, following [elenchus](../elenchus/SKILL.md): each of the
+Guard-test convention, following [elenchus](../../plugins/hexaemeron/skills/elenchus/SKILL.md): each of the
 five gets a test that fails without the guard, named
 `test_stops_on_<condition>`, asserting the non-zero exit and the identity or
 field named in the message. A test asserting only that an exception was raised
@@ -356,5 +356,5 @@ a choice between options.
 The trigger cadence, the owner exclusion, and the handles-only rule came from
 the Creator during this run. They are recorded in item 3 and in the assumptions
 block, which is where a reader looks for what the request ruled out.
-[hypomnema](../hypomnema/SKILL.md) owns which decisions earn a record and where
+[hypomnema](../../plugins/hexaemeron/skills/hypomnema/SKILL.md) owns which decisions earn a record and where
 each one lives.
