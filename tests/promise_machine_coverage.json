@@ -159,7 +159,7 @@
       "sha256": "b1b61360e567a6abd30a6f6c9a6f6cf48783baa269ddbed43f748f18e7535b59",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
-        "subject": "validated state, topic, run branch, step branch, checked audit entry, current synopsis digest and head commit",
+        "subject": "validated state, topic, run branch, step branch, checked audit entry, receipt-time synopsis digest and head commit",
         "scope": "required state-container spine, current step, audit-round schema and phase",
         "evidence_references": "ordered state-container check, final audit-entry digest and end offset, append-only ledger receipt payload and previous hash",
         "evidence_classes": "receipt kind joined to the canonical Evidence classes field",

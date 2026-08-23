@@ -77,9 +77,8 @@ def _relative_path(relative):
             f"path has unsafe synopsis framing: {relative!r}"
         ) from None
     if (
-        any(ord(character) < 32 or ord(character) == 127 for character in relative)
-        or "|" in relative
-        or "<br>" in relative
+        any(not character.isprintable() for character in relative)
+        or any(character in "|<>" for character in relative)
     ):
         raise SynopsisError(f"path has unsafe synopsis framing: {relative!r}")
     if os.path.isabs(relative) or "\\" in relative:
@@ -292,9 +291,24 @@ def _strict_candidate(record, record_number, source_path):
     return has_schema or has_strict_shape
 
 
-def _strict_lines(record, record_number, source_path):
+def _strict_lines(
+    record, record_number, source_path, *, at_eof, source_ends_lf
+):
     record = list(record)
-    if record and record[-1] == "":
+    if at_eof:
+        if not source_ends_lf:
+            raise SynopsisError(
+                f"{source_path}: strict record {record_number} has no terminal LF"
+            )
+        if record and record[-1] == "":
+            raise SynopsisError(
+                f"{source_path}: strict record {record_number} has a trailing blank line"
+            )
+    elif not record or record[-1] != "":
+        raise SynopsisError(
+            f"{source_path}: strict record {record_number} has malformed record separator"
+        )
+    else:
         record.pop()
     match = STRICT_HEADING_RE.fullmatch(record[0])
     if match is None:
@@ -477,7 +491,13 @@ def render_source(source_path, data):
     for number in range(1, len(starts)):
         record = lines[starts[number - 1]:starts[number]]
         if _strict_candidate(record, number, source_path):
-            retained = _strict_lines(record, number, source_path)
+            retained = _strict_lines(
+                record,
+                number,
+                source_path,
+                at_eof=number == len(starts) - 1,
+                source_ends_lf=data.endswith(b"\n"),
+            )
         else:
             retained = _legacy_lines(record)
         records.append("<br>".join(retained))

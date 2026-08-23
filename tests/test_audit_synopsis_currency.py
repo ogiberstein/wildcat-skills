@@ -160,11 +160,27 @@ class SynopsisFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(self.module.SynopsisError, "strict record"):
             self.module.render_source("audit/AUDIT.md", mimicked_legacy_h3)
 
+    def test_strict_record_boundaries_require_the_canonical_lf_bytes(self):
+        canonical = strict_record()
+        self.module.render_source("audit/AUDIT.md", canonical)
+
+        with self.assertRaisesRegex(self.module.SynopsisError, "terminal LF"):
+            self.module.render_source("audit/AUDIT.md", canonical[:-1])
+        with self.assertRaisesRegex(self.module.SynopsisError, "trailing blank"):
+            self.module.render_source("audit/AUDIT.md", canonical + b"\n")
+        with self.assertRaisesRegex(self.module.SynopsisError, "record separator"):
+            self.module.render_source("audit/AUDIT.md", canonical + canonical)
+
     def test_source_path_cannot_corrupt_synopsis_framing(self):
         for source_path in (
             "bad\nmetadata/audit/AUDIT.md",
             "bad|metadata/audit/AUDIT.md",
             "bad<br>metadata/audit/AUDIT.md",
+            "bad<BR>metadata/audit/AUDIT.md",
+            "bad<br />metadata/audit/AUDIT.md",
+            "bad\u0085metadata/audit/AUDIT.md",
+            "bad\u2028metadata/audit/AUDIT.md",
+            "bad\u202emetadata/audit/AUDIT.md",
             "bad\udcffmetadata/audit/AUDIT.md",
         ):
             with self.subTest(source_path=repr(source_path)):
@@ -325,6 +341,69 @@ class SynopsisRepositoryTests(unittest.TestCase):
             ):
                 self.module.discover_sources(str(self.root))
 
+    def test_discovery_excludes_state_sinks_and_skips_unrelated_symlink_trees(self):
+        self.source()
+        for hidden in (".git", ".hexaemeron"):
+            hidden_source = self.root / hidden / "nested" / "audit" / "AUDIT.md"
+            hidden_source.parent.mkdir(parents=True)
+            hidden_source.write_bytes(strict_record())
+        outside_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_tmp.cleanup)
+        outside_source = Path(outside_tmp.name) / "audit" / "AUDIT.md"
+        outside_source.parent.mkdir()
+        outside_source.write_bytes(strict_record())
+        (self.root / "linked-tree").symlink_to(
+            Path(outside_tmp.name), target_is_directory=True
+        )
+
+        self.assertEqual(
+            self.module.discover_sources(str(self.root)), ["audit/AUDIT.md"]
+        )
+
+    def test_descriptor_races_refuse_source_swaps_and_do_not_follow_output_swaps(self):
+        source = self.source()
+        outside = self.root / "outside.md"
+        outside.write_bytes(strict_record("guarded"))
+        open_directory = self.module._directory_descriptor
+        swapped = False
+
+        def swap_source_then_open(root, components, label):
+            nonlocal swapped
+            if label == "audit source" and not swapped:
+                source.unlink()
+                source.symlink_to(outside)
+                swapped = True
+            return open_directory(root, components, label)
+
+        with mock.patch.object(
+            self.module, "_directory_descriptor", side_effect=swap_source_then_open
+        ):
+            with self.assertRaisesRegex(self.module.SynopsisError, "cannot be read"):
+                self.module.read_regular_bytes(
+                    str(self.root), "audit/AUDIT.md", "audit source"
+                )
+
+        source.unlink()
+        source.write_bytes(strict_record())
+        destination = source.with_name("AUDIT_SYNOPSIS.md")
+        destination.write_bytes(b"old complete\n")
+        outside.write_bytes(b"outside unchanged\n")
+        write_all = self.module._write_all
+
+        def swap_output_after_write(descriptor, data):
+            write_all(descriptor, data)
+            destination.unlink()
+            destination.symlink_to(outside)
+
+        with mock.patch.object(
+            self.module, "_write_all", side_effect=swap_output_after_write
+        ):
+            self.module.atomic_replace(
+                str(self.root), "audit/AUDIT_SYNOPSIS.md", b"new complete\n"
+            )
+        self.assertEqual(outside.read_bytes(), b"outside unchanged\n")
+        self.assertEqual(destination.read_bytes(), b"new complete\n")
+
     def test_check_diagnostic_has_counts_ratio_and_all_digests(self):
         self.source()
         self.module.process_repository(str(self.root), write=True)
@@ -358,6 +437,57 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                 self.assertLess(
                     result["synopsis_lines"] * 100,
                     result["source_lines"] * 15,
+                )
+
+    def test_pinned_legacy_schema_drafts_bind_path_ordinal_and_exact_bytes(self):
+        source = (ROOT / "audit" / "AUDIT.md").read_bytes()
+        lines = self.module._physical_lines("audit/AUDIT.md", source)
+        starts = [
+            index for index, line in enumerate(lines) if self.module._is_h2(line)
+        ]
+        starts.append(len(lines))
+        offsets = []
+        cursor = 0
+        for physical in source.splitlines(keepends=True):
+            offsets.append(cursor)
+            cursor += len(physical)
+
+        self.assertEqual(
+            tuple(self.module.PINNED_LEGACY_SCHEMA_DRAFTS), tuple(range(344, 354))
+        )
+        for ordinal, expected_digest in (
+            self.module.PINNED_LEGACY_SCHEMA_DRAFTS.items()
+        ):
+            with self.subTest(ordinal=ordinal):
+                record = lines[starts[ordinal - 1]:starts[ordinal]]
+                raw = ("\n".join(record) + "\n").encode("utf-8")
+                actual = source[offsets[starts[ordinal - 1]]:offsets[starts[ordinal]]]
+                headings = tuple(
+                    line for line in record[1:] if line.startswith("###")
+                )
+                self.assertEqual(raw, actual)
+                self.assertTrue(actual.endswith(b"\n\n"))
+                self.assertEqual(hashlib.sha256(raw).hexdigest(), expected_digest)
+                self.assertTrue(
+                    self.module._pinned_legacy_schema_draft(
+                        record, ordinal, "audit/AUDIT.md", headings
+                    )
+                )
+                changed = [*record[:-1], record[-1] + "x"]
+                self.assertFalse(
+                    self.module._pinned_legacy_schema_draft(
+                        changed, ordinal, "audit/AUDIT.md", headings
+                    )
+                )
+                self.assertFalse(
+                    self.module._pinned_legacy_schema_draft(
+                        record, ordinal + 100, "audit/AUDIT.md", headings
+                    )
+                )
+                self.assertFalse(
+                    self.module._pinned_legacy_schema_draft(
+                        record, ordinal, "plugins/x/audit/AUDIT.md", headings
+                    )
                 )
 
     def test_live_headings_leads_and_issue_327_values_survive(self):

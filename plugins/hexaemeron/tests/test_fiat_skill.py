@@ -163,6 +163,16 @@ class FiatSkillContractTests(unittest.TestCase):
         fiat = " ".join(self.fiat.split())
         self.assertIn("receipt-time derived-synopsis currency check", fiat)
         self.assertIn("does not establish current working-tree currency", fiat)
+        coverage = json.loads(
+            (ROOT.parents[1] / "tests" / "promise_machine_coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        subject = coverage["runtime"]["fiat-receipted-delivery"]["bindings"][
+            "subject"
+        ]
+        self.assertIn("receipt-time synopsis digest", subject)
+        self.assertNotIn("current synopsis digest", subject)
 
     def test_provenance_is_verified_without_reclassifying_human_work(self):
         # Flattened: these assert what the instruction says, and a reflow of the
