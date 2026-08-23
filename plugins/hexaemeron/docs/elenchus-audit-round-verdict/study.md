@@ -355,3 +355,10 @@ require re-deriving it before implementation. Known entry-environment fact:
 the focused 330-test baseline exits 1 only because the fixture requires Node
 v26.6.0 while this host has v22.22.3 and v26.0.0. That is not waived from the
 delivery gate.
+
+### Amendment -- 2026-08-22
+
+**What changed.** Step 2 may update only the shared Fiat runtime-source digest in `tests/promise_machine_coverage.json` for its three existing runtime bindings when `hexctl.py` changes. The canonical promise text and field maps stay unchanged. Step 3 carries this amendment into the committed study copy.
+**Why.** `python3.12 scripts/promise_machine.py check` returned three PM071 findings: the controller change moved the bound source digest from `6118483811cff145275fe04e82880b356bc182c92152039e88d13a941c5e2f13` to `01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870`. The runbook condition that allowed this fixture to change only with canonical promise text is false because the fixture also binds runtime-source bytes.
+**Steps touched.** Steps 2 and 3.
+**Still holding.** Step 2: entry holds; exit holds. Step 3: entry holds; exit holds.
