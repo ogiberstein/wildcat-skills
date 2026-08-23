@@ -2508,6 +2508,25 @@ class AuditRecordSchemaTests(HexctlCase):
                 Path(path).write_text(hidden, encoding="utf-8")
                 self.refuse("no H2 record", "--findings", "0")
 
+    def test_a_record_hidden_by_the_commonmark_hgroup_block_is_refused(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        Path(path).write_text(
+            f"<hgroup>still raw HTML\n{text}\n</hgroup>\n",
+            encoding="utf-8",
+        )
+        self.refuse("no H2 record", "--findings", "0")
+
+    def test_required_fields_follow_the_canonical_schema_order(self):
+        self.write_record()
+        lines = self.record_lines()
+        leads = lines.index("Leads not pursued: none")
+        leads_block = lines[leads:leads + 2]
+        del lines[leads:leads + 2]
+        lines[2:2] = leads_block
+        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
+        self.refuse("canonical field order", "--findings", "0")
+
     def test_unicode_whitespace_does_not_close_commonmark_blocks(self):
         path = self.write_record()
         text = Path(path).read_text(encoding="utf-8")

@@ -9512,3 +9512,27 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: S1-R5-02 changes the permanent checker and its assertion together, so the detached-parent overlay cannot independently guard that cause; aggregate Elenchus `guarded` comes from the high-cardinality and CommonMark controller guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 6 -- 2026-08-23T06:45:23Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R6-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The CommonMark type-6 block-tag set omitted `hgroup`, so a trailing-text opener could hide a complete strict record while the receipt treated it as visible Markdown. | fixed in this commit; guard red |
+| S1-R6-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Required fields and the findings table were checked independently but not ordered, so a shuffled record passed without matching the canonical schema. | fixed in this commit; guard red |
+| S1-R6-03 | low | audit/AUDIT.md | Brevitas report mode rejected the mandatory two-row findings table under its three-row presentation minimum. | fixed in this commit by recording the lint finding; Brevitas red then green |
+
+### Leads
+
+Leads not pursued: S1-R6-03 is not independently Elenchus-guarded because the canonical audit record and its finding count move together; aggregate Elenchus `guarded` comes from the two causal controller guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space

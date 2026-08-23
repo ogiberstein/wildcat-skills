@@ -117,7 +117,7 @@ AUDIT_HTML_OPEN_RE = re.compile(
 AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
     r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|"
     r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|"
-    r"figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|"
+    r"figure|footer|form|frame|frameset|h[1-6]|head|header|hgroup|hr|html|iframe|"
     r"legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|"
     r"param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|"
     r"track|ul)(?=[\s/>]|$)",
@@ -1536,15 +1536,19 @@ def audit_risk_ids(base_dir: str, state: dict) -> list[str]:
     return risk_ids
 
 
-def audit_field(lines: list[str], label: str) -> str:
+def audit_field(lines: list[str], label: str) -> tuple[int, str]:
     """Read one non-empty same-line field without echoing its source value."""
     prefix = label + ":"
-    values = [line[len(prefix):].strip() for line in lines if line.startswith(prefix)]
+    values = [
+        (index, line[len(prefix):].strip())
+        for index, line in enumerate(lines)
+        if line.startswith(prefix)
+    ]
     if not values:
         die(f"audit record is missing {label}")
     if len(values) != 1:
         die(f"audit record has duplicate {label}")
-    if not values[0]:
+    if not values[0][1]:
         die(f"audit record {label} must have a non-empty same-line value")
     return values[0]
 
@@ -1693,7 +1697,7 @@ def audit_covered(value: str, expected_ids: list[str]) -> None:
         die("audit record Covered is missing a study risk id")
 
 
-def audit_findings(lines: list[str], findings: int) -> None:
+def audit_findings(lines: list[str], findings: int) -> int:
     """Check the one canonical five-column table and its declared row count."""
     headers = [index for index, line in enumerate(lines) if line == AUDIT_FINDINGS_HEADER]
     if not headers:
@@ -1716,9 +1720,10 @@ def audit_findings(lines: list[str], findings: int) -> None:
     if findings == 0:
         if rows != [AUDIT_ZERO_FINDING_ROW]:
             die("audit record findings table must use the exact zero-finding row")
-        return
+        return header
     if len(rows) != findings or AUDIT_ZERO_FINDING_ROW in rows:
         die("audit record findings table row count does not match --findings")
+    return header
 
 
 def validated_audit_record(
@@ -1769,18 +1774,28 @@ def validated_audit_record(
         line
         for _, _, line, _ in audit_visible_lines(entry_text)
     ]
-    schema = audit_field(visible_lines, "Audit schema")
+    schema_index, schema = audit_field(visible_lines, "Audit schema")
     if schema != AUDIT_RECORD_SCHEMA:
         die(f"Audit schema must be {AUDIT_RECORD_SCHEMA}")
-    covered = audit_field(visible_lines, "Covered")
+    covered_index, covered = audit_field(visible_lines, "Covered")
     audit_covered(covered, audit_risk_ids(base_dir, state))
-    audit_field(visible_lines, "Not checked")
-    verdict = audit_field(visible_lines, "Elenchus verdict")
+    not_checked_index, _ = audit_field(visible_lines, "Not checked")
+    verdict_index, verdict = audit_field(visible_lines, "Elenchus verdict")
     expected_verdict = args.elenchus_verdict or "null"
     if verdict != expected_verdict:
         die("audit record Elenchus verdict does not match the receipt")
-    audit_findings(visible_lines, args.findings)
-    audit_field(visible_lines, "Leads not pursued")
+    findings_index = audit_findings(visible_lines, args.findings)
+    leads_index, _ = audit_field(visible_lines, "Leads not pursued")
+    field_order = (
+        schema_index,
+        covered_index,
+        not_checked_index,
+        verdict_index,
+        findings_index,
+        leads_index,
+    )
+    if field_order != tuple(sorted(field_order)):
+        die("audit record fields do not follow the canonical field order")
 
     entry_bytes = entry_text.encode("utf-8")
     return {
