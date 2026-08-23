@@ -108,20 +108,23 @@ AUDIT_COVERAGE_VALUES = ("reviewed", "not-applicable")
 AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
 AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
 AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
-AUDIT_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+AUDIT_TIMESTAMP_RE = re.compile(
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", re.ASCII
+)
 AUDIT_SETEXT_H2_RE = re.compile(r"^ {0,3}-+[ \t]*$")
 AUDIT_ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
 AUDIT_ATX_H2_RE = re.compile(r"^ {0,3}##(?:[ \t]+|$)")
 AUDIT_HTML_OPEN_RE = re.compile(
     r"(?P<comment><!--)|(?P<processing><\?)|(?P<cdata><!\[CDATA\[)|"
     r"(?P<declaration><![A-Za-z])|"
-    r"(?P<tag><(?P<tag_name>(?i:script|pre|style|textarea))(?=[\s>]))"
+    r"(?P<tag><(?P<tag_name>(?i:script|pre|style|textarea))(?=[\s>]))",
+    re.ASCII,
 )
 AUDIT_BARE_SPECIAL_BLOCK_RE = re.compile(
-    r"<(?P<tag_name>script|pre|style|textarea)", re.IGNORECASE
+    r"<(?P<tag_name>script|pre|style|textarea)", re.IGNORECASE | re.ASCII
 )
 AUDIT_SPECIAL_CLOSE_RE = re.compile(
-    r"</(?:script|pre|style|textarea)>", re.IGNORECASE
+    r"</(?:script|pre|style|textarea)>", re.IGNORECASE | re.ASCII
 )
 AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
     r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|"
@@ -130,10 +133,10 @@ AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
     r"legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|"
     r"param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|"
     r"track|ul)(?=[\s/>]|$)",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 AUDIT_COMPLETE_TAG_RE = re.compile(
-    r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:\s.*)?/?>\s*$"
+    r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:\s.*)?/?>\s*$", re.ASCII
 )
 AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 AUDIT_PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
@@ -1796,6 +1799,46 @@ def audit_setext_h2(previous: str | None, line: str) -> bool:
     return True
 
 
+def audit_raw_structure(lines: list[str]) -> None:
+    """Refuse structural lookalikes lost by the conservative visibility mask.
+
+    The HTML pass intentionally masks more than a full CommonMark parser: raw
+    tag text may be ambiguous until inline parsing, and block type 7 cannot
+    interrupt a paragraph.  That safe-direction approximation must not erase a
+    later heading or duplicate field and thereby make a non-canonical record
+    look canonical.  Strict records therefore admit exactly one raw copy of
+    every structural label and no later raw H2 candidate.  A Warden can move a
+    quoted specimen into prose or a table cell without putting it at the
+    schema's structural column.
+    """
+    labels = (
+        "Audit schema",
+        "Covered",
+        "Not checked",
+        "Elenchus verdict",
+        "Leads not pursued",
+    )
+    for label in labels:
+        count = sum(line.startswith(label + ":") for line in lines)
+        if count == 0:
+            die(f"audit record is missing {label}")
+        if count > 1:
+            die(f"audit record has duplicate {label}")
+    table_count = sum(line == AUDIT_FINDINGS_HEADER for line in lines)
+    if table_count == 0:
+        die("audit record is missing the canonical findings table")
+    if table_count > 1:
+        die("audit record has a duplicate findings table")
+
+    previous = None
+    for index, line in enumerate(lines):
+        if index > 0 and (
+            AUDIT_ATX_H2_RE.match(line) or audit_setext_h2(previous, line)
+        ):
+            die("strict audit record must be the final H2 record")
+        previous = line
+
+
 def validated_audit_record(
     base_dir: str, state: dict, step: dict, args
 ) -> dict:
@@ -1851,6 +1894,11 @@ def validated_audit_record(
         die("audit record timestamp is not canonical UTC")
 
     entry_text = text[entry_start:]
+    raw_lines = [
+        physical.rstrip("\r\n")
+        for physical in markdown_physical_lines(entry_text)
+    ]
+    audit_raw_structure(raw_lines)
     visible_lines = [
         line
         for _, _, line, _ in audit_visible_lines(entry_text)

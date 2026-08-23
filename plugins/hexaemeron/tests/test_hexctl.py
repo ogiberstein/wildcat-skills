@@ -2477,6 +2477,27 @@ class AuditRecordSchemaTests(HexctlCase):
                 self.write_record(extra=("", heading))
                 self.refuse("topic, step, and round", "--findings", "0")
 
+    def test_inline_html_false_positive_cannot_hide_later_structure(self):
+        for extra, diagnostic in (
+            (("`<script>`", "## later record"), "final H2 record"),
+            (
+                ("`<script>`", "Audit schema: fiat-audit-round/v1"),
+                "duplicate Audit schema",
+            ),
+        ):
+            with self.subTest(extra=extra):
+                self.write_record(extra=extra)
+                self.refuse(diagnostic, "--findings", "0")
+
+    def test_type_seven_html_false_positive_cannot_hide_a_later_h2(self):
+        for extra in (
+            ("paragraph", "<x>", "## later record"),
+            ("<x bogus=>", "## later record"),
+        ):
+            with self.subTest(extra=extra):
+                self.write_record(extra=extra)
+                self.refuse("final H2 record", "--findings", "0")
+
     def test_each_required_field_is_unique_and_present(self):
         cases = (
             ("schema", "Audit schema"),
@@ -2610,6 +2631,15 @@ class AuditRecordSchemaTests(HexctlCase):
             encoding="utf-8",
         )
         self.run_ctl("audit-round", "--findings", "0")
+
+    def test_unicode_casefold_does_not_close_a_type_one_raw_block(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        Path(path).write_text(
+            f"<script>\n</ſcript>\n{text}\n</script>\n",
+            encoding="utf-8",
+        )
+        self.refuse("no H2 record", "--findings", "0")
 
     def test_required_fields_follow_the_canonical_schema_order(self):
         self.write_record()

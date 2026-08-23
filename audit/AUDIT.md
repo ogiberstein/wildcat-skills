@@ -9611,3 +9611,26 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: the Brevitas B011 probe was inapplicable because this schema-mandated record is completeness evidence excluded by that skill; the unwrapped Elenchus runner reached ambient Node v22.22.3 and failed only its v26.6.0 fixture, with failed report SHA-256 433e7592fc5da275e03d0ed781f8a989782a84020091a28a6b13f3a1ea1a841b preserved before the same exact report command passed under the runbook-pinned Node; differential CommonMark probes found conservative refusals outside the canonical strict append grammar but no further acceptance bypass; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
+
+## audit-record-schema-timestamp-synopsis, step 1, round 10 -- 2026-08-23T09:30:01Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R10-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Finality and uniqueness trusted the lossy HTML visibility mask alone, so inline-code and type-7 false positives could erase a later H2 or duplicate schema field and receipt a non-canonical record. | fixed in this commit; four guards red then green |
+| S1-R10-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Unicode-aware case folding treated a long-s end tag as ASCII `s`, closed a type-1 raw block early, and exposed a strict record that CommonMark kept hidden. | fixed in this commit; guard red then green |
+
+### Leads
+
+Leads not pursued: the raw structural parity check deliberately refuses source-column schema lookalikes inside masked Markdown rather than claiming a general Markdown parser; canonical Warden records keep quoted labels in prose or table cells; commonmark 0.31.2 differentially confirmed the five false acceptances; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
