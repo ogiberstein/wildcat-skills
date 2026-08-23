@@ -11148,3 +11148,37 @@ model quality, delivery correctness, deployment readiness, security or
 mutation authority. Any later `434-CARRYOVER-4.md` or successor must remain
 one self-contained aggregate of every pass if a restart is required. No
 partial or intermediate reconstruction is an acceptance tree.
+## Issue 434 carryover 5, step 1, round 1 -- 2026-08-23
+
+Severity: high. The required Brevitas gate failed on the reconstructed audit record.
+Location: `audit/AUDIT.md`.
+Mechanism: 198 historical tables had fewer than three rows or three columns; the linter rejects each structure.
+Impact: the documented fixed-tree gate matrix was not clean, so no audit closure was available.
+Fix: `19156949f2810096ddaa85954be9e5c638edd823` converts each table to a lossless key/value record and retains every header and cell.
+
+### Reproduction and repair
+
+- Parent: `35c118df6354cc9d3be02e1712b01c76477029e7`.
+- Red-first command: `python3 plugins/brevitas/skills/brevitas/scripts/brevitas.py audit/AUDIT.md` exited `1` twice with byte-identical 205-line diagnostics.
+- Causal repair: the audit archive now represents every short historical table as a record. The gate exits `0` on `19156949f2810096ddaa85954be9e5c638edd823`.
+- Guard: this document-only repair changes no test file. The twice-red Brevitas command is the reproducible guard; the source-owned Elenchus comparison reports `unguarded` for that reason.
+
+### Fixed-tree evidence
+
+- Full union: `37/37` tracked paths and `61/61` unique manifest rows across the eight mandatory families.
+- Focused plus Promise tests: `142/142` passed. The inoculation matrix reports `1,258` cases, `0` crashes, and `0` unexpected clean results.
+- Root suite: `190/190` passed. The four valid CLI fixtures exit `0`; the five invalid fixtures exit `1`.
+- Promise sync, check, and coverage are clean. Phylax, Ephoros, Hypomnema, current Horos, Imprimatur, Brevitas, and `git diff --check` exit `0`.
+- Solidity stays waived because the fixed tree changes Python, JSON, JSONL, and Markdown only.
+
+### Risk dispositions
+
+- `carryover-union-gap`: clean; the complete map is unique and current.
+- `partial-tree-evidence`: clean; this audit began after the one-tree completion check.
+- `coverage-contract-gap`: clean; `PromiseCoverageTests.test_run_observation_coverage_binds_the_exact_release_surface` passed.
+- `schema-runtime-drift`, `wrong-kind-crash`, and `lifecycle-reference-gap`: clean under focused and inoculation evidence.
+- `file-replacement`, `path-representation`, `metadata-redaction-gap`, and `diagnostic-echo`: clean under focused and inoculation evidence.
+- `context-binding-gap`, `origin-checkout-drift`, `absolute-write-boundary`, and `gate-command-arity`: clean on the named worktree and fixed-tree gates.
+- `closure-overclaim`: open; this round found and repaired one defect, so another independent Warden round is required.
+
+Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and cross-run diagnosis remain assigned to their separate issues. The record makes no claim about capture completeness, external truth, cause, model quality, delivery correctness, deployment readiness, security, or mutation authority.
