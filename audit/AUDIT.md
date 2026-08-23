@@ -9653,3 +9653,19 @@ Elenchus verdict: guarded
 | S1-R11-04 | low | plugins/hexaemeron/tests/test_hexctl.py | The active round-10 boundary guard called a helper absent on the parent, so pinned Elenchus reported one infrastructure AttributeError instead of a pure assertion failure. | fixed with a parent-safe callable assertion in this commit |
 
 Leads not pursued: the first pinned Elenchus replay was inconclusive with 906 executed tests, 22 assertion failures, and one parent-only AttributeError; the parent-safe guard repair leaves the raw-delta controller and changed Promise coverage tests as aggregate Elenchus guards; the append-only study repair is guarded by controller verify, exact receipt hash and copy, and raw diff exit 0 but has no independent Elenchus claim; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain separately owned
+
+## audit-record-schema-timestamp-synopsis, step 1, round 12 -- 2026-08-23T16:51:18Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction; step 3 disposable v5.13.1 proof; issue 453 report-byte and commit binding; issues 369 and 363; live-controller enforcement absent from pinned v5.12.1
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none inside step 1 after the source review and named gates; the live run remains governed by pinned v5.12.1, so this clean Warden commit records review, gate, and canonical-entry evidence without claiming live issue-429 validation or new receipt leaves; the checked-in v5.13.1 controller gets its disposable proof in step 3; step 2 and issues 453, 369, and 363 remain outside this round
