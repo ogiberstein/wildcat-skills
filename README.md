@@ -122,6 +122,14 @@ implementation, repeated independent audits, clear prose, and a controlled
 integration. Its phase agents each own one part of that process, while Fiat
 keeps the receipts and decides what may happen next.
 
+### Homologia
+
+[Homologia](./plugins/homologia) checks whether a contract computation and an
+off-chain reimplementation of it return the same integers over a declared set
+of inputs, and keeps every disagreement as a specimen. Agreement is not
+correctness: two implementations of the same misunderstanding agree perfectly,
+and the verdict says so.
+
 ### Horos
 
 [Horos](./plugins/horos) identifies generated files, vendored trees, large data
@@ -198,7 +206,7 @@ Checked-in examples and verification paths may need less.
 
 | Requirement | Skills | When it is needed |
 | --- | --- | --- |
-| Python 3 | Alexandria, Ariadne, Brevitas, Hermes, Hexaemeron, Horos, Janus, Pandects | Their standard-library tools and checks |
+| Python 3 | Alexandria, Ariadne, Brevitas, Hermes, Hexaemeron, Homologia, Horos, Janus, Pandects | Their standard-library tools and checks |
 | Python 3.9 or later | Berean, Probitas, Tabularium | Their release, dossier, and verification tools |
 | Python 3.10 or later | Lemma | All Lemma commands |
 | Python 3.11 or later plus its pinned packages | Lazarus | Capture, verification, replay, and release |
@@ -229,6 +237,7 @@ Use $metron to measure this slow path, change one thing, measure it the same way
 Use $hypomnema to record this decision, its alternatives, and its consequences where the next person will find them.
 Use $imprimatur to check this draft for banned wording and unsupported technical claims.
 Use $vulgate to rewrite this draft in plain human language without changing what it says.
+Use $homologia to check whether this contract computation and its off-chain mirror agree over declared vectors.
 Use $horos to create or check an evidence-backed reading boundary for this repository; do not apply it during security review.
 Use $janus to check this hook against a conformance manifest for what it may observe and change around a host action.
 Use $lemma to turn this Solidity compiler input or Markdown tree into validated, source-linked JSONL chunks.

@@ -27,7 +27,7 @@ generated installation copies and must remain byte-identical to it.
 
 ## Marketplace boundaries
 
-The fourteen plugins form one marketplace, not fourteen competing descriptions
+The fifteen plugins form one marketplace, not fifteen competing descriptions
 of the same job. Alexandria preserves lending inputs; Tabularium interprets
 preserved venue records; Probitas assembles a counterparty dossier. Lazarus
 preserves the finite historical Ethereum state and exact RPC traffic a test
@@ -38,7 +38,11 @@ Pandects supplies reviewed credit laws, Hermes measures a single
 gas-optimisation class named by a rule from its pinned corpus,
 Hexaemeron controls a receipted delivery loop and holds each of its phases to a
 named skill, while Lemma stops after producing
-source-linked chunks. Horos decides what an agent does not read. Janus checks
+source-linked chunks. Homologia compares one pinned contract computation with one pinned off-chain
+mirror over declared vectors and preserves each divergence as a specimen,
+where Pandects supplies the economic laws and Lazarus the proved chain-side
+answers such a comparison consumes as evidence. Horos decides what an agent
+does not read. Janus checks
 what a contract hook may observe and change around a host action, where
 Pandects supplies the economic laws such a transition must preserve. Sapheneia
 shapes the agent's own replies for AuDHD readers without changing another
@@ -84,6 +88,9 @@ conventions say how to title one that was worth filing.
 - Hexaemeron is under `plugins/hexaemeron/`. Read
   `plugins/hexaemeron/AGENTS.md` before running one of its skills or changing
   that plugin.
+- Homologia is under `plugins/homologia/`. Read
+  `plugins/homologia/AGENTS.md` before running its skill or changing that
+  plugin.
 - Horos is under `plugins/horos/`. Read `plugins/horos/AGENTS.md` before
   running its skill or changing that plugin.
 - Janus is under `plugins/janus/`. Read `plugins/janus/AGENTS.md` before
@@ -137,6 +144,7 @@ python3 -m unittest discover -s plugins/brevitas/tests -t plugins/brevitas
 python3 plugins/hermes/skills/hermes/scripts/test_hermes.py
 python3 plugins/hexaemeron/tests/run_tests.py
 python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py
+python3 -m unittest discover -s plugins/homologia/tests -t plugins/homologia
 python3 -m unittest discover -s plugins/horos/tests -t plugins/horos
 python3 plugins/lemma/tests/test_markdown.py
 python3 plugins/lemma/tests/test_solidity.py
