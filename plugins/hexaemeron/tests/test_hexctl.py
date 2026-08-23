@@ -13,7 +13,7 @@ import tempfile
 import time
 import unittest
 from contextlib import ExitStack, redirect_stderr
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
 from unittest import mock
 
@@ -2606,6 +2606,52 @@ class AuditRecordSchemaTests(HexctlCase):
             )
         return Path(self.log_path()).with_name("AUDIT_SYNOPSIS.md")
 
+    def call_with_renderer(self, controller, renderer, stderr):
+        class Loader:
+            @staticmethod
+            def exec_module(_module):
+                pass
+
+        specification = argparse.Namespace(loader=Loader())
+        with (
+            mock.patch.object(
+                controller, "read_configured_audit_log",
+                return_value=("audit/AUDIT.md", b"record"),
+            ),
+            mock.patch.object(controller, "audit_delta_start", return_value=0),
+            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
+            mock.patch.object(
+                controller,
+                "parse_audit_record",
+                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
+            ),
+            mock.patch.object(
+                controller.importlib.util,
+                "spec_from_file_location",
+                return_value=specification,
+            ),
+            mock.patch.object(
+                controller.importlib.util, "module_from_spec", return_value=renderer
+            ),
+            redirect_stderr(stderr),
+        ):
+            return controller.validated_audit_record(
+                self.target,
+                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
+                {"audit": {"rounds": []}},
+                argparse.Namespace(log=None),
+            )
+
+    def assert_renderer_refusal(self, call):
+        try:
+            call()
+        except BaseException as error:
+            caught = error
+        else:
+            self.fail("renderer validation did not refuse")
+        self.assertIsInstance(caught, SystemExit)
+        self.assertEqual(caught.code, 2)
+
     def test_missing_stale_and_lossy_synopsis_refuse_without_drift(self):
         self.write_record()
         self.refuse("synopsis is missing", "--findings", "0")
@@ -2665,7 +2711,7 @@ class AuditRecordSchemaTests(HexctlCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
 
-    def test_renderer_cannot_terminate_successfully_during_load_or_validation(self):
+    def test_renderer_cannot_terminate_successfully_at_checked_boundaries(self):
         controller = hexctl_module()
 
         class RendererError(Exception):
@@ -2677,6 +2723,7 @@ class AuditRecordSchemaTests(HexctlCase):
         class StoppingRenderer:
             SynopsisError = RendererError
             stop_during_interface = False
+            stop_during_validation = False
             stop_during_error_format = False
 
             def __getattribute__(self, name):
@@ -2691,7 +2738,9 @@ class AuditRecordSchemaTests(HexctlCase):
             def validate_committed_synopsis(*_args):
                 if renderer.stop_during_error_format:
                     raise RendererError("renderer refusal")
-                raise SystemExit(0)
+                if renderer.stop_during_validation:
+                    raise SystemExit(0)
+                return "a" * 64
 
         renderer = StoppingRenderer()
 
@@ -2704,12 +2753,27 @@ class AuditRecordSchemaTests(HexctlCase):
 
         loader = StoppingLoader()
         specification = argparse.Namespace(loader=loader)
-        for stop_at in ("load", "interface", "validation", "error-format"):
+        for stop_at in (
+            "module",
+            "load",
+            "interface",
+            "type-check",
+            "validation",
+            "error-format",
+            "digest-check",
+        ):
             with self.subTest(stop_at=stop_at):
                 loader.stop_during_load = stop_at == "load"
                 renderer.stop_during_interface = stop_at == "interface"
+                renderer.stop_during_validation = stop_at == "validation"
                 renderer.stop_during_error_format = stop_at == "error-format"
                 stderr = StringIO()
+
+                def create_module(_specification):
+                    if stop_at == "module":
+                        raise SystemExit(0)
+                    return renderer
+
                 with ExitStack() as stack:
                     stack.enter_context(mock.patch.object(
                         controller, "read_configured_audit_log",
@@ -2736,8 +2800,19 @@ class AuditRecordSchemaTests(HexctlCase):
                     stack.enter_context(mock.patch.object(
                         controller.importlib.util,
                         "module_from_spec",
-                        return_value=renderer,
+                        side_effect=create_module,
                     ))
+                    if stop_at == "type-check":
+                        stack.enter_context(mock.patch.object(
+                            controller,
+                            "issubclass",
+                            side_effect=SystemExit(0),
+                            create=True,
+                        ))
+                    if stop_at == "digest-check":
+                        stack.enter_context(mock.patch.object(
+                            controller.re, "fullmatch", side_effect=SystemExit(0)
+                        ))
                     stack.enter_context(redirect_stderr(stderr))
                     raised = stack.enter_context(self.assertRaises(SystemExit))
                     controller.validated_audit_record(
@@ -2748,6 +2823,93 @@ class AuditRecordSchemaTests(HexctlCase):
                     )
                 self.assertEqual(raised.exception.code, 2)
                 self.assertIn("audit synopsis renderer", stderr.getvalue())
+
+    def test_declared_renderer_diagnostics_cannot_break_the_refusal(self):
+        controller = hexctl_module()
+
+        class RendererError(Exception):
+            pass
+
+        class Renderer:
+            SynopsisError = RendererError
+            message = "unsafe\nsurrogate: \ud800"
+
+            @classmethod
+            def validate_committed_synopsis(cls, *_args):
+                raise RendererError(cls.message)
+
+        before = self.state_ledger_digests()
+        for message, expected in (
+            ("unsafe\nsurrogate: \ud800", b"unsafe\\nsurrogate: \\ud800"),
+            ("x" * 5000, b"audit synopsis renderer validation failed"),
+        ):
+            with self.subTest(message_chars=len(message)):
+                Renderer.message = message
+                output = BytesIO()
+                stderr = TextIOWrapper(output, encoding="ascii", errors="strict")
+                try:
+                    self.assert_renderer_refusal(lambda:
+                        self.call_with_renderer(controller, Renderer(), stderr)
+                    )
+                    stderr.flush()
+                    self.assertIn(expected, output.getvalue())
+                    self.assertLess(len(output.getvalue()), 4096)
+                finally:
+                    stderr.detach()
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_renderer_diagnostic_emission_cannot_report_false_success(self):
+        controller = hexctl_module()
+
+        class RendererError(Exception):
+            pass
+
+        renderer = argparse.Namespace(
+            SynopsisError=RendererError,
+            validate_committed_synopsis=lambda *_args: (_ for _ in ()).throw(
+                RendererError("renderer refusal")
+            ),
+        )
+
+        class BrokenDiagnostic(StringIO):
+            def __init__(self, failure):
+                super().__init__()
+                self.failure = failure
+
+            def write(self, _value):
+                raise self.failure
+
+        before = self.state_ledger_digests()
+        for failure in (SystemExit(0), OSError("closed diagnostic stream")):
+            with self.subTest(failure=type(failure).__name__):
+                self.assert_renderer_refusal(lambda:
+                    self.call_with_renderer(
+                        controller, renderer, BrokenDiagnostic(failure)
+                    )
+                )
+                self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_foreign_renderer_exceptions_and_process_interrupts_stay_distinct(self):
+        controller = hexctl_module()
+
+        class RendererError(Exception):
+            pass
+
+        for failure in (
+            RuntimeError("foreign renderer failure"),
+            KeyboardInterrupt(),
+            GeneratorExit(),
+        ):
+            with self.subTest(failure=type(failure).__name__):
+                renderer = argparse.Namespace(
+                    SynopsisError=RendererError,
+                    validate_committed_synopsis=lambda *_args, failure=failure: (
+                        _ for _ in ()
+                    ).throw(failure),
+                )
+                with self.assertRaises(type(failure)) as raised:
+                    self.call_with_renderer(controller, renderer, StringIO())
+                self.assertIs(raised.exception, failure)
 
     def test_corrupt_renderer_interface_is_a_bounded_refusal(self):
         controller = hexctl_module()
@@ -3102,6 +3264,23 @@ class AuditRecordSchemaTests(HexctlCase):
             ],
         )
         self.run_ctl("audit-round", "--findings", "1")
+
+    def test_controller_table_cell_scanner_scales_with_the_line_cap(self):
+        controller = hexctl_module()
+
+        def elapsed(size):
+            line = "| " + "x" * size + " | b | c | d | e |"
+            started = time.process_time()
+            self.assertEqual(len(controller.audit_table_cells(line)), 5)
+            return time.process_time() - started
+
+        small = elapsed(64 * 1024)
+        large = elapsed(512 * 1024)
+        self.assertLess(
+            large,
+            small * 20,
+            f"controller table scan scaled from {small:.6f}s to {large:.6f}s",
+        )
 
     def test_findings_table_refuses_an_escaped_closing_pipe(self):
         self.write_record(

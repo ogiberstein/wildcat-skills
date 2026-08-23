@@ -114,6 +114,7 @@ AUDIT_TIMESTAMP_RE = re.compile(
 )
 AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 AUDIT_PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
+AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX = 4096
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -375,6 +376,32 @@ def plugin_root() -> str:
 def die(msg: str, code: int = 2) -> None:
     print(f"hexctl: error: {msg}", file=sys.stderr)
     sys.exit(code)
+
+
+def refuse_audit_renderer(message) -> None:
+    """Emit one bounded ASCII renderer refusal, then return code 2.
+
+    The renderer is executable input to this controller. Its declared errors and
+    the diagnostic stream can both fail while a receipt is being refused, so this
+    boundary cannot delegate formatting or the final exit status to either one.
+    KeyboardInterrupt and GeneratorExit remain process-level interrupts.
+    """
+    fallback = "audit synopsis renderer validation failed"
+    try:
+        rendered = str(message)
+        if not rendered or len(rendered) > AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX:
+            escaped = fallback
+        else:
+            escaped = rendered.encode("unicode_escape").decode("ascii")
+            if len(escaped) > AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX:
+                escaped = fallback
+    except (Exception, SystemExit):
+        escaped = fallback
+    try:
+        print(f"hexctl: error: {escaped}", file=sys.stderr)
+    except (Exception, SystemExit):
+        pass
+    raise SystemExit(2)
 
 
 def canonical(obj) -> str:
@@ -1717,15 +1744,16 @@ def audit_table_cells(line: str) -> list[str]:
         or trailing_slashes % 2
     ):
         return []
-    cells = [""]
+    cells = []
+    start = 1
     slashes = 0
-    for char in line[1:-1]:
+    for index, char in enumerate(line[1:-1], 1):
         if char == "|" and slashes % 2 == 0:
-            cells.append("")
-        else:
-            cells[-1] += char
+            cells.append(line[start:index].strip())
+            start = index + 1
         slashes = slashes + 1 if char == "\\" else 0
-    return [cell.strip() for cell in cells]
+    cells.append(line[start:-1].strip())
+    return cells
 
 
 def audit_raw_field(line: str, label: str) -> str:
@@ -1869,43 +1897,49 @@ def validated_audit_record(
         os.path.dirname(__file__), "audit_synopsis.py"
     )
     if not os.path.isfile(synopsis_path):
-        die("audit synopsis renderer is unavailable")
+        refuse_audit_renderer("audit synopsis renderer is unavailable")
     try:
         specification = importlib.util.spec_from_file_location(
             "fiat_audit_synopsis", synopsis_path
         )
         if specification is None or specification.loader is None:
-            die("audit synopsis renderer cannot be loaded")
+            raise ImportError("renderer has no executable module specification")
         renderer = importlib.util.module_from_spec(specification)
         specification.loader.exec_module(renderer)
     except (Exception, SystemExit):
-        die("audit synopsis renderer cannot be loaded")
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
     try:
         synopsis_validator = getattr(renderer, "validate_committed_synopsis", None)
         synopsis_error = getattr(renderer, "SynopsisError", None)
     except (Exception, SystemExit):
-        die("audit synopsis renderer cannot be loaded")
-    if (
-        not callable(synopsis_validator)
-        or not isinstance(synopsis_error, type)
-        or not issubclass(synopsis_error, Exception)
-    ):
-        die("audit synopsis renderer cannot be loaded")
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        interface_valid = (
+            callable(synopsis_validator)
+            and isinstance(synopsis_error, type)
+            and issubclass(synopsis_error, Exception)
+        )
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    if not interface_valid:
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
     try:
         synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
     except synopsis_error as error:
-        try:
-            message = str(error)
-        except (Exception, SystemExit):
-            die("audit synopsis renderer validation failed")
-        die(message)
+        refuse_audit_renderer(error)
     except SystemExit:
-        die("audit synopsis renderer validation terminated unexpectedly")
-    if (
-        not isinstance(synopsis_sha256, str)
-        or re.fullmatch(r"[0-9a-f]{64}", synopsis_sha256) is None
-    ):
-        die("audit synopsis renderer returned an invalid digest")
+        refuse_audit_renderer(
+            "audit synopsis renderer validation terminated unexpectedly"
+        )
+    try:
+        digest_valid = (
+            isinstance(synopsis_sha256, str)
+            and re.fullmatch(r"[0-9a-f]{64}", synopsis_sha256) is not None
+        )
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer returned an invalid digest")
+    if not digest_valid:
+        refuse_audit_renderer("audit synopsis renderer returned an invalid digest")
     return {
         "schema": schema,
         "log": log_path,
