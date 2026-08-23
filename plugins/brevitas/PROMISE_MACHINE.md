@@ -189,6 +189,20 @@ findings. The checker reaches no network and executes no evidence command.
 - Recovery: Restore the canonical root licence and first-party copies, correct the host manifests, leave vendored licences untouched, and rerun the licence check.
 - Exceptions: none
 
+## Run observation promise
+
+### promise-machine-run-observation-structural-validation
+
+- Promise: A successful `python3 scripts/run_observation.py check <path>` establishes that the named regular JSON Lines file conforms to `promise-machine-run-observation/v1` under the validator's closed shapes, limits, lifecycle, backward-reference, evidence-binding, unknown-fact, optional-token, Unicode-path and final-snapshot rules.
+- Evidence: The exact input path and validated bytes, one bounded final named-path reread with matching digest and file identity, v1 schema, standard-library validator, stable finding report, valid and refusing fixtures, focused tests and zero command exit.
+- Evidence classes: checked
+- Boundary: Validation does not capture a run, prove that the record is complete or externally true, establish cause or model quality, bind a Fiat receipt, make a security conclusion, authorise mutation, or prevent a writer changing the path after the final reread.
+- Authorises: Treating only the named bytes as structurally conforming and passing that bounded result to a consumer that preserves its subject, scope, time domain, evidence class, unknowns and refusal boundary.
+- Consequence: 1
+- Refuses: Unsafe or unbounded input, a final byte or identity mismatch, malformed or duplicate-key JSON, an open event shape, missing identity, invalid order or lifecycle, a forward or cross-run reference, unbound or strengthened evidence, hidden reasoning, raw payloads, non-scalar, non-NFC, control-bearing, bidirectional or otherwise unsafe repository paths, placeholder host facts, invalid token counts or a non-zero finding report.
+- Recovery: Inspect the stable finding code, repair the source record without having the checker mutate it, preserve unknowns and evidence boundaries, then rerun the same command.
+- Exceptions: none
+
 ## Installation copies
 
 The root `PROMISE_MACHINE.md` is the authored source. Each

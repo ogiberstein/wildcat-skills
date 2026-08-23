@@ -9390,3 +9390,1871 @@ documentation-only round-2 fix, and issue 453 owns any later blocking policy.
 Issues 429, 369, 453 and 363 remain separately owned downstream work. The
 checked proof needs Python 3.12, the named shell tools and a configured signing
 key; none is hidden in active Fiat state. No further step-3 lead remained.
+
+## Issue 434 observable run record, step 1, round 1 -- 2026-08-23
+
+### Suite disposition
+
+The receipted suite waiver is exact: issue #434 Step 1 changes generated
+boundary metadata and Markdown only, with no Solidity path in the complete
+run-to-step diff. X-Ray, Solidity Auditor and Fizz did not run. The Phylax,
+Ephoros and repository-specified Hypomnema lint exits are `0`, `0` and `0`.
+
+### Finding disposition
+
+Finding count: 0. `S1-R1-review` covers the full run-to-step diff. No Step 1
+defect was confirmed. Status: clean.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Step 1 adds no input reader; the study records fixed byte, line, event, nesting, string and collection ceilings for Step 2. | dormant until Step 2 |
+| `unsafe-path` | The published copies contain no filesystem-absolute pointer or relative Markdown source link; paths are backticked repository names or absolute web links. | clean |
+| `unsafe-deserialisation` | Step 1 adds no deserialiser and names JSON-only, no-execution handling as a Step 2 boundary. | dormant until Step 2 |
+| `schema-drift` | No schema or runtime lands in Step 1; the runbook assigns exact schema/runtime binding to Step 2. | dormant until Step 2 |
+| `event-order` | No event validator lands in Step 1; the accepted relations and negative fixtures are stated as Step 2 exit evidence. | dormant until Step 2 |
+| `correlation-gap` | No correlation implementation lands in Step 1; backward same-run resolution remains a Step 2 requirement. | dormant until Step 2 |
+| `evidence-binding` | No evidence consumer lands in Step 1; exact subject, selector and class binding remains a Step 2 requirement. | dormant until Step 2 |
+| `evidence-promotion` | The study and ADR state that structural acceptance proves neither truth nor mutation authority and introduce no class ranking. | clean |
+| `hidden-reasoning` | The study and ADR refuse hidden model reasoning as observable data; no payload format lands in this step. | clean |
+| `sensitive-payload` | Step 1 contains specifications only and permits bounded metadata, digests and references rather than prompts, completions, output, environment or credentials. | clean |
+| `optional-host-facts` | The study and ADR require unavailable host, model and token facts to stay omitted or unknown. | clean |
+| `token-accounting` | The accepted design limits token values to optional non-negative exposed counts with source, scope and accounting identity, without cost or quality claims. | clean |
+| `deterministic-report` | No reporter lands in Step 1; one shared sorted finding model and text/JSON parity remain Step 2 exit evidence. | dormant until Step 2 |
+| `partial-record` | No record reader lands in Step 1; final-newline, malformed-tail and lifecycle refusal remain Step 2 requirements. | dormant until Step 2 |
+| `command-drift` | Every Step 1 command exits 0. The correct Horos command exits 0; the obsolete `scan . --check` spelling exits 2. A temporary specimen using the five former relative targets emits exactly five H001 findings. | clean |
+
+### Step contract and evidence
+
+The committed study and runbook are byte-identical to the receipted copies.
+Their SHA-256 digests are
+`685243b2727d0341bfce4869d1c5615fe37e052377ca3a6983ff1bc688d437b3`
+and `9eae8f964c2a081c509d29fe78a1adb3f0c837854aa2ef4d91c65b9fa199466d`.
+ADR-015 records root Promise Machine ownership, the chosen location split,
+three rejected alternatives, the structural-only authority boundary and the
+work left outside this issue.
+
+The old-link specimen used these exact former targets from a temporary
+directory: `../plugins/hexaemeron/skills/ephoros/SKILL.md`,
+`../plugins/hexaemeron/skills/phylax/SKILL.md`,
+`../plugins/hexaemeron/skills/metron/SKILL.md`,
+`../plugins/hexaemeron/skills/elenchus/SKILL.md`, and
+`../plugins/hexaemeron/skills/hypomnema/SKILL.md`. Hypomnema exits 1 with five
+H001 findings. The specimen was removed. The obsolete Horos spelling exits 2
+with `unrecognized arguments: --check`; the documented
+`python3 plugins/horos/skills/horos/scripts/horos.py check .` exits 0 and
+reports that the boundary matches the tree.
+
+Both Protasis modes, the repository Hypomnema pass, Imprimatur, all three
+Brevitas files, the exact `git diff --check`, and the full run-to-step diff
+check exit 0. Root tests pass 118/118. The implementation commit
+`19a3f2135b0317904eb91676cabf5da6cb739f35` has a valid local signature and
+exactly one required co-author and origin trailer. The diff changes only the
+two receipted copies, ADR-015 and the generated Horos boundary.
+
+### Leads not pursued
+
+The Step 2 schema, validator, fixtures, Promise declaration and demonstration
+do not exist at the Step 1 exit and were not treated as implemented. A direct
+Hypomnema scan of the historical audit log reports two old H003 specimens at
+lines 6119 and 6269; the repository's required pointer-gate scope excludes
+`audit/AUDIT.md`, and the current step neither creates nor changes those
+specimens. No other lead remains.
+
+## Issue 434 observable run record, step 2, round 1 -- 2026-08-23
+
+### Suite disposition
+
+The suite waiver is exact: Step 2 adds JSON, Python, fixtures and Markdown and
+ships no Solidity. X-Ray, Solidity Auditor and Fizz did not run. The full
+run-to-Step 2 tree was read without Horos exclusions. Phylax, Ephoros and
+Hypomnema exit `0`, `0` and `0` after the fixes below.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | `scripts/run_observation.py` | A regular input that grew after `lstat` bypassed the 1 MiB total-byte ceiling. One growing overlong line also bypassed it while the drain loop searched for a newline. | fixed in this round; both races were reproduced without `RO002`, then guarded |
+| S2-R1-02 | high | `scripts/run_observation.py` | Hostile JSON types reached set membership, regular-expression and numeric relation operations. Invalid event types, statuses, evidence digests and retry attempts raised `TypeError` instead of returning a finding. | fixed in this round; five typed mutations now refuse with `RO007` without crashing |
+| S2-R1-03 | medium | `scripts/run_observation.py` | The runtime accepted an empty evidence selector and the finite-overflow JSON number `1e999`, although the schema refuses both. The schema test bound event names but not runtime field sets or status and evidence-class enums. | fixed in this round; each mismatch was reproduced red and the schema/runtime bindings now cover those sets and enums |
+| S2-R1-04 | high | `scripts/run_observation.py` | A `run.finished` outcome with status `success` could name a subject that did not match its evidence reference. The accepted record would therefore promote evidence to another subject. | fixed in this round; an outcome subject mismatch now returns `RO012` |
+| S2-R1-05 | high | `scripts/run_observation.py` | Forbidden-field matching accepted common aliases such as `api_key` and camel-case `chainOfThought`, allowing a credential-shaped value or hidden-reasoning claim inside metadata. | fixed in this round; field names are normalised and the sensitive-name set covers credential and raw-argument aliases |
+| S2-R1-06 | low | `scripts/run_observation.py` | A caller-controlled filename containing a control character split the stable one-finding-per-line text report and the clean result. | fixed in this round; display paths now escape control characters in text and JSON output |
+
+Finding count: 6. All six are fixed and guarded on the stacked audit branch.
+A clean second round is required before the audit can close.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static size, running bytes, the overlong-line drain, 512 events, 65,536-byte lines, depth, string and collection bounds were read and exercised. Both post-identity growth cases now return `RO002`. | fixed, round 2 required |
+| `unsafe-path` | The command accepts one repository-confined regular non-symlink. Recorded repository paths remain slash-separated relative strings and are never followed. Symlink input refuses, and control characters no longer split display paths. | fixed, round 2 required |
+| `unsafe-deserialisation` | JSON uses duplicate-key and non-finite-constant hooks, closed shapes and explicit types. The new mutation guards cover unhashable event/status values, non-string digests and malformed retry attempts. A separate 239-field container mutation pass returned no crash or accepted mutation. | fixed, round 2 required |
+| `schema-drift` | The schema id, event union, common and event-specific required/optional fields, evidence classes and both status enums are bound to runtime constants. Empty selectors and finite overflow now refuse, and the release digests were refreshed. | fixed, round 2 required |
+| `event-order` | Bad sequence, events after finish, duplicate starts/finishes, unmatched capabilities, invalid retry attempts and retries not aimed at an earlier failed/refused finish are covered. | clean on the fixed tree |
+| `correlation-gap` | Parent, capability, retry, refusal, handoff and finish event references resolve backward in the same run; cross-run retry refuses with `RO010`. Each finding preserves bounded run, event and correlation identities when valid. | clean on the fixed tree |
+| `evidence-binding` | Every consumed evidence id resolves to an earlier exact subject, scope, time-domain and class definition. Duplicate and absent ids refuse with `RO011`. | clean on the fixed tree |
+| `evidence-promotion` | Handoff subject/scope/time-domain and reference classes remain exact. Run outcomes now also preserve the referenced evidence subject and introduce no class ranking. | fixed, round 2 required |
+| `hidden-reasoning` | Exact, hyphenated, underscored and camel-case forbidden names are normalised before recursive inspection; nested containers also fail the closed metadata shape. | fixed, round 2 required |
+| `sensitive-payload` | Raw prompt, completion, output, environment, payload, argument and credential-shaped field names refuse. Diagnostics contain fixed messages and bounded identities, never rejected values. | fixed, round 2 required |
+| `optional-host-facts` | Host and model values require a non-placeholder source and identity. Unavailable facts may be omitted or named under `unknowns`; no placeholder or estimate passes. | clean on the fixed tree |
+| `token-accounting` | Counts require a source, scope, accounting identity and at least one non-negative integer. Boolean counts refuse, and no price, cost or quality inference exists. | clean on the fixed tree |
+| `deterministic-report` | One sorted `Finding` model feeds text and canonical JSON. Parity tests pass, the finding cap is fixed, and escaped display paths preserve line framing. | fixed, round 2 required |
+| `partial-record` | Malformed or overlong final lines, missing newline, absent finish, unresolved start and trailing events all refuse without mutation. | clean on the fixed tree |
+| `command-drift` | All runbook commands were executed. The four valid CLIs exit `0`; the five required invalid fixtures exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`; the obsolete Horos spelling exits `2`, while `horos.py check .` exits `0`. | clean on the fixed tree |
+
+### Evidence
+
+The focused suite passes 22/22 and the root suite passes 141/141. All four
+valid fixture commands exit `0`. The five required invalid fixtures exit `1`
+with their distinct expected codes. Promise Machine sync writes zero files;
+the contract check reports 14 identical copies and coverage reports 68/68.
+Phylax, Ephoros, Hypomnema, Imprimatur, Brevitas, Horos and
+`git diff --check` each exit `0` on the fixed tree. The obsolete
+`horos.py scan . --check` spelling exits `2` with its expected argument error.
+
+The runtime and focused-test SHA-256 values are
+`d38272fd6e11c7d8482abab409f18b162fc2ee6a0fefbf6381fd38d33fa7bb54`
+and
+`81c0a1715f2c54fb9d609687ef4471354ecdce656ab1e38eb98538db70bbab32`;
+both match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction, persistence and Fiat receipt binding remain in issues
+#435 and #436. Cross-run diagnosis remains in issue #449. The schema remains a
+published contract rather than an executed dependency: adding a JSON Schema
+engine would violate the accepted standard-library boundary, so runtime/schema
+agreement stays guarded by exact field, enum, fixture and behavioural tests.
+The review did not treat structural conformance as completeness, external
+truth, cause, model quality, delivery correctness or a security conclusion.
+
+## Issue 434 observable run record, step 2, round 2 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fix below.
+
+### Findings
+
+S2-R2-01 (medium), `scripts/run_observation.py`: finding context copied run,
+event and correlation strings before identity validation, while pointer segments
+copied object keys without escaping. Newline and carriage-return values split a
+text finding into forged-looking physical lines. Context now admits only valid
+non-placeholder identities; pointer segments escape JSON controls, `/` and `~`;
+one regression guard covers both routes.
+
+Finding count: 1. The finding is fixed and guarded on the stacked audit branch.
+A clean third round is required before the audit can close.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and streaming byte limits, overlong-line draining, event, depth, string and collection limits were re-read. Both post-identity growth guards still return `RO002`. | clean on the round-2 tree |
+| `unsafe-path` | Input remains one confined regular non-symlink. Recorded repository paths are validated but never followed. Filenames and pointer segments are now independently escaped for display. | clean on the round-2 tree |
+| `unsafe-deserialisation` | JSON still uses duplicate-key and non-finite hooks plus closed typed shapes. A 3,377-case recursive field-type mutation pass produced no crash; only valid zero counts and durations, plus the permitted empty references on a refused outcome, remained accepted. | clean on the round-2 tree |
+| `schema-drift` | Schema identity, event union, field sets, evidence classes and status enums remain bound to runtime constants. The refreshed runtime and test digests match the coverage record. | clean on the round-2 tree |
+| `event-order` | Sequence, first and final events, capability pairing, backward links, retry targets and trailing-event refusals remain guarded. | clean on the round-2 tree |
+| `correlation-gap` | Run, event and correlation identities remain required and bounded. Invalid identities are now omitted from diagnostic context rather than treated as safe labels. | fixed in this round; round 3 required |
+| `evidence-binding` | Every consumed evidence id still resolves to an earlier definition with exact subject, scope, time domain and class; duplicate and absent ids refuse. | clean on the round-2 tree |
+| `evidence-promotion` | Handoff bindings and run outcomes remain exact against their referenced evidence. No evidence-class ranking or strengthening path was found. | clean on the round-2 tree |
+| `hidden-reasoning` | Recursive normalised field-name checks continue to refuse the supported hidden-reasoning aliases. Hostile pointer text is now escaped before reporting. | clean on the round-2 tree |
+| `sensitive-payload` | The supported prompt, completion, output, environment, argument and credential aliases refuse. Diagnostics emit fixed messages, safe pointers and valid bounded identities rather than rejected values. | fixed in this round; round 3 required |
+| `optional-host-facts` | Host and model facts still require non-placeholder source and identity fields; omission plus an explicit unknown remains valid. | clean on the round-2 tree |
+| `token-accounting` | Counts still require source, scope, accounting identity and a non-negative integer; Boolean counts refuse. No price or quality claim was introduced. | clean on the round-2 tree |
+| `deterministic-report` | Text and JSON still share one sorted `Finding` model. The new hostile context specimen previously split output, and now preserves one physical line per finding with JSON Pointer escaping. | fixed in this round; round 3 required |
+| `partial-record` | Missing newline, malformed or overlong final input, absent finish, unresolved starts and post-finish events still refuse without mutation. | clean on the round-2 tree |
+| `command-drift` | The four valid CLIs exit `0`. The five required invalid fixtures exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. The current Horos command exits `0`; its obsolete spelling exits `2`. | clean on the round-2 tree |
+
+### Evidence
+
+The focused suite passes 22/22 and the root suite passes 141/141. All four
+valid fixture commands exit `0`; the five required invalid fixtures exit `1`
+with their expected codes. Promise Machine sync writes zero files, its check
+reports 14 identical copies, and coverage reports 68/68. Phylax, Ephoros,
+Hypomnema, Imprimatur, Brevitas, Horos and `git diff --check` exit `0`. The
+obsolete `horos.py scan . --check` spelling exits `2`.
+
+The runtime and focused-test SHA-256 values are
+`4dc9b5f05e8d4b0ae011c3ff5b5d4e5ddd6bb82e6efd2c0c40c054b3c3d872fe`
+and
+`e63a457b998b46192ea93587c0b08f617969621b5c4d96afdfecf43a15b6ce2f`;
+both match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction, persistence and Fiat receipt binding remain in issues
+#435 and #436. Cross-run diagnosis remains in issue #449. The schema remains a
+published contract rather than an executed dependency: adding a JSON Schema
+engine would breach the accepted standard-library boundary, so exact field,
+enum, fixture and behavioural tests continue to guard runtime agreement. The
+review did not treat structural conformance as completeness, external truth,
+cause, model quality, delivery correctness or a security conclusion.
+
+## Issue 434 observable run record, step 2, round 3 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The full fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fixes below.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R3-01 | high | `scripts/run_observation.py` | A same-size rewrite during streaming could replace an invalid event while it was read and restore the invalid named bytes before exit. The validator returned clean because it compared inode and device only. | fixed in this round; post-read size, modification-time and change-time identity now refuses with `RO001` |
+| S2-R3-02 | high | `scripts/run_observation.py` | A successful outcome could use the placeholder `unknown` as its subject and throughout its evidence definition and reference. The record therefore treated unavailable facts as a positive subject and binding. | fixed in this round; required names, observable values, selectors, sources, references and outcomes reject placeholders |
+| S2-R3-03 | high | `scripts/run_observation.py` | Acronym and compact spellings such as `APIKey`, `apikey`, `rawArgs` and `chainofthought` bypassed the sensitive and hidden-name checks. | fixed in this round; acronym-aware normalisation and compact comparison preserve `RO013` and `RO014` |
+| S2-R3-04 | medium | `scripts/run_observation.py` | The schema's integer type includes integral JSON numbers such as `1.0`, while the runtime rejected that spelling for sequence, duration, retry and token fields. | fixed in this round; one finite non-Boolean integer predicate now covers every schema integer field |
+| S2-R3-05 | medium | `schemas/promise-machine-run-observation-v1.schema.json`, `scripts/run_observation.py` | Repository paths admitted Windows drive-qualified names and control characters; the newline case also disagreed with the published schema pattern. | fixed in this round; schema and runtime now reject drive-qualified, control-bearing and placeholder paths |
+
+Finding count: 5. All five are fixed and guarded on the stacked audit branch.
+A clean fourth round is required before the audit can close.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and running byte limits, the overlong-line drain, event count, depth, strings and collections were exercised again. Both growth probes still return `RO002`; a same-size rewrite now returns `RO001`. | fixed in this round; round 4 required |
+| `unsafe-path` | Input remains confined by resolution, final-component no-follow, regular-file and inode checks. Recorded paths now reject POSIX absolute, drive-qualified, traversal, backslash, control and placeholder values and are never followed. | fixed in this round; round 4 required |
+| `unsafe-deserialisation` | Duplicate-key and non-finite hooks, closed shapes and typed relations remain active. A 3,706-case recursive mutation pass across all four valid flows produced zero crashes and accepted only valid short names or zero-valued quantities. | clean on the fixed tree |
+| `schema-drift` | Schema identity, field sets, event and status enums, evidence classes and coverage digests agree. Integral JSON numbers now follow schema semantics, finite overflow refuses and repository path patterns agree on the new hostile cases. | fixed in this round; round 4 required |
+| `event-order` | Contiguous sequence, start and finish cardinality, capability pairing, retry targets and events after finish remain guarded. | clean on the fixed tree |
+| `correlation-gap` | Parent, capability, retry, refusal, handoff and finish links resolve backward within one run. Invalid identities remain absent from diagnostic context. | clean on the fixed tree |
+| `evidence-binding` | Evidence definitions and references now require non-placeholder ids, subject, scope, time domain, class, source and selector or digest before exact relation checks. | fixed in this round; round 4 required |
+| `evidence-promotion` | Successful and handoff outcomes still match every bound evidence subject. The all-placeholder success specimen now refuses rather than turning unknowns into authority. | fixed in this round; round 4 required |
+| `hidden-reasoning` | Exact, separated, camel-case, acronym and compact aliases refuse recursively. `chainofthought` now returns `RO013`. | fixed in this round; round 4 required |
+| `sensitive-payload` | The existing raw-value families remain forbidden, and `APIKey`, `apikey` and `rawArgs` now return `RO014`. Diagnostics still emit fixed messages and safe context only. | fixed in this round; round 4 required |
+| `optional-host-facts` | Host, model, unknown and token fields require a named non-placeholder source, identity, field or reason where present; omission remains available. | fixed in this round; round 4 required |
+| `token-accounting` | Counts remain source-bound, non-negative and non-Boolean. Integral JSON numbers agree with the schema, while non-integral and non-finite values refuse. | fixed in this round; round 4 required |
+| `deterministic-report` | One sorted finding model still feeds text and canonical JSON. Hostile filenames, identities and JSON-pointer segments remain on one physical line with controls and pointer delimiters escaped. | clean on the fixed tree |
+| `partial-record` | Final newline, malformed tail, lifecycle completion and post-finish guards remain. Metadata identity now detects same-size mutation during the read. | fixed in this round; round 4 required |
+| `command-drift` | Four valid fixtures exit `0`; five required invalid fixtures exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. The current Horos command exits `0`, and the obsolete spelling exits `2`. | clean on the fixed tree |
+
+### Evidence
+
+Before repair, five minimal probes on commit
+`8aba6942167288b6ef7e8eb0689c3f4205d685b2` returned clean for the restored
+invalid bytes, the all-placeholder successful binding, all four compact alias
+spellings and all three unsafe path specimens; the integral-number specimen
+returned `RO009`. The committed guards cover those same mechanisms. The first
+fixed-tree run also preserved two older growth regressions: removing a
+pre-open metadata comparison restored their required `RO002` result while the
+post-read comparison retained the new `RO001` guard.
+
+The focused suite passes 27/27 and the root suite passes 146/146. The recursive
+type mutation probe covered 3,706 replacements across success, refusal, retry
+and handoff with zero crashes. All four valid fixture commands exit `0`; the
+five required invalid fixtures exit `1` with their expected codes. Promise
+Machine sync writes zero files, its check reports 14 identical copies and
+coverage reports 68/68. Phylax, Ephoros, Hypomnema, Imprimatur, Brevitas,
+Horos and `git diff --check` exit `0`. The obsolete
+`horos.py scan . --check` spelling exits `2`.
+
+The runtime, schema and focused-test SHA-256 values are
+`d62311e0724ac0d1491513d0e13e84a1bb17a76cf8d80caab431cb61ffde33c6`,
+`2fce7a9b4b48db88bcfe5d4d564cd5b9ed307cb21d250ad8463bfaaea8a7a4fe`
+and
+`5639caa06670c544e1b8f07cae1330ced2457eddb7ef9b6d4d19d7c6b5c46928`;
+all three match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction, persistence and Fiat receipt binding remain in issues
+#435 and #436. Cross-run diagnosis remains in issue #449. The metadata-change
+check detects ordinary concurrent rewrites but is not a mandatory lock against
+a cooperating writer; the result remains bounded to the bytes the checker
+observed. The review did not treat structural conformance as completeness,
+external truth, cause, model quality, delivery correctness or a security
+conclusion.
+
+## Issue 434 observable run record, step 2, round 4 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fixes below.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R4-01 | high | `scripts/run_observation.py` | A path that was a regular file at `lstat` could be replaced by a FIFO before `open`. The blocking read-only open then waited indefinitely before the descriptor type check, so hostile input escaped the validator's bounded-work promise. | fixed in this round; the open is non-blocking where FIFOs exist, and the post-open regular-file and identity checks still refuse the replacement with `RO001` |
+| S2-R4-02 | medium | `scripts/run_observation.py` | Binary float rounding turned a mathematically non-integral JSON token count such as `9007199254740993.1` into an integral float, so the runtime accepted a number the schema's integer type refuses. | fixed in this round; JSON decimals retain their exact lexical value and one finite non-Boolean integer predicate handles all schema integer fields |
+| S2-R4-03 | medium | `scripts/run_observation.py` | An unknown top-level object key was interpolated raw into the `RO007` message. A key containing a newline forged another physical finding line, and a long key expanded the otherwise bounded diagnostic. | fixed in this round; the message reports only the bounded unknown-field count and never copies the rejected key |
+| S2-R4-04 | medium | `schemas/promise-machine-run-observation-v1.schema.json`, `scripts/run_observation.py` | Metadata object keys were omitted from the advertised 4,096-character string ceiling in both schema and runtime. A 4,097-character key therefore validated, and could also enlarge a finding path. | fixed in this round; schema `propertyNames` and the recursive runtime walk share the same key ceiling and emit a value-free `RO006` finding |
+| S2-R4-05 | high | `scripts/run_observation.py` | Obvious suffixed and compact sensitive or hidden-reasoning names such as `promptText`, `accessTokenValue`, `apikeyValue`, `reasoningContent` and `chainofthoughttext` bypassed exact-name matching. | fixed in this round; normalised token families and compact compound markers retain bounded metadata such as `argument_count` and `output_format` while refusing the hidden or raw families |
+
+Finding count: 5. All five are fixed and guarded on the stacked audit branch.
+Another clean audit round is required before closure.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and running byte limits, overlong-line draining, event, nesting, value-string and collection limits remain. A pre-open FIFO replacement was observed blocking past one second; non-blocking open now reaches the regular-file refusal, and object keys share the value-string ceiling. | fixed in this round; another round required |
+| `unsafe-path` | The input remains repository-confined, final-component no-follow, regular and identity-checked. Recorded paths refuse POSIX absolute, drive-qualified, traversal, backslash, control and placeholder values and are never followed. | clean on the fixed tree |
+| `unsafe-deserialisation` | JSON keeps duplicate-key and non-finite hooks, closed shapes and typed relations. Exact decimal parsing removes binary rounding from integer decisions. A fresh 5,387-case recursive type replacement pass across all four valid flows produced zero crashes. | fixed in this round; another round required |
+| `schema-drift` | Schema id, event union, common and event fields, evidence classes and status enums agree. Metadata key length and every integer spelling now have the same schema/runtime disposition; runtime, schema and test digests are refreshed. | fixed in this round; another round required |
+| `event-order` | Contiguous sequence, one opening and closing event, capability pairing, retry targets and post-finish refusal remain guarded. Fifteen targeted lifecycle and reference mutations all returned their required code. | clean on the fixed tree |
+| `correlation-gap` | Run, event and correlation identities remain bounded; parent, capability, retry, refusal, handoff and finish links resolve backward in the same run. Invalid identities stay out of diagnostic context. | clean on the fixed tree |
+| `evidence-binding` | Evidence definitions require non-placeholder id, subject, scope, time domain, class, source and one selector or digest. Every consumer resolves to an earlier exact definition; forward and absent ids refuse. | clean on the fixed tree |
+| `evidence-promotion` | Handoff and outcome references preserve exact subject, scope, time domain and class. Empty authorising references, each changed binding field and a successful outcome subject change all refuse. | clean on the fixed tree |
+| `hidden-reasoning` | Exact, separated, camel-case, acronym, compact and suffixed rationale, reasoning and thought families refuse recursively. The new compact and suffixed specimens return `RO013`. | fixed in this round; another round required |
+| `sensitive-payload` | Prompt, completion, payload, environment, transcript, credential and compound key/token or output families refuse across separated, compact and suffixed spellings. Unknown field names no longer reach messages. | fixed in this round; another round required |
+| `optional-host-facts` | Host and model facts still require non-placeholder source and identity. Omission and explicit unknowns remain valid without supplying a positive fact. | clean on the fixed tree |
+| `token-accounting` | Counts remain source-bound, non-negative and non-Boolean. Exact decimal parsing rejects non-integral values that binary float previously rounded into integers; no cost, price or quality inference exists. | fixed in this round; another round required |
+| `deterministic-report` | Text and canonical JSON still share one sorted finding model. Hostile filenames, identities, pointer segments and now unknown field names cannot add a physical line or unbounded message. | fixed in this round; another round required |
+| `partial-record` | Missing newline, malformed or overlong tails, absent finish, unresolved starts, trailing events, growth and same-size change remain refusing cases. FIFO replacement now refuses before any blocking read. | fixed in this round; another round required |
+| `command-drift` | Four valid fixture CLIs exit `0`; five required invalid CLIs exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. Current Horos exits `0`; the obsolete spelling exits `2`. | clean on the fixed tree |
+
+### Evidence
+
+Before repair on commit `d72605257ed2050496402e9d30f816d72175025e`,
+five minimal mechanisms were reproduced. The FIFO race exceeded a one-second
+subprocess bound. The non-integral token literal, 4,097-character metadata key,
+and compact or suffixed forbidden names returned clean. One logical unknown-key
+finding printed as two physical lines. The fixed-tree regression guards cover
+the same mechanisms.
+
+The focused suite passes 32/32 and the root suite passes 151/151. A new 5,387
+case recursive type sweep produced zero crashes, and 15 explicit backward
+reference, lifecycle, evidence-binding and evidence-promotion probes all
+refused as required. All four valid fixture commands exit `0`; the five
+required invalid fixtures exit `1` with their expected codes. Promise Machine
+sync writes zero files, its check reports 14 identical copies, and coverage
+reports 68/68. Phylax, Ephoros and Hypomnema exit `0`. Imprimatur and Brevitas
+exit `0` on the changed operator prose and this round's entry. Horos and
+`git diff --check` exit `0`. The obsolete `horos.py scan . --check` spelling
+exits `2`.
+
+The runtime, schema and focused-test SHA-256 values are
+`829564c4cd6f192405e50abbd50dc5866e6feeed5d3789648964be67dc3350f5`,
+`c817b2691d51531ed8798c1f351750de0d3b811b87bdf9ede2384b8e40f2b8fd`
+and
+`978d458505fc6740fdda50c2baba4c9e01b8b8b3f4d93565d804828653aa1197`;
+all three match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in issue #435. Fiat receipt binding
+remains in issue #436, and cross-run diagnosis remains in issue #449. The
+schema remains a published contract rather than an executed dependency;
+adding a JSON Schema engine would breach the accepted standard-library
+boundary. Field-name checks can refuse declared raw or hidden-reasoning
+families but cannot establish the semantics of an innocently named string.
+The metadata-change check detects ordinary concurrent rewrites but does not
+lock out a cooperating writer; its result stays bound to the bytes observed.
+
+This round makes no claim of capture completeness, external truth, cause,
+model quality, Fiat delivery correctness, deployment readiness, security or
+mutation authority. No further lead lies outside those recorded boundaries.
+
+## Issue 434 observable run record, step 2, round 5 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fixes below.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R5-01 | high | `scripts/run_observation.py`, `schemas/promise-machine-run-observation-v1.schema.json` | Exact-decimal parsing had an undeclared binary-float magnitude ceiling: finite `1e309` values passed the schema but refused at runtime, and an exponent outside `Decimal`'s context raised `InvalidOperation` out of the validator. | fixed in this round; schema and runtime share the finite magnitude ceiling, integers and decimals use one guarded parser, and oversized exponents refuse without a traceback |
+| S2-R5-02 | medium | `scripts/run_observation.py`, `schemas/promise-machine-run-observation-v1.schema.json` | An `inferred` evidence definition could use an arbitrary selector or digest instead of naming a prior event, despite the accepted study requiring a deterministic rule and prior event id. | fixed in this round; `source` names the rule, `selector` must be a strictly earlier event id, and the schema requires selector rather than digest for inferred evidence |
+| S2-R5-03 | high | `scripts/run_observation.py` | A handoff could name one earlier source event while carrying evidence defined by an unrelated event. Both references were backward, but the producing source did not carry the evidence being handed off. | fixed in this round; every handoff evidence id must be defined or consumed by its named source event |
+| S2-R5-04 | medium | `scripts/run_observation.py` | A run could finish as `handoff` or `refused` without an earlier `handoff.recorded` or `transition.refused` event. The final status therefore claimed an observable lifecycle transition absent from the record. | fixed in this round; both final statuses require their matching earlier event |
+| S2-R5-05 | medium | `scripts/run_observation.py` | One event could supply host or token facts and mark the same fact unknown, or repeat the same normalised unknown field. The record accepted contradictory absence evidence. | fixed in this round; duplicate and same-event contradictory unknowns return `RO007` |
+| S2-R5-06 | high | `scripts/run_observation.py` | Common credential and raw-value aliases including `authHeader`, `refreshToken`, `idToken`, `argumentsText` and `toolResult` passed the normalised field-name refusal. | fixed in this round; separated, camel-case and compact forms now retain `RO014`, while bounded names such as `argument_count` and `output_format` remain accepted |
+
+Finding count: 6. All six are fixed and guarded on the stacked audit branch.
+A clean sixth round is required before the audit can close.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and streaming bytes, lines, events, nesting, strings, object keys and collections remain bounded. Exact decimals now carry an explicit schema/runtime magnitude ceiling, and unsupported exponents fail closed. | fixed in this round; round 6 required |
+| `unsafe-path` | Input remains confined, final-component no-follow, non-blocking, regular and identity-checked. Repository paths still refuse absolute, drive-qualified, traversal, backslash, control and placeholder values and are never followed. | clean on the fixed tree |
+| `unsafe-deserialisation` | JSON keeps duplicate-key and non-finite hooks, closed shapes and typed relations. Both integer and fractional tokens now enter through the same guarded exact-decimal parser. A fresh 3,792-case recursive replacement sweep produced zero validator crashes. | fixed in this round; round 6 required |
+| `schema-drift` | Schema id, event union, field sets, enums, numeric ceilings and the inferred-evidence selector rule agree with runtime constants and tests. All four release digests were refreshed. | fixed in this round; round 6 required |
+| `event-order` | Contiguous sequence, opening and closing cardinality, capability pairing, retry targets and trailing-event refusal remain. Final refusal and handoff statuses now require their observable events. | fixed in this round; round 6 required |
+| `correlation-gap` | All event references remain backward within one run. Inferred selectors are now strictly earlier, and the 24-case reference, evidence and lifecycle probe returned every expected refusal. | fixed in this round; round 6 required |
+| `evidence-binding` | Definitions and consumers retain exact id, subject, scope, time domain and class. Handoff evidence must now be present on its named source event, and inferred evidence names a prior event. | fixed in this round; round 6 required |
+| `evidence-promotion` | Handoff and final outcome references still preserve exact bindings. The new source-event check prevents unrelated evidence from acquiring the handoff's producer and consumer context. | fixed in this round; round 6 required |
+| `hidden-reasoning` | Existing exact, separated, camel-case, acronym, compact and suffixed hidden-reasoning families still refuse recursively. | clean on the fixed tree |
+| `sensitive-payload` | Credential headers, access, refresh, identity and session tokens, argument text and tool results now join the existing prompt, completion, environment and output families. Rejected values never enter diagnostics. | fixed in this round; round 6 required |
+| `optional-host-facts` | Host, model and token facts remain optional and source-bound. Same-event positive and unknown claims now conflict instead of presenting absence and presence together. | fixed in this round; round 6 required |
+| `token-accounting` | Counts remain optional, source-bound, non-negative and non-Boolean. Exact non-integral decimals refuse, and the published magnitude ceiling matches runtime handling. | fixed in this round; round 6 required |
+| `deterministic-report` | One sorted finding model still feeds text and canonical JSON. Oversized exponents return one bounded syntax finding, and the new relation findings use fixed messages without rejected values. | clean on the fixed tree |
+| `partial-record` | Missing newline, malformed or overlong tails, absent finish, unresolved starts, trailing events, growth, same-size change and pre-open FIFO replacement remain refusing cases. | clean on the fixed tree |
+| `command-drift` | Four valid fixture CLIs exit `0`; five mandated invalid CLIs exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. Current Horos exits `0`; the obsolete spelling exits `2`. | clean on the fixed tree |
+
+### Evidence
+
+Each mechanism was observed against signed head
+`4a7fc75bec272d00c8b223bb2147b435d506cafe` before repair. Finite `1e309`
+values refused despite the open schema, and an oversized exponent raised
+`InvalidOperation`. Arbitrary and self-referential inferred selectors, an
+unrelated handoff source, final statuses without their event, contradictory
+unknowns and all five named raw aliases returned clean. The fixed-tree tests
+cover the same mechanisms.
+
+The focused suite passes 37/37 and the root suite passes 156/156. A fresh
+3,792-case recursive type replacement sweep across all four valid flows
+produces zero validator crashes; 24 explicit reference, lifecycle, placeholder
+and evidence-binding probes return their expected codes. All four valid
+fixture commands exit `0`; the five mandated invalid fixtures exit `1` with
+their expected codes. Promise Machine sync writes zero files, its check
+reports 14 identical copies, and coverage reports 68/68. Phylax, Ephoros and
+Hypomnema exit `0`. Imprimatur and Brevitas exit `0` on the changed operator
+prose and this entry. Horos and `git diff --check` exit `0`. The obsolete
+`horos.py scan . --check` spelling exits `2`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`30414362067171eaae71822a7e19223cf0b070efa3f878c66237097bd4da2183`,
+`22f9b5a3517a27dc0d61e43c64b4856265bd3a9ecfce8254267f3cc20e0e7cc4`,
+`84bb8a04a13d2108d1483e2439758aef627970a1a56b1c700736b884a777eaf5`
+and `90dc390e8be553b6b89d3e3f30f0334e497466e0a850cad967609fc7dfc54986`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in issue #435. Fiat receipt binding
+remains in issue #436, and cross-run diagnosis remains in issue #449. The
+schema remains a published contract rather than an executed dependency;
+adding a JSON Schema engine would breach the accepted standard-library
+boundary. The input change check does not lock out a cooperating writer, and
+field-name checks cannot establish the meaning of an innocently named value.
+
+The v1 contract allows one run to record evidence for narrower subjects, so it
+does not require every evidence subject to equal the opening subject. It also
+records scheduled retries rather than cancellation or attempt-chain state;
+widening either relation would change the public contract. This round makes no
+claim of capture completeness, external truth, cause, model quality, Fiat
+delivery correctness, deployment readiness, security or mutation authority.
+No other in-scope lead remains after these fixes; round 6 must independently
+reassess them before closure.
+
+## Issue 434 observable run record, step 2, round 6 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fixes below.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R6-01 | medium | `schemas/promise-machine-run-observation-v1.schema.json`, `scripts/run_observation.py` | The schema admitted placeholder identities and blank observed strings that runtime refused. Its time, unknown-field and repository-path shapes also lacked the runtime's exact patterns. | fixed in this round; shared constants and tests now bind the schema patterns to runtime acceptance |
+| S2-R6-02 | medium | `scripts/run_observation.py` | An event could supply a host or token fact while an alias such as `host_id`, `hostName`, `input_token_count` or `accounting_id` claimed that family was unknown. An unknown name with no normalised characters also passed. | fixed in this round; normalised fact families conflict with supplied facts, and empty normalised names refuse |
+| S2-R6-03 | high | `scripts/run_observation.py` | A final handoff outcome could cite bound evidence that no earlier handoff event carried. The outcome therefore promoted evidence into a terminal handoff without an observable transfer. | fixed in this round; final handoff evidence must be included in the evidence carried by prior handoff events |
+| S2-R6-04 | high | `scripts/run_observation.py` | Raw metadata aliases including `messages`, `chatMessages`, `systemMessage`, `inputText`, `requestBody`, `responseBody`, `functionArguments`, `envVars`, `headers` and `apiToken` passed the normalised-name guard. | fixed in this round; expanded raw families refuse these names while bounded descriptors and digests remain valid |
+| S2-R6-05 | medium | `schemas/promise-machine-run-observation-v1.schema.json`, `scripts/run_observation.py` | Repository paths admitted URI-looking values, Windows reserved names, empty or dot segments, trailing dot or space and components longer than 255 characters. | fixed in this round; schema and runtime share one portable relative-path language with a 255-character component ceiling |
+| S2-R6-06 | medium | `scripts/run_observation.py` | A caller-supplied input path produced an unbounded diagnostic path. On Windows, a different-drive relative-path calculation raises before a finding is emitted. | fixed in this round; display paths have a 512-character content-addressed ceiling and a guarded fallback |
+
+Finding count: 6. All six are fixed and guarded on the stacked audit branch.
+Round 7 is required; closure is not earned in this round.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and streaming bytes, lines, events, nesting, strings, keys, collections and exact numbers remain bounded. Repository components now stop at 255 characters, and a diagnostic path stops at 512 characters with a SHA-256 suffix. | fixed in this round; round 7 required |
+| `unsafe-path` | Input remains repository-confined, final-component no-follow, non-blocking, regular and identity-checked. Recorded paths now share a schema/runtime portable language that excludes absolute, URI, traversal, reserved-name and nonportable segment forms. | fixed in this round; round 7 required |
+| `unsafe-deserialisation` | JSON retains duplicate-key and non-finite hooks, exact decimal parsing, closed shapes and typed relations. A 674-case wrong-kind sweep across all four valid flows produced zero crashes and zero accepted mutations. | clean on the fixed tree |
+| `schema-drift` | Identity, observed-string, time, unknown-field and repository-path patterns now match runtime constants exactly. Field sets, enums and release digests also agree. | fixed in this round; round 7 required |
+| `event-order` | Contiguous sequence, opening and closing cardinality, capability pairing, retry targets and trailing-event refusal remain. Final handoff evidence now agrees with prior handoff events. | fixed in this round; round 7 required |
+| `correlation-gap` | Run, parent, capability, retry, refusal, handoff, inferred-source and outcome links remain backward within one run. Eighteen state-sequence and relation probes returned their expected refusals. | clean on the fixed tree |
+| `evidence-binding` | Definitions and uses retain exact id, subject, scope, time domain, class, source and selector or digest relations. Final handoff evidence must now have crossed a prior handoff boundary. | fixed in this round; round 7 required |
+| `evidence-promotion` | Handoff and outcome references preserve their exact bindings, and an outcome can no longer add evidence absent from every prior handoff. | fixed in this round; round 7 required |
+| `hidden-reasoning` | Exact, separated, camel-case, acronym, compact and suffixed hidden-reasoning families still refuse recursively. | clean on the fixed tree |
+| `sensitive-payload` | Message, prompt, input, request, response, argument, environment, header and token value families now join the existing refusals. Safe counts, names, formats and digests remain available. | fixed in this round; round 7 required |
+| `optional-host-facts` | Host, model and token facts remain optional and source-bound. Normalised aliases now prevent the same event from claiming a supplied fact is unknown. | fixed in this round; round 7 required |
+| `token-accounting` | Counts remain optional, source-bound, exact, finite, non-negative and non-Boolean. Token and accounting aliases now conflict with a supplied token fact instead of recording contradictory absence. | fixed in this round; round 7 required |
+| `deterministic-report` | One sorted finding model still feeds text and canonical JSON without rejected values. Hostile caller paths are now bounded and content-addressed, including the different-drive fallback. | fixed in this round; round 7 required |
+| `partial-record` | Missing newline, malformed or overlong tails, absent finish, unresolved starts, trailing events, growth, same-size change and FIFO replacement remain refusing cases. | clean on the fixed tree |
+| `command-drift` | Four valid fixture CLIs exit `0`; five mandated invalid CLIs exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. Current Horos exits `0`; the obsolete spelling exits `2`. | clean on the fixed tree |
+
+### Evidence
+
+Each mechanism was reproduced on signed head
+`9720783753a6a7c6ee6b1d4656d41c11ec303d26` before repair. Placeholder and
+blank schema specimens, contradictory unknown aliases, unhanded terminal
+evidence, raw aliases and nonportable paths returned clean. A hostile caller
+path produced 2,056 display characters, and the schema lacked the observed
+string pattern. Test-only guards then failed in 26 subcases and raised two
+missing-constant errors before the implementation changed.
+
+The focused suite passes 40/40 and the root suite passes 159/159. The 674-case
+wrong-kind sweep across all four valid flows produces zero crashes and zero
+accepted mutations. Eighteen relation and state-sequence probes, plus a
+23-case portable-path matrix, produce no unexpected result. All four valid
+fixture commands exit `0`; the five mandated invalid fixtures exit `1` with
+their expected codes. Promise Machine sync writes zero files, its check
+reports 14 identical copies, and coverage reports 68/68. Phylax, Ephoros and
+Hypomnema exit `0`. Imprimatur and Brevitas exit `0` on the changed prose and
+this entry. Horos and `git diff --check` exit `0`. The obsolete
+`horos.py scan . --check` spelling exits `2`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`300b4aa7b4565800ef14b81aa71546db7e4978d52f154187f155b2daa2187349`,
+`3bd3a2977e31284b1983337f9717ece1ea1f34108f9106bf40cf949b332b2806`,
+`17fde53ca475430dd8647b3a6808e0f35d098274fed4e0e92967f14f21ef69a1`
+and `27312718ed127a38e4dc5ef5950d8c173b6634e5e735bfe9be18fba0d26afb22`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in issue #435. Fiat receipt binding
+remains in issue #436, and cross-run diagnosis remains in issue #449. The
+schema remains a published contract rather than an executed dependency;
+adding a JSON Schema engine would breach the accepted standard-library
+boundary. The input change check does not lock out a cooperating writer, and
+field-name checks cannot establish the meaning of an innocently named value.
+
+The v1 contract allows evidence for subjects narrower than the opening
+subject. It records scheduled retries, not cancellation or attempt-chain
+state, and does not require a failed capability for every failed run. Sequence
+is authoritative, so this round does not infer invalidity from wall-clock
+rollback alone. It makes no claim of capture completeness, external truth,
+cause, model quality, Fiat delivery correctness, deployment readiness,
+security or mutation authority. The six fixes require round 7 review.
+
+## Issue 434 observable run record, step 2, round 7 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fixes below.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R7-01 | high | `scripts/run_observation.py` | A valid regular file could be opened and its named path replaced with invalid bytes while the open descriptor remained unchanged. The validator returned clean for bytes no longer present at the path named by its result. | fixed in this round; the post-read check now requires the named path to remain the same regular non-symlink inode |
+| S2-R7-02 | medium | `scripts/run_observation.py` | A caller path containing an embedded null or an unencodable surrogate raised from `lstat` instead of returning the bounded `RO001` refusal. | fixed in this round; path representation failures now use the same safe input finding |
+| S2-R7-03 | high | `scripts/run_observation.py` | A terminal handoff whose `outcome.evidence_refs` was null, Boolean or numeric reached an unconditional iteration after the shape finding and raised `TypeError`. | fixed in this round; the handoff relation consumes only a list and leaves other kinds to the existing `RO007` refusal |
+| S2-R7-04 | high | `schemas/promise-machine-run-observation-v1.schema.json`, `scripts/run_observation.py`, `docs/promise-machine/run-observation-v1.md` | The v1 surface did not define issue or topic, step, role or selected skill and promise context, and it carried only one repository commit. Generic metadata could not bind those issue #434 fields, a refusal to its selected promise, a handoff to its selected producer, or an after-commit to its opening identity. | fixed in this round; one closed opening context is required and relationally bound, while closed opening and closing repository objects name and preserve explicit before and after Git identities |
+
+Finding count: 4. All four are fixed and guarded on the stacked audit branch.
+Round 8 is required; closure is not earned in this round.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and streaming byte, line, event, nesting, string, key, collection and exact-number ceilings remain. Null and unencodable caller paths now refuse without escaping the finding model. | fixed in this round; round 8 required |
+| `unsafe-path` | The open descriptor and the caller-named path must now retain one regular non-symlink inode through the complete read. Repository paths retain the portable closed language from round 6. | fixed in this round; round 8 required |
+| `unsafe-deserialisation` | Duplicate keys, non-finite numbers, exact decimals, closed shapes and typed relations remain fail-closed. A 2,064-case recursive wrong-kind sweep across the four valid flows now produces zero validator crashes. | fixed in this round; round 8 required |
+| `schema-drift` | Runtime and schema now agree on the required closed run context, explicit opening and closing repository shapes, event field sets, patterns, enums and release digests. | fixed in this round; round 8 required |
+| `event-order` | Contiguous sequence, one opening and closing event, capability pairing, retry targets and terminal lifecycle requirements remain. Twenty-five adjacent, reversed and rotated lifecycle sequences produced no unexpected clean result. | clean on the fixed tree |
+| `correlation-gap` | Run, parent, capability, retry, refusal, handoff, inferred-source and outcome links remain backward within one run. The selected promise and handoff producer now also resolve to the opening context. | fixed in this round; round 8 required |
+| `evidence-binding` | Definitions and consumers retain exact id, subject, scope, time domain, class, source and selector or digest relations. Handoff evidence remains bound to its source event and its producer now remains bound to the selected skill. | fixed in this round; round 8 required |
+| `evidence-promotion` | Handoff and outcome references preserve their earlier evidence bindings, and the selected producer and promise cannot be renamed at the transition. | clean on the fixed tree |
+| `hidden-reasoning` | Exact, separated, camel-case, acronym, compact and suffixed hidden-reasoning families still refuse recursively. | clean on the fixed tree |
+| `sensitive-payload` | Raw message, prompt, input, request, response, argument, environment, header, token and credential families remain refusing. No rejected value enters diagnostics. | clean on the fixed tree |
+| `optional-host-facts` | Host and model facts remain optional, source-bound and mutually exclusive with same-event unknown claims. The required work context is distinct from optional host identity. | clean on the fixed tree |
+| `token-accounting` | Counts remain optional, source-bound, exact, finite, non-negative and non-Boolean, with explicit unknowns when absent. | clean on the fixed tree |
+| `deterministic-report` | One sorted finding model still feeds canonical JSON and text. Named-path replacement, unrepresentable paths and malformed handoff evidence now return bounded stable findings without rejected values. | fixed in this round; round 8 required |
+| `partial-record` | Missing newline, malformed or overlong tails, absent finish, unresolved starts, trailing events, growth, same-inode rewrites, FIFO replacement and named-path replacement all refuse without mutation. | fixed in this round; round 8 required |
+| `command-drift` | Four valid fixture CLIs exit `0`; five mandated invalid CLIs exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. Current Horos exits `0`; the obsolete spelling exits `2`. | clean on the fixed tree |
+
+### Evidence
+
+All four mechanisms were reproduced against signed head
+`19a113bd87f1febed9dee87d18aa8cb9c37db319` before repair. A path swap left
+invalid bytes at the named location while validation returned no findings.
+Null and unencodable caller paths raised instead of returning `RO001`.
+Null, Boolean and numeric terminal handoff references raised `TypeError`.
+Every valid fixture omitted the issue-required work context, and the success
+fixture exposed only one unqualified repository commit.
+
+The Step 1 study describes repository identities and says a record does not
+select a skill; it does not forbid recording the selection already made. Its
+ask-first line covers public-field changes. The controlling runbook also says
+this step implements issue #434 and must demonstrate every issue acceptance
+case. Because v1 is still unpublished, the minimal closed context and explicit
+Git transition repair that omission without widening the schema into capture,
+selection or Fiat receipt binding.
+
+The focused suite passes 44/44 and the root suite passes 163/163. The 2,064-case
+recursive wrong-kind sweep produces zero crashes. Twenty-five systematic
+lifecycle reorderings and the focused context, repository, evidence, handoff,
+retry and path matrices produce no unexpected result. All four valid fixture
+commands exit `0`; the five mandated invalid fixtures exit `1` with their
+expected codes. Promise Machine sync writes zero files, its check reports 14
+identical copies, and coverage reports 68/68. Phylax, Ephoros and Hypomnema
+exit `0`. Imprimatur and Brevitas exit `0` on changed prose and this entry.
+Horos and `git diff --check` exit `0`. The obsolete
+`horos.py scan . --check` spelling exits `2`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`5cf48b08108508ac801800ea906a11c40f30b9151632980ff811d91476e2fbb6`,
+`98da42d4ac23210a28dcc06752dd3fc58c095561f77c927f31596831697390b0`,
+`e542d249e685a6ef809cab113f00e0aa40052addb97f4ab1464177cbde18280d`
+and `28c6decc07bb5d6068fd5f9d5d3bbd92d93e32ce5005afc9786fcf8d01207716`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in issue #435. Fiat receipt binding
+remains in issue #436, and cross-run diagnosis remains in issue #449. The
+schema remains a published contract rather than an executed dependency;
+adding a JSON Schema engine would breach the accepted standard-library
+boundary. The descriptor and path checks detect ordinary concurrent changes
+but do not lock out a cooperating writer. Field-name checks cannot establish
+the meaning of an innocently named value.
+
+The v1 contract allows evidence for subjects narrower than the opening
+subject. It records scheduled retries rather than cancellation or attempt-chain
+state, and does not require a failed capability for every failed run. Parent
+links are optional and correlation ids may identify separate joined paths, so
+neither is strengthened into a single linear trace. Sequence remains
+authoritative over wall-clock order. This round makes no claim of capture
+completeness, external truth, cause, model quality, Fiat delivery correctness,
+deployment readiness, security or mutation authority. The four fixes require
+round 8 review.
+
+## Issue 434 observable run record, step 2, round 8 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python, fixture and Markdown
+step. X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was
+read without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and
+`0` after the fixes below.
+
+### Normative map
+
+| contract statement | schema and runtime enforcement | executable evidence |
+| --- | --- | --- |
+| One v1 contract and closed event union | Schema `$id` and seven `$defs`; `CONTRACT_ID`, `EVENT_TYPES`, `shape` | schema-union, all-event-type and four valid-flow tests |
+| Stable run, event, correlation and work identities | `identity`, `eventBase` and `runContext`; `scalar_fields`, `check_context`, run-wide identity checks | missing-identity, placeholder and context-binding tests |
+| Contiguous order, one opening and closing event, backward same-run links | Event sequence fields; `relations` and `backward_event_refs` | bad-order fixture, 38 reorderings and 50 strict-reference mutations |
+| Capability exit, duration and scheduled retry | Capability and retry definitions; capability maps, finish pairing and retry target checks | success, refusal and retry fixtures plus lifecycle probes |
+| Exact evidence definitions, references and inferred selectors | Evidence definitions and enums; `check_evidence_list`, `evidence_relations` and inferred-selector checks | unbound, strengthened, inferred, source-event and outcome tests |
+| Refusals and handoffs preserve selected context | Refusal and handoff definitions; promise, producer, distinct-consumer, source and final-status checks | refusal, cross-skill handoff, self-handoff and terminal-status tests |
+| Optional host, model, token and unknown facts | Host, token and unknown definitions; `check_host_fact`, `check_tokens`, `check_unknowns` | recorded-versus-unknown, conflict and Boolean-token tests |
+| Portable repository path and paired Git transition | Repository definitions; `check_repository` and opening-to-closing relation checks | path matrix, changed binding and missing-half tests |
+| Confined, bounded, immutable JSONL input | File, byte, line, event and recursive limits in `read` and `check_limits_and_names` | growth, FIFO, same-inode rewrite, final-path and parent-path replacement tests |
+| Bounded raw-payload and hidden-reasoning refusal | Closed scalar metadata and recursive normalised-name checks | duplicate-key, wrong-kind, alias and combined-hostile tests |
+| Stable text and canonical JSON findings | One `Finding` model, sorting, safe path rendering and CLI projection | text/JSON parity, control-framing and display-path tests |
+| Structural authority only | Root Promise declaration, generated copies, coverage digest bindings and operator boundary | Promise sync, check, coverage and root contract tests |
+
+The field-set, enum, pattern, integer-ceiling and release-digest bindings show
+no schema/runtime drift on the fixed tree. A 1,825-case recursive wrong-kind
+sweep across all four valid records produced no crash and no unexpected clean
+result. The 38 event reorderings and 50 strict reference substitutions also
+produced no crash or unexpected clean result.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R8-01 | high | `scripts/run_observation.py` | Replacing a parent directory with a symlink to an outside directory containing a hard link to the open input preserved the final file inode. The post-read final-component check passed and the validator returned clean for a named path that no longer resolved inside its confined root. | fixed in this round; post-read resolution must remain inside the root, and the exact parent replacement is guarded |
+| S2-R8-02 | medium | `scripts/run_observation.py`, `docs/promise-machine/run-observation-v1.md` | A record opened with a repository path and `before_commit`. The validator accepted it when the closing repository object was omitted, so the claimed transition was half-recorded. | fixed in this round; opening and closing repository identities must appear together or both stay absent |
+| S2-R8-03 | medium | `scripts/run_observation.py`, `docs/promise-machine/run-observation-v1.md` | A handoff whose producer and consumer were the same selected skill returned clean. It satisfied field shape while recording no cross-skill transfer. | fixed in this round; a handoff now requires a distinct consumer identity |
+
+Finding count: 3. All three are fixed and guarded on the stacked audit branch.
+This is the configured eighth and final round, so this run cannot earn a clean
+closure. Its findings and remediations must become carryover prior art for the
+next focused Fiat run.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `unbounded-input` | Static and streaming byte, line, event, nesting, string, key, collection and exact-number ceilings remain. The recursive wrong-kind sweep produced no crash. | clean on the round-8 fixed tree |
+| `unsafe-path` | Final-component identity still holds, and the named path must now resolve inside the confined root after the read even when an ancestor changes. Portable recorded-path checks remain. | fixed in this round; restart audit required |
+| `unsafe-deserialisation` | Duplicate-key and non-finite hooks, exact decimals, closed shapes and typed relations remain fail-closed. The 1,825 wrong-kind mutations produced no crash or clean mutation. | clean on the round-8 fixed tree |
+| `schema-drift` | Event fields, enums, patterns, integer ceilings and schema identity remain bound to runtime constants. Pairing and distinct-consumer rules are cross-event relations rather than divergent field shapes. | clean on the round-8 fixed tree |
+| `event-order` | Thirty-eight adjacent, reversed and rotated sequences and 50 strict reference substitutions refused as expected. Repository halves now form one lifecycle relation. | fixed in this round; restart audit required |
+| `correlation-gap` | Parent, capability, retry, refusal, handoff, inferred-source and finish links remain backward in one run. Distinct correlation ids may still represent joined paths as declared. | clean on the round-8 fixed tree |
+| `evidence-binding` | Definitions, consumers, inferred selectors, source events, handoff carriage and terminal references retain exact id, subject, scope, time domain and class relations. | clean on the round-8 fixed tree |
+| `evidence-promotion` | Handoff and outcome references preserve their earlier evidence. A self-handoff can no longer present an unchanged producer as a transfer. | fixed in this round; restart audit required |
+| `hidden-reasoning` | Exact, separated, camel-case, acronym, compact and suffixed hidden-reasoning families still refuse recursively. | clean on the round-8 fixed tree |
+| `sensitive-payload` | Raw message, prompt, input, request, response, argument, environment, header, token and credential families remain refusing. Rejected values do not enter findings. | clean on the round-8 fixed tree |
+| `optional-host-facts` | Host and model facts remain optional, source-bound and exclusive with same-event unknown claims. | clean on the round-8 fixed tree |
+| `token-accounting` | Counts remain optional, source-bound, exact, finite, non-negative and non-Boolean, with explicit unknowns available. | clean on the round-8 fixed tree |
+| `deterministic-report` | Text and JSON still derive from one sorted finding model. The three new refusals use fixed bounded messages and no rejected value. | clean on the round-8 fixed tree |
+| `partial-record` | Missing newline, malformed or overlong tails, missing lifecycle halves, growth, same-inode rewrites, FIFO and final or ancestor path replacement all refuse without mutation. | fixed in this round; restart audit required |
+| `command-drift` | Four valid fixture CLIs exit `0`; five mandated invalid CLIs exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and `RO013`. Current Horos exits `0`; the obsolete spelling exits `2`. | clean on the round-8 fixed tree |
+
+### Evidence
+
+All three mechanisms were reproduced against signed head
+`0ec8073500ce1dad83aba86462ca7817592ade3f` before repair. The ancestor-swap
+probe moved the named path outside its designated root while preserving the
+open inode and returned no findings. Removing the closing repository object
+and setting a handoff consumer equal to its producer also returned clean. The
+new focused guards cover the same mechanisms.
+
+The focused suite passes 45/45 and the root suite passes 164/164. Four valid
+fixture commands exit `0`; the five mandated invalid fixtures exit `1` with
+their expected codes. Promise Machine sync writes zero files, its check reports
+14 identical copies, and coverage reports 68/68. Phylax, Ephoros and
+Hypomnema exit `0`. Imprimatur and Brevitas exit `0` on changed prose and this
+entry. Horos and `git diff --check` exit `0`. The obsolete
+`horos.py scan . --check` spelling exits `2`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`dff62c568e5f5421032699deed2297ce0fe662f478b14d48f990a5d05356e632`,
+`98da42d4ac23210a28dcc06752dd3fc58c095561f77c927f31596831697390b0`,
+`d925759b54bfe7b3b0c78a03b9525a542a765f5c179862d033fa6e8b96fe2019`
+and `d2c90c55729e60f21b7702edc0b9f8ddbda08a65dab9ce6e8ba653008bff7633`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in issue #435. Fiat receipt binding
+remains in issue #436, and cross-run diagnosis remains in issue #449. The
+schema remains a source contract rather than an executed dependency; adding a
+JSON Schema engine would breach the accepted standard-library boundary. The
+input checks detect ordinary concurrent changes but do not lock out a
+cooperating writer, and field-name checks cannot establish the meaning of an
+innocently named value.
+
+The v1 contract allows evidence for subjects narrower than the opening
+subject. It records scheduled retries rather than cancellation or attempt-chain
+state, allows correlation ids to join separate paths, and treats sequence as
+authoritative over wall-clock order. Equal before and after commits remain a
+valid observation of no repository change. This round makes no claim of
+capture completeness, external truth, cause, model quality, Fiat delivery
+correctness, deployment readiness, security or mutation authority. No other
+in-scope lead remains on the fixed tree, but the configured maximum requires
+carryover and a fresh audit run rather than closure.
+
+## Issue 434 observable run record carryover inoculation 2, step 1, round 1 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived for this JSON, Python and Markdown step.
+X-Ray, Solidity Auditor and Fizz did not run. The complete fixed tree was read
+without Horos exclusions. The protected origin retained exactly its four
+pre-existing status lines before the first write and after every write batch.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C2-S1-R1-01 | medium | `schemas/promise-machine-run-observation-v1.schema.json` | The schema accepted metadata strings longer than 4,096 characters while the runtime refused them with `RO006`. | fixed and guarded; metadata scalar strings now share the runtime ceiling |
+| I434-C2-S1-R1-02 | high | `scripts/run_observation.py` | Empty and punctuation-only metadata keys, plus bare raw-payload and hidden-work aliases such as `input`, `env`, `analysis` and `scratchpad`, returned clean. | fixed and guarded; arbitrary keys must name a fact and the alias sets now cover the reproduced families |
+| I434-C2-S1-R1-03 | high | `scripts/run_observation.py` | A forbidden field name containing sensitive bytes was copied into the finding pointer and canonical JSON even though its value was withheld. | fixed and guarded; invalid and forbidden keys use fixed pointer segments before recursion |
+| I434-C2-S1-R1-04 | high | `tests/emit_run_observation_report.py` | Replacing the named report after exclusive open and write made the reporter return success while the named path contained forged JSON. | fixed and guarded; the reporter fsyncs, reopens the root and parent without creation, then requires the named regular file to retain the created inode |
+
+Finding count: 4. All four are fixed and guarded on the audit branch. Another
+independent round is required; clean closure is not earned in this round.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | Both attachment URLs yielded the archived bytes at SHA-256 `11bbf719ce1b2f59b0344d4ad92d69e467c503d758b35a1689a98c7231156784` and `54469718c5949953dae414da664a65f940aca249868e00382f97139cda03fef0`. Both signed refs, parents, trailers, archived states, 23-entry and 8-entry ledgers, and receipted study/runbook bytes verify. | clean on the fixed tree |
+| `prior-art-drift` | Signed attempt 4 remains a direct child of base `367e9662384bb29ea94576d270ab86744f3326a2`; its 37-path inventory matches the reconstructed implementation inventory. Old check output was treated as history only. | clean on the fixed tree |
+| `delegated-path-resolution` | Every patch path and the generated Elenchus report path was canonical, absolute and under the run worktree. | clean on the fixed tree |
+| `origin-checkout-drift` | The origin remained limited to `.horos/boundary.json`, `output/pdf/how-to-help-shoggoth.pdf`, and the two untracked help-Shoggoth PNGs. | clean on the fixed tree |
+| `gate-command-arity` | Both Protasis modes, the source-owned report command, four separate Brevitas invocations, current Horos and the obsolete negative specimen accepted the exact documented argument shapes. | clean on the fixed tree |
+| `current-main-loss` | Implementation head and attempt 4 are based directly on current run base. ADR-014 remains present, ADR-015 is separate, and this round changes only seven declared implementation paths plus this audit record. | clean on the fixed tree |
+| `carryover-map-gap` | The machine-readable map has 36 unique ids across eight families; every guard selector resolved and ran. | clean on the fixed tree |
+| `schema-runtime-drift` | Field sets, required sets, enums, patterns, exact numeric ceilings and metadata string limits now agree. | fixed in this round; another round required |
+| `wrong-kind-crash` | The retained 365-case recursive matrix plus 3,650 fresh structural substitutions produced no crash or unexpected clean result. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Existing lifecycle, reference and context matrices pass; 1,461 fresh event-renumbering permutations produced no crash or unexpected clean result. | clean on the fixed tree |
+| `input-replacement` | Five input-file and ancestor races still refuse. The added reporter target-swap guard now refuses success when the named output no longer has the created identity. | fixed in this round; another round required |
+| `recorded-path-gap` | Portable repository and bounded caller-path matrices pass, including drive, reserved, dot, control, NUL, surrogate and different-root cases. | clean on the fixed tree |
+| `name-normalisation-gap` | The matrix now covers 62 styled, compact, invalid and bare-alias cases. Safe descriptors and known-versus-unknown names remain available. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and JSON still share one finding model. Rejected values, forbidden key names and hostile framing bytes do not enter rendered diagnostics. | fixed in this round; another round required |
+| `context-binding-gap` | Issue/topic, step, role, selected skill and promise, Git identities, refusals, handoffs and outcomes remain related to the opening context. | clean on the fixed tree |
+| `evidence-promotion` | Evidence subject, scope, time domain, class, source event, handoff carriage and terminal use retain the prior exact relations. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, number, string, key, path and collection limits remain fail-closed; schema metadata strings now state the same ceiling. | fixed in this round; another round required |
+| `sensitive-payload` | Recursive raw-payload and hidden-work families now include the reproduced bare aliases, reject non-names and redact forbidden pointer segments. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model, token and unknown facts remain optional, source-bound and type checked. No exporter or backend was added. | clean on the fixed tree |
+| `partial-or-stale-record` | Truncation, lifecycle halves, concurrent input mutation and now named-report replacement all refuse without claiming a fresh record. | fixed in this round; another round required |
+| `elenchus-report-drift` | The source-owned runner emitted a fresh complete `unittest-json-v1` report for 57 tests with zero failures, errors, skips, expected failures or unexpected successes. Root, parent and named-target identities are rechecked after write. | fixed in this round; another round required |
+| `closure-overclaim` | This round found four defects. The controller remains in audit and no receipt, push, PR, comment, merge or issue mutation was made. | another round is required |
+
+### Evidence
+
+Each mechanism was reproduced twice against signed implementation head
+`546b773f6ebd98a16b42c4f1c3a94f54465a5db0` before repair. The schema exposed
+no metadata-value `maxLength`; empty, punctuation-only and bare-alias keys
+returned no finding; forbidden key bytes appeared in JSON; and both report
+swaps returned success with `{"schema":"forged"}` at the named path.
+
+The focused and inoculation suites pass 57/57. The inoculation record reports
+771 cases across the eight declared families, zero crashes and zero unexpected
+clean results. The root suite passes 176/176. Four valid fixture commands exit
+`0`; the five invalid fixture commands exit `1` with their established
+`RO008`, `RO009`, `RO011`, `RO012` and `RO013` findings. The report command
+exits `0` with a complete fresh report.
+
+Promise Machine sync writes zero files, its check reports 14 identical copies,
+and coverage reports 68/68. Protasis study and runbook checks, Phylax, Ephoros,
+Hypomnema, Imprimatur and each of the four Brevitas commands exit `0`. Python,
+schema, coverage and nine JSONL syntax checks exit `0`. Current Horos and
+`git diff --check` exit `0`; the obsolete Horos spelling exits `2` as required.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`970566cb2e6fc0254e0c6157ac58c55c5fb5775ebe74f7f7380f4623b52fde00`,
+`d3e56551d01022a90c3079a8f1be2dda341783918c83f6de6f7310f26fda564d`,
+`388c6da34807fb1e50b0ccc12d3ef6e88c9bb3884521b352836176f948dc74c3`
+and `c7b10561fdb82ed537afec145bffbbecfce2074eeb35d8f178ec6bd3b0b97faa`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in issue #435. Fiat receipt binding
+remains in issue #436, and cross-run diagnosis remains in issue #449. Adding a
+JSON Schema engine would breach the accepted standard-library boundary. File
+identity checks detect ordinary concurrent replacement but cannot lock out a
+cooperating same-account writer, and field-name rules cannot determine the
+meaning of an innocently named scalar.
+
+The v1 contract still permits evidence for a subject narrower than the opening
+subject. It records retry scheduling rather than cancellation or a complete
+attempt chain, does not require a failed capability for every failed run,
+allows correlation ids to join separate paths, and treats sequence as
+authoritative over wall-clock order. Expected failures and skips remain
+explicit report fields and would make Elenchus inconclusive; this run had none.
+This round makes no claim of capture completeness, external truth, cause,
+model quality, Fiat delivery correctness, deployment readiness, security or
+mutation authority. The four fixes require another independent review.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, reconstruction and inoculation -- 2026-08-23
+
+### Disposition
+
+The three archived carryover packets, their 23-entry, 8-entry and 10-entry
+ledger chains, receipts, signed refs, parents, trailers and path inventories
+were verified before reconstruction. The 37-path attempt-5 fixed tree was
+reconstructed by path and meaning from signed ref
+`50a9129c8481e7519d8c640c152f58401035f323` without merge, rebase or
+cherry-pick. The implementation source is signed attempt-5 implementation
+`546b773f6ebd98a16b42c4f1c3a94f54465a5db0`; the published study and runbook
+are the current receipted bytes.
+
+The ref above is preserved historical evidence, not the implementation result
+of this run. No receipt, push, pull request, issue mutation or audit-closure
+claim is made here. A later independent Warden round remains required.
+
+### Reproduced mechanisms and repairs
+
+Each mechanism below was reproduced twice against the reconstructed signed
+attempt-5 fixed tree before repair.
+
+| id | severity | surface | reproduced mechanism | remediation and inoculation |
+| --- | --- | --- | --- | --- |
+| I434-C3-S1-M-01 | high | `scripts/run_observation.py` | Hidden-work suffix and camel aliases `analysisText`, `scratchpadContent`, `deliberationNotes` and `internalMonologueBuffer` returned clean. | fixed and guarded; normalised suffix, prefix, compact, camel, token and acronym families refuse while bounded descriptor suffixes remain valid |
+| I434-C3-S1-M-02 | high | schema, runtime and operator prose | Repository paths containing an unpaired surrogate, bidirectional controls or a decomposed non-NFC form returned clean; composed and decomposed spellings were not governed consistently. | fixed and guarded; repository paths require Unicode scalar values in NFC and exclude controls and bidi formatting, with non-NFC input refused rather than silently normalised |
+| I434-C3-S1-M-03 | high | `scripts/run_observation.py` | An equal-length same-inode rewrite after the post-read `fstat` restored invalid named bytes while the validator returned clean. | fixed and guarded; a clean result now requires one bounded final named-path reopen and reread whose digest, length, identity, confinement and stat observations match the validated snapshot |
+| I434-C3-S1-M-04 | high | `tests/emit_run_observation_report.py` | A same-inode equal-length rewrite after reporter `fsync` left forged report bytes while the reporter returned success. | confirmed, fixed and guarded; the non-recursive original `fsync` path now closes, reopens and rereads the exact named report and compares its bytes and identity without a stability loop |
+
+### Cumulative binding
+
+The carryover fixture binds all three packet URLs and SHA-256 digests, their
+source runs and preserved refs, the attempt-5 parent implementation, the 36
+original unique finding ids across eight families, four carried round-1
+mechanisms, three current input repairs and the confirmed reporter lead. Every
+original id maps to a remediation family and a current guard.
+
+The inoculation suite reports 812 cases: 36 carryover-map, 4 fixed-round-1-map,
+3 current-repair-map, 1 reporter-lead-map, 251 schema-runtime, 365
+recursive-wrong-kind, 9 lifecycle-reference, 8 file-replacement, 23
+path-representation, 87 normalised-field-name, 8 report-parity-no-echo and 17
+work-repository-context cases. It reports zero crashes and zero unexpected
+clean results.
+
+### Gate evidence
+
+The focused and inoculation suites pass 60/60; the root suite passes 179/179.
+The source-owned reporter exits `0`, runs 60 tests and emits a complete
+`elenchus.unittest.v1` report with zero failures, errors, skips, expected
+failures or unexpected successes. All four valid CLIs exit `0`; the five
+required invalid fixtures exit `1` with `RO008`, `RO009`, `RO011`, `RO012` and
+`RO013` respectively.
+
+Promise Machine sync writes zero files, its copy check reports 14 identical
+copies, and coverage reports 68/68. Phylax, Ephoros, Hypomnema, both Protasis
+modes, Imprimatur and each of the four separate Brevitas commands exit `0`.
+Python and changed JSON syntax, all 34 fixture JSONL objects, both receipted-byte
+comparisons, the 37-path scope comparison, current Horos and
+`git diff --check` exit `0`. The obsolete Horos spelling exits `2` as required.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`17a8c54f0ab00d13f48fcde9bc1d566e5a93a6df608556f0c2fdbd7f462c3137`,
+`d732a91c82554ede9adbba7e0eb6cb919635b00831efd280213ebfa253208b20`,
+`b514a789e1ff2c4aded638f95439a1154814db0ba38b863c493b2b332363de78`
+and `def37843169b5894e37849efe94dfd6d0bde7e7bd26ec308b8463a53879915db`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Remaining boundary
+
+The bounded final reread narrows the observation instant; it does not lock the
+file or prevent a later writer. Structural conformance does not establish
+capture completeness, external truth, cause, model quality, receipt binding,
+delivery correctness, deployment readiness, security or mutation authority.
+If another restart packet is required, `434-CARRYOVER-4.md` or its successor
+must be a full cumulative packet containing every finding, remediation and
+inoculation from all earlier issue-434 runs and this run. It supersedes the
+older packets as the single reconstruction and inoculation source.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 1 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived because the complete step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity Auditor and
+Fizz did not run. The complete 37-path tree was read without Horos exclusions.
+Phylax, Ephoros and Hypomnema exit `0`, `0` and `0` after the fixes below.
+
+The implementation entered audit as one signed 37-path union directly above
+the current base. All earlier findings and inoculations were present before
+any current verification or test ran. No intermediate carryover tree was
+accepted or tested as an implementation exit.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C3-S1-R1-01 | high | `scripts/run_observation.py` | Normalised actor-payload, raw-payload and compact aliases such as `rawInput`, `inputRaw`, `userInput`, `assistantOutput`, `assistantResponse`, `functionResult`, `toolCallArguments`, `requestArguments` and `jwt` validated clean as metadata. | fixed and guarded; token and compact actor/raw payload families now refuse while bounded descriptor suffixes remain accepted, and diagnostics copy none of the rejected names |
+| I434-C3-S1-R1-02 | medium | schema, runtime and operator prose | A repository segment of 255 Unicode scalars could encode to 1,020 UTF-8 bytes and still validate as portable. A 255-emoji segment was reproduced clean twice, then failed materialisation on the current checkout host with `ENAMETOOLONG`. | fixed and guarded; each NFC segment is now bounded to 255 UTF-8 bytes in runtime, schema annotation, prose and tests, with a 252-byte emoji boundary accepted |
+| I434-C3-S1-R1-03 | medium | schema, runtime and operator prose | The schema time pattern admitted leap-second spelling, impossible month 13 and hour 24 while the runtime refused them, so the declared timestamp surface drifted from executable acceptance. | fixed and guarded; schema and runtime now share one canonical uppercase RFC-3339 civil-time profile with real date validation, bounded offsets and no leap-second spelling |
+
+Finding count: 3. Each mechanism was reproduced twice against signed
+implementation `5bc47221a574164d1aa783c7f4fd2bc7b7f1675a` before repair. All three are
+fixed on this audit branch. Another independent round is required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | The three archived packet bytes match their issue digests. Their 23-entry, 8-entry and 10-entry ledgers recompute from `genesis` to the archived state fingerprints; study and runbook receipt digests match. All three preserved refs resolve exactly, verify locally and carry one required co-author and origin trailer. | clean on the fixed tree |
+| `prior-art-drift` | The implementation commit is a single 37-path child of current base `367e966...`; signed attempt-5 was used as prior art and old check output was not promoted to current evidence. | clean on the fixed tree |
+| `delegated-path-resolution` | Every patch target was an absolute path below the run worktree. Temporary fixtures and the standalone reporter used resolved target-rooted paths and were removed by their bounded test contexts. | clean on the fixed tree |
+| `origin-checkout-drift` | Before and after each mutation batch, the protected checkout retained exactly its five pre-existing status lines. None was inspected for content, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | The reporter, four valid and five invalid CLIs, four separate one-file Brevitas commands, both Protasis modes, current Horos and obsolete Horos negative specimen accepted their exact documented shapes and returned the expected exits. | clean on the fixed tree |
+| `current-main-loss` | The current tree retains Fiat 5.12.1, Elenchus 1.2.0, ADR-014, Atlas and all unrelated base paths. The run-to-current path set remains the declared 37-path observation surface, including this audit record. | clean on the fixed tree |
+| `carryover-map-gap` | The cumulative fixture binds 36 original findings, four fixed prior-round mechanisms, three pre-audit input repairs, the confirmed reporter repair and these three audit-round mechanisms to current guards and the eight families. | clean on the fixed tree |
+| `schema-runtime-drift` | Required and optional fields, enums, patterns, exact-number ceilings, metadata limits, Unicode policy and the new timestamp profile agree. The schema/runtime matrix now runs 252 cases. | fixed in this round; another round required |
+| `wrong-kind-crash` | The recursive matrix mutates every structural value position in all four valid flows. Its 365 current cases produce zero crashes and zero unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Sequence, capability pairing, retry, refusal, inferred selector, handoff, evidence and terminal relations remain guarded. The generated matrix runs nine cases clean. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape, bounded final reread and both reporter replacement windows remain in the eight-case replacement family. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass. A fresh absolute-path reporter run executes 60 tests and writes only the expected complete report bytes. | clean on the fixed tree |
+| `recorded-path-unicode` | Scalar validity, NFC, C0/C1 controls, bidi formatting, portable syntax and now 255-byte UTF-8 segment ceilings agree in runtime, schema annotation, prose and the 25-case path family. | fixed in this round; another round required |
+| `name-normalisation-gap` | Separator, camel, Pascal, compact, token, prefix, suffix, actor-payload, raw-payload, hidden-work and acronym families now run 128 cases. Safe count, digest, format, identity and status descriptors remain accepted. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and canonical JSON still derive from one finding model. All new forbidden names resolve to the fixed `[forbidden-field]` pointer and no rejected alias appears in JSON findings. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case context family preserves issue/topic, step, role, selected skill and promise, paired Git identities, refusal promise, handoff producer and outcome relations. | clean on the fixed tree |
+| `evidence-promotion` | Evidence ids, subjects, scopes, time domains, classes, inferred source events, handoff carriage and terminal outcomes remain exact backward bindings. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, finite number, string, key, collection, character-path and UTF-8 segment ceilings all refuse over-boundary inputs without coercion. | fixed in this round; another round required |
+| `sensitive-payload` | Recursive forbidden-field checks now cover the reproduced actor, raw and JWT aliases across separated, camel, Pascal and compact forms without echoing them. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, source-bound and exclusive with same-event unknowns. No estimator, exporter or backend was added. | clean on the fixed tree |
+| `partial-or-stale-record` | Malformed tails, missing lifecycle halves, concurrent input mutation and report replacement continue to refuse. The fixes add no fallback or repair of source bytes. | clean on the fixed tree |
+| `elenchus-report-drift` | The exact source-owned command, `unittest-json-v1` format and `.elenchus/run-observation.json` report path ran against this signed fixes commit. Final verdict: `guarded`; the parent report contains an assertion failure and the fixed-tree report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found three defects. No controller receipt, push, pull request, issue mutation, merge or closure action was performed. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 60/60. The cumulative inoculation reports
+859 cases across eight generated families and five map groups, zero crashes
+and zero unexpected clean results. Root tests pass 179/179. The standalone
+source reporter runs 60 tests and emits one complete report with no failures,
+errors, skips, expected failures or unexpected successes.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit their expected `RO008`, `RO009`, `RO011`, `RO012` and `RO013` codes.
+Promise sync writes zero files, its copy check reports 14 identical copies and
+coverage reports 68/68. Phylax, Ephoros, Hypomnema, both Protasis modes,
+Imprimatur and each separate Brevitas command exit `0`. Current Horos and
+`git diff --check` exit `0`; obsolete Horos exits `2`.
+
+Python syntax, the schema, coverage record, cumulative map and all 34 JSONL
+objects parse. The published study and runbook remain byte-identical to their
+receipted sources. The run-to-current set stays inside the declared 37-path
+surface, including `audit/AUDIT.md`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`a36c3f1bd5dedd00aebaa74699946f69db8bcce2434eb35e662ceb4af7bcba47`,
+`f0ef6cc9064e8afb67d6830173dde093260b3ea5050152a9ca6c65cc95166e86`,
+`b1e388ca2b4709d03e814d9b945384025f84b1508c95cc946fc8e8a86fccf3da`
+and `11186842623d30b582dcd417e92d5faa0fbc166e60e5de64a382f42914026eda`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains a
+source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after the observation ends.
+
+The record still treats sequence as authoritative over wall-clock order,
+records retry scheduling rather than cancellation or a full attempt chain,
+allows correlation ids to join separate paths and permits evidence narrower
+than the opening subject. No finding was assigned to those declared
+boundaries. This round makes no claim of capture completeness, external truth,
+cause, model quality, delivery correctness, deployment readiness, security or
+mutation authority.
+
+If another restart packet is required, `434-CARRYOVER-4.md` must be one full,
+self-contained aggregate of every earlier and current finding, remediation,
+inoculation, audit count, unresolved lead, signed fixed-tree identity, receipt
+digest and final check. Mason must apply that whole union before any tree
+verification or test; intermediate `0 -> 1 -> 2 -> 3` reconstructions are not
+acceptance trees.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 2 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived because the complete step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity Auditor and
+Fizz did not run. The complete 37-path tree was read without Horos exclusions.
+Phylax, Ephoros and Hypomnema exit `0`, `0` and `0` after the fixes below.
+
+The implementation entered round 2 as one signed 37-path union. The 36
+original carryover findings, four carried round-1 mechanisms, three pre-audit
+input repairs, the reporter repair and all three round-1 audit repairs were
+present before current verification or testing. No intermediate carryover tree
+was accepted or tested as an implementation exit.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C3-S1-R2-01 | high | `scripts/run_observation.py` | Actor-payload aliases `developerMessage`, `developermessage`, `agentOutput`, `agentoutput`, `humanInput` and `humaninput` validated clean as metadata. | fixed and guarded; systematic developer, agent and human actor-payload token and compact families now refuse while bounded descriptors remain accepted |
+| I434-C3-S1-R2-02 | medium | schema, runtime and operator prose | A 17-segment path with 63 emoji per segment was 1,087 characters but 4,300 UTF-8 bytes and validated clean. | fixed and guarded; the complete NFC repository path is limited to 4,096 UTF-8 bytes as well as its existing character and per-segment limits |
+| I434-C3-S1-R2-03 | medium | schema and runtime | The schema pattern accepted year zero and impossible civil dates such as `2026-02-30T00:00:00Z` while runtime civil-date validation refused them. | fixed and guarded; schema and runtime share one Gregorian-date pattern including leap-year boundaries and refusal of year zero |
+| I434-C3-S1-R2-04 | medium | schema and runtime | Optional host and token facts accepted explicit sources such as `estimated from text` and `approximation` despite the exposed-fact contract. | fixed and guarded; optional sources and identities share one estimate-free exposed-fact rule in schema and runtime |
+
+Finding count: 4. Each mechanism was reproduced twice against signed
+implementation `be389ab2aaf4c8408db46a42e7260599861e9097` before repair. All four
+are fixed on this audit branch. Another independent round is required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | The three archived packet bytes and digests, their 23-entry, 8-entry and 10-entry ledgers, study and runbook receipts, signed refs, parents and required trailers remain bound by the cumulative fixture. | clean on the fixed tree |
+| `prior-art-drift` | The implementation remains one 37-path cumulative tree above the current base. All carried mechanisms and inoculations were applied before current verification or acceptance tests. | clean on the fixed tree |
+| `delegated-path-resolution` | Repository edits used absolute paths below the run worktree. One bounded audit-command incident created nine exact `/tmp/warden-*` outputs; each was removed immediately by exact-file `apply_patch`, all nine are absent, neither repository changed, and the affected CLI matrix passed again without redirection. | audit-process incident resolved; no product finding |
+| `origin-checkout-drift` | The protected checkout retained exactly its five pre-existing status entries before and after each mutation batch. None was read for content, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | Reporter, four valid and five invalid CLIs, four separate one-file Brevitas commands, both Protasis modes, current Horos and the obsolete Horos specimen used their documented shapes and expected exits. | clean on the fixed tree |
+| `current-main-loss` | The current tree retains the unrelated base surfaces. The run-to-current path set remains the declared 37-path observation surface, including this audit record. | clean on the fixed tree |
+| `carryover-map-gap` | The fixture maps 36 original findings, four carried round-1 mechanisms, three current input repairs, one reporter repair, three audit-round-1 repairs and these four audit-round-2 repairs to current guards. | clean on the fixed tree |
+| `schema-runtime-drift` | Required and optional values, wrong kinds, exact finite numbers, size ceilings, path rules, timestamp spelling and exposed-fact rules agree across schema and runtime. The schema/runtime matrix runs 258 cases. | fixed in this round; another round required |
+| `wrong-kind-crash` | The recursive matrix mutates every structural value position in all four valid flows. Its 365 cases produce zero crashes and zero unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Sequence, event order, capability pairing, retry, refusal, inferred selector, context, handoff, evidence and terminal relations remain guarded by the nine-case lifecycle matrix and focused tests. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape, final reread and both reporter replacement windows remain guarded by the eight-case replacement family. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass. The source reporter writes one complete report and verifies the named bytes and identity. | clean on the fixed tree |
+| `recorded-path-unicode` | Unicode scalar validity, NFC, control and bidi refusal, portable syntax, 255-byte segment limit and new 4,096-byte total limit agree across runtime, schema annotation, prose and the 26-case path family. | fixed in this round; another round required |
+| `name-normalisation-gap` | Separator, camel, Pascal, compact, token, actor-payload, raw-payload, hidden-work and acronym families now run 143 cases. Safe bounded descriptors remain accepted. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and canonical JSON derive from one finding model. New aliases and rejected estimate text resolve to bounded diagnostics without copying rejected content. The parity/no-echo matrix runs eight cases. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case context family preserves issue/topic, step, role, selected skill and promise, paired Git identities, refusal promise, handoff producer and outcome relations. | clean on the fixed tree |
+| `evidence-promotion` | Evidence ids, subjects, scopes, time domains, classes, inferred source events, handoff carriage, optional usage and terminal outcomes retain their exact backward bindings. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, finite number, string, key, collection, character-path, UTF-8 segment and complete-path ceilings refuse over-boundary input without coercion. | fixed in this round; another round required |
+| `sensitive-payload` | Recursive forbidden-field checks cover developer, agent, human, user, assistant, function and tool payload aliases without echoing rejected names or values. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, same-event bound, exclusive with unknowns and now explicitly free of estimated or approximated sources. No estimator, exporter or backend was added. | fixed in this round; another round required |
+| `partial-or-stale-record` | Malformed tails, lifecycle halves, concurrent input mutation and report replacement refuse deterministically. The fixes add no fallback, retry loop or repair of source bytes. | clean on the fixed tree |
+| `elenchus-report-drift` | The exact source-owned command, `unittest-json-v1` format and `.elenchus/run-observation.json` path ran against the signed fixes commit. Verdict: `guarded`; the parent report has 17 assertion failures and zero errors, while the fixed-tree report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found four defects. No controller receipt, push, pull request, issue mutation, merge or closure action was performed. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 64/64. The cumulative inoculation reports
+885 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 258
+schema-runtime, 365 recursive-wrong-kind, 9 lifecycle-reference, 8
+file-replacement, 26 path-representation, 143 normalised-field-name, 8
+report-parity-no-echo and 17 work-repository-context cases. It reports zero
+crashes and zero unexpected clean results. Root tests pass 183/183.
+
+The source-owned reporter runs 64 tests and emits one complete
+`elenchus.unittest.v1` report with no failures, errors, skips, expected failures
+or unexpected successes. Elenchus reports `guarded`: its parent run has 17
+assertion failures, zero infrastructure errors and no skips.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit their expected `RO009`, `RO013`, `RO008`, `RO012` and `RO011` codes.
+Promise sync writes zero files, its copy check reports 14 identical copies and
+coverage reports 68/68. Phylax, Ephoros, Hypomnema, both Protasis modes,
+Imprimatur and each separate Brevitas command exit `0`. Current Horos and
+`git diff --check` exit `0`; obsolete Horos exits `2`.
+
+Python syntax, the schema, coverage record, cumulative map and all 34 JSONL
+objects parse. The published study and runbook remain byte-identical to their
+receipted sources. The run-to-current set stays inside the declared 37-path
+surface, including `audit/AUDIT.md`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`c79628359a41040708a2f06f57eaf8ae273e7faccce2675821c5f522bcf4622b`,
+`9069845401cfb9192ce225000277bf41fe6e43d6c8f520c08cc94795701b6da3`,
+`9846cdfcc4d842f5321e575a87a83d4143b1f607cea9c8d4bc5dcc7bc36e66cd`
+and `0e03d5f1b47099f6342ec59e3c401e0b9f7a9eb3546a1fab9d701543e40fe091`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Audit-process incident and uncompleted leads
+
+The first CLI gate invocation mistakenly redirected bounded output outside the
+target worktree to these exact files:
+
+- `/tmp/warden-valid-success.out`
+- `/tmp/warden-valid-refusal.out`
+- `/tmp/warden-valid-retry.out`
+- `/tmp/warden-valid-handoff.out`
+- `/tmp/warden-invalid-bad-order.jsonl.out`
+- `/tmp/warden-invalid-hidden-reasoning.jsonl.out`
+- `/tmp/warden-invalid-missing-run-id.jsonl.out`
+- `/tmp/warden-invalid-strengthened-evidence.jsonl.out`
+- `/tmp/warden-invalid-unbound-evidence.jsonl.out`
+
+All nine were removed immediately through exact absolute `apply_patch` targets
+and verified absent. No repository or protected-origin path changed. The four
+valid and five invalid CLI fixtures were rerun from clean state through
+in-memory subprocess capture, without redirection, and returned their expected
+codes. The rerun exposed no repository mechanism, so this remains an
+audit-process incident rather than a fifth product finding.
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains a
+source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after observation ends.
+
+The record treats sequence as authoritative over wall-clock order, records
+retry scheduling rather than cancellation or a complete attempt chain, allows
+correlation ids to join separate paths and permits evidence narrower than the
+opening subject. No finding was assigned to those declared boundaries. This
+round makes no claim of capture completeness, external truth, cause, model
+quality, delivery correctness, deployment readiness, security or mutation
+authority.
+
+If another restart packet is required, `434-CARRYOVER-4.md` or its successor
+must be one full, self-contained aggregate of every earlier and current
+finding, remediation, inoculation, audit-round count, unresolved lead, signed
+fixed-tree identity, receipt digest and final check. Mason must apply the whole
+union to one final tree before any tree verification or acceptance test; no
+intermediate reconstruction is an acceptance tree.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 3 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived because the complete step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity Auditor and
+Fizz did not run. The complete 37-path tree was read without Horos exclusions.
+Phylax, Ephoros and Hypomnema exit `0`, `0` and `0` after the fixes below.
+
+The implementation entered round 3 as one signed 37-path union. All earlier
+findings and inoculations, including both earlier audit rounds, were present
+before current verification or acceptance testing. No intermediate carryover
+tree was accepted or tested as an implementation exit.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C3-S1-R3-01 | high | `scripts/run_observation.py` | Raw actor-payload synonym families such as `aiOutput`, `llmResponse`, `assistantReply`, `userQuery`, `chatHistory`, `messageHistory`, `toolReturn` and `functionReturn` validated clean as metadata. | fixed and guarded in `56425a622cd7f24e9a192cb9096643e36b211cc8`; actor and payload token families now cover AI and LLM output, replies, queries, histories, calls, observations, content, invocations and function or tool returns while bounded descriptor suffixes remain accepted |
+| I434-C3-S1-R3-02 | medium | schema and runtime | Optional host and token facts accepted explicit estimate sources using `guessed`, `heuristic`, `projected` and `predicted`, despite the estimate-free exposed-fact contract. | fixed and guarded in `56425a622cd7f24e9a192cb9096643e36b211cc8`; schema and runtime now share those explicit estimate markers beside the carried estimate and approximation families |
+
+Finding count: 2. Each mechanism was reproduced twice against signed parent
+`e3652820d42418ed5f068aad38a311862e66431a` before repair. Both guards were
+then observed red on that unfixed tree. The fixes are signed and guarded in
+`56425a622cd7f24e9a192cb9096643e36b211cc8`. Another independent round is
+required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | The three archived packet bytes and digests, their 23-entry, 8-entry and 10-entry ledgers, receipted study and runbook bytes, signed refs, parents and required trailers remain bound by the cumulative fixture. | clean on the fixed tree |
+| `prior-art-drift` | The current implementation remains one cumulative 37-path child chain above base `367e966...`. Earlier checks were treated only as history; this round reran the current tests and gates. | clean on the fixed tree |
+| `delegated-path-resolution` | Every temporary probe and report path was canonical, absolute and rooted under the run worktree. The standalone report was removed by its exact absolute path after inspection. | clean on the fixed tree |
+| `origin-checkout-drift` | The protected checkout retained exactly its five pre-existing status entries before and after every write and report batch. No image content was read, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | The reporter, four valid and five invalid CLIs, four separate one-file Brevitas commands, both Protasis modes, current Horos and obsolete Horos used their documented shapes and expected exits. | clean on the fixed tree |
+| `current-main-loss` | Fiat 5.12.1, Elenchus 1.2.0, ADR-014, Atlas and unrelated base paths remain present. The run-to-current scope stays at the declared 37 paths, including this audit record. | clean on the fixed tree |
+| `carryover-map-gap` | The cumulative map binds the 36 original findings, four carried round-1 mechanisms, three current input repairs, one reporter repair, three audit-round-1 repairs, four audit-round-2 repairs and these two repairs to current guards and the eight families. | clean on the fixed tree |
+| `schema-runtime-drift` | Closed fields, enums, patterns, exact-number ceilings, civil timestamps, Unicode and path limits, and exposed-fact sources agree. The matrix now runs 266 cases, including schema and runtime refusals for the four new estimate synonyms. | fixed in this round; another round required |
+| `wrong-kind-crash` | The recursive matrix mutates every structural value position in all four valid flows. Its 365 cases produce zero crashes and zero unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | The nine-case generated matrix and focused guards cover order, capability pairing, retry, refusal, inferred selectors, handoff, evidence and terminal relations. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape, final reread and both reporter replacement windows remain guarded by the eight-case matrix. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass. The source reporter writes one complete report and verifies its named bytes and identity. | clean on the fixed tree |
+| `recorded-path-unicode` | Unicode scalar validity, NFC, C0 and C1 control refusal, bidi formatting refusal, portable syntax, 255-byte segment limit and 4,096-byte total limit agree across runtime, schema, prose and the 26-case matrix. | clean on the fixed tree |
+| `name-normalisation-gap` | Separator, camel, Pascal, compact, token and acronym forms now cover actor inputs and outputs plus reply, query, history, call, return, generation, observation, invocation and content synonyms. The matrix runs 258 cases and retains safe descriptor suffixes. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and canonical JSON derive from one finding model. New forbidden names resolve to the fixed pointer, and direct guards prove that no rejected alias enters JSON findings. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case context family preserves issue or topic, step, role, selected skill and promise, paired Git identities, refusal promise, handoff producer and outcome relations. | clean on the fixed tree |
+| `evidence-promotion` | Evidence ids, subjects, scopes, time domains, classes, inferred source events, handoff carriage, optional usage and terminal outcomes retain exact backward bindings. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, finite number, string, key, collection, character-path, UTF-8 segment and complete-path ceilings refuse over-boundary input without coercion. | clean on the fixed tree |
+| `sensitive-payload` | Recursive name checks now cover the reproduced actor and payload synonym products without echoing rejected names or values. Innocently named scalar semantics remain outside the mechanical claim. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, same-event bound, exclusive with unknowns and free of the carried and new explicit estimate-source families. No estimator, exporter or backend was added. | fixed in this round; another round required |
+| `partial-or-stale-record` | Malformed tails, lifecycle halves, concurrent input mutation and report replacement refuse. The changes add no fallback, stability loop or source repair. | clean on the fixed tree |
+| `elenchus-report-drift` | Exact source-owned command `python3 tests/emit_run_observation_report.py {report}`, format `unittest-json-v1` and report file `.elenchus/run-observation.json` ran against signed fixes commit `56425a6...`. Verdict: `guarded`; the parent report contains assertion failures and the fixed-tree report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found two defects. No controller receipt, push, pull request, issue mutation, merge or closure action was performed. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 65/65. The cumulative inoculation reports
+1,010 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 2
+audit-round-3-map, 266 schema-runtime, 365 recursive-wrong-kind, 9
+lifecycle-reference, 8 file-replacement, 26 path-representation, 258
+normalised-field-name, 8 report-parity-no-echo and 17
+work-repository-context cases. It reports zero crashes and zero unexpected
+clean results. Root tests pass 184/184.
+
+The source-owned reporter runs 65 tests and emits one complete
+`elenchus.unittest.v1` report with no failures, errors, skips, expected
+failures or unexpected successes. Elenchus reports `guarded`: its parent run
+contains assertion failures rather than infrastructure errors.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit `RO009`, `RO013`, `RO008`, `RO012` and `RO011` respectively. Promise
+sync writes zero files, its copy check reports 14 identical copies and
+coverage reports 68/68. Phylax, Ephoros, Hypomnema, both Protasis modes,
+Imprimatur and each separate Brevitas command exit `0`. Current Horos and
+`git diff --check` exit `0`; obsolete Horos exits `2`.
+
+Python syntax, the schema, coverage record, cumulative map and all 34 JSONL
+objects parse. The published study and runbook remain byte-identical to their
+receipted sources. The run-to-current set stays inside the declared 37-path
+surface, including `audit/AUDIT.md`.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`2a4ff882391ff1249e4231ff0383613c1b9db8dd1769883d97804e5e9c72e0c2`,
+`8064b0735f119b1556cdf79c04e2b7c6165c460990c4e807ee7f1fa5b6727388`,
+`9846cdfcc4d842f5321e575a87a83d4143b1f607cea9c8d4bc5dcc7bc36e66cd`
+and `e01e331744e8b7d9484c3b51a41edcc92eec84cc805349218e8ee0811ee09126`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains a
+source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after observation ends.
+
+Non-bidirectional Unicode format characters and Unicode scalar noncharacters
+remain inside the declared scalar and NFC path language; this round did not
+widen the documented control and bidirectional-formatting refusal into a new
+Unicode-category policy. The record also treats sequence as authoritative over
+wall-clock order, records retry scheduling rather than cancellation or a
+complete attempt chain, allows correlation ids to join separate paths and
+permits evidence narrower than the opening subject. No finding was assigned to
+those declared boundaries.
+
+This round makes no claim of capture completeness, external truth, cause,
+model quality, delivery correctness, deployment readiness, security or
+mutation authority. If another restart packet is required,
+`434-CARRYOVER-4.md` or its successor must be one full, self-contained
+aggregate of every earlier and current finding, remediation, inoculation,
+audit-round count, unresolved lead, signed fixed-tree identity, receipt digest
+and final check. Mason must apply that whole union to one final tree before
+any tree verification or acceptance test; no intermediate reconstruction is
+an acceptance tree.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 4 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived because the complete step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity Auditor and
+Fizz did not run. The complete 37-path tree was read without Horos exclusions.
+Phylax, Ephoros and Hypomnema exit `0`, `0` and `0` after the fixes below.
+
+The round began from one signed cumulative tree at
+`a4b93d2982f5d0324c83fff31d21f4a2670894b0`. It already contained every
+earlier finding, remediation and inoculation before this round's verification.
+No intermediate carryover tree was treated as an acceptance tree.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C3-S1-R4-01 | medium | schema, runtime and operator prose | Unicode `Cf` format controls outside the earlier bidi set, including soft hyphen, zero-width space, word joiner and byte-order mark, validated as portable repository paths. | fixed and guarded in `42dfd13628ef63be161a2d04dc6bc93613f2fdf2`; runtime refuses `Cc`, `Cf` and `Cs`, the schema publishes the same category boundary and BMP pattern, and path matrices cover the reproduced forms |
+| I434-C3-S1-R4-02 | high | `scripts/run_observation.py` | Raw `systemInstructions` and `developerInstructions`, plus hidden-work `thinkingText` and `reflectionNotes`, validated clean as metadata. | fixed and guarded in `42dfd13628ef63be161a2d04dc6bc93613f2fdf2`; raw instruction and hidden thinking or reflection families now refuse while bounded count, digest, format and status descriptors remain accepted |
+| I434-C3-S1-R4-03 | medium | schema and runtime | Optional host and token facts accepted explicit forecast, ballpark, assumption, extrapolation, modeled and modelled sources despite the estimate-free exposed-fact contract. | fixed and guarded in `42dfd13628ef63be161a2d04dc6bc93613f2fdf2`; schema and runtime share those explicit estimate markers beside the carried families |
+
+Finding count: 3. Each mechanism was reproduced twice against signed parent
+`a4b93d2982f5d0324c83fff31d21f4a2670894b0`. The focused guards were observed
+red before repair and Elenchus reproduced parent assertion failures from the
+source-owned reporter. The signed fix commit is
+`42dfd13628ef63be161a2d04dc6bc93613f2fdf2`. Another independent round is
+required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | The three archived packets and digests, 23-entry, 8-entry and 10-entry ledgers, receipted study and runbook, signed refs, parents and trailers remain bound by the cumulative fixture. | clean on the fixed tree |
+| `prior-art-drift` | The current result remains one cumulative 37-path chain above base `367e966...`; this round treated old results as history and reran all current evidence. | clean on the fixed tree |
+| `delegated-path-resolution` | Every probe and report target was canonical, absolute and confined to the run worktree. Generated reports were removed by exact path. | clean on the fixed tree |
+| `origin-checkout-drift` | The protected checkout retained exactly five pre-existing status entries before and after each batch. No image content was read, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | The reporter, four valid and five invalid CLIs, four one-file Brevitas commands, both Protasis modes, current Horos and obsolete Horos used their receipted shapes and expected exits. | clean on the fixed tree |
+| `current-main-loss` | Fiat 5.12.1, Elenchus 1.2.0, ADR-014, Atlas and unrelated base work remain. The run-to-current inventory stays within the declared 37 paths. | clean on the fixed tree |
+| `carryover-map-gap` | The map binds 36 original findings, four carried mechanisms, three current repairs, one reporter repair and all 12 findings from current rounds 1 through 4 to guards and eight families. | clean on the fixed tree |
+| `schema-runtime-drift` | Closed fields, enums, patterns, numbers, civil times, path categories and limits, and exposed-fact estimate markers agree. The matrix runs 279 cases. | fixed in this round; another round required |
+| `wrong-kind-crash` | The 365-case recursive matrix mutates every structural value position in four valid flows and reports zero crashes or unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Nine generated cases plus focused order, capability, retry, refusal, inferred-selector, handoff, evidence and terminal guards pass. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape, bounded final reread and both reporter replacement windows remain guarded in eight cases. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass; the reporter rereads and verifies one complete named report. | clean on the fixed tree |
+| `recorded-path-unicode` | NFC, scalar validity, `Cc`, `Cf` and `Cs` refusal, portable syntax, and 255-byte segment and 4,096-byte path limits agree across code, schema declaration, prose and 30 cases. | fixed in this round; another round required |
+| `name-normalisation-gap` | Separator, camel, Pascal, compact, token and acronym products now cover raw instructions and hidden thinking or reflection beside carried actor and payload families. The matrix runs 278 cases and preserves safe descriptors. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and canonical JSON use one finding model. The new forbidden aliases resolve to fixed pointers, and guards prove no rejected alias is echoed. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case family preserves issue or topic, step, role, selected skill and promise, paired Git identities, refusal promise, handoff producer and terminal relations. | clean on the fixed tree |
+| `evidence-promotion` | Evidence id, subject, scope, time domain, class, source event, handoff carriage, optional usage and terminal outcome relations remain exact and backward. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, number, string, key, collection, character-path and UTF-8 path ceilings remain fail-closed. | clean on the fixed tree |
+| `sensitive-payload` | Recursive name checks refuse the reproduced instruction payloads and all carried raw families without echo. Innocently named scalar meaning remains outside the mechanical claim. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, source-bound, mutually exclusive with same-event unknowns and free of the expanded explicit estimate families. | fixed in this round; another round required |
+| `partial-or-stale-record` | Malformed tails, lifecycle halves, input mutation and report replacement refuse without repair, fallback or an unbounded stability loop. | clean on the fixed tree |
+| `elenchus-report-drift` | The exact command `python3 tests/emit_run_observation_report.py {report}`, format `unittest-json-v1` and file `.elenchus/run-observation.json` ran against signed commit `42dfd13...`. Verdict: `guarded`; the parent report contains assertion failures and the fixed report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found three defects. No controller receipt, push, pull request, issue mutation, merge or closure action was performed. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 66/66. The cumulative inoculation reports
+1,050 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 2
+audit-round-3-map, 3 audit-round-4-map, 279 schema-runtime, 365
+recursive-wrong-kind, 9 lifecycle-reference, 8 file-replacement, 30
+path-representation, 278 normalised-field-name, 8 report-parity-no-echo and 17
+work-repository-context cases. It reports zero crashes and zero unexpected
+clean results. Root tests pass 185/185.
+
+The source-owned reporter runs 66 tests and emits one complete
+`elenchus.unittest.v1` report with no failures, errors, skips, expected
+failures or unexpected successes. Elenchus reports `guarded` because the
+unfixed parent report contains assertion failures.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit `RO009`, `RO013`, `RO008`, `RO012` and `RO011`. Promise sync writes zero
+files, its check reports 14 identical copies and coverage reports 68/68.
+Phylax, Ephoros, Hypomnema, Imprimatur and each separate Brevitas command for
+the changed operator prose exit `0`. Current Horos and `git diff --check` exit `0`;
+obsolete Horos exits `2`.
+
+Python syntax, schema, coverage record, cumulative map and all JSONL objects
+parse. The receipted study and runbook remain unchanged. The run-to-current
+set stays inside the declared 37-path surface.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`7753182f25f3b91fb90de2ba77716b3f82d9a81607c4c2d2d4d6f61be77e2e80`,
+`ee5d2fe4cda98e75896f4f0dec8fcdc4ddcbcb6e3b317815bff978ce9eb25c0e`,
+`728bdd330daebde1907a10f61e7146ad1c147964b4bf38dc969ee6d1737eacf5`
+and `4a177edbd153a683270ca982a1bbe3189a3734cc615e67927532e4b4f8cb265b`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains a
+source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after observation ends.
+
+Unicode scalar noncharacters and non-`Cf` default-ignorable marks remain
+inside the declared scalar and NFC path language. The record treats sequence
+as authoritative over wall-clock order, records scheduled retries rather than
+cancellation or a full attempt chain, permits joined correlation paths and
+allows evidence narrower than the opening subject. These declared boundaries
+did not produce another in-scope finding.
+
+This round makes no claim of capture completeness, external truth, cause,
+model quality, delivery correctness, deployment readiness, security or
+mutation authority. Any later `434-CARRYOVER-4.md` or successor must be one
+full self-contained aggregate of every pass. Mason must apply the whole union
+to one final tree before any verification or acceptance test; no intermediate
+reconstruction is an acceptance tree.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 5 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived because the complete step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity Auditor and
+Fizz did not run. The complete 37-path tree was read without Horos exclusions.
+Phylax, Ephoros and Hypomnema exit `0`, `0` and `0` after the fixes below.
+
+The round began from signed cumulative audit tree
+`abcf1b195896ed4ac03cc579c3d41637d9792de6`, whose parent is signed fixed tree
+`42dfd13628ef63be161a2d04dc6bc93613f2fdf2`. Every earlier finding,
+remediation and inoculation was present before this round's verification. No
+intermediate carryover tree was treated as an acceptance tree.
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| I434-C3-S1-R5-01 | high | schema and `scripts/run_observation.py` | Raw or hidden metadata names such as `developerDirective`, `cognitiveProcess` and Unicode-confusable `prоmpt` validated clean. Untyped safe-suffix fields such as `promptCount: "the complete raw prompt text"` also bypassed the refusal. | fixed and guarded in `717a2de305e01b7a32970424c0ede7a695639642`; names require printable ASCII, the raw and hidden families cover the reproduced synonyms, and a descriptor exemption requires a value of the descriptor's declared kind |
+| I434-C3-S1-R5-02 | medium | schema and `scripts/run_observation.py` | Optional host and token facts accepted explicit estimate sources including `rough count`, `approx count` and `derived from text`, despite the estimate-free exposed-fact contract. | fixed and guarded in `717a2de305e01b7a32970424c0ede7a695639642`; schema and runtime share the expanded explicit approximation, derivation, inference, calculation, rounding and uncertainty families |
+| I434-C3-S1-R5-03 | medium | schema, runtime and operator prose | Windows device spellings using superscript digits, including `COM¹`, `COM².txt` and `LPT³.log`, validated as portable repository paths. | fixed and guarded in `717a2de305e01b7a32970424c0ede7a695639642`; schema, runtime, prose and generated path cases refuse the superscript-one, superscript-two and superscript-three forms |
+| I434-C3-S1-R5-04 | low | `scripts/run_observation.py` | The first repair treated compact safe descriptors such as `promptcount: 2` and `analysisdigest: <sha256>` as forbidden even though separated equivalents remained valid. | fixed and guarded in `29007dfe350c50391f31f1e7d3f7609e6aff9628`; compact suffixes use the same typed descriptor exemption as separated names |
+
+Finding count: 4. The first three mechanisms were reproduced twice against
+signed parent `abcf1b195896ed4ac03cc579c3d41637d9792de6`; the fourth was
+reproduced twice during adversarial review of signed repair `717a2de...`.
+Focused guards were red before each causal repair. Signed fixed-tree commits
+are `717a2de305e01b7a32970424c0ede7a695639642` and
+`29007dfe350c50391f31f1e7d3f7609e6aff9628`. Another independent round is
+required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | The three archived packet bytes and digests, their 23-entry, 8-entry and 10-entry ledgers, receipted study and runbook, signed refs, parents and required trailers remain bound by the cumulative fixture. | clean on the fixed tree |
+| `prior-art-drift` | The result remains one cumulative 37-path chain above base `367e9662384bb29ea94576d270ab86744f3326a2`. Earlier results were history only; this round reran current evidence. | clean on the fixed tree |
+| `delegated-path-resolution` | One operator wrapper wrongly redirected focused output to `/tmp/round5-focused.out` and then failed because zsh reserves `status`. The wrapper was unreceipted and contributed no product evidence. That exact file was deleted and proved absent; the affected check was rerun with a canonical absolute target-rooted output and a non-reserved variable, then target scope and protected origin were reverified. Every product probe and accepted report was confined to the run worktree. | operator incident contained; product tree clean |
+| `origin-checkout-drift` | The protected checkout retained exactly its five pre-existing status entries before and after every mutation and report batch. No image content was read, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | The source reporter, four valid and five invalid CLIs, four separate one-file Brevitas commands, both Protasis modes, current Horos and obsolete Horos used their receipted shapes and expected exits. | clean on the fixed tree |
+| `current-main-loss` | Fiat 5.12.1, Elenchus 1.2.0, ADR-014, Atlas and unrelated base paths remain present. The run-to-current inventory stays at the declared 37 paths. | clean on the fixed tree |
+| `carryover-map-gap` | The cumulative map binds 36 original findings, four fixed carried mechanisms, three current input repairs, one reporter repair and all 16 audit findings from rounds 1 through 5 to current guards and eight generated families. | clean on the fixed tree |
+| `schema-runtime-drift` | Closed fields, printable-ASCII names, enums, patterns, number ceilings, civil times, Unicode paths and exposed-fact sources agree. The differential matrix runs 309 cases. | fixed in this round; another round required |
+| `wrong-kind-crash` | The recursive matrix mutates every structural value position in four valid flows. Its 365 cases report zero crashes and zero unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Nine generated cases plus focused order, capability, retry, refusal, inferred-selector, handoff, evidence and terminal guards pass. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape, bounded final reread and both reporter replacement windows remain guarded in eight cases. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass. A fresh absolute-path source report ran 67 tests and its complete named bytes and identity were checked before exact removal. | clean on the fixed tree |
+| `recorded-path-unicode` | NFC, scalar validity, `Cc`, `Cf` and `Cs` refusal, portable syntax, byte ceilings and Windows numeric and superscript device aliases agree across runtime, schema, prose and 33 generated cases. | fixed in this round; another round required |
+| `name-normalisation-gap` | Separator, camel, Pascal, compact, token and acronym products now cover the carried and new raw and hidden families. Printable ASCII excludes confusable names, and typed descriptor values preserve both separated and compact safe names. The matrix runs 317 cases. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and canonical JSON derive from one finding model. Invalid and forbidden names use fixed pointer segments, and guards prove none of the reproduced names or values is echoed. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case family preserves issue or topic, step, role, selected skill and promise, paired Git identities, refusal promise, handoff producer and terminal relations. | clean on the fixed tree |
+| `evidence-promotion` | Evidence ids, subjects, scopes, time domains, classes, source events, handoff carriage, optional usage and terminal outcomes retain exact backward bindings. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, number, string, key, collection, character-path and UTF-8 path ceilings remain fail-closed without coercion. | clean on the fixed tree |
+| `sensitive-payload` | Recursive checks refuse the reproduced directives, rules, turns, utterances, artifacts and command-family payloads, plus hidden cognition families and Unicode-confusable names, without echo. Innocently named scalar meaning remains outside the mechanical claim. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, source-bound and exclusive with same-event unknowns. Explicit rough, approximate, derived, inferred, calculated, rounded, unmeasured and speculative sources now refuse beside the carried estimate families. | fixed in this round; another round required |
+| `partial-or-stale-record` | Malformed tails, lifecycle halves, concurrent input mutation and report replacement refuse without fallback, repair or an unbounded stability loop. | clean on the fixed tree |
+| `elenchus-report-drift` | The exact source command `python3 tests/emit_run_observation_report.py {report}`, format `unittest-json-v1` and report file `.elenchus/run-observation.json` ran against signed fixed tree `29007df...`. Verdict: `guarded`; the parent report records an assertion failure and the fixed report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found four defects. No controller receipt, push, pull request, issue mutation, merge or closure action was performed. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 67/67. The cumulative inoculation reports
+1,126 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 2
+audit-round-3-map, 3 audit-round-4-map, 4 audit-round-5-map, 309
+schema-runtime, 365 recursive-wrong-kind, 9 lifecycle-reference, 8
+file-replacement, 33 path-representation, 317 normalized-field-name, 8
+report-parity-no-echo and 17 work-repository-context cases. It reports zero
+crashes and zero unexpected clean results. Root tests pass 186/186.
+
+The source-owned reporter runs 67 tests and emits one complete
+`elenchus.unittest.v1` report with no failures, errors, skips, expected
+failures or unexpected successes. Elenchus reports `guarded` because its
+unfixed parent report contains an assertion failure.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit `RO009`, `RO013`, `RO008`, `RO012` and `RO011`. Promise sync writes zero
+files, its check reports 14 identical copies and coverage reports 68/68.
+Phylax, Ephoros, Hypomnema, both Protasis modes, Imprimatur and each separate
+Brevitas command exit `0`. Current Horos and `git diff --check` exit `0`;
+obsolete Horos exits `2`.
+
+Python syntax, schema, coverage record, cumulative map and all 34 JSONL
+objects parse. The receipted study and runbook remain byte-identical to their
+published copies. The run-to-current set stays inside the declared 37-path
+surface. The protected origin retains exactly its five recorded paths.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`0e20b47e019d50115d94c4538fd42160bd96e4bae0748121697ea35f5f1af5cb`,
+`51dc2e885e2303eea2cbe824b4f241bf4f25045d09f0fbc081ff2d8648ca5d67`,
+`b75e57ea191ba4ea170103088f249279683db4d0d4ae16c6a3e43e3ac01925db`
+and `e18095a4c6e3d9fc9afee037b3e6f863b7ad51e0bde4dfee010f7d0d5e6edc08`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains a
+source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after observation ends.
+
+Unicode scalar noncharacters and non-`Cf` default-ignorable marks remain
+inside the declared scalar and NFC path language. The record treats sequence
+as authoritative over wall-clock order, records scheduled retries rather than
+cancellation or a complete attempt chain, permits joined correlation paths
+and allows evidence narrower than the opening subject. These declared
+boundaries did not produce another in-scope finding.
+
+The failed `/tmp` wrapper is retained above as an operator-path lead rather
+than promoted into product evidence. This round makes no claim of capture
+completeness, external truth, cause, model quality, delivery correctness,
+deployment readiness, security or mutation authority.
+
+If another restart packet is required, `434-CARRYOVER-4.md` or any successor
+must be one full, self-contained aggregate of every pass, including earlier
+daisy-chained packets and every later audit. It must carry every finding,
+remediation, inoculation, audit-round count, unresolved lead, signed
+fixed-tree identity, receipt digest and final check. Mason must apply that
+whole amalgamated union to one final tree before any tree verification or
+acceptance test. No partial or intermediate reconstruction is an acceptance
+tree.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 6 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived because the complete 37-path step changes
+Python, JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity
+Auditor and Fizz did not run. The complete tree was reviewed without Horos
+exclusions. Phylax, Ephoros and Hypomnema exit `0`, `0` and `0` after the
+fixes below.
+
+The round began from signed cumulative audit tree
+`f0bf34c8003a61ab6ba659d9210aa03c16d84e06`, whose parent is signed fixed
+tree `29007dfe350c50391f31f1e7d3f7609e6aff9628`. Every earlier finding,
+remediation and inoculation was present before this round. No intermediate
+tree was treated as an acceptance tree.
+
+### Findings
+
+`I434-C3-S1-R6-01` is high severity in `scripts/run_observation.py`. Bare
+`content` and related content-payload metadata names validated clean, although
+the operator contract refuses raw-payload name families. It is fixed and
+guarded in `934fc1ba238f32cc1827d1b1cb06f001f6bac7f2`: `content` and `contents`
+token families now refuse without echo, while typed separated and compact
+count and digest descriptors remain valid.
+
+`I434-C3-S1-R6-02` is medium severity in `audit/AUDIT.md` and the decision
+identity tests. Two reconstructed audit sentences still called the observation
+decision ADR-014 after the distinct Wave Atlas decision took that number. It
+is fixed and guarded in `934fc1ba238f32cc1827d1b1cb06f001f6bac7f2`: the
+observation file, heading, published references and reconstructed audit
+sentences remain ADR-015, while the distinct ADR-014 file and heading are
+unchanged.
+
+Finding count: 2. Each mechanism was reproduced twice against signed parent
+`f0bf34c8003a61ab6ba659d9210aa03c16d84e06`. The focused guards were red
+before repair and green afterwards. The exact source-owned Elenchus command
+ran against signed fix commit `934fc1ba238f32cc1827d1b1cb06f001f6bac7f2`.
+Verdict: `guarded`; the detached-parent report records assertion failures and
+the fixed report is complete. Another independent round is required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | The three packet identities, digests, source runs and preserved refs remain exact in the cumulative fixture; its 36 original findings and archived receipt boundaries still pass. | clean on the fixed tree |
+| `prior-art-drift` | The current result remains one cumulative 37-path chain above `367e9662384bb29ea94576d270ab86744f3326a2`; earlier checks were history only and all current evidence was rerun. | clean on the fixed tree |
+| `delegated-path-resolution` | Both reproduction directories and the report path were canonical absolute paths under the run worktree. One wrong unittest selector and one read-only zsh reserved-variable loop failed before product evidence and were rerun correctly; neither created an accepted output or changed another path. | operator diagnostics contained; product tree clean |
+| `origin-checkout-drift` | The protected checkout retained exactly five pre-existing status entries before and after every write and report batch. No image content was read, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | The reporter, four valid and five invalid CLIs, both Protasis modes, four separate Brevitas forms, current Horos and obsolete Horos used the receipted shapes and expected exits. | clean on the fixed tree |
+| `current-main-loss` | Fiat 5.12.1, Elenchus 1.2.0, Wave Atlas and unrelated base paths remain. The observation decision is ADR-015 and the distinct existing ADR-014 is unchanged. | fixed in this round; another round required |
+| `carryover-map-gap` | The map binds 36 original findings, four carried guards, three current repairs, one reporter repair and all 18 audit findings from rounds 1 through 6 to current guards and eight families. | clean on the fixed tree |
+| `schema-runtime-drift` | Closed fields, printable-ASCII names, enums, patterns, exact-number ceilings, civil times, path rules, limits and optional facts agree. The differential matrix runs 309 cases. | clean on the fixed tree |
+| `wrong-kind-crash` | The 365-case recursive matrix mutates every structural value position in four valid flows and reports zero crashes and zero unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Nine generated cases plus focused order, capability, retry, refusal, inferred-selector, handoff, evidence and terminal guards pass. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape and the bounded final reread remain guarded in the eight-case replacement family. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass. The fresh absolute-path reporter ran 69 tests and its complete bytes and identity were checked before removal. | clean on the fixed tree |
+| `recorded-path-unicode` | NFC, scalar validity, `Cc`, `Cf` and `Cs` refusal, portable syntax, byte ceilings and numeric or superscript device aliases agree across runtime, schema, prose and 33 cases. | clean on the fixed tree |
+| `name-normalisation-gap` | Separator, camel, Pascal, compact, token, acronym and content families now run 329 cases. Raw content names refuse; typed separated and compact count or digest descriptors remain accepted. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and canonical JSON derive from one finding model. Invalid and forbidden content names use fixed pointer segments, and guards prove rejected names and values are not echoed. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case family preserves issue or topic, step, role, selected skill and promise, paired Git identities, refusal promise, handoff producer and terminal relations. The ADR identity guard binds the named decision files and reconstructed audit record. | fixed in this round; another round required |
+| `evidence-promotion` | Evidence ids, subjects, scopes, time domains, classes, source events, handoff carriage, optional usage and terminal outcomes retain exact backward bindings. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, number, string, key, collection, character-path and UTF-8 path ceilings remain fail-closed without coercion. | clean on the fixed tree |
+| `sensitive-payload` | Recursive checks now refuse bare and compound content families beside all carried raw and hidden families without echo. Innocently named scalar meaning remains outside the mechanical claim. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, source-bound and exclusive with same-event unknowns; explicit estimate families and wrong kinds refuse. | clean on the fixed tree |
+| `partial-or-stale-record` | Malformed tails, lifecycle halves, concurrent input mutation, report replacement and stale decision identity refuse without fallback, repair or an unbounded stability loop. | fixed in this round; another round required |
+| `elenchus-report-drift` | The exact command `python3 tests/emit_run_observation_report.py {report}`, format `unittest-json-v1` and file `.elenchus/run-observation.json` ran against signed commit `934fc1b...`. Verdict: `guarded`; the parent report contains assertion failures and the fixed report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found two defects. No controller receipt, push, pull request, issue mutation, merge or closure action was performed. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 69/69. The cumulative inoculation reports
+1,140 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 2
+audit-round-3-map, 3 audit-round-4-map, 4 audit-round-5-map, 2
+audit-round-6-map, 309 schema-runtime, 365 recursive-wrong-kind, 9
+lifecycle-reference, 8 file-replacement, 33 path-representation, 329
+normalised-field-name, 8 report-parity-no-echo and 17
+work-repository-context cases. It reports zero crashes and zero unexpected
+clean results. Root tests pass 188/188.
+
+The source-owned reporter runs 69 tests and emits one complete
+`elenchus.unittest.v1` report with no failures, errors, skips, expected
+failures or unexpected successes. Elenchus reports `guarded` because the
+unfixed parent report contains assertion failures.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit `RO009`, `RO013`, `RO008`, `RO012` and `RO011`. Promise sync writes zero
+files, its check reports 14 identical copies and coverage reports 68/68.
+Phylax, Ephoros, Hypomnema, both Protasis modes, Imprimatur and each separate
+Brevitas command exit `0`. Current Horos and `git diff --check` exit `0`;
+obsolete Horos exits `2`.
+
+Python syntax, schema, coverage record, cumulative map and all 34 tracked
+JSONL objects parse. The receipted study and runbook remain byte-identical to
+their published copies. The run-to-current set stays at the declared 37 paths
+and contains no image. The protected origin retains exactly its five recorded
+paths.
+
+The runtime, schema, operator-document and focused-test SHA-256 values are
+`0b18caf55ca5d35f3724025fb2231fd880b048b05ea847a1479be14e6c64ce0b`,
+`51dc2e885e2303eea2cbe824b4f241bf4f25045d09f0fbc081ff2d8648ca5d67`,
+`b75e57ea191ba4ea170103088f249279683db4d0d4ae16c6a3e43e3ac01925db`
+and `18ec9b78a0dfdc10657a8d6f010fe679586aa0f82b18ba92ccfa71b5d699e268`;
+all four match `tests/promise_machine_coverage.json`.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains a
+source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after observation ends.
+
+Unicode scalar noncharacters and non-`Cf` default-ignorable marks remain
+inside the declared scalar and NFC path language. Sequence remains
+authoritative over wall-clock order; retries are scheduled rather than a full
+attempt chain. The record allows correlation ids to join paths. Evidence may
+be narrower than the opening subject. These declared boundaries did not produce another
+in-scope finding.
+
+This round makes no claim of capture completeness, external truth, cause,
+model quality, delivery correctness, deployment readiness, security or
+mutation authority. Any later `434-CARRYOVER-4.md` or successor must remain
+one self-contained aggregate of every pass if a restart is required. No
+partial or intermediate reconstruction is an acceptance tree.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 8 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived: the complete 37-path step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. The full tree was reviewed
+without Horos exclusions. Phylax, Ephoros and Hypomnema exit `0` on the fixed
+tree.
+
+The round began at signed audit head
+`941563a9df09f478c1ca2b2ee59b6f2768d2dfc4`, whose sole parent is signed fixed
+tree `69d28ba2f253b23f58e28abae64fc466cfd170d5`. It ended at signed repair
+`1ed72f7154bd4ff5ea39066c21665a51daad9594`, whose sole parent is that audit
+head. All three prior packet identities, digests, refs, historical findings,
+current repairs and inoculations were applied to one tree before any check.
+
+### Finding
+
+`I434-C3-S1-R8-01` is high severity in `scripts/run_observation.py`. Raw
+instruction and directive aliases, including `instructionSet`,
+`instructionsText`, `directiveSet` and `directiveText`, validated clean as
+metadata although the operator contract excludes raw instructions and
+directives. Two independent target-rooted probes against signed head
+`941563a9df09f478c1ca2b2ee59b6f2768d2dfc4` each returned zero findings.
+
+The repair in `1ed72f7154bd4ff5ea39066c21665a51daad9594` makes token and
+compact normalisation refuse those families with `RO014`, while correctly
+typed bounded descriptors remain valid. The runtime, schema declaration,
+operator document, focused guard, systematic inoculation, carryover map and
+coverage digests change together. The initial systematic red guard exposed the
+uncovered compact spelling; the repair adds the compact marker and the final
+guard is green.
+
+The exact source-owned Elenchus command ran against the signed repair:
+
+```bash
+python3 plugins/hexaemeron/skills/elenchus/scripts/elenchus.py \
+  --ref 1ed72f7154bd4ff5ea39066c21665a51daad9594 \
+  --test-command "python3 tests/emit_run_observation_report.py {report}" \
+  --report-format unittest-json-v1 \
+  --report-file .elenchus/run-observation.json
+```
+
+Verdict: `guarded -- the runner report records a parent assertion failure`.
+The fixed-tree reporter is complete `elenchus.unittest.v1`, 70 tests, zero
+failures, errors, skips, expected failures and unexpected successes. This is
+the configured final round and it found one defect: no controller receipt,
+push, pull request, issue action, integration or closure occurred. A full
+`434-CARRYOVER-4.md` packet and halted restart are required.
+
+### Risk coverage
+
+| risk id | disposition |
+| --- | --- |
+| `carryover-chain-gap` | Three prior packet URLs, digests, source runs and preserved refs remain exact in the cumulative fixture. |
+| `prior-art-drift` | All prior remediation was applied before one fixed-tree verification; history was not promoted to current evidence. |
+| `delegated-path-resolution` | Probes, report and edits used canonical paths below the run worktree. |
+| `origin-checkout-drift` | The protected checkout retained exactly its five pre-existing paths; no contents were read or changed. |
+| `gate-command-arity` | Reporter, valid/invalid CLI, Promise, lint and Horos command forms used their receipted shapes. |
+| `current-main-loss` | Fiat, Elenchus, Wave Atlas, ADR-014 and ADR-015 remain distinct and present. |
+| `carryover-map-gap` | Map binds 36 historical findings, four carried repairs and 20 audit-round mechanisms through round 8. |
+| `schema-runtime-drift` | Runtime and schema now declare the instruction/directive boundary; 309 differential cases pass. |
+| `wrong-kind-crash` | 365 recursive cases report zero crashes and zero unexpected clean results. |
+| `lifecycle-reference-gap` | Nine lifecycle/reference cases pass. |
+| `input-replacement` | Eight replacement/final-reread cases pass. |
+| `reporter-replacement` | Named-target and same-inode post-fsync guards pass; the current reporter is complete. |
+| `recorded-path-unicode` | NFC, scalar, `Cc`, `Cf`, `Cs`, portable and byte-ceiling guards pass. |
+| `name-normalisation-gap` | 384 generated name cases cover separated, camel, compact and descriptor forms; fixed in this round. |
+| `diagnostic-injection` | Refused names and values use fixed pointers and are not echoed. |
+| `context-binding-gap` | Context, paired Git identity, handoff and distinct ADR identities remain guarded. |
+| `evidence-promotion` | Evidence, source-event and terminal relations retain their exact backward bindings. |
+| `unbounded-input` | File, line, event, nesting, scalar, key, collection and path ceilings remain fail-closed. |
+| `sensitive-payload` | Instruction and directive raw payload aliases now join the carried forbidden families; fixed in this round. |
+| `optional-telemetry` | Optional host, model and token facts remain source-bound and estimate-free. |
+| `partial-or-stale-record` | Tails, lifecycle halves, concurrent input mutation, report replacement and stale identity refuse. |
+| `elenchus-report-drift` | Exact command, format and report path give a guarded detached-parent comparison and complete fixed report. |
+| `closure-overclaim` | One configured-final-round finding prevents receipt and requires full aggregate carryover and restart. |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 70/70. The cumulative inoculation reports
+1,197 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 2
+audit-round-3-map, 3 audit-round-4-map, 4 audit-round-5-map, 2
+audit-round-6-map, 1 audit-round-7-map, 1 audit-round-8-map, 309
+schema-runtime, 365 recursive-wrong-kind, 9 lifecycle-reference, 8
+file-replacement, 33 path-representation, 384 normalized-field-name, 8
+report-parity-no-echo and 17 work-repository-context cases. Root tests pass
+189/189. Promise sync/check reports 14 identical copies and coverage 68/68.
+Phylax, Ephoros, Hypomnema, Imprimatur, four separate Brevitas commands,
+current Horos and diff check exit `0`; obsolete Horos exits `2` as required.
+
+The runtime, schema, operator document, focused-test, map and coverage SHA-256
+values are `a03a37e1d447d58ed7eeb64cd1a2d4487452c77803343c011044352d5a5eb61c`,
+`12bfc139217adf336bfa39b082097dc9b493e13c49cb6e25787bcdb5991499b6`,
+`a0a028615dddc9e379c1ae3cfd638e8d1cec0687cf3d13b21251c2222803c5b9`,
+`1f02c6d2eb163b36c3faf8cf7dec356212879d7fcf29cfefcdd6523166d7e9bd`,
+`fbbb8ab95b7cdf65fc9f4f1af9e35ab050b73d18ad974b100f5e9791e3059e14` and
+`1d99d9781364c2517775700f3f9c3a7b1ba05f393391249ebc2ab0953c9dd0a8`.
+
+### Restart handoff
+
+The next attempt must use one `434-CARRYOVER-4.md` packet that aggregates all
+findings, remediations, inoculations, audit counts, unresolved leads, signed
+fixed-tree identities, receipts and final checks from packets one through
+three and rounds one through eight. Mason must apply the complete aggregate to
+one tree before any test, lint, reporter, verification or audit round. No
+incremental packet chain or intermediate acceptance tree is permitted.
+
+## Issue 434 observable run record carryover inoculation 3, step 1, round 7 -- 2026-08-23
+
+### Suite disposition
+
+The Solidity suite remains waived: the complete 37-path step changes Python,
+JSON, JSONL and Markdown and ships no Solidity. X-Ray, Solidity Auditor and
+Fizz did not run. The full tree was reviewed without Horos exclusions.
+Phylax, Ephoros and Hypomnema exited `0`, `0` and `0` on the fixed tree.
+
+The round started from signed audit head
+`06787433ebef83be947bb06e36718422a04f9625`, whose parent is signed fixed tree
+`934fc1ba238f32cc1827d1b1cb06f001f6bac7f2`. The repair is signed commit
+`69d28ba2f253b23f58e28abae64fc466cfd170d5`; it has that audit head as its
+sole parent. All prior carryover packets, findings, remediations and
+inoculations were present before this round. No intermediate tree was accepted.
+
+### Findings
+
+`I434-C3-S1-R7-01` is high severity in `scripts/run_observation.py`. Raw
+execution, source and trace aliases including `command`, `shellCommand`,
+`subprocessCommand`, `commandLine`, `shellScript`, `sourceCode`, `stackTrace`,
+`executionTrace` and `traceData` validated clean as metadata despite the
+record's raw-payload boundary. It is fixed and guarded in
+`69d28ba2f253b23f58e28abae64fc466cfd170d5`: token-pair and compact
+normalisation now refuse the aliases with `RO014`, while correctly typed
+bounded descriptors remain admissible. The red-first guard failed for all
+nine aliases on the unfixed parent and passes on the fixed tree.
+
+Finding count: 1. The mechanism was reproduced twice against signed head
+`06787433ebef83be947bb06e36718422a04f9625`: once with a target-rooted
+validator probe and once through the focused red-first unittest guard. The
+exact source-owned Elenchus command
+`python3 tests/emit_run_observation_report.py {report}` ran against signed fix
+`69d28ba2f253b23f58e28abae64fc466cfd170d5` with format
+`unittest-json-v1` and `.elenchus/run-observation.json`; verdict `guarded`.
+The detached parent reports an assertion failure and the fixed report is
+complete. Another independent round is required.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `carryover-chain-gap` | Three packet identities, digests, source runs and preserved refs remain exact in the cumulative fixture; 36 original findings and archived receipt boundaries pass. | clean on the fixed tree |
+| `prior-art-drift` | The result remains one cumulative 37-path chain above `367e9662384bb29ea94576d270ab86744f3326a2`; history was not promoted into current evidence. | clean on the fixed tree |
+| `delegated-path-resolution` | Reproduction, reports and all writes used canonical absolute paths below the run worktree; no accepted output used `/tmp`. | clean on the fixed tree |
+| `origin-checkout-drift` | Before and after write batches, the protected checkout had exactly its five recorded paths; no image content was read, staged, removed or changed. | clean on the fixed tree |
+| `gate-command-arity` | Reporter, valid and invalid CLIs, Promise commands, lints, current Horos and obsolete Horos used their receipted shapes and actual exits. | clean on the fixed tree |
+| `current-main-loss` | Fiat 5.12.1, Elenchus 1.2.0, Wave Atlas and unrelated base work remain; ADR-014 is distinct and the observation decision is ADR-015. | clean on the fixed tree |
+| `carryover-map-gap` | The map binds 36 original findings, four carried guards, three current repairs, one reporter repair and 19 audit findings through round 7 to current guards and eight families. | fixed in this round; another round required |
+| `schema-runtime-drift` | Closed fields, enums, patterns, civil times, path rules, limits and optional facts agree; the differential matrix runs 309 cases. | clean on the fixed tree |
+| `wrong-kind-crash` | The recursive matrix mutates all structural value positions in four valid flows and reports 365 cases, zero crashes and zero unexpected clean results. | clean on the fixed tree |
+| `lifecycle-reference-gap` | Nine generated order, capability, retry, refusal, inferred-selector, handoff, evidence and terminal cases pass. | clean on the fixed tree |
+| `input-replacement` | Growth, FIFO, same-size rewrite, named swap, ancestor escape and final bounded reread remain guarded in eight cases. | clean on the fixed tree |
+| `reporter-replacement` | Named-target swap and same-inode post-`fsync` rewrite guards pass; the source reporter emits one fresh confined report. | clean on the fixed tree |
+| `recorded-path-unicode` | NFC, scalar validity, `Cc`, `Cf`, `Cs`, portable syntax, byte ceilings and numeric or superscript device aliases agree in runtime, schema, prose and 33 cases. | clean on the fixed tree |
+| `name-normalisation-gap` | Separated, camel, Pascal and compact execution, source and trace aliases now refuse; typed descriptors retain their value checks. The generated matrix runs 369 cases. | fixed in this round; another round required |
+| `diagnostic-injection` | Text and JSON derive from one finding model; newly refused aliases use fixed pointer segments and are not echoed. | clean on the fixed tree |
+| `context-binding-gap` | The 17-case family preserves issue or topic, step, role, selected skill and promise, paired Git identities, refusal promise and handoff producer; ADR identities remain distinct. | clean on the fixed tree |
+| `evidence-promotion` | Evidence ids, subjects, scopes, time domains, classes, source events, handoff carriage, optional usage and terminal outcomes retain exact backward bindings. | clean on the fixed tree |
+| `unbounded-input` | File, line, event, nesting, number, string, key, collection and path ceilings refuse before unbounded work. | clean on the fixed tree |
+| `sensitive-payload` | Raw execution, source and trace family variants now join prior directives, rules, turns, utterances, artifacts and cognition families without echo. | fixed in this round; another round required |
+| `optional-telemetry` | Host, model and token facts remain optional, source-bound and exclusive with same-event unknowns; explicit estimate families and wrong kinds refuse. | clean on the fixed tree |
+| `partial-or-stale-record` | Malformed tails, lifecycle halves, concurrent input mutation, report replacement and stale identity refuse without fallback, repair or stability loops. | clean on the fixed tree |
+| `elenchus-report-drift` | Exact source command, format and report path produced a guarded detached-parent comparison for signed fix `69d28ba…`; the fixed report is complete. | fixed and guarded; another round required |
+| `closure-overclaim` | This round found one defect. No controller receipt, push, pull request, issue mutation, merge or closure action occurred. | another independent round is required |
+
+### Current gate evidence
+
+Focused and inoculation tests pass 70/70. The cumulative inoculation reports
+1,181 cases: 36 carryover-map, 4 fixed-round-1-map, 3 current-repair-map, 1
+reporter-lead-map, 3 audit-round-1-map, 4 audit-round-2-map, 2
+audit-round-3-map, 3 audit-round-4-map, 4 audit-round-5-map, 2
+audit-round-6-map, 1 audit-round-7-map, 309 schema-runtime, 365
+recursive-wrong-kind, 9 lifecycle-reference, 8 file-replacement, 33
+path-representation, 369 normalized-field-name, 8 report-parity-no-echo and
+17 work-repository-context cases. It reports zero crashes and zero unexpected
+clean results. Root tests pass 189/189.
+
+The source-owned reporter runs 70 tests and emits one complete
+`elenchus.unittest.v1` report with no failures, errors, skips, expected
+failures or unexpected successes. Elenchus reports `guarded` because the
+unfixed parent report contains assertion failures.
+
+All four valid CLIs exit `0`. The five required invalid fixtures exit `1` and
+emit `RO009`, `RO013`, `RO008`, `RO012` and `RO011`. Promise sync writes zero
+files, its check reports 14 identical copies and coverage reports 68/68.
+Phylax, Ephoros, Hypomnema, both Protasis modes, Imprimatur and each separate
+Brevitas command exit `0`. Current Horos and `git diff --check` exit `0`;
+obsolete Horos exits `2` as its negative specimen.
+
+Python syntax, schema, coverage record, cumulative map and all 34 tracked
+JSONL objects parse. The receipted study and runbook remain byte-identical to
+their published copies. The run-to-current set remains at the declared
+37-path surface and contains no image. The protected origin retains exactly
+its five recorded paths.
+
+### Leads not pursued
+
+Capture, redaction and persistence remain in #435. Fiat receipt binding
+remains in #436, and cross-run diagnosis remains in #449. The schema remains
+a source contract rather than an executed dependency. Field-name checks cannot
+establish the meaning of an innocently named scalar, and the final bounded
+reread cannot prevent a writer changing a file after observation ends.
+
+Unicode scalar noncharacters and non-`Cf` default-ignorable marks remain
+inside the declared scalar and NFC path language. Sequence remains
+authoritative over wall-clock order; retries are scheduled rather than a full
+attempt chain. The record allows correlation ids to join paths. Evidence may
+be narrower than the opening subject. These declared boundaries did not
+produce another in-scope finding.
+
+This round makes no claim of capture completeness, external truth, cause,
+model quality, delivery correctness, deployment readiness, security or
+mutation authority. Any later `434-CARRYOVER-4.md` or successor must remain
+one self-contained aggregate of every pass if a restart is required. No
+partial or intermediate reconstruction is an acceptance tree.

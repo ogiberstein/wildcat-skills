@@ -27,6 +27,92 @@
       "refuses": "answer-truth"
     }
   ],
+  "run_observation": {
+    "contract": "promise-machine-run-observation/v1",
+    "promise_id": "promise-machine-run-observation-structural-validation",
+    "transition": "treat only the named bytes as structurally conforming and pass the bounded result without strengthening it",
+    "runtime": {
+      "path": "scripts/run_observation.py",
+      "sha256": "a03a37e1d447d58ed7eeb64cd1a2d4487452c77803343c011044352d5a5eb61c"
+    },
+    "schema_source": {
+      "path": "schemas/promise-machine-run-observation-v1.schema.json",
+      "sha256": "12bfc139217adf336bfa39b082097dc9b493e13c49cb6e25787bcdb5991499b6"
+    },
+    "documentation": {
+      "path": "docs/promise-machine/run-observation-v1.md",
+      "sha256": "a0a028615dddc9e379c1ae3cfd638e8d1cec0687cf3d13b21251c2222803c5b9"
+    },
+    "tests": {
+      "path": "tests/test_run_observation.py",
+      "sha256": "1f02c6d2eb163b36c3faf8cf7dec356212879d7fcf29cfefcdd6523166d7e9bd",
+      "selectors": [
+        "test_schema_binds_the_contract_and_closed_event_union",
+        "test_valid_records_are_accepted",
+        "test_issue_acceptance_faults_have_distinct_codes",
+        "test_text_and_json_use_the_same_finding_objects",
+        "test_combined_hostile_probes_refuse",
+        "test_run_context_is_closed_and_binds_refusals_and_handoffs",
+        "test_repository_before_and_after_identities_are_bound",
+        "test_named_path_replacement_during_read_refuses",
+        "test_parent_path_replacement_outside_root_refuses",
+        "test_reporter_rejects_named_target_swap_during_write",
+        "test_metadata_keys_name_observable_facts_and_redact_forbidden_names",
+        "test_raw_content_names_refuse_but_typed_descriptors_remain_bounded",
+        "test_execution_source_and_trace_payload_aliases_refuse",
+        "test_observation_decision_is_adr_015_and_adr_014_remains_distinct",
+        "test_safe_descriptor_suffixes_require_descriptor_values",
+        "test_suffixed_sensitive_and_hidden_aliases_refuse",
+        "test_actor_payload_aliases_refuse_but_descriptors_remain_valid",
+        "test_instruction_and_hidden_work_synonyms_refuse_but_descriptors_remain_valid",
+        "test_optional_facts_refuse_explicit_estimates",
+        "test_repository_paths_are_portable_and_control_free",
+        "test_repository_path_total_utf8_bytes_are_bounded",
+        "test_schema_and_runtime_placeholder_rules_agree",
+        "test_schema_and_runtime_reject_impossible_civil_dates",
+        "test_unrepresentable_caller_paths_refuse_without_crashing",
+        "test_unhashable_and_non_string_typed_fields_refuse_without_crashing"
+      ]
+    },
+    "fixtures": [
+      {
+        "path": "tests/fixtures/run-observation/valid/handoff.jsonl",
+        "sha256": "caeac39579fc61cc3aa716a3bd1f2b7e909240dd0fc434ccb82e30c7f7343c6b"
+      },
+      {
+        "path": "tests/fixtures/run-observation/valid/refusal.jsonl",
+        "sha256": "a70528abd04fabae0ae56fae8c3fafa3621a24950187f38c1aa17af9e0382b0f"
+      },
+      {
+        "path": "tests/fixtures/run-observation/valid/retry.jsonl",
+        "sha256": "0c72e33e192a213cc4dfbd646c80fd2fde56c65dfa48190f9bd8cd8bb897a335"
+      },
+      {
+        "path": "tests/fixtures/run-observation/valid/success.jsonl",
+        "sha256": "daf35a0edbf7c890bdf2963097a563852a927ce4451d66cd8fa49a7e2c4dec92"
+      },
+      {
+        "path": "tests/fixtures/run-observation/invalid/bad-order.jsonl",
+        "sha256": "93faef0441e3ef01dca342907ac7ee874fd3dc9ece2e2765a5ec55ad44b791fb"
+      },
+      {
+        "path": "tests/fixtures/run-observation/invalid/hidden-reasoning.jsonl",
+        "sha256": "bc8690fd6011cfe11efb9c6f425d812c04bbefd99708a2d75f5dbc1a92efddc5"
+      },
+      {
+        "path": "tests/fixtures/run-observation/invalid/missing-run-id.jsonl",
+        "sha256": "ef9d2f7dc5b9f8419410ef174af719f144b26ce94018248c51fd6563d77b2856"
+      },
+      {
+        "path": "tests/fixtures/run-observation/invalid/strengthened-evidence.jsonl",
+        "sha256": "c4f13f71546651b8ed8bc646dbe94c003d519e44425b4cf889584a05cc30f2db"
+      },
+      {
+        "path": "tests/fixtures/run-observation/invalid/unbound-evidence.jsonl",
+        "sha256": "15a19df13b0aa8bd9e56ec1d6b1e4f755cadd11ff359b036a6db7341802686ad"
+      }
+    ]
+  },
   "runtime": {
     "alexandria-derived-view": {
       "source": "plugins/alexandria/schemas/archive-manifest-v1.schema.json",
