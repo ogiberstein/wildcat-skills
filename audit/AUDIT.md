@@ -9562,3 +9562,29 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: aggregate Elenchus `guarded` comes from the three causal controller guards; S1-R7-04 and S1-R7-05 are gate-scope faults without independent Elenchus guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issue 453 still owns signed report-byte binding
+
+## audit-record-schema-timestamp-synopsis, step 1, round 8 -- 2026-08-23T08:11:27Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R8-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Type-1 raw HTML missed a bare end-of-line opener and required its closer to match, diverging from CommonMark in both directions. | fixed in this commit; guards red then green |
+| S1-R8-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A lowercase declaration opener could hide a strict record under current CommonMark while the selector exposed it. | fixed in this commit; guard red then green |
+| S1-R8-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The findings parser stopped before a valid GFM continuation row and split escaped cell pipes as delimiters. | fixed in this commit; guards red then green |
+| S1-R8-04 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The GFM type-6 `source` tag could hide a strict record while the selector exposed it. | fixed in this commit; guard red then green |
+| S1-R8-05 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Masking a nonblank inline-HTML line could fabricate the blank boundary required before a field hidden in multiline raw markup. | fixed in this commit; guard red then green |
+
+### Leads
+
+Leads not pursued: the round-8 ceiling requires the controller's `audit-verdict` stop; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step

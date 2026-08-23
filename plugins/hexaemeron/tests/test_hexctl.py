@@ -2465,7 +2465,10 @@ class AuditRecordSchemaTests(HexctlCase):
         )
         for omitted, diagnostic in cases:
             with self.subTest(omitted=omitted):
-                self.write_record(omit=(omitted,))
+                self.write_record(
+                    omit=(omitted,),
+                    extra=("",) if omitted == "leads" else (),
+                )
                 self.refuse(diagnostic, "--findings", "0")
         self.write_record(extra=("Audit schema: fiat-audit-round/v1",))
         self.refuse("duplicate Audit schema", "--findings", "0")
@@ -2503,6 +2506,19 @@ class AuditRecordSchemaTests(HexctlCase):
         ]
         Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
         Path(self.log_path()).write_text("\n".join(visible), encoding="utf-8")
+        self.refuse("Audit schema must follow a blank line", "--findings", "0")
+
+    def test_masked_inline_html_cannot_fabricate_a_blank_field_boundary(self):
+        lines = self.record_lines()
+        schema = lines.index("Audit schema: fiat-audit-round/v1")
+        lines[schema:schema + 1] = [
+            '<x-audit data="',
+            "    <!-- not a Markdown blank line -->",
+            "Audit schema: fiat-audit-round/v1",
+            '">',
+        ]
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
         self.refuse("Audit schema must follow a blank line", "--findings", "0")
 
     def test_required_fields_hidden_in_a_multiline_link_title_are_refused(self):
@@ -2548,6 +2564,30 @@ class AuditRecordSchemaTests(HexctlCase):
         )
         self.refuse("no H2 record", "--findings", "0")
 
+    def test_bare_special_declaration_and_gfm_source_blocks_hide_records(self):
+        controller = hexctl_module()
+        text = "## strict record\n\nAudit schema: fiat-audit-round/v1\n"
+        hidden_records = (
+            f"<script\n{text}\n</script>\n",
+            f"<!doctype\n{text}\n>\n",
+            f"<source>still raw HTML\n{text}\n",
+        )
+        for hidden in hidden_records:
+            with self.subTest(first_line=hidden.splitlines()[0]):
+                visible = [
+                    line for _, _, line, _ in controller.audit_visible_lines(hidden)
+                ]
+                self.assertNotIn("## strict record", visible)
+
+    def test_type_one_raw_html_accepts_any_special_end_tag(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        Path(path).write_text(
+            f"<pre\nlegacy evidence\n</style>\n{text}",
+            encoding="utf-8",
+        )
+        self.run_ctl("audit-round", "--findings", "0")
+
     def test_required_fields_follow_the_canonical_schema_order(self):
         self.write_record()
         lines = self.record_lines()
@@ -2555,6 +2595,7 @@ class AuditRecordSchemaTests(HexctlCase):
         leads_block = lines[leads:leads + 2]
         del lines[leads:leads + 2]
         lines[2:2] = leads_block
+        lines.append("")
         Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
         self.refuse("canonical field order", "--findings", "0")
 
@@ -2612,6 +2653,28 @@ class AuditRecordSchemaTests(HexctlCase):
             "--findings", "1", "--fixes-commit", "fix-1",
             "--elenchus-verdict", "passed",
         )
+
+    def test_findings_table_ends_before_a_gfm_continuation_row(self):
+        lines = self.record_lines(findings=1)
+        first_row = lines.index(
+            "| F-01 | low | fixture.py | finding 1 | open |"
+        )
+        lines.insert(
+            first_row + 1,
+            "F-02 | medium | hidden.py | uncounted GFM row | open",
+        )
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
+        self.refuse("followed by a blank line", "--findings", "1")
+
+    def test_findings_table_accepts_a_gfm_escaped_pipe_in_a_cell(self):
+        self.write_record(
+            findings=1,
+            table_rows=[
+                r"| F-01 | low | fixture.py | comparison `a \| b` | open |"
+            ],
+        )
+        self.run_ctl("audit-round", "--findings", "1")
 
     def test_supplied_log_must_be_the_configured_path(self):
         self.write_record()

@@ -56,7 +56,8 @@ and `Leads not pursued`. Cover every id in the packet's source-bound risk
 register exactly once as `reviewed` or `not-applicable`. Keep negative space
 and leads non-empty on their label lines. Put a blank line before every field
 label and the findings-table header so multiline inline markup cannot absorb
-them. A clean table contains only
+them, and end the findings table with a blank line so GFM cannot extend its
+row count. A clean table contains only
 `| -- | -- | -- | none | -- |`; a no-fix round records a null verdict. The
 complete example and refusal rules live in
 [`references/audit-loop.md`](../skills/fiat/references/audit-loop.md).

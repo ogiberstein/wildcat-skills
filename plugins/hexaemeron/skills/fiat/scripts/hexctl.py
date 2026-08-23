@@ -111,15 +111,21 @@ AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
 AUDIT_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 AUDIT_HTML_OPEN_RE = re.compile(
     r"(?P<comment><!--)|(?P<processing><\?)|(?P<cdata><!\[CDATA\[)|"
-    r"(?P<declaration><![A-Z])|"
+    r"(?P<declaration><![A-Za-z])|"
     r"(?P<tag><(?P<tag_name>(?i:script|pre|style|textarea))(?=[\s>]))"
+)
+AUDIT_BARE_SPECIAL_BLOCK_RE = re.compile(
+    r"<(?P<tag_name>script|pre|style|textarea)", re.IGNORECASE
+)
+AUDIT_SPECIAL_CLOSE_RE = re.compile(
+    r"</(?:script|pre|style|textarea)>", re.IGNORECASE
 )
 AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
     r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|"
     r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|"
     r"figure|footer|form|frame|frameset|h[1-6]|head|header|hgroup|hr|html|iframe|"
     r"legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|"
-    r"param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|"
+    r"param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|"
     r"track|ul)(?=[\s/>]|$)",
     re.IGNORECASE,
 )
@@ -1559,17 +1565,30 @@ def audit_html_open(line: str, cursor: int) -> tuple[int, int, str, bool] | None
     if opened is None:
         return None
     if opened.group("comment") is not None:
-        close, casefold = "-->", False
+        close, any_special = "-->", False
     elif opened.group("processing") is not None:
-        close, casefold = "?>", False
+        close, any_special = "?>", False
     elif opened.group("cdata") is not None:
-        close, casefold = "]]>", False
+        close, any_special = "]]>", False
     elif opened.group("declaration") is not None:
-        close, casefold = ">", False
+        close, any_special = ">", False
     else:
         close = f"</{opened.group('tag_name').lower()}>"
-        casefold = True
-    return opened.start(), opened.end(), close, casefold
+        any_special = True
+    return opened.start(), opened.end(), close, any_special
+
+
+def audit_html_close_span(
+    line: str, cursor: int, close: str, any_special: bool
+) -> tuple[int, int] | None:
+    """Find the raw-block terminator without requiring special tags to match."""
+    if any_special:
+        match = AUDIT_SPECIAL_CLOSE_RE.search(line, cursor)
+        return match.span() if match is not None else None
+    closed_at = line.find(close, cursor)
+    if closed_at < 0:
+        return None
+    return closed_at, closed_at + len(close)
 
 
 def audit_mask_block_html(text: str) -> str:
@@ -1578,17 +1597,18 @@ def audit_mask_block_html(text: str) -> str:
     open_mark = None
     open_length = None
     html_close = None
-    close_casefold = False
+    any_special_close = False
     until_blank = False
     for physical in markdown_physical_lines(text):
         line = physical.rstrip("\r\n")
         ending = physical[len(line):]
 
         if html_close is not None:
-            searchable = line.lower() if close_casefold else line
-            if html_close in searchable:
+            if audit_html_close_span(
+                line, 0, html_close, any_special_close
+            ) is not None:
                 html_close = None
-                close_casefold = False
+                any_special_close = False
             masked.append(" " * len(line) + ending)
             continue
         if until_blank:
@@ -1620,13 +1640,22 @@ def audit_mask_block_html(text: str) -> str:
             continue
 
         indent = len(line) - len(line.lstrip(" "))
+        bare_special = (
+            AUDIT_BARE_SPECIAL_BLOCK_RE.fullmatch(line[indent:])
+            if indent <= 3
+            else None
+        )
+        if bare_special is not None:
+            html_close = f"</{bare_special.group('tag_name').lower()}>"
+            any_special_close = True
+            masked.append(" " * len(line) + ending)
+            continue
         opened = audit_html_open(line, indent) if indent <= 3 else None
         if opened is not None and opened[0] == indent:
-            _, _, close, casefold = opened
-            searchable = line.lower() if casefold else line
-            if close not in searchable:
+            _, _, close, any_special = opened
+            if audit_html_close_span(line, 0, close, any_special) is None:
                 html_close = close
-                close_casefold = casefold
+                any_special_close = any_special
             masked.append(" " * len(line) + ending)
             continue
         if (
@@ -1641,39 +1670,44 @@ def audit_mask_block_html(text: str) -> str:
 
 
 def audit_visible_lines(text: str):
-    """Yield non-fenced Markdown with raw HTML blocks removed."""
+    """Yield source-aligned Markdown with fenced and raw HTML content masked."""
     html_close = None
-    close_casefold = False
+    any_special_close = False
     masked_text = audit_mask_block_html(text)
     for start, end, line, in_fence, was_open in markdown_lines(masked_text):
         if in_fence:
+            yield start, end, "\0", was_open
             continue
-        lowered = line.lower()
+        source_line = text[start:end].rstrip("\r\n")
         visible = []
         cursor = 0
         while cursor < len(line):
             if html_close is not None:
-                searchable = lowered if close_casefold else line
-                close = searchable.find(html_close, cursor)
-                if close < 0:
+                closed = audit_html_close_span(
+                    line, cursor, html_close, any_special_close
+                )
+                if closed is None:
                     visible.append(" " * (len(line) - cursor))
                     cursor = len(line)
                 else:
-                    after_close = close + len(html_close)
+                    _, after_close = closed
                     visible.append(" " * (after_close - cursor))
                     cursor = after_close
                     html_close = None
-                    close_casefold = False
+                    any_special_close = False
                 continue
             opened = audit_html_open(line, cursor)
             if opened is None:
                 visible.append(line[cursor:])
                 break
-            opened_at, after_open, html_close, close_casefold = opened
+            opened_at, after_open, html_close, any_special_close = opened
             visible.append(line[cursor:opened_at])
             cursor = after_open
             visible.append(" " * (cursor - opened_at))
-        yield start, end, "".join(visible), was_open
+        rendered = "".join(visible)
+        if not markdown_blank(source_line) and markdown_blank(rendered):
+            rendered = "\0"
+        yield start, end, rendered, was_open
 
 
 def audit_covered(value: str, expected_ids: list[str]) -> None:
@@ -1703,6 +1737,19 @@ def audit_standalone(lines: list[str], index: int, label: str) -> None:
         die(f"audit record {label} must follow a blank line")
 
 
+def audit_table_cells(line: str) -> list[str]:
+    """Split a canonical GFM row at pipes not escaped by an odd slash run."""
+    cells = [""]
+    slashes = 0
+    for char in line[1:-1]:
+        if char == "|" and slashes % 2 == 0:
+            cells.append("")
+        else:
+            cells[-1] += char
+        slashes = slashes + 1 if char == "\\" else 0
+    return [cell.strip() for cell in cells]
+
+
 def audit_findings(lines: list[str], findings: int) -> int:
     """Check the one canonical five-column table and its declared row count."""
     headers = [index for index, line in enumerate(lines) if line == AUDIT_FINDINGS_HEADER]
@@ -1719,10 +1766,13 @@ def audit_findings(lines: list[str], findings: int) -> int:
             break
         if not line.endswith("|"):
             die("audit record findings table has a malformed data row")
-        cells = [cell.strip() for cell in line[1:-1].split("|")]
+        cells = audit_table_cells(line)
         if len(cells) != 5 or any(not cell for cell in cells):
             die("audit record findings table has a malformed data row")
         rows.append(line)
+    table_end = header + 2 + len(rows)
+    if table_end >= len(lines) or not markdown_blank(lines[table_end]):
+        die("audit record findings table must be followed by a blank line")
     if findings == 0:
         if rows != [AUDIT_ZERO_FINDING_ROW]:
             die("audit record findings table must use the exact zero-finding row")

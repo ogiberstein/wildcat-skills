@@ -48,7 +48,9 @@ another pass.
    `not-applicable`; it names no other id. `Not checked` and
    `Leads not pursued` keep non-empty same-line values. Each field label and
    the findings-table header follows a blank line, so multiline inline markup
-   cannot absorb required content. A clean round uses the exact row
+   cannot absorb required content. A blank line also ends the findings table,
+   so a GFM continuation row cannot escape the declared finding count. A clean
+   round uses the exact row
    `| -- | -- | -- | none | -- |`. No-fix rounds write the exact
    `Elenchus verdict: null`; fixed rounds write the exact returned verdict.
 
