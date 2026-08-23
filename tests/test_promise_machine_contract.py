@@ -1080,6 +1080,35 @@ class PromiseCoverageTests(unittest.TestCase):
             },
         )
 
+    def test_run_observation_coverage_binds_the_exact_release_surface(self):
+        coverage = json.loads(
+            (ROOT / "tests" / "promise_machine_coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )["run_observation"]
+        self.assertEqual(coverage["contract"], "promise-machine-run-observation/v1")
+        self.assertEqual(
+            coverage["promise_id"],
+            "promise-machine-run-observation-structural-validation",
+        )
+        self.assertIn(
+            "### promise-machine-run-observation-structural-validation",
+            (ROOT / "PROMISE_MACHINE.md").read_text(encoding="utf-8"),
+        )
+        bound = [coverage["runtime"], coverage["schema_source"], coverage["documentation"]]
+        bound.extend(coverage["fixtures"])
+        bound.append({key: coverage["tests"][key] for key in ("path", "sha256")})
+        for item in bound:
+            with self.subTest(path=item["path"]):
+                path = ROOT / item["path"]
+                self.assertTrue(path.is_file())
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), item["sha256"])
+        tests = (ROOT / coverage["tests"]["path"]).read_text(encoding="utf-8")
+        for selector in coverage["tests"]["selectors"]:
+            with self.subTest(selector=selector):
+                self.assertIn(f"def {selector}(", tests)
+        self.assertIn("structurally conforming", coverage["transition"])
+
     def test_repository_high_consequence_runtime_bindings_are_complete(self):
         coverage = json.loads(
             (ROOT / "tests" / "promise_machine_coverage.json").read_text(
