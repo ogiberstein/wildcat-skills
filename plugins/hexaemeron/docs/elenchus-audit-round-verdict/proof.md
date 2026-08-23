@@ -9,6 +9,13 @@ The run exercised a fresh repository and the worktree created by `hexctl init`.
 No network, credential, Solidity target, or raw signature output entered the
 record.
 
+The controller writes absolute worktree paths, UTC timestamps, and signed
+commit ids into its packets, state, and ledger. Hashes over those values are
+run-local diagnostics, not cross-run oracles. The commands below print them
+and compare them only inside one replay. Fixed hashes are stated only for
+source bytes that do not depend on the generated path, clock, or signing
+metadata.
+
 ## Reproduction boundary
 
 Run these commands from the repository root with Python 3.12 and a configured
@@ -16,10 +23,13 @@ Git signing key. The names below keep the generated repository under the
 current run's ignored `.hexaemeron` directory.
 
 ```bash
+set -euo pipefail
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
 DEMO_ROOT=$(mktemp -d "$PROJECT_ROOT/.hexaemeron/issue327-step3-XXXXXX")
 DEMO_ORIGIN="$DEMO_ROOT/origin"
 HEXCTL="$PROJECT_ROOT/plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
+test "$(sha256sum "$HEXCTL" | awk '{print $1}')" = \
+  "01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870"
 mkdir "$DEMO_ORIGIN"
 git -C "$DEMO_ORIGIN" init -b main
 git -C "$DEMO_ORIGIN" config user.name "Dave Coleman"
@@ -57,8 +67,7 @@ STEP_BASE=$(python3.12 -c \
 git -C "$DEMO_RUN" switch -c "$STEP_BRANCH" "$STEP_BASE"
 git -C "$DEMO_RUN" commit -S --allow-empty \
   -m "issue 327 proof implementation" \
-  -m "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>" \
-  -m "Wildcat-Origin: shoggoth"
+  -m $'Co-authored-by: Shoggoth <shoggoth@wildcat.finance>\nWildcat-Origin: shoggoth'
 IMPLEMENTATION=$(git -C "$DEMO_RUN" rev-parse HEAD)
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" done implement \
   --branch "$STEP_BRANCH" --commit "$IMPLEMENTATION" \
@@ -68,7 +77,11 @@ python3.12 "$HEXCTL" --dir "$DEMO_RUN" record security_suite \
 WARDEN_ONE=$(python3.12 "$HEXCTL" --dir "$DEMO_RUN" next)
 WARDEN_TWO=$(python3.12 "$HEXCTL" --dir "$DEMO_RUN" next)
 test "$WARDEN_ONE" = "$WARDEN_TWO"
+```
+
+```bash
 python3.12 - "$MASON_ONE" "$WARDEN_ONE" <<'PY'
+import hashlib
 import json
 import sys
 mason = json.loads(sys.argv[1])
@@ -77,6 +90,19 @@ assert mason["brief"]["runbook_step"] == warden["brief"]["runbook_step"]
 assert sorted(warden["brief"]["runbook_step"]) == [
     "markdown", "number", "path", "sha256", "title",
 ]
+compact = lambda value: json.dumps(
+    value, sort_keys=True, separators=(",", ":")
+).encode()
+step = warden["brief"]["runbook_step"]
+assert hashlib.sha256(step["markdown"].encode()).hexdigest() == (
+    "4da25cd2d9e8e046016501d69dd0289de2cf3dad78f0e486f59dc7d4fd7515ef"
+)
+assert step["sha256"] == (
+    "82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85"
+)
+print("mason packet", hashlib.sha256(compact(mason)).hexdigest())
+print("warden packet", hashlib.sha256(compact(warden)).hexdigest())
+print("runbook step", hashlib.sha256(compact(step)).hexdigest())
 PY
 ```
 
@@ -85,13 +111,13 @@ The decoded Mason and Warden packets carried the same five-field
 up to the Step 2 heading in the receipted runbook. The observed packet evidence
 was:
 
-| Subject | Schema or status | SHA-256 |
+| Subject | Replay assertion | Cross-run digest |
 | --- | --- | --- |
-| Mason packet | repeated object equal | `02478d8912af6c67a0686f1a624eb2faedae02996e2a3fea93005cd0992fd248` |
-| Warden packet | repeated object equal | `422cde350000b866a8e97b4627710603b19cfc8a69c3b3c2743c4c2c6e09fe3c` |
-| `runbook_step` | `markdown`, `number`, `path`, `sha256`, `title` | `f26bc20915be744183a6f572b2758f0442dc22607b95dd7bd6b174b11d1c6524` |
+| Mason packet | repeated compact JSON objects are equal | run-local; printed by the replay |
+| Warden packet | repeated compact JSON objects are equal | run-local; printed by the replay |
+| `runbook_step` | both packets carry the same five fields | run-local; its path is generated |
 | Step 1 Markdown | exact source bytes | `4da25cd2d9e8e046016501d69dd0289de2cf3dad78f0e486f59dc7d4fd7515ef` |
-| Receipted runbook | source artefact | `82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85` |
+| Receipted runbook | exact source artefact | `82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85` |
 
 The Warden brief had exactly `audit_log_path`, `plugin_root`, `risk_register`,
 `round`, `runbook_step`, `security_suite`, `stacked_branch`, and
@@ -102,65 +128,81 @@ command to the Elenchus contract`.
 
 Create one signed candidate fix from the implementation head, then take
 SHA-256 digests of `.hexaemeron/state.json` and
-`.hexaemeron/ledger.jsonl`. Invoke these three commands with the non-Solidity
-lint receipts appended to each command:
+`.hexaemeron/ledger.jsonl`. `expect_refusal` requires exit 2 and compares both
+raw files after each refused command, rather than assuming three commands
+cannot cancel one another's mutations:
 
 ```bash
 signed_fix() {
   git -C "$DEMO_RUN" commit -S --allow-empty -m "$1" \
-    -m "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>" \
-    -m "Wildcat-Origin: shoggoth" >/dev/null
+    -m $'Co-authored-by: Shoggoth <shoggoth@wildcat.finance>\nWildcat-Origin: shoggoth' \
+    >/dev/null
   git -C "$DEMO_RUN" rev-parse HEAD
 }
 LINT_ARGS=(--phylax-exit 0 --ephoros-exit 0 --hypomnema-exit 0)
 FIX_1=$(signed_fix "issue 327 proof fix guarded")
-sha256sum "$DEMO_RUN/.hexaemeron/state.json" \
-  "$DEMO_RUN/.hexaemeron/ledger.jsonl"
-```
-
-```bash
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
-  --fixes-commit "$FIX_1" "${LINT_ARGS[@]}"
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
-  --elenchus-verdict guarded "${LINT_ARGS[@]}"
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
-  --fixes-commit "$FIX_1" --elenchus-verdict unknown "${LINT_ARGS[@]}"
-sha256sum "$DEMO_RUN/.hexaemeron/state.json" \
-  "$DEMO_RUN/.hexaemeron/ledger.jsonl"
+digest_pair() {
+  sha256sum "$DEMO_RUN/.hexaemeron/state.json" \
+    "$DEMO_RUN/.hexaemeron/ledger.jsonl" | awk '{print $1}' | paste -sd : -
+}
+expect_refusal() {
+  before=$(digest_pair)
+  set +e
+  "$@"
+  status=$?
+  set -e
+  test "$status" -eq 2
+  after=$(digest_pair)
+  test "$before" = "$after"
+  printf 'exit=%s state:ledger=%s\n' "$status" "$after"
+}
+expect_refusal python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round \
+  --findings 1 --fixes-commit "$FIX_1" "${LINT_ARGS[@]}"
+expect_refusal python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round \
+  --findings 1 --elenchus-verdict guarded "${LINT_ARGS[@]}"
+expect_refusal python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round \
+  --findings 1 --fixes-commit "$FIX_1" --elenchus-verdict unknown \
+  "${LINT_ARGS[@]}"
 ```
 
 Each command exited 2. The first named the missing verdict and all four
 accepted values, the second named the missing fix, and the third was rejected
-by the closed command-line enum. The raw file digests before and after each
-refusal were identical:
+by the closed command-line enum. Each printed the same run-local state and
+ledger digest pair it observed before the command:
 
-| Case | Exit | State SHA-256 | Ledger SHA-256 |
-| --- | ---: | --- | --- |
-| fix without verdict | 2 | `a900979d51daa29cbdc7099782150aaa18c8d4f02beeff675c3f26e241111544` | `71c3510f2085c6b5f95e9da1b962ddfa8451498943cd07959634f9ad04e4f10b` |
-| verdict without fix | 2 | `a900979d51daa29cbdc7099782150aaa18c8d4f02beeff675c3f26e241111544` | `71c3510f2085c6b5f95e9da1b962ddfa8451498943cd07959634f9ad04e4f10b` |
-| unknown verdict | 2 | `a900979d51daa29cbdc7099782150aaa18c8d4f02beeff675c3f26e241111544` | `71c3510f2085c6b5f95e9da1b962ddfa8451498943cd07959634f9ad04e4f10b` |
+| Case | Exit | File relation |
+| --- | ---: | --- |
+| fix without verdict | 2 | state and ledger bytes unchanged |
+| verdict without fix | 2 | state and ledger bytes unchanged |
+| unknown verdict | 2 | state and ledger bytes unchanged |
 
 A no-fix round with one finding and the three zero lint exits then recorded an
-explicit JSON null in both state and ledger. State SHA-256 was
-`e22594db09b2d94491ed5740785ef5c798c5b7ebd51a9a18312dd6956ed7c983`;
-ledger SHA-256 was
-`150bd0093ebe95b60e52a9261bb3892f34534af74f35fce863069f8c3895af42`.
+explicit JSON null in both state and ledger. The check prints their run-local
+digests after asserting both fields exist and are null.
 
 ```bash
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
   "${LINT_ARGS[@]}"
+python3.12 - "$DEMO_RUN" <<'PY'
+import json, sys
+from pathlib import Path
+meta = Path(sys.argv[1]) / ".hexaemeron"
+state = json.loads((meta / "state.json").read_text())
+event = json.loads((meta / "ledger.jsonl").read_text().splitlines()[-1])
+round_entry = state["steps"][0]["audit"]["rounds"][-1]
+assert "elenchus_verdict" in round_entry
+assert round_entry["elenchus_verdict"] is None
+assert "elenchus_verdict" in event["data"]
+assert event["data"]["elenchus_verdict"] is None
+PY
+printf 'null state:ledger=%s\n' "$(digest_pair)"
 ```
 
 The proof removed that round's `elenchus_verdict` key from both files to model
 a pre-generation round. It recomputed the canonical compact state fingerprint,
 replaced the last ledger entry's `state`, and recomputed that entry's hash over
-the entry without its old `hash` field. The resulting state fingerprint was
-`8d91511463c9291b778b4ae7651bec59b10fbe83746274a9379b5dbad91b30bd`;
-the ledger tail hash was
-`10f38d4d5931e8f0efa201656c69053cc30f2f39579b89da3d3f815454370ebb`.
-Raw state and ledger file digests were respectively
-`b4b5b109d3a78b8c98ccddb53121853f8b8269102f87d4bd26ef064e88c82a42`
-and `c7ef85eeb9a7172c1f748eb2a4d53618b6d87977c8d7445336d21a0d14e0681a`.
+the entry without its old `hash` field. The script prints those run-local
+digests after it writes the legacy fixture.
 
 ```bash
 python3.12 - "$DEMO_RUN" <<'PY'
@@ -183,7 +225,10 @@ entries[-1]["hash"] = hashlib.sha256(compact(unsigned)).hexdigest()
 ledger_path.write_text("".join(
     json.dumps(entry, sort_keys=True) + "\n" for entry in entries
 ))
+print("legacy state fingerprint", state_fingerprint)
+print("legacy ledger tail", entries[-1]["hash"])
 PY
+printf 'legacy state:ledger=%s\n' "$(digest_pair)"
 ```
 
 `status`, `next`, and `verify` each exited 0 after the edit. `next` returned
@@ -192,7 +237,10 @@ later exited 0 without adding the missing legacy field.
 
 ```bash
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" status
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" next
+LEGACY_NEXT=$(python3.12 "$HEXCTL" --dir "$DEMO_RUN" next)
+python3.12 -c \
+  'import json,sys; p=json.loads(sys.argv[1]); assert (p["do"],p["round"]) == ("audit-round",2)' \
+  "$LEGACY_NEXT"
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" verify
 ```
 
@@ -206,38 +254,93 @@ in `verified_commits`.
 ```bash
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
   --fixes-commit "$FIX_1" --elenchus-verdict guarded "${LINT_ARGS[@]}"
+printf 'round 2 state:ledger=%s\n' "$(digest_pair)"
 FIX_2=$(signed_fix "issue 327 proof fix unguarded")
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
   --fixes-commit "$FIX_2" --elenchus-verdict unguarded "${LINT_ARGS[@]}"
+printf 'round 3 state:ledger=%s\n' "$(digest_pair)"
 FIX_3=$(signed_fix "issue 327 proof fix passed")
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 1 \
   --fixes-commit "$FIX_3" --elenchus-verdict passed "${LINT_ARGS[@]}"
+printf 'round 4 state:ledger=%s\n' "$(digest_pair)"
 FIX_4=$(signed_fix "issue 327 proof fix inconclusive")
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" audit-round --findings 0 \
   --fixes-commit "$FIX_4" --elenchus-verdict inconclusive \
   "${LINT_ARGS[@]}"
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" next
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" done audit
-python3.12 "$HEXCTL" --dir "$DEMO_RUN" verify
-for FIX in "$FIX_1" "$FIX_2" "$FIX_3" "$FIX_4"; do
-  git -C "$DEMO_RUN" verify-commit "$FIX" >/dev/null 2>&1
-done
+printf 'round 5 state:ledger=%s\n' "$(digest_pair)"
 ```
 
-| Label | Commit | Round | Findings | Verdict | State SHA-256 | Ledger SHA-256 |
-| --- | --- | ---: | ---: | --- | --- | --- |
-| `fix-1` | `0757a1ad86d46a34f7825f9545d9da85249f4585` | 2 | 1 | `guarded` | `9b7da5a3f09080a28e4c6c7177b8dc70d52465e54df0f0467bba82e041f5379d` | `508499d4f673d900a230a8092019cacc5a8d3b8d01277e5f9d725fbdd8fec8b8` |
-| `fix-2` | `7a619049738680fc9c72d8135c0f21ccb4b3d74d` | 3 | 1 | `unguarded` | `31ff495beb0119e0dafa5b888f8a70d02b8371f53b9a2f707ab9082d9f64dcde` | `28e881d35a7ac2c019c782ea0cce0faa4336ec85ace9a08aed4f48cd5504272a` |
-| `fix-3` | `8d75c7ed11a9354e77fda3e60c2d005be205c9a1` | 4 | 1 | `passed` | `6c58341dd01dbaca17ad1fd81c5fc1538ae0f12b5390ee7c79ce3e427556ca61` | `9347130c94b28cc45eaaf2fd9def98d367df6a1433f97023052e38beba9013f5` |
-| `fix-4` | `afa46b5241c17663ce1dd17033687e9e5f9c4e7c` | 5 | 0 | `inconclusive` | `e7e2ed0bcf7b07fd5257d875b61ba5c116342bfbad561067fd3e9aa22add0b8e` | `90c76851cb08f124b93a63be55fe8e5ab24c47dd89bcdf67a1bfafa7304f0137` |
+```bash
+python3.12 - "$DEMO_RUN" "$IMPLEMENTATION" \
+  "$FIX_1" "$FIX_2" "$FIX_3" "$FIX_4" <<'PY'
+import json, subprocess, sys
+from pathlib import Path
+run = Path(sys.argv[1])
+implementation, *fixes = sys.argv[2:]
+meta = run / ".hexaemeron"
+state = json.loads((meta / "state.json").read_text())
+rounds = state["steps"][0]["audit"]["rounds"]
+events = [
+    json.loads(line) for line in (meta / "ledger.jsonl").read_text().splitlines()
+    if json.loads(line)["event"] == "audit-round"
+]
+expected = ["missing", "guarded", "unguarded", "passed", "inconclusive"]
+assert [item.get("elenchus_verdict", "missing") for item in rounds] == expected
+assert [item["data"].get("elenchus_verdict", "missing") for item in events] == expected
+trailers = ["Co-authored-by: Shoggoth <shoggoth@wildcat.finance>",
+            "Wildcat-Origin: shoggoth"]
+for commit in [implementation, *fixes]:
+    message = subprocess.check_output(
+        ["git", "-C", str(run), "show", "-s", "--format=%B", commit]
+    ).decode().rstrip("\n").splitlines()
+    assert message[-2:] == trailers
+    assert all(message.count(trailer) == 1 for trailer in trailers)
+    result = subprocess.run(
+        ["git", "-C", str(run), "verify-commit", commit],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    assert result.returncode == 0
+for parent, commit, round_entry, event in zip(
+    [implementation, *fixes[:-1]], fixes, rounds[1:], events[1:]
+):
+    assert subprocess.check_output(
+        ["git", "-C", str(run), "rev-parse", f"{commit}^"]
+    ).decode().strip() == parent
+    assert round_entry["fixes_commit"] == commit
+    assert round_entry["verified_commits"] == [commit]
+    assert event["data"]["verified_commits"] == [commit]
+PY
+```
+
+```bash
+CLOSE_NEXT=$(python3.12 "$HEXCTL" --dir "$DEMO_RUN" next)
+python3.12 -c \
+  'import json,sys; assert json.loads(sys.argv[1])["do"] == "close-audit"' \
+  "$CLOSE_NEXT"
+python3.12 "$HEXCTL" --dir "$DEMO_RUN" done audit
+python3.12 "$HEXCTL" --dir "$DEMO_RUN" verify
+python3.12 -c \
+  'import json,sys,pathlib; s=json.loads((pathlib.Path(sys.argv[1])/".hexaemeron/state.json").read_text()); assert (s["version"],s["steps"][0]["phase"]) == (1,"prose")' \
+  "$DEMO_RUN"
+PROSE_NEXT=$(python3.12 "$HEXCTL" --dir "$DEMO_RUN" next)
+python3.12 -c \
+  'import json,sys; p=json.loads(sys.argv[1]); assert (p["do"],p["step"]) == ("prose",1)' \
+  "$PROSE_NEXT"
+printf 'final state:ledger=%s\n' "$(digest_pair)"
+```
+
+| Label | Commit identity | Round | Findings | Verdict |
+| --- | --- | ---: | ---: | --- |
+| `fix-1` | one signed commit above the implementation | 2 | 1 | `guarded` |
+| `fix-2` | one signed commit above `fix-1` | 3 | 1 | `unguarded` |
+| `fix-3` | one signed commit above `fix-2` | 4 | 1 | `passed` |
+| `fix-4` | one signed commit above `fix-3` | 5 | 0 | `inconclusive` |
 
 The final state remained version 1 and moved the step to `prose`. Its five
 rounds exposed `missing`, `guarded`, `unguarded`, `passed`, and `inconclusive`
-in order. Final `verify` exited 0. Final state SHA-256 was
-`d6952962cb3b8861ccbef5e9c6209e4e582a4bb57372ecbf055ebca74de97909`;
-final ledger SHA-256 was
-`0ea8be93c18297f4da48aa57e9ac5d68311de6f4f358df638b964ed90d8815ff`.
-The successful generated boundary was removed after these assertions.
+in order. Final `verify` exited 0, and the replay printed the final run-local
+state and ledger digests. The successful generated boundary was removed after
+these assertions.
 
 ```bash
 python3.12 - "$DEMO_ROOT" "$PROJECT_ROOT/.hexaemeron" <<'PY'
@@ -249,6 +352,7 @@ assert boundary.parent == expected_parent
 assert boundary.name.startswith("issue327-step3-")
 shutil.rmtree(boundary)
 PY
+test ! -e "$DEMO_ROOT"
 ```
 
 ## Study and release reconciliation
