@@ -2795,6 +2795,49 @@ def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> by
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 COAUTHOR_TRAILER = "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>"
 ORIGIN_TRAILER = "Wildcat-Origin: shoggoth"
+HOST_IDENTITY_NAMES = frozenset(
+    {
+        "aider",
+        "anthropic",
+        "chatgpt",
+        "claude",
+        "claude code",
+        "claude[bot]",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "gemini",
+        "gemini code assist",
+        "github copilot",
+        "openai",
+    }
+)
+HOST_IDENTITY_EMAILS = frozenset(
+    {
+        "noreply@anthropic.com",
+        "noreply@openai.com",
+    }
+)
+HOST_PR_LOGINS = frozenset(
+    {
+        "app/claude",
+        "chatgpt[bot]",
+        "claude[bot]",
+        "codex[bot]",
+        "copilot[bot]",
+    }
+)
+COAUTHOR_RE = re.compile(
+    r"^Co-authored-by:\s*(?P<name>.+?)\s*<(?P<email>[^<>]+)>$",
+    re.IGNORECASE,
+)
+HOST_BYLINE_RE = re.compile(
+    r"(?:generated|authored|co-authored)\s+by\s+"
+    r"(?:\[(?:claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)\]"
+    r"\([^\)]+\)|claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)",
+    re.IGNORECASE,
+)
 
 
 def tool_text(data: bytes, label: str) -> str:
@@ -2802,6 +2845,26 @@ def tool_text(data: bytes, label: str) -> str:
         return data.decode("utf-8")
     except UnicodeDecodeError:
         die(f"{label} returned non-UTF-8 output")
+
+
+def is_host_identity(name: str, email: str) -> bool:
+    """Recognise known runtime identities without reclassifying human authors."""
+    return (
+        name.strip().casefold() in HOST_IDENTITY_NAMES
+        or email.strip().casefold() in HOST_IDENTITY_EMAILS
+    )
+
+
+def commit_author(base_dir: str, commit_sha: str, label: str) -> tuple[str, str]:
+    data = bounded_git(
+        base_dir,
+        ["show", "-s", "--no-show-signature", "--format=%an%x00%ae", commit_sha],
+        f"{label} commit {commit_sha} author cannot be read",
+    )
+    fields = tool_text(data, f"{label} commit author").rstrip("\n").split("\0")
+    if len(fields) != 2 or not all(field.strip() for field in fields):
+        die(f"{label} commit {commit_sha} author identity is malformed")
+    return fields[0], fields[1]
 
 
 def resolved_commit(base_dir: str, ref: str, label: str) -> str:
@@ -2885,6 +2948,12 @@ def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
         ["verify-commit", commit_sha],
         f"{label} commit {commit_sha} has no valid local signature",
     )
+    author_name, author_email = commit_author(base_dir, commit_sha, label)
+    if is_host_identity(author_name, author_email):
+        die(
+            f"{label} commit {commit_sha} uses a runtime host as author; "
+            "use Shoggoth or preserve the human contributor"
+        )
     body = tool_text(
         bounded_git(
             base_dir,
@@ -2894,6 +2963,12 @@ def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
         f"{label} commit message",
     )
     lines = body.splitlines()
+    for line in lines:
+        match = COAUTHOR_RE.fullmatch(line)
+        if match and is_host_identity(match.group("name"), match.group("email")):
+            die(f"{label} commit {commit_sha} uses a runtime host as co-author")
+    if HOST_BYLINE_RE.search(body):
+        die(f"{label} commit {commit_sha} carries a runtime-host byline")
     coauthors = lines.count(COAUTHOR_TRAILER)
     origins = lines.count(ORIGIN_TRAILER)
     if coauthors != 1:
@@ -3004,7 +3079,7 @@ def inspect_pull_request(
         base_dir,
         [
             "pr", "view", url, "--repo", repository, "--json",
-            "url,state,headRefName,headRefOid,baseRefName,mergeCommit",
+            "url,state,headRefName,headRefOid,baseRefName,mergeCommit,author,body",
         ],
         "pull request topology could not be read",
     )
@@ -3014,6 +3089,17 @@ def inspect_pull_request(
         die("pull request topology returned invalid JSON")
     if not isinstance(payload, dict):
         die("pull request topology is invalid")
+    author = payload.get("author")
+    author_login = author.get("login") if isinstance(author, dict) else None
+    if not isinstance(author_login, str):
+        die("pull request topology is missing its author")
+    if author_login.casefold() in HOST_PR_LOGINS:
+        die("pull request uses a runtime host as author; hand off before publication")
+    body = payload.get("body")
+    if not isinstance(body, str):
+        die("pull request topology is missing its body")
+    if HOST_BYLINE_RE.search(body):
+        die("pull request body carries a runtime-host byline")
     returned_url = payload.get("url")
     if not isinstance(returned_url, str):
         die("pull request topology is missing its URL")

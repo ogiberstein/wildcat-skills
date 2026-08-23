@@ -92,6 +92,14 @@ class FiatSkillContractTests(unittest.TestCase):
         )
         self.assertIn("Wildcat-Origin: shoggoth", self.push_discipline)
 
+    def test_runtime_hosts_are_not_governed_authors(self):
+        flat = " ".join(self.push_discipline.split())
+        self.assertIn("Attribute agent-produced run work to `Shoggoth", flat)
+        self.assertIn("Preserve a human contributor as author", flat)
+        self.assertIn("is neither author nor co-author", flat)
+        self.assertIn("stops before publication", flat)
+        self.assertIn("known host account as pull-request author", flat)
+
     def test_agent_contracts_own_the_exact_delegation_brief_fields(self):
         clauses = {
             "surveyor": "`topic`, `target_dir`, `base_ref`, and `output_path`",
