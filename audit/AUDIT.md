@@ -11396,3 +11396,59 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain in their separate issues. This record makes no
 claim about capture completeness, external truth, cause, model quality,
 delivery correctness, deployment readiness, security, or mutation authority.
+
+## Issue 434 carryover 5, step 1, round 6 -- 2026-08-23
+
+Independent Warden review of signed HEAD
+`f9d398b65a0c062366538d0452e5c0efa0e15e39` found no new product defect.
+The review began from the signed C5 aggregate tree, not the halted C4 partial
+reconstruction. The C4 partial output remains non-evidence.
+
+### Findings
+
+Finding count: 0. The reviewed repair is
+`4c0dff1b0b5d93126f01d905d4273a4749eee0bc` and was locally
+signature-verified before this verdict. This record is signed after its gates
+pass.
+
+### Independent risk coverage
+
+| risk id | probe and evidence | disposition |
+| --- | --- | --- |
+| `carryover-union-gap` | Compared the signed aggregate diff with the C5 61-id, eight-family manifest. | clean |
+| `partial-tree-evidence` | Confirmed this round started after the complete signed aggregate tree and did not use the halted 36-path C4 output. | clean |
+| `coverage-contract-gap` | The direct reporter loaded `tests.test_promise_machine_contract` and ran 144/144 tests. | clean |
+| `schema-runtime-drift` | Reviewed the retained schema/runtime differential coverage and the 1,258-case inoculation summary. | clean |
+| `wrong-kind-crash` | Reviewed the recursive wrong-kind guard and its zero-crash result. | clean |
+| `lifecycle-reference-gap` | Reviewed the lifecycle/reference guards and generated cases. | clean |
+| `file-replacement` | Reviewed descriptor, reopen, identity, FIFO, target-swap, and same-inode guards. | clean |
+| `path-representation` | Reviewed portable-path, NFC, control, bidi, component, byte, and display guards. | clean |
+| `metadata-redaction-gap` | Reviewed raw, hidden, actor, execution, source, instruction, and directive refusal families. | clean |
+| `diagnostic-echo` | Reviewed the shared text/JSON finding model and parity/no-echo guards. | clean |
+| `context-binding-gap` | Reviewed issue, topic, role, skill, promise, Git identity, and ADR context guards. | clean |
+| `promise-copy-drift` | Reviewed the current Promise copy and coverage bindings. | clean |
+| `source-reporter-dual-path` | Direct reporter accepted only the canonical absolute C5 target and passed 144/144. Absolute, parent-escape, and lexical-dot-dot escape candidates each refused before write. The causal-repair Elenchus replay accepted `.elenchus/run-observation.json` as its relative declaration, substituted an absolute detached-worktree target, and returned `guarded` with 144 executed tests, one parent assertion failure, zero errors, and zero skips. | clean |
+| `gate-command-arity` | Re-read the published command forms against both parser contracts: the emitter accepts its absolute target and Elenchus requires its relative descendant declaration. | clean |
+| `closure-overclaim` | No product finding, receipt, push, pull request, issue action, merge, or integration occurred in this round. This is an independent audit verdict only. | clean |
+
+### Current evidence
+
+The direct source-owned command created one fresh report at
+`$(pwd -P)/.elenchus/warden-r6-direct.json`; it recorded complete
+`elenchus.unittest.v1` output for 144 tests with zero failures, errors, skips,
+expected failures, or unexpected successes. The exact transient report was
+removed after its bounded read. `/tmp/warden-r6-escape.json`,
+`../warden-r6-escape.json`, and
+`./.elenchus/../warden-r6-escape.json` each exited 2 before writing.
+
+The audited causal repair's exact Elenchus invocation used
+`--report-file .elenchus/run-observation.json`; it returned `guarded`, rather
+than a process-exit surrogate. Its report names 144 executed tests, one parent
+assertion failure, zero infrastructure errors, and zero skips. The checked
+documentation says explicitly that the reporter receives a canonical absolute
+target only after Elenchus has substituted its detached-worktree descendant.
+
+Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
+cross-run diagnosis remain assigned to their separate issues. This record does
+not claim capture completeness, external truth, cause, model quality, delivery
+correctness, deployment readiness, security, or mutation authority.
