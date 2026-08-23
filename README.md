@@ -32,10 +32,10 @@ lives in the [Shoggoth identity contract](./SHOGGOTH.md).
 ## So, You Want To Build God?
 
 The [Shoggoth Wave Atlas](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/)
-draws at random from every open issue whose recorded hard dependencies are
-closed. Choose an assistant below. The button asks the Atlas for one issue,
-then opens a new chat with its number and a checkpoint-aware install and Fiat
-request filled in. Read it, then send it.
+offers one open issue at a time: any issue in a wave whose recorded hard
+dependencies are all closed. Choose an assistant below. The button asks the
+Atlas for one issue, then opens a new chat with its number and a
+checkpoint-aware install and Fiat request filled in. Read it, then send it.
 
 [![OpenAI · ChatGPT](https://img.shields.io/badge/OpenAI-ChatGPT-10A37F?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/chatgpt)
 [![Anthropic · Claude](https://img.shields.io/badge/Anthropic-Claude-D97757?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/claude)
