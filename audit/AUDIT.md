@@ -9669,3 +9669,22 @@ Elenchus verdict: null
 | -- | -- | -- | none | -- |
 
 Leads not pursued: none inside step 1 after the source review and named gates; the live run remains governed by pinned v5.12.1, so this clean Warden commit records review, gate, and canonical-entry evidence without claiming live issue-429 validation or new receipt leaves; the checked-in v5.13.1 controller gets its disposable proof in step 3; step 2 and issues 453, 369, and 363 remain outside this round
+
+## audit-record-schema-timestamp-synopsis, step 2, round 1 -- 2026-08-23T18:10:05Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=reviewed; synopsis-drift=reviewed; lead-omission=reviewed; partial-write=reviewed; path-boundary=reviewed; horos-self-defeat=reviewed; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: Solidity-only Pashov X-Ray and Auditor pair under the non-Solidity waiver; active-controller v5.13.1 enforcement and the step 3 disposable checked-in-controller proof; issue 453 report-byte and commit binding; issue 369 downstream synopsis consumption; issue 363 frontier identity
+
+Elenchus verdict: guarded
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | Any H3 in a schema-bearing record forced legacy classification, so an appended strict record could bypass strict validation, including by mimicking the grandfathered heading tuple. | fixed in d926d4eb581e8a86cfcfc802bd95b34ff56c1bfb; guard red then green |
+| S2-R1-02 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | Repository-relative source names containing controls, table delimiters, synopsis break markup, or surrogateescaped bytes could corrupt one-line framing or escape controlled refusal. | fixed in d926d4eb581e8a86cfcfc802bd95b34ff56c1bfb; guard red then green |
+| S2-R1-03 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | Discovery left the walk error callback unset, so an unreadable subtree could be skipped while generation succeeded with an incomplete source set. | fixed in d926d4eb581e8a86cfcfc802bd95b34ff56c1bfb; guard red then green |
+| S2-R1-04 | low | plugins/hexaemeron/skills/fiat/SKILL.md | The Fiat Promise said controller verification established current derived-synopsis currency, although verification only preserves the earlier receipt-time check and recorded sibling digest. | fixed in d926d4eb581e8a86cfcfc802bd95b34ff56c1bfb; guard red then green |
+
+Leads not pursued: no further step-2 defects after the fixes and named gates; multi-file generation remains per-sibling atomic, so interruption between replacements can leave a mixed set of complete old and new synopses until `--check` exposes it and rerunning `--write` repairs it; the live run remains pinned to v5.12.1 and cannot receipt v5.13.1 synopsis enforcement; step 3 owns the disposable checked-in-controller proof, issue 453 report-byte binding, issue 369 downstream consumption, and issue 363 frontier identity
