@@ -9798,3 +9798,20 @@ Elenchus verdict: guarded
 | S2-R7-01 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | Legacy extraction materialised one string per physical line plus per-record index and retained lists before the rendered-size refusal, so a 300,029-byte accepted source required 21,062,910 bytes of traced peak memory. | fixed in 5e1baffa709d3d2619322227ec9324b25f5ed22c; guards red then green |
 
 Leads not pursued: no further step-2 defect after the causal streaming fix and source-bound focused checks; the corrected renderer keeps the receipted 16 MiB source, 10,000 H2, 1 MiB physical-line, 16 MiB rendered-view, and strict 15% compression bounds without adding a total-line refusal; a 400,029-byte source with 200,002 physical lines remains accepted, while the measured 300,029-byte workload retains the exact 750,347-byte output and SHA-256 b07dabc87790c93359c1aeb13e765f9fe91b551de387a23726ff3866fbbb2760 with peak memory reduced from 21,062,910 to 3,491,459 bytes; all six checked-in outputs and 1,000 seeded mixed strict and legacy differential cases remain byte-identical to the parent, and Elenchus records parent assertion failures in the Fiat, controller-runner, and synopsis suites with the fix green; the measured workload's wall time rose from about 0.60 to 0.86 seconds, with no latency improvement claimed or budget required; schema-less H3 remains legacy by contract, the ten root draft exceptions remain bound to exact path, ordinal, and bytes, and concurrent mutation after the final identity check remains outside the claimed snapshot; per-sibling writes remain atomic rather than cross-file transactional; the live controller remains pinned to v5.12.1, step 3 owns the disposable v5.13.1 proof, issue 453 owns report-byte binding, issue 369 owns downstream consumption, and issue 363 owns frontier identity
+
+## audit-record-schema-timestamp-synopsis, step 2, round 8 -- 2026-08-23T22:17:36Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=reviewed; synopsis-drift=reviewed; lead-omission=reviewed; partial-write=reviewed; path-boundary=reviewed; horos-self-defeat=reviewed; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: Solidity-only Pashov X-Ray and Auditor pair under the non-Solidity waiver; live-controller synopsis enforcement remains pinned to v5.12.1; step 3 disposable checked-in v5.13.1 proof; issue 453 report-byte and commit binding; issue 369 downstream synopsis consumption; issue 363 frontier identity
+
+Elenchus verdict: guarded
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R8-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | `SystemExit(0)` during renderer load, interface lookup, or validation could terminate `audit-round` with a successful process status but no receipt. | fixed in abc65441b9018709a0a4431f7c8bf00b73c125bb; guards red then green |
+| S2-R8-02 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | `_table_cells` copied each growing cell repeatedly, so one accepted 1 MiB row took a 7.480113-second median in the recorded five-run CPU-time baseline. | fixed in abc65441b9018709a0a4431f7c8bf00b73c125bb; scaling guard red then green |
+
+Leads not pursued: no further step-2 defect after the two causal fixes and named gates; 100,297 parent/current full-render differential cases and 100,009 table-row cases preserved acceptance and rendered bytes, including multibyte input, separator and EOF variants, duplicate legacy fields, tables and leads, pinned drafts, and all six live outputs; the exact 1,048,576-byte Metron workload moved from a 7.480113-second median to 0.022997 seconds across five CPU-time samples, with correctness gates green; the live controller remains pinned to v5.12.1, step 3 owns disposable v5.13.1 proof, issue 453 owns report-byte binding, issue 369 owns downstream consumption, and issue 363 owns frontier identity
