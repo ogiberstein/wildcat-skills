@@ -11452,3 +11452,25 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record does
 not claim capture completeness, external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
+
+## Step 1, round 1 -- 2026-08-24
+
+Covered: `evidence-loss`, `false-semantic-proof`, `final-byte-drift`,
+`queue-format-drift`, `github-bypass`, `history-rewrite`, `session-leak`,
+`open-issue-collision`, and `frontier-drift` reviewed; `pr-509-overlap` and
+`task-comment-mismatch` not applicable until Step 2.
+
+Not checked: Solidity security suite (waived); cross-model corpus execution;
+GitHub signature state and publication state.
+
+Evidence: signed commit `96acb17c36601532ee6d3ad45f5fc8f369332e23` verified
+locally with both provenance trailers once; 11 Sapheneia, 105 focused, and 195
+root tests passed; Promise Machine, Protasis, Horos, Imprimatur, Brevitas,
+Phylax, Ephoros, Hypomnema, and diff checks passed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: Step 2 controller behaviour, PR #509 combined-tree
+reconciliation, and remote task-comment byte readback.
