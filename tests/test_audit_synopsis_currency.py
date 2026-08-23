@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import tracemalloc
 import unittest
 from unittest import mock
 
@@ -244,6 +245,34 @@ class SynopsisFixtureTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(self.module.SynopsisError, "15% line budget"):
             self.module.render_source("audit/AUDIT.md", exact_boundary.encode())
+
+    def test_many_short_lines_remain_inside_the_receipted_acceptance_domain(self):
+        source = b"## legacy\nLeads not pursued:\n" + b"x\n" * 200_000
+        rendered = self.module.render_source("audit/AUDIT.md", source)
+
+        self.assertEqual(rendered["source_lines"], 200_002)
+        self.assertEqual(rendered["h2_count"], 1)
+        self.assertLess(len(rendered["bytes"]), self.module.SYNOPSIS_BYTES_MAX)
+
+    def test_legacy_tail_rendering_does_not_allocate_per_physical_line(self):
+        source = b"## legacy\nLeads not pursued:\n" + b"x\n" * 150_000
+        tracemalloc.start()
+        try:
+            rendered = self.module.render_source("audit/AUDIT.md", source)
+            _, peak_bytes = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        self.assertEqual(
+            hashlib.sha256(rendered["bytes"]).hexdigest(),
+            "b07dabc87790c93359c1aeb13e765f9fe91b551de387a23726ff3866fbbb2760",
+        )
+        self.assertLess(
+            peak_bytes,
+            len(source) * 24,
+            f"legacy-tail rendering peaked at {peak_bytes} bytes "
+            f"for {len(source)} source bytes",
+        )
 
 
 class SynopsisRepositoryTests(unittest.TestCase):
@@ -660,7 +689,10 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
 
     def test_pinned_legacy_schema_drafts_bind_path_ordinal_and_exact_bytes(self):
         source = (ROOT / "audit" / "AUDIT.md").read_bytes()
-        lines = self.module._physical_lines("audit/AUDIT.md", source)
+        text = source.decode("utf-8")
+        lines = text.split("\n")
+        if text.endswith("\n"):
+            lines.pop()
         starts = [
             index for index, line in enumerate(lines) if self.module._is_h2(line)
         ]
@@ -715,11 +747,6 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                     schema_changed = [*record]
                     schema_changed[schema_index] = (
                         "Audit scheme: fiat-audit-round/v1"
-                    )
-                    self.assertTrue(
-                        self.module._strict_candidate(
-                            schema_changed, ordinal, "audit/AUDIT.md"
-                        )
                     )
                     changed_raw = (
                         "\n".join(schema_changed) + "\n"

@@ -5,6 +5,7 @@ import argparse
 import contextlib
 import datetime
 import hashlib
+import io
 import os
 import posixpath
 import re
@@ -277,34 +278,55 @@ def read_regular_bytes(root, relative, label, *, missing_ok=False):
     return data
 
 
-def _physical_lines(source_path, data):
+def _physical_text(source_path, data):
     if len(data) > SOURCE_BYTES_MAX:
         raise SynopsisError(
             f"{source_path}: source exceeds {SOURCE_BYTES_MAX:,}-byte cap"
         )
     if b"\r" in data:
         raise SynopsisError(f"{source_path}: source must use LF line endings")
-    raw_lines = data.split(b"\n")
-    if data.endswith(b"\n"):
-        raw_lines.pop()
-    if not data:
-        raw_lines = []
-    for number, line in enumerate(raw_lines, 1):
-        if len(line) > PHYSICAL_LINE_BYTES_MAX:
+
+    line_count = 0
+    cursor = 0
+    while cursor < len(data):
+        end = data.find(b"\n", cursor)
+        if end < 0:
+            end = len(data)
+            following = len(data)
+        else:
+            following = end + 1
+        line_count += 1
+        if end - cursor > PHYSICAL_LINE_BYTES_MAX:
             raise SynopsisError(
-                f"{source_path}: physical line {number} exceeds "
+                f"{source_path}: physical line {line_count} exceeds "
                 f"{PHYSICAL_LINE_BYTES_MAX:,}-byte cap"
             )
+        cursor = following
+
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         raise SynopsisError(f"{source_path}: source is not UTF-8") from None
-    lines = text.split("\n")
-    if text.endswith("\n"):
-        lines.pop()
-    if not text:
-        lines = []
-    return lines
+    return text, line_count
+
+
+def _iter_line_spans(text, start=0, stop=None):
+    """Yield physical lines lazily as character offsets and text."""
+    if stop is None:
+        stop = len(text)
+    cursor = start
+    while cursor < stop:
+        end = text.find("\n", cursor, stop)
+        if end < 0:
+            yield cursor, stop, text[cursor:stop]
+            return
+        yield cursor, end, text[cursor:end]
+        cursor = end + 1
+
+
+def _iter_lines(text, start, stop):
+    for _start, _end, line in _iter_line_spans(text, start, stop):
+        yield line
 
 
 def _is_h2(line):
@@ -356,50 +378,83 @@ def _pinned_legacy_schema_draft(record, record_number, source_path, h3_headings)
     return hashlib.sha256(raw_record).hexdigest() == expected
 
 
-def _strict_candidate(record, record_number, source_path):
-    markers = (
-        "Audit schema: ",
-        "Covered: ",
-        "Not checked: ",
-        "Elenchus verdict: ",
-        FINDINGS_HEADER,
-    )
-    has_schema = any(line.startswith(markers[0]) for line in record[1:])
-    h3_headings = tuple(line for line in record[1:] if line.startswith("###"))
-    if (
+def _strict_candidate(text, start, stop, record_number, source_path):
+    lines = _iter_lines(text, start, stop)
+    try:
+        heading = next(lines)
+    except StopIteration:
+        return False
+
+    pinned = (
         source_path == "audit/AUDIT.md"
         and record_number in PINNED_LEGACY_SCHEMA_DRAFTS
-    ):
-        return not _pinned_legacy_schema_draft(
-            record, record_number, source_path, h3_headings
+    )
+    digest = hashlib.sha256() if pinned else None
+    if digest is not None:
+        digest.update(heading.encode("utf-8"))
+        digest.update(b"\n")
+    has_schema = False
+    h3_headings = []
+    h3_count = 0
+    for line in lines:
+        if digest is not None:
+            digest.update(line.encode("utf-8"))
+            digest.update(b"\n")
+        if line.startswith("Audit schema: "):
+            has_schema = True
+        if line.startswith("###"):
+            h3_count += 1
+            if len(h3_headings) < len(LEGACY_SCHEMA_DRAFT_H3) + 1:
+                h3_headings.append(line)
+
+    if pinned:
+        exact_draft = (
+            h3_count == len(LEGACY_SCHEMA_DRAFT_H3)
+            and tuple(h3_headings) == LEGACY_SCHEMA_DRAFT_H3
+            and digest.hexdigest() == PINNED_LEGACY_SCHEMA_DRAFTS[record_number]
         )
-    if h3_headings:
-        if not has_schema:
-            return False
-        return True
-    return has_schema or STRICT_HEADING_RE.fullmatch(record[0]) is not None
+        return not exact_draft
+    if h3_count:
+        return has_schema
+    return has_schema or STRICT_HEADING_RE.fullmatch(heading) is not None
 
 
-def _strict_lines(
-    record, record_number, source_path, *, at_eof, source_ends_lf
+def _strict_record(
+    text, start, stop, record_number, source_path, *, at_eof, source_ends_lf
 ):
-    record = list(record)
-    if at_eof:
-        if not source_ends_lf:
-            raise SynopsisError(
-                f"{source_path}: strict record {record_number} has no terminal LF"
-            )
-        if record and record[-1] == "":
-            raise SynopsisError(
-                f"{source_path}: strict record {record_number} has a trailing blank line"
-            )
-    elif not record or record[-1] != "":
+    if at_eof and not source_ends_lf:
         raise SynopsisError(
-            f"{source_path}: strict record {record_number} has malformed record separator"
+            f"{source_path}: strict record {record_number} has no terminal LF"
         )
-    else:
-        record.pop()
-    match = STRICT_HEADING_RE.fullmatch(record[0])
+
+    lines = _iter_lines(text, start, stop)
+    retained = []
+
+    def take():
+        try:
+            return next(lines)
+        except StopIteration:
+            raise SynopsisError(
+                f"{source_path}: strict record {record_number} is truncated"
+            ) from None
+
+    def exact(expected, label):
+        line = take()
+        if line != expected:
+            raise SynopsisError(
+                f"{source_path}: strict record {record_number} has malformed {label}"
+            )
+        retained.append(line)
+
+    def field(label):
+        line = take()
+        value = _field(line, label, record_number, source_path)
+        retained.append(line)
+        return value
+
+    heading = take()
+    retained.append(heading)
+    match = STRICT_HEADING_RE.fullmatch(heading)
     if match is None:
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has malformed heading"
@@ -416,25 +471,14 @@ def _strict_lines(
             f"{source_path}: strict record {record_number} has non-canonical timestamp"
         )
 
-    def exact(index, expected, label):
-        if index >= len(record) or record[index] != expected:
-            raise SynopsisError(
-                f"{source_path}: strict record {record_number} has malformed {label}"
-            )
-        return index + 1
-
-    index = exact(1, "", "heading separator")
-    if index >= len(record):
-        raise SynopsisError(f"{source_path}: strict record {record_number} is truncated")
-    schema = _field(record[index], "Audit schema", record_number, source_path)
+    exact("", "heading separator")
+    schema = field("Audit schema")
     if schema != AUDIT_SCHEMA:
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has unsupported schema"
         )
-    index = exact(index + 1, "", "Audit schema separator")
-    if index >= len(record):
-        raise SynopsisError(f"{source_path}: strict record {record_number} is truncated")
-    covered = _field(record[index], "Covered", record_number, source_path)
+    exact("", "Audit schema separator")
+    covered = field("Covered")
     dispositions = {}
     for raw in covered.split(";"):
         item = raw.strip()
@@ -456,174 +500,266 @@ def _strict_lines(
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has malformed Covered"
         )
-    index = exact(index + 1, "", "Covered separator")
-    if index >= len(record):
-        raise SynopsisError(f"{source_path}: strict record {record_number} is truncated")
-    _field(record[index], "Not checked", record_number, source_path)
-    index = exact(index + 1, "", "Not checked separator")
-    if index >= len(record):
-        raise SynopsisError(f"{source_path}: strict record {record_number} is truncated")
-    verdict = _field(record[index], "Elenchus verdict", record_number, source_path)
+    exact("", "Covered separator")
+    field("Not checked")
+    exact("", "Not checked separator")
+    verdict = field("Elenchus verdict")
     if verdict not in ELENCHUS_VERDICTS:
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has invalid Elenchus verdict"
         )
-    index = exact(index + 1, "", "Elenchus verdict separator")
-    index = exact(index, FINDINGS_HEADER, "findings header")
-    index = exact(index, FINDINGS_SEPARATOR, "findings separator")
-    rows = []
-    while index < len(record) and record[index] != "":
-        cells = _table_cells(record[index])
+    exact("", "Elenchus verdict separator")
+    exact(FINDINGS_HEADER, "findings header")
+    exact(FINDINGS_SEPARATOR, "findings separator")
+
+    row_count = 0
+    zero_row = False
+    while True:
+        line = take()
+        if line == "":
+            retained.append(line)
+            break
+        cells = _table_cells(line)
         if len(cells) != 5 or any(not cell for cell in cells):
             raise SynopsisError(
                 f"{source_path}: strict record {record_number} has malformed findings row"
             )
-        rows.append(record[index])
-        index += 1
-    if not rows or (ZERO_FINDING_ROW in rows and rows != [ZERO_FINDING_ROW]):
+        retained.append(line)
+        row_count += 1
+        zero_row = zero_row or line == ZERO_FINDING_ROW
+    if not row_count or (zero_row and row_count != 1):
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has malformed findings table"
         )
-    index = exact(index, "", "findings separator")
-    if index >= len(record):
-        raise SynopsisError(f"{source_path}: strict record {record_number} is truncated")
-    _field(record[index], "Leads not pursued", record_number, source_path)
-    if index + 1 != len(record):
+    field("Leads not pursued")
+
+    sentinel = object()
+    trailing = next(lines, sentinel)
+    if at_eof:
+        if trailing is not sentinel:
+            if trailing == "" and next(lines, sentinel) is sentinel:
+                raise SynopsisError(
+                    f"{source_path}: strict record {record_number} has a trailing blank line"
+                )
+            raise SynopsisError(
+                f"{source_path}: strict record {record_number} has trailing content"
+            )
+    elif trailing != "" or next(lines, sentinel) is not sentinel:
         raise SynopsisError(
-            f"{source_path}: strict record {record_number} has trailing content"
+            f"{source_path}: strict record {record_number} has malformed record separator"
         )
-    return record
+    return retained
 
 
-def _table_extent(record, start):
-    end = start
-    while end < len(record) and record[end].startswith("|"):
-        end += 1
-    return range(start, end)
+class _RecordBuffer:
+    """Accumulate retained text without one live object per source line."""
+
+    def __init__(self, source_path):
+        self.source_path = source_path
+        self.buffer = io.StringIO()
+        self.lines = 0
+        self.bytes = 0
+
+    def _reserve(self, addition):
+        if self.bytes + addition > SYNOPSIS_BYTES_MAX:
+            raise SynopsisError(
+                f"{self.source_path}: synopsis exceeds "
+                f"{SYNOPSIS_BYTES_MAX:,}-byte cap"
+            )
+        self.bytes += addition
+
+    def append(self, line):
+        encoded_size = len(line.encode("utf-8"))
+        self._reserve(encoded_size + (4 if self.lines else 0))
+        if self.lines:
+            self.buffer.write("<br>")
+        self.buffer.write(line)
+        self.lines += 1
+
+    def append_empty_run(self, count):
+        if not count:
+            return
+        separators = count if self.lines else count - 1
+        self._reserve(separators * 4)
+        if separators:
+            self.buffer.write("<br>" * separators)
+        self.lines += count
+
+    def value(self):
+        return self.buffer.getvalue()
 
 
-def _risk_table(record, index):
-    cells = _table_cells(record[index])
-    if not cells or cells[0].strip("` ").lower() != "risk id":
-        return False
-    if index + 1 >= len(record):
-        return False
-    separator = _table_cells(record[index + 1])
-    return len(separator) == len(cells) and all(
-        re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+def _legacy_record(text, start, stop, source_path):
+    lines = _iter_lines(text, start, stop)
+    try:
+        heading = next(lines)
+    except StopIteration:
+        raise SynopsisError(f"{source_path}: source has an empty H2 record") from None
+
+    fields = (
+        ("audit-schema", "Audit schema: "),
+        ("covered", "Covered: "),
+        ("not-checked", "Not checked: "),
+        ("elenchus-verdict", "Elenchus verdict: "),
     )
+    found = set()
+    selected = _RecordBuffer(source_path)
+    leads_seen = "Leads not pursued" in heading
+    trailing_blanks = 0
+    table_mode = False
+    pending_header = None
 
+    for line in lines:
+        matching_field = False
+        for slug, prefix in fields:
+            if line.startswith(prefix):
+                found.add(slug)
+                matching_field = True
 
-def _legacy_lines(record):
-    selected = {0}
-    fields = {
-        "audit-schema": "Audit schema: ",
-        "covered": "Covered: ",
-        "not-checked": "Not checked: ",
-        "elenchus-verdict": "Elenchus verdict: ",
-    }
-    missing = []
-    for slug, prefix in fields.items():
-        matches = [index for index, line in enumerate(record) if line.startswith(prefix)]
-        if matches:
-            selected.update(matches)
-        else:
-            missing.append(f"[missing legacy field: {slug}]")
-
-    index = 1
-    while index < len(record):
-        if (
-            record[index] == FINDINGS_HEADER
-            and index + 1 < len(record)
-            and record[index + 1] == FINDINGS_SEPARATOR
-        ):
-            extent = _table_extent(record, index)
-            selected.update(extent)
-            index = extent.stop
+        if leads_seen:
+            if line == "":
+                trailing_blanks += 1
+            else:
+                selected.append_empty_run(trailing_blanks)
+                trailing_blanks = 0
+                selected.append(line)
             continue
-        if _risk_table(record, index):
-            extent = _table_extent(record, index)
-            selected.update(extent)
-            index = extent.stop
-            continue
-        index += 1
 
-    leads = [
-        index for index, line in enumerate(record) if "Leads not pursued" in line
+        if "Leads not pursued" in line:
+            leads_seen = True
+            pending_header = None
+            selected.append(line)
+            continue
+
+        if table_mode:
+            if line.startswith("|"):
+                selected.append(line)
+                continue
+            table_mode = False
+
+        if pending_header is not None:
+            header, columns, canonical = pending_header
+            if canonical:
+                separator = line == FINDINGS_SEPARATOR
+            else:
+                cells = _table_cells(line)
+                separator = len(cells) == columns and all(
+                    re.fullmatch(r":?-{3,}:?", cell) for cell in cells
+                )
+            pending_header = None
+            if separator:
+                selected.append(header)
+                selected.append(line)
+                table_mode = True
+                continue
+
+        if matching_field:
+            selected.append(line)
+            continue
+        if line == FINDINGS_HEADER:
+            pending_header = (line, 5, True)
+            continue
+        cells = _table_cells(line)
+        if cells and cells[0].strip("` ").lower() == "risk id":
+            pending_header = (line, len(cells), False)
+
+    missing = [
+        f"[missing legacy field: {slug}]"
+        for slug, _prefix in fields
+        if slug not in found
     ]
-    if leads:
-        end = len(record)
-        while end > leads[0] and record[end - 1] == "":
-            end -= 1
-        selected.update(range(leads[0], end))
-    else:
+    if not leads_seen:
         missing.append("[missing legacy field: leads-not-pursued]")
 
-    retained = [record[0], *missing]
-    retained.extend(record[index] for index in sorted(selected - {0}))
+    prefix = "<br>".join([heading, *missing])
+    tail = selected.value()
+    retained = prefix + ("<br>" + tail if tail else "")
+    if len(retained.encode("utf-8")) > SYNOPSIS_BYTES_MAX:
+        raise SynopsisError(
+            f"{source_path}: synopsis exceeds {SYNOPSIS_BYTES_MAX:,}-byte cap"
+        )
     return retained
 
 
 def render_source(source_path, data):
     """Render one source from captured bytes without touching the filesystem."""
     source_path = _relative_path(source_path)
-    lines = _physical_lines(source_path, data)
-    starts = [index for index, line in enumerate(lines) if _is_h2(line)]
+    text, source_lines = _physical_text(source_path, data)
+
+    starts = []
+    previous_empty = False
+    before_previous_empty = False
+    for line_number, (start, _end, line) in enumerate(_iter_line_spans(text)):
+        if _is_h2(line):
+            starts.append(
+                (start, line_number, previous_empty, before_previous_empty)
+            )
+            if len(starts) > H2_RECORDS_MAX:
+                raise SynopsisError(
+                    f"{source_path}: source exceeds "
+                    f"{H2_RECORDS_MAX:,} H2 record cap"
+                )
+        before_previous_empty = previous_empty
+        previous_empty = line == ""
     if not starts:
         raise SynopsisError(f"{source_path}: source has no raw H2 records")
-    if len(starts) > H2_RECORDS_MAX:
-        raise SynopsisError(
-            f"{source_path}: source exceeds {H2_RECORDS_MAX:,} H2 record cap"
-        )
-    starts.append(len(lines))
-    records = []
-    for number in range(1, len(starts)):
-        record_start = starts[number - 1]
-        record = lines[record_start:starts[number]]
-        strict = _strict_candidate(record, number, source_path)
-        if strict and record_start:
-            leading_blank = lines[record_start - 1] == ""
-            extra_blank = record_start > 1 and lines[record_start - 2] == ""
-            if not leading_blank or extra_blank:
-                raise SynopsisError(
-                    f"{source_path}: strict record {number} has malformed "
-                    "record separator"
-                )
-        if strict:
-            retained = _strict_lines(
-                record,
-                number,
-                source_path,
-                at_eof=number == len(starts) - 1,
-                source_ends_lf=data.endswith(b"\n"),
-            )
-        else:
-            retained = _legacy_lines(record)
-        records.append("<br>".join(retained))
 
     source_digest = hashlib.sha256(data).hexdigest()
     metadata = (
         f"Synopsis schema={SYNOPSIS_SCHEMA} | source={source_path} | "
-        f"source_sha256={source_digest} | h2_count={len(records)}"
+        f"source_sha256={source_digest} | h2_count={len(starts)}"
     )
-    rendered = ("\n".join([metadata, *records]) + "\n").encode("utf-8")
-    if len(rendered) > SYNOPSIS_BYTES_MAX:
-        raise SynopsisError(
-            f"{source_path}: synopsis exceeds {SYNOPSIS_BYTES_MAX:,}-byte cap"
-        )
-    source_lines = len(lines)
-    synopsis_lines = len(records) + 1
+    rendered = bytearray()
+
+    def append_output(line):
+        encoded = line.encode("utf-8")
+        if len(rendered) + len(encoded) + 1 > SYNOPSIS_BYTES_MAX:
+            raise SynopsisError(
+                f"{source_path}: synopsis exceeds "
+                f"{SYNOPSIS_BYTES_MAX:,}-byte cap"
+            )
+        rendered.extend(encoded)
+        rendered.append(10)
+
+    append_output(metadata)
+    for index, (start, line_number, leading_blank, extra_blank) in enumerate(starts):
+        number = index + 1
+        stop = starts[index + 1][0] if index + 1 < len(starts) else len(text)
+        strict = _strict_candidate(text, start, stop, number, source_path)
+        if strict and line_number and (not leading_blank or extra_blank):
+            raise SynopsisError(
+                f"{source_path}: strict record {number} has malformed "
+                "record separator"
+            )
+        if strict:
+            retained = "<br>".join(
+                _strict_record(
+                    text,
+                    start,
+                    stop,
+                    number,
+                    source_path,
+                    at_eof=index + 1 == len(starts),
+                    source_ends_lf=data.endswith(b"\n"),
+                )
+            )
+        else:
+            retained = _legacy_record(text, start, stop, source_path)
+        append_output(retained)
+
+    synopsis_lines = len(starts) + 1
     if synopsis_lines * 100 >= source_lines * 15:
         raise SynopsisError(
             f"{source_path}: 15% line budget failed "
             f"(source_lines={source_lines}, synopsis_lines={synopsis_lines})"
         )
+    rendered = bytes(rendered)
     return {
         "source": source_path,
         "bytes": rendered,
         "source_lines": source_lines,
         "synopsis_lines": synopsis_lines,
-        "h2_count": len(records),
+        "h2_count": len(starts),
         "source_sha256": source_digest,
         "synopsis_sha256": hashlib.sha256(rendered).hexdigest(),
         "budget": "pass",

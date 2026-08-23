@@ -97,6 +97,18 @@ def hexctl_module():
     return module
 
 
+def audit_synopsis_module():
+    """The sibling renderer imported under the controller test runner."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "audit_synopsis_under_test", AUDIT_SYNOPSIS
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def protasis_module():
     import importlib.util
 
@@ -104,6 +116,17 @@ def protasis_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+class AuditSynopsisResourceBoundaryTests(unittest.TestCase):
+    def test_many_short_lines_remain_inside_the_receipted_acceptance_domain(self):
+        renderer = audit_synopsis_module()
+        source = b"## legacy\nLeads not pursued:\n" + b"x\n" * 200_000
+        rendered = renderer.render_source("audit/AUDIT.md", source)
+
+        self.assertEqual(rendered["source_lines"], 200_002)
+        self.assertEqual(rendered["h2_count"], 1)
+        self.assertLess(len(rendered["bytes"]), renderer.SYNOPSIS_BYTES_MAX)
 
 
 class HexctlCase(OriginCheckoutMixin, unittest.TestCase):

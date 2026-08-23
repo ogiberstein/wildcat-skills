@@ -160,6 +160,7 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("non-LF line endings", readme)
         self.assertIn("rendered views over 16 MiB", readme)
         self.assertIn("10,000", readme)
+        self.assertNotIn("200,000", readme)
         self.assertIn("1 MiB", readme)
         self.assertIn("15%", readme)
 
