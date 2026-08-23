@@ -9163,3 +9163,84 @@ and issue 363's delegation identity frontier. The installed v5.11.1 controller
 cannot emit step 2's new `runbook_step` field or receipt its verdict; this
 self-hosting round bound the receipted source manually and does not claim that
 the old controller recorded a field it lacks. No further step-2 lead remained.
+
+## Elenchus audit-round verdict, step 3, round 1 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 327 changes Python
+controller state, Elenchus integration, tests, and governed prose; it has no
+Solidity target`. No Solidity path changed. X-Ray, Solidity Auditor and Fizz
+did not run. The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `plugins/hexaemeron/docs/elenchus-audit-round-verdict/proof.md:13` | The proof deleted its disposable repository after publishing packet, state, ledger and commit hashes that depended on generated paths, timestamps and signing metadata. It retained no hashed bytes or complete definition of the hash inputs. A fresh reader had a behavioral replay with no way to verify those fixed values. | fixed in `d55da516`; replay now asserts within-run relations, prints run-local digests and fixes source-byte hashes across runs; Elenchus verdict `unguarded` |
+| S3-R1-02 | low | `plugins/hexaemeron/docs/elenchus-audit-round-verdict/proof.md:68` | The reproduction used a separate `git commit -m` paragraph for each required provenance trailer. Git inserted a blank line between them while the prose claimed consecutive final lines. | fixed in `d55da516`; one message paragraph carries both lines and the replay checks all five signed commits |
+| S3-R1-review | none | full `024a64d9..d55da516` step diff | No controller, schema, legacy-reader, release, boundary or record fault remained after the proof repair. | clean |
+| S3-R1-release | none | all mutable Hexaemeron release surfaces | Skill, package, marketplace, Promise coverage and frontier values agree. | clean |
+
+Finding count: 2.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | The real controller demo ties the verdict obligation only to a non-empty signed fixes range. Each unbound or incomplete receipt exits 2 before state or ledger drift. | clean |
+| `enum-drift` | State and ledger assertions preserve `guarded`, `unguarded`, `passed` and `inconclusive` as four distinct values, plus explicit null and a missing legacy key. | clean |
+| `command-substitution` | Mason and Warden reconstruct the same five-field Step 1 source block from runbook SHA-256 `82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85`. This round used Step 3's exact Python command, `unittest-json-v1` format and report path for `d55da516`. | clean |
+| `legacy-round-breakage` | The replay removes the key from state and ledger, repairs the canonical state fingerprint and ledger tail, then requires `status`, audit-round 2 `next`, `verify`, a later signed round, close and final `prose`. | clean |
+| `receipt-overclaim` | Run-local digests are labeled diagnostics, fixed hashes bind only stable source bytes, and the `unguarded` declaration is not called report-byte attestation. | clean |
+| `downstream-loss` | Official GitHub issue state still shows 429, 369, 453 and 363 open in that order. No downstream schema or gate changed; all four values remain available to them. | clean |
+| `frontier-drift` | Elenchus, Fiat and Protasis retain frontier digests `08e77bae`, `e413d604` and `10140710`; version tests pass 14/14 and Hexaemeron package surfaces agree on `1.5.5`. | clean |
+
+### Evidence
+
+The review read the complete step diff from parent
+`024a64d9265ca21551cfab4a969657e7cefef2ad` through implementation
+`1ad770c296621de55ad99f3368439c0c25fe67e9`, then repaired only the proof in
+signed commit `d55da516fcd652beddcad82219170079c5491129`. That commit has the two
+required consecutive provenance lines and a valid local signature.
+
+The final proof's Bash blocks replay clean as one script. They create a fresh
+repository, compare repeated Mason and Warden packets, require all three
+exit-2 refusals to preserve raw state and ledger bytes, assert explicit null,
+repair and exercise a missing-key legacy round, and record four sequential
+single-commit signed ranges. State and ledger both expose `missing`, `guarded`,
+`unguarded`, `passed` and `inconclusive` in order. Each range contains only its
+named head in `verified_commits`; close moves the step to `prose`; final
+`verify` succeeds. The cleanup checks the generated parent and prefix before
+removal, then proves the boundary is absent. No credential or raw signature
+bytes enter the record.
+
+The exact runbook Elenchus invocation on `d55da516` returns `unguarded` because
+the proof repair changes no test file. Under pinned Node v26.6.0, the exact
+runbook report command passes 872/872 in 157.807 seconds. Its fresh 161-byte,
+mode-0600 JSON object records schema `elenchus.unittest.v1`, `testsRun: 872`
+and zero failures or errors; SHA-256 is
+`f0b0d7a7b6943d3907c5b17bb97fc30274d7d68a42a59a4c9b462acd8692cad9`.
+The generated report was removed after inspection.
+
+The root suite passes 118/118, Imprimatur's suite passes 62/62, and the
+evolution/version gate passes 14/14. Promise Machine verification, both
+Protasis checks, all three active-plugin lints, the Horos boundary check,
+Imprimatur and Brevitas over the repaired proof, and `git diff --check` exit 0.
+
+The amended receipted study keeps its original bytes at
+`06f8e81b95c7ceba26ada998fe62b57a87d9afa3eea10a31813862842851abe0`
+and its exact 888-byte suffix at
+`51e378a68b0c39a59b8ba0051b35a8b8ecc6a691446c5862bfbe34eae095debb`.
+The committed copy changes only five links before the same suffix. The tracked
+runbook is exactly the receipted 11,430-byte file without its final byte, as
+already recorded.
+
+### Leads not pursued
+
+Leads not pursued: the exact Elenchus result is `unguarded`, as expected for a
+documentation-only fix; issue 453 owns any later policy that blocks that value.
+Issues 429, 369, 453 and 363 remain open downstream work. Historical run-local
+hashes are not retained as evidence after their bytes are deleted; the replay
+instead proves the relations that carry the acceptance claim. No further
+step-3 lead remained.
