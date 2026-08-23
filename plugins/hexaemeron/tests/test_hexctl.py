@@ -14,6 +14,7 @@ import time
 import unittest
 from contextlib import redirect_stderr
 from io import StringIO
+from pathlib import Path
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -134,6 +135,12 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
                     state = json.load(handle)
             except (OSError, ValueError):
                 state = None
+        if (
+            args[:1] == ("audit-round",)
+            and expect == 0
+            and getattr(self, "auto_audit_records", True)
+        ):
+            self.append_valid_audit_record(args, state)
         if args[:2] == ("done", "implement") and expect == 0:
             branch = args[args.index("--branch") + 1]
             head = args[args.index("--commit") + 1]
@@ -189,6 +196,79 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             self.fake_prs = pending_prs
             self.fake_parents = pending_parents
         return proc
+
+    def append_valid_audit_record(self, args, state):
+        """Stand in for Warden when a controller test is not about log syntax."""
+        if state is None:
+            raise AssertionError("cannot write an audit record without controller state")
+        findings = int(args[args.index("--findings") + 1])
+        verdict = (
+            args[args.index("--elenchus-verdict") + 1]
+            if "--elenchus-verdict" in args
+            else "null"
+        )
+        study_path = state["receipts"]["study"]["artifact"]
+        if not os.path.isabs(study_path):
+            study_path = os.path.join(self.target, study_path)
+        with open(study_path, encoding="utf-8") as handle:
+            study = handle.read()
+        block = re.search(
+            r"(?ms)^```risk-register\s*$\n(?P<body>.*?)^```\s*$",
+            study,
+        )
+        if block is None:
+            raise AssertionError("fixture study has no risk register")
+        risk_ids = [
+            line.split("|", 1)[0].strip()
+            for line in block.group("body").splitlines()
+            if line.strip()
+        ]
+        covered = "; ".join(f"{risk_id}=reviewed" for risk_id in risk_ids)
+        round_number = len(
+            state["steps"][state["current_step"] - 1]["audit"]["rounds"]
+        ) + 1
+        table_rows = (
+            ["| -- | -- | -- | none | -- |"]
+            if findings == 0
+            else [
+                f"| F-{index:02d} | low | fixture.py | finding {index} | open |"
+                for index in range(1, findings + 1)
+            ]
+        )
+        record = "\n".join(
+            [
+                f"## {state['topic']}, step {state['current_step']}, "
+                f"round {round_number} -- 2026-08-23T02:17:46Z",
+                "",
+                "Audit schema: fiat-audit-round/v1",
+                "",
+                f"Covered: {covered}",
+                "",
+                "Not checked: none",
+                "",
+                f"Elenchus verdict: {verdict}",
+                "",
+                "| id | severity | file | finding | status |",
+                "| --- | --- | --- | --- | --- |",
+                *table_rows,
+                "",
+                "Leads not pursued: none",
+                "",
+            ]
+        )
+        log_path = state["config"]["audit"]["log_path"]
+        path = log_path if os.path.isabs(log_path) else os.path.join(self.target, log_path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        needs_gap = os.path.exists(path) and os.path.getsize(path) > 0
+        with open(path, "a", encoding="utf-8") as handle:
+            if needs_gap:
+                handle.write("\n")
+            handle.write(record)
+        # Warden owns and commits the append in a real run. Keep the fixture's
+        # worktree equally clean so retirement tests exercise controller state,
+        # not an untracked stand-in log.
+        self.git("add", "--", log_path)
+        self.git("commit", "-q", "-m", "fixture audit record")
 
     @staticmethod
     def fake_sha(ref):
@@ -697,7 +777,7 @@ class TestDelegationPackets(HexctlCase):
         self.assert_packet(
             scribe, "scribe", ("files", "pr_base", "pr_draft_path", "plugin_root")
         )
-        self.assertEqual(scribe["brief"]["files"], [])
+        self.assertEqual(scribe["brief"]["files"], ["audit/AUDIT.md"])
         self.run_ctl("done", "prose", "--files", "1", "--skills",
                      "hexaemeron:imprimatur,hexaemeron:vulgate")
         push = self.next_json()
@@ -908,7 +988,7 @@ class TestDelegationPackets(HexctlCase):
         self.git("add", "zeta.md", "alpha.md")
         self.git("commit", "-m", "step")
         self.assertEqual(self.next_json()["brief"]["files"],
-                         ["alpha.md", "zeta.md"])
+                         ["alpha.md", "audit/AUDIT.md", "zeta.md"])
 
         for number in range(499):
             self.write(f"many/{number:03d}.md", "x")
@@ -2112,7 +2192,12 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(state_path, encoding="utf-8") as handle:
             state = json.load(handle)
-        state["steps"][0]["audit"]["rounds"][-1].pop("elenchus_verdict")
+        new_leaves = (
+            "schema", "record_timestamp", "entry_sha256", "log_end_offset",
+            "elenchus_verdict",
+        )
+        for leaf in new_leaves:
+            state["steps"][0]["audit"]["rounds"][-1].pop(leaf, None)
         canonical_state = json.dumps(state, sort_keys=True, separators=(",", ":"))
         with open(state_path, "w", encoding="utf-8") as handle:
             json.dump(state, handle, indent=2)
@@ -2121,7 +2206,8 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         with open(ledger_path, encoding="utf-8") as handle:
             entries = [json.loads(line) for line in handle if line.strip()]
         self.assertEqual(entries[-1]["event"], "audit-round")
-        entries[-1]["data"].pop("elenchus_verdict")
+        for leaf in new_leaves:
+            entries[-1]["data"].pop(leaf, None)
         entries[-1]["state"] = hashlib.sha256(canonical_state.encode()).hexdigest()
         unsigned = {key: value for key, value in entries[-1].items() if key != "hash"}
         entries[-1]["hash"] = hashlib.sha256(
@@ -2269,6 +2355,226 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.assertNotIn("elenchus_verdict", rounds[0])
         self.assertEqual(rounds[1]["elenchus_verdict"], "passed")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
+
+
+class AuditRecordSchemaTests(HexctlCase):
+    """The receipt checks Warden's final append before durable mutation."""
+
+    def setUp(self):
+        super().setUp()
+        self.auto_audit_records = False
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+
+    def state_ledger_digests(self):
+        return tuple(
+            hashlib.sha256(Path(path).read_bytes()).hexdigest()
+            for path in (
+                os.path.join(self.target, ".hexaemeron", "state.json"),
+                os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
+            )
+        )
+
+    def log_path(self):
+        return os.path.join(self.target, "audit", "AUDIT.md")
+
+    def record_lines(
+        self,
+        findings=0,
+        verdict="null",
+        *,
+        timestamp="2026-08-23T02:17:46Z",
+        covered="packet-state-drift=reviewed",
+        omit=(),
+        table_rows=None,
+        extra=(),
+    ):
+        state = self.state()
+        round_number = len(state["steps"][0]["audit"]["rounds"]) + 1
+        rows = table_rows
+        if rows is None:
+            rows = (
+                ["| -- | -- | -- | none | -- |"]
+                if findings == 0
+                else [
+                    f"| F-{index:02d} | low | fixture.py | finding {index} | open |"
+                    for index in range(1, findings + 1)
+                ]
+            )
+        blocks = {
+            "heading": [
+                f"## {state['topic']}, step 1, round {round_number} -- {timestamp}"
+            ],
+            "schema": ["Audit schema: fiat-audit-round/v1"],
+            "covered": [f"Covered: {covered}"],
+            "not_checked": ["Not checked: none"],
+            "verdict": [f"Elenchus verdict: {verdict}"],
+            "table": [
+                "| id | severity | file | finding | status |",
+                "| --- | --- | --- | --- | --- |",
+                *rows,
+            ],
+            "leads": ["Leads not pursued: none"],
+        }
+        lines = []
+        for name in (
+            "heading", "schema", "covered", "not_checked", "verdict", "table", "leads"
+        ):
+            if name not in omit:
+                lines.extend(blocks[name])
+                lines.append("")
+        lines.extend(extra)
+        return lines
+
+    def write_record(self, *args, append=False, **kwargs):
+        path = self.log_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        mode = "a" if append else "w"
+        with open(path, mode, encoding="utf-8") as handle:
+            if append and os.path.getsize(path):
+                handle.write("\n")
+            handle.write("\n".join(self.record_lines(*args, **kwargs)))
+        return path
+
+    def refuse(self, fragment, *args):
+        before = self.state_ledger_digests()
+        result = self.run_ctl("audit-round", *args, expect=2)
+        self.assertIn(fragment, result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_date_only_heading_is_refused_before_mutation(self):
+        self.write_record(timestamp="2026-08-23")
+        self.refuse("record timestamp", "--findings", "0")
+
+    def test_heading_identity_and_calendar_date_are_exact(self):
+        self.write_record(timestamp="2026-02-30T02:17:46Z")
+        self.refuse("calendar-valid", "--findings", "0")
+        lines = self.record_lines()
+        lines[0] = "## another topic, step 1, round 1 -- 2026-08-23T02:17:46Z"
+        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
+        self.refuse("topic, step, and round", "--findings", "0")
+
+    def test_each_required_field_is_unique_and_present(self):
+        cases = (
+            ("schema", "Audit schema"),
+            ("covered", "Covered"),
+            ("not_checked", "Not checked"),
+            ("verdict", "Elenchus verdict"),
+            ("table", "findings table"),
+            ("leads", "Leads not pursued"),
+        )
+        for omitted, diagnostic in cases:
+            with self.subTest(omitted=omitted):
+                self.write_record(omit=(omitted,))
+                self.refuse(diagnostic, "--findings", "0")
+        self.write_record(extra=("Audit schema: fiat-audit-round/v1",))
+        self.refuse("duplicate Audit schema", "--findings", "0")
+
+    def test_covered_refuses_missing_duplicate_unknown_and_invalid_values(self):
+        for covered in (
+            "",
+            "packet-state-drift=reviewed; packet-state-drift=reviewed",
+            "packet-state-drift=reviewed; unknown-risk=reviewed",
+            "packet-state-drift=accepted",
+        ):
+            with self.subTest(covered=covered):
+                self.write_record(covered=covered)
+                self.refuse("Covered", "--findings", "0")
+
+    def test_findings_count_zero_row_and_verdict_must_match(self):
+        self.write_record(findings=1, table_rows=[])
+        self.refuse("findings table", "--findings", "1")
+        self.write_record(
+            findings=0,
+            table_rows=["| F-01 | low | fixture.py | unexpected | open |"],
+        )
+        self.refuse("zero-finding row", "--findings", "0")
+        self.write_record(findings=1, verdict="guarded")
+        self.refuse(
+            "Elenchus verdict",
+            "--findings", "1", "--fixes-commit", "fix-1",
+            "--elenchus-verdict", "passed",
+        )
+
+    def test_supplied_log_must_be_the_configured_path(self):
+        self.write_record()
+        self.refuse(
+            "configured audit log path",
+            "--findings", "0", "--log", "other/AUDIT.md",
+        )
+        alias = os.path.join(self.target, "audit", "alias.md")
+        os.symlink("AUDIT.md", alias)
+        self.refuse(
+            "configured audit log path",
+            "--findings", "0", "--log", "audit/alias.md",
+        )
+
+    def test_log_must_be_regular_contained_utf8_and_bounded(self):
+        path = self.log_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self.refuse("regular file", "--findings", "0")
+
+        self.write_record()
+        os.remove(path)
+        os.mkdir(path)
+        self.refuse("regular file", "--findings", "0")
+        os.rmdir(path)
+
+        real = os.path.join(os.path.dirname(path), "real.md")
+        Path(real).write_text("\n".join(self.record_lines()), encoding="utf-8")
+        os.symlink("real.md", path)
+        self.refuse("symlink", "--findings", "0")
+        os.remove(path)
+
+        Path(path).write_bytes(b"\xff")
+        self.refuse("UTF-8", "--findings", "0")
+        Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
+        self.refuse("byte cap", "--findings", "0")
+
+    def test_escaping_configured_log_is_refused(self):
+        self.run_ctl("config", "set", "audit.log_path", '"../AUDIT.md"')
+        self.refuse("escapes target directory", "--findings", "0")
+
+    def test_valid_rounds_store_schema_timestamp_digest_offset_and_exact_verdicts(self):
+        expected_verdicts = ["guarded", "unguarded", "passed", "inconclusive", None]
+        for index, verdict in enumerate(expected_verdicts, 1):
+            findings = 0 if verdict is None else 1
+            self.write_record(
+                findings=findings,
+                verdict=verdict or "null",
+                append=index > 1,
+            )
+            args = ["--findings", str(findings), "--log", "audit/AUDIT.md"]
+            if verdict is not None:
+                args += [
+                    "--fixes-commit", f"fix-{index}",
+                    "--elenchus-verdict", verdict,
+                ]
+            self.run_ctl("audit-round", *args)
+            round_entry = self.state()["steps"][0]["audit"]["rounds"][-1]
+            self.assertEqual(round_entry.get("schema"), "fiat-audit-round/v1")
+            self.assertEqual(round_entry["log"], "audit/AUDIT.md")
+            self.assertEqual(
+                round_entry.get("record_timestamp"), "2026-08-23T02:17:46Z"
+            )
+            self.assertRegex(
+                round_entry.get("entry_sha256", ""), r"^[0-9a-f]{64}$"
+            )
+            self.assertEqual(
+                round_entry.get("log_end_offset"), os.path.getsize(self.log_path())
+            )
+            self.assertEqual(round_entry["elenchus_verdict"], verdict)
+
+        events = [
+            json.loads(line)["data"]
+            for line in Path(
+                os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+            ).read_text(encoding="utf-8").splitlines()
+            if json.loads(line)["event"] == "audit-round"
+        ]
+        self.assertEqual(
+            [event.get("elenchus_verdict") for event in events], expected_verdicts
+        )
 
 
 class TestProseAndPush(HexctlCase):
@@ -2771,7 +3077,7 @@ class TestFuzzRegressions(HexctlCase):
 
     def test_state_edit_detected_by_verify(self):
         self.to_audit_with_suite()
-        self.run_ctl("audit-round", "--findings", "2", "--log", "a.md",
+        self.run_ctl("audit-round", "--findings", "2", "--log", "audit/AUDIT.md",
                      "--fixes-commit", "fff",
                      "--elenchus-verdict", "guarded")
         with open(self.state_file()) as fh:

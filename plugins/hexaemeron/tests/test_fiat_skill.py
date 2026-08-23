@@ -119,6 +119,21 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("does not attest the Elenchus report bytes", audit)
         self.assertIn("issue 453", audit)
 
+    def test_future_audit_records_have_one_checked_schema(self):
+        audit = " ".join(self.audit_loop.split())
+        fiat = " ".join(self.fiat.split())
+        warden = " ".join(AGENTS["warden"].split())
+        for text in (audit, fiat, warden):
+            self.assertIn("fiat-audit-round/v1", text)
+            self.assertIn("Covered", text)
+            self.assertIn("Not checked", text)
+            self.assertIn("Leads not pursued", text)
+        self.assertIn("YYYY-MM-DDTHH:MM:SSZ", audit)
+        self.assertIn("final H2 record before state or ledger mutation", audit)
+        self.assertIn("canonical log path", audit)
+        self.assertIn("entry SHA-256", audit)
+        self.assertIn("source-bound risk register", warden)
+
     def test_warden_uses_the_source_bound_step_and_returns_the_exact_verdict(self):
         contract = " ".join(AGENTS["warden"].split())
         self.assertIn("exact source-bound `runbook_step`", contract)

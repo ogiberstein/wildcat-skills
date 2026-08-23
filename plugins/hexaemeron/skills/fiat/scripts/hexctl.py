@@ -29,6 +29,7 @@ import json
 import os
 import re
 import selectors
+import stat
 import subprocess
 import sys
 import tempfile
@@ -101,6 +102,13 @@ list. `references/audit-loop.md` is the contract they satisfy.
 
 ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive")
 """The complete Elenchus result vocabulary accepted on an audit fix receipt."""
+
+AUDIT_RECORD_SCHEMA = "fiat-audit-round/v1"
+AUDIT_COVERAGE_VALUES = ("reviewed", "not-applicable")
+AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
+AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
+AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
+AUDIT_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -184,6 +192,52 @@ def decoded_source(data: bytes, label: str) -> str:
         return data.decode("utf-8")
     except UnicodeDecodeError:
         die(f"{label} is not UTF-8 text")
+
+
+def read_configured_audit_log(
+    base_dir: str, configured: str, supplied: str | None
+) -> tuple[str, bytes]:
+    """Read the one configured log without following aliases or symlinks."""
+    if not isinstance(configured, str) or not configured:
+        die("audit config has no log_path")
+    root = os.path.realpath(base_dir)
+    configured_path = scoped_path(root, configured, "audit log path")
+    lexical = os.path.abspath(
+        configured if os.path.isabs(configured) else os.path.join(root, configured)
+    )
+    if supplied is not None:
+        supplied_lexical = os.path.abspath(
+            supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
+        )
+        supplied_path = scoped_path(root, supplied, "supplied audit log path")
+        if supplied_lexical != lexical:
+            die("--log must name the configured audit log path")
+        if supplied_path != supplied_lexical:
+            die("supplied audit log path traverses a symlink")
+    if lexical != configured_path:
+        die("audit log path traverses a symlink")
+    try:
+        info = os.lstat(lexical)
+    except OSError:
+        die("audit log path is not a regular file")
+    if stat.S_ISLNK(info.st_mode):
+        die("audit log path is a symlink")
+    if not stat.S_ISREG(info.st_mode):
+        die("audit log path is not a regular file")
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(lexical, flags)
+        with os.fdopen(descriptor, "rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                die("audit log path is not a regular file")
+            data = handle.read(SOURCE_BYTES_MAX + 1)
+    except OSError:
+        die("audit log path cannot be read")
+    if len(data) > SOURCE_BYTES_MAX:
+        die(f"audit log path exceeds {SOURCE_BYTES_MAX}-byte cap")
+    relative = os.path.relpath(configured_path, root).replace(os.sep, "/")
+    return relative, data
 
 
 def plugin_root() -> str:
@@ -1388,6 +1442,149 @@ def done_implement(args, state: dict) -> None:
     print(f"step {step['n']} implementation receipted; phase -> audit")
 
 
+def audit_risk_ids(base_dir: str, state: dict) -> list[str]:
+    """Return the exact ids from Protasis's receipted risk-register block."""
+    study = receipted_source(base_dir, state, "study")
+    if study is None:
+        die("study receipt is unavailable for Covered validation")
+    register = source_risk_register(study)["markdown"]
+    risk_ids = []
+    for line in register.splitlines()[1:-1]:
+        if not line.strip():
+            continue
+        risk_id = line.split("|", 1)[0].strip()
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", risk_id):
+            die("study risk register has an invalid id")
+        if risk_id in risk_ids:
+            die("study risk register has a duplicate id")
+        risk_ids.append(risk_id)
+    if not risk_ids:
+        die("study risk register has no ids")
+    return risk_ids
+
+
+def audit_field(lines: list[str], label: str) -> str:
+    """Read one non-empty same-line field without echoing its source value."""
+    prefix = label + ":"
+    values = [line[len(prefix):].strip() for line in lines if line.startswith(prefix)]
+    if not values:
+        die(f"audit record is missing {label}")
+    if len(values) != 1:
+        die(f"audit record has duplicate {label}")
+    if not values[0]:
+        die(f"audit record {label} must have a non-empty same-line value")
+    return values[0]
+
+
+def audit_covered(value: str, expected_ids: list[str]) -> None:
+    """Check total, unique risk disposition without retaining or printing prose."""
+    dispositions = {}
+    for raw in value.split(";"):
+        item = raw.strip()
+        if not item or item.count("=") != 1:
+            die("audit record Covered has a malformed risk disposition")
+        risk_id, disposition = (part.strip() for part in item.split("=", 1))
+        if risk_id in dispositions:
+            die("audit record Covered has a duplicate risk id")
+        if risk_id not in expected_ids:
+            die("audit record Covered has an unknown risk id")
+        if disposition not in AUDIT_COVERAGE_VALUES:
+            die("audit record Covered has an invalid disposition")
+        dispositions[risk_id] = disposition
+    missing = [risk_id for risk_id in expected_ids if risk_id not in dispositions]
+    if missing:
+        die("audit record Covered is missing a study risk id")
+
+
+def audit_findings(lines: list[str], findings: int) -> None:
+    """Check the one canonical five-column table and its declared row count."""
+    headers = [index for index, line in enumerate(lines) if line == AUDIT_FINDINGS_HEADER]
+    if not headers:
+        die("audit record is missing the canonical findings table")
+    if len(headers) != 1:
+        die("audit record has a duplicate findings table")
+    header = headers[0]
+    if header + 1 >= len(lines) or lines[header + 1] != AUDIT_FINDINGS_SEPARATOR:
+        die("audit record findings table has a non-canonical separator")
+    rows = []
+    for line in lines[header + 2:]:
+        if not line.startswith("|"):
+            break
+        if not line.endswith("|"):
+            die("audit record findings table has a malformed data row")
+        cells = [cell.strip() for cell in line[1:-1].split("|")]
+        if len(cells) != 5 or any(not cell for cell in cells):
+            die("audit record findings table has a malformed data row")
+        rows.append(line)
+    if findings == 0:
+        if rows != [AUDIT_ZERO_FINDING_ROW]:
+            die("audit record findings table must use the exact zero-finding row")
+        return
+    if len(rows) != findings or AUDIT_ZERO_FINDING_ROW in rows:
+        die("audit record findings table row count does not match --findings")
+
+
+def validated_audit_record(
+    base_dir: str, state: dict, step: dict, args
+) -> dict:
+    """Validate the final Warden append and return only receipt-safe evidence."""
+    audit = as_dict(as_dict(state.get("config")).get("audit"))
+    log_path, data = read_configured_audit_log(
+        base_dir, audit.get("log_path"), args.log
+    )
+    text = decoded_source(data, "audit log")
+    headings = []
+    for start, _, line, in_fence, _ in markdown_lines(text):
+        if not in_fence and re.match(r"^##\s+", line):
+            headings.append((start, line))
+    if not headings:
+        die("audit log has no H2 record")
+    entry_start, heading = headings[-1]
+    round_number = len(step["audit"]["rounds"]) + 1
+    heading_prefix = (
+        f"## {state['topic']}, step {step['n']}, round {round_number} -- "
+    )
+    if not heading.startswith(heading_prefix):
+        die("audit record heading does not match topic, step, and round")
+    timestamp = heading[len(heading_prefix):]
+    if not AUDIT_TIMESTAMP_RE.fullmatch(timestamp):
+        die("audit record timestamp must be YYYY-MM-DDTHH:MM:SSZ UTC")
+    try:
+        parsed_timestamp = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        die("audit record timestamp is not calendar-valid")
+    if parsed_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") != timestamp:
+        die("audit record timestamp is not canonical UTC")
+
+    entry_text = text[entry_start:]
+    visible_lines = [
+        line
+        for _, _, line, in_fence, _ in markdown_lines(entry_text)
+        if not in_fence
+    ]
+    schema = audit_field(visible_lines, "Audit schema")
+    if schema != AUDIT_RECORD_SCHEMA:
+        die(f"Audit schema must be {AUDIT_RECORD_SCHEMA}")
+    covered = audit_field(visible_lines, "Covered")
+    audit_covered(covered, audit_risk_ids(base_dir, state))
+    audit_field(visible_lines, "Not checked")
+    verdict = audit_field(visible_lines, "Elenchus verdict")
+    expected_verdict = args.elenchus_verdict or "null"
+    if verdict != expected_verdict:
+        die("audit record Elenchus verdict does not match the receipt")
+    audit_findings(visible_lines, args.findings)
+    audit_field(visible_lines, "Leads not pursued")
+
+    entry_bytes = entry_text.encode("utf-8")
+    return {
+        "schema": schema,
+        "log": log_path,
+        "record_timestamp": timestamp,
+        "entry_sha256": hashlib.sha256(entry_bytes).hexdigest(),
+        "log_end_offset": len(data),
+    }
+
+
 def cmd_audit_round(args) -> None:
     state = load_state(args.dir)
     step = require_step_phase(state, "audit")
@@ -1442,6 +1639,8 @@ def cmd_audit_round(args) -> None:
             + "; a non-zero lint exit is a finding like any other"
         )
 
+    record = validated_audit_record(args.dir, state, step, args)
+
     verified_commits = []
     if args.fixes_commit:
         base = last_local_commit(step)
@@ -1453,7 +1652,7 @@ def cmd_audit_round(args) -> None:
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
-        "log": args.log,
+        **record,
         "fixes_commit": args.fixes_commit,
         "elenchus_verdict": args.elenchus_verdict,
         "verified_commits": verified_commits,

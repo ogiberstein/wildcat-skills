@@ -48,12 +48,21 @@ refresh the invariant fuzz suite (round 1) or re-run its campaigns
 (later rounds where contracts changed); campaign failures are findings.
 Check out the step's tree with prior fixes applied.
 
-Append the round to the audit log even at zero findings: a table of id,
-severity, file, finding, status, plus a line for leads you saw and chose
-not to pursue. Apply fixes on the stacked branch in one commit per finding
-or coherent cluster, referencing the finding ids, and commit the updated
-log alongside. Sign every commit and end its message, after a blank line,
-with exactly `Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` and
+Append one `fiat-audit-round/v1` H2 record to the audit log even at zero
+findings. Read the exact topic from the controller's read-only JSON status.
+Use a calendar-valid whole-second UTC heading, then `Audit schema`, `Covered`,
+`Not checked`, `Elenchus verdict`, the canonical five-column findings table,
+and `Leads not pursued`. Cover every id in the packet's source-bound risk
+register exactly once as `reviewed` or `not-applicable`. Keep negative space
+and leads non-empty on their label lines. A clean table contains only
+`| -- | -- | -- | none | -- |`; a no-fix round records a null verdict. The
+complete example and refusal rules live in
+[`references/audit-loop.md`](../skills/fiat/references/audit-loop.md).
+
+Apply fixes on the stacked branch in one commit per finding or coherent
+cluster, referencing the finding ids, and commit the updated log alongside.
+Sign every commit and end its message, after a blank line, with exactly
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` and
 `Wildcat-Origin: shoggoth`; the controller verifies the exact fixes range.
 
 When the round has a fixes commit, read its test command, report format, and
