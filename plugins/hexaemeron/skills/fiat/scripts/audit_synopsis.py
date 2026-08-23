@@ -633,6 +633,19 @@ def discover_sources(root):
                 info = os.lstat(candidate)
             except OSError:
                 raise SynopsisError("repository discovery cannot inspect a directory") from None
+            if os.path.basename(directory) == "audit" and name == SOURCE_NAME:
+                relative = _relative_path(
+                    os.path.relpath(candidate, root).replace(os.sep, "/")
+                )
+                if stat.S_ISLNK(info.st_mode):
+                    raise SynopsisError(f"audit source is a symlink: {relative}")
+                if not stat.S_ISREG(info.st_mode):
+                    raise SynopsisError(
+                        f"audit source is not a regular file: {relative}"
+                    )
+                raise SynopsisError(
+                    f"audit source changed kind during discovery: {relative}"
+                )
             if stat.S_ISLNK(info.st_mode):
                 if name == "audit":
                     relative = os.path.relpath(candidate, root).replace(os.sep, "/")

@@ -305,13 +305,20 @@ def read_configured_audit_log(
             try:
                 current_directory_descriptor = os.open(root, directory_flags)
                 for component in components[:-1]:
-                    next_descriptor = os.open(
-                        component,
-                        directory_flags,
-                        dir_fd=current_directory_descriptor,
-                    )
-                    os.close(current_directory_descriptor)
-                    current_directory_descriptor = next_descriptor
+                    next_descriptor = None
+                    try:
+                        next_descriptor = os.open(
+                            component,
+                            directory_flags,
+                            dir_fd=current_directory_descriptor,
+                        )
+                        os.close(current_directory_descriptor)
+                        current_directory_descriptor = next_descriptor
+                        next_descriptor = None
+                    finally:
+                        if next_descriptor is not None:
+                            with contextlib.suppress(OSError):
+                                os.close(next_descriptor)
                 current_file_descriptor = os.open(
                     components[-1],
                     file_flags,
@@ -1885,6 +1892,11 @@ def validated_audit_record(
         synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
     except synopsis_error as error:
         die(str(error))
+    if (
+        not isinstance(synopsis_sha256, str)
+        or re.fullmatch(r"[0-9a-f]{64}", synopsis_sha256) is None
+    ):
+        die("audit synopsis renderer returned an invalid digest")
     return {
         "schema": schema,
         "log": log_path,

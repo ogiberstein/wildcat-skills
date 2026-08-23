@@ -2668,6 +2668,56 @@ class AuditRecordSchemaTests(HexctlCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
 
+    def test_renderer_must_return_one_sha256_digest(self):
+        controller = hexctl_module()
+
+        class RendererError(Exception):
+            pass
+
+        renderer = argparse.Namespace(
+            SynopsisError=RendererError,
+            validate_committed_synopsis=lambda *_args: "not-a-sha256",
+        )
+
+        class Loader:
+            @staticmethod
+            def exec_module(_module):
+                pass
+
+        specification = argparse.Namespace(loader=Loader())
+        stderr = StringIO()
+        with (
+            mock.patch.object(
+                controller, "read_configured_audit_log",
+                return_value=("audit/AUDIT.md", b"record"),
+            ),
+            mock.patch.object(controller, "audit_delta_start", return_value=0),
+            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
+            mock.patch.object(
+                controller,
+                "parse_audit_record",
+                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
+            ),
+            mock.patch.object(
+                controller.importlib.util,
+                "spec_from_file_location",
+                return_value=specification,
+            ),
+            mock.patch.object(
+                controller.importlib.util, "module_from_spec", return_value=renderer
+            ),
+            redirect_stderr(stderr),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            controller.validated_audit_record(
+                self.target,
+                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
+                {"audit": {"rounds": []}},
+                argparse.Namespace(log=None),
+            )
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("renderer returned an invalid digest", stderr.getvalue())
+
     def test_date_only_heading_is_refused_before_mutation(self):
         self.write_record(timestamp="2026-08-23")
         self.refuse("record timestamp", "--findings", "0")
@@ -3084,6 +3134,56 @@ class AuditRecordSchemaTests(HexctlCase):
                     continue
                 still_open.append(descriptor)
                 os.close(descriptor)
+            self.assertEqual(still_open, [])
+
+    def test_canonical_reopen_closes_a_child_when_parent_close_fails(self):
+        controller = hexctl_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = os.path.realpath(raw_root)
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            (audit_dir / "AUDIT.md").write_bytes(b"inside")
+            real_open = os.open
+            real_close = os.close
+            real_fstat = os.fstat
+            opened = []
+            close_failed = False
+
+            def tracking_open(*args, **kwargs):
+                descriptor = real_open(*args, **kwargs)
+                opened.append(descriptor)
+                return descriptor
+
+            def fail_current_parent_close(descriptor):
+                nonlocal close_failed
+                if len(opened) >= 5 and descriptor == opened[3] and not close_failed:
+                    close_failed = True
+                    raise OSError("synthetic parent close failure")
+                return real_close(descriptor)
+
+            stderr = StringIO()
+            with (
+                mock.patch.object(controller.os, "open", side_effect=tracking_open),
+                mock.patch.object(
+                    controller.os, "close", side_effect=fail_current_parent_close
+                ),
+                redirect_stderr(stderr),
+                self.assertRaises(SystemExit),
+            ):
+                controller.read_configured_audit_log(
+                    root, "audit/AUDIT.md", None
+                )
+            self.assertTrue(close_failed)
+            self.assertIn("changed during read", stderr.getvalue())
+
+            still_open = []
+            for descriptor in opened:
+                try:
+                    real_fstat(descriptor)
+                except OSError:
+                    continue
+                still_open.append(descriptor)
+                real_close(descriptor)
             self.assertEqual(still_open, [])
 
     def test_descriptor_walk_refuses_a_platform_without_safe_primitives(self):

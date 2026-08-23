@@ -394,6 +394,24 @@ class SynopsisRepositoryTests(unittest.TestCase):
             self.module.discover_sources(str(self.root)), ["audit/AUDIT.md"]
         )
 
+    def test_discovery_refuses_nonregular_reserved_source_names(self):
+        self.source()
+        reserved = self.root / "plugins" / "example" / "audit" / "AUDIT.md"
+        reserved.mkdir(parents=True)
+        with self.assertRaisesRegex(
+            self.module.SynopsisError, "audit source is not a regular file"
+        ):
+            self.module.discover_sources(str(self.root))
+
+        reserved.rmdir()
+        outside = self.root / "outside-directory"
+        outside.mkdir()
+        reserved.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(
+            self.module.SynopsisError, "audit source is a symlink"
+        ):
+            self.module.discover_sources(str(self.root))
+
     def test_descriptor_races_refuse_source_swaps_and_do_not_follow_output_swaps(self):
         source = self.source()
         outside = self.root / "outside.md"
