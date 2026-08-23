@@ -9315,3 +9315,78 @@ Elenchus result; issue 453 owns any later blocking policy. Issues 429, 369, 453
 and 363 remain open downstream work. The clean replay now depends only on
 tracked release bytes and its configured signing key. No further step-3 lead
 remained after the repair.
+
+## Elenchus audit-round verdict, step 3, round 3 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 327 changes Python
+controller state, Elenchus integration, tests, and governed prose; it has no
+Solidity target`. No Solidity path changed. X-Ray, Solidity Auditor and Fizz
+did not run. The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R3-review | none | full `024a64d9..017a7418` step diff | No proof, source-bound packet, legacy-reader, release, cleanup, trailer-scope or record fault was confirmed. | clean |
+| S3-R3-proof | none | `plugins/hexaemeron/docs/elenchus-audit-round-verdict/proof.md` | The concatenated replay succeeds from a clean detached checkout with no active Fiat state and leaves that checkout clean. | clean |
+| S3-R3-round2 | none | `27f78d96` and round 2 log | Both round-2 findings are fixed, the fix is signed with the two exact final provenance lines, and its exact Elenchus result is `unguarded`. | clean |
+
+Finding count: 0. This round has no fixes commit and therefore no Elenchus
+verdict.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | The clean replay requires a verdict only beside a non-empty verified fix range. Missing, unbound and unknown values each exit 2 without changing state or ledger bytes. | clean |
+| `enum-drift` | State and ledger retain explicit null, a missing legacy key, and the four distinct values `guarded`, `unguarded`, `passed` and `inconclusive`. | clean |
+| `command-substitution` | The replay reads tracked study and runbook files, reconstructs the receipted terminal newline, checks the full runbook digest and requires equal five-field Mason and Warden step packets. | clean |
+| `legacy-round-breakage` | The replay repairs the state fingerprint and ledger tail after removing both keys, then requires `status`, `next`, `verify`, a later fix round, audit close and final phase `prose`. | clean |
+| `receipt-overclaim` | Fixed hashes cover stable source bytes. Generated packet, state, ledger and commit hashes stay run-local, and no recorded verdict is called report-byte attestation. | clean |
+| `downstream-loss` | The proof preserves every accepted value independently. The step diff changes no issue 429, 369, 453 or 363 owned surface. | clean |
+| `frontier-drift` | The 14 evolution/version checks pass. Elenchus, Fiat and Protasis retain their prior frontier digests and Hexaemeron package surfaces agree on `1.5.5`. | clean |
+
+### Evidence
+
+A detached checkout at `017a74189b15b95af72d16c79c48ec07730b7e7e`
+started without `.hexaemeron`. The proof's concatenated Bash blocks exited 0,
+asserted the three refusal cases independently, exercised null and missing-key
+rounds, stored all four verdicts, verified each single-commit range, closed the
+audit and removed the generated boundary. The checkout had no tracked change
+or untracked file afterward. The proof and study blobs at `27f78d96` equal
+their current-head blobs, so the replay covers the round-2 fix rather than a
+later rewrite.
+
+The proof scopes its trailer claim to the receipted implementation and four
+fix commits. Its executable check requires each message to end in one exact
+copy of both consecutive provenance lines and requires `git verify-commit` to
+exit 0. The delivery's five commits from `1ad770c2` through `017a7418` also
+have valid local signatures and the same two final lines. Running the exact
+runbook Elenchus invocation on signed fix `27f78d96` returns `unguarded`
+because that commit changes no test file.
+
+Under pinned Node v26.6.0, the full Hexaemeron suite passes 872/872 in 158.756
+seconds. The root suite passes 118/118, Imprimatur's suite passes 62/62, and
+the evolution/version gate passes 14/14. Promise Machine verification, both
+Protasis checks, the Horos boundary check, all three active-plugin lints and
+`git diff --check` exit 0. The current proof and this step's audit additions
+pass Imprimatur and Brevitas.
+
+The committed study's 888-byte amendment hashes to
+`51e378a68b0c39a59b8ba0051b35a8b8ecc6a691446c5862bfbe34eae095debb`.
+The tracked runbook is 11,429 bytes; one terminal newline reconstructs the
+11,430-byte receipted file and SHA-256
+`82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85`.
+The controller source hashes to
+`01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870`,
+matching the three Fiat runtime bindings checked by Promise Machine.
+
+### Leads not pursued
+
+Leads not pursued: `unguarded` is the expected exact result for the
+documentation-only round-2 fix, and issue 453 owns any later blocking policy.
+Issues 429, 369, 453 and 363 remain separately owned downstream work. The
+checked proof needs Python 3.12, the named shell tools and a configured signing
+key; none is hidden in active Fiat state. No further step-3 lead remained.
