@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.12.1"
+  version: "5.13.1"
 ---
 
 # Fiat
@@ -401,6 +401,14 @@ report file for any fix. A round supplying `--fixes-commit` also supplies one
 exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or
 `inconclusive`. Fiat checks and records that declaration; it does not attest
 the report bytes, and this generation does not block a non-`guarded` value.
+Before recording anything, Fiat reads the configured audit log once and checks
+one exact raw `fiat-audit-round/v1` suffix after the latest stored same-log end
+offset. When no offset exists, the regular log blob at the last locally verified
+commit is the byte-matched baseline; Git-proved absence means byte zero. Only
+the delta is decoded. Its UTC heading, complete study-risk `Covered` field,
+explicit `Not checked` value, findings count, `Leads not pursued`, and exact
+Elenchus value must agree. A supplied `--log` cannot select another file, and
+malformed stored evidence never falls back.
 Record the round even when it finds nothing.
 Zero findings closes the loop; a genuine judgement that the remaining leads
 are not worth another round closes it with `--no-further-leads --reason`.
@@ -512,9 +520,9 @@ the study and runbook live.
 ### fiat-receipted-delivery
 
 - Promise: A successful `hexctl verify` establishes that the controller state has the required version-1 container shape, the state and append-only ledger agree, and every recorded phase transition occurred in the required order with the required receipt shape.
-- Evidence: The ordered state-container check, exact study and runbook receipts, step branches and locally verified commit ranges, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
+- Evidence: The ordered state-container check, exact study and runbook receipts, step branches and locally verified commit ranges, the checked final `fiat-audit-round/v1` entry and its digest, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
 - Evidence classes: checked, recorded
-- Boundary: Controller verification proves the required container shape, receipt order, integrity, and the recorded local and GitHub signature checks; it does not validate heterogeneous leaf values, prove a test summary, audit judgement, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
+- Boundary: Controller verification proves the required container shape, receipt order, integrity, checked audit-entry structure, and the recorded local and GitHub signature checks; it does not establish that audit prose or coverage judgements are true, validate other heterogeneous leaf values, prove a test summary, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
 - Authorises: Advancing only to the single next controller directive and reporting the recorded workflow state without strengthening any underlying receipt.
 - Consequence: 2
 - Refuses: Skipping a phase, reconstructing progress from chat, accepting a malformed or missing receipt, or describing an unrun check as complete.

@@ -1,0 +1,42 @@
+{
+  "schema": "fiat-audit-prefixes/v1",
+  "starting_ref": "ced4e6f439021b7509833ed5da66348c86d22f01",
+  "prefixes": [
+    {
+      "path": "audit/AUDIT.md",
+      "bytes": 580893,
+      "lines": 9392,
+      "sha256": "96583f59dea6da5363bf83feadc6686d8c4897adc282f4d33de7b4aa0a5d52e9"
+    },
+    {
+      "path": "plugins/ariadne/audit/AUDIT.md",
+      "bytes": 32253,
+      "lines": 466,
+      "sha256": "d8d13eb238b6e270fb9f89ec11fea797b4a3aa27025b5a62a7f36ac2642617af"
+    },
+    {
+      "path": "plugins/hexaemeron/audit/AUDIT.md",
+      "bytes": 5621,
+      "lines": 71,
+      "sha256": "8acff29ed567c97902941a85d72e41171c10850de6aa898b5d50564248eac28f"
+    },
+    {
+      "path": "plugins/pandects/audit/AUDIT.md",
+      "bytes": 45906,
+      "lines": 696,
+      "sha256": "66908cb68630f3c3cbea432aec6cf6efc305bcab85ccf5fadb278c535635edf9"
+    },
+    {
+      "path": "plugins/probitas/audit/AUDIT.md",
+      "bytes": 52540,
+      "lines": 842,
+      "sha256": "ba532815ae3abe13be3494b96044bf5d874cfb23842249d8e1cd867186e486c9"
+    },
+    {
+      "path": "plugins/tabularium/audit/AUDIT.md",
+      "bytes": 14400,
+      "lines": 262,
+      "sha256": "1de310b5df5784d7e623ea9dbda83ae77e02cb1798b3aeedffc5d0c715f8e3a7"
+    }
+  ]
+}

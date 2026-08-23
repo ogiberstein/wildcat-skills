@@ -9390,3 +9390,282 @@ documentation-only round-2 fix, and issue 453 owns any later blocking policy.
 Issues 429, 369, 453 and 363 remain separately owned downstream work. The
 checked proof needs Python 3.12, the named shell tools and a configured signing
 key; none is hidden in active Fiat state. No further step-3 lead remained.
+
+## audit-record-schema-timestamp-synopsis, step 1, round 1 -- 2026-08-23T04:14:45Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | tests/test_audit_prefix_integrity.py | The fixture could re-bless changed protected bytes without checking its named starting commit. | fixed in this commit |
+| S1-R1-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Raw HTML blocks could hide a complete record or required value while the receipt treated it as visible Markdown. | fixed in this commit |
+| S1-R1-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A raced parent-directory symlink could redirect the final-component-only open outside the worktree. | fixed in this commit |
+
+### Leads
+
+Leads not pursued: step 2 synopsis generation, currency, compression, and physical-lead retention are not implemented in this step and remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 2 -- 2026-08-23T04:54:18Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Blank-delimited CommonMark raw blocks such as div and custom tags could hide a strict heading while the receipt treated it as visible Markdown. | fixed in this commit |
+| S1-R2-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The descriptor walk silently lost no-follow protection on unsupported platforms and leaked a newly opened child descriptor if fstat failed. | fixed in this commit |
+| S1-R2-03 | medium | tests/test_audit_prefix_integrity.py | The permanent prefix check followed final or ancestor symlinks, so a protected audit path could be replaced with an alias to unchanged bytes. | fixed in this commit; guard itself is not independently Elenchus-guarded |
+| S1-R2-04 | low | tests/promise_machine_coverage.json | The controller fixes changed its runtime digest while all three Promise inventory bindings still carried the pre-fix value, failing the root suite. | fixed in this commit at reviewed digest b500bc7118a87deb371a62cbdca4edfee68cd18d3accdb81b4575828e8f1706c; guarded by the root suite |
+
+### Leads
+
+Leads not pursued: S1-R2-03 changes the permanent checker and its assertion together, so the parent overlay cannot independently guard that cause; aggregate Elenchus guarded comes from four causal assertion failures for S1-R2-01 and S1-R2-02, while the fifth parent failure was the unrelated unpinned Node-version fixture; S1-R2-04 is guarded separately by the two root Promise tests that failed before its digest repair and now pass; step 2 synopsis generation, currency, compression, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 3 -- 2026-08-23T05:33:02Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A four-space pseudo-closing fence or invalid backtick-info opener could leave a complete strict record inside a CommonMark code block while the selector exposed and accepted it. | fixed in this commit; guard red; Elenchus verdict `guarded` |
+| S1-R3-02 | medium | tests/test_audit_prefix_integrity.py | The prefix reader checked resolution and file kind, then reopened by pathname, so a raced replacement could make it read through a symlink after validation. | fixed in this commit with a descriptor-relative no-follow reader; manual guard red; the overlay cannot isolate a checker and assertion in the same test file |
+| S1-R3-03 | low | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The final descriptor open omitted nonblocking mode, so a raced FIFO replacement could block before the regular-file check. | fixed in this commit; guard red; Elenchus verdict `guarded` |
+
+### Leads
+
+Leads not pursued: S1-R3-02 changes the permanent checker and its assertion together, so the Elenchus parent overlay cannot independently guard that cause; its focused manual guard failed before the fix and passed afterward; aggregate Elenchus `guarded` comes from the controller guards for S1-R3-01 and S1-R3-03, while the Promise digest fixture also changes with the controller; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 4 -- 2026-08-23T05:58:15Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Fence closure inspected an empty suffix after the regex had consumed its remainder, so a trailing-info pseudo-close exposed a strict record still inside CommonMark code. | fixed in this commit; guard red |
+| S1-R4-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Python `splitlines()` promoted non-CommonMark separators to physical line starts, allowing a phantom strict H2 after U+2028 and related characters. | fixed in this commit; guard red |
+| S1-R4-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Inline raw-tag parsing repeated whole-line searches and lowercasing without physical-line or H2 caps, making a bounded audit log quadratic to inspect. | fixed in this commit; guard red |
+| S1-R4-04 | low | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | NUL and unpaired-surrogate configured paths escaped the controller's stable refusal and raised uncaught path-encoding exceptions. | fixed in this commit; guard red |
+
+### Leads
+
+Leads not pursued: the append-only legacy log retains pre-existing Brevitas diagnostics and cannot be rewritten, so this new record is checked separately; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 5 -- 2026-08-23T06:18:00Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R5-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Risk-register duplicate checks and Covered membership each scanned an ordered list, making a Protasis-valid high-cardinality study quadratic under the accepted input cap. | fixed in this commit; guard red |
+| S1-R5-02 | medium | tests/test_audit_prefix_integrity.py | The permanent prefix reader consumed each whole future audit log even though it checks only the fixed protected prefix, so a permitted append could exhaust the root gate. | fixed in this commit; bounded-read guard green |
+| S1-R5-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Unicode whitespace was stripped as CommonMark space, so a pseudo-closing fence or nonblank HTML-block line could expose and receipt a record that remained hidden Markdown. | fixed in this commit; guard red |
+
+### Leads
+
+Leads not pursued: S1-R5-02 changes the permanent checker and its assertion together, so the detached-parent overlay cannot independently guard that cause; aggregate Elenchus `guarded` comes from the high-cardinality and CommonMark controller guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 6 -- 2026-08-23T06:45:23Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R6-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The CommonMark type-6 block-tag set omitted `hgroup`, so a trailing-text opener could hide a complete strict record while the receipt treated it as visible Markdown. | fixed in this commit; guard red |
+| S1-R6-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Required fields and the findings table were checked independently but not ordered, so a shuffled record passed without matching the canonical schema. | fixed in this commit; guard red |
+| S1-R6-03 | low | audit/AUDIT.md | Brevitas report mode rejected the mandatory two-row findings table under its three-row presentation minimum. | fixed in this commit by recording the lint finding; Brevitas red then green |
+
+### Leads
+
+Leads not pursued: S1-R6-03 is not independently Elenchus-guarded because the canonical audit record and its finding count move together; aggregate Elenchus `guarded` comes from the two causal controller guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 7 -- 2026-08-23T07:22:16Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R7-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A valid CommonMark closing fence with a trailing tab remained open, so the shared selector rejected a strict record or source block after it. | fixed in this commit; guard red |
+| S1-R7-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | `done audit --log` could replace the final round's checked canonical log path in the closure receipt. | fixed in this commit; guard red |
+| S1-R7-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A multiline inline tag or link title could absorb required field lines while the receipt treated them as standalone Markdown. | fixed in this commit with blank-line field boundaries; guards red |
+| S1-R7-04 | low | audit/AUDIT.md | The first Brevitas invocation supplied three drafts to its one-draft CLI and exited 2. | fixed by separate one-draft invocations; not an Elenchus guard |
+| S1-R7-05 | low | audit/AUDIT.md | Whole-file Brevitas report mode exited 1 on pre-schema diagnostics in the immutable legacy prefix. | fixed by linting this appended H2 record separately; not an Elenchus guard |
+
+### Leads
+
+Leads not pursued: aggregate Elenchus `guarded` comes from the three causal controller guards; S1-R7-04 and S1-R7-05 are gate-scope faults without independent Elenchus guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issue 453 still owns signed report-byte binding
+
+## audit-record-schema-timestamp-synopsis, step 1, round 8 -- 2026-08-23T08:11:27Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R8-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Type-1 raw HTML missed a bare end-of-line opener and required its closer to match, diverging from CommonMark in both directions. | fixed in this commit; guards red then green |
+| S1-R8-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A lowercase declaration opener could hide a strict record under current CommonMark while the selector exposed it. | fixed in this commit; guard red then green |
+| S1-R8-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The findings parser stopped before a valid GFM continuation row and split escaped cell pipes as delimiters. | fixed in this commit; guards red then green |
+| S1-R8-04 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The GFM type-6 `source` tag could hide a strict record while the selector exposed it. | fixed in this commit; guard red then green |
+| S1-R8-05 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Masking a nonblank inline-HTML line could fabricate the blank boundary required before a field hidden in multiline raw markup. | fixed in this commit; guard red then green |
+
+### Leads
+
+Leads not pursued: the round-8 ceiling requires the controller's `audit-verdict` stop; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
+
+## audit-record-schema-timestamp-synopsis, step 1, round 9 -- 2026-08-23T08:43:51Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R9-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The final-H2 selector recognised only non-empty, unindented ATX headings, so a later empty or indented ATX H2 was folded into the prior strict entry and accepted. | fixed in this commit; guard red then green |
+| S1-R9-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The final-H2 selector omitted Setext H2 syntax, so a later level-two Setext record was folded into the prior strict entry and accepted. | fixed in this commit; guard red then green |
+
+### Leads
+
+Leads not pursued: the Brevitas B011 probe was inapplicable because this schema-mandated record is completeness evidence excluded by that skill; the unwrapped Elenchus runner reached ambient Node v22.22.3 and failed only its v26.6.0 fixture, with failed report SHA-256 433e7592fc5da275e03d0ed781f8a989782a84020091a28a6b13f3a1ea1a841b preserved before the same exact report command passed under the runbook-pinned Node; differential CommonMark probes found conservative refusals outside the canonical strict append grammar but no further acceptance bypass; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
+
+## audit-record-schema-timestamp-synopsis, step 1, round 10 -- 2026-08-23T09:30:01Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R10-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Finality and uniqueness trusted the lossy HTML visibility mask alone, so inline-code and type-7 false positives could erase a later H2 or duplicate schema field and receipt a non-canonical record. | fixed in this commit; four guards red then green |
+| S1-R10-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Unicode-aware case folding treated a long-s end tag as ASCII `s`, closed a type-1 raw block early, and exposed a strict record that CommonMark kept hidden. | fixed in this commit; guard red then green |
+
+### Leads
+
+Leads not pursued: the raw structural parity check deliberately refuses source-column schema lookalikes inside masked Markdown rather than claiming a general Markdown parser; canonical Warden records keep quoted labels in prose or table cells; commonmark 0.31.2 differentially confirmed the five false acceptances; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
+
+## audit-record-schema-timestamp-synopsis, step 1, round 11 -- 2026-08-23T16:24:04Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction; issue 453 report-byte and commit binding; issues 369 and 363
+
+Elenchus verdict: guarded
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R11-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The receipt used a bespoke whole-log CommonMark/GFM visibility model as append authority instead of validating the exact unreceipted raw delta. | fixed in this commit; guard red then green |
+| S1-R11-02 | low | tests/promise_machine_coverage.json | Three Fiat Promise runtime rows retained the pre-redesign source digest, so both root Promise coverage tests failed PM071. | fixed mechanically in this commit; root guards red then green |
+| S1-R11-03 | low | plugins/hexaemeron/docs/audit-record-schema-timestamp-synopsis/study.md | The first receipted amendment ended with a blank line, so the required raw git diff check exited 2. | fixed by a supported second append-only amendment in this commit; no independent Elenchus guard |
+| S1-R11-04 | low | plugins/hexaemeron/tests/test_hexctl.py | The active round-10 boundary guard called a helper absent on the parent, so pinned Elenchus reported one infrastructure AttributeError instead of a pure assertion failure. | fixed with a parent-safe callable assertion in this commit |
+
+Leads not pursued: the first pinned Elenchus replay was inconclusive with 906 executed tests, 22 assertion failures, and one parent-only AttributeError; the parent-safe guard repair leaves the raw-delta controller and changed Promise coverage tests as aggregate Elenchus guards; the append-only study repair is guarded by controller verify, exact receipt hash and copy, and raw diff exit 0 but has no independent Elenchus claim; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain separately owned
+
+## audit-record-schema-timestamp-synopsis, step 1, round 12 -- 2026-08-23T16:51:18Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction; step 3 disposable v5.13.1 proof; issue 453 report-byte and commit binding; issues 369 and 363; live-controller enforcement absent from pinned v5.12.1
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none inside step 1 after the source review and named gates; the live run remains governed by pinned v5.12.1, so this clean Warden commit records review, gate, and canonical-entry evidence without claiming live issue-429 validation or new receipt leaves; the checked-in v5.13.1 controller gets its disposable proof in step 3; step 2 and issues 453, 369, and 363 remain outside this round

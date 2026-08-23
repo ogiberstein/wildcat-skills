@@ -21,10 +21,20 @@ another pass.
    For a fix, take the test command, report format, and report file from that
    step, run Elenchus against the fixes commit, and return its exact verdict.
 2. Append every finding to the audit file (`config audit.log_path`,
-   default `audit/AUDIT.md`), even when the count is zero:
+   default `audit/AUDIT.md`), even when the count is zero. Read the exact topic
+   from `hexctl status --json`; status is read-only. The appended raw suffix
+   uses this complete schema:
 
    ```markdown
-   ## Step <n>, round <r> -- <date>
+   ## <topic>, step <n>, round <r> -- 2026-08-23T02:17:46Z
+
+   Audit schema: fiat-audit-round/v1
+
+   Covered: <risk-id>=reviewed; <risk-id>=not-applicable
+
+   Not checked: <negative space, or "none">
+
+   Elenchus verdict: <guarded, unguarded, passed, inconclusive, or null>
 
    | id | severity | file | finding | status |
    | --- | --- | --- | --- | --- |
@@ -33,11 +43,32 @@ another pass.
    Leads not pursued: <what and why, or "none">
    ```
 
+   Use whole-second UTC `YYYY-MM-DDTHH:MM:SSZ`. `Covered` names every id in
+   the source-bound study risk register exactly once as `reviewed` or
+   `not-applicable`; it names no other id. `Not checked` and
+   `Leads not pursued` keep non-empty same-line values. Every block is separated
+   by one empty LF line, the table uses physical five-cell rows, and the leads
+   line ends the file with one LF. There is no prelude, extra field, continuation
+   row, later heading, or trailer. A clean round uses the exact row
+   `| -- | -- | -- | none | -- |`. No-fix rounds write the exact
+   `Elenchus verdict: null`; fixed rounds write the exact returned verdict.
+
 3. Apply fixes on the stacked branch: `<step-branch><suffix>` (suffix from
    `config audit.stacked_suffix`, default `--audit`), with a PR targeting
    the step branch. Fixes accumulate there across rounds; the audit file
    commits alongside them.
-4. Record the round:
+4. Record the round. The controller resolves and reads the configured log once
+   and refuses a different `--log`. The latest stored same-log end offset is
+   the next boundary. With no stored offset, the configured path's regular blob
+   at the last locally verified commit is the baseline; a Git-proved absent path
+   is byte zero. Missing, malformed, mismatched, oversized, changed, or
+   unavailable evidence refuses rather than falling back. Only the appended
+   delta is decoded and line-checked. It must have the exact separator implied
+   by the preceding byte and contain one raw record in the grammar above at EOF.
+   Earlier Markdown is not parsed or revalidated. Every check finishes before
+   state or ledger mutation. The receipt records the canonical log path, schema,
+   record timestamp, entry SHA-256, and log end offset without printing record
+   content:
 
    ```text
    hexctl audit-round --findings <n> --log audit/AUDIT.md \

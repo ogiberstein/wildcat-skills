@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870",
+      "sha256": "0ca241927d6d060b787d7d006f8ed2c8419e31748262b63cb9d44576d143ee47",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -142,7 +142,7 @@
     },
     "fiat-study-amendment": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870",
+      "sha256": "0ca241927d6d060b787d7d006f8ed2c8419e31748262b63cb9d44576d143ee47",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading and amend:study event",
         "subject": "current study receipt, captured candidate bytes and canonical study path",
@@ -156,14 +156,14 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870",
+      "sha256": "0ca241927d6d060b787d7d006f8ed2c8419e31748262b63cb9d44576d143ee47",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
-        "subject": "validated state, topic, run branch, step branch and head commit",
-        "scope": "required state-container spine, current step and phase",
-        "evidence_references": "ordered state-container check, append-only ledger receipt payload and previous hash",
+        "subject": "validated state, topic, run branch, step branch, checked audit entry and head commit",
+        "scope": "required state-container spine, current step, audit-round schema and phase",
+        "evidence_references": "ordered state-container check, final audit-entry digest and end offset, append-only ledger receipt payload and previous hash",
         "evidence_classes": "receipt kind joined to the canonical Evidence classes field",
-        "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved",
+        "unknowns": "audit content truth, other heterogeneous leaf values, unrun checks and receipt assertions not independently proved",
         "transition": "single next controller directive joined to the canonical Authorises field",
         "exception": "canonical Exceptions field"
       }
