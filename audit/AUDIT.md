@@ -11452,3 +11452,66 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record does
 not claim capture completeness, external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
+
+## Homologia, step 1, round 1 -- 2026-08-23
+
+Suite: waived for the Pashov pair. The step ships a Python plugin, Markdown
+contract text and JSON manifests, and no Solidity. The mechanical part is the
+three bundled lints against the step's 24 changed paths, each required to exit
+zero.
+
+| lint | exit | result |
+| --- | --- | --- |
+| phylax | 0 | clean |
+| ephoros | 0 | clean |
+| hypomnema | 0 | clean |
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| | | | no finding | |
+
+Risk register review, the part the lints cannot see. Ten of the eleven recorded
+concerns have no surface in this step, and the review confirmed the absence
+rather than assuming it: `plugins/homologia/scripts/homologia.py` opens no file,
+starts no subprocess, reads no environment variable and writes no output path,
+so `mirror-command-boundary`, `float-contamination`, `tolerance-creep`,
+`provenance-conflation`, `decimals-scale-mismatch`, `runtime-drift`,
+`answer-count-mismatch`, `input-exhaustion`, `subprocess-hang` and
+`partial-write` have nothing to act on until step 2 accepts a manifest.
+
+The eleventh, `evidence-strengthening`, is live from the first commit, because
+prose can claim what code cannot do. The shipped documents were read for it
+directly. The canonical contract states that a verdict never says either
+implementation is correct; the landing page repeats it; the declared promise
+`homologia-scaffold-identity` is bounded to packaging and refusal and says in
+its own boundary that it establishes nothing about a manifest, a vector, a
+mirror or agreement; and every verb writes its refusal to standard error and
+exits 3, with a case requiring standard output to stay empty so no caller can
+read a verdict off this version.
+
+Leads not pursued:
+
+- `--version` prints `homologia 0.1.0 (scaffold)` to standard output and exits
+  zero, which is the one path in the command that answers rather than refuses.
+  Left as is: it is a flag rather than a verb, the string names the scaffold,
+  and a version report is not a verdict. Recorded here so a later round that
+  widens the command surface can revisit it.
+- The study and runbook both say implementation starts only after the issue
+  owner approves the assumptions, including any new CI surface. The run was
+  authorised by the issue owner and the study and runbook are receipted, so the
+  name and the no-EVM posture are covered. The CI surface is not: no
+  `.github/workflows/homologia.yml` was created, and the suite command lives in
+  the root runtime contract instead. That gate stays closed and unspent.
+- Two `H004` shape defects in `ADR-001` (missing `## Status` and
+  `## Alternatives` sections) were found by running hypomnema before the commit
+  and repaired there, so they are not findings of this round. Noted because the
+  round's clean hypomnema exit would otherwise read as a record that was always
+  well shaped.
+- This log is append-only and the round's block was appended to it. Running the
+  two prose lints over the whole file reports 2 `H003` findings at lines 6119
+  and 6269 and 7 imprimatur defects between lines 1176 and 5018. All nine are
+  byte-identical on `main` at `81105bb` and sit in historical blocks written by
+  earlier runs, several of them inside quoted specimens. The round's recorded
+  exits come from the step's own changed paths, which is the scope the loop
+  names; the nine are noted here so a later reader does not read the clean
+  exits as a claim about the whole file.
