@@ -2473,7 +2473,12 @@ class AuditRecordSchemaTests(HexctlCase):
     def test_a_record_or_required_value_hidden_in_raw_html_is_refused(self):
         path = self.write_record()
         text = Path(path).read_text(encoding="utf-8")
-        for opened, closed in (("<!--", "-->"), ("<script>", "</script>")):
+        for opened, closed in (
+            ("<!--", "-->"),
+            ("<script>", "</script>"),
+            ("<div>", "</div>"),
+            ("<x-audit>", "</x-audit>"),
+        ):
             with self.subTest(opened=opened):
                 Path(path).write_text(
                     f"{opened}\n{text}\n{closed}\n", encoding="utf-8"
@@ -2583,6 +2588,56 @@ class AuditRecordSchemaTests(HexctlCase):
                         root, "audit/AUDIT.md", None
                     )
             self.assertIn("audit log path cannot be read", stderr.getvalue())
+
+    def test_descriptor_walk_closes_a_child_when_its_stat_fails(self):
+        controller = hexctl_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = os.path.realpath(raw_root)
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            (audit_dir / "AUDIT.md").write_bytes(b"inside")
+            real_fstat = os.fstat
+            opened = []
+
+            def failing_child_stat(descriptor):
+                opened.append(descriptor)
+                if len(opened) == 2:
+                    raise OSError("synthetic child fstat failure")
+                return real_fstat(descriptor)
+
+            stderr = StringIO()
+            with mock.patch.object(
+                controller.os, "fstat", side_effect=failing_child_stat
+            ):
+                with redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    controller.read_configured_audit_log(
+                        root, "audit/AUDIT.md", None
+                    )
+            self.assertIn("audit log path cannot be read", stderr.getvalue())
+
+            still_open = []
+            for descriptor in opened:
+                try:
+                    real_fstat(descriptor)
+                except OSError:
+                    continue
+                still_open.append(descriptor)
+                os.close(descriptor)
+            self.assertEqual(still_open, [])
+
+    def test_descriptor_walk_refuses_a_platform_without_safe_primitives(self):
+        controller = hexctl_module()
+        with tempfile.TemporaryDirectory() as root:
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            (audit_dir / "AUDIT.md").write_bytes(b"inside")
+            stderr = StringIO()
+            with mock.patch.object(controller.os, "O_NOFOLLOW", 0):
+                with redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    controller.read_configured_audit_log(
+                        root, "audit/AUDIT.md", None
+                    )
+            self.assertIn("platform cannot safely read", stderr.getvalue())
 
     def test_escaping_configured_log_is_refused(self):
         self.run_ctl("config", "set", "audit.log_path", '"../AUDIT.md"')

@@ -113,6 +113,19 @@ AUDIT_RAW_TAG_RE = re.compile(
     r"<(script|pre|style|textarea)(?=[\s>])", re.IGNORECASE
 )
 AUDIT_DECLARATION_RE = re.compile(r"<![A-Z]")
+AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
+    r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|"
+    r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|"
+    r"figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|"
+    r"legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|"
+    r"param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|"
+    r"track|ul)(?=[\s/>]|$)",
+    re.IGNORECASE,
+)
+AUDIT_COMPLETE_TAG_RE = re.compile(
+    r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:\s.*)?/?>\s*$"
+)
+AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -230,9 +243,12 @@ def read_configured_audit_log(
         die("audit log path is not a regular file")
 
     no_follow = getattr(os, "O_NOFOLLOW", 0)
+    directory_only = getattr(os, "O_DIRECTORY", 0)
+    if not no_follow or not directory_only or not AUDIT_OPEN_SUPPORTS_DIR_FD:
+        die("platform cannot safely read the configured audit log")
     close_exec = getattr(os, "O_CLOEXEC", 0)
     directory_flags = (
-        os.O_RDONLY | close_exec | no_follow | getattr(os, "O_DIRECTORY", 0)
+        os.O_RDONLY | close_exec | no_follow | directory_only
     )
     file_flags = os.O_RDONLY | close_exec | no_follow
     relative = os.path.relpath(lexical, root)
@@ -244,14 +260,20 @@ def read_configured_audit_log(
         if not stat.S_ISDIR(os.fstat(directory_descriptor).st_mode):
             die("target directory is not a regular directory")
         for component in components[:-1]:
-            next_descriptor = os.open(
-                component, directory_flags, dir_fd=directory_descriptor
-            )
-            if not stat.S_ISDIR(os.fstat(next_descriptor).st_mode):
-                os.close(next_descriptor)
-                die("audit log path has a non-directory component")
-            os.close(directory_descriptor)
-            directory_descriptor = next_descriptor
+            next_descriptor = None
+            try:
+                next_descriptor = os.open(
+                    component, directory_flags, dir_fd=directory_descriptor
+                )
+                if not stat.S_ISDIR(os.fstat(next_descriptor).st_mode):
+                    die("audit log path has a non-directory component")
+                os.close(directory_descriptor)
+                directory_descriptor = next_descriptor
+                next_descriptor = None
+            finally:
+                if next_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(next_descriptor)
         file_descriptor = os.open(
             components[-1], file_flags, dir_fd=directory_descriptor
         )
@@ -265,9 +287,11 @@ def read_configured_audit_log(
         die("audit log path cannot be read")
     finally:
         if file_descriptor is not None:
-            os.close(file_descriptor)
+            with contextlib.suppress(OSError):
+                os.close(file_descriptor)
         if directory_descriptor is not None:
-            os.close(directory_descriptor)
+            with contextlib.suppress(OSError):
+                os.close(directory_descriptor)
     if len(data) > SOURCE_BYTES_MAX:
         die(f"audit log path exceeds {SOURCE_BYTES_MAX}-byte cap")
     return relative.replace(os.sep, "/"), data
@@ -1525,11 +1549,80 @@ def audit_html_open(line: str, cursor: int) -> tuple[int, str, bool] | None:
     return min(candidates, default=None, key=lambda item: item[0])
 
 
+def audit_mask_block_html(text: str) -> str:
+    """Blank CommonMark raw blocks without letting their fences alter state."""
+    masked = []
+    open_mark = None
+    open_length = None
+    html_close = None
+    close_casefold = False
+    until_blank = False
+    for physical in text.splitlines(keepends=True):
+        line = physical.rstrip("\r\n")
+        ending = physical[len(line):]
+
+        if html_close is not None:
+            searchable = line.lower() if close_casefold else line
+            if html_close in searchable:
+                html_close = None
+                close_casefold = False
+            masked.append(" " * len(line) + ending)
+            continue
+        if until_blank:
+            if line.strip():
+                masked.append(" " * len(line) + ending)
+                continue
+            until_blank = False
+            masked.append(physical)
+            continue
+
+        fence = MARKDOWN_FENCE_RE.match(line)
+        if fence:
+            sequence = fence.group("mark")
+            mark = sequence[0]
+            if open_mark is None:
+                open_mark = mark
+                open_length = len(sequence)
+            elif (
+                mark == open_mark
+                and len(sequence) >= open_length
+                and not line[fence.end():].strip()
+            ):
+                open_mark = None
+                open_length = None
+            masked.append(physical)
+            continue
+        if open_mark is not None:
+            masked.append(physical)
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        opened = audit_html_open(line, indent) if indent <= 3 else None
+        if opened is not None and opened[0] == indent:
+            _, close, casefold = opened
+            searchable = line.lower() if casefold else line
+            if close not in searchable:
+                html_close = close
+                close_casefold = casefold
+            masked.append(" " * len(line) + ending)
+            continue
+        if (
+            AUDIT_BLANK_BLOCK_TAG_RE.match(line)
+            or AUDIT_COMPLETE_TAG_RE.fullmatch(line)
+        ):
+            until_blank = True
+            masked.append(" " * len(line) + ending)
+            continue
+        masked.append(physical)
+    return "".join(masked)
+
+
 def audit_visible_lines(text: str):
     """Yield non-fenced Markdown with raw HTML blocks removed."""
     html_close = None
     close_casefold = False
-    for start, end, line, in_fence, was_open in markdown_lines(text):
+    masked_text = audit_mask_block_html(text)
+    for start, end, line, in_fence, was_open in markdown_lines(masked_text):
         if in_fence:
             continue
         visible = []

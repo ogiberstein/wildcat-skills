@@ -9414,3 +9414,28 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: step 2 synopsis generation, currency, compression, and physical-lead retention are not implemented in this step and remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 2 -- 2026-08-23T04:54:18Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Blank-delimited CommonMark raw blocks such as div and custom tags could hide a strict heading while the receipt treated it as visible Markdown. | fixed in this commit |
+| S1-R2-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The descriptor walk silently lost no-follow protection on unsupported platforms and leaked a newly opened child descriptor if fstat failed. | fixed in this commit |
+| S1-R2-03 | medium | tests/test_audit_prefix_integrity.py | The permanent prefix check followed final or ancestor symlinks, so a protected audit path could be replaced with an alias to unchanged bytes. | fixed in this commit; guard itself is not independently Elenchus-guarded |
+| S1-R2-04 | low | tests/promise_machine_coverage.json | The controller fixes changed its runtime digest while all three Promise inventory bindings still carried the pre-fix value, failing the root suite. | fixed in this commit at reviewed digest b500bc7118a87deb371a62cbdca4edfee68cd18d3accdb81b4575828e8f1706c; guarded by the root suite |
+
+### Leads
+
+Leads not pursued: S1-R2-03 changes the permanent checker and its assertion together, so the parent overlay cannot independently guard that cause; aggregate Elenchus guarded comes from four causal assertion failures for S1-R2-01 and S1-R2-02, while the fifth parent failure was the unrelated unpinned Node-version fixture; S1-R2-04 is guarded separately by the two root Promise tests that failed before its digest repair and now pass; step 2 synopsis generation, currency, compression, and physical-lead retention remain explicit negative space
