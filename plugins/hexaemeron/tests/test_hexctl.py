@@ -2500,10 +2500,24 @@ class AuditRecordSchemaTests(HexctlCase):
         hidden_records = (
             f"```markdown\n    ```\n{text}\n```\n",
             f"```not-an`opening-fence\n```\n{text}\n```\n",
+            f"```markdown\n``` still fenced\n{text}\n```\n",
+            f"~~~markdown\n~~~ still fenced\n{text}\n~~~\n",
         )
         for hidden in hidden_records:
             with self.subTest(first_line=hidden.splitlines()[0]):
                 Path(path).write_text(hidden, encoding="utf-8")
+                self.refuse("no H2 record", "--findings", "0")
+
+    def test_non_commonmark_separators_cannot_create_a_phantom_h2(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        for separator in (
+            "\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029",
+        ):
+            with self.subTest(separator=ascii(separator)):
+                Path(path).write_text(
+                    f"not a CommonMark line{separator}{text}", encoding="utf-8"
+                )
                 self.refuse("no H2 record", "--findings", "0")
 
     def test_covered_refuses_missing_duplicate_unknown_and_invalid_values(self):
@@ -2566,6 +2580,36 @@ class AuditRecordSchemaTests(HexctlCase):
         self.refuse("UTF-8", "--findings", "0")
         Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
         self.refuse("byte cap", "--findings", "0")
+
+    def test_log_refuses_physical_line_and_h2_count_caps(self):
+        path = self.write_record()
+        record = Path(path).read_text(encoding="utf-8")
+        Path(path).write_text(
+            "x" * (1024 * 1024 + 1) + "\n" + record, encoding="utf-8"
+        )
+        self.refuse("physical line", "--findings", "0")
+
+        Path(path).write_text(
+            "## legacy\n" * 10_001 + record, encoding="utf-8"
+        )
+        self.refuse("10000-H2 cap", "--findings", "0")
+
+    def test_many_inline_raw_tags_do_not_make_the_scan_quadratic(self):
+        controller = hexctl_module()
+        adversarial = "x" + "<script></script>" * 20_000
+        started = time.monotonic()
+        lines = list(controller.audit_visible_lines(adversarial))
+        elapsed = time.monotonic() - started
+        self.assertEqual(len(lines), 1)
+        self.assertLess(elapsed, 2.0)
+
+    def test_invalid_configured_path_refuses_without_a_traceback(self):
+        for invalid in ("audit/\0.md", "audit/\ud800.md"):
+            with self.subTest(invalid=ascii(invalid)):
+                self.run_ctl(
+                    "config", "set", "audit.log_path", json.dumps(invalid)
+                )
+                self.refuse("valid filesystem path", "--findings", "0")
 
     def test_parent_symlink_swap_cannot_escape_the_descriptor_walk(self):
         controller = hexctl_module()

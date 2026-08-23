@@ -109,10 +109,11 @@ AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
 AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
 AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
 AUDIT_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
-AUDIT_RAW_TAG_RE = re.compile(
-    r"<(script|pre|style|textarea)(?=[\s>])", re.IGNORECASE
+AUDIT_HTML_OPEN_RE = re.compile(
+    r"(?P<comment><!--)|(?P<processing><\?)|(?P<cdata><!\[CDATA\[)|"
+    r"(?P<declaration><![A-Z])|"
+    r"(?P<tag><(?P<tag_name>(?i:script|pre|style|textarea))(?=[\s>]))"
 )
-AUDIT_DECLARATION_RE = re.compile(r"<![A-Z]")
 AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
     r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|"
     r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|"
@@ -126,6 +127,8 @@ AUDIT_COMPLETE_TAG_RE = re.compile(
     r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:\s.*)?/?>\s*$"
 )
 AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
+AUDIT_PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
+AUDIT_H2_MAX = 10_000
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -177,9 +180,14 @@ GIT_TIMEOUT = 30
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
     """Resolve one path and refuse anything outside the target directory."""
-    root = os.path.realpath(base_dir)
-    candidate = supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
-    resolved = os.path.realpath(candidate)
+    try:
+        root = os.path.realpath(base_dir)
+        candidate = (
+            supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
+        )
+        resolved = os.path.realpath(candidate)
+    except (OSError, TypeError, ValueError):
+        die(f"{label} is not a valid filesystem path")
     try:
         inside = os.path.commonpath((root, resolved)) == root
     except ValueError:
@@ -1539,20 +1547,23 @@ def audit_field(lines: list[str], label: str) -> str:
     return values[0]
 
 
-def audit_html_open(line: str, cursor: int) -> tuple[int, str, bool] | None:
+def audit_html_open(line: str, cursor: int) -> tuple[int, int, str, bool] | None:
     """Find the next raw block opener and the token that closes it."""
-    candidates = []
-    for opened, closed in (("<!--", "-->"), ("<?", "?>"), ("<![CDATA[", "]]>") ):
-        index = line.find(opened, cursor)
-        if index >= 0:
-            candidates.append((index, closed, False))
-    declaration = AUDIT_DECLARATION_RE.search(line, cursor)
-    if declaration:
-        candidates.append((declaration.start(), ">", False))
-    tag = AUDIT_RAW_TAG_RE.search(line, cursor)
-    if tag:
-        candidates.append((tag.start(), f"</{tag.group(1).lower()}>", True))
-    return min(candidates, default=None, key=lambda item: item[0])
+    opened = AUDIT_HTML_OPEN_RE.search(line, cursor)
+    if opened is None:
+        return None
+    if opened.group("comment") is not None:
+        close, casefold = "-->", False
+    elif opened.group("processing") is not None:
+        close, casefold = "?>", False
+    elif opened.group("cdata") is not None:
+        close, casefold = "]]>", False
+    elif opened.group("declaration") is not None:
+        close, casefold = ">", False
+    else:
+        close = f"</{opened.group('tag_name').lower()}>"
+        casefold = True
+    return opened.start(), opened.end(), close, casefold
 
 
 def audit_mask_block_html(text: str) -> str:
@@ -1563,7 +1574,7 @@ def audit_mask_block_html(text: str) -> str:
     html_close = None
     close_casefold = False
     until_blank = False
-    for physical in text.splitlines(keepends=True):
+    for physical in markdown_physical_lines(text):
         line = physical.rstrip("\r\n")
         ending = physical[len(line):]
 
@@ -1592,7 +1603,7 @@ def audit_mask_block_html(text: str) -> str:
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not line[fence.end():].strip()
+                and not fence.group("remainder").strip()
             ):
                 open_mark = None
                 open_length = None
@@ -1605,7 +1616,7 @@ def audit_mask_block_html(text: str) -> str:
         indent = len(line) - len(line.lstrip(" "))
         opened = audit_html_open(line, indent) if indent <= 3 else None
         if opened is not None and opened[0] == indent:
-            _, close, casefold = opened
+            _, _, close, casefold = opened
             searchable = line.lower() if casefold else line
             if close not in searchable:
                 html_close = close
@@ -1631,11 +1642,12 @@ def audit_visible_lines(text: str):
     for start, end, line, in_fence, was_open in markdown_lines(masked_text):
         if in_fence:
             continue
+        lowered = line.lower()
         visible = []
         cursor = 0
         while cursor < len(line):
             if html_close is not None:
-                searchable = line.lower() if close_casefold else line
+                searchable = lowered if close_casefold else line
                 close = searchable.find(html_close, cursor)
                 if close < 0:
                     visible.append(" " * (len(line) - cursor))
@@ -1651,17 +1663,9 @@ def audit_visible_lines(text: str):
             if opened is None:
                 visible.append(line[cursor:])
                 break
-            opened_at, html_close, close_casefold = opened
+            opened_at, after_open, html_close, close_casefold = opened
             visible.append(line[cursor:opened_at])
-            opener = AUDIT_RAW_TAG_RE.match(line, opened_at)
-            if opener:
-                cursor = opener.end()
-            elif line.startswith("<![CDATA[", opened_at):
-                cursor = opened_at + len("<![CDATA[")
-            elif line.startswith("<!--", opened_at):
-                cursor = opened_at + len("<!--")
-            else:
-                cursor = opened_at + 2
+            cursor = after_open
             visible.append(" " * (cursor - opened_at))
         yield start, end, "".join(visible), was_open
 
@@ -1723,13 +1727,24 @@ def validated_audit_record(
         base_dir, audit.get("log_path"), args.log
     )
     text = decoded_source(data, "audit log")
-    headings = []
+    for physical in markdown_physical_lines(text):
+        line = physical.rstrip("\r\n")
+        if len(line.encode("utf-8")) > AUDIT_PHYSICAL_LINE_BYTES_MAX:
+            die(
+                "audit log has a physical line over "
+                f"{AUDIT_PHYSICAL_LINE_BYTES_MAX}-byte cap"
+            )
+    heading_record = None
+    heading_count = 0
     for start, _, line, _ in audit_visible_lines(text):
         if re.match(r"^##\s+", line):
-            headings.append((start, line))
-    if not headings:
+            heading_count += 1
+            if heading_count > AUDIT_H2_MAX:
+                die(f"audit log exceeds {AUDIT_H2_MAX}-H2 cap")
+            heading_record = (start, line)
+    if heading_record is None:
         die("audit log has no H2 record")
-    entry_start, heading = headings[-1]
+    entry_start, heading = heading_record
     round_number = len(step["audit"]["rounds"]) + 1
     heading_prefix = (
         f"## {state['topic']}, step {step['n']}, round {round_number} -- "
@@ -2425,12 +2440,22 @@ def markdown_fence(line: str):
     return fence
 
 
+def markdown_physical_lines(text: str):
+    """Yield only CommonMark's LF, CRLF, and CR-delimited physical lines."""
+    start = 0
+    for ending in re.finditer(r"\r\n|\r|\n", text):
+        yield text[start:ending.end()]
+        start = ending.end()
+    if start < len(text):
+        yield text[start:]
+
+
 def markdown_lines(text: str):
     """Yield source offsets and fence state without treating quoted headings as real."""
     offset = 0
     open_mark = None
     open_length = None
-    for physical in text.splitlines(keepends=True):
+    for physical in markdown_physical_lines(text):
         line = physical.rstrip("\r\n")
         fence = markdown_fence(line)
         was_open = open_mark
@@ -2443,7 +2468,7 @@ def markdown_lines(text: str):
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not line[fence.end():].strip()
+                and not fence.group("remainder").strip()
             ):
                 open_mark = None
                 open_length = None

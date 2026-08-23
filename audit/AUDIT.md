@@ -9463,3 +9463,28 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: S1-R3-02 changes the permanent checker and its assertion together, so the Elenchus parent overlay cannot independently guard that cause; its focused manual guard failed before the fix and passed afterward; aggregate Elenchus `guarded` comes from the controller guards for S1-R3-01 and S1-R3-03, while the Promise digest fixture also changes with the controller; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 4 -- 2026-08-23T05:58:15Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Fence closure inspected an empty suffix after the regex had consumed its remainder, so a trailing-info pseudo-close exposed a strict record still inside CommonMark code. | fixed in this commit; guard red |
+| S1-R4-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Python `splitlines()` promoted non-CommonMark separators to physical line starts, allowing a phantom strict H2 after U+2028 and related characters. | fixed in this commit; guard red |
+| S1-R4-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Inline raw-tag parsing repeated whole-line searches and lowercasing without physical-line or H2 caps, making a bounded audit log quadratic to inspect. | fixed in this commit; guard red |
+| S1-R4-04 | low | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | NUL and unpaired-surrogate configured paths escaped the controller's stable refusal and raised uncaught path-encoding exceptions. | fixed in this commit; guard red |
+
+### Leads
+
+Leads not pursued: the append-only legacy log retains pre-existing Brevitas diagnostics and cannot be rewritten, so this new record is checked separately; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space

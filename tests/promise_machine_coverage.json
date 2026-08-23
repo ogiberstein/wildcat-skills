@@ -128,7 +128,7 @@
     },
     "fiat-final-integration": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "50f6f7069719bd3fdd17a9461a2f7820e424bf4d8b49b262e64647b41d97b466",
+      "sha256": "a6a1c63203a20b220c07a45f18a2408732c9b8a5feb09b34cb27a79d9ce5c134",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "run branch, base, integration head and merge commit",
@@ -142,7 +142,7 @@
     },
     "fiat-study-amendment": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "50f6f7069719bd3fdd17a9461a2f7820e424bf4d8b49b262e64647b41d97b466",
+      "sha256": "a6a1c63203a20b220c07a45f18a2408732c9b8a5feb09b34cb27a79d9ce5c134",
       "bindings": {
         "promise_id": "coverage key joined to the canonical promise heading and amend:study event",
         "subject": "current study receipt, captured candidate bytes and canonical study path",
@@ -156,7 +156,7 @@
     },
     "fiat-receipted-delivery": {
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "50f6f7069719bd3fdd17a9461a2f7820e424bf4d8b49b262e64647b41d97b466",
+      "sha256": "a6a1c63203a20b220c07a45f18a2408732c9b8a5feb09b34cb27a79d9ce5c134",
       "bindings": {
         "promise_id": "coverage key joined to controller phase and canonical promise heading",
         "subject": "validated state, topic, run branch, step branch, checked audit entry and head commit",
