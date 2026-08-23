@@ -2582,6 +2582,92 @@ class AuditRecordSchemaTests(HexctlCase):
         )
         self.refuse("synopsis is stale", "--findings", "0")
 
+    def test_corrupt_renderer_import_is_a_bounded_refusal(self):
+        controller = hexctl_module()
+
+        class BrokenLoader:
+            @staticmethod
+            def exec_module(_module):
+                raise RuntimeError("corrupt renderer fixture")
+
+        specification = argparse.Namespace(loader=BrokenLoader())
+        stderr = StringIO()
+        with (
+            mock.patch.object(
+                controller, "read_configured_audit_log",
+                return_value=("audit/AUDIT.md", b"record"),
+            ),
+            mock.patch.object(controller, "audit_delta_start", return_value=0),
+            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
+            mock.patch.object(
+                controller,
+                "parse_audit_record",
+                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
+            ),
+            mock.patch.object(
+                controller.importlib.util,
+                "spec_from_file_location",
+                return_value=specification,
+            ),
+            mock.patch.object(
+                controller.importlib.util, "module_from_spec", return_value=object()
+            ),
+            redirect_stderr(stderr),
+            self.assertRaises(BaseException) as raised,
+        ):
+            controller.validated_audit_record(
+                self.target,
+                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
+                {"audit": {"rounds": []}},
+                argparse.Namespace(log=None),
+            )
+        self.assertIsInstance(raised.exception, SystemExit)
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
+
+    def test_corrupt_renderer_interface_is_a_bounded_refusal(self):
+        controller = hexctl_module()
+
+        class Loader:
+            @staticmethod
+            def exec_module(_module):
+                pass
+
+        specification = argparse.Namespace(loader=Loader())
+        stderr = StringIO()
+        with (
+            mock.patch.object(
+                controller, "read_configured_audit_log",
+                return_value=("audit/AUDIT.md", b"record"),
+            ),
+            mock.patch.object(controller, "audit_delta_start", return_value=0),
+            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
+            mock.patch.object(
+                controller,
+                "parse_audit_record",
+                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
+            ),
+            mock.patch.object(
+                controller.importlib.util,
+                "spec_from_file_location",
+                return_value=specification,
+            ),
+            mock.patch.object(
+                controller.importlib.util, "module_from_spec", return_value=object()
+            ),
+            redirect_stderr(stderr),
+            self.assertRaises(BaseException) as raised,
+        ):
+            controller.validated_audit_record(
+                self.target,
+                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
+                {"audit": {"rounds": []}},
+                argparse.Namespace(log=None),
+            )
+        self.assertIsInstance(raised.exception, SystemExit)
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
+
     def test_date_only_heading_is_refused_before_mutation(self):
         self.write_record(timestamp="2026-08-23")
         self.refuse("record timestamp", "--findings", "0")
@@ -3040,6 +3126,47 @@ class AuditRecordSchemaTests(HexctlCase):
                 def read(self, size):
                     data = self.handle.read(size)
                     log.write_bytes(b"outside")
+                    return data
+
+            stderr = StringIO()
+            with mock.patch.object(
+                controller.os, "fdopen", side_effect=RacingHandle
+            ):
+                with redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    controller.read_configured_audit_log(
+                        root, "audit/AUDIT.md", None
+                    )
+            self.assertIn("changed during read", stderr.getvalue())
+
+    def test_configured_log_read_refuses_an_observed_parent_rebind(self):
+        controller = hexctl_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = os.path.realpath(raw_root)
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            log = audit_dir / "AUDIT.md"
+            log.write_bytes(b"inside")
+            moved_dir = Path(root) / "moved-audit"
+            real_fdopen = controller.os.fdopen
+
+            class RacingHandle:
+                def __init__(self, descriptor, mode):
+                    self.handle = real_fdopen(descriptor, mode)
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    self.handle.close()
+
+                def fileno(self):
+                    return self.handle.fileno()
+
+                def read(self, size):
+                    data = self.handle.read(size)
+                    audit_dir.rename(moved_dir)
+                    audit_dir.mkdir()
+                    (audit_dir / "AUDIT.md").write_bytes(b"outside")
                     return data
 
             stderr = StringIO()

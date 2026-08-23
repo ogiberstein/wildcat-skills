@@ -300,8 +300,51 @@ def read_configured_audit_log(
                 finished.st_mtime_ns,
                 finished.st_ctime_ns,
             )
+            current_directory_descriptor = None
+            current_file_descriptor = None
+            try:
+                current_directory_descriptor = os.open(root, directory_flags)
+                for component in components[:-1]:
+                    next_descriptor = os.open(
+                        component,
+                        directory_flags,
+                        dir_fd=current_directory_descriptor,
+                    )
+                    os.close(current_directory_descriptor)
+                    current_directory_descriptor = next_descriptor
+                current_file_descriptor = os.open(
+                    components[-1],
+                    file_flags,
+                    dir_fd=current_directory_descriptor,
+                )
+                current_directory = os.fstat(current_directory_descriptor)
+                current_file = os.fstat(current_file_descriptor)
+            except OSError:
+                die("audit log path changed during read")
+            finally:
+                if current_file_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(current_file_descriptor)
+                if current_directory_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(current_directory_descriptor)
             if opened_identity != finished_identity or (
                 len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size
+            ) or (
+                (current_directory.st_dev, current_directory.st_ino)
+                != (
+                    os.fstat(directory_descriptor).st_dev,
+                    os.fstat(directory_descriptor).st_ino,
+                )
+            ) or (
+                finished_identity
+                != (
+                    current_file.st_dev,
+                    current_file.st_ino,
+                    current_file.st_size,
+                    current_file.st_mtime_ns,
+                    current_file.st_ctime_ns,
+                )
             ):
                 die("audit log path changed during read")
     except OSError:
@@ -1828,13 +1871,19 @@ def validated_audit_record(
             die("audit synopsis renderer cannot be loaded")
         renderer = importlib.util.module_from_spec(specification)
         specification.loader.exec_module(renderer)
-    except (OSError, ImportError, SyntaxError):
+    except Exception:
+        die("audit synopsis renderer cannot be loaded")
+    synopsis_validator = getattr(renderer, "validate_committed_synopsis", None)
+    synopsis_error = getattr(renderer, "SynopsisError", None)
+    if (
+        not callable(synopsis_validator)
+        or not isinstance(synopsis_error, type)
+        or not issubclass(synopsis_error, Exception)
+    ):
         die("audit synopsis renderer cannot be loaded")
     try:
-        synopsis_sha256 = renderer.validate_committed_synopsis(
-            base_dir, log_path, data
-        )
-    except renderer.SynopsisError as error:
+        synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
+    except synopsis_error as error:
         die(str(error))
     return {
         "schema": schema,

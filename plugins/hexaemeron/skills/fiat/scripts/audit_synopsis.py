@@ -129,6 +129,67 @@ def _directory_descriptor(root, components, label):
         raise
 
 
+def _inode_identity(info):
+    return info.st_dev, info.st_ino
+
+
+def _file_identity(info):
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_size,
+        info.st_mtime_ns,
+        info.st_ctime_ns,
+    )
+
+
+def _directory_still_at_path(root, components, descriptor):
+    current = None
+    try:
+        current = _directory_descriptor(root, components, "directory")
+        return _inode_identity(os.fstat(current)) == _inode_identity(
+            os.fstat(descriptor)
+        )
+    except (OSError, SynopsisError):
+        return False
+    finally:
+        if current is not None:
+            with contextlib.suppress(OSError):
+                os.close(current)
+
+
+def _file_still_at_path(root, components, parent, expected):
+    current_parent = None
+    current_file = None
+    try:
+        current_parent = _directory_descriptor(root, components[:-1], "file")
+        if _inode_identity(os.fstat(current_parent)) != _inode_identity(
+            os.fstat(parent)
+        ):
+            return False
+        current_file = os.open(
+            components[-1],
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0),
+            dir_fd=current_parent,
+        )
+        current = os.fstat(current_file)
+        return stat.S_ISREG(current.st_mode) and _file_identity(
+            current
+        ) == _file_identity(expected)
+    except (OSError, SynopsisError):
+        return False
+    finally:
+        if current_file is not None:
+            with contextlib.suppress(OSError):
+                os.close(current_file)
+        if current_parent is not None:
+            with contextlib.suppress(OSError):
+                os.close(current_parent)
+
+
 def read_regular_bytes(root, relative, label, *, missing_ok=False):
     """Read one contained regular file once through a no-follow descriptor walk."""
     root = _root_path(root)
@@ -177,22 +238,10 @@ def read_regular_bytes(root, relative, label, *, missing_ok=False):
             remaining -= len(chunk)
         data = b"".join(chunks)
         finished = os.fstat(descriptor)
-        opened_identity = (
-            opened.st_dev,
-            opened.st_ino,
-            opened.st_size,
-            opened.st_mtime_ns,
-            opened.st_ctime_ns,
-        )
-        finished_identity = (
-            finished.st_dev,
-            finished.st_ino,
-            finished.st_size,
-            finished.st_mtime_ns,
-            finished.st_ctime_ns,
-        )
-        if opened_identity != finished_identity or (
-            len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size
+        if (
+            _file_identity(opened) != _file_identity(finished)
+            or (len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size)
+            or not _file_still_at_path(root, components, parent, finished)
         ):
             raise SynopsisError(f"{label} changed during read: {relative}")
     except OSError:
@@ -597,7 +646,9 @@ def discover_sources(root):
         if os.path.basename(directory) != "audit" or SOURCE_NAME not in files:
             continue
         candidate = os.path.join(directory, SOURCE_NAME)
-        relative = os.path.relpath(candidate, root).replace(os.sep, "/")
+        relative = _relative_path(
+            os.path.relpath(candidate, root).replace(os.sep, "/")
+        )
         try:
             info = os.lstat(candidate)
         except OSError:
@@ -684,6 +735,10 @@ def atomic_replace(root, relative, data):
                 os.close(descriptor)
             descriptor = None
         try:
+            if not _directory_still_at_path(root, components[:-1], parent):
+                raise SynopsisError(
+                    f"synopsis directory changed during write: {relative}"
+                )
             os.replace(
                 temporary,
                 components[-1],

@@ -460,11 +460,78 @@ class SynopsisRepositoryTests(unittest.TestCase):
                     str(self.root), "audit/AUDIT.md", "audit source"
                 )
 
+    def test_descriptor_read_refuses_an_observed_parent_rebind(self):
+        source = self.source()
+        original = source.read_bytes()
+        changed = original.replace(b"Not checked: none", b"Not checked: nope")
+        audit_directory = source.parent
+        moved_directory = self.root / "moved-audit"
+        real_read = self.module.os.read
+        raced = False
+
+        def rebind_parent_after_read(descriptor, size):
+            nonlocal raced
+            chunk = real_read(descriptor, size)
+            if chunk and not raced:
+                raced = True
+                audit_directory.rename(moved_directory)
+                audit_directory.mkdir()
+                (audit_directory / "AUDIT.md").write_bytes(changed)
+            return chunk
+
+        with mock.patch.object(
+            self.module.os, "read", side_effect=rebind_parent_after_read
+        ):
+            with self.assertRaisesRegex(self.module.SynopsisError, "changed during read"):
+                self.module.read_regular_bytes(
+                    str(self.root), "audit/AUDIT.md", "audit source"
+                )
+
+    def test_parent_rebind_cannot_redirect_atomic_replacement(self):
+        source = self.source()
+        destination = source.with_name("AUDIT_SYNOPSIS.md")
+        destination.write_bytes(b"old complete\n")
+        audit_directory = source.parent
+        moved_directory = self.root / "moved-audit"
+        write_all = self.module._write_all
+
+        def rebind_parent_after_write(descriptor, data):
+            write_all(descriptor, data)
+            audit_directory.rename(moved_directory)
+            audit_directory.mkdir()
+
+        with mock.patch.object(
+            self.module, "_write_all", side_effect=rebind_parent_after_write
+        ):
+            with self.assertRaisesRegex(
+                self.module.SynopsisError, "directory changed during write"
+            ):
+                self.module.atomic_replace(
+                    str(self.root), "audit/AUDIT_SYNOPSIS.md", b"new complete\n"
+                )
+        self.assertEqual(
+            (moved_directory / "AUDIT_SYNOPSIS.md").read_bytes(),
+            b"old complete\n",
+        )
+        self.assertEqual(
+            list(moved_directory.glob(".AUDIT_SYNOPSIS.md.*.tmp")), []
+        )
+
     def test_unsafe_discovery_path_cannot_frame_an_error(self):
         unsafe_parent = self.root / "bad\nspoof"
         unsafe_parent.mkdir()
         (unsafe_parent / "audit").symlink_to(self.root, target_is_directory=True)
 
+        with self.assertRaises(self.module.SynopsisError) as raised:
+            self.module.discover_sources(str(self.root))
+        self.assertNotIn("\n", str(raised.exception))
+        self.assertIn(r"bad\nspoof", str(raised.exception))
+
+        (unsafe_parent / "audit").unlink()
+        (unsafe_parent / "audit").mkdir()
+        (unsafe_parent / "audit" / "AUDIT.md").symlink_to(
+            self.root / "outside.md"
+        )
         with self.assertRaises(self.module.SynopsisError) as raised:
             self.module.discover_sources(str(self.root))
         self.assertNotIn("\n", str(raised.exception))
