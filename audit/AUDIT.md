@@ -11279,3 +11279,44 @@ cross-run diagnosis remain in their separate issues. The final bounded reread
 cannot stop a writer changing bytes after observation ends; the record neither
 claims capture completeness nor external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
+
+## Issue 434 carryover 5, step 1, round 4 -- 2026-08-23
+
+Finding ID: `I434-C5-S1-R4-01`.
+
+Severity: high. The shipped observable-run-record runbook contradicted its
+absolute-path write boundary.
+
+Location: `docs/promise-machine/run-observation-runbook.md`.
+
+Mechanism: the demonstration passed the reporter and Elenchus a relative
+`.elenchus/run-observation.json` path while later prose required every report
+path to be canonical and absolute. The same prose named a prior C4 worktree,
+not the worktree that executed the command. A caller could therefore write the
+report below an unintended current directory, or follow stale instructions to
+the wrong run tree.
+
+Impact: the runbook could not establish the report-output boundary it claimed,
+and its command was unsuitable as evidence for the current C5 tree.
+
+Reproduction: on parent `5a1f31565f3db02c6882e7409b6ffcac5b7e7dde`, a
+read-only documentation probe failed twice because the direct reporter command
+and `--report-file` were relative and the obsolete worktree route remained.
+
+Causal repair: define `REPORT_PATH` as
+`$(pwd -P)/.elenchus/run-observation.json`, pass that absolute value to both
+the reporter and Elenchus, and replace the historical root with a current-
+worktree requirement. The retained
+`RunObservationRefusalTests.test_runbook_resolves_the_report_target_to_the_current_worktree`
+guard rejects the prior relative arguments and stale run root. The C5
+controller runbook is already receipted and immutable; this record preserves
+that historical mismatch rather than rewriting controller evidence.
+
+Current report evidence: the source-owned reporter ran with the canonical
+absolute C5 worktree target and emitted a complete `elenchus.unittest.v1`
+result: 144 tests, zero failures, errors, or skips. The transient report was
+removed immediately after the bounded check.
+
+The full fixed-tree matrix follows this record. No controller receipt, push,
+pull request, issue action, merge, or integration occurs in this round. A
+further independent Warden round is required after its signed repair.

@@ -20,6 +20,7 @@ CONTRACT = "promise-machine-run-observation/v1"
 ADR_014 = ROOT / "docs" / "decisions" / "ADR-014-reallocate-the-live-wave-atlas-from-a-complete-census.md"
 ADR_015 = ROOT / "docs" / "decisions" / "ADR-015-define-the-promise-machine-run-observation-record.md"
 AUDIT_LOG = ROOT / "audit" / "AUDIT.md"
+RUNBOOK = ROOT / "docs" / "promise-machine" / "run-observation-runbook.md"
 
 SPEC = importlib.util.spec_from_file_location("run_observation", SCRIPT)
 run_observation = importlib.util.module_from_spec(SPEC)
@@ -1627,6 +1628,25 @@ class RunObservationRefusalTests(unittest.TestCase):
         path = FIXTURES / "invalid" / "strengthened-evidence.jsonl"
         findings = run_observation.validate_path(path)
         self.assertTrue(any(item.code == "RO012" and item.event_id == "evt-4" for item in findings))
+
+    def test_runbook_resolves_the_report_target_to_the_current_worktree(self):
+        runbook = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn(
+            'REPORT_PATH="$(pwd -P)/.elenchus/run-observation.json"', runbook
+        )
+        self.assertIn(
+            'python3 tests/emit_run_observation_report.py "$REPORT_PATH"', runbook
+        )
+        self.assertIn('--report-file "$REPORT_PATH"', runbook)
+        self.assertNotIn(
+            'python3 tests/emit_run_observation_report.py .elenchus/run-observation.json',
+            runbook,
+        )
+        self.assertNotIn('--report-file .elenchus/run-observation.json', runbook)
+        self.assertNotIn(
+            "/tmp/fiat/fiat-434-observable-run-record-carryover-inoculation",
+            runbook,
+        )
 
 
 if __name__ == "__main__":

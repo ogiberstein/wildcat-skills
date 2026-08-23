@@ -45,7 +45,7 @@
     },
     "tests": {
       "path": "tests/test_run_observation.py",
-      "sha256": "33fac7cffd243af7d8343df41621f6ccae4ea8ffc90132ad94e88972d2cd6f04",
+      "sha256": "67f17449d82a0f0079e527d09b53d91dcb2f5fa05b139bd408e81ae899cef09e",
       "selectors": [
         "test_schema_binds_the_contract_and_closed_event_union",
         "test_valid_records_are_accepted",
@@ -71,6 +71,7 @@
         "test_schema_and_runtime_placeholder_rules_agree",
         "test_schema_and_runtime_reject_impossible_civil_dates",
         "test_unrepresentable_caller_paths_refuse_without_crashing",
+        "test_runbook_resolves_the_report_target_to_the_current_worktree",
         "test_unhashable_and_non_string_typed_fields_refuse_without_crashing"
       ]
     },
