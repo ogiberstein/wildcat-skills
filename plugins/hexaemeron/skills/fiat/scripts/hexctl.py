@@ -1894,7 +1894,11 @@ def validated_audit_record(
     try:
         synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
     except synopsis_error as error:
-        die(str(error))
+        try:
+            message = str(error)
+        except (Exception, SystemExit):
+            die("audit synopsis renderer validation failed")
+        die(message)
     except SystemExit:
         die("audit synopsis renderer validation terminated unexpectedly")
     if (

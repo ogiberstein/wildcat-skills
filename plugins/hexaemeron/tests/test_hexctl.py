@@ -2669,11 +2669,15 @@ class AuditRecordSchemaTests(HexctlCase):
         controller = hexctl_module()
 
         class RendererError(Exception):
-            pass
+            def __str__(self):
+                if renderer.stop_during_error_format:
+                    raise SystemExit(0)
+                return super().__str__()
 
         class StoppingRenderer:
             SynopsisError = RendererError
             stop_during_interface = False
+            stop_during_error_format = False
 
             def __getattribute__(self, name):
                 if (
@@ -2685,6 +2689,8 @@ class AuditRecordSchemaTests(HexctlCase):
 
             @staticmethod
             def validate_committed_synopsis(*_args):
+                if renderer.stop_during_error_format:
+                    raise RendererError("renderer refusal")
                 raise SystemExit(0)
 
         renderer = StoppingRenderer()
@@ -2698,10 +2704,11 @@ class AuditRecordSchemaTests(HexctlCase):
 
         loader = StoppingLoader()
         specification = argparse.Namespace(loader=loader)
-        for stop_at in ("load", "interface", "validation"):
+        for stop_at in ("load", "interface", "validation", "error-format"):
             with self.subTest(stop_at=stop_at):
                 loader.stop_during_load = stop_at == "load"
                 renderer.stop_during_interface = stop_at == "interface"
+                renderer.stop_during_error_format = stop_at == "error-format"
                 stderr = StringIO()
                 with ExitStack() as stack:
                     stack.enter_context(mock.patch.object(
