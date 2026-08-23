@@ -22,6 +22,32 @@ AUDIT_PATHS = (
     "plugins/probitas/audit/AUDIT.md",
     "plugins/tabularium/audit/AUDIT.md",
 )
+ROOT_SUITE_JOBS = (
+    (".github/workflows/janus.yml", "contracts"),
+    (".github/workflows/lazarus.yml", "tests"),
+    (".github/workflows/pandects.yml", "catalogue"),
+)
+
+
+def workflow_job(path, job):
+    """Return one top-level workflow job without importing a YAML package."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    marker = f"  {job}:"
+    try:
+        start = lines.index(marker)
+    except ValueError as exc:
+        raise ValueError(f"{path}: workflow job {job} is missing") from exc
+    end = next(
+        (
+            index
+            for index in range(start + 1, len(lines))
+            if lines[index].startswith("  ")
+            and not lines[index].startswith("    ")
+            and lines[index].endswith(":")
+        ),
+        len(lines),
+    )
+    return "\n".join(lines[start:end])
 
 
 def check_prefix(data, expected):
@@ -145,6 +171,20 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
                     current_source(ROOT, expected["path"], expected["bytes"]),
                     expected,
                 )
+
+    def test_root_suite_ci_jobs_fetch_the_pinned_starting_ref(self):
+        checkout = (
+            "      - uses: actions/checkout@v4\n"
+            "        with:\n"
+            "          fetch-depth: 0"
+        )
+        for relative, job in ROOT_SUITE_JOBS:
+            with self.subTest(path=relative, job=job):
+                body = workflow_job(ROOT / relative, job)
+                self.assertIn(
+                    "run: python3 -m unittest discover -s tests -v", body
+                )
+                self.assertIn(checkout, body)
 
     def test_a_changed_prefix_cannot_be_reblessed_in_the_fixture(self):
         expected = self.fixture["prefixes"][2]
