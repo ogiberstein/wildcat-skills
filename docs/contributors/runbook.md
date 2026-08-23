@@ -1,6 +1,6 @@
 # Runbook: publish the ranked human contributor list
 
-Study: `.hexaemeron/study.md`
+Study: [study.md](./study.md)
 Task issue: https://github.com/wildcat-finance/skills/issues/515
 Run branch: `fiat/515-publish-the-ranked-human-contributor-list`
 Base: `main` at `dd23413ef6e9021bd80b930ad57e1766bf166f0b`

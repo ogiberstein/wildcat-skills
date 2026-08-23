@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -256,8 +257,6 @@ class CommittedSpecLinks(unittest.TestCase):
     SPEC = ("docs/contributors/study.md", "docs/contributors/runbook.md")
 
     def test_every_relative_link_resolves(self):
-        import re
-
         dead = []
         for relative in self.SPEC:
             doc = REPOSITORY_ROOT / relative
@@ -270,6 +269,25 @@ class CommittedSpecLinks(unittest.TestCase):
                 if not target.exists():
                     dead.append(f"{relative}: {href}")
         self.assertEqual(dead, [], "dead relative links in the published spec: " + "; ".join(dead))
+
+
+    def test_no_published_file_cites_the_run_state_directory(self):
+        """.hexaemeron is fully gitignored, so a clone never has it.
+
+        A published document that sends a reader to `.hexaemeron/study.md` is
+        citing a path that exists only on the machine that ran the delivery.
+        """
+        offenders = []
+        for relative in self.SPEC:
+            text = (REPOSITORY_ROOT / relative).read_text(encoding="utf-8")
+            for number, line in enumerate(text.splitlines(), start=1):
+                if ".hexaemeron" in line:
+                    offenders.append(f"{relative}:{number}")
+        self.assertEqual(
+            offenders,
+            [],
+            "published spec cites the untracked run-state directory at: " + "; ".join(offenders),
+        )
 
 
 if __name__ == "__main__":

@@ -11502,3 +11502,17 @@ Leads not pursued: the parity test reads the repository's vendored
 correct authority for a test that has to pass in CI, where no plugin cache
 exists, but the test does not say so. Left as is; a comment would restate what
 the path already shows.
+
+## Step 1, round 4 -- 2026-08-24
+
+Against the tree with rounds 1 to 3 applied. Phylax, Ephoros and Hypomnema
+clean. One finding, again in the published spec rather than the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | medium | docs/contributors/runbook.md | The published runbook's header sent readers to `` `.hexaemeron/study.md` `` for its study. `.hexaemeron/` carries its own `.gitignore` matching everything and has zero tracked files, so that path exists only on the machine that ran the delivery and never in a clone. Round 3 fixed the study's dead Markdown links and missed this because the reference is backticked prose rather than a link, so the round-3 guard could not see it. Fixed by pointing the published runbook at its sibling published study, and by a guard asserting no published spec file mentions `.hexaemeron` at all, which is the general form of the defect rather than the one instance. The `re` import was also moved to module level, matching the correction made to `tempfile` in round 2 and undoing an inconsistency round 3 introduced. | fixed in this round |
+
+Leads not pursued: the link-resolution regex truncates a URL containing a
+closing parenthesis and would read `](` inside a fenced code block as a link.
+Neither occurs in the two files it checks, and a stricter parser would be more
+machinery than the defect justifies.
