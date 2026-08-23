@@ -9588,3 +9588,26 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: the round-8 ceiling requires the controller's `audit-verdict` stop; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
+
+## audit-record-schema-timestamp-synopsis, step 1, round 9 -- 2026-08-23T08:43:51Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R9-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The final-H2 selector recognised only non-empty, unindented ATX headings, so a later empty or indented ATX H2 was folded into the prior strict entry and accepted. | fixed in this commit; guard red then green |
+| S1-R9-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The final-H2 selector omitted Setext H2 syntax, so a later level-two Setext record was folded into the prior strict entry and accepted. | fixed in this commit; guard red then green |
+
+### Leads
+
+Leads not pursued: the Brevitas B011 probe was inapplicable because this schema-mandated record is completeness evidence excluded by that skill; the unwrapped Elenchus runner reached ambient Node v22.22.3 and failed only its v26.6.0 fixture, with failed report SHA-256 433e7592fc5da275e03d0ed781f8a989782a84020091a28a6b13f3a1ea1a841b preserved before the same exact report command passed under the runbook-pinned Node; differential CommonMark probes found conservative refusals outside the canonical strict append grammar but no further acceptance bypass; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step

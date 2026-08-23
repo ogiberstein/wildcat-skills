@@ -2454,6 +2454,29 @@ class AuditRecordSchemaTests(HexctlCase):
         Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
         self.refuse("topic, step, and round", "--findings", "0")
 
+    def test_a_later_setext_h2_is_not_folded_into_the_strict_record(self):
+        for title in (
+            "later record",
+            "| later record |",
+            "<em>later record</em>",
+        ):
+            with self.subTest(title=title):
+                self.write_record(extra=("", title, "---"))
+                self.refuse("final H2 record", "--findings", "0")
+
+        path = self.write_record()
+        strict = Path(path).read_text(encoding="utf-8")
+        Path(path).write_text(
+            f"legacy record\n---\n\n{strict}", encoding="utf-8"
+        )
+        self.run_ctl("audit-round", "--findings", "0")
+
+    def test_a_later_empty_or_indented_atx_h2_is_not_ignored(self):
+        for heading in ("##", "   ## later record"):
+            with self.subTest(heading=heading):
+                self.write_record(extra=("", heading))
+                self.refuse("topic, step, and round", "--findings", "0")
+
     def test_each_required_field_is_unique_and_present(self):
         cases = (
             ("schema", "Audit schema"),

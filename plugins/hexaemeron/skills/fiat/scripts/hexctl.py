@@ -109,6 +109,9 @@ AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
 AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
 AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
 AUDIT_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+AUDIT_SETEXT_H2_RE = re.compile(r"^ {0,3}-+[ \t]*$")
+AUDIT_ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
+AUDIT_ATX_H2_RE = re.compile(r"^ {0,3}##(?:[ \t]+|$)")
 AUDIT_HTML_OPEN_RE = re.compile(
     r"(?P<comment><!--)|(?P<processing><\?)|(?P<cdata><!\[CDATA\[)|"
     r"(?P<declaration><![A-Za-z])|"
@@ -1782,6 +1785,17 @@ def audit_findings(lines: list[str], findings: int) -> int:
     return header
 
 
+def audit_setext_h2(previous: str | None, line: str) -> bool:
+    """Recognise a visible level-two Setext candidate after paragraph text."""
+    if previous is None or AUDIT_SETEXT_H2_RE.fullmatch(line) is None:
+        return False
+    if previous == "\0" or markdown_blank(previous):
+        return False
+    if AUDIT_ATX_HEADING_RE.match(previous):
+        return False
+    return True
+
+
 def validated_audit_record(
     base_dir: str, state: dict, step: dict, args
 ) -> dict:
@@ -1800,15 +1814,26 @@ def validated_audit_record(
             )
     heading_record = None
     heading_count = 0
+    previous_start = None
+    previous_line = None
     for start, _, line, _ in audit_visible_lines(text):
-        if re.match(r"^##\s+", line):
+        if AUDIT_ATX_H2_RE.match(line):
             heading_count += 1
             if heading_count > AUDIT_H2_MAX:
                 die(f"audit log exceeds {AUDIT_H2_MAX}-H2 cap")
-            heading_record = (start, line)
+            heading_record = (start, line, "atx")
+        elif audit_setext_h2(previous_line, line):
+            heading_count += 1
+            if heading_count > AUDIT_H2_MAX:
+                die(f"audit log exceeds {AUDIT_H2_MAX}-H2 cap")
+            heading_record = (previous_start, previous_line, "setext")
+        previous_start = start
+        previous_line = line
     if heading_record is None:
         die("audit log has no H2 record")
-    entry_start, heading = heading_record
+    entry_start, heading, heading_kind = heading_record
+    if heading_kind != "atx":
+        die("strict audit record must be the final H2 record")
     round_number = len(step["audit"]["rounds"]) + 1
     heading_prefix = (
         f"## {state['topic']}, step {step['n']}, round {round_number} -- "
