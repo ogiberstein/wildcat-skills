@@ -141,6 +141,24 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("test command, report format, and report file", contract)
         self.assertIn("return its exact Elenchus verdict", contract)
 
+    def test_audit_synopsis_is_regenerated_and_bound_before_the_receipt(self):
+        fiat = " ".join(self.fiat.split())
+        audit = " ".join(self.audit_loop.split())
+        warden = " ".join(AGENTS["warden"].split())
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for text in (fiat, audit, warden, readme):
+            self.assertIn("audit_synopsis.py", text)
+            self.assertIn("AUDIT_SYNOPSIS.md", text)
+        for text in (fiat, audit, readme):
+            self.assertIn("fiat-audit-synopsis/v1", text)
+        self.assertIn("same signed", warden)
+        self.assertIn("synopsis SHA-256", audit)
+        self.assertIn("before state or ledger mutation", audit)
+        self.assertIn("16 MiB", readme)
+        self.assertIn("10,000", readme)
+        self.assertIn("1 MiB", readme)
+        self.assertIn("15%", readme)
+
     def test_provenance_is_verified_without_reclassifying_human_work(self):
         # Flattened: these assert what the instruction says, and a reflow of the
         # same sentence is not a change to it. Pinning the line breaks made an

@@ -25,6 +25,7 @@ import datetime
 import fcntl
 import glob
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -1792,12 +1793,34 @@ def validated_audit_record(
     schema, timestamp = parse_audit_record(
         entry_bytes, base_dir, state, step, args
     )
+    synopsis_path = os.path.join(
+        os.path.dirname(__file__), "audit_synopsis.py"
+    )
+    if not os.path.isfile(synopsis_path):
+        die("audit synopsis renderer is unavailable")
+    try:
+        specification = importlib.util.spec_from_file_location(
+            "fiat_audit_synopsis", synopsis_path
+        )
+        if specification is None or specification.loader is None:
+            die("audit synopsis renderer cannot be loaded")
+        renderer = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(renderer)
+    except (OSError, ImportError, SyntaxError):
+        die("audit synopsis renderer cannot be loaded")
+    try:
+        synopsis_sha256 = renderer.validate_committed_synopsis(
+            base_dir, log_path, data
+        )
+    except renderer.SynopsisError as error:
+        die(str(error))
     return {
         "schema": schema,
         "log": log_path,
         "record_timestamp": timestamp,
         "entry_sha256": hashlib.sha256(entry_bytes).hexdigest(),
         "log_end_offset": len(data),
+        "synopsis_sha256": synopsis_sha256,
     }
 
 

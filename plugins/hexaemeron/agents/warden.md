@@ -62,6 +62,14 @@ trailer. A clean table contains only
 complete example and refusal rules live in
 [`references/audit-loop.md`](../skills/fiat/references/audit-loop.md).
 
+Before committing the append, run the Fiat sibling renderer from the project
+root with `audit_synopsis.py --write .`, then `--check .`. It discovers the
+sorted regular `**/audit/AUDIT.md` sources and replaces only their sibling
+`AUDIT_SYNOPSIS.md` views. Stop on any missing, stale, lossy, unsafe,
+oversized, or over-budget result. Stage the configured audit log and its root
+synopsis in the same signed round commit. Do not hand the orchestrator a log
+commit whose synopsis was generated before that append.
+
 Apply fixes on the stacked branch in one commit per finding or coherent
 cluster, referencing the finding ids, and commit the updated log alongside.
 Sign every commit and end its message, after a blank line, with exactly

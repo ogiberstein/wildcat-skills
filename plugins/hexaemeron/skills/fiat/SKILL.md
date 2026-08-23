@@ -408,7 +408,11 @@ commit is the byte-matched baseline; Git-proved absence means byte zero. Only
 the delta is decoded. Its UTC heading, complete study-risk `Covered` field,
 explicit `Not checked` value, findings count, `Leads not pursued`, and exact
 Elenchus value must agree. A supplied `--log` cannot select another file, and
-malformed stored evidence never falls back.
+malformed stored evidence never falls back. Fiat then passes the same captured
+log bytes to `audit_synopsis.py`, requires the sibling `AUDIT_SYNOPSIS.md` to
+equal a fresh `fiat-audit-synopsis/v1` render, and stores its SHA-256. Missing,
+stale, lossy, oversized, or over-budget derived bytes refuse before state or
+ledger mutation. Legacy rounds may omit the synopsis receipt leaf.
 Record the round even when it finds nothing.
 Zero findings closes the loop; a genuine judgement that the remaining leads
 are not worth another round closes it with `--no-further-leads --reason`.
@@ -520,9 +524,9 @@ the study and runbook live.
 ### fiat-receipted-delivery
 
 - Promise: A successful `hexctl verify` establishes that the controller state has the required version-1 container shape, the state and append-only ledger agree, and every recorded phase transition occurred in the required order with the required receipt shape.
-- Evidence: The ordered state-container check, exact study and runbook receipts, step branches and locally verified commit ranges, the checked final `fiat-audit-round/v1` entry and its digest, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
+- Evidence: The ordered state-container check, exact study and runbook receipts, step branches and locally verified commit ranges, the checked final `fiat-audit-round/v1` entry and its digest, its byte-current `fiat-audit-synopsis/v1` sibling and digest, GitHub-verified pushed commits and merge SHAs, audit rounds, prose and push receipts, hash-chained ledger, controller version and zero-exit verification result.
 - Evidence classes: checked, recorded
-- Boundary: Controller verification proves the required container shape, receipt order, integrity, checked audit-entry structure, and the recorded local and GitHub signature checks; it does not establish that audit prose or coverage judgements are true, validate other heterogeneous leaf values, prove a test summary, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
+- Boundary: Controller verification proves the required container shape, receipt order, integrity, checked audit-entry structure, exact derived-synopsis currency, and the recorded local and GitHub signature checks; it does not establish that audit prose or coverage judgements are true, make the lossy synopsis authoritative, validate other heterogeneous leaf values, prove a test summary, implementation claim, signer authority beyond those checks, or user authority merely written into a receipt.
 - Authorises: Advancing only to the single next controller directive and reporting the recorded workflow state without strengthening any underlying receipt.
 - Consequence: 2
 - Refuses: Skipping a phase, reconstructing progress from chat, accepting a malformed or missing receipt, or describing an unrun check as complete.

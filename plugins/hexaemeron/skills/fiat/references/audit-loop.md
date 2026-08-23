@@ -53,10 +53,26 @@ another pass.
    `| -- | -- | -- | none | -- |`. No-fix rounds write the exact
    `Elenchus verdict: null`; fixed rounds write the exact returned verdict.
 
+   Regenerate every discovered sibling view before committing:
+
+   ```text
+   python3 "$PLUGIN_ROOT/skills/fiat/scripts/audit_synopsis.py" --write .
+   python3 "$PLUGIN_ROOT/skills/fiat/scripts/audit_synopsis.py" --check .
+   ```
+
+   The writer emits `fiat-audit-synopsis/v1`: one clock-free metadata line and
+   one physical line per raw H2, joined internally with `<br>`. It binds the
+   source path, source SHA-256, H2 count, strict fields, canonical findings,
+   recognised legacy risk tables, and every physical `Leads not pursued`
+   occurrence with its remaining section. Missing legacy fields stay labelled
+   missing. Each view must satisfy
+   `synopsis_lines * 100 < audit_lines * 15`.
+
 3. Apply fixes on the stacked branch: `<step-branch><suffix>` (suffix from
    `config audit.stacked_suffix`, default `--audit`), with a PR targeting
    the step branch. Fixes accumulate there across rounds; the audit file
-   commits alongside them.
+   and regenerated root `AUDIT_SYNOPSIS.md` commit alongside them. Warden owns both
+   changes in the same signed commit; the controller never rewrites either.
 4. Record the round. The controller resolves and reads the configured log once
    and refuses a different `--log`. The latest stored same-log end offset is
    the next boundary. With no stored offset, the configured path's regular blob
@@ -66,9 +82,11 @@ another pass.
    delta is decoded and line-checked. It must have the exact separator implied
    by the preceding byte and contain one raw record in the grammar above at EOF.
    Earlier Markdown is not parsed or revalidated. Every check finishes before
-   state or ledger mutation. The receipt records the canonical log path, schema,
-   record timestamp, entry SHA-256, and log end offset without printing record
-   content:
+   state or ledger mutation. The captured full log is rendered by the same
+   bounded synopsis code, and its committed sibling must match fresh bytes.
+   A missing, stale, lossy, oversized, or over-budget view refuses. The receipt
+   records the canonical log path, schema, record timestamp, entry SHA-256,
+   log end offset, and synopsis SHA-256 without printing record content:
 
    ```text
    hexctl audit-round --findings <n> --log audit/AUDIT.md \

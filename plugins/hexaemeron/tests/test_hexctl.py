@@ -19,6 +19,9 @@ from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
+AUDIT_SYNOPSIS = os.path.join(
+    HERE, "..", "skills", "fiat", "scripts", "audit_synopsis.py"
+)
 PROTASIS = os.path.join(HERE, "..", "skills", "protasis", "scripts", "protasis.py")
 COMPLETE_STUDY = os.path.join(HERE, "fixtures", "protasis", "complete-study.md")
 
@@ -264,10 +267,22 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             if needs_gap:
                 handle.write("\n")
             handle.write(record)
+        synopsis_result = subprocess.run(
+            [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
+            cwd=self.target,
+            capture_output=True,
+            text=True,
+        )
+        if synopsis_result.returncode:
+            raise AssertionError(
+                f"audit synopsis fixture failed\nstdout: {synopsis_result.stdout}"
+                f"stderr: {synopsis_result.stderr}"
+            )
         # Warden owns and commits the append in a real run. Keep the fixture's
         # worktree equally clean so retirement tests exercise controller state,
         # not an untracked stand-in log.
-        self.git("add", "--", log_path)
+        synopsis_path = os.path.join(os.path.dirname(log_path), "AUDIT_SYNOPSIS.md")
+        self.git("add", "--", log_path, synopsis_path)
         self.git("commit", "-q", "-m", "fixture audit record")
 
     @staticmethod
@@ -805,7 +820,10 @@ class TestDelegationPackets(HexctlCase):
         self.assert_packet(
             scribe, "scribe", ("files", "pr_base", "pr_draft_path", "plugin_root")
         )
-        self.assertEqual(scribe["brief"]["files"], ["audit/AUDIT.md"])
+        self.assertEqual(
+            scribe["brief"]["files"],
+            ["audit/AUDIT.md", "audit/AUDIT_SYNOPSIS.md"],
+        )
         self.run_ctl("done", "prose", "--files", "1", "--skills",
                      "hexaemeron:imprimatur,hexaemeron:vulgate")
         push = self.next_json()
@@ -1015,8 +1033,15 @@ class TestDelegationPackets(HexctlCase):
             self.write(name, name)
         self.git("add", "zeta.md", "alpha.md")
         self.git("commit", "-m", "step")
-        self.assertEqual(self.next_json()["brief"]["files"],
-                         ["alpha.md", "audit/AUDIT.md", "zeta.md"])
+        self.assertEqual(
+            self.next_json()["brief"]["files"],
+            [
+                "alpha.md",
+                "audit/AUDIT.md",
+                "audit/AUDIT_SYNOPSIS.md",
+                "zeta.md",
+            ],
+        )
 
         for number in range(499):
             self.write(f"many/{number:03d}.md", "x")
@@ -2222,7 +2247,7 @@ class ElenchusVerdictReceiptTests(HexctlCase):
             state = json.load(handle)
         new_leaves = (
             "schema", "record_timestamp", "entry_sha256", "log_end_offset",
-            "elenchus_verdict",
+            "synopsis_sha256", "elenchus_verdict",
         )
         for leaf in new_leaves:
             state["steps"][0]["audit"]["rounds"][-1].pop(leaf, None)
@@ -2397,6 +2422,21 @@ class AuditRecordSchemaTests(HexctlCase):
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
 
+    def run_ctl(self, *args, expect=0):
+        if args[:1] == ("audit-round",) and expect == 0:
+            synopsis = subprocess.run(
+                [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
+                cwd=self.target,
+                capture_output=True,
+                text=True,
+            )
+            if synopsis.returncode:
+                raise AssertionError(
+                    f"audit synopsis fixture failed\nstdout: {synopsis.stdout}"
+                    f"stderr: {synopsis.stderr}"
+                )
+        return super().run_ctl(*args, expect=expect)
+
     def state_ledger_digests(self):
         return tuple(
             hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -2511,6 +2551,36 @@ class AuditRecordSchemaTests(HexctlCase):
         result = self.run_ctl("audit-round", *args, expect=2)
         self.assertIn(fragment, result.stderr)
         self.assertEqual(self.state_ledger_digests(), before)
+
+    def write_synopsis(self):
+        result = subprocess.run(
+            [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
+            cwd=self.target,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode:
+            raise AssertionError(
+                f"audit synopsis fixture failed\nstdout: {result.stdout}"
+                f"stderr: {result.stderr}"
+            )
+        return Path(self.log_path()).with_name("AUDIT_SYNOPSIS.md")
+
+    def test_missing_stale_and_lossy_synopsis_refuse_without_drift(self):
+        self.write_record()
+        self.refuse("synopsis is missing", "--findings", "0")
+
+        synopsis = self.write_synopsis()
+        synopsis.write_bytes(synopsis.read_bytes() + b"stale\n")
+        self.refuse("synopsis is stale", "--findings", "0")
+
+        self.write_synopsis()
+        text = synopsis.read_text(encoding="utf-8")
+        synopsis.write_text(
+            text.replace("Leads not pursued: none", "[lead dropped]", 1),
+            encoding="utf-8",
+        )
+        self.refuse("synopsis is stale", "--findings", "0")
 
     def test_date_only_heading_is_refused_before_mutation(self):
         self.write_record(timestamp="2026-08-23")
@@ -2659,7 +2729,7 @@ class AuditRecordSchemaTests(HexctlCase):
                     self.write_record(append=True)
                 self.refuse(fragment, "--findings", "0")
 
-    def test_prefix_utf8_and_line_geometry_are_outside_a_prior_offset(self):
+    def test_prefix_utf8_stays_outside_delta_parsing_but_fails_synopsis_input(self):
         self.write_record(findings=1)
         self.run_ctl("audit-round", "--findings", "1")
         path = Path(self.log_path())
@@ -2667,7 +2737,7 @@ class AuditRecordSchemaTests(HexctlCase):
         prefix[0] = 0xff
         path.write_bytes(prefix)
         self.write_record(append=True)
-        self.run_ctl("audit-round", "--findings", "0")
+        self.refuse("source is not UTF-8", "--findings", "0")
 
     def test_invalid_utf8_in_the_delta_refuses_without_drift(self):
         self.write_record(findings=1)
@@ -3000,6 +3070,9 @@ class AuditRecordSchemaTests(HexctlCase):
             )
             self.assertRegex(
                 round_entry.get("entry_sha256", ""), r"^[0-9a-f]{64}$"
+            )
+            self.assertRegex(
+                round_entry.get("synopsis_sha256", ""), r"^[0-9a-f]{64}$"
             )
             self.assertEqual(
                 round_entry.get("log_end_offset"), os.path.getsize(self.log_path())
