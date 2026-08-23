@@ -2494,6 +2494,18 @@ class AuditRecordSchemaTests(HexctlCase):
         Path(path).write_text("\n".join(lines), encoding="utf-8")
         self.refuse("non-empty same-line value", "--findings", "0")
 
+    def test_a_record_hidden_by_commonmark_fence_rules_is_refused(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        hidden_records = (
+            f"```markdown\n    ```\n{text}\n```\n",
+            f"```not-an`opening-fence\n```\n{text}\n```\n",
+        )
+        for hidden in hidden_records:
+            with self.subTest(first_line=hidden.splitlines()[0]):
+                Path(path).write_text(hidden, encoding="utf-8")
+                self.refuse("no H2 record", "--findings", "0")
+
     def test_covered_refuses_missing_duplicate_unknown_and_invalid_values(self):
         for covered in (
             "",
@@ -2638,6 +2650,34 @@ class AuditRecordSchemaTests(HexctlCase):
                         root, "audit/AUDIT.md", None
                     )
             self.assertIn("platform cannot safely read", stderr.getvalue())
+
+    def test_fifo_swap_cannot_block_the_final_open(self):
+        controller = hexctl_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = os.path.realpath(raw_root)
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            log = audit_dir / "AUDIT.md"
+            log.write_bytes(b"inside")
+            real_open = os.open
+            swapped = False
+
+            def racing_open(target, flags, *args, **kwargs):
+                nonlocal swapped
+                if not swapped and target == "AUDIT.md" and "dir_fd" in kwargs:
+                    self.assertTrue(flags & os.O_NONBLOCK)
+                    swapped = True
+                    log.unlink()
+                    os.mkfifo(log)
+                return real_open(target, flags, *args, **kwargs)
+
+            stderr = StringIO()
+            with mock.patch.object(controller.os, "open", side_effect=racing_open):
+                with redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    controller.read_configured_audit_log(
+                        root, "audit/AUDIT.md", None
+                    )
+            self.assertIn("not a regular file", stderr.getvalue())
 
     def test_escaping_configured_log_is_refused(self):
         self.run_ctl("config", "set", "audit.log_path", '"../AUDIT.md"')

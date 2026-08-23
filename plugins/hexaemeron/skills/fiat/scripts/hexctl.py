@@ -244,13 +244,19 @@ def read_configured_audit_log(
 
     no_follow = getattr(os, "O_NOFOLLOW", 0)
     directory_only = getattr(os, "O_DIRECTORY", 0)
-    if not no_follow or not directory_only or not AUDIT_OPEN_SUPPORTS_DIR_FD:
+    non_blocking = getattr(os, "O_NONBLOCK", 0)
+    if (
+        not no_follow
+        or not directory_only
+        or not non_blocking
+        or not AUDIT_OPEN_SUPPORTS_DIR_FD
+    ):
         die("platform cannot safely read the configured audit log")
     close_exec = getattr(os, "O_CLOEXEC", 0)
     directory_flags = (
         os.O_RDONLY | close_exec | no_follow | directory_only
     )
-    file_flags = os.O_RDONLY | close_exec | no_follow
+    file_flags = os.O_RDONLY | close_exec | no_follow | non_blocking
     relative = os.path.relpath(lexical, root)
     components = relative.split(os.sep)
     directory_descriptor = None
@@ -1576,7 +1582,7 @@ def audit_mask_block_html(text: str) -> str:
             masked.append(physical)
             continue
 
-        fence = MARKDOWN_FENCE_RE.match(line)
+        fence = markdown_fence(line)
         if fence:
             sequence = fence.group("mark")
             mark = sequence[0]
@@ -2386,7 +2392,9 @@ def receipted_source(base_dir: str, state: dict, name: str):
 STEP_HEADING_RE = re.compile(
     r"^##\s+Step\s+(?P<number>\d+)\s*:\s*(?P<title>.*?)\s*$"
 )
-MARKDOWN_FENCE_RE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
+MARKDOWN_FENCE_RE = re.compile(
+    r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<remainder>.*)$"
+)
 RISK_REGISTER_INFO = "risk-register"
 AMENDMENT_HEADING_RE = re.compile(
     r"^###\s+Amendment\s+--\s+(?P<date>\d{4}-\d{2}-\d{2})\s*$"
@@ -2405,6 +2413,18 @@ STEP_VERDICT_RE = re.compile(
 )
 
 
+def markdown_fence(line: str):
+    """Return one CommonMark fence marker, excluding invalid backtick info."""
+    fence = MARKDOWN_FENCE_RE.match(line)
+    if (
+        fence is not None
+        and fence.group("mark").startswith("`")
+        and "`" in fence.group("remainder")
+    ):
+        return None
+    return fence
+
+
 def markdown_lines(text: str):
     """Yield source offsets and fence state without treating quoted headings as real."""
     offset = 0
@@ -2412,7 +2432,7 @@ def markdown_lines(text: str):
     open_length = None
     for physical in text.splitlines(keepends=True):
         line = physical.rstrip("\r\n")
-        fence = MARKDOWN_FENCE_RE.match(line)
+        fence = markdown_fence(line)
         was_open = open_mark
         if fence:
             sequence = fence.group("mark")
@@ -2853,7 +2873,7 @@ def source_risk_register(source: dict) -> dict:
     risk_mark = None
     for line_start, line_end, line, is_fence, was_open in markdown_lines(text):
         if start is None and was_open is None and is_fence:
-            opened = MARKDOWN_FENCE_RE.match(line)
+            opened = markdown_fence(line)
             if opened:
                 mark = opened.group("mark")
                 info = line.strip()[len(mark):].strip()
@@ -2864,7 +2884,7 @@ def source_risk_register(source: dict) -> dict:
                 risk_mark = mark[0]
             continue
         if start is not None and is_fence and was_open == risk_mark:
-            fence = MARKDOWN_FENCE_RE.match(line)
+            fence = markdown_fence(line)
             if fence and fence.group("mark")[0] == risk_mark:
                 matches.append(text[start:line_end])
                 start = None

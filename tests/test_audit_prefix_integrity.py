@@ -1,6 +1,7 @@
 """Keep every audit byte present when issue 429 started."""
 
 from pathlib import Path
+import contextlib
 import hashlib
 import json
 import os
@@ -8,6 +9,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,16 +58,55 @@ def source_at(ref, path):
 
 
 def current_source(root, path):
-    """Read one lexical regular path without following a substituted alias."""
-    candidate = root / path
-    try:
-        resolved = candidate.resolve(strict=True)
-        info = candidate.lstat()
-    except OSError as exc:
-        raise ValueError(f"{path}: protected path cannot be read") from exc
-    if resolved != candidate or not stat.S_ISREG(info.st_mode):
+    """Read one descriptor-bound regular path without following an alias."""
+    relative = Path(path)
+    if relative.is_absolute() or not relative.parts or ".." in relative.parts:
         raise ValueError(f"{path}: protected path traverses a symlink")
-    return candidate.read_bytes()
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    directory_only = getattr(os, "O_DIRECTORY", 0)
+    non_blocking = getattr(os, "O_NONBLOCK", 0)
+    if not no_follow or not directory_only or not non_blocking:
+        raise ValueError(f"{path}: protected path traverses a symlink")
+    close_exec = getattr(os, "O_CLOEXEC", 0)
+    directory_flags = os.O_RDONLY | close_exec | no_follow | directory_only
+    file_flags = os.O_RDONLY | close_exec | no_follow | non_blocking
+    directory_descriptor = None
+    next_descriptor = None
+    file_descriptor = None
+    try:
+        directory_descriptor = os.open(
+            os.path.realpath(root), directory_flags
+        )
+        if not stat.S_ISDIR(os.fstat(directory_descriptor).st_mode):
+            raise ValueError(f"{path}: protected path traverses a symlink")
+        for component in relative.parts[:-1]:
+            next_descriptor = os.open(
+                component, directory_flags, dir_fd=directory_descriptor
+            )
+            if not stat.S_ISDIR(os.fstat(next_descriptor).st_mode):
+                raise ValueError(f"{path}: protected path traverses a symlink")
+            os.close(directory_descriptor)
+            directory_descriptor = next_descriptor
+            next_descriptor = None
+        file_descriptor = os.open(
+            relative.parts[-1], file_flags, dir_fd=directory_descriptor
+        )
+        if not stat.S_ISREG(os.fstat(file_descriptor).st_mode):
+            raise ValueError(f"{path}: protected path traverses a symlink")
+        with os.fdopen(file_descriptor, "rb") as handle:
+            file_descriptor = None
+            return handle.read()
+    except OSError as exc:
+        raise ValueError(f"{path}: protected path traverses a symlink") from exc
+    finally:
+        for descriptor in (
+            file_descriptor,
+            next_descriptor,
+            directory_descriptor,
+        ):
+            if descriptor is not None:
+                with contextlib.suppress(OSError):
+                    os.close(descriptor)
 
 
 class AuditPrefixIntegrityTests(unittest.TestCase):
@@ -137,6 +178,75 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
             ancestor_alias.symlink_to(outside, target_is_directory=True)
             with self.assertRaisesRegex(ValueError, "traverses a symlink"):
                 current_source(root, "audit/AUDIT.md")
+
+    def test_a_raced_path_substitution_is_refused(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(os.path.realpath(raw_root))
+            audit_dir = root / "audit"
+            audit_dir.mkdir()
+            candidate = audit_dir / "AUDIT.md"
+            candidate.write_bytes(b"inside")
+            moved = audit_dir / "before-swap.md"
+            outside = root / "outside.md"
+            outside.write_bytes(b"outside")
+            real_open = os.open
+            real_read_bytes = Path.read_bytes
+            swapped = False
+
+            def swap():
+                nonlocal swapped
+                if not swapped:
+                    swapped = True
+                    candidate.rename(moved)
+                    candidate.symlink_to(outside)
+
+            def racing_open(target, flags, *args, **kwargs):
+                if target == "AUDIT.md" and "dir_fd" in kwargs:
+                    swap()
+                return real_open(target, flags, *args, **kwargs)
+
+            def racing_read_bytes(path):
+                if path == candidate:
+                    swap()
+                return real_read_bytes(path)
+
+            with (
+                mock.patch.object(os, "open", side_effect=racing_open),
+                mock.patch.object(Path, "read_bytes", racing_read_bytes),
+                self.assertRaisesRegex(ValueError, "traverses a symlink"),
+            ):
+                current_source(root, "audit/AUDIT.md")
+
+    def test_descriptor_walk_closes_every_open_descriptor_on_failure(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(os.path.realpath(raw_root))
+            audit_dir = root / "audit"
+            audit_dir.mkdir()
+            (audit_dir / "AUDIT.md").write_bytes(b"inside")
+            real_fstat = os.fstat
+            inspected = []
+
+            def failing_child_stat(descriptor):
+                inspected.append(descriptor)
+                if len(inspected) == 2:
+                    raise OSError("synthetic child fstat failure")
+                return real_fstat(descriptor)
+
+            with (
+                mock.patch.object(os, "fstat", side_effect=failing_child_stat),
+                self.assertRaisesRegex(ValueError, "traverses a symlink"),
+            ):
+                current_source(root, "audit/AUDIT.md")
+
+            still_open = []
+            for descriptor in inspected:
+                try:
+                    real_fstat(descriptor)
+                except OSError:
+                    continue
+                still_open.append(descriptor)
+                os.close(descriptor)
+            self.assertEqual(still_open, [])
 
 
 if __name__ == "__main__":

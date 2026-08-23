@@ -9439,3 +9439,27 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: S1-R2-03 changes the permanent checker and its assertion together, so the parent overlay cannot independently guard that cause; aggregate Elenchus guarded comes from four causal assertion failures for S1-R2-01 and S1-R2-02, while the fifth parent failure was the unrelated unpinned Node-version fixture; S1-R2-04 is guarded separately by the two root Promise tests that failed before its digest repair and now pass; step 2 synopsis generation, currency, compression, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 3 -- 2026-08-23T05:33:02Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A four-space pseudo-closing fence or invalid backtick-info opener could leave a complete strict record inside a CommonMark code block while the selector exposed and accepted it. | fixed in this commit; guard red; Elenchus verdict `guarded` |
+| S1-R3-02 | medium | tests/test_audit_prefix_integrity.py | The prefix reader checked resolution and file kind, then reopened by pathname, so a raced replacement could make it read through a symlink after validation. | fixed in this commit with a descriptor-relative no-follow reader; manual guard red; the overlay cannot isolate a checker and assertion in the same test file |
+| S1-R3-03 | low | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The final descriptor open omitted nonblocking mode, so a raced FIFO replacement could block before the regular-file check. | fixed in this commit; guard red; Elenchus verdict `guarded` |
+
+### Leads
+
+Leads not pursued: S1-R3-02 changes the permanent checker and its assertion together, so the Elenchus parent overlay cannot independently guard that cause; its focused manual guard failed before the fix and passed afterward; aggregate Elenchus `guarded` comes from the controller guards for S1-R3-01 and S1-R3-03, while the Promise digest fixture also changes with the controller; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
