@@ -22,8 +22,8 @@ another pass.
    step, run Elenchus against the fixes commit, and return its exact verdict.
 2. Append every finding to the audit file (`config audit.log_path`,
    default `audit/AUDIT.md`), even when the count is zero. Read the exact topic
-   from `hexctl status --json`; status is read-only. The final H2 record uses
-   this complete schema:
+   from `hexctl status --json`; status is read-only. The appended raw suffix
+   uses this complete schema:
 
    ```markdown
    ## <topic>, step <n>, round <r> -- 2026-08-23T02:17:46Z
@@ -46,11 +46,10 @@ another pass.
    Use whole-second UTC `YYYY-MM-DDTHH:MM:SSZ`. `Covered` names every id in
    the source-bound study risk register exactly once as `reviewed` or
    `not-applicable`; it names no other id. `Not checked` and
-   `Leads not pursued` keep non-empty same-line values. Each field label and
-   the findings-table header follows a blank line, so multiline inline markup
-   cannot absorb required content. A blank line also ends the findings table,
-   so a GFM continuation row cannot escape the declared finding count. A clean
-   round uses the exact row
+   `Leads not pursued` keep non-empty same-line values. Every block is separated
+   by one empty LF line, the table uses physical five-cell rows, and the leads
+   line ends the file with one LF. There is no prelude, extra field, continuation
+   row, later heading, or trailer. A clean round uses the exact row
    `| -- | -- | -- | none | -- |`. No-fix rounds write the exact
    `Elenchus verdict: null`; fixed rounds write the exact returned verdict.
 
@@ -58,10 +57,18 @@ another pass.
    `config audit.stacked_suffix`, default `--audit`), with a PR targeting
    the step branch. Fixes accumulate there across rounds; the audit file
    commits alongside them.
-4. Record the round. The controller resolves the configured log, refuses a
-   different `--log`, and checks the final H2 record before state or ledger
-   mutation. It records the canonical log path, schema, record timestamp,
-   entry SHA-256 and log end offset without printing record content:
+4. Record the round. The controller resolves and reads the configured log once
+   and refuses a different `--log`. The latest stored same-log end offset is
+   the next boundary. With no stored offset, the configured path's regular blob
+   at the last locally verified commit is the baseline; a Git-proved absent path
+   is byte zero. Missing, malformed, mismatched, oversized, changed, or
+   unavailable evidence refuses rather than falling back. Only the appended
+   delta is decoded and line-checked. It must have the exact separator implied
+   by the preceding byte and contain one raw record in the grammar above at EOF.
+   Earlier Markdown is not parsed or revalidated. Every check finishes before
+   state or ledger mutation. The receipt records the canonical log path, schema,
+   record timestamp, entry SHA-256, and log end offset without printing record
+   content:
 
    ```text
    hexctl audit-round --findings <n> --log audit/AUDIT.md \

@@ -485,3 +485,131 @@ a design decision.
 
 recommended study receipt skill CSV:
 `hexaemeron:protasis,hexaemeron:phylax,hexaemeron:elenchus,hexaemeron:hypomnema`.
+
+### Amendment -- 2026-08-23
+
+**What changed.** option A's receipt validator is narrowed from a whole-log
+CommonMark/GFM visibility model to one raw appended-record delta. the controller
+still reads the configured log once through the existing bounded,
+descriptor-relative, no-follow path. it does not decide which old source lines a
+Markdown renderer would expose.
+
+the delta start comes from durable evidence already available to the controller,
+in this order:
+
+1. if the latest audit round for the same canonical log carries a non-boolean
+   integer `log_end_offset` inside the byte cap, that offset is authoritative.
+   the current log must be longer than the offset. a findingful round with no
+   `fixes_commit` and a clean signed log-only round therefore have the same
+   next-boundary semantics as any other receipted round; the validator does not
+   require a later verified commit to represent the offset.
+2. if no prior round carries that leaf, the controller takes the audit-log blob
+   at `last_local_commit(step)`, the locally verified implementation or audit-fix
+   commit, as the first-round baseline. the live log must preserve that blob
+   byte-for-byte. a Git-proved absent path means a zero-byte baseline; an
+   unavailable commit, ambiguous Git result, unsafe path, oversized blob, or
+   mismatch refuses before mutation.
+3. if a prior same-log receipt carries a malformed or out-of-range offset, or
+   names another log, the controller refuses instead of falling back and
+   guessing. legacy rounds with missing leaves remain readable by `status`,
+   `next`, and `verify`; the verified-blob rule supplies their first strict
+   append boundary.
+
+after that boundary, the controller accepts exactly one LF-canonical record.
+a non-empty baseline ending in LF takes one leading LF before the record; a
+non-empty baseline without LF takes two; an empty baseline takes none. the
+record starts with the exact raw ATX line
+`## <topic>, step <n>, round <r> -- <timestamp>` and ends at EOF. between
+those points it contains, in order, one `Audit schema`, one `Covered`, one
+`Not checked`, one `Elenchus verdict`, the exact five-column findings
+header and separator, the declared number of physical data rows, and one
+`Leads not pursued`, each separated by the documented blank line. there are
+no extra headings, prelude, continuation rows, or trailing records. field
+values remain opaque non-empty same-line UTF-8. a small linear row scanner
+handles five physical cells; no renderer, HTML recogniser, inline parser, or
+fence state participates.
+
+the existing checks remain: `fiat-audit-round/v1`; calendar-valid
+`YYYY-MM-DDTHH:MM:SSZ`; every study risk id exactly once as `reviewed` or
+`not-applicable`; finding count parity and the exact clean placeholder; and
+`guarded`, `unguarded`, `passed`, `inconclusive`, or `null` matching
+the receipt flags. only the delta is decoded and line-checked. all checks,
+including fixes-range verification and lint consistency, finish before state
+or ledger mutation. an accepted round keeps the existing schema, log,
+timestamp, entry digest, and end-offset leaves.
+
+the six permanent prefix fixtures still prove that every byte present at
+`ced4e6f439021b7509833ed5da66348c86d22f01` survives in the repository.
+a prior `log_end_offset` identifies where the new bytes begin; it does not
+prove that every earlier byte still belongs to a particular signed commit.
+the controller likewise checks and records the live entry digest without
+attesting that a clean log-only commit contains it. issue 453 still owns that
+report-byte and commit binding. issues 369 and 363 remain unchanged.
+
+step 2 must not reuse the removed visibility recogniser. its synopsis is a
+derived view, not receipt authority: split the six fixed sources on their raw
+ATX record markers, recognise strict fields by the raw line grammar, preserve
+legacy material without inference, and retain every physical
+`Leads not pursued` occurrence. rounds 1 through 10 stay immutable input and
+are never revalidated against the narrower append grammar.
+
+the focused proof matrix adds new-run first strict rounds, a prior strict
+same-log offset, a findingful no-fix predecessor, a clean no-fix log-only
+round, legacy state with missing leaves, a Git-proved absent baseline log, all
+four Elenchus values plus `null`, and this run's round-10 boundary. refusal
+cases cover a malformed, mismatched, or past-EOF offset; no safe first-round
+blob; a changed first-round prefix; bad separator; extra prelude, field,
+heading, row, or trailer; every existing field mismatch; unsafe paths, invalid
+UTF-8, caps, and state or ledger drift. the active evidence is concrete:
+round 10 records offset 601787, and
+`1f82d9f4a879dc46a70ee8cbc1fd00cc755629dc` holds a 601787-byte root log.
+
+**Why.** ten findingful rounds produced 34 findings. the acceptance bugs moved
+through raw HTML block types, fences, ASCII versus Unicode whitespace and case,
+ATX and Setext headings, GFM row continuation and escaped pipes, inline markup,
+and lossy visibility masking. another local patch would claim an unpinned
+Markdown implementation one exception at a time. issue 429 requires a checked
+record and timestamp; it does not require Fiat to reproduce CommonMark or
+GitHub rendering.
+
+the new boundary is falsifiable. if the delta parser consults any byte before
+the stored boundary to decide Markdown visibility, accepts more than the one
+raw grammar, or mutates state after a failed check, the redesign failed. if a
+later requirement says arbitrary CommonMark/GFM source must render every field
+as visible nodes, the current step-1 exit is broken and needs a runbook repair
+plus either a pinned parser dependency or a different artefact format. this
+amendment makes no such rendering claim. no shell, network call, or new runtime
+package is needed; the first-round fallback uses Fiat's existing bounded Git
+subprocess.
+
+**Steps touched.** Step 1 replaces the nonconvergent visibility code and its
+renderer-shaped tests with the raw delta, offset/baseline, compatibility, and
+failure-before-mutation guards above; its docs state the narrower evidence
+claim. Step 2 keeps its stated outputs and checks, but its extractor stays a
+raw, lossy derivation over immutable source rather than becoming another
+Markdown authority. Step 3 exercises first-round, prior-offset, legacy,
+no-fix, active self-hosting, and refusal paths, then runs the same release
+commands and preserves the three downstream exclusions.
+
+**Still holding.** Step 1: entry holds; exit holds. Step 2: entry holds; exit
+holds. Step 3: entry holds; exit holds.
+
+### Amendment -- 2026-08-23
+
+**What changed.** the prior amendment's terminal blank line is retained as the
+separator before this append-only correction. no product or design requirement
+changes. the receipted candidate now ends immediately after the holding
+verdicts so its exact tracked copy satisfies `git diff --check`.
+
+**Why.** the first amendment passed Protasis and Imprimatur, but its terminal
+blank line made the required raw diff gate exit 2. rewriting receipted bytes is
+forbidden. a second amendment is Fiat's supported recovery: it turns that byte
+into an internal separator and leaves a diff-clean EOF. the correction fails if
+the first amendment digest changes or the final candidate still reports a
+whitespace defect.
+
+**Steps touched.** Step 1 copies the newly receipted study into governed docs
+and reruns the exact diff gate. Steps 2 and 3 have no semantic change.
+
+**Still holding.** Step 1: entry holds; exit holds. Step 2: entry holds; exit
+holds. Step 3: entry holds; exit holds.

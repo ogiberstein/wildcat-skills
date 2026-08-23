@@ -401,11 +401,14 @@ report file for any fix. A round supplying `--fixes-commit` also supplies one
 exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or
 `inconclusive`. Fiat checks and records that declaration; it does not attest
 the report bytes, and this generation does not block a non-`guarded` value.
-Before recording anything, Fiat reads the configured audit log and checks its
-final H2 record against `fiat-audit-round/v1`: the UTC heading, complete study
-risk `Covered` field, explicit `Not checked` value, findings count,
-`Leads not pursued`, and exact Elenchus value must agree. A supplied `--log`
-cannot select another file.
+Before recording anything, Fiat reads the configured audit log once and checks
+one exact raw `fiat-audit-round/v1` suffix after the latest stored same-log end
+offset. When no offset exists, the regular log blob at the last locally verified
+commit is the byte-matched baseline; Git-proved absence means byte zero. Only
+the delta is decoded. Its UTC heading, complete study-risk `Covered` field,
+explicit `Not checked` value, findings count, `Leads not pursued`, and exact
+Elenchus value must agree. A supplied `--log` cannot select another file, and
+malformed stored evidence never falls back.
 Record the round even when it finds nothing.
 Zero findings closes the loop; a genuine judgement that the remaining leads
 are not worth another round closes it with `--no-further-leads --reason`.

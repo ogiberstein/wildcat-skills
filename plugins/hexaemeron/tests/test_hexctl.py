@@ -325,6 +325,34 @@ elif args and args[0] == "ls-remote":
         print(f"{{tip}}\\t{{ref}}")
 elif args and args[0] == "merge-base":
     raise SystemExit(0)
+elif args and args[0] == "ls-tree":
+    if mode == "baseline-unavailable":
+        raise SystemExit(3)
+    if "FAKE_GIT_BASELINE_HEX" not in os.environ:
+        raise SystemExit(0)
+    path = args[-1]
+    object_id = "a" * 40
+    tree_mode = "120000" if mode == "baseline-unsafe" else "100644"
+    entry = tree_mode + " blob " + object_id + "\\t" + path + "\\0"
+    sys.stdout.buffer.write(entry.encode())
+    if mode == "baseline-ambiguous":
+        sys.stdout.buffer.write(entry.encode())
+elif args[:2] == ["cat-file", "-s"]:
+    if mode == "baseline-unavailable":
+        raise SystemExit(3)
+    if mode == "baseline-malformed-size":
+        print("not-a-size")
+    elif mode == "baseline-oversized":
+        print(2 * 1024 * 1024 + 1)
+    else:
+        print(len(bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))))
+elif args[:2] == ["cat-file", "blob"]:
+    if mode == "baseline-unavailable":
+        raise SystemExit(3)
+    baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
+    if mode == "baseline-short-read" and baseline:
+        baseline = baseline[:-1]
+    sys.stdout.buffer.write(baseline)
 elif args and args[0] == "rev-list":
     pair = next(value for value in args if ".." in value)
     base, head = pair.split("..", 1)
@@ -2339,6 +2367,9 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.to_receiptable_audit()
         self.run_ctl("audit-round", "--findings", "1")
         self.make_last_round_legacy()
+        self.env["FAKE_GIT_BASELINE_HEX"] = Path(
+            os.path.join(self.target, "audit", "AUDIT.md")
+        ).read_bytes().hex()
 
         self.run_ctl("status")
         directive = self.next_json()
@@ -2429,12 +2460,51 @@ class AuditRecordSchemaTests(HexctlCase):
     def write_record(self, *args, append=False, **kwargs):
         path = self.log_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        mode = "a" if append else "w"
-        with open(path, mode, encoding="utf-8") as handle:
-            if append and os.path.getsize(path):
-                handle.write("\n")
-            handle.write("\n".join(self.record_lines(*args, **kwargs)))
+        record = "\n".join(self.record_lines(*args, **kwargs)).encode()
+        prefix = Path(path).read_bytes() if append and os.path.exists(path) else b""
+        separator = b""
+        if prefix:
+            separator = b"\n" if prefix.endswith(b"\n") else b"\n\n"
+        Path(path).write_bytes(prefix + separator + record)
         return path
+
+    def set_fake_baseline(self, data):
+        self.env["FAKE_GIT_BASELINE_HEX"] = data.hex()
+
+    def rewrite_latest_round(self, **changes):
+        state_path = Path(self.target, ".hexaemeron", "state.json")
+        ledger_path = Path(self.target, ".hexaemeron", "ledger.jsonl")
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        latest = state["steps"][0]["audit"]["rounds"][-1]
+        for key, value in changes.items():
+            if value is ...:
+                latest.pop(key, None)
+            else:
+                latest[key] = value
+        state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+
+        entries = [
+            json.loads(line)
+            for line in ledger_path.read_text(encoding="utf-8").splitlines()
+            if line
+        ]
+        self.assertEqual(entries[-1]["event"], "audit-round")
+        for key, value in changes.items():
+            if value is ...:
+                entries[-1]["data"].pop(key, None)
+            else:
+                entries[-1]["data"][key] = value
+        entries[-1]["state"] = hashlib.sha256(
+            json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        unsigned = {key: value for key, value in entries[-1].items() if key != "hash"}
+        entries[-1]["hash"] = hashlib.sha256(
+            json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        ledger_path.write_text(
+            "".join(json.dumps(entry, sort_keys=True) + "\n" for entry in entries),
+            encoding="utf-8",
+        )
 
     def refuse(self, fragment, *args):
         before = self.state_ledger_digests()
@@ -2454,232 +2524,219 @@ class AuditRecordSchemaTests(HexctlCase):
         Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
         self.refuse("topic, step, and round", "--findings", "0")
 
-    def test_a_later_setext_h2_is_not_folded_into_the_strict_record(self):
-        for title in (
-            "later record",
-            "| later record |",
-            "<em>later record</em>",
-        ):
-            with self.subTest(title=title):
-                self.write_record(extra=("", title, "---"))
-                self.refuse("final H2 record", "--findings", "0")
-
-        path = self.write_record()
-        strict = Path(path).read_text(encoding="utf-8")
-        Path(path).write_text(
-            f"legacy record\n---\n\n{strict}", encoding="utf-8"
-        )
+    def test_prior_offset_makes_legacy_markdown_irrelevant(self):
+        self.write_record(findings=1)
+        self.run_ctl("audit-round", "--findings", "1")
+        path = Path(self.log_path())
+        prefix = bytearray(path.read_bytes())
+        prefix[:8] = b"<script>"
+        path.write_bytes(prefix)
+        self.write_record(append=True)
+        self.env["FAKE_GIT_MODE"] = "missing-commit"
         self.run_ctl("audit-round", "--findings", "0")
 
-    def test_a_later_empty_or_indented_atx_h2_is_not_ignored(self):
-        for heading in ("##", "   ## later record"):
-            with self.subTest(heading=heading):
-                self.write_record(extra=("", heading))
-                self.refuse("topic, step, and round", "--findings", "0")
-
-    def test_inline_html_false_positive_cannot_hide_later_structure(self):
-        for extra, diagnostic in (
-            (("`<script>`", "## later record"), "final H2 record"),
-            (
-                ("`<script>`", "Audit schema: fiat-audit-round/v1"),
-                "duplicate Audit schema",
-            ),
-        ):
-            with self.subTest(extra=extra):
-                self.write_record(extra=extra)
-                self.refuse(diagnostic, "--findings", "0")
-
-    def test_type_seven_html_false_positive_cannot_hide_a_later_h2(self):
-        for extra in (
-            ("paragraph", "<x>", "## later record"),
-            ("<x bogus=>", "## later record"),
-        ):
-            with self.subTest(extra=extra):
-                self.write_record(extra=extra)
-                self.refuse("final H2 record", "--findings", "0")
-
-    def test_each_required_field_is_unique_and_present(self):
-        cases = (
-            ("schema", "Audit schema"),
-            ("covered", "Covered"),
-            ("not_checked", "Not checked"),
-            ("verdict", "Elenchus verdict"),
-            ("table", "findings table"),
-            ("leads", "Leads not pursued"),
-        )
-        for omitted, diagnostic in cases:
-            with self.subTest(omitted=omitted):
-                self.write_record(
-                    omit=(omitted,),
-                    extra=("",) if omitted == "leads" else (),
-                )
-                self.refuse(diagnostic, "--findings", "0")
-        self.write_record(extra=("Audit schema: fiat-audit-round/v1",))
-        self.refuse("duplicate Audit schema", "--findings", "0")
-
-    def test_a_record_or_required_value_hidden_in_raw_html_is_refused(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        for opened, closed in (
-            ("<!--", "-->"),
-            ("<script>", "</script>"),
-            ("<div>", "</div>"),
-            ("<x-audit>", "</x-audit>"),
-        ):
-            with self.subTest(opened=opened):
-                Path(path).write_text(
-                    f"{opened}\n{text}\n{closed}\n", encoding="utf-8"
-                )
-                self.refuse("no H2 record", "--findings", "0")
-        Path(path).write_text(f"<!-- hidden -->{text}", encoding="utf-8")
-        self.refuse("no H2 record", "--findings", "0")
-
-        lines = self.record_lines()
-        lines[lines.index("Not checked: none")] = (
-            "Not checked: <style>none</style>"
-        )
-        Path(path).write_text("\n".join(lines), encoding="utf-8")
-        self.refuse("non-empty same-line value", "--findings", "0")
-
-    def test_required_fields_hidden_in_multiline_inline_html_are_refused(self):
-        lines = self.record_lines()
-        table = lines.index("| id | severity | file | finding | status |")
-        hidden = [line for line in lines[2:table] if line]
-        visible = [
-            lines[0], "", '<x-audit data="', *hidden, '">', "", *lines[table:]
-        ]
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_text("\n".join(visible), encoding="utf-8")
-        self.refuse("Audit schema must follow a blank line", "--findings", "0")
-
-    def test_masked_inline_html_cannot_fabricate_a_blank_field_boundary(self):
-        lines = self.record_lines()
-        schema = lines.index("Audit schema: fiat-audit-round/v1")
-        lines[schema:schema + 1] = [
-            '<x-audit data="',
-            "    <!-- not a Markdown blank line -->",
-            "Audit schema: fiat-audit-round/v1",
-            '">',
-        ]
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
-        self.refuse("Audit schema must follow a blank line", "--findings", "0")
-
-    def test_required_fields_hidden_in_a_multiline_link_title_are_refused(self):
-        lines = self.record_lines()
-        table = lines.index("| id | severity | file | finding | status |")
-        hidden = [line for line in lines[2:table] if line]
-        visible = [
-            lines[0], "", '[evidence](audit "', *hidden, '")', "", *lines[table:]
-        ]
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_text("\n".join(visible), encoding="utf-8")
-        self.refuse("Audit schema must follow a blank line", "--findings", "0")
-
-    def test_a_record_hidden_by_commonmark_fence_rules_is_refused(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        hidden_records = (
-            f"```markdown\n    ```\n{text}\n```\n",
-            f"```not-an`opening-fence\n```\n{text}\n```\n",
-            f"```markdown\n``` still fenced\n{text}\n```\n",
-            f"~~~markdown\n~~~ still fenced\n{text}\n~~~\n",
-        )
-        for hidden in hidden_records:
-            with self.subTest(first_line=hidden.splitlines()[0]):
-                Path(path).write_text(hidden, encoding="utf-8")
-                self.refuse("no H2 record", "--findings", "0")
-
-    def test_commonmark_closing_fence_allows_a_trailing_tab(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        Path(path).write_text(
-            f"```markdown\nlegacy evidence\n```\t\n{text}",
-            encoding="utf-8",
-        )
-        self.run_ctl("audit-round", "--findings", "0")
-
-    def test_a_record_hidden_by_the_commonmark_hgroup_block_is_refused(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        Path(path).write_text(
-            f"<hgroup>still raw HTML\n{text}\n</hgroup>\n",
-            encoding="utf-8",
-        )
-        self.refuse("no H2 record", "--findings", "0")
-
-    def test_bare_special_declaration_and_gfm_source_blocks_hide_records(self):
-        controller = hexctl_module()
-        text = "## strict record\n\nAudit schema: fiat-audit-round/v1\n"
-        hidden_records = (
-            f"<script\n{text}\n</script>\n",
-            f"<!doctype\n{text}\n>\n",
-            f"<source>still raw HTML\n{text}\n",
-        )
-        for hidden in hidden_records:
-            with self.subTest(first_line=hidden.splitlines()[0]):
-                visible = [
-                    line for _, _, line, _ in controller.audit_visible_lines(hidden)
-                ]
-                self.assertNotIn("## strict record", visible)
-
-    def test_type_one_raw_html_accepts_any_special_end_tag(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        Path(path).write_text(
-            f"<pre\nlegacy evidence\n</style>\n{text}",
-            encoding="utf-8",
-        )
-        self.run_ctl("audit-round", "--findings", "0")
-
-    def test_unicode_casefold_does_not_close_a_type_one_raw_block(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        Path(path).write_text(
-            f"<script>\n</ſcript>\n{text}\n</script>\n",
-            encoding="utf-8",
-        )
-        self.refuse("no H2 record", "--findings", "0")
-
-    def test_required_fields_follow_the_canonical_schema_order(self):
+    def test_clean_log_only_predecessor_also_supplies_the_next_offset(self):
         self.write_record()
-        lines = self.record_lines()
-        leads = lines.index("Leads not pursued: none")
-        leads_block = lines[leads:leads + 2]
-        del lines[leads:leads + 2]
-        lines[2:2] = leads_block
-        lines.append("")
-        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
-        self.refuse("canonical field order", "--findings", "0")
+        self.run_ctl("audit-round", "--findings", "0")
+        self.write_record(append=True)
+        self.env["FAKE_GIT_MODE"] = "missing-commit"
+        self.run_ctl("audit-round", "--findings", "0")
 
-    def test_unicode_whitespace_does_not_close_commonmark_blocks(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        for whitespace in ("\u00a0", "\u2003"):
-            with self.subTest(block="fence", whitespace=ascii(whitespace)):
-                Path(path).write_text(
-                    f"```markdown\n```{whitespace}\n{text}\n```\n",
-                    encoding="utf-8",
-                )
-                self.refuse("no H2 record", "--findings", "0")
-            with self.subTest(block="html", whitespace=ascii(whitespace)):
-                Path(path).write_text(
-                    f"<div>\n{whitespace}\n{text}\n\n",
-                    encoding="utf-8",
-                )
-                self.refuse("no H2 record", "--findings", "0")
+    def test_first_strict_round_accepts_a_git_absent_log(self):
+        self.write_record()
+        self.run_ctl("audit-round", "--findings", "0")
+        latest = self.state()["steps"][0]["audit"]["rounds"][-1]
+        self.assertEqual(latest["log_end_offset"], os.path.getsize(self.log_path()))
 
-    def test_non_commonmark_separators_cannot_create_a_phantom_h2(self):
-        path = self.write_record()
-        text = Path(path).read_text(encoding="utf-8")
-        for separator in (
-            "\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029",
+    def test_first_strict_round_preserves_a_git_baseline_ending_in_lf(self):
+        baseline = b"legacy evidence\n"
+        self.set_fake_baseline(baseline)
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_bytes(baseline)
+        self.write_record(append=True)
+        self.run_ctl("audit-round", "--findings", "0")
+
+    def test_first_strict_round_preserves_a_git_baseline_without_lf(self):
+        baseline = b"legacy evidence"
+        self.set_fake_baseline(baseline)
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_bytes(baseline)
+        self.write_record(append=True)
+        self.run_ctl("audit-round", "--findings", "0")
+
+    def test_legacy_missing_leaves_use_the_verified_git_blob(self):
+        self.write_record(findings=1, verdict="guarded")
+        self.run_ctl(
+            "audit-round", "--findings", "1",
+            "--fixes-commit", "legacy-fix",
+            "--elenchus-verdict", "guarded",
+        )
+        baseline = Path(self.log_path()).read_bytes()
+        self.rewrite_latest_round(
+            schema=...,
+            record_timestamp=...,
+            entry_sha256=...,
+            log_end_offset=...,
+            elenchus_verdict=...,
+        )
+        self.run_ctl("status")
+        self.run_ctl("verify")
+        self.set_fake_baseline(baseline)
+        self.write_record(append=True)
+        self.run_ctl("audit-round", "--findings", "0")
+        rounds = self.state()["steps"][0]["audit"]["rounds"]
+        self.assertNotIn("log_end_offset", rounds[0])
+        self.assertEqual(rounds[1]["log_end_offset"], os.path.getsize(self.log_path()))
+
+    def test_git_baseline_failures_refuse_without_state_or_ledger_drift(self):
+        baseline = b"legacy evidence\n"
+        self.set_fake_baseline(baseline)
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_bytes(baseline)
+        self.write_record(append=True)
+        for mode, fragment in (
+            ("missing-commit", "baseline commit"),
+            ("baseline-unavailable", "baseline path"),
+            ("baseline-ambiguous", "ambiguous Git"),
+            ("baseline-unsafe", "regular Git blob"),
+            ("baseline-oversized", "byte cap"),
+            ("baseline-malformed-size", "size is malformed"),
+            ("baseline-short-read", "length does not match"),
         ):
-            with self.subTest(separator=ascii(separator)):
-                Path(path).write_text(
-                    f"not a CommonMark line{separator}{text}", encoding="utf-8"
-                )
-                self.refuse("no H2 record", "--findings", "0")
+            with self.subTest(mode=mode):
+                self.env["FAKE_GIT_MODE"] = mode
+                self.refuse(fragment, "--findings", "0")
+        self.env.pop("FAKE_GIT_MODE", None)
+
+    def test_changed_git_baseline_refuses_without_drift(self):
+        self.set_fake_baseline(b"expected legacy\n")
+        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.log_path()).write_bytes(b"changed! legacy\n")
+        self.write_record(append=True)
+        self.refuse("changed before", "--findings", "0")
+
+    def test_boundary_separator_is_exact_for_all_baseline_endings(self):
+        record = "\n".join(self.record_lines()).encode()
+        cases = (
+            (b"", b"\n" + record),
+            (b"legacy\n", b"legacy\n" + record),
+            (b"legacy\n", b"legacy\n\n\n" + record),
+            (b"legacy", b"legacy\n" + record),
+            (b"legacy", b"legacy\n\n\n" + record),
+        )
+        for baseline, live in cases:
+            with self.subTest(baseline=baseline, delta=live[len(baseline):]):
+                self.set_fake_baseline(baseline)
+                Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+                Path(self.log_path()).write_bytes(live)
+                self.refuse("audit record", "--findings", "0")
+
+    def test_malformed_mismatched_and_past_eof_offsets_never_fall_back(self):
+        self.write_record(findings=1)
+        self.run_ctl("audit-round", "--findings", "1")
+        log = Path(self.log_path())
+        initial_log = log.read_bytes()
+        state_path = Path(self.target, ".hexaemeron", "state.json")
+        ledger_path = Path(self.target, ".hexaemeron", "ledger.jsonl")
+        initial_state = state_path.read_bytes()
+        initial_ledger = ledger_path.read_bytes()
+        cases = (
+            ({"log_end_offset": True}, "non-boolean integer", True),
+            ({"log_end_offset": "1"}, "non-boolean integer", True),
+            ({"log_end_offset": -1}, "outside the current log", True),
+            ({"log_end_offset": len(initial_log)}, "outside the current log", False),
+            ({"log_end_offset": 2 * 1024 * 1024 + 1}, "outside", True),
+            ({"log": "other/AUDIT.md"}, "does not match", True),
+        )
+        self.set_fake_baseline(initial_log)
+        for changes, fragment, append in cases:
+            with self.subTest(changes=changes):
+                state_path.write_bytes(initial_state)
+                ledger_path.write_bytes(initial_ledger)
+                log.write_bytes(initial_log)
+                self.rewrite_latest_round(**changes)
+                if append:
+                    self.write_record(append=True)
+                self.refuse(fragment, "--findings", "0")
+
+    def test_prefix_utf8_and_line_geometry_are_outside_a_prior_offset(self):
+        self.write_record(findings=1)
+        self.run_ctl("audit-round", "--findings", "1")
+        path = Path(self.log_path())
+        prefix = bytearray(path.read_bytes())
+        prefix[0] = 0xff
+        path.write_bytes(prefix)
+        self.write_record(append=True)
+        self.run_ctl("audit-round", "--findings", "0")
+
+    def test_invalid_utf8_in_the_delta_refuses_without_drift(self):
+        self.write_record(findings=1)
+        self.run_ctl("audit-round", "--findings", "1")
+        path = Path(self.log_path())
+        path.write_bytes(path.read_bytes() + b"\n\xff\n")
+        self.refuse("delta is not UTF-8", "--findings", "0")
+
+    def test_raw_suffix_refuses_prelude_extra_fields_rows_headings_and_trailers(self):
+        canonical = self.record_lines()
+        placeholder = canonical.index("| -- | -- | -- | none | -- |")
+        leads = canonical.index("Leads not pursued: none")
+        cases = {
+            "prelude": ["prelude", *canonical],
+            "field": canonical[:leads] + ["Extra: value", ""] + canonical[leads:],
+            "row": canonical[:placeholder + 1]
+            + ["| F-02 | low | fixture.py | extra | open |"]
+            + canonical[placeholder + 1:],
+            "heading": canonical[:-1] + ["## later", ""],
+            "trailer": canonical[:-1] + ["trailer", ""],
+        }
+        for name, lines in cases.items():
+            with self.subTest(name=name):
+                Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
+                Path(self.log_path()).write_bytes("\n".join(lines).encode())
+                self.refuse("audit record", "--findings", "0")
+
+    def test_each_field_and_blank_separator_is_required(self):
+        for omitted in (
+            "schema", "covered", "not_checked", "verdict", "table", "leads"
+        ):
+            with self.subTest(omitted=omitted):
+                self.write_record(omit=(omitted,))
+                self.refuse("audit record", "--findings", "0")
+        lines = self.record_lines()
+        for index, line in enumerate(lines):
+            if line != "":
+                continue
+            with self.subTest(blank_index=index):
+                altered = lines[:index] + lines[index + 1:]
+                Path(self.log_path()).write_bytes("\n".join(altered).encode())
+                self.refuse("audit record", "--findings", "0")
+
+    def test_active_round_ten_offset_is_a_stable_raw_boundary(self):
+        controller = hexctl_module()
+        repository = Path(HERE).parents[2]
+        prefix = (repository / "audit" / "AUDIT.md").read_bytes()[:601787]
+        self.assertEqual(len(prefix), 601787)
+        self.assertEqual(
+            hashlib.sha256(prefix).hexdigest(),
+            "6f5e09a9bbb79582cab41839c9ae43b6becfd45fd3668f2845bf7f9cc887dffb",
+        )
+        step = {
+            "n": 1,
+            "audit": {
+                "rounds": [
+                    {"log": "audit/AUDIT.md", "log_end_offset": 601787}
+                ]
+            }
+        }
+        boundary = getattr(controller, "audit_delta_start", None)
+        self.assertTrue(callable(boundary))
+        self.assertEqual(
+            boundary(
+                str(repository), {"steps": [step]}, step,
+                "audit/AUDIT.md", prefix + b"\nnext"
+            ),
+            601787,
+        )
 
     def test_covered_refuses_missing_duplicate_unknown_and_invalid_values(self):
         for covered in (
@@ -2707,20 +2764,7 @@ class AuditRecordSchemaTests(HexctlCase):
             "--elenchus-verdict", "passed",
         )
 
-    def test_findings_table_ends_before_a_gfm_continuation_row(self):
-        lines = self.record_lines(findings=1)
-        first_row = lines.index(
-            "| F-01 | low | fixture.py | finding 1 | open |"
-        )
-        lines.insert(
-            first_row + 1,
-            "F-02 | medium | hidden.py | uncounted GFM row | open",
-        )
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
-        self.refuse("followed by a blank line", "--findings", "1")
-
-    def test_findings_table_accepts_a_gfm_escaped_pipe_in_a_cell(self):
+    def test_findings_table_accepts_a_raw_escaped_pipe_in_a_cell(self):
         self.write_record(
             findings=1,
             table_rows=[
@@ -2728,6 +2772,13 @@ class AuditRecordSchemaTests(HexctlCase):
             ],
         )
         self.run_ctl("audit-round", "--findings", "1")
+
+    def test_findings_table_refuses_an_escaped_closing_pipe(self):
+        self.write_record(
+            findings=1,
+            table_rows=[r"| F-01 | low | fixture.py | finding | open \|"],
+        )
+        self.refuse("malformed data row", "--findings", "1")
 
     def test_supplied_log_must_be_the_configured_path(self):
         self.write_record()
@@ -2759,32 +2810,19 @@ class AuditRecordSchemaTests(HexctlCase):
         self.refuse("symlink", "--findings", "0")
         os.remove(path)
 
-        Path(path).write_bytes(b"\xff")
+        Path(path).write_bytes(b"\xff\n")
         self.refuse("UTF-8", "--findings", "0")
         Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
         self.refuse("byte cap", "--findings", "0")
 
-    def test_log_refuses_physical_line_and_h2_count_caps(self):
+    def test_log_refuses_delta_line_and_total_byte_caps(self):
         path = self.write_record()
-        record = Path(path).read_text(encoding="utf-8")
-        Path(path).write_text(
-            "x" * (1024 * 1024 + 1) + "\n" + record, encoding="utf-8"
-        )
+        record = Path(path).read_bytes()
+        Path(path).write_bytes(b"x" * (1024 * 1024 + 1) + b"\n" + record)
         self.refuse("physical line", "--findings", "0")
 
-        Path(path).write_text(
-            "## legacy\n" * 10_001 + record, encoding="utf-8"
-        )
-        self.refuse("10000-H2 cap", "--findings", "0")
-
-    def test_many_inline_raw_tags_do_not_make_the_scan_quadratic(self):
-        controller = hexctl_module()
-        adversarial = "x" + "<script></script>" * 20_000
-        started = time.monotonic()
-        lines = list(controller.audit_visible_lines(adversarial))
-        elapsed = time.monotonic() - started
-        self.assertEqual(len(lines), 1)
-        self.assertLess(elapsed, 2.0)
+        Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
+        self.refuse("byte cap", "--findings", "0")
 
     def test_high_cardinality_risk_coverage_stays_within_the_input_bound(self):
         controller = hexctl_module()

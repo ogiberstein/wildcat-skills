@@ -9634,3 +9634,22 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: the raw structural parity check deliberately refuses source-column schema lookalikes inside masked Markdown rather than claiming a general Markdown parser; canonical Warden records keep quoted labels in prose or table cells; commonmark 0.31.2 differentially confirmed the five false acceptances; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain outside this step
+
+## audit-record-schema-timestamp-synopsis, step 1, round 11 -- 2026-08-23T16:24:04Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction; issue 453 report-byte and commit binding; issues 369 and 363
+
+Elenchus verdict: guarded
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R11-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | The receipt used a bespoke whole-log CommonMark/GFM visibility model as append authority instead of validating the exact unreceipted raw delta. | fixed in this commit; guard red then green |
+| S1-R11-02 | low | tests/promise_machine_coverage.json | Three Fiat Promise runtime rows retained the pre-redesign source digest, so both root Promise coverage tests failed PM071. | fixed mechanically in this commit; root guards red then green |
+| S1-R11-03 | low | plugins/hexaemeron/docs/audit-record-schema-timestamp-synopsis/study.md | The first receipted amendment ended with a blank line, so the required raw git diff check exited 2. | fixed by a supported second append-only amendment in this commit; no independent Elenchus guard |
+| S1-R11-04 | low | plugins/hexaemeron/tests/test_hexctl.py | The active round-10 boundary guard called a helper absent on the parent, so pinned Elenchus reported one infrastructure AttributeError instead of a pure assertion failure. | fixed with a parent-safe callable assertion in this commit |
+
+Leads not pursued: the first pinned Elenchus replay was inconclusive with 906 executed tests, 22 assertion failures, and one parent-only AttributeError; the parent-safe guard repair leaves the raw-delta controller and changed Promise coverage tests as aggregate Elenchus guards; the append-only study repair is guarded by controller verify, exact receipt hash and copy, and raw diff exit 0 but has no independent Elenchus claim; step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction remain explicit negative space; issues 453, 369, and 363 remain separately owned

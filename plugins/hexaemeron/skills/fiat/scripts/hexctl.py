@@ -111,36 +111,8 @@ AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
 AUDIT_TIMESTAMP_RE = re.compile(
     r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", re.ASCII
 )
-AUDIT_SETEXT_H2_RE = re.compile(r"^ {0,3}-+[ \t]*$")
-AUDIT_ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
-AUDIT_ATX_H2_RE = re.compile(r"^ {0,3}##(?:[ \t]+|$)")
-AUDIT_HTML_OPEN_RE = re.compile(
-    r"(?P<comment><!--)|(?P<processing><\?)|(?P<cdata><!\[CDATA\[)|"
-    r"(?P<declaration><![A-Za-z])|"
-    r"(?P<tag><(?P<tag_name>(?i:script|pre|style|textarea))(?=[\s>]))",
-    re.ASCII,
-)
-AUDIT_BARE_SPECIAL_BLOCK_RE = re.compile(
-    r"<(?P<tag_name>script|pre|style|textarea)", re.IGNORECASE | re.ASCII
-)
-AUDIT_SPECIAL_CLOSE_RE = re.compile(
-    r"</(?:script|pre|style|textarea)>", re.IGNORECASE | re.ASCII
-)
-AUDIT_BLANK_BLOCK_TAG_RE = re.compile(
-    r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|"
-    r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|"
-    r"figure|footer|form|frame|frameset|h[1-6]|head|header|hgroup|hr|html|iframe|"
-    r"legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|"
-    r"param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|"
-    r"track|ul)(?=[\s/>]|$)",
-    re.IGNORECASE | re.ASCII,
-)
-AUDIT_COMPLETE_TAG_RE = re.compile(
-    r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:\s.*)?/?>\s*$", re.ASCII
-)
 AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 AUDIT_PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
-AUDIT_H2_MAX = 10_000
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -1548,172 +1520,97 @@ def audit_risk_ids(base_dir: str, state: dict) -> list[str]:
     return risk_ids
 
 
-def audit_field(lines: list[str], label: str) -> tuple[int, str]:
-    """Read one non-empty same-line field without echoing its source value."""
-    prefix = label + ":"
-    values = [
-        (index, line[len(prefix):].strip())
-        for index, line in enumerate(lines)
-        if line.startswith(prefix)
-    ]
-    if not values:
-        die(f"audit record is missing {label}")
-    if len(values) != 1:
-        die(f"audit record has duplicate {label}")
-    if not values[0][1]:
-        die(f"audit record {label} must have a non-empty same-line value")
-    return values[0]
+def audit_baseline_blob(base_dir: str, step: dict, log_path: str) -> bytes:
+    """Read the configured log blob at the last locally verified commit."""
+    baseline_ref = last_local_commit(step)
+    if not isinstance(baseline_ref, str) or not baseline_ref:
+        die("audit baseline has no locally verified commit")
+    baseline_commit = resolved_commit(
+        base_dir, baseline_ref, "audit baseline commit"
+    )
+    listing = bounded_git(
+        base_dir,
+        ["ls-tree", "-z", "--full-tree", baseline_commit, "--", log_path],
+        "audit baseline path cannot be read from its verified commit",
+    )
+    if not listing:
+        return b""
+    if not listing.endswith(b"\0"):
+        die("audit baseline path returned an ambiguous Git result")
+    entries = [entry for entry in listing.split(b"\0") if entry]
+    if len(entries) != 1:
+        die("audit baseline path returned an ambiguous Git result")
+    metadata, separator, raw_path = entries[0].partition(b"\t")
+    match = re.fullmatch(
+        rb"(?P<mode>[0-7]{6}) (?P<kind>[a-z]+) "
+        rb"(?P<object>[0-9a-f]{40}(?:[0-9a-f]{24})?)",
+        metadata,
+    )
+    try:
+        listed_path = raw_path.decode("utf-8")
+    except UnicodeDecodeError:
+        listed_path = None
+    if separator != b"\t" or match is None or listed_path != log_path:
+        die("audit baseline path returned an ambiguous Git result")
+    if match.group("kind") != b"blob" or match.group("mode") not in (
+        b"100644",
+        b"100755",
+    ):
+        die("audit baseline path is not a regular Git blob")
+    object_id = match.group("object").decode("ascii")
+    size_text = tool_text(
+        bounded_git(
+            base_dir,
+            ["cat-file", "-s", object_id],
+            "audit baseline blob size cannot be read",
+        ),
+        "audit baseline blob size",
+    ).strip()
+    if not re.fullmatch(r"0|[1-9][0-9]*", size_text):
+        die("audit baseline blob size is malformed")
+    size = int(size_text)
+    if size > SOURCE_BYTES_MAX:
+        die(f"audit baseline blob exceeds {SOURCE_BYTES_MAX}-byte cap")
+    blob = bounded_git(
+        base_dir,
+        ["cat-file", "blob", object_id],
+        "audit baseline blob cannot be read",
+    )
+    if len(blob) != size:
+        die("audit baseline blob length does not match Git metadata")
+    return blob
 
 
-def audit_html_open(line: str, cursor: int) -> tuple[int, int, str, bool] | None:
-    """Find the next raw block opener and the token that closes it."""
-    opened = AUDIT_HTML_OPEN_RE.search(line, cursor)
-    if opened is None:
-        return None
-    if opened.group("comment") is not None:
-        close, any_special = "-->", False
-    elif opened.group("processing") is not None:
-        close, any_special = "?>", False
-    elif opened.group("cdata") is not None:
-        close, any_special = "]]>", False
-    elif opened.group("declaration") is not None:
-        close, any_special = ">", False
-    else:
-        close = f"</{opened.group('tag_name').lower()}>"
-        any_special = True
-    return opened.start(), opened.end(), close, any_special
-
-
-def audit_html_close_span(
-    line: str, cursor: int, close: str, any_special: bool
-) -> tuple[int, int] | None:
-    """Find the raw-block terminator without requiring special tags to match."""
-    if any_special:
-        match = AUDIT_SPECIAL_CLOSE_RE.search(line, cursor)
-        return match.span() if match is not None else None
-    closed_at = line.find(close, cursor)
-    if closed_at < 0:
-        return None
-    return closed_at, closed_at + len(close)
-
-
-def audit_mask_block_html(text: str) -> str:
-    """Blank CommonMark raw blocks without letting their fences alter state."""
-    masked = []
-    open_mark = None
-    open_length = None
-    html_close = None
-    any_special_close = False
-    until_blank = False
-    for physical in markdown_physical_lines(text):
-        line = physical.rstrip("\r\n")
-        ending = physical[len(line):]
-
-        if html_close is not None:
-            if audit_html_close_span(
-                line, 0, html_close, any_special_close
-            ) is not None:
-                html_close = None
-                any_special_close = False
-            masked.append(" " * len(line) + ending)
-            continue
-        if until_blank:
-            if not markdown_blank(line):
-                masked.append(" " * len(line) + ending)
+def audit_delta_start(
+    base_dir: str, state: dict, step: dict, log_path: str, data: bytes
+) -> int:
+    """Choose the durable boundary before the one unreceipted raw suffix."""
+    latest_offset = None
+    for prior_step in state.get("steps") or []:
+        if as_dict(prior_step).get("n") > step["n"]:
+            break
+        rounds = as_dict(as_dict(prior_step).get("audit")).get("rounds") or []
+        for round_entry in rounds:
+            entry = as_dict(round_entry)
+            if "log_end_offset" not in entry:
                 continue
-            until_blank = False
-            masked.append(physical)
-            continue
+            if entry.get("log") != log_path:
+                die("stored audit log path does not match the configured log")
+            offset = entry["log_end_offset"]
+            if isinstance(offset, bool) or not isinstance(offset, int):
+                die("stored audit log end offset must be a non-boolean integer")
+            if offset < 0 or offset > SOURCE_BYTES_MAX or offset >= len(data):
+                die("stored audit log end offset is outside the current log")
+            latest_offset = offset
+    if latest_offset is not None:
+        return latest_offset
 
-        fence = markdown_fence(line)
-        if fence:
-            sequence = fence.group("mark")
-            mark = sequence[0]
-            if open_mark is None:
-                open_mark = mark
-                open_length = len(sequence)
-            elif (
-                mark == open_mark
-                and len(sequence) >= open_length
-                and not fence.group("remainder").strip(" \t")
-            ):
-                open_mark = None
-                open_length = None
-            masked.append(physical)
-            continue
-        if open_mark is not None:
-            masked.append(physical)
-            continue
-
-        indent = len(line) - len(line.lstrip(" "))
-        bare_special = (
-            AUDIT_BARE_SPECIAL_BLOCK_RE.fullmatch(line[indent:])
-            if indent <= 3
-            else None
-        )
-        if bare_special is not None:
-            html_close = f"</{bare_special.group('tag_name').lower()}>"
-            any_special_close = True
-            masked.append(" " * len(line) + ending)
-            continue
-        opened = audit_html_open(line, indent) if indent <= 3 else None
-        if opened is not None and opened[0] == indent:
-            _, _, close, any_special = opened
-            if audit_html_close_span(line, 0, close, any_special) is None:
-                html_close = close
-                any_special_close = any_special
-            masked.append(" " * len(line) + ending)
-            continue
-        if (
-            AUDIT_BLANK_BLOCK_TAG_RE.match(line)
-            or AUDIT_COMPLETE_TAG_RE.fullmatch(line)
-        ):
-            until_blank = True
-            masked.append(" " * len(line) + ending)
-            continue
-        masked.append(physical)
-    return "".join(masked)
-
-
-def audit_visible_lines(text: str):
-    """Yield source-aligned Markdown with fenced and raw HTML content masked."""
-    html_close = None
-    any_special_close = False
-    masked_text = audit_mask_block_html(text)
-    for start, end, line, in_fence, was_open in markdown_lines(masked_text):
-        if in_fence:
-            yield start, end, "\0", was_open
-            continue
-        source_line = text[start:end].rstrip("\r\n")
-        visible = []
-        cursor = 0
-        while cursor < len(line):
-            if html_close is not None:
-                closed = audit_html_close_span(
-                    line, cursor, html_close, any_special_close
-                )
-                if closed is None:
-                    visible.append(" " * (len(line) - cursor))
-                    cursor = len(line)
-                else:
-                    _, after_close = closed
-                    visible.append(" " * (after_close - cursor))
-                    cursor = after_close
-                    html_close = None
-                    any_special_close = False
-                continue
-            opened = audit_html_open(line, cursor)
-            if opened is None:
-                visible.append(line[cursor:])
-                break
-            opened_at, after_open, html_close, any_special_close = opened
-            visible.append(line[cursor:opened_at])
-            cursor = after_open
-            visible.append(" " * (cursor - opened_at))
-        rendered = "".join(visible)
-        if not markdown_blank(source_line) and markdown_blank(rendered):
-            rendered = "\0"
-        yield start, end, rendered, was_open
+    baseline = audit_baseline_blob(base_dir, step, log_path)
+    if len(data) <= len(baseline):
+        die("audit log does not append a new record after its Git baseline")
+    if data[:len(baseline)] != baseline:
+        die("audit log changed before its Git baseline boundary")
+    return len(baseline)
 
 
 def audit_covered(value: str, expected_ids: list[str]) -> None:
@@ -1737,14 +1634,16 @@ def audit_covered(value: str, expected_ids: list[str]) -> None:
         die("audit record Covered is missing a study risk id")
 
 
-def audit_standalone(lines: list[str], index: int, label: str) -> None:
-    """Require a top-level field boundary no multiline inline can cross."""
-    if index == 0 or not markdown_blank(lines[index - 1]):
-        die(f"audit record {label} must follow a blank line")
-
-
 def audit_table_cells(line: str) -> list[str]:
-    """Split a canonical GFM row at pipes not escaped by an odd slash run."""
+    """Split one raw row at pipes not escaped by an odd backslash run."""
+    trailing_slashes = len(line) - 1 - len(line[:-1].rstrip("\\"))
+    if (
+        len(line) < 2
+        or not line.startswith("|")
+        or not line.endswith("|")
+        or trailing_slashes % 2
+    ):
+        return []
     cells = [""]
     slashes = 0
     for char in line[1:-1]:
@@ -1756,134 +1655,73 @@ def audit_table_cells(line: str) -> list[str]:
     return [cell.strip() for cell in cells]
 
 
-def audit_findings(lines: list[str], findings: int) -> int:
-    """Check the one canonical five-column table and its declared row count."""
-    headers = [index for index, line in enumerate(lines) if line == AUDIT_FINDINGS_HEADER]
-    if not headers:
-        die("audit record is missing the canonical findings table")
-    if len(headers) != 1:
-        die("audit record has a duplicate findings table")
-    header = headers[0]
-    if header + 1 >= len(lines) or lines[header + 1] != AUDIT_FINDINGS_SEPARATOR:
-        die("audit record findings table has a non-canonical separator")
-    rows = []
-    for line in lines[header + 2:]:
-        if not line.startswith("|"):
-            break
-        if not line.endswith("|"):
-            die("audit record findings table has a malformed data row")
-        cells = audit_table_cells(line)
-        if len(cells) != 5 or any(not cell for cell in cells):
-            die("audit record findings table has a malformed data row")
-        rows.append(line)
-    table_end = header + 2 + len(rows)
-    if table_end >= len(lines) or not markdown_blank(lines[table_end]):
-        die("audit record findings table must be followed by a blank line")
-    if findings == 0:
-        if rows != [AUDIT_ZERO_FINDING_ROW]:
-            die("audit record findings table must use the exact zero-finding row")
-        return header
-    if len(rows) != findings or AUDIT_ZERO_FINDING_ROW in rows:
-        die("audit record findings table row count does not match --findings")
-    return header
+def audit_raw_field(line: str, label: str) -> str:
+    """Read one exact raw field line without exposing its value."""
+    prefix = f"{label}: "
+    if not line.startswith(prefix):
+        die(f"audit record is missing or malformed {label}")
+    value = line[len(prefix):]
+    if not value or not value.strip() or value != value.strip():
+        die(f"audit record {label} must have a canonical non-empty value")
+    return value
 
 
-def audit_setext_h2(previous: str | None, line: str) -> bool:
-    """Recognise a visible level-two Setext candidate after paragraph text."""
-    if previous is None or AUDIT_SETEXT_H2_RE.fullmatch(line) is None:
-        return False
-    if previous == "\0" or markdown_blank(previous):
-        return False
-    if AUDIT_ATX_HEADING_RE.match(previous):
-        return False
-    return True
-
-
-def audit_raw_structure(lines: list[str]) -> None:
-    """Refuse structural lookalikes lost by the conservative visibility mask.
-
-    The HTML pass intentionally masks more than a full CommonMark parser: raw
-    tag text may be ambiguous until inline parsing, and block type 7 cannot
-    interrupt a paragraph.  That safe-direction approximation must not erase a
-    later heading or duplicate field and thereby make a non-canonical record
-    look canonical.  Strict records therefore admit exactly one raw copy of
-    every structural label and no later raw H2 candidate.  A Warden can move a
-    quoted specimen into prose or a table cell without putting it at the
-    schema's structural column.
-    """
-    labels = (
-        "Audit schema",
-        "Covered",
-        "Not checked",
-        "Elenchus verdict",
-        "Leads not pursued",
-    )
-    for label in labels:
-        count = sum(line.startswith(label + ":") for line in lines)
-        if count == 0:
-            die(f"audit record is missing {label}")
-        if count > 1:
-            die(f"audit record has duplicate {label}")
-    table_count = sum(line == AUDIT_FINDINGS_HEADER for line in lines)
-    if table_count == 0:
-        die("audit record is missing the canonical findings table")
-    if table_count > 1:
-        die("audit record has a duplicate findings table")
-
-    previous = None
-    for index, line in enumerate(lines):
-        if index > 0 and (
-            AUDIT_ATX_H2_RE.match(line) or audit_setext_h2(previous, line)
-        ):
-            die("strict audit record must be the final H2 record")
-        previous = line
-
-
-def validated_audit_record(
-    base_dir: str, state: dict, step: dict, args
-) -> dict:
-    """Validate the final Warden append and return only receipt-safe evidence."""
-    audit = as_dict(as_dict(state.get("config")).get("audit"))
-    log_path, data = read_configured_audit_log(
-        base_dir, audit.get("log_path"), args.log
-    )
-    text = decoded_source(data, "audit log")
-    for physical in markdown_physical_lines(text):
-        line = physical.rstrip("\r\n")
-        if len(line.encode("utf-8")) > AUDIT_PHYSICAL_LINE_BYTES_MAX:
+def audit_record_bytes(data: bytes, start: int) -> bytes:
+    """Return the exact LF-only record after its boundary separator."""
+    if start == 0:
+        separator = b""
+    elif data[start - 1:start] == b"\n":
+        separator = b"\n"
+    else:
+        separator = b"\n\n"
+    delta = data[start:]
+    if not delta.startswith(separator):
+        die("audit record has a non-canonical boundary separator")
+    record = delta[len(separator):]
+    if not record or b"\r" in delta:
+        die("audit record must use LF line endings")
+    if not record.endswith(b"\n"):
+        die("audit record must end with one LF at EOF")
+    for physical in record.split(b"\n"):
+        if len(physical) > AUDIT_PHYSICAL_LINE_BYTES_MAX:
             die(
-                "audit log has a physical line over "
+                "audit record has a physical line over "
                 f"{AUDIT_PHYSICAL_LINE_BYTES_MAX}-byte cap"
             )
-    heading_record = None
-    heading_count = 0
-    previous_start = None
-    previous_line = None
-    for start, _, line, _ in audit_visible_lines(text):
-        if AUDIT_ATX_H2_RE.match(line):
-            heading_count += 1
-            if heading_count > AUDIT_H2_MAX:
-                die(f"audit log exceeds {AUDIT_H2_MAX}-H2 cap")
-            heading_record = (start, line, "atx")
-        elif audit_setext_h2(previous_line, line):
-            heading_count += 1
-            if heading_count > AUDIT_H2_MAX:
-                die(f"audit log exceeds {AUDIT_H2_MAX}-H2 cap")
-            heading_record = (previous_start, previous_line, "setext")
-        previous_start = start
-        previous_line = line
-    if heading_record is None:
-        die("audit log has no H2 record")
-    entry_start, heading, heading_kind = heading_record
-    if heading_kind != "atx":
-        die("strict audit record must be the final H2 record")
+    return record
+
+
+def audit_line(lines: list[str], index: int, expected: str, label: str) -> int:
+    """Consume one exact line from the raw record grammar."""
+    if index >= len(lines) or lines[index] != expected:
+        die(f"audit record has a non-canonical {label}")
+    return index + 1
+
+
+def audit_field_line(
+    lines: list[str], index: int, label: str
+) -> tuple[int, str]:
+    if index >= len(lines):
+        die(f"audit record is missing {label}")
+    return index + 1, audit_raw_field(lines[index], label)
+
+
+def parse_audit_record(
+    record: bytes, base_dir: str, state: dict, step: dict, args
+) -> tuple[str, str]:
+    """Validate the one exact raw suffix and return schema and timestamp."""
+    try:
+        text = record.decode("utf-8")
+    except UnicodeDecodeError:
+        die("audit record delta is not UTF-8 text")
+    lines = text[:-1].split("\n")
     round_number = len(step["audit"]["rounds"]) + 1
     heading_prefix = (
         f"## {state['topic']}, step {step['n']}, round {round_number} -- "
     )
-    if not heading.startswith(heading_prefix):
+    if not lines or not lines[0].startswith(heading_prefix):
         die("audit record heading does not match topic, step, and round")
-    timestamp = heading[len(heading_prefix):]
+    timestamp = lines[0][len(heading_prefix):]
     if not AUDIT_TIMESTAMP_RE.fullmatch(timestamp):
         die("audit record timestamp must be YYYY-MM-DDTHH:MM:SSZ UTC")
     try:
@@ -1893,49 +1731,67 @@ def validated_audit_record(
     if parsed_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") != timestamp:
         die("audit record timestamp is not canonical UTC")
 
-    entry_text = text[entry_start:]
-    raw_lines = [
-        physical.rstrip("\r\n")
-        for physical in markdown_physical_lines(entry_text)
-    ]
-    audit_raw_structure(raw_lines)
-    visible_lines = [
-        line
-        for _, _, line, _ in audit_visible_lines(entry_text)
-    ]
-    schema_index, schema = audit_field(visible_lines, "Audit schema")
+    index = 1
+    index = audit_line(lines, index, "", "blank line after heading")
+    index, schema = audit_field_line(lines, index, "Audit schema")
     if schema != AUDIT_RECORD_SCHEMA:
         die(f"Audit schema must be {AUDIT_RECORD_SCHEMA}")
-    covered_index, covered = audit_field(visible_lines, "Covered")
+    index = audit_line(lines, index, "", "blank line after Audit schema")
+    index, covered = audit_field_line(lines, index, "Covered")
     audit_covered(covered, audit_risk_ids(base_dir, state))
-    not_checked_index, _ = audit_field(visible_lines, "Not checked")
-    verdict_index, verdict = audit_field(visible_lines, "Elenchus verdict")
+    index = audit_line(lines, index, "", "blank line after Covered")
+    index, _ = audit_field_line(lines, index, "Not checked")
+    index = audit_line(lines, index, "", "blank line after Not checked")
+    index, verdict = audit_field_line(lines, index, "Elenchus verdict")
     expected_verdict = args.elenchus_verdict or "null"
     if verdict != expected_verdict:
         die("audit record Elenchus verdict does not match the receipt")
-    findings_index = audit_findings(visible_lines, args.findings)
-    leads_index, _ = audit_field(visible_lines, "Leads not pursued")
-    for label, index in (
-        ("Audit schema", schema_index),
-        ("Covered", covered_index),
-        ("Not checked", not_checked_index),
-        ("Elenchus verdict", verdict_index),
-        ("findings table", findings_index),
-        ("Leads not pursued", leads_index),
-    ):
-        audit_standalone(visible_lines, index, label)
-    field_order = (
-        schema_index,
-        covered_index,
-        not_checked_index,
-        verdict_index,
-        findings_index,
-        leads_index,
+    index = audit_line(lines, index, "", "blank line after Elenchus verdict")
+    index = audit_line(
+        lines, index, AUDIT_FINDINGS_HEADER, "findings table header"
     )
-    if field_order != tuple(sorted(field_order)):
-        die("audit record fields do not follow the canonical field order")
+    index = audit_line(
+        lines, index, AUDIT_FINDINGS_SEPARATOR, "findings table separator"
+    )
 
-    entry_bytes = entry_text.encode("utf-8")
+    row_count = 1 if args.findings == 0 else args.findings
+    rows = []
+    for _ in range(row_count):
+        if index >= len(lines):
+            die("audit record findings table row count does not match --findings")
+        row = lines[index]
+        cells = audit_table_cells(row)
+        if len(cells) != 5 or any(not cell for cell in cells):
+            die("audit record findings table has a malformed data row")
+        rows.append(row)
+        index += 1
+    if args.findings == 0:
+        if rows != [AUDIT_ZERO_FINDING_ROW]:
+            die("audit record findings table must use the exact zero-finding row")
+    elif AUDIT_ZERO_FINDING_ROW in rows:
+        die("audit record findings table row count does not match --findings")
+    if index >= len(lines) or lines[index] != "":
+        die("audit record findings table row count does not match --findings")
+    index += 1
+    index, _ = audit_field_line(lines, index, "Leads not pursued")
+    if index != len(lines):
+        die("audit record has content after Leads not pursued")
+    return schema, timestamp
+
+
+def validated_audit_record(
+    base_dir: str, state: dict, step: dict, args
+) -> dict:
+    """Validate one raw Warden append and return only receipt-safe evidence."""
+    audit = as_dict(as_dict(state.get("config")).get("audit"))
+    log_path, data = read_configured_audit_log(
+        base_dir, audit.get("log_path"), args.log
+    )
+    entry_start = audit_delta_start(base_dir, state, step, log_path, data)
+    entry_bytes = audit_record_bytes(data, entry_start)
+    schema, timestamp = parse_audit_record(
+        entry_bytes, base_dir, state, step, args
+    )
     return {
         "schema": schema,
         "log": log_path,

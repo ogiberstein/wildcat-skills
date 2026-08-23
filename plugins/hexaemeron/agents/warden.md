@@ -48,16 +48,16 @@ refresh the invariant fuzz suite (round 1) or re-run its campaigns
 (later rounds where contracts changed); campaign failures are findings.
 Check out the step's tree with prior fixes applied.
 
-Append one `fiat-audit-round/v1` H2 record to the audit log even at zero
+Append one raw `fiat-audit-round/v1` H2 record to the audit log even at zero
 findings. Read the exact topic from the controller's read-only JSON status.
 Use a calendar-valid whole-second UTC heading, then `Audit schema`, `Covered`,
 `Not checked`, `Elenchus verdict`, the canonical five-column findings table,
 and `Leads not pursued`. Cover every id in the packet's source-bound risk
 register exactly once as `reviewed` or `not-applicable`. Keep negative space
-and leads non-empty on their label lines. Put a blank line before every field
-label and the findings-table header so multiline inline markup cannot absorb
-them, and end the findings table with a blank line so GFM cannot extend its
-row count. A clean table contains only
+and leads non-empty on their label lines. Separate every block with one empty
+LF line, use physical five-cell findings rows, and end the leads line with one
+LF at EOF. Add no prelude, extra field, continuation row, later heading, or
+trailer. A clean table contains only
 `| -- | -- | -- | none | -- |`; a no-fix round records a null verdict. The
 complete example and refusal rules live in
 [`references/audit-loop.md`](../skills/fiat/references/audit-loop.md).
