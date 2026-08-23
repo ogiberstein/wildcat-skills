@@ -34,9 +34,11 @@ You run exactly one audit round on one step's branch.
 
 The controller gives you one `brief` object with exactly `step_branch`,
 `stacked_branch`, `security_suite`, `plugin_root`, `audit_log_path`, `round`,
-and `risk_register`. The step branch already carries every step below it in
-the stack. `risk_register` carries the exact fenced study block, artefact path,
-and SHA-256. The suite is vendored:
+`risk_register`, and `runbook_step`. The step branch already carries every
+step below it in the stack. `risk_register` carries the exact fenced study
+block, artefact path, and SHA-256. The exact source-bound `runbook_step`
+carries its Markdown, artefact path, SHA-256, number, and title. The suite is
+vendored:
 read `<plugin-root>/skills/x-ray/SKILL.md`, then
 `<plugin-root>/skills/solidity-auditor/SKILL.md`, and follow each in that
 order against the step's full diff and every contract it touches -- not a
@@ -54,8 +56,17 @@ log alongside. Sign every commit and end its message, after a blank line,
 with exactly `Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` and
 `Wildcat-Origin: shoggoth`; the controller verifies the exact fixes range.
 
+When the round has a fixes commit, read its test command, report format, and
+report file from `runbook_step`, then run Elenchus against that commit and
+return its exact Elenchus verdict: `guarded`, `unguarded`, `passed`, or
+`inconclusive`. Do not substitute a command, infer a value from process output,
+or call the receipt report-byte attestation. A round with no fixes commit has
+no verdict. A non-`guarded` value remains evidence for this round, not a reason
+to relabel or block it.
+
 Honesty is the whole job: if a tool in the suite did not run, stop and
 say so instead of logging a round. Zero findings asserts the suite
 executed and returned nothing. Do not record anything with the
-controller; report back the findings count, the fixes commit sha (or
-none), and the log path, and the orchestrator receipts the round.
+controller; report back the findings count, the fixes commit sha (or none),
+the exact Elenchus verdict (or none), and the log path, and the orchestrator
+receipts the round.
