@@ -9688,3 +9688,21 @@ Elenchus verdict: guarded
 | S2-R1-04 | low | plugins/hexaemeron/skills/fiat/SKILL.md | The Fiat Promise said controller verification established current derived-synopsis currency, although verification only preserves the earlier receipt-time check and recorded sibling digest. | fixed in d926d4eb581e8a86cfcfc802bd95b34ff56c1bfb; guard red then green |
 
 Leads not pursued: no further step-2 defects after the fixes and named gates; multi-file generation remains per-sibling atomic, so interruption between replacements can leave a mixed set of complete old and new synopses until `--check` exposes it and rerunning `--write` repairs it; the live run remains pinned to v5.12.1 and cannot receipt v5.13.1 synopsis enforcement; step 3 owns the disposable checked-in-controller proof, issue 453 report-byte binding, issue 369 downstream consumption, and issue 363 frontier identity
+
+## audit-record-schema-timestamp-synopsis, step 2, round 2 -- 2026-08-23T18:37:22Z
+
+Audit schema: fiat-audit-round/v1
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=reviewed; synopsis-drift=reviewed; lead-omission=reviewed; partial-write=reviewed; path-boundary=reviewed; horos-self-defeat=reviewed; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: Solidity-only Pashov X-Ray and Auditor pair under the non-Solidity waiver; live-controller synopsis enforcement remains pinned to v5.12.1; step 3 disposable checked-in v5.13.1 proof; issue 453 report-byte and commit binding; issue 369 downstream synopsis consumption; issue 363 frontier identity
+
+Elenchus verdict: guarded
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | Path framing rejected only lowercase `<br>` and ASCII controls, so case and syntax variants plus non-printable Unicode separators and bidi controls could enter one-line synopsis metadata. | fixed in 13cd55e339fa9c835c5b14b7b5723595aceaa779; guards red then green |
+| S2-R2-02 | medium | plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py | Strict parsing discarded the source's EOF-LF state and made its trailing empty physical line optional, accepting a missing terminal LF, an extra EOF blank line, or no blank separator between records. | fixed in 13cd55e339fa9c835c5b14b7b5723595aceaa779; guards red then green |
+| S2-R2-03 | low | tests/promise_machine_coverage.json | The Fiat runtime coverage subject still claimed a current synopsis digest although its Promise binds only the receipt-time digest. | fixed in 13cd55e339fa9c835c5b14b7b5723595aceaa779; guard red then green |
+
+Leads not pursued: schema-less historical H3 records remain legacy by contract, while the only schema-bearing H3 exception is limited to root ordinals 344 through 353 and exact pinned record digests, so no future path, ordinal, or byte variant is authorised; discovery skips excluded `.git` and `.hexaemeron` sinks and intended symlink trees while unreadable included subtrees fail closed; generation is per-sibling atomic rather than cross-file transactional, so `--check` deliberately exposes a mixed set of complete siblings; the live controller remains pinned to v5.12.1, step 3 owns disposable v5.13.1 proof, issue 453 owns report-byte binding, issue 369 owns downstream consumption, and issue 363 owns frontier identity
