@@ -7,11 +7,14 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 IDENTITY = ROOT / "SHOGGOTH.md"
-CONTRACT = "shoggoth-collective/v1"
-EXPECTED_SHA256 = "00d516fdd46f5cbfbed8a3f49b8299641a396531467319b5b042e8eb28c1f4fa"
+CONTRACT = "shoggoth-collective/v2"
+EXPECTED_SHA256 = "d74ddcf9082b8ff3bcdd14a8a17b3ef4632696edd348d21500cd892cab632740"
 
 
 class ShoggothIdentityTests(unittest.TestCase):
+    def identity_text(self):
+        return " ".join(IDENTITY.read_text(encoding="utf-8").split())
+
     def test_identity_contract_is_source_bound(self):
         text = IDENTITY.read_text(encoding="utf-8")
         self.assertIn(f"contract={CONTRACT}", text)
@@ -27,7 +30,7 @@ class ShoggothIdentityTests(unittest.TestCase):
                 self.assertIn("SHOGGOTH.md", (ROOT / name).read_text(encoding="utf-8"))
 
     def test_identity_does_not_claim_operating_authority(self):
-        text = IDENTITY.read_text(encoding="utf-8")
+        text = self.identity_text()
         for boundary in (
             "does not activate a skill",
             "grant a permission",
@@ -36,9 +39,16 @@ class ShoggothIdentityTests(unittest.TestCase):
             self.assertIn(boundary, text)
 
     def test_creator_reference_stays_role_bounded(self):
-        text = IDENTITY.read_text(encoding="utf-8")
+        text = self.identity_text()
         self.assertIn("Use `the Creator` only when the role matters", text)
-        self.assertIn("by\npersonal name", text)
+        self.assertIn("by personal name", text)
+
+    def test_governed_agent_work_uses_shoggoth_authorship(self):
+        text = self.identity_text()
+        self.assertIn("after invoking a Wildcat domain or phase skill", text)
+        self.assertIn("Every piece of work produced through the Shoggoth Interceptor", text)
+        self.assertIn("A human contributor keeps authorship", text)
+        self.assertIn("may retain the host's ordinary authorship", text)
 
 
 if __name__ == "__main__":

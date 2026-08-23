@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.12.1"
+  version: "5.13.1"
 ---
 
 # Fiat
@@ -415,7 +415,12 @@ SKILL.md by path and apply it. The receipt refuses a skills list missing
 either configured id.
 
 **Push.** Stage and commit every intended final change with a valid local
-signature and the two exact provenance trailers, push the step branch,
+signature and the two exact provenance trailers. Agent-produced work is
+authored by Shoggoth; a human contributor keeps their own authorship. Claude,
+Codex, another runtime host, or its generated-by footer is not authorship for a
+Fiat run. If a cloud runtime cannot sign and publish through the Shoggoth
+identity, stop before the commit or pull request and hand the exact branch or
+patch to an environment that can. Then push the step branch,
 and open its pull request against the `pr_base` the directive names, using the
 prepared prose. Wait for its gates but leave it open: a step's work lands in the
 integrate phase, not here. Do not add an issue reference unless one was
