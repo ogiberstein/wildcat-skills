@@ -2,7 +2,7 @@
 
 ## Status
 
-Superseded, 2026-08-23. [ADR-014](ADR-014-attribute-governed-agent-work-to-shoggoth.md)
+Superseded, 2026-08-23. [ADR-016](ADR-016-attribute-governed-agent-work-to-shoggoth.md)
 retains its single-contract placement and replaces its communication-only
 boundary.
 
