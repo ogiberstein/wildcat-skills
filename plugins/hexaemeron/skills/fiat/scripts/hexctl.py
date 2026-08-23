@@ -1878,10 +1878,13 @@ def validated_audit_record(
             die("audit synopsis renderer cannot be loaded")
         renderer = importlib.util.module_from_spec(specification)
         specification.loader.exec_module(renderer)
-    except Exception:
+    except (Exception, SystemExit):
         die("audit synopsis renderer cannot be loaded")
-    synopsis_validator = getattr(renderer, "validate_committed_synopsis", None)
-    synopsis_error = getattr(renderer, "SynopsisError", None)
+    try:
+        synopsis_validator = getattr(renderer, "validate_committed_synopsis", None)
+        synopsis_error = getattr(renderer, "SynopsisError", None)
+    except (Exception, SystemExit):
+        die("audit synopsis renderer cannot be loaded")
     if (
         not callable(synopsis_validator)
         or not isinstance(synopsis_error, type)
@@ -1892,6 +1895,8 @@ def validated_audit_record(
         synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
     except synopsis_error as error:
         die(str(error))
+    except SystemExit:
+        die("audit synopsis renderer validation terminated unexpectedly")
     if (
         not isinstance(synopsis_sha256, str)
         or re.fullmatch(r"[0-9a-f]{64}", synopsis_sha256) is None

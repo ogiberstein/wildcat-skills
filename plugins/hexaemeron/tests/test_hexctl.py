@@ -12,7 +12,7 @@ import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stderr
+from contextlib import ExitStack, redirect_stderr
 from io import StringIO
 from pathlib import Path
 from unittest import mock
@@ -127,6 +127,23 @@ class AuditSynopsisResourceBoundaryTests(unittest.TestCase):
         self.assertEqual(rendered["source_lines"], 200_002)
         self.assertEqual(rendered["h2_count"], 1)
         self.assertLess(len(rendered["bytes"]), renderer.SYNOPSIS_BYTES_MAX)
+
+    def test_table_cell_scanner_scales_with_the_accepted_line_length(self):
+        renderer = audit_synopsis_module()
+
+        def elapsed(size):
+            line = "| " + "x" * size + " | b | c | d | e |"
+            started = time.process_time()
+            self.assertEqual(len(renderer._table_cells(line)), 5)
+            return time.process_time() - started
+
+        small = elapsed(64 * 1024)
+        large = elapsed(512 * 1024)
+        self.assertLess(
+            large,
+            small * 20,
+            f"table scan scaled from {small:.6f}s to {large:.6f}s",
+        )
 
 
 class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
@@ -2647,6 +2664,83 @@ class AuditRecordSchemaTests(HexctlCase):
         self.assertIsInstance(raised.exception, SystemExit)
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
+
+    def test_renderer_cannot_terminate_successfully_during_load_or_validation(self):
+        controller = hexctl_module()
+
+        class RendererError(Exception):
+            pass
+
+        class StoppingRenderer:
+            SynopsisError = RendererError
+            stop_during_interface = False
+
+            def __getattribute__(self, name):
+                if (
+                    name == "validate_committed_synopsis"
+                    and object.__getattribute__(self, "stop_during_interface")
+                ):
+                    raise SystemExit(0)
+                return object.__getattribute__(self, name)
+
+            @staticmethod
+            def validate_committed_synopsis(*_args):
+                raise SystemExit(0)
+
+        renderer = StoppingRenderer()
+
+        class StoppingLoader:
+            stop_during_load = True
+
+            def exec_module(self, _module):
+                if self.stop_during_load:
+                    raise SystemExit(0)
+
+        loader = StoppingLoader()
+        specification = argparse.Namespace(loader=loader)
+        for stop_at in ("load", "interface", "validation"):
+            with self.subTest(stop_at=stop_at):
+                loader.stop_during_load = stop_at == "load"
+                renderer.stop_during_interface = stop_at == "interface"
+                stderr = StringIO()
+                with ExitStack() as stack:
+                    stack.enter_context(mock.patch.object(
+                        controller, "read_configured_audit_log",
+                        return_value=("audit/AUDIT.md", b"record"),
+                    ))
+                    stack.enter_context(mock.patch.object(
+                        controller, "audit_delta_start", return_value=0
+                    ))
+                    stack.enter_context(mock.patch.object(
+                        controller, "audit_record_bytes", return_value=b"record"
+                    ))
+                    stack.enter_context(mock.patch.object(
+                        controller,
+                        "parse_audit_record",
+                        return_value=(
+                            "fiat-audit-round/v1", "2026-08-23T02:17:46Z"
+                        ),
+                    ))
+                    stack.enter_context(mock.patch.object(
+                        controller.importlib.util,
+                        "spec_from_file_location",
+                        return_value=specification,
+                    ))
+                    stack.enter_context(mock.patch.object(
+                        controller.importlib.util,
+                        "module_from_spec",
+                        return_value=renderer,
+                    ))
+                    stack.enter_context(redirect_stderr(stderr))
+                    raised = stack.enter_context(self.assertRaises(SystemExit))
+                    controller.validated_audit_record(
+                        self.target,
+                        {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
+                        {"audit": {"rounds": []}},
+                        argparse.Namespace(log=None),
+                    )
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn("audit synopsis renderer", stderr.getvalue())
 
     def test_corrupt_renderer_interface_is_a_bounded_refusal(self):
         controller = hexctl_module()

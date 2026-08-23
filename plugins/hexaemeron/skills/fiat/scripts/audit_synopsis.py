@@ -342,15 +342,16 @@ def _table_cells(line):
         or trailing_slashes % 2
     ):
         return []
-    cells = [""]
+    cells = []
+    start = 1
     slashes = 0
-    for character in line[1:-1]:
+    for index, character in enumerate(line[1:-1], 1):
         if character == "|" and slashes % 2 == 0:
-            cells.append("")
-        else:
-            cells[-1] += character
+            cells.append(line[start:index].strip())
+            start = index + 1
         slashes = slashes + 1 if character == "\\" else 0
-    return [cell.strip() for cell in cells]
+    cells.append(line[start:-1].strip())
+    return cells
 
 
 def _field(line, label, record_number, source_path):
