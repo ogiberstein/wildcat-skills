@@ -10,7 +10,7 @@ description: >-
   has observed yet, which belongs to solidity-auditor and x-ray, and do not use
   it to speed up something that already works, which belongs to metron.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Elenchus
@@ -192,6 +192,12 @@ variable before starting the command. Accepted formats are
 `unittest-json-v1`, `forge-junit-v1` and `node-test-json-v1`. Stdlib unittest
 and Node need small repository-owned emitters; Forge can send native
 `forge test --junit` XML to the declared file.
+
+In a Fiat audit, Warden owns this invocation. The source-bound runbook step
+supplies its exact test command, report format, and report file. Warden uses
+those three inputs without substituting another runner and hands back one of
+the four status strings below without translating it. This records the
+declared result; it does not attest the report bytes or prove the command ran.
 
 Every adapter normalises completion, executed tests, assertion failures,
 infrastructure errors and skips. An assertion with no infrastructure error is

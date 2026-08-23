@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "4.5.0"
+  version: "4.6.0"
 ---
 
 # Protasis
@@ -190,6 +190,12 @@ And it stays small enough to audit, because that phase dominates the clock.
 **Disciplines.** Which of the five apply to this step and why, or none with
 the reason.
 ```
+
+For a Fiat step, `Tests` also owns the runner contract used when its audit
+claims a fix. It names the exact Elenchus test command with one `{report}`
+argument, the report format, and the report file. Fiat sends the complete
+source-bound step to Warden; Warden owns those three inputs and may not infer a
+command from `Files` or replace one with a nearby suite.
 
 The Disciplines line carries the study's items 8 through 12 down to the step
 that actually incurs them. Name each discipline and the reason in one clause:

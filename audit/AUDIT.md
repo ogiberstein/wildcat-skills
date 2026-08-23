@@ -8873,3 +8873,224 @@ custom-loader proofs; the accepted pragma-in-string quirk; and Python file-size
 policy. Cross-scope YAML module and loader aliases can retain source-local
 trust for an actual `yaml.load` call. The receipted study excludes that scope,
 so changing it would require an amendment rather than an audit-side widening.
+
+## Elenchus audit-round verdict, step 1, round 1 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver is exact: `waived: issue 327 changes Python controller
+state, Elenchus integration, tests, and governed prose; it has no Solidity
+target`. No `.sol` path appears in `454bf3c..b8acf611` or the stacked fix.
+X-Ray, Solidity Auditor and Fizz did not run. The active-plugin Phylax,
+Ephoros and Hypomnema lints each exit 0 on their repository scopes.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/tests/run_tests.py:13` | Report containment was checked before arbitrary tests ran, but the later write reused a relative path and followed ancestor components. A test could change the process directory or replace a validated parent with a symlink, redirecting the report outside the worktree. | fixed; manual guard red, Elenchus verdict `passed` |
+| S1-R1-review | none | full `454bf3c..b8acf611` diff plus stacked fix | No other report-schema, exit-semantics, source-contract or path-control finding was confirmed. | clean |
+| S1-R1-records | none | study, runbook and generation rows | The three governed frontiers and their held targets retain the prior revision and digest. The tracked artifact differences are recorded below. | clean |
+
+Finding count: 1.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | Step 1 does not change `audit-round`; the study keeps `--fixes-commit` as the only machine fix claim for step 2. | reviewed; not applicable to this step's code |
+| `enum-drift` | The Elenchus classifier and its four result strings are unchanged; report fixtures retain the exact unittest schema. | clean |
+| `command-substitution` | The runbook owns the exact command/report triplet. The runner parses one path and never evaluates it through a shell. | clean |
+| `legacy-round-breakage` | Step 1 changes no Fiat state reader or writer. Legacy-round fixtures belong to step 2. | reviewed; not applicable |
+| `receipt-overclaim` | The Elenchus contract calls the future field a declaration and says it does not attest report bytes or command execution. | clean |
+| `downstream-loss` | Step 1 adds no issue 429 schema or issue 369 synopsis path. Both remain named dependent work. | reviewed; not applicable |
+| `frontier-drift` | `elenchus-v1.2.0` and `protasis-v4.6.0` advance generation only; prior frontier revision, digest, status and target bytes are retained. | clean |
+
+### Evidence
+
+The review read the complete eight-path diff from
+`454bf3c9930c94985e5eb6179f3b01be2bf741c2` through
+`b8acf61151b60484a8477786ef5a7f0c2b9c6035`. The reduced cwd-rebinding and
+parent-symlink cases both failed on that unfixed head. The first wrote the
+relative report under the suite-selected directory; the second returned 0
+after creating the report through the outside symlink.
+
+The fix pins the resolved worktree with a directory descriptor, opens or
+creates every report-parent component relative to that descriptor with
+`O_NOFOLLOW`, and creates the final file with `O_EXCL`. Short writes continue
+until complete; an error removes only the inode this invocation created.
+Eight focused runner-result cases pass, including cwd rebinding, ancestor
+replacement, dangling targets and a forced partial write.
+
+The exact runbook Elenchus invocation under pinned Node v26.6.0 returns
+`passed`: 860 executed tests, zero assertion failures and zero errors. This is
+not mechanical red-parent evidence. `changed_tests()` classifies both changed
+paths under `plugins/hexaemeron/tests/` as tests, so it overlays the fixed
+`run_tests.py` beside the new guards on the parent. The two focused manual red
+runs above remain separate evidence and the recorded verdict is not relabeled.
+
+Under pinned Node v26.6.0, the focused Elenchus/Fiat/Protasis suite passes
+153/153 and the full Hexaemeron suite passes 860/860. The root suite passes
+118/118. Both Protasis checks, the three active-plugin lints and
+`git diff --check` exit 0. The unwrapped focused command reaches host Node
+v22.22.3 and fails only the fixture's exact v26.6.0 assertion; it is recorded
+as environment evidence, not a green gate.
+
+The receipted study hashes to
+`06f8e81b95c7ceba26ada998fe62b57a87d9afa3eea10a31813862842851abe0`.
+Its tracked copy changes only five links to remain relative to the committed
+directory. The receipted runbook hashes to
+`82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85`;
+the tracked copy removes one terminal blank line after the exact copy failed
+`git diff --check`.
+
+### Leads not pursued
+
+Leads not pursued: issue 429's audit schema, issue 453's evidence binding and
+production `guarded` gate, and Fiat's step-2 controller field. Tests run with
+the caller's operating-system authority and can write elsewhere directly;
+this fix establishes only that the report writer does not redirect its own
+declared output. Mechanical red-parent classification for an implementation
+under a test directory remains an evidence discrepancy; changing Elenchus's
+test-file boundary is outside step 1, and issue 453 owns the blocking policy.
+No further step-1 lead remained after the full diff review.
+
+## Elenchus audit-round verdict, step 1, round 2 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 327 changes Python
+controller state, Elenchus integration, tests, and governed prose; it has no
+Solidity target`. No Solidity path changed. X-Ray, Solidity Auditor and Fizz
+did not run. The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0
+on their repository scopes.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | `plugins/hexaemeron/tests/run_tests.py:13` | The round-1 fix held its worktree directory descriptor across arbitrary in-process tests. A test could close that descriptor and reopen an outside directory in the same numeric slot; the report writer then trusted the rebound slot and wrote outside the worktree. | fixed in `cc984ba`; manual guard red, Elenchus verdict `passed` |
+| S1-R2-02 | low | `plugins/hexaemeron/tests/run_tests.py:68` | The unsupported-platform gate collapsed every absent secure-directory primitive into one generic error, so an operator could not identify which required control was missing. | fixed in `cc984ba`; manual guard red |
+| S1-R2-review | none | full `454bf3c..cc984ba` diff | No further schema, exit-semantics, containment, descriptor-lifetime or record finding was confirmed. | clean |
+| S1-R2-records | none | study, runbook and generation rows | The changed contracts still describe a four-state declaration rather than report-byte attestation, and the governed frontiers remain fixed. | clean |
+
+Finding count: 2.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | This round has a signed fixes commit. Step 1 cannot yet store the verdict in Fiat state, so the audit record preserves `passed` without claiming a controller receipt that does not exist. | clean within step 1 |
+| `enum-drift` | The exact runbook invocation returned the existing `passed` status. The classifier and `elenchus.unittest.v1` fields are unchanged. | clean |
+| `command-substitution` | The comparison used the source runbook's exact command, `unittest-json-v1` format and `.elenchus/hexaemeron-unittest.json` path under pinned Node v26.6.0. | clean |
+| `legacy-round-breakage` | Step 1 still changes no Fiat state reader or writer. Legacy-round behavior remains step 2 work. | reviewed; not applicable |
+| `receipt-overclaim` | The audit record keeps mechanical `passed` separate from the two manual red-parent guards and does not relabel it `guarded`. | clean |
+| `downstream-loss` | No issue 429, 369 or 453 consumer changed in this step. | reviewed; not applicable |
+| `frontier-drift` | The evolution/version tests pass 14/14; Elenchus and Protasis retain their prior revision, digest, status and held target while advancing generation only. | clean |
+
+### Evidence
+
+The descriptor reproducer on `0eacf593` observed root slot 3 closed and an
+outside directory reopened as slot 3. `write_report` then left no inside file
+and created the declared nested report outside. The new black-box guard fails
+on that parent at `assertTrue(report.is_file())`. A second parent run fails
+because the old refusal names none of `os.open(dir_fd)`, `os.mkdir(dir_fd)`,
+`os.stat(dir_fd)`, `os.unlink(dir_fd)` or `os.stat(follow_symlinks)`.
+
+The fix retains the canonical root and its `(st_dev, st_ino)` identity rather
+than a live descriptor. It reopens and verifies that directory only after the
+suite, walks report parents through owned directory descriptors with
+`O_NOFOLLOW`, and closes root, parent and report handles on success and error
+paths. A partial write loops until complete; a zero, exception or failed close
+cannot produce a parseable complete report through this path. Unsupported
+hosts now fail before test discovery and name every missing primitive.
+
+The ten focused report-adapter cases pass on the fixed tree. Under offline,
+pinned Node v26.6.0, the Elenchus/Fiat/Protasis focus passes 155/155 and the
+complete Hexaemeron suite passes 862/862 in 153.871 seconds. The root suite
+passes 118/118. The evolution/version tests pass 14/14. Both Protasis checks,
+Promise Machine verification, all three active-plugin lints and
+`git diff --check` exit 0. The exact runbook Elenchus comparison on signed
+commit `cc984ba840d45105a20479331cec8622fc38fbe2` returns `passed`.
+
+The receipted study still hashes to
+`06f8e81b95c7ceba26ada998fe62b57a87d9afa3eea10a31813862842851abe0`.
+Every one of its seven risk ids has a disposition above.
+
+### Leads not pursued
+
+Leads not pursued: issue 429's audit schema, issue 453's evidence binding and
+production `guarded` gate, Fiat's step-2 controller field, and hostile
+background threads that continue manipulating descriptors after the suite
+returns. In-process tests already share the runner's operating-system
+authority; this fix removes the deterministic descriptor inherited across the
+whole suite and fails closed when the recorded root identity changes. A crash
+can still leave a partial fresh file, but Elenchus rejects malformed or
+incomplete JSON rather than accepting it as a completed report.
+
+## Elenchus audit-round verdict, step 1, round 3 -- 2026-08-22
+
+### Suite disposition
+
+The controller waiver remains exact: `waived: issue 327 changes Python
+controller state, Elenchus integration, tests, and governed prose; it has no
+Solidity target`. No Solidity path changed. X-Ray, Solidity Auditor and Fizz
+did not run. The active-plugin Phylax, Ephoros and Hypomnema lints each exit 0.
+
+### Finding table
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-review | none | full `454bf3c..3b394541` diff | No report-schema, path-containment, descriptor-lifetime, source-contract or record finding was confirmed. | clean |
+| S1-R3-guards | none | `plugins/hexaemeron/tests/run_tests.py` | Both prior escapes remain reproducible on their parents and refused on the fixed tree; worktree replacement also fails closed. | clean |
+| S1-R3-records | none | report and governed ledgers | The report matches the runbook contract and both generation rows retain their governed frontiers. | clean |
+
+Finding count: 0.
+
+### Risk coverage
+
+| risk id | evidence checked | disposition |
+| --- | --- | --- |
+| `fix-claim-confusion` | This clean round has no fixes commit, so it records no Elenchus verdict. The full-suite report below is test evidence, not a fix receipt. | clean |
+| `enum-drift` | The pinned Elenchus/Fiat/Protasis focus exercises all four classifier strings and passes 155/155; the runner report keeps the exact `elenchus.unittest.v1` fields. | clean |
+| `command-substitution` | The pinned invocation used the receipted runbook's exact Python command, `unittest-json-v1` format and `.elenchus/hexaemeron-unittest.json` path without shell interpolation inside the runner. | clean |
+| `legacy-round-breakage` | Step 1 still changes no Fiat state reader or writer. The legacy-round path remains step 2 work. | reviewed; not applicable |
+| `receipt-overclaim` | The generated report is recorded as current-tree suite evidence only. It is not relabeled `guarded`, and no controller receipt is claimed for a field the installed controller does not have. | clean |
+| `downstream-loss` | No issue 429, 369 or 453 consumer changed in this step. | reviewed; not applicable |
+| `frontier-drift` | The 14 evolution and version checks pass; Elenchus and Protasis retain their prior revision, digest, status and held target while advancing generation only. | clean |
+
+### Evidence
+
+The review read the complete diff from entry commit
+`454bf3c9930c94985e5eb6179f3b01be2bf741c2` through pre-round head
+`3b394541599f48607edc28b6a2606a998de55b3d`. It reproduced both fixed faults
+directly from their signed parents. On `b8acf611`, replacing the missing report
+parent with an outside symlink created the report outside the worktree. On
+`0eacf593`, closing the retained root descriptor and reopening an outside
+directory into the same slot created the nested report outside.
+
+The fixed tree's ten report-adapter cases pass, including both prior faults,
+cwd rebinding, partial writes, fresh-target enforcement and the named
+unsupported-operation refusal. A separate root-replacement probe moved the
+recorded worktree aside, created a new directory at its path and observed
+`report worktree identity changed`; neither directory received a report.
+
+Under pinned Node v26.6.0, the Elenchus/Fiat/Protasis focus passes 155/155. The
+exact runbook report command passes 862/862 in 149.917 seconds. Its 161-byte,
+mode-0600 JSON object records `testsRun: 862`, zero failures, zero errors and
+schema `elenchus.unittest.v1`; its SHA-256 is
+`7f51f15b8bb35b792c348e247f85461d3f4074f41348a6fdbd64417820a4db43`.
+The generated report was removed after inspection.
+
+The root suite passes 118/118. The focused runner plus evolution/version gate
+passes 24/24. Promise Machine verification, both Protasis checks, the Horos
+boundary check, all three active-plugin lints and `git diff --check` exit 0.
+
+### Leads not pursued
+
+Leads not pursued: issue 429's audit schema, issue 453's evidence binding and
+production `guarded` gate, Fiat's step-2 controller field, and hostile
+background threads with the runner's own operating-system authority. The
+receipted runbook's extra terminal byte remains the round-1 recorded artefact
+discrepancy: the tracked copy removes only that final blank line so
+`git diff --check` can pass. Round 3 does not rewrite either source.
