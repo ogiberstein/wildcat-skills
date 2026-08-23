@@ -88,14 +88,17 @@ receipted. Before importing bytes:
 The final demonstration is:
 
 ```bash
+# The direct source-owned report is an absolute output in this worktree.
 REPORT_PATH="$(pwd -P)/.elenchus/run-observation.json"
 python3 -m unittest tests.test_run_observation tests.test_run_observation_inoculation -v
 python3 tests/emit_run_observation_report.py "$REPORT_PATH"
+# Elenchus replaces `{report}` with a canonical absolute descendant of its
+# detached parent worktree. Its declaration must therefore remain relative.
 python3 plugins/hexaemeron/skills/elenchus/scripts/elenchus.py \
   --ref HEAD \
   --test-command "python3 tests/emit_run_observation_report.py {report}" \
   --report-format unittest-json-v1 \
-  --report-file "$REPORT_PATH"
+  --report-file .elenchus/run-observation.json
 python3 scripts/run_observation.py check tests/fixtures/run-observation/valid/success.jsonl
 python3 scripts/run_observation.py check tests/fixtures/run-observation/valid/refusal.jsonl
 python3 scripts/run_observation.py check tests/fixtures/run-observation/valid/retry.jsonl
@@ -169,9 +172,15 @@ red current-head evidence for `analysisText`, `scratchpadContent`,
 paths, distinct composed/decomposed forms, and the equal-length same-inode
 last-window rewrite. Reduce the reporter lead without recursive instrumentation.
 
-Every delegated mutation and report path must be canonical and absolute. Resolve
-`REPORT_PATH` from the current worktree with `pwd -P`; do not reuse a prior
-run's worktree path.
+Every delegated mutation and direct source-owned report target must be
+canonical and absolute. Resolve `REPORT_PATH` from the current worktree with
+`pwd -P`; do not reuse a prior run's worktree path. The Elenchus
+`--report-file` value is distinct: it declares a relative descendant of the
+detached parent worktree that Elenchus creates for its comparison. Elenchus
+replaces `{report}` with a canonical absolute descendant before it invokes the
+source-owned reporter, so that emitter still receives only a canonical
+absolute in-worktree target. Do not pass the current worktree's absolute
+`REPORT_PATH` to `--report-file`.
 Before the first write and after each write batch, prove the protected origin
 checkout still has exactly its five pre-existing paths, including untracked
 `shoggoth-github-under-1mb.jpg`, whose contents must not be read. A relative,
@@ -181,14 +190,17 @@ source-backed restart; no current controller resnapshot capability is assumed.
 
 The exact audit-fix test command is
 `python3 tests/emit_run_observation_report.py {report}`; its report format is
-`unittest-json-v1`; its report file is
-the absolute `REPORT_PATH` set above. Run Elenchus with those exact three inputs
-against the signed implementation commit and record its exact verdict. The
-emitter, focused suites, all four valid CLIs, five required invalid exits,
-root suite, Promise checks, three discipline lints, prose gates, current Horos
-check, obsolete Horos negative specimen, file-scope comparison, and diff check
-must all report their actual counts or exits. Remove transient report output
-before commit unless a repository contract explicitly tracks it.
+`unittest-json-v1`; and its report-file declaration is the relative detached
+worktree descendant `.elenchus/run-observation.json`. Run Elenchus with those
+exact three inputs against the signed implementation commit and record its
+actual verdict. Elenchus replaces `{report}` with an absolute path inside that
+detached worktree; the direct source-owned invocation alone receives the
+current worktree's absolute `REPORT_PATH`. The emitter, focused suites, all
+four valid CLIs, five required invalid exits, root suite, Promise checks, three
+discipline lints, prose gates, current Horos check, obsolete Horos negative
+specimen, file-scope comparison, and diff check must all report their actual
+counts or exits. Remove transient report output before commit unless a
+repository contract explicitly tracks it.
 
 Before this runbook is receipted, preflight the parser and argument arity of
 every fenced command. Current unittest, Promise, Phylax, Ephoros, Hypomnema,

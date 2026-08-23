@@ -1629,7 +1629,7 @@ class RunObservationRefusalTests(unittest.TestCase):
         findings = run_observation.validate_path(path)
         self.assertTrue(any(item.code == "RO012" and item.event_id == "evt-4" for item in findings))
 
-    def test_runbook_resolves_the_report_target_to_the_current_worktree(self):
+    def test_runbook_separates_direct_and_elenchus_report_targets(self):
         runbook = RUNBOOK.read_text(encoding="utf-8")
         self.assertIn(
             'REPORT_PATH="$(pwd -P)/.elenchus/run-observation.json"', runbook
@@ -1637,12 +1637,16 @@ class RunObservationRefusalTests(unittest.TestCase):
         self.assertIn(
             'python3 tests/emit_run_observation_report.py "$REPORT_PATH"', runbook
         )
-        self.assertIn('--report-file "$REPORT_PATH"', runbook)
+        self.assertIn('--report-file .elenchus/run-observation.json', runbook)
         self.assertNotIn(
             'python3 tests/emit_run_observation_report.py .elenchus/run-observation.json',
             runbook,
         )
-        self.assertNotIn('--report-file .elenchus/run-observation.json', runbook)
+        self.assertNotIn('--report-file "$REPORT_PATH"', runbook)
+        self.assertIn(
+            "Elenchus replaces `{report}` with a canonical absolute descendant",
+            runbook,
+        )
         self.assertNotIn(
             "/tmp/fiat/fiat-434-observable-run-record-carryover-inoculation",
             runbook,
