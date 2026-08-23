@@ -65,6 +65,24 @@ def _root_path(supplied):
     if not stat.S_ISDIR(info.st_mode):
         raise SynopsisError("repository root is not a directory")
     real = os.path.realpath(lexical)
+    try:
+        current = os.lstat(lexical)
+        resolved = os.lstat(real)
+    except OSError:
+        raise SynopsisError("repository root changed during access") from None
+    identities = {
+        (entry.st_dev, entry.st_ino)
+        for entry in (info, current, resolved)
+        if stat.S_ISDIR(entry.st_mode)
+    }
+    if (
+        stat.S_ISLNK(current.st_mode)
+        or stat.S_ISLNK(resolved.st_mode)
+        or len(identities) != 1
+        or not stat.S_ISDIR(current.st_mode)
+        or not stat.S_ISDIR(resolved.st_mode)
+    ):
+        raise SynopsisError("repository root changed during access")
     return real
 
 
@@ -626,6 +644,9 @@ def discover_sources(root):
         followlinks=False,
         onerror=refuse_walk_error,
     ):
+        if directory != root and (".git" in names or ".git" in files):
+            names[:] = []
+            continue
         kept = []
         for name in sorted(names):
             candidate = os.path.join(directory, name)
@@ -808,9 +829,11 @@ def process_repository(root, *, write):
         source_bytes = read_regular_bytes(root, source, "audit source")
         item = render_source(source, source_bytes)
         item["output"] = _output_path(source)
-        committed = read_regular_bytes(
-            root, item["output"], "audit synopsis", missing_ok=True
-        )
+        committed = None
+        if not write:
+            committed = read_regular_bytes(
+                root, item["output"], "audit synopsis", missing_ok=True
+            )
         item["committed_bytes"] = committed
         item["committed_sha256"] = (
             hashlib.sha256(committed).hexdigest() if committed is not None else "missing"

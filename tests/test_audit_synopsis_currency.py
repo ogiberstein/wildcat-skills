@@ -353,6 +353,32 @@ class SynopsisRepositoryTests(unittest.TestCase):
         with self.assertRaisesRegex(self.module.SynopsisError, "escapes"):
             self.module.read_regular_bytes(str(self.root), "../outside.md", "source")
 
+    def test_root_resolution_refuses_an_observed_rebind(self):
+        repository = self.root / "repository"
+        repository.mkdir()
+        moved = self.root / "moved-repository"
+        outside = self.root / "outside"
+        outside.mkdir()
+        realpath = self.module.os.path.realpath
+        rebound = False
+
+        def rebind_before_resolution(path):
+            nonlocal rebound
+            if os.path.abspath(path) == str(repository) and not rebound:
+                rebound = True
+                repository.rename(moved)
+                repository.symlink_to(outside, target_is_directory=True)
+            return realpath(path)
+
+        with mock.patch.object(
+            self.module.os.path, "realpath", side_effect=rebind_before_resolution
+        ):
+            with self.assertRaisesRegex(
+                self.module.SynopsisError, "repository root changed during access"
+            ):
+                self.module._root_path(str(repository))
+        self.assertTrue(rebound)
+
     def test_discovery_refuses_an_unreadable_subtree(self):
         self.source()
         blocked = self.root / "blocked"
@@ -389,6 +415,25 @@ class SynopsisRepositoryTests(unittest.TestCase):
         (self.root / "linked-tree").symlink_to(
             Path(outside_tmp.name), target_is_directory=True
         )
+
+        self.assertEqual(
+            self.module.discover_sources(str(self.root)), ["audit/AUDIT.md"]
+        )
+
+    def test_discovery_skips_nested_git_worktrees_and_repositories(self):
+        self.source()
+        worktree = self.root / "tmp" / "fiat" / "active-run"
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+        nested_source = worktree / "audit" / "AUDIT.md"
+        nested_source.parent.mkdir()
+        nested_source.write_bytes(strict_record())
+
+        repository = self.root / "nested-repository"
+        (repository / ".git").mkdir(parents=True)
+        nested_source = repository / "audit" / "AUDIT.md"
+        nested_source.parent.mkdir()
+        nested_source.write_bytes(strict_record())
 
         self.assertEqual(
             self.module.discover_sources(str(self.root)), ["audit/AUDIT.md"]
@@ -568,6 +613,15 @@ class SynopsisRepositoryTests(unittest.TestCase):
             with self.assertRaisesRegex(self.module.SynopsisError, "synopsis exceeds"):
                 self.module.process_repository(str(self.root), write=True)
         self.assertEqual(destination.read_bytes(), b"old complete\n")
+
+    def test_write_repairs_an_oversized_committed_synopsis(self):
+        source = self.source()
+        destination = source.with_name("AUDIT_SYNOPSIS.md")
+        destination.write_bytes(b"x" * (self.module.SYNOPSIS_BYTES_MAX + 1))
+
+        self.module.process_repository(str(self.root), write=True)
+        self.module.process_repository(str(self.root), write=False)
+        self.assertLess(destination.stat().st_size, self.module.SYNOPSIS_BYTES_MAX)
 
     def test_check_diagnostic_has_counts_ratio_and_all_digests(self):
         self.source()
