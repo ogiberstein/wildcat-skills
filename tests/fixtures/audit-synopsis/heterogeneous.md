@@ -30,9 +30,7 @@ Inline Leads not pursued: one inline value
 
 This section deliberately omits every strict field and leads label.
 
-## Legacy schema draft, step 1, round 1 -- 2026-08-23T00:00:00Z
-
-Audit schema: fiat-audit-round/v1
+## Legacy H3 draft, step 1, round 1 -- 2026-08-23T00:00:00Z
 
 ### Coverage
 
@@ -46,7 +44,7 @@ Covered: old-shape=reviewed
 
 ### Leads
 
-Leads not pursued: this schema-bearing H3 draft remains legacy input
+Leads not pursued: this H3 draft remains legacy input
 
 ## Strict guarded, step 1, round 1 -- 2026-08-23T01:00:00Z
 

@@ -159,6 +159,11 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("1 MiB", readme)
         self.assertIn("15%", readme)
 
+    def test_verify_preserves_the_receipt_time_synopsis_boundary(self):
+        fiat = " ".join(self.fiat.split())
+        self.assertIn("receipt-time derived-synopsis currency check", fiat)
+        self.assertIn("does not establish current working-tree currency", fiat)
+
     def test_provenance_is_verified_without_reclassifying_human_work(self):
         # Flattened: these assert what the instruction says, and a reflow of the
         # same sentence is not a change to it. Pinning the line breaks made an

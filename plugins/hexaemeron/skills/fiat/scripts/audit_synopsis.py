@@ -25,6 +25,19 @@ FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
 ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
 ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive", "null")
 COVERAGE_VALUES = ("reviewed", "not-applicable")
+LEGACY_SCHEMA_DRAFT_H3 = ("### Coverage", "### Findings", "### Leads")
+PINNED_LEGACY_SCHEMA_DRAFTS = {
+    344: "761253edc37e6262d87f032e870c9aa084f8e5361dcfe08f46ea2c4a3858e6a1",
+    345: "b519682b4ab8687dfab790f44db6fedc1ed1dc8ca40b40b6b53c4d2bf9311666",
+    346: "c52a85e933edf9b4489a5bea522986be165c78df3e72029769283ff8064c1ce9",
+    347: "e854ba720e8df264aa23f9c1bfe0351eb3b68cdccc8f9d7b9f1939331c9444be",
+    348: "c1226d85df510c3c9d7fee9788ebcf99b621ee73627e2962c974be89a47673c5",
+    349: "8e3d0d4670f693361872715c2d8002b72295c625c2e1a475b7c9de25d9ce8f2c",
+    350: "f80d1e83bfcfa4d0ba893a3fa08383310cc82a90b92ca8a224bf73404513aade",
+    351: "6a7d2652b1b1d72586eb2da78fc5dd1a9ca60d49c123a587b255e9696743a237",
+    352: "5679164692620843043cacd7d86266113a0aa94b260f8ff39ef7eeb910846788",
+    353: "339531852f52439befb1410a0b72230f623cbd9cd08be6f777fb20f4b3ef19e1",
+}
 STRICT_HEADING_RE = re.compile(
     r"## .+, step [1-9][0-9]*, round [1-9][0-9]* -- "
     r"(?P<timestamp>[0-9]{4}-[0-9]{2}-[0-9]{2}T"
@@ -58,9 +71,17 @@ def _relative_path(relative):
     if not isinstance(relative, str) or not relative:
         raise SynopsisError("path must be a non-empty repository-relative string")
     try:
-        os.fsencode(relative)
-    except (ValueError, UnicodeError):
-        raise SynopsisError("path is not a valid filesystem path") from None
+        relative.encode("utf-8")
+    except UnicodeError:
+        raise SynopsisError(
+            f"path has unsafe synopsis framing: {relative!r}"
+        ) from None
+    if (
+        any(ord(character) < 32 or ord(character) == 127 for character in relative)
+        or "|" in relative
+        or "<br>" in relative
+    ):
+        raise SynopsisError(f"path has unsafe synopsis framing: {relative!r}")
     if os.path.isabs(relative) or "\\" in relative:
         raise SynopsisError(f"path escapes repository: {relative!r}")
     normal = posixpath.normpath(relative)
@@ -236,9 +257,18 @@ def _field(line, label, record_number, source_path):
     return value
 
 
-def _strict_candidate(record):
-    if any(line.startswith("###") for line in record[1:]):
+def _pinned_legacy_schema_draft(record, record_number, source_path, h3_headings):
+    """Recognise only the ten immutable pre-cutover root records."""
+    if source_path != "audit/AUDIT.md" or h3_headings != LEGACY_SCHEMA_DRAFT_H3:
         return False
+    expected = PINNED_LEGACY_SCHEMA_DRAFTS.get(record_number)
+    if expected is None:
+        return False
+    raw_record = ("\n".join(record) + "\n").encode("utf-8")
+    return hashlib.sha256(raw_record).hexdigest() == expected
+
+
+def _strict_candidate(record, record_number, source_path):
     markers = (
         "Audit schema: ",
         "Covered: ",
@@ -252,6 +282,13 @@ def _strict_candidate(record):
         or line == FINDINGS_HEADER
         for line in record[1:]
     )
+    h3_headings = tuple(line for line in record[1:] if line.startswith("###"))
+    if h3_headings:
+        if not has_schema:
+            return False
+        return not _pinned_legacy_schema_draft(
+            record, record_number, source_path, h3_headings
+        )
     return has_schema or has_strict_shape
 
 
@@ -439,7 +476,7 @@ def render_source(source_path, data):
     records = []
     for number in range(1, len(starts)):
         record = lines[starts[number - 1]:starts[number]]
-        if _strict_candidate(record):
+        if _strict_candidate(record, number, source_path):
             retained = _strict_lines(record, number, source_path)
         else:
             retained = _legacy_lines(record)
@@ -474,7 +511,16 @@ def discover_sources(root):
     """Discover sorted regular **/audit/AUDIT.md paths without following links."""
     root = _root_path(root)
     discovered = []
-    for directory, names, files in os.walk(root, topdown=True, followlinks=False):
+
+    def refuse_walk_error(_error):
+        raise SynopsisError("repository discovery cannot read a directory") from None
+
+    for directory, names, files in os.walk(
+        root,
+        topdown=True,
+        followlinks=False,
+        onerror=refuse_walk_error,
+    ):
         kept = []
         for name in sorted(names):
             candidate = os.path.join(directory, name)

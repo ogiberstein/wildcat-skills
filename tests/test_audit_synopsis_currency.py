@@ -136,6 +136,43 @@ class SynopsisFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(self.module.SynopsisError, "strict record"):
             self.module.render_source("audit/AUDIT.md", malformed_heading)
 
+        injected_h3 = strict_record().replace(
+            b"\nLeads not pursued: none\n",
+            b"\n### injected non-canonical block\n\nLeads not pursued: none\n",
+        )
+        with self.assertRaisesRegex(self.module.SynopsisError, "strict record"):
+            self.module.render_source("audit/AUDIT.md", injected_h3)
+
+        mimicked_legacy_h3 = strict_record()
+        for needle, heading in (
+            (b"Covered: ", b"### Coverage\n\n"),
+            (
+                b"| id | severity | file | finding | status |",
+                b"### Findings\n\n",
+            ),
+            (b"Leads not pursued: ", b"### Leads\n\n"),
+        ):
+            mimicked_legacy_h3 = mimicked_legacy_h3.replace(
+                b"\n" + needle,
+                b"\n" + heading + needle,
+                1,
+            )
+        with self.assertRaisesRegex(self.module.SynopsisError, "strict record"):
+            self.module.render_source("audit/AUDIT.md", mimicked_legacy_h3)
+
+    def test_source_path_cannot_corrupt_synopsis_framing(self):
+        for source_path in (
+            "bad\nmetadata/audit/AUDIT.md",
+            "bad|metadata/audit/AUDIT.md",
+            "bad<br>metadata/audit/AUDIT.md",
+            "bad\udcffmetadata/audit/AUDIT.md",
+        ):
+            with self.subTest(source_path=repr(source_path)):
+                with self.assertRaisesRegex(
+                    self.module.SynopsisError, "path has unsafe synopsis framing"
+                ):
+                    self.module.render_source(source_path, strict_record())
+
     def test_caps_and_integer_budget_refuse_before_output(self):
         with self.assertRaisesRegex(self.module.SynopsisError, "UTF-8"):
             self.module.render_source("audit/AUDIT.md", b"## bad\n\xff\n")
@@ -265,6 +302,28 @@ class SynopsisRepositoryTests(unittest.TestCase):
             self.module.process_repository(str(self.root), write=True)
         with self.assertRaisesRegex(self.module.SynopsisError, "escapes"):
             self.module.read_regular_bytes(str(self.root), "../outside.md", "source")
+
+    def test_discovery_refuses_an_unreadable_subtree(self):
+        self.source()
+        blocked = self.root / "blocked"
+        blocked.mkdir()
+
+        def incomplete_walk(root, *, topdown, followlinks, onerror=None):
+            if onerror is not None:
+                onerror(PermissionError("fixture denied"))
+            return iter(
+                (
+                    (root, ["audit", "blocked"], []),
+                    (os.path.join(root, "audit"), [], ["AUDIT.md"]),
+                )
+            )
+
+        with mock.patch.object(self.module.os, "walk", side_effect=incomplete_walk):
+            with self.assertRaisesRegex(
+                self.module.SynopsisError,
+                "repository discovery cannot read a directory",
+            ):
+                self.module.discover_sources(str(self.root))
 
     def test_check_diagnostic_has_counts_ratio_and_all_digests(self):
         self.source()
