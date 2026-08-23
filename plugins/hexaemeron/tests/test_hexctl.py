@@ -2470,6 +2470,25 @@ class AuditRecordSchemaTests(HexctlCase):
         self.write_record(extra=("Audit schema: fiat-audit-round/v1",))
         self.refuse("duplicate Audit schema", "--findings", "0")
 
+    def test_a_record_or_required_value_hidden_in_raw_html_is_refused(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        for opened, closed in (("<!--", "-->"), ("<script>", "</script>")):
+            with self.subTest(opened=opened):
+                Path(path).write_text(
+                    f"{opened}\n{text}\n{closed}\n", encoding="utf-8"
+                )
+                self.refuse("no H2 record", "--findings", "0")
+        Path(path).write_text(f"<!-- hidden -->{text}", encoding="utf-8")
+        self.refuse("no H2 record", "--findings", "0")
+
+        lines = self.record_lines()
+        lines[lines.index("Not checked: none")] = (
+            "Not checked: <style>none</style>"
+        )
+        Path(path).write_text("\n".join(lines), encoding="utf-8")
+        self.refuse("non-empty same-line value", "--findings", "0")
+
     def test_covered_refuses_missing_duplicate_unknown_and_invalid_values(self):
         for covered in (
             "",
@@ -2530,6 +2549,40 @@ class AuditRecordSchemaTests(HexctlCase):
         self.refuse("UTF-8", "--findings", "0")
         Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
         self.refuse("byte cap", "--findings", "0")
+
+    def test_parent_symlink_swap_cannot_escape_the_descriptor_walk(self):
+        controller = hexctl_module()
+        with (
+            tempfile.TemporaryDirectory() as raw_root,
+            tempfile.TemporaryDirectory() as raw_outside,
+        ):
+            root = os.path.realpath(raw_root)
+            outside = os.path.realpath(raw_outside)
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            (audit_dir / "AUDIT.md").write_bytes(b"inside")
+            (Path(outside) / "AUDIT.md").write_bytes(b"outside")
+            lexical = str(audit_dir / "AUDIT.md")
+            real_open = os.open
+            swapped = False
+
+            def racing_open(target, flags, *args, **kwargs):
+                nonlocal swapped
+                opens_old_path = target == lexical
+                opens_new_component = target == "audit" and "dir_fd" in kwargs
+                if not swapped and (opens_old_path or opens_new_component):
+                    swapped = True
+                    audit_dir.rename(Path(root) / "audit-before-swap")
+                    os.symlink(outside, audit_dir)
+                return real_open(target, flags, *args, **kwargs)
+
+            stderr = StringIO()
+            with mock.patch.object(controller.os, "open", side_effect=racing_open):
+                with redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    controller.read_configured_audit_log(
+                        root, "audit/AUDIT.md", None
+                    )
+            self.assertIn("audit log path cannot be read", stderr.getvalue())
 
     def test_escaping_configured_log_is_refused(self):
         self.run_ctl("config", "set", "audit.log_path", '"../AUDIT.md"')

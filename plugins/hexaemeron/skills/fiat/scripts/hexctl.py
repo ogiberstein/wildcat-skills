@@ -109,6 +109,10 @@ AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
 AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
 AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
 AUDIT_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+AUDIT_RAW_TAG_RE = re.compile(
+    r"<(script|pre|style|textarea)(?=[\s>])", re.IGNORECASE
+)
+AUDIT_DECLARATION_RE = re.compile(r"<![A-Z]")
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -225,19 +229,48 @@ def read_configured_audit_log(
     if not stat.S_ISREG(info.st_mode):
         die("audit log path is not a regular file")
 
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    close_exec = getattr(os, "O_CLOEXEC", 0)
+    directory_flags = (
+        os.O_RDONLY | close_exec | no_follow | getattr(os, "O_DIRECTORY", 0)
+    )
+    file_flags = os.O_RDONLY | close_exec | no_follow
+    relative = os.path.relpath(lexical, root)
+    components = relative.split(os.sep)
+    directory_descriptor = None
+    file_descriptor = None
     try:
-        descriptor = os.open(lexical, flags)
-        with os.fdopen(descriptor, "rb") as handle:
+        directory_descriptor = os.open(root, directory_flags)
+        if not stat.S_ISDIR(os.fstat(directory_descriptor).st_mode):
+            die("target directory is not a regular directory")
+        for component in components[:-1]:
+            next_descriptor = os.open(
+                component, directory_flags, dir_fd=directory_descriptor
+            )
+            if not stat.S_ISDIR(os.fstat(next_descriptor).st_mode):
+                os.close(next_descriptor)
+                die("audit log path has a non-directory component")
+            os.close(directory_descriptor)
+            directory_descriptor = next_descriptor
+        file_descriptor = os.open(
+            components[-1], file_flags, dir_fd=directory_descriptor
+        )
+        handle = os.fdopen(file_descriptor, "rb")
+        file_descriptor = None
+        with handle:
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 die("audit log path is not a regular file")
             data = handle.read(SOURCE_BYTES_MAX + 1)
     except OSError:
         die("audit log path cannot be read")
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        if directory_descriptor is not None:
+            os.close(directory_descriptor)
     if len(data) > SOURCE_BYTES_MAX:
         die(f"audit log path exceeds {SOURCE_BYTES_MAX}-byte cap")
-    relative = os.path.relpath(configured_path, root).replace(os.sep, "/")
-    return relative, data
+    return relative.replace(os.sep, "/"), data
 
 
 def plugin_root() -> str:
@@ -1476,6 +1509,64 @@ def audit_field(lines: list[str], label: str) -> str:
     return values[0]
 
 
+def audit_html_open(line: str, cursor: int) -> tuple[int, str, bool] | None:
+    """Find the next raw block opener and the token that closes it."""
+    candidates = []
+    for opened, closed in (("<!--", "-->"), ("<?", "?>"), ("<![CDATA[", "]]>") ):
+        index = line.find(opened, cursor)
+        if index >= 0:
+            candidates.append((index, closed, False))
+    declaration = AUDIT_DECLARATION_RE.search(line, cursor)
+    if declaration:
+        candidates.append((declaration.start(), ">", False))
+    tag = AUDIT_RAW_TAG_RE.search(line, cursor)
+    if tag:
+        candidates.append((tag.start(), f"</{tag.group(1).lower()}>", True))
+    return min(candidates, default=None, key=lambda item: item[0])
+
+
+def audit_visible_lines(text: str):
+    """Yield non-fenced Markdown with raw HTML blocks removed."""
+    html_close = None
+    close_casefold = False
+    for start, end, line, in_fence, was_open in markdown_lines(text):
+        if in_fence:
+            continue
+        visible = []
+        cursor = 0
+        while cursor < len(line):
+            if html_close is not None:
+                searchable = line.lower() if close_casefold else line
+                close = searchable.find(html_close, cursor)
+                if close < 0:
+                    visible.append(" " * (len(line) - cursor))
+                    cursor = len(line)
+                else:
+                    after_close = close + len(html_close)
+                    visible.append(" " * (after_close - cursor))
+                    cursor = after_close
+                    html_close = None
+                    close_casefold = False
+                continue
+            opened = audit_html_open(line, cursor)
+            if opened is None:
+                visible.append(line[cursor:])
+                break
+            opened_at, html_close, close_casefold = opened
+            visible.append(line[cursor:opened_at])
+            opener = AUDIT_RAW_TAG_RE.match(line, opened_at)
+            if opener:
+                cursor = opener.end()
+            elif line.startswith("<![CDATA[", opened_at):
+                cursor = opened_at + len("<![CDATA[")
+            elif line.startswith("<!--", opened_at):
+                cursor = opened_at + len("<!--")
+            else:
+                cursor = opened_at + 2
+            visible.append(" " * (cursor - opened_at))
+        yield start, end, "".join(visible), was_open
+
+
 def audit_covered(value: str, expected_ids: list[str]) -> None:
     """Check total, unique risk disposition without retaining or printing prose."""
     dispositions = {}
@@ -1534,8 +1625,8 @@ def validated_audit_record(
     )
     text = decoded_source(data, "audit log")
     headings = []
-    for start, _, line, in_fence, _ in markdown_lines(text):
-        if not in_fence and re.match(r"^##\s+", line):
+    for start, _, line, _ in audit_visible_lines(text):
+        if re.match(r"^##\s+", line):
             headings.append((start, line))
     if not headings:
         die("audit log has no H2 record")
@@ -1559,8 +1650,7 @@ def validated_audit_record(
     entry_text = text[entry_start:]
     visible_lines = [
         line
-        for _, _, line, in_fence, _ in markdown_lines(entry_text)
-        if not in_fence
+        for _, _, line, _ in audit_visible_lines(entry_text)
     ]
     schema = audit_field(visible_lines, "Audit schema")
     if schema != AUDIT_RECORD_SCHEMA:

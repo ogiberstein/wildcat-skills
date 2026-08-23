@@ -9390,3 +9390,27 @@ documentation-only round-2 fix, and issue 453 owns any later blocking policy.
 Issues 429, 369, 453 and 363 remain separately owned downstream work. The
 checked proof needs Python 3.12, the named shell tools and a configured signing
 key; none is hidden in active Fiat state. No further step-3 lead remained.
+
+## audit-record-schema-timestamp-synopsis, step 1, round 1 -- 2026-08-23T04:14:45Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | tests/test_audit_prefix_integrity.py | The fixture could re-bless changed protected bytes without checking its named starting commit. | fixed in this commit |
+| S1-R1-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Raw HTML blocks could hide a complete record or required value while the receipt treated it as visible Markdown. | fixed in this commit |
+| S1-R1-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | A raced parent-directory symlink could redirect the final-component-only open outside the worktree. | fixed in this commit |
+
+### Leads
+
+Leads not pursued: step 2 synopsis generation, currency, compression, and physical-lead retention are not implemented in this step and remain explicit negative space
