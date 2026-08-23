@@ -11452,3 +11452,25 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record does
 not claim capture completeness, external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
+
+## Step 1, round 1 -- 2026-08-24
+
+Non-Solidity round. The security suite is waived for this run: the step ships
+Python, Markdown and JSON only, with no Solidity and no Foundry or Hardhat
+project. Phylax, Ephoros and Hypomnema each returned clean over
+`scripts/contributors.py`, `tests/test_contributors.py`,
+`tests/emit_contributors_report.py` and `docs/contributors`. The three findings
+below came from reading the diff, not from a lint.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | tests/emit_contributors_report.py | The emitter had no test at all. The step's exit requires it to write one `elenchus.unittest.v1` report to the supplied path and only that path, and nothing regressed it. It also imports `report_target`, `result_payload` and `write_report` from `tests/emit_run_observation_report.py`, so a signature change there breaks this module at import time, and the first symptom would be a broken audit round in a later step rather than a failing test here. The emitter cannot be executed from inside the module it loads without recursing, so the wiring is tested instead: the reused helpers import and are callable, every declared required file exists, the declared module list loads, an empty root produces a failing substitute suite, a present surface produces none, and the payload carries the `elenchus.unittest.v1` schema. | fixed in this round |
+| S1-R1-02 | low | tests/test_contributors.py | `frozensets_from_source` raised a clear `AssertionError` when an assignment was not a `frozenset(...)` call, but passed the call's argument straight to `ast.literal_eval`. A frozenset built from a comprehension or a name rather than a set literal therefore surfaced as a bare `ValueError`, so the parity test reported an error where it had a diagnosis available. The guard was one branch short of the message it intended. | fixed in this round |
+| S1-R1-03 | medium | scripts/contributors.py | Guard-order hazard reaching into step 2. `claude[bot]` and `app/claude` are both declared host identities and both fail `valid_login`, because neither is a legal GitHub login. The study's fail-closed posture stops the run on a login-grammar failure. So a ranking pipeline that validated grammar before excluding hosts would fail the whole weekly refresh on an identity the host set already knows how to drop, and nothing in the step recorded the required order. Fixed by stating the order in `valid_login`'s docstring next to the predicate it constrains, and by a test asserting that every host login failing the grammar check is still recognised by `is_host_login`. That test also fails loudly if the hazard ever disappears, so it cannot rot into a tautology. | fixed in this round |
+
+Leads not pursued: `LOGIN_RE` accepts consecutive hyphens, which GitHub itself
+rejects in a login. Left alone deliberately: the pattern exists to keep Markdown
+syntax out of a generated artefact, a hyphen carries none, and tightening it
+would trade a real guarantee for a cosmetic one. `.elenchus/` is not in the
+repository's `.gitignore`, which predates this run and belongs to whoever owns
+the run-observation emitter rather than to this step.

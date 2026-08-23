@@ -80,7 +80,14 @@ def is_host_login(login: str) -> bool:
 
 
 def valid_login(login: str) -> bool:
-    """Accept only a login that cannot carry Markdown syntax into an artefact."""
+    """Accept only a login that cannot carry Markdown syntax into an artefact.
+
+    Classification must exclude runtime hosts BEFORE calling this. Some host
+    logins are deliberately not valid logins: `claude[bot]` and `app/claude`
+    both fail here. Validating first would turn a routine host exclusion into
+    the bad-grammar stop, which fails the run on an identity the host set
+    already knows how to drop.
+    """
     return bool(LOGIN_RE.match(login))
 
 

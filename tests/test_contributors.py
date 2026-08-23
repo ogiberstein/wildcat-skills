@@ -42,7 +42,14 @@ def frozensets_from_source(path: Path) -> dict[str, frozenset]:
             or len(call.args) != 1
         ):
             raise AssertionError(f"{target.id} in {path.name} is not a frozenset literal")
-        found[target.id] = frozenset(ast.literal_eval(call.args[0]))
+        try:
+            members = ast.literal_eval(call.args[0])
+        except ValueError as error:
+            raise AssertionError(
+                f"{target.id} in {path.name} is a frozenset of something other than "
+                f"a literal, so this test cannot compare it: {error}"
+            ) from error
+        found[target.id] = frozenset(members)
     return found
 
 
@@ -128,6 +135,91 @@ class LoginGrammar(unittest.TestCase):
             self.assertTrue(contributors.is_host_login(login), login)
         self.assertTrue(contributors.is_host_login("CLAUDE[BOT]"))
         self.assertFalse(contributors.is_host_login("kethcode"))
+
+
+class GuardOrder(unittest.TestCase):
+    """Host exclusion has to happen before login-grammar validation.
+
+    Some host logins are deliberately not valid GitHub logins. If the ranking
+    pipeline validated grammar first, a known runtime identity would trip the
+    bad-grammar stop and fail the whole run instead of being dropped quietly,
+    which is the difference between a working weekly refresh and a red job.
+    """
+
+    def test_a_host_login_that_fails_grammar_is_still_recognised_as_a_host(self):
+        offenders = [
+            login
+            for login in sorted(contributors.HOST_PR_LOGINS)
+            if not contributors.valid_login(login)
+        ]
+        self.assertTrue(
+            offenders,
+            "the ordering hazard this test guards has gone; if no host login can "
+            "fail the grammar check any more, delete this test deliberately",
+        )
+        for login in offenders:
+            self.assertTrue(
+                contributors.is_host_login(login),
+                f"{login!r} fails the grammar check, so host exclusion must catch it first",
+            )
+
+    def test_claude_bot_is_the_concrete_case(self):
+        self.assertFalse(contributors.valid_login("claude[bot]"))
+        self.assertTrue(contributors.is_host_login("claude[bot]"))
+
+
+class EmitterContract(unittest.TestCase):
+    """The Elenchus report emitter stays wired to the surface it claims.
+
+    The emitter is not executed here. It loads this very module, so running it
+    from inside this module would recurse. What is checked is the wiring that
+    silently breaks: the reused helpers still import, the declared surface still
+    exists, and the report still carries the schema Elenchus reads.
+    """
+
+    def setUp(self):
+        from tests import emit_contributors_report
+
+        self.emitter = emit_contributors_report
+
+    def test_the_reused_write_path_still_imports(self):
+        for name in ("report_target", "result_payload", "write_report"):
+            self.assertTrue(
+                callable(getattr(self.emitter, name, None)),
+                f"{name} no longer imports from emit_run_observation_report",
+            )
+
+    def test_every_declared_required_file_exists(self):
+        for relative in self.emitter.REQUIRED_SURFACE:
+            self.assertTrue(
+                (REPOSITORY_ROOT / relative).is_file(),
+                f"{relative.as_posix()} is declared required but is absent",
+            )
+
+    def test_declared_modules_are_importable_test_modules(self):
+        self.assertEqual(self.emitter.MODULES, ("tests.test_contributors",))
+        unittest.defaultTestLoader.loadTestsFromNames(list(self.emitter.MODULES))
+
+    def test_missing_surface_produces_a_failing_suite(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as empty:
+            suite = self.emitter.missing_surface_suite(Path(empty))
+        self.assertIsNotNone(suite, "an empty root must not look like a present surface")
+        result = unittest.TestResult()
+        suite.run(result)
+        self.assertEqual(len(result.failures) + len(result.errors), 1)
+
+    def test_present_surface_produces_no_substitute_suite(self):
+        self.assertIsNone(self.emitter.missing_surface_suite(REPOSITORY_ROOT))
+
+    def test_report_payload_carries_the_elenchus_schema(self):
+        result = unittest.TestResult()
+        payload = self.emitter.result_payload(result)
+        self.assertEqual(payload["schema"], "elenchus.unittest.v1")
+        self.assertTrue(payload["complete"])
+        for key in ("testsRun", "failures", "errors", "skipped"):
+            self.assertIn(key, payload)
 
 
 if __name__ == "__main__":
