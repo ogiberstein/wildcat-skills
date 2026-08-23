@@ -11515,3 +11515,33 @@ Leads not pursued:
   exits come from the step's own changed paths, which is the scope the loop
   names; the nine are noted here so a later reader does not read the clean
   exits as a claim about the whole file.
+
+### Amendment -- 2026-08-24
+
+**What changed.** The round above was run against `main` at `81105bb`. The step
+ships rebased onto `dd23413`, twelve commits later, and three of the numbers
+recorded above no longer reproduce.
+
+The installed root law moved. `main` added a `## Run observation promise`
+section to the root `PROMISE_MACHINE.md`, so the byte-identical copy under
+`plugins/homologia/` was refreshed to match it, and one of the 24 audited paths
+now carries different bytes. The three lints were re-run over the same 24 paths
+at the new base: phylax, ephoros and hypomnema each exit 0, and there are still
+no findings.
+
+The fourth lead's whole-file counts were measured at `81105bb` and are stale.
+`main` rewrote historical finding tables into archival records, so the log is
+not the pure append that lead assumed. Over the file as it now stands hypomnema
+reports the same two `H003` findings at lines 6041 and 6186, and imprimatur
+reports six defects between lines 1173 and 4945 rather than seven. All eight
+sit in historical blocks written by earlier runs, and none is in this step's
+paths.
+
+The root suite is 192 tests rather than 119, because `main` added the run
+observation suites. The coverage ledger holds 68 rows on `main` and 69 here, so
+`homologia-scaffold-identity` adds one row and displaces none.
+
+**Why.** The exits recorded above are evidence about particular bytes at a
+particular base. Carrying them onto a different base without saying so would
+let a reader check the cited lines, find other numbers there, and have no way
+to tell a stale record from a wrong one.
