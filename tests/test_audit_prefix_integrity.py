@@ -57,15 +57,26 @@ def source_at(ref, path):
     ).stdout
 
 
-def current_source(root, path):
-    """Read one descriptor-bound regular path without following an alias."""
+def current_source(root, path, prefix_bytes):
+    """Read one descriptor-bound protected prefix without following an alias."""
     relative = Path(path)
     if relative.is_absolute() or not relative.parts or ".." in relative.parts:
         raise ValueError(f"{path}: protected path traverses a symlink")
+    if (
+        not isinstance(prefix_bytes, int)
+        or isinstance(prefix_bytes, bool)
+        or prefix_bytes < 0
+    ):
+        raise ValueError(f"{path}: protected prefix byte length is invalid")
     no_follow = getattr(os, "O_NOFOLLOW", 0)
     directory_only = getattr(os, "O_DIRECTORY", 0)
     non_blocking = getattr(os, "O_NONBLOCK", 0)
-    if not no_follow or not directory_only or not non_blocking:
+    if (
+        not no_follow
+        or not directory_only
+        or not non_blocking
+        or os.open not in os.supports_dir_fd
+    ):
         raise ValueError(f"{path}: protected path traverses a symlink")
     close_exec = getattr(os, "O_CLOEXEC", 0)
     directory_flags = os.O_RDONLY | close_exec | no_follow | directory_only
@@ -95,7 +106,7 @@ def current_source(root, path):
             raise ValueError(f"{path}: protected path traverses a symlink")
         with os.fdopen(file_descriptor, "rb") as handle:
             file_descriptor = None
-            return handle.read()
+            return handle.read(prefix_bytes)
     except OSError as exc:
         raise ValueError(f"{path}: protected path traverses a symlink") from exc
     finally:
@@ -130,7 +141,10 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
                     source_at(self.fixture["starting_ref"], expected["path"]),
                     expected,
                 )
-                check_prefix(current_source(ROOT, expected["path"]), expected)
+                check_prefix(
+                    current_source(ROOT, expected["path"], expected["bytes"]),
+                    expected,
+                )
 
     def test_a_changed_prefix_cannot_be_reblessed_in_the_fixture(self):
         expected = self.fixture["prefixes"][2]
@@ -148,7 +162,7 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
 
     def test_edit_truncate_and_insertion_fail_while_append_passes(self):
         expected = self.fixture["prefixes"][2]
-        original = (ROOT / expected["path"]).read_bytes()
+        original = current_source(ROOT, expected["path"], expected["bytes"])
 
         edited = bytearray(original)
         edited[10] ^= 1
@@ -171,13 +185,13 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
             final_alias = root / "AUDIT.md"
             final_alias.symlink_to(outside / "AUDIT.md")
             with self.assertRaisesRegex(ValueError, "traverses a symlink"):
-                current_source(root, "AUDIT.md")
+                current_source(root, "AUDIT.md", 1)
 
             final_alias.unlink()
             ancestor_alias = root / "audit"
             ancestor_alias.symlink_to(outside, target_is_directory=True)
             with self.assertRaisesRegex(ValueError, "traverses a symlink"):
-                current_source(root, "audit/AUDIT.md")
+                current_source(root, "audit/AUDIT.md", 1)
 
     def test_a_raced_path_substitution_is_refused(self):
         with tempfile.TemporaryDirectory() as raw_root:
@@ -215,7 +229,7 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
                 mock.patch.object(Path, "read_bytes", racing_read_bytes),
                 self.assertRaisesRegex(ValueError, "traverses a symlink"),
             ):
-                current_source(root, "audit/AUDIT.md")
+                current_source(root, "audit/AUDIT.md", 1)
 
     def test_descriptor_walk_closes_every_open_descriptor_on_failure(self):
         with tempfile.TemporaryDirectory() as raw_root:
@@ -236,7 +250,7 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
                 mock.patch.object(os, "fstat", side_effect=failing_child_stat),
                 self.assertRaisesRegex(ValueError, "traverses a symlink"),
             ):
-                current_source(root, "audit/AUDIT.md")
+                current_source(root, "audit/AUDIT.md", 1)
 
             still_open = []
             for descriptor in inspected:
@@ -247,6 +261,48 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
                 still_open.append(descriptor)
                 os.close(descriptor)
             self.assertEqual(still_open, [])
+
+    def test_reader_requests_only_the_protected_prefix(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(os.path.realpath(raw_root))
+            path = root / "AUDIT.md"
+            path.write_bytes(b"protected" + b"future" * 10_000)
+            real_fdopen = os.fdopen
+            requests = []
+
+            class TrackingHandle:
+                def __init__(self, handle):
+                    self.handle = handle
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    self.handle.close()
+
+                def read(self, size=-1):
+                    requests.append(size)
+                    return self.handle.read(size)
+
+            def tracking_fdopen(descriptor, mode):
+                return TrackingHandle(real_fdopen(descriptor, mode))
+
+            with mock.patch.object(os, "fdopen", side_effect=tracking_fdopen):
+                self.assertEqual(
+                    current_source(root, "AUDIT.md", len(b"protected")),
+                    b"protected",
+                )
+            self.assertEqual(requests, [len(b"protected")])
+
+    def test_reader_refuses_without_descriptor_relative_open(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(os.path.realpath(raw_root))
+            (root / "AUDIT.md").write_bytes(b"protected")
+            with (
+                mock.patch.object(os, "supports_dir_fd", set()),
+                self.assertRaisesRegex(ValueError, "traverses a symlink"),
+            ):
+                current_source(root, "AUDIT.md", len(b"protected"))
 
 
 if __name__ == "__main__":

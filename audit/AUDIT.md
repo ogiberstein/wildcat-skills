@@ -9488,3 +9488,27 @@ Elenchus verdict: guarded
 ### Leads
 
 Leads not pursued: the append-only legacy log retains pre-existing Brevitas diagnostics and cannot be rewritten, so this new record is checked separately; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space
+
+## audit-record-schema-timestamp-synopsis, step 1, round 5 -- 2026-08-23T06:18:00Z
+
+Audit schema: fiat-audit-round/v1
+
+### Coverage
+
+Covered: legacy-prefix-integrity=reviewed; schema-bypass=reviewed; risk-id-drift=reviewed; timestamp-ambiguity=reviewed; verdict-loss=reviewed; legacy-parser-confusion=not-applicable; synopsis-drift=not-applicable; lead-omission=not-applicable; partial-write=not-applicable; path-boundary=reviewed; horos-self-defeat=not-applicable; self-hosting-overclaim=reviewed; frontier-drift=reviewed
+
+Not checked: step 2 synopsis generation, currency, compression budget, atomic replacement, Horos interaction, and legacy lead extraction
+
+Elenchus verdict: guarded
+
+### Findings
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R5-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Risk-register duplicate checks and Covered membership each scanned an ordered list, making a Protasis-valid high-cardinality study quadratic under the accepted input cap. | fixed in this commit; guard red |
+| S1-R5-02 | medium | tests/test_audit_prefix_integrity.py | The permanent prefix reader consumed each whole future audit log even though it checks only the fixed protected prefix, so a permitted append could exhaust the root gate. | fixed in this commit; bounded-read guard green |
+| S1-R5-03 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | Unicode whitespace was stripped as CommonMark space, so a pseudo-closing fence or nonblank HTML-block line could expose and receipt a record that remained hidden Markdown. | fixed in this commit; guard red |
+
+### Leads
+
+Leads not pursued: S1-R5-02 changes the permanent checker and its assertion together, so the detached-parent overlay cannot independently guard that cause; aggregate Elenchus `guarded` comes from the high-cardinality and CommonMark controller guards; step 2 synopsis generation, currency, compression, atomic replacement, Horos interaction, and physical-lead retention remain explicit negative space

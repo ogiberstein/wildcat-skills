@@ -1520,14 +1520,16 @@ def audit_risk_ids(base_dir: str, state: dict) -> list[str]:
         die("study receipt is unavailable for Covered validation")
     register = source_risk_register(study)["markdown"]
     risk_ids = []
+    seen = set()
     for line in register.splitlines()[1:-1]:
         if not line.strip():
             continue
         risk_id = line.split("|", 1)[0].strip()
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", risk_id):
             die("study risk register has an invalid id")
-        if risk_id in risk_ids:
+        if risk_id in seen:
             die("study risk register has a duplicate id")
+        seen.add(risk_id)
         risk_ids.append(risk_id)
     if not risk_ids:
         die("study risk register has no ids")
@@ -1586,7 +1588,7 @@ def audit_mask_block_html(text: str) -> str:
             masked.append(" " * len(line) + ending)
             continue
         if until_blank:
-            if line.strip():
+            if not markdown_blank(line):
                 masked.append(" " * len(line) + ending)
                 continue
             until_blank = False
@@ -1603,7 +1605,7 @@ def audit_mask_block_html(text: str) -> str:
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not fence.group("remainder").strip()
+                and not fence.group("remainder").strip(" ")
             ):
                 open_mark = None
                 open_length = None
@@ -1672,6 +1674,7 @@ def audit_visible_lines(text: str):
 
 def audit_covered(value: str, expected_ids: list[str]) -> None:
     """Check total, unique risk disposition without retaining or printing prose."""
+    expected = set(expected_ids)
     dispositions = {}
     for raw in value.split(";"):
         item = raw.strip()
@@ -1680,7 +1683,7 @@ def audit_covered(value: str, expected_ids: list[str]) -> None:
         risk_id, disposition = (part.strip() for part in item.split("=", 1))
         if risk_id in dispositions:
             die("audit record Covered has a duplicate risk id")
-        if risk_id not in expected_ids:
+        if risk_id not in expected:
             die("audit record Covered has an unknown risk id")
         if disposition not in AUDIT_COVERAGE_VALUES:
             die("audit record Covered has an invalid disposition")
@@ -2440,6 +2443,11 @@ def markdown_fence(line: str):
     return fence
 
 
+def markdown_blank(line: str) -> bool:
+    """Whether one physical line is blank under CommonMark's ASCII grammar."""
+    return re.fullmatch(r"[ \t]*", line) is not None
+
+
 def markdown_physical_lines(text: str):
     """Yield only CommonMark's LF, CRLF, and CR-delimited physical lines."""
     start = 0
@@ -2468,7 +2476,7 @@ def markdown_lines(text: str):
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not fence.group("remainder").strip()
+                and not fence.group("remainder").strip(" ")
             ):
                 open_mark = None
                 open_length = None

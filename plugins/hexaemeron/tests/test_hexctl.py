@@ -2508,6 +2508,23 @@ class AuditRecordSchemaTests(HexctlCase):
                 Path(path).write_text(hidden, encoding="utf-8")
                 self.refuse("no H2 record", "--findings", "0")
 
+    def test_unicode_whitespace_does_not_close_commonmark_blocks(self):
+        path = self.write_record()
+        text = Path(path).read_text(encoding="utf-8")
+        for whitespace in ("\u00a0", "\u2003"):
+            with self.subTest(block="fence", whitespace=ascii(whitespace)):
+                Path(path).write_text(
+                    f"```markdown\n```{whitespace}\n{text}\n```\n",
+                    encoding="utf-8",
+                )
+                self.refuse("no H2 record", "--findings", "0")
+            with self.subTest(block="html", whitespace=ascii(whitespace)):
+                Path(path).write_text(
+                    f"<div>\n{whitespace}\n{text}\n\n",
+                    encoding="utf-8",
+                )
+                self.refuse("no H2 record", "--findings", "0")
+
     def test_non_commonmark_separators_cannot_create_a_phantom_h2(self):
         path = self.write_record()
         text = Path(path).read_text(encoding="utf-8")
@@ -2602,6 +2619,34 @@ class AuditRecordSchemaTests(HexctlCase):
         elapsed = time.monotonic() - started
         self.assertEqual(len(lines), 1)
         self.assertLess(elapsed, 2.0)
+
+    def test_high_cardinality_risk_coverage_stays_within_the_input_bound(self):
+        controller = hexctl_module()
+        count = 30_000
+        register = (
+            "```risk-register\n"
+            + "\n".join(
+                f"risk-{index} | boundary | check" for index in range(count)
+            )
+            + "\n```\n"
+        )
+        started = time.monotonic()
+        with (
+            mock.patch.object(controller, "receipted_source", return_value={}),
+            mock.patch.object(
+                controller,
+                "source_risk_register",
+                return_value={"markdown": register},
+            ),
+        ):
+            risk_ids = controller.audit_risk_ids(".", {})
+        controller.audit_covered(
+            "; ".join(f"{risk_id}=reviewed" for risk_id in risk_ids),
+            risk_ids,
+        )
+        elapsed = time.monotonic() - started
+        self.assertEqual(len(risk_ids), count)
+        self.assertLess(elapsed, 1.0)
 
     def test_invalid_configured_path_refuses_without_a_traceback(self):
         for invalid in ("audit/\0.md", "audit/\ud800.md"):
