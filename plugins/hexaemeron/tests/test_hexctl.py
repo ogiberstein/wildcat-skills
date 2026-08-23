@@ -3014,6 +3014,44 @@ class AuditRecordSchemaTests(HexctlCase):
                     )
             self.assertIn("platform cannot safely read", stderr.getvalue())
 
+    def test_configured_log_read_refuses_an_observed_in_place_rewrite(self):
+        controller = hexctl_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = os.path.realpath(raw_root)
+            audit_dir = Path(root) / "audit"
+            audit_dir.mkdir()
+            log = audit_dir / "AUDIT.md"
+            log.write_bytes(b"inside")
+            real_fdopen = controller.os.fdopen
+
+            class RacingHandle:
+                def __init__(self, descriptor, mode):
+                    self.handle = real_fdopen(descriptor, mode)
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    self.handle.close()
+
+                def fileno(self):
+                    return self.handle.fileno()
+
+                def read(self, size):
+                    data = self.handle.read(size)
+                    log.write_bytes(b"outside")
+                    return data
+
+            stderr = StringIO()
+            with mock.patch.object(
+                controller.os, "fdopen", side_effect=RacingHandle
+            ):
+                with redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    controller.read_configured_audit_log(
+                        root, "audit/AUDIT.md", None
+                    )
+            self.assertIn("changed during read", stderr.getvalue())
+
     def test_fifo_swap_cannot_block_the_final_open(self):
         controller = hexctl_module()
         with tempfile.TemporaryDirectory() as raw_root:

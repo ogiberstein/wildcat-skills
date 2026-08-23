@@ -279,9 +279,31 @@ def read_configured_audit_log(
         handle = os.fdopen(file_descriptor, "rb")
         file_descriptor = None
         with handle:
-            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            opened = os.fstat(handle.fileno())
+            if not stat.S_ISREG(opened.st_mode):
                 die("audit log path is not a regular file")
+            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                die("audit log path changed during access")
             data = handle.read(SOURCE_BYTES_MAX + 1)
+            finished = os.fstat(handle.fileno())
+            opened_identity = (
+                opened.st_dev,
+                opened.st_ino,
+                opened.st_size,
+                opened.st_mtime_ns,
+                opened.st_ctime_ns,
+            )
+            finished_identity = (
+                finished.st_dev,
+                finished.st_ino,
+                finished.st_size,
+                finished.st_mtime_ns,
+                finished.st_ctime_ns,
+            )
+            if opened_identity != finished_identity or (
+                len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size
+            ):
+                die("audit log path changed during read")
     except OSError:
         die("audit log path cannot be read")
     finally:

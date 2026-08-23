@@ -18,6 +18,7 @@ AUDIT_SCHEMA = "fiat-audit-round/v1"
 SOURCE_NAME = "AUDIT.md"
 SYNOPSIS_NAME = "AUDIT_SYNOPSIS.md"
 SOURCE_BYTES_MAX = 16 * 1024 * 1024
+SYNOPSIS_BYTES_MAX = 16 * 1024 * 1024
 H2_RECORDS_MAX = 10_000
 PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
 FINDINGS_HEADER = "| id | severity | file | finding | status |"
@@ -175,6 +176,25 @@ def read_regular_bytes(root, relative, label, *, missing_ok=False):
             chunks.append(chunk)
             remaining -= len(chunk)
         data = b"".join(chunks)
+        finished = os.fstat(descriptor)
+        opened_identity = (
+            opened.st_dev,
+            opened.st_ino,
+            opened.st_size,
+            opened.st_mtime_ns,
+            opened.st_ctime_ns,
+        )
+        finished_identity = (
+            finished.st_dev,
+            finished.st_ino,
+            finished.st_size,
+            finished.st_mtime_ns,
+            finished.st_ctime_ns,
+        )
+        if opened_identity != finished_identity or (
+            len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size
+        ):
+            raise SynopsisError(f"{label} changed during read: {relative}")
     except OSError:
         raise SynopsisError(f"{label} cannot be read: {relative}") from None
     finally:
@@ -195,6 +215,8 @@ def _physical_lines(source_path, data):
         raise SynopsisError(
             f"{source_path}: source exceeds {SOURCE_BYTES_MAX:,}-byte cap"
         )
+    if b"\r" in data:
+        raise SynopsisError(f"{source_path}: source must use LF line endings")
     raw_lines = data.split(b"\n")
     if data.endswith(b"\n"):
         raw_lines.pop()
@@ -276,19 +298,19 @@ def _strict_candidate(record, record_number, source_path):
         FINDINGS_HEADER,
     )
     has_schema = any(line.startswith(markers[0]) for line in record[1:])
-    has_strict_shape = STRICT_HEADING_RE.fullmatch(record[0]) is not None and any(
-        any(line.startswith(marker) for marker in markers[1:4])
-        or line == FINDINGS_HEADER
-        for line in record[1:]
-    )
     h3_headings = tuple(line for line in record[1:] if line.startswith("###"))
-    if h3_headings:
-        if not has_schema:
-            return False
+    if (
+        source_path == "audit/AUDIT.md"
+        and record_number in PINNED_LEGACY_SCHEMA_DRAFTS
+    ):
         return not _pinned_legacy_schema_draft(
             record, record_number, source_path, h3_headings
         )
-    return has_schema or has_strict_shape
+    if h3_headings:
+        if not has_schema:
+            return False
+        return True
+    return has_schema or STRICT_HEADING_RE.fullmatch(record[0]) is not None
 
 
 def _strict_lines(
@@ -489,8 +511,18 @@ def render_source(source_path, data):
     starts.append(len(lines))
     records = []
     for number in range(1, len(starts)):
-        record = lines[starts[number - 1]:starts[number]]
-        if _strict_candidate(record, number, source_path):
+        record_start = starts[number - 1]
+        record = lines[record_start:starts[number]]
+        strict = _strict_candidate(record, number, source_path)
+        if strict and record_start:
+            leading_blank = lines[record_start - 1] == ""
+            extra_blank = record_start > 1 and lines[record_start - 2] == ""
+            if not leading_blank or extra_blank:
+                raise SynopsisError(
+                    f"{source_path}: strict record {number} has malformed "
+                    "record separator"
+                )
+        if strict:
             retained = _strict_lines(
                 record,
                 number,
@@ -508,6 +540,10 @@ def render_source(source_path, data):
         f"source_sha256={source_digest} | h2_count={len(records)}"
     )
     rendered = ("\n".join([metadata, *records]) + "\n").encode("utf-8")
+    if len(rendered) > SYNOPSIS_BYTES_MAX:
+        raise SynopsisError(
+            f"{source_path}: synopsis exceeds {SYNOPSIS_BYTES_MAX:,}-byte cap"
+        )
     source_lines = len(lines)
     synopsis_lines = len(records) + 1
     if synopsis_lines * 100 >= source_lines * 15:
@@ -551,6 +587,7 @@ def discover_sources(root):
             if stat.S_ISLNK(info.st_mode):
                 if name == "audit":
                     relative = os.path.relpath(candidate, root).replace(os.sep, "/")
+                    relative = _relative_path(relative)
                     raise SynopsisError(f"audit directory is a symlink: {relative}")
                 continue
             if name in (".git", ".hexaemeron"):

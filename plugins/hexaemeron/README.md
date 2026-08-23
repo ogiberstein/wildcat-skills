@@ -193,9 +193,10 @@ line per raw H2. The metadata binds source path, source SHA-256 and H2 count;
 records retain strict fields, canonical findings, recognised legacy risk
 tables, and every physical `Leads not pursued` occurrence with its remaining
 section. Missing legacy values stay missing. The CLI refuses symlinks, escape,
-invalid UTF-8, sources over 16 MiB, more than 10,000 H2s, source lines over
-1 MiB, and views that fail the strict 15% integer line budget. `--write` uses a
-flushed same-directory temporary, atomic replacement, cleanup and exact
+invalid UTF-8, non-LF line endings, sources or rendered views over 16 MiB, more
+than 10,000 H2s, source lines over 1 MiB, and views that fail the strict 15%
+integer line budget. `--write` uses a flushed same-directory temporary, atomic
+replacement, cleanup and exact
 post-write read. It has no network, shell, dependency, or generation clock.
 
 ## Configuration

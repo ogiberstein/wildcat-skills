@@ -70,8 +70,8 @@ another pass.
 
 3. Apply fixes on the stacked branch: `<step-branch><suffix>` (suffix from
    `config audit.stacked_suffix`, default `--audit`), with a PR targeting
-   the step branch. Fixes accumulate there across rounds; the audit file
-   and regenerated root `AUDIT_SYNOPSIS.md` commit alongside them. Warden owns both
+   the step branch. Fixes accumulate there across rounds; the audit file and its
+   regenerated sibling `AUDIT_SYNOPSIS.md` commit alongside them. Warden owns both
    changes in the same signed commit; the controller never rewrites either.
 4. Record the round. The controller resolves and reads the configured log once
    and refuses a different `--log`. The latest stored same-log end offset is

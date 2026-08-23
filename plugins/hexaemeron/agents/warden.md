@@ -66,7 +66,7 @@ Before committing the append, run the Fiat sibling renderer from the project
 root with `audit_synopsis.py --write .`, then `--check .`. It discovers the
 sorted regular `**/audit/AUDIT.md` sources and replaces only their sibling
 `AUDIT_SYNOPSIS.md` views. Stop on any missing, stale, lossy, unsafe,
-oversized, or over-budget result. Stage the configured audit log and its root
+oversized, or over-budget result. Stage the configured audit log and its sibling
 synopsis in the same signed round commit. Do not hand the orchestrator a log
 commit whose synopsis was generated before that append.
 

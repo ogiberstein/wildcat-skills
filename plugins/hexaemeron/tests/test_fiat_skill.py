@@ -152,9 +152,13 @@ class FiatSkillContractTests(unittest.TestCase):
         for text in (fiat, audit, readme):
             self.assertIn("fiat-audit-synopsis/v1", text)
         self.assertIn("same signed", warden)
+        self.assertIn("configured audit log and its sibling synopsis", warden)
+        self.assertIn("audit file and its regenerated sibling", audit)
         self.assertIn("synopsis SHA-256", audit)
         self.assertIn("before state or ledger mutation", audit)
         self.assertIn("16 MiB", readme)
+        self.assertIn("non-LF line endings", readme)
+        self.assertIn("rendered views over 16 MiB", readme)
         self.assertIn("10,000", readme)
         self.assertIn("1 MiB", readme)
         self.assertIn("15%", readme)

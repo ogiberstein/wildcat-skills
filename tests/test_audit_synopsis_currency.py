@@ -160,6 +160,21 @@ class SynopsisFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(self.module.SynopsisError, "strict record"):
             self.module.render_source("audit/AUDIT.md", mimicked_legacy_h3)
 
+        heading_only = (
+            b"## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z\n\n"
+            + b"not a strict field\n" * 13
+        )
+        with self.assertRaisesRegex(self.module.SynopsisError, "strict record"):
+            self.module.render_source("audit/AUDIT.md", heading_only)
+
+        schema_less_h3 = (
+            b"## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z\n\n"
+            b"### historical section\n\n"
+            + b"legacy prose\n" * 11
+        )
+        rendered = self.module.render_source("audit/AUDIT.md", schema_less_h3)
+        self.assertIn(b"[missing legacy field: audit-schema]", rendered["bytes"])
+
     def test_strict_record_boundaries_require_the_canonical_lf_bytes(self):
         canonical = strict_record()
         self.module.render_source("audit/AUDIT.md", canonical)
@@ -170,6 +185,25 @@ class SynopsisFixtureTests(unittest.TestCase):
             self.module.render_source("audit/AUDIT.md", canonical + b"\n")
         with self.assertRaisesRegex(self.module.SynopsisError, "record separator"):
             self.module.render_source("audit/AUDIT.md", canonical + canonical)
+
+        legacy = b"## legacy\n" + b"legacy prose\n" * 13
+        with self.assertRaisesRegex(self.module.SynopsisError, "record separator"):
+            self.module.render_source("audit/AUDIT.md", legacy + canonical)
+        self.module.render_source("audit/AUDIT.md", legacy + b"\n" + canonical)
+        with self.assertRaisesRegex(self.module.SynopsisError, "record separator"):
+            self.module.render_source(
+                "audit/AUDIT.md", legacy + b"\n\n" + canonical
+            )
+
+        legacy_crlf = (
+            b"## legacy\r\nLeads not pursued: none\r\n"
+            + b"legacy prose\r\n" * 12
+        )
+        with self.assertRaisesRegex(self.module.SynopsisError, "LF line endings"):
+            self.module.render_source("audit/AUDIT.md", legacy_crlf)
+
+        with self.assertRaisesRegex(self.module.SynopsisError, "no raw H2"):
+            self.module.render_source("audit/AUDIT.md", b"")
 
     def test_source_path_cannot_corrupt_synopsis_framing(self):
         for source_path in (
@@ -404,6 +438,52 @@ class SynopsisRepositoryTests(unittest.TestCase):
         self.assertEqual(outside.read_bytes(), b"outside unchanged\n")
         self.assertEqual(destination.read_bytes(), b"new complete\n")
 
+    def test_descriptor_read_refuses_an_observed_in_place_rewrite(self):
+        source = self.source()
+        original = source.read_bytes()
+        changed = original.replace(b"Not checked: none", b"Not checked: nope")
+        self.assertEqual(len(original), len(changed))
+        real_read = self.module.os.read
+        raced = False
+
+        def rewrite_after_read(descriptor, size):
+            nonlocal raced
+            chunk = real_read(descriptor, size)
+            if not raced:
+                source.write_bytes(changed)
+                raced = True
+            return chunk
+
+        with mock.patch.object(self.module.os, "read", side_effect=rewrite_after_read):
+            with self.assertRaisesRegex(self.module.SynopsisError, "changed during read"):
+                self.module.read_regular_bytes(
+                    str(self.root), "audit/AUDIT.md", "audit source"
+                )
+
+    def test_unsafe_discovery_path_cannot_frame_an_error(self):
+        unsafe_parent = self.root / "bad\nspoof"
+        unsafe_parent.mkdir()
+        (unsafe_parent / "audit").symlink_to(self.root, target_is_directory=True)
+
+        with self.assertRaises(self.module.SynopsisError) as raised:
+            self.module.discover_sources(str(self.root))
+        self.assertNotIn("\n", str(raised.exception))
+        self.assertIn(r"bad\nspoof", str(raised.exception))
+
+    def test_oversized_fresh_render_refuses_before_replacement(self):
+        source = self.root / "audit" / "AUDIT.md"
+        source.parent.mkdir(parents=True)
+        source.write_bytes(
+            b"## legacy\nLeads not pursued: none\n" + b"legacy prose\n" * 12
+        )
+        destination = source.with_name("AUDIT_SYNOPSIS.md")
+        destination.write_bytes(b"old complete\n")
+
+        with mock.patch.object(self.module, "SYNOPSIS_BYTES_MAX", 128):
+            with self.assertRaisesRegex(self.module.SynopsisError, "synopsis exceeds"):
+                self.module.process_repository(str(self.root), write=True)
+        self.assertEqual(destination.read_bytes(), b"old complete\n")
+
     def test_check_diagnostic_has_counts_ratio_and_all_digests(self):
         self.source()
         self.module.process_repository(str(self.root), write=True)
@@ -489,6 +569,33 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                         record, ordinal, "plugins/x/audit/AUDIT.md", headings
                     )
                 )
+                if ordinal == 344:
+                    schema_index = record.index(
+                        "Audit schema: fiat-audit-round/v1"
+                    )
+                    schema_changed = [*record]
+                    schema_changed[schema_index] = (
+                        "Audit scheme: fiat-audit-round/v1"
+                    )
+                    self.assertTrue(
+                        self.module._strict_candidate(
+                            schema_changed, ordinal, "audit/AUDIT.md"
+                        )
+                    )
+                    changed_raw = (
+                        "\n".join(schema_changed) + "\n"
+                    ).encode("utf-8")
+                    changed_source = (
+                        source[:offsets[starts[ordinal - 1]]]
+                        + changed_raw
+                        + source[offsets[starts[ordinal]]:]
+                    )
+                    with self.assertRaisesRegex(
+                        self.module.SynopsisError, "strict record 344"
+                    ):
+                        self.module.render_source(
+                            "audit/AUDIT.md", changed_source
+                        )
 
     def test_live_headings_leads_and_issue_327_values_survive(self):
         for relative in LIVE_SOURCES:
