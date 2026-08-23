@@ -18,18 +18,33 @@ metadata.
 
 ## Reproduction boundary
 
-Run these commands from the repository root with Python 3.12 and a configured
-Git signing key. The names below keep the generated repository under the
-current run's ignored `.hexaemeron` directory.
+Run these commands from a clean repository root with Python 3.12 and a
+configured Git signing key. The fixture uses tracked delivery documents and a
+generated directory under the repository's ignored `.hexaemeron` boundary; it
+does not depend on active Fiat state.
 
 ```bash
 set -euo pipefail
-PROJECT_ROOT=$(git rev-parse --show-toplevel)
-DEMO_ROOT=$(mktemp -d "$PROJECT_ROOT/.hexaemeron/issue327-step3-XXXXXX")
+PROJECT_ROOT=$(cd "$(git rev-parse --show-toplevel)" && pwd -P)
+DEMO_PARENT="$PROJECT_ROOT/.hexaemeron"
+DEMO_PARENT_CREATED=0
+test ! -L "$DEMO_PARENT"
+if [ ! -e "$DEMO_PARENT" ]; then
+  mkdir "$DEMO_PARENT"
+  DEMO_PARENT_CREATED=1
+fi
+test -d "$DEMO_PARENT"
+DEMO_ROOT=$(mktemp -d "$DEMO_PARENT/issue327-step3-XXXXXX")
 DEMO_ORIGIN="$DEMO_ROOT/origin"
 HEXCTL="$PROJECT_ROOT/plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
+STUDY_SOURCE="$PROJECT_ROOT/plugins/hexaemeron/docs/elenchus-audit-round-verdict/study.md"
+RUNBOOK_SOURCE="$PROJECT_ROOT/plugins/hexaemeron/docs/elenchus-audit-round-verdict/runbook.md"
 test "$(sha256sum "$HEXCTL" | awk '{print $1}')" = \
   "01efd29fcc0b1198aa62989291c1dbe4713d7c26cccbba40a1fbe4b210884870"
+test "$(sha256sum "$STUDY_SOURCE" | awk '{print $1}')" = \
+  "425152f8d8573197f33dcb491892f937798d4fe3b66ec612d8ce8ea05967852f"
+test "$(sha256sum "$RUNBOOK_SOURCE" | awk '{print $1}')" = \
+  "a98c67bda303bac1b3aea09817059a07d9dc45a64472847854be7547c4bd555c"
 mkdir "$DEMO_ORIGIN"
 git -C "$DEMO_ORIGIN" init -b main
 git -C "$DEMO_ORIGIN" config user.name "Dave Coleman"
@@ -38,9 +53,26 @@ git -C "$DEMO_ORIGIN" commit -S --allow-empty -m "demo base"
 python3.12 "$HEXCTL" --dir "$DEMO_ORIGIN" init \
   --topic "issue 327 proof" --base main
 DEMO_RUN="$DEMO_ORIGIN/tmp/fiat/fiat-issue-327-proof"
-cp "$PROJECT_ROOT/.hexaemeron/study.md" "$DEMO_RUN/.hexaemeron/study.md"
-cp "$PROJECT_ROOT/.hexaemeron/runbook.md" "$DEMO_RUN/.hexaemeron/runbook.md"
-cp "$PROJECT_ROOT/.hexaemeron/steps.json" "$DEMO_RUN/.hexaemeron/steps.json"
+```
+
+```bash
+cp "$STUDY_SOURCE" "$DEMO_RUN/.hexaemeron/study.md"
+cp "$RUNBOOK_SOURCE" "$DEMO_RUN/.hexaemeron/runbook.md"
+printf '\n' >> "$DEMO_RUN/.hexaemeron/runbook.md"
+test "$(sha256sum "$DEMO_RUN/.hexaemeron/runbook.md" | awk '{print $1}')" = \
+  "82f1952def5d8658c2c8207d4c170632c0f14180cf8e5a554f980a85b7bf6f85"
+python3.12 - "$DEMO_RUN/.hexaemeron/steps.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+steps = [
+    "Bind the runbook test command to the Elenchus contract",
+    "Receipt the four verdicts and source-bind Warden",
+    "Demonstrate legacy and release compatibility",
+]
+Path(sys.argv[1]).write_text(json.dumps(steps, indent=2) + "\n")
+PY
 python3.12 "$HEXCTL" --dir "$DEMO_RUN" done study \
   --artifact "$DEMO_RUN/.hexaemeron/study.md" \
   --skills hexaemeron:protasis,hexaemeron:imprimatur
@@ -51,8 +83,9 @@ python3.12 "$HEXCTL" --dir "$DEMO_RUN" done runbook \
 
 Call `next` twice before the implementation receipt. Decode both JSON objects,
 require them to be equal, and retain only the Mason `brief.runbook_step`.
-Create the branch and implementation commit named by that packet. Every
-commit owned by the proof uses one exact copy of each required trailer.
+Create the branch and implementation commit named by that packet. Each
+receipted implementation or fix commit uses one exact copy of each required
+trailer.
 
 ```bash
 MASON_ONE=$(python3.12 "$HEXCTL" --dir "$DEMO_RUN" next)
@@ -343,7 +376,7 @@ state and ledger digests. The successful generated boundary was removed after
 these assertions.
 
 ```bash
-python3.12 - "$DEMO_ROOT" "$PROJECT_ROOT/.hexaemeron" <<'PY'
+python3.12 - "$DEMO_ROOT" "$DEMO_PARENT" <<'PY'
 from pathlib import Path
 import shutil, sys
 boundary = Path(sys.argv[1]).resolve()
@@ -353,6 +386,12 @@ assert boundary.name.startswith("issue327-step3-")
 shutil.rmtree(boundary)
 PY
 test ! -e "$DEMO_ROOT"
+test ! -L "$DEMO_ROOT"
+if [ "$DEMO_PARENT_CREATED" -eq 1 ]; then
+  rmdir "$DEMO_PARENT"
+  test ! -e "$DEMO_PARENT"
+  test ! -L "$DEMO_PARENT"
+fi
 ```
 
 ## Study and release reconciliation
