@@ -8,38 +8,39 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
-PLUGINS = (
-    "alexandria",
-    "ariadne",
-    "berean",
-    "brevitas",
-    "hermes",
-    "hexaemeron",
-    "horos",
-    "janus",
-    "lemma",
-    "lazarus",
-    "pandects",
-    "probitas",
-    "sapheneia",
-    "tabularium",
-)
+
+
+def discovered_plugins():
+    """The universe is what ships, not what a list here remembers.
+
+    A hand-maintained tuple lets a new plugin land with every one of these
+    cases passing while none of them looked at it. Discovery makes the
+    omission the failure it should be.
+    """
+    return tuple(
+        sorted(
+            path.parent.parent.name
+            for path in (ROOT / "plugins").glob("*/.claude-plugin/plugin.json")
+        )
+    )
+
+
+PLUGINS = discovered_plugins()
+# The canonical skill takes the plugin's own name, with one recorded exception:
+# Hexaemeron's entry point is Fiat, because the plugin ships a phase suite
+# rather than a single agent.
+CANONICAL_SKILL_NAMES = {"hexaemeron": "fiat"}
 CANONICAL_SKILLS = {
-    "alexandria": ROOT / "plugins" / "alexandria" / "skills" / "alexandria" / "SKILL.md",
-    "ariadne": ROOT / "plugins" / "ariadne" / "skills" / "ariadne" / "SKILL.md",
-    "berean": ROOT / "plugins" / "berean" / "skills" / "berean" / "SKILL.md",
-    "brevitas": ROOT / "plugins" / "brevitas" / "skills" / "brevitas" / "SKILL.md",
-    "hermes": ROOT / "plugins" / "hermes" / "skills" / "hermes" / "SKILL.md",
-    "hexaemeron": ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md",
-    "horos": ROOT / "plugins" / "horos" / "skills" / "horos" / "SKILL.md",
-    "janus": ROOT / "plugins" / "janus" / "skills" / "janus" / "SKILL.md",
-    "lemma": ROOT / "plugins" / "lemma" / "skills" / "lemma" / "SKILL.md",
-    "lazarus": ROOT / "plugins" / "lazarus" / "skills" / "lazarus" / "SKILL.md",
-    "pandects": ROOT / "plugins" / "pandects" / "skills" / "pandects" / "SKILL.md",
-    "probitas": ROOT / "plugins" / "probitas" / "skills" / "probitas" / "SKILL.md",
-    "sapheneia": ROOT / "plugins" / "sapheneia" / "skills" / "sapheneia" / "SKILL.md",
-    "tabularium": ROOT / "plugins" / "tabularium" / "skills" / "tabularium" / "SKILL.md",
+    name: ROOT
+    / "plugins"
+    / name
+    / "skills"
+    / CANONICAL_SKILL_NAMES.get(name, name)
+    / "SKILL.md"
+    for name in PLUGINS
 }
+
+
 NEXT_JOB_PREFIX = "**Next Fiat job.** Use /hexaemeron:fiat to "
 NEXT_JOB_SUFFIX = (
     "Before the run finishes, cold-read and reconcile all mutable first-party "
@@ -212,7 +213,7 @@ class MarketplaceProseTests(unittest.TestCase):
     def test_plugin_landing_readmes_publish_unique_rolling_fiat_jobs(self):
         landings = plugin_landing_readmes()
         self.assertEqual(set(landings), set(PLUGINS))
-        self.assertEqual(len(landings), 14)
+        self.assertEqual(len(landings), len(marketplace_entries()))
 
         topics = {}
         for name, path in landings.items():
@@ -291,8 +292,9 @@ class MarketplaceProseTests(unittest.TestCase):
         in `AGENTS.md` are where that routing belongs. This case asserts the
         absence so neither label returns a paragraph at a time.
         """
-        self.assertEqual(set(CANONICAL_SKILLS), set(PLUGINS))
+        self.assertTrue(PLUGINS)
         for name, skill in CANONICAL_SKILLS.items():
+            self.assertTrue(skill.is_file(), skill)
             text = skill.read_text(encoding="utf-8")
             with self.subTest(plugin=name):
                 self.assertIn("## Where this sits", text)

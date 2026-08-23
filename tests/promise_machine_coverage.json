@@ -1521,6 +1521,31 @@
       "selector": "test_labelled_recovery_cases",
       "claim": "Sapheneia records bounded correction and explicit deactivation recovery paths.",
       "evidence_class": "recorded"
+    },
+    "homologia-scaffold-p": {
+      "path": "plugins/homologia/tests/test_scaffold.py",
+      "selector": "test_identity_agrees_across_both_manifests_and_the_marketplace",
+      "claim": "Positive evidence reads the declared name and version out of both host manifests and the suite marketplace and requires one value."
+    },
+    "homologia-scaffold-m": {
+      "path": "plugins/homologia/tests/test_scaffold.py",
+      "selector": "test_a_drifted_installed_root_law_copy_is_detected",
+      "claim": "A mutated copy of the root law makes the same byte comparison fail, so the installed-copy check refuses drift instead of passing trivially."
+    },
+    "homologia-scaffold-s": {
+      "path": "plugins/homologia/tests/test_scaffold.py",
+      "selector": "test_the_canonical_skill_states_the_declared_version",
+      "claim": "A contract left at a superseded version is refused, so a stale declaration cannot ride along beside a moved manifest."
+    },
+    "homologia-scaffold-o": {
+      "path": "plugins/homologia/tests/test_scaffold.py",
+      "selector": "test_no_verb_prints_a_verdict_on_standard_output",
+      "claim": "The nearest overclaim is a verb that answers: every verb is required to leave standard output empty, so no caller can read a verdict off this version."
+    },
+    "homologia-scaffold-r": {
+      "path": "plugins/homologia/tests/test_scaffold.py",
+      "selector": "test_a_refusal_names_where_the_behaviour_will_come_from",
+      "claim": "Recovery evidence requires the refusal to name its version and the runbook that carries the behaviour, so the caller is told where to go."
     }
   },
   "rows": [
@@ -2762,6 +2787,22 @@
         "S": "vulgate-eval-s",
         "O": "vulgate-eval-o",
         "R": "vulgate-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "homologia-scaffold-identity",
+      "skill_path": "plugins/homologia/skills/homologia/SKILL.md",
+      "group": "executable",
+      "cases": {
+        "P": "homologia-scaffold-p",
+        "M": "homologia-scaffold-m",
+        "S": "homologia-scaffold-s",
+        "O": "homologia-scaffold-o",
+        "R": "homologia-scaffold-r",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."

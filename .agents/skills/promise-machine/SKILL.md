@@ -24,6 +24,7 @@ canonical skill only when the selected workflow requires a named handoff.
 | Constrain the volume and structure of engineering prose | [Brevitas](../../../plugins/brevitas/AGENTS.md) | `brevitas` |
 | Measure one Solidity gas-optimisation class | [Hermes](../../../plugins/hermes/AGENTS.md) | `hermes` |
 | Run receipted delivery or a named specification, audit, debugging, hardening, telemetry, measurement or record-keeping phase | [Hexaemeron](../../../plugins/hexaemeron/AGENTS.md) | One named Hexaemeron skill |
+| Establish whether a contract computation and its off-chain mirror agree over declared vectors | [Homologia](../../../plugins/homologia/AGENTS.md) | `homologia` |
 | Classify evidenced reading sinks | [Horos](../../../plugins/horos/AGENTS.md) | `horos` |
 | Check hook effects around a host action | [Janus](../../../plugins/janus/AGENTS.md) | `janus` |
 | Preserve finite historical Ethereum state and exact RPC traffic | [Lazarus](../../../plugins/lazarus/AGENTS.md) | `lazarus` |
