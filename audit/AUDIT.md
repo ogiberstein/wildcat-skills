@@ -11320,3 +11320,79 @@ removed immediately after the bounded check.
 The full fixed-tree matrix follows this record. No controller receipt, push,
 pull request, issue action, merge, or integration occurs in this round. A
 further independent Warden round is required after its signed repair.
+
+## Issue 434 carryover 5, step 1, round 5 -- 2026-08-23
+
+Finding ID: `I434-C5-S1-R5-01`.
+
+Severity: high. The public report demonstration passed an absolute path to an
+Elenchus parameter that only accepts a relative descendant of Elenchus's
+detached parent worktree.
+
+Location: `docs/promise-machine/run-observation-runbook.md`.
+
+Mechanism: `REPORT_PATH` correctly names a canonical absolute target for the
+direct source-owned reporter in the current worktree. Reusing that value for
+Elenchus `--report-file` is invalid: Elenchus constructs a separate detached
+parent worktree, rejects absolute paths before the reporter starts, and then
+replaces `{report}` with an absolute descendant of that detached tree. The
+single public command therefore claimed an absolute write boundary while its
+Elenchus invocation could only produce an inconclusive result.
+
+Impact: a reader following the public demonstration could not obtain the
+recorded Elenchus evidence. Treating the command's zero process exit as green
+would hide Elenchus's explicit `inconclusive` verdict.
+
+Reproduction: on signed parent `d148adcc353fcab50737bf0748ed4d0d1048a687`,
+the documented command with absolute `--report-file "$REPORT_PATH"` was run
+twice. Each returned `inconclusive` with `the report path must be a relative
+worktree descendant`; neither invocation created the named current-worktree
+report.
+
+Causal repair: signed commit `4c0dff1b0b5d93126f01d905d4273a4749eee0bc`
+keeps the direct reporter target absolute and changes only the Elenchus
+declaration to `.elenchus/run-observation.json`. The runbook explains that
+Elenchus substitutes `{report}` with a canonical absolute descendant of its
+detached parent before invoking the source-owned reporter. It also records
+that the current-worktree `REPORT_PATH` must never be passed to
+`--report-file`.
+
+Guard: `RunObservationRefusalTests.test_runbook_separates_direct_and_elenchus_report_targets`
+was red twice before the documentation repair and passes on the fixed tree.
+The coverage binding now names the replacement selector and its current
+SHA-256. Elenchus on the signed repair reports `guarded`: 144 executed tests,
+one parent assertion failure, zero infrastructure errors and zero skips. That
+is a real red-to-green result, not an asserted clean classification.
+
+### Fixed-tree evidence
+
+- The one-tree union remains exactly 37 tracked paths and 61 unique manifest
+  ids across all eight mandatory families.
+- Focused plus Promise tests pass 144/144. The inoculation summary records
+  1,258 cases, zero crashes and zero unexpected clean results.
+- The root suite passes 192/192. All four valid JSONL fixtures are clean and
+  all five invalid fixtures exit 1.
+- The direct source-owned reporter writes to the canonical absolute C5
+  worktree target and passes 144/144 with zero failures, errors and skips.
+  Its transient report was removed after the bounded read.
+- Promise copy, contract and coverage checks are clean: 14 identical copies
+  and 68 selected coverage rows. Phylax, Ephoros, Hypomnema, Imprimatur,
+  Brevitas, Horos, Python syntax and `git diff --check` exit 0.
+
+### Risk dispositions
+
+- `carryover-union-gap` and `partial-tree-evidence`: clean; this review used
+  the 61-id, 37-path committed tree and no C4 partial output.
+- `coverage-contract-gap`: clean; the exact release-surface binding carries
+  the renamed report-target guard and its current digest.
+- `absolute-write-boundary` and `gate-command-arity`: fixed; direct reporter
+  and Elenchus now receive the different path forms their own contracts need.
+- `source-reporter-surface`: fixed and guarded; the detached-parent reporter
+  result is explicitly `guarded`, not silently upgraded to clean.
+- `closure-overclaim`: open; this round repaired one material finding, so an
+  additional independent Warden round remains necessary.
+
+Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
+cross-run diagnosis remain in their separate issues. This record makes no
+claim about capture completeness, external truth, cause, model quality,
+delivery correctness, deployment readiness, security, or mutation authority.
