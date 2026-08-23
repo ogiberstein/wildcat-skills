@@ -12,6 +12,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -24,27 +25,42 @@ HEXCTL = REPOSITORY_ROOT / "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
 SET_NAMES = ("HOST_IDENTITY_NAMES", "HOST_IDENTITY_EMAILS", "HOST_PR_LOGINS")
 
 
-def frozensets_from_source(path: Path) -> dict[str, frozenset]:
-    """Read `NAME = frozenset({...})` module-level literals without importing."""
+def frozensets_from_source(path: Path, prefix: str = "HOST_") -> dict[str, frozenset]:
+    """Read every `HOST_* = frozenset({...})` module-level literal without importing.
+
+    Discovery is by prefix, not by the known names. A parity test that compares
+    only the sets it already knows cannot notice a new one: if hexctl.py grows a
+    fourth host set, the generator would miss a whole class of runtime identity
+    and every test here would still pass. Reading by prefix turns that into a
+    failure naming the set nobody accounted for.
+    """
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     found: dict[str, frozenset] = {}
     for node in tree.body:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
             continue
         target = node.targets[0]
-        if not isinstance(target, ast.Name) or target.id not in SET_NAMES:
+        if not isinstance(target, ast.Name) or not target.id.startswith(prefix):
             continue
         call = node.value
         if (
             not isinstance(call, ast.Call)
             or not isinstance(call.func, ast.Name)
             or call.func.id != "frozenset"
-            or len(call.args) != 1
         ):
-            raise AssertionError(f"{target.id} in {path.name} is not a frozenset literal")
+            # A HOST_* name that is not a frozenset is not a classification set.
+            # hexctl.py has HOST_BYLINE_RE, a compiled pattern. Skipping it here
+            # is deliberate; a genuinely missing set is caught by comparing the
+            # discovered names against SET_NAMES, not by asserting shape here.
+            continue
+        if len(call.args) != 1:
+            raise AssertionError(
+                f"{target.id} in {path.name} is frozenset() with "
+                f"{len(call.args)} arguments, which this test cannot read"
+            )
         try:
             members = ast.literal_eval(call.args[0])
-        except ValueError as error:
+        except (ValueError, TypeError) as error:
             raise AssertionError(
                 f"{target.id} in {path.name} is a frozenset of something other than "
                 f"a literal, so this test cannot compare it: {error}"
@@ -60,8 +76,15 @@ class HostSetParity(unittest.TestCase):
     def setUpClass(cls):
         cls.declared = frozensets_from_source(HEXCTL)
 
-    def test_hexctl_declares_every_expected_set(self):
-        self.assertEqual(sorted(self.declared), sorted(SET_NAMES))
+    def test_hexctl_declares_exactly_the_sets_the_generator_accounts_for(self):
+        """A host set in hexctl.py that the generator does not know about fails here."""
+        self.assertEqual(
+            sorted(self.declared),
+            sorted(SET_NAMES),
+            "hexctl.py's HOST_* frozensets and scripts/contributors.py have diverged; "
+            "a set present there and absent here is a class of runtime identity the "
+            "contributor ranking would silently treat as a person",
+        )
         for name in SET_NAMES:
             self.assertTrue(self.declared[name], f"{name} is empty in hexctl.py")
 
@@ -201,8 +224,6 @@ class EmitterContract(unittest.TestCase):
         unittest.defaultTestLoader.loadTestsFromNames(list(self.emitter.MODULES))
 
     def test_missing_surface_produces_a_failing_suite(self):
-        import tempfile
-
         with tempfile.TemporaryDirectory() as empty:
             suite = self.emitter.missing_surface_suite(Path(empty))
         self.assertIsNotNone(suite, "an empty root must not look like a present surface")

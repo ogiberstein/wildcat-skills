@@ -11474,3 +11474,16 @@ syntax out of a generated artefact, a hyphen carries none, and tightening it
 would trade a real guarantee for a cosmetic one. `.elenchus/` is not in the
 repository's `.gitignore`, which predates this run and belongs to whoever owns
 the run-observation emitter rather than to this step.
+
+## Step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Phylax, Ephoros and Hypomnema
+each returned clean again. Both findings are in round 1's own fixes, which is
+what this round exists to catch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | tests/test_contributors.py | The parity check compared only the three host sets it already knew by name. A fourth `HOST_*` frozenset added to `hexctl.py` would therefore pass every test here while `scripts/contributors.py` missed a whole class of runtime identity, and the contributor ranking would treat that class as people. Round 1 closed a drift gap in the sets it knew and left the discovery gap open. Fixed by discovering `HOST_*` frozensets by prefix and asserting the discovered names equal `SET_NAMES` exactly, so a new set fails by name until the generator accounts for it. Verified in both directions: discovery over the real `hexctl.py` finds exactly the three, and a synthetic fourth set breaks parity. The first attempt at this fix was itself wrong, matching `HOST_BYLINE_RE`, a compiled pattern rather than a set; the predicate now skips a `HOST_*` name that is not a `frozenset(...)` call and says why, and a missing known set is still caught by the name comparison rather than by asserting shape at the wrong place. | fixed in this round |
+| S1-R2-02 | low | tests/test_contributors.py | Round 1's guard around `ast.literal_eval` caught `ValueError` only. That is the exception every non-literal argument raises on the interpreter in hand, 3.14, but the repository's declared floor is 3.9 and the round-1 change pinned an exception type to behaviour observed on one version. Broadened to `(ValueError, TypeError)`. The `tempfile` import was also moved to module level, so no test body reaches for an import mid-run. | fixed in this round |
+
+Leads not pursued: none.
