@@ -14,6 +14,7 @@ MARKETPLACE = ROOT / "skills" / "fiat" / "references" / "wildcat-marketplace.md"
 CONTRIBUTOR_CHECK = ROOT / "skills" / "fiat" / "scripts" / "check_wildcat_contributor.py"
 PUSH_DISCIPLINE = ROOT / "skills" / "fiat" / "references" / "push-discipline.md"
 PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
+AUDIT_LOOP = ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
 KRONOS = ROOT / "skills" / "kronos" / "SKILL.md"
 AGENTS = {
     name: (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
@@ -35,6 +36,7 @@ class FiatSkillContractTests(unittest.TestCase):
         cls.fiat = FIAT.read_text(encoding="utf-8")
         cls.marketplace = MARKETPLACE.read_text(encoding="utf-8")
         cls.push_discipline = PUSH_DISCIPLINE.read_text(encoding="utf-8")
+        cls.audit_loop = AUDIT_LOOP.read_text(encoding="utf-8")
 
     def test_marketplace_reference_is_linked(self):
         self.assertIn("[wildcat-marketplace.md](references/wildcat-marketplace.md)", self.fiat)
@@ -96,7 +98,7 @@ class FiatSkillContractTests(unittest.TestCase):
             "mason": "`runbook_step`, `branch`, and `branch_from`",
             "warden": (
                 "`step_branch`, `stacked_branch`, `security_suite`, `plugin_root`, "
-                "`audit_log_path`, `round`, and `risk_register`"
+                "`audit_log_path`, `round`, `risk_register`, and `runbook_step`"
             ),
             "scribe": "`files`, `pr_base`, `pr_draft_path`, and `plugin_root`",
         }
@@ -104,6 +106,24 @@ class FiatSkillContractTests(unittest.TestCase):
             with self.subTest(role=role):
                 contract = " ".join(AGENTS[role].split())
                 self.assertIn(f"one `brief` object with exactly {clause}", contract)
+
+    def test_audit_fix_receipts_bind_the_closed_elenchus_verdict(self):
+        fiat = " ".join(self.fiat.split())
+        audit = " ".join(self.audit_loop.split())
+        for text in (fiat, audit):
+            self.assertIn("--elenchus-verdict", text)
+            self.assertIn("--fixes-commit", text)
+            for verdict in ("guarded", "unguarded", "passed", "inconclusive"):
+                self.assertIn(verdict, text)
+        self.assertIn("checked-and-recorded", audit)
+        self.assertIn("does not attest the Elenchus report bytes", audit)
+        self.assertIn("issue 453", audit)
+
+    def test_warden_uses_the_source_bound_step_and_returns_the_exact_verdict(self):
+        contract = " ".join(AGENTS["warden"].split())
+        self.assertIn("exact source-bound `runbook_step`", contract)
+        self.assertIn("test command, report format, and report file", contract)
+        self.assertIn("return its exact Elenchus verdict", contract)
 
     def test_provenance_is_verified_without_reclassifying_human_work(self):
         # Flattened: these assert what the instruction says, and a reflow of the

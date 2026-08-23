@@ -680,12 +680,13 @@ class TestDelegationPackets(HexctlCase):
             warden,
             "warden",
             ("step_branch", "stacked_branch", "security_suite", "plugin_root",
-             "audit_log_path", "round", "risk_register"),
+             "audit_log_path", "round", "risk_register", "runbook_step"),
         )
         risk = warden["brief"]["risk_register"]
         self.assertEqual(set(risk), {"markdown", "path", "sha256"})
         self.assertEqual(risk["markdown"],
                          "```risk-register\none | boundary | check\n```\n")
+        self.assertEqual(warden["brief"]["runbook_step"], source)
 
         self.run_ctl("audit-round", "--findings", "0")
         closed = self.next_json()
@@ -2040,14 +2041,18 @@ class TestAuditLoop(HexctlCase):
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("audit-round", "--findings", "1",
-                     "--fixes-commit", "beef01")
+                     "--fixes-commit", "beef01",
+                     "--elenchus-verdict", "guarded")
         self.run_ctl("audit-round", "--findings", "0")
         self.run_ctl("done", "audit")
 
     def test_no_further_leads_verdict(self):
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
-        self.run_ctl("audit-round", "--findings", "1", "--fixes-commit", "b1")
+        self.run_ctl(
+            "audit-round", "--findings", "1", "--fixes-commit", "b1",
+            "--elenchus-verdict", "guarded",
+        )
         proc = self.run_ctl("done", "audit", "--no-further-leads", expect=2)
         self.assertIn("--reason", proc.stderr)
         self.run_ctl("done", "audit", "--no-further-leads",
@@ -2057,13 +2062,213 @@ class TestAuditLoop(HexctlCase):
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
         self.run_ctl("config", "set", "audit.max_rounds", "2")
-        self.run_ctl("audit-round", "--findings", "2", "--fixes-commit", "b1")
-        self.run_ctl("audit-round", "--findings", "1", "--fixes-commit", "b2")
+        self.run_ctl(
+            "audit-round", "--findings", "2", "--fixes-commit", "b1",
+            "--elenchus-verdict", "guarded",
+        )
+        self.run_ctl(
+            "audit-round", "--findings", "1", "--fixes-commit", "b2",
+            "--elenchus-verdict", "guarded",
+        )
         proc = self.run_ctl("audit-round", "--findings", "1", expect=2)
         self.assertIn("max audit rounds", proc.stderr)
         out = self.next_json()
         self.assertEqual(out["do"], "audit-verdict")
         self.assertEqual(out["open_findings"], 1)
+
+
+class ElenchusVerdictReceiptTests(HexctlCase):
+    VERDICTS = ("guarded", "unguarded", "passed", "inconclusive")
+
+    def to_receiptable_audit(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+
+    def state_ledger_digests(self):
+        paths = (
+            os.path.join(self.target, ".hexaemeron", "state.json"),
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
+        )
+        digests = []
+        for path in paths:
+            with open(path, "rb") as handle:
+                digests.append(hashlib.sha256(handle.read()).hexdigest())
+        return tuple(digests)
+
+    def audit_events(self):
+        path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        entries = []
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                if entry["event"] == "audit-round":
+                    entries.append(entry)
+        return entries
+
+    def make_last_round_legacy(self):
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["steps"][0]["audit"]["rounds"][-1].pop("elenchus_verdict")
+        canonical_state = json.dumps(state, sort_keys=True, separators=(",", ":"))
+        with open(state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, indent=2)
+            handle.write("\n")
+
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        self.assertEqual(entries[-1]["event"], "audit-round")
+        entries[-1]["data"].pop("elenchus_verdict")
+        entries[-1]["state"] = hashlib.sha256(canonical_state.encode()).hexdigest()
+        unsigned = {key: value for key, value in entries[-1].items() if key != "hash"}
+        entries[-1]["hash"] = hashlib.sha256(
+            json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+    def test_the_closed_enum_records_state_ledger_and_stdout(self):
+        self.to_receiptable_audit()
+        for index, verdict in enumerate(self.VERDICTS, 1):
+            with self.subTest(verdict=verdict):
+                result = self.run_ctl(
+                    "audit-round", "--findings", "1",
+                    "--fixes-commit", f"fix-{index}",
+                    "--elenchus-verdict", verdict,
+                )
+                self.assertIn(f"Elenchus {verdict}", result.stdout)
+
+        rounds = self.state()["steps"][0]["audit"]["rounds"]
+        self.assertEqual(
+            [round_entry["elenchus_verdict"] for round_entry in rounds],
+            list(self.VERDICTS),
+        )
+        self.assertEqual(
+            [entry["data"]["elenchus_verdict"] for entry in self.audit_events()],
+            list(self.VERDICTS),
+        )
+
+    def test_a_fix_without_a_verdict_is_refused_without_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "1", "--fixes-commit", "fix-1",
+            expect=2,
+        )
+        self.assertIn("--elenchus-verdict", result.stderr)
+        for verdict in self.VERDICTS:
+            self.assertIn(verdict, result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_an_unknown_verdict_is_refused_without_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "1", "--fixes-commit", "fix-1",
+            "--elenchus-verdict", "unknown", expect=2,
+        )
+        self.assertIn("--elenchus-verdict", result.stderr)
+        for verdict in self.VERDICTS:
+            self.assertIn(verdict, result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_a_verdict_without_a_fix_is_refused_without_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "1",
+            "--elenchus-verdict", "guarded", expect=2,
+        )
+        self.assertIn("--elenchus-verdict requires --fixes-commit", result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_a_no_fix_round_records_an_explicit_null(self):
+        self.to_receiptable_audit()
+        result = self.run_ctl("audit-round", "--findings", "0")
+        self.assertIn("Elenchus null", result.stdout)
+        round_entry = self.state()["steps"][0]["audit"]["rounds"][0]
+        self.assertIn("elenchus_verdict", round_entry)
+        self.assertIsNone(round_entry["elenchus_verdict"])
+        event = self.audit_events()[0]
+        self.assertIn("elenchus_verdict", event["data"])
+        self.assertIsNone(event["data"]["elenchus_verdict"])
+
+    def test_next_names_the_conditional_obligation_and_exact_values(self):
+        self.to_receiptable_audit()
+        expected = {
+            "flag": "--elenchus-verdict",
+            "required_with": "--fixes-commit",
+            "choices": list(self.VERDICTS),
+        }
+        self.assertEqual(self.next_json()["elenchus_verdict"], expected)
+        self.run_ctl("audit-round", "--findings", "1")
+        self.assertEqual(self.next_json()["elenchus_verdict"], expected)
+
+    def test_warden_reconstructs_the_exact_mason_runbook_step(self):
+        self.to_steps(("Core",))
+        mason_first = self.next_json()
+        mason_second = self.next_json()
+        self.assertEqual(mason_first, mason_second)
+        self.assertEqual(
+            set(mason_first["brief"]),
+            {"runbook_step", "branch", "branch_from"},
+        )
+        expected_markdown = "## Step 1: Core\n\n**Goal.** Ship Core.\n"
+        expected_source = {
+            "markdown": expected_markdown,
+            "path": os.path.realpath(os.path.join(self.target, "runbook.md")),
+            "sha256": hashlib.sha256(
+                ("# Runbook\n\n" + expected_markdown).encode()
+            ).hexdigest(),
+            "number": 1,
+            "title": "Core",
+        }
+        self.assertEqual(mason_first["brief"]["runbook_step"], expected_source)
+
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        warden_first = self.next_json()
+        warden_second = self.next_json()
+        self.assertEqual(warden_first, warden_second)
+        self.assertEqual(
+            warden_first["brief"]["runbook_step"],
+            mason_first["brief"]["runbook_step"],
+        )
+        self.assertEqual(
+            set(warden_first["brief"]),
+            {
+                "step_branch", "stacked_branch", "security_suite", "plugin_root",
+                "audit_log_path", "round", "risk_register", "runbook_step",
+            },
+        )
+
+    def test_a_legacy_absent_key_survives_every_reader_and_later_round(self):
+        self.to_receiptable_audit()
+        self.run_ctl("audit-round", "--findings", "1")
+        self.make_last_round_legacy()
+
+        self.run_ctl("status")
+        directive = self.next_json()
+        self.assertEqual(directive["do"], "audit-round")
+        self.run_ctl("verify")
+
+        self.run_ctl(
+            "audit-round", "--findings", "0", "--fixes-commit", "legacy-fix",
+            "--elenchus-verdict", "passed",
+        )
+        self.run_ctl("done", "audit")
+        self.run_ctl("verify")
+        rounds = self.state()["steps"][0]["audit"]["rounds"]
+        self.assertNotIn("elenchus_verdict", rounds[0])
+        self.assertEqual(rounds[1]["elenchus_verdict"], "passed")
+        self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
 
 class TestProseAndPush(HexctlCase):
@@ -2567,7 +2772,8 @@ class TestFuzzRegressions(HexctlCase):
     def test_state_edit_detected_by_verify(self):
         self.to_audit_with_suite()
         self.run_ctl("audit-round", "--findings", "2", "--log", "a.md",
-                     "--fixes-commit", "fff")
+                     "--fixes-commit", "fff",
+                     "--elenchus-verdict", "guarded")
         with open(self.state_file()) as fh:
             st = json.load(fh)
         st["steps"][0]["audit"]["rounds"][0]["findings"] = 0

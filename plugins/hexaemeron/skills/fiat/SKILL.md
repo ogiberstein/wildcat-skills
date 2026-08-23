@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.11.1"
+  version: "5.12.1"
 ---
 
 # Fiat
@@ -311,7 +311,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `study` | Research the topic; write the study | [protasis](../protasis/SKILL.md) | `done study --artifact <path> --skills <csv>` |
 | `runbook` | Derive discrete steps from the study | [protasis](../protasis/SKILL.md) | `done runbook --artifact <path> --steps-file <path>` |
 | `implement` | Build the step, simplest construction that satisfies the runbook | [protasis](../protasis/SKILL.md) | `done implement --branch <name> --commit <sha> [--tests <summary>]` |
-| `audit-round` | One security round: run the suite, log, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> [--log <path>] [--fixes-commit <sha>]`, plus `--phylax-exit`, `--ephoros-exit` and `--hypomnema-exit` on a non-Solidity round |
+| `audit-round` | One security round: run the suite, log, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> [--log <path>] [--fixes-commit <sha> --elenchus-verdict <value>]`, plus `--phylax-exit`, `--ephoros-exit` and `--hypomnema-exit` on a non-Solidity round |
 | `close-audit` | Last round was clean; close the phase | [audit-loop.md](references/audit-loop.md) | `done audit [--fixes-ref <ref>]` |
 | `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 4 | `record security_suite ...` |
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
@@ -395,7 +395,13 @@ first, then `solidity-auditor`; when the step ships Solidity under Foundry or
 Hardhat, `fizz` builds or refreshes the invariant fuzz suite and its campaign
 results count as part of the round. Read each skill's SKILL.md from
 `$PLUGIN_ROOT/skills/<name>/` and follow it. Every finding is logged
-to the audit file, fixes committed to the stacked branch. Record the round even when it finds nothing.
+to the audit file, fixes committed to the stacked branch. Warden receives the
+exact source-bound runbook step and uses its test command, report format, and
+report file for any fix. A round supplying `--fixes-commit` also supplies one
+exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or
+`inconclusive`. Fiat checks and records that declaration; it does not attest
+the report bytes, and this generation does not block a non-`guarded` value.
+Record the round even when it finds nothing.
 Zero findings closes the loop; a genuine judgement that the remaining leads
 are not worth another round closes it with `--no-further-leads --reason`.
 Never report a round that did not run.

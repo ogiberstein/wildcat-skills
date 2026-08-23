@@ -16,11 +16,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "elenchus" / "scripts" / "elenchus.py"
+RUN_TESTS = ROOT / "tests" / "run_tests.py"
 
 spec = importlib.util.spec_from_file_location("elenchus_guard", SCRIPT)
 elenchus = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = elenchus
 spec.loader.exec_module(elenchus)
+
+runner_spec = importlib.util.spec_from_file_location(
+    "hexaemeron_test_runner", RUN_TESTS
+)
+hexaemeron_runner = importlib.util.module_from_spec(runner_spec)
+runner_spec.loader.exec_module(hexaemeron_runner)
 
 REPORT_FILE = ".elenchus/report"
 
@@ -421,6 +428,339 @@ class ReportValidation(unittest.TestCase):
             for path in ("/tmp/report", "../report", "link/report"):
                 with self.subTest(path=path), self.assertRaises(elenchus.ReportError):
                     elenchus.prepare_report_path(tree, path)
+
+
+class HexaemeronUnittestReport(unittest.TestCase):
+    def fixture(self, source):
+        temporary = tempfile.TemporaryDirectory(prefix="hexaemeron-runner-")
+        root = Path(temporary.name)
+        shutil.copy2(RUN_TESTS, root / "run_tests.py")
+        (root / "test_fixture.py").write_text(source, encoding="utf-8")
+        return temporary, root
+
+    def run_runner(self, root, *arguments):
+        return subprocess.run(
+            [sys.executable, str(root / "run_tests.py"), *arguments],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def test_report_has_the_exact_schema_and_every_unittest_counter(self):
+        temporary, root = self.fixture(
+            "import unittest\n\n"
+            "class Outcomes(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n"
+            "    def test_failure(self): self.fail('failure')\n"
+            "    def test_error(self): raise RuntimeError('error')\n"
+            "    @unittest.skip('skip')\n"
+            "    def test_skip(self): pass\n"
+            "    @unittest.expectedFailure\n"
+            "    def test_expected_failure(self): self.fail('expected')\n"
+            "    @unittest.expectedFailure\n"
+            "    def test_unexpected_success(self): pass\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        report = root / "reports" / "nested" / "result.json"
+
+        result = self.run_runner(root, "--elenchus-report", str(report))
+
+        self.assertEqual(1, result.returncode)
+        self.assertEqual({
+            "schema": "elenchus.unittest.v1",
+            "complete": True,
+            "testsRun": 6,
+            "failures": 1,
+            "errors": 1,
+            "skipped": 1,
+            "expectedFailures": 1,
+            "unexpectedSuccesses": 1,
+        }, json.loads(report.read_text(encoding="utf-8")))
+
+    def test_report_mode_preserves_pass_and_failure_exit_codes(self):
+        passing, pass_root = self.fixture(
+            "import unittest\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n"
+        )
+        failing, fail_root = self.fixture(
+            "import unittest\n"
+            "class Fail(unittest.TestCase):\n"
+            "    def test_fail(self): self.fail('failure')\n"
+        )
+        self.addCleanup(passing.cleanup)
+        self.addCleanup(failing.cleanup)
+        pass_report = pass_root / "pass.json"
+        fail_report = fail_root / "fail.json"
+
+        self.assertEqual(0, self.run_runner(pass_root).returncode)
+        self.assertEqual(
+            0,
+            self.run_runner(
+                pass_root, "--elenchus-report", str(pass_report)
+            ).returncode,
+        )
+        self.assertEqual(
+            1,
+            self.run_runner(
+                fail_root, "--elenchus-report", str(fail_report)
+            ).returncode,
+        )
+        self.assertTrue(pass_report.is_file())
+        self.assertTrue(fail_report.is_file())
+
+    def test_bad_arguments_are_refused_before_tests_or_report_writes(self):
+        temporary, root = self.fixture(
+            "from pathlib import Path\n"
+            "raise AssertionError('the suite must not run on bad CLI input')\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        first = root / "first.json"
+        second = root / "second.json"
+        malformed = root / "malformed.json"
+        outside = root.parent / f"{root.name}-outside.json"
+
+        cases = (
+            ("missing", ("--elenchus-report",)),
+            (
+                "repeated",
+                (
+                    "--elenchus-report", str(first),
+                    "--elenchus-report", str(second),
+                ),
+            ),
+            (
+                "unknown",
+                ("--elenchus-report", str(malformed), "--unknown"),
+            ),
+            ("empty", ("--elenchus-report", "")),
+            ("outside-worktree", ("--elenchus-report", str(outside))),
+        )
+        for name, arguments in cases:
+            with self.subTest(name=name):
+                result = self.run_runner(root, *arguments)
+                self.assertEqual(2, result.returncode)
+
+        self.assertFalse(first.exists())
+        self.assertFalse(second.exists())
+        self.assertFalse(malformed.exists())
+        self.assertFalse(outside.exists())
+
+    def test_existing_report_targets_are_refused_without_overwrite(self):
+        temporary, root = self.fixture(
+            "import unittest\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        directory = root / "directory"
+        directory.mkdir()
+        original = root / "original"
+        original.write_text("keep\n", encoding="utf-8")
+        symlink = root / "report-link"
+        symlink.symlink_to(original)
+        dangling = root / "dangling-link"
+        dangling.symlink_to(root / "missing")
+
+        for name, target in (
+            ("directory", directory),
+            ("regular", original),
+            ("symlink", symlink),
+            ("dangling-symlink", dangling),
+        ):
+            with self.subTest(name=name):
+                result = self.run_runner(
+                    root, "--elenchus-report", str(target)
+                )
+                self.assertEqual(2, result.returncode)
+
+        self.assertEqual("keep\n", original.read_text(encoding="utf-8"))
+
+    def test_suite_cannot_redirect_report_through_replaced_parent(self):
+        outside = tempfile.TemporaryDirectory(prefix="hexaemeron-report-outside-")
+        outside_root = Path(outside.name)
+        temporary, root = self.fixture("import unittest\n")
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(outside.cleanup)
+        fixture = root / "test_fixture.py"
+        fixture.write_text(
+            "from pathlib import Path\n"
+            "import unittest\n\n"
+            f"report_parent = Path({str(root / 'reports')!r})\n"
+            f"report_parent.symlink_to(Path({str(outside_root)!r}), "
+            "target_is_directory=True)\n\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n",
+            encoding="utf-8",
+        )
+        report = root / "reports" / "result.json"
+
+        result = self.run_runner(root, "--elenchus-report", str(report))
+
+        self.assertEqual(2, result.returncode)
+        self.assertFalse((outside_root / "result.json").exists())
+
+    def test_relative_report_stays_anchored_when_suite_changes_cwd(self):
+        outside = tempfile.TemporaryDirectory(prefix="hexaemeron-cwd-outside-")
+        outside_root = Path(outside.name)
+        temporary, root = self.fixture(
+            "import os\n"
+            "import unittest\n\n"
+            f"os.chdir({str(outside_root)!r})\n\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(outside.cleanup)
+
+        result = self.run_runner(root, "--elenchus-report", "result.json")
+
+        self.assertEqual(0, result.returncode)
+        self.assertTrue((root / "result.json").is_file())
+        self.assertFalse((outside_root / "result.json").exists())
+
+    def test_suite_cannot_rebind_a_saved_report_root_descriptor(self):
+        outside = tempfile.TemporaryDirectory(prefix="hexaemeron-fd-outside-")
+        outside_root = Path(outside.name)
+        temporary, root = self.fixture("import unittest\n")
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(outside.cleanup)
+        fixture = root / "test_fixture.py"
+        fixture.write_text(
+            "import os\n"
+            "from pathlib import Path\n"
+            "import unittest\n\n"
+            f"worktree = Path({str(root)!r})\n"
+            f"outside = Path({str(outside_root)!r})\n"
+            "identity = worktree.stat()\n"
+            "for candidate in range(3, 256):\n"
+            "    try:\n"
+            "        opened = os.fstat(candidate)\n"
+            "    except OSError:\n"
+            "        continue\n"
+            "    if (opened.st_dev, opened.st_ino) == "
+            "(identity.st_dev, identity.st_ino):\n"
+            "        os.close(candidate)\n"
+            "        replacement = os.open(\n"
+            "            outside, os.O_RDONLY | os.O_DIRECTORY\n"
+            "        )\n"
+            "        if replacement != candidate:\n"
+            "            raise AssertionError('descriptor slot was not reused')\n"
+            "        break\n\n"
+            "class Pass(unittest.TestCase):\n"
+            "    def test_pass(self): self.assertTrue(True)\n",
+            encoding="utf-8",
+        )
+        report = root / "nested" / "result.json"
+
+        result = self.run_runner(root, "--elenchus-report", str(report))
+
+        self.assertEqual(0, result.returncode)
+        self.assertTrue(report.is_file())
+        self.assertFalse((outside_root / "nested" / "result.json").exists())
+
+    def test_unsupported_directory_operations_are_named_before_tests(self):
+        temporary, root = self.fixture(
+            "raise AssertionError('the suite must not run')\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(hexaemeron_runner.Path, "cwd", return_value=root),
+            mock.patch.object(
+                hexaemeron_runner.os, "supports_dir_fd", set()
+            ),
+            mock.patch.object(
+                hexaemeron_runner.os, "supports_follow_symlinks", set()
+            ),
+            contextlib.redirect_stderr(stderr),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            hexaemeron_runner.main(
+                ["--elenchus-report", str(root / "result.json")]
+            )
+
+        self.assertEqual(2, raised.exception.code)
+        for name in (
+            "os.open(dir_fd)",
+            "os.mkdir(dir_fd)",
+            "os.stat(dir_fd)",
+            "os.unlink(dir_fd)",
+            "os.stat(follow_symlinks)",
+        ):
+            self.assertIn(name, stderr.getvalue())
+
+    def test_report_write_failure_has_a_distinct_exit_and_no_report(self):
+        with tempfile.TemporaryDirectory(prefix="hexaemeron-write-failure-") as root:
+            report = Path(root) / "report.json"
+            suite = unittest.TestSuite([unittest.FunctionTestCase(lambda: None)])
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(
+                    hexaemeron_runner.unittest.defaultTestLoader,
+                    "discover",
+                    return_value=suite,
+                ),
+                mock.patch.object(
+                    hexaemeron_runner,
+                    "write_report",
+                    side_effect=OSError("write blocked"),
+                ),
+                mock.patch.object(
+                    hexaemeron_runner.Path,
+                    "cwd",
+                    return_value=Path(root),
+                ),
+                contextlib.redirect_stderr(stderr),
+            ):
+                exit_code = hexaemeron_runner.main(
+                    ["--elenchus-report", str(report)]
+                )
+
+            self.assertEqual(2, exit_code)
+            self.assertFalse(report.exists())
+            self.assertIn("report write failed", stderr.getvalue())
+
+    def test_partial_report_write_is_removed_before_failure_returns(self):
+        with tempfile.TemporaryDirectory(prefix="hexaemeron-partial-write-") as root:
+            report = Path(root) / "report.json"
+            suite = unittest.TestSuite([unittest.FunctionTestCase(lambda: None)])
+            real_write = os.write
+            writes = 0
+
+            def short_then_fail(descriptor, body):
+                nonlocal writes
+                writes += 1
+                if writes == 1:
+                    return real_write(descriptor, body[: max(1, len(body) // 2)])
+                raise OSError("write blocked")
+
+            with (
+                mock.patch.object(
+                    hexaemeron_runner.unittest.defaultTestLoader,
+                    "discover",
+                    return_value=suite,
+                ),
+                mock.patch.object(
+                    hexaemeron_runner.os,
+                    "write",
+                    side_effect=short_then_fail,
+                ),
+                mock.patch.object(
+                    hexaemeron_runner.Path,
+                    "cwd",
+                    return_value=Path(root),
+                ),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                exit_code = hexaemeron_runner.main(
+                    ["--elenchus-report", str(report)]
+                )
+
+            self.assertEqual(2, exit_code)
+            self.assertEqual(2, writes)
+            self.assertFalse(report.exists())
 
 
 class LaunchFailures(RunnerCase):
