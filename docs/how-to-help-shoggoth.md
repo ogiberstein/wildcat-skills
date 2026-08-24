@@ -2,15 +2,25 @@
 
 ![One external contributor carries a bounded issue packet towards the Shoggoth.](assets/shoggoth-contributor-cover.png)
 
-You do not need to understand the whole skills suite. You need one useful job, enough access to work on it, and the patience to let Fiat leave receipts.
+You do not need to understand the whole skills suite. You need one useful job,
+enough access to work on it, and enough uninterrupted time to complete its Fiat
+run locally.
+
+Fiat does not yet support checkpointing. Work is actively ongoing; the
+repository design package starts in
+[PR #479](https://github.com/wildcat-finance/skills/pull/479). Until
+checkpointing is ready, start a Fiat run only if you can complete the entire
+run locally. If the run is interrupted or handed off before completion,
+unfinished work may be lost.
 
 ## The sixty-second version
 
-1. Pick an open, unassigned issue you can finish.
+1. Pick an open, unassigned issue you can finish in one local Fiat run.
 2. Name the exact issue URL when you invoke Fiat.
 3. Fiat writes the study and runbook before implementation starts.
 4. Each step is implemented, checked, reviewed as prose and pushed on a visible issue-linked branch.
-5. A maintainer reviews the pull request. The evidence says what ran and what remains open.
+5. Continue until the entire run is complete and its work is committed.
+6. A maintainer reviews the pull request. The evidence says what ran and what remains open.
 
 The named issue matters. Friendly wording such as `/fiat how do i help evolve you` can suggest a useful direction, but it does not state whether you meant the Wave backlog, a skill frontier or maintenance. Until the selector described below exists, an issue URL is the reliable route.
 
@@ -97,31 +107,23 @@ The domain skill does the specialist work. The phase skills govern how the work 
 
 The output includes the code diff and the evidence around it: a reviewable branch, the tests that ran, the findings that were fixed or carried forward, and a pull request that says what has not been established.
 
-## Stopping early is still useful
+## Finish the run you start
 
-You do not have to reach `integrate` for a run to be worth something. Fiat
-commits its thinking before it commits any code, so a run that stops partway
-still leaves artefacts somebody else can start from.
+The controller's state and receipt ledger live in `.hexaemeron/`, which is
+untracked. That state can remain available in the same local repository and
+working environment, but it does not provide a portable checkpoint. Another
+machine, contributor or session cannot be assumed to resume an incomplete run.
 
-| You got as far as | What is left behind | What the next person can do |
-| --- | --- | --- |
-| Study | The problem, the options, the chosen design and the risks, committed and pushed | Argue with the design on the record, or build from it |
-| Runbook | The work already cut into discrete steps with provable exits | Take one step without re-deciding the shape of the job |
-| One or more steps | Each step on its own issue-linked branch and stacked pull request, with its tests and audit log | Continue from the last pushed step |
+Committed and pushed studies, runbooks or steps may preserve some work, but
+they do not make the unfinished Fiat run resumable. A later contributor may
+need to start again, and any uncommitted work may be lost. If an interruption
+cannot be avoided, preserve what is safe to push and state plainly that the run
+is incomplete. That is damage control, not a supported handoff.
 
-The runbook is the most reusable of the three. Cutting a vague issue into steps
-that each have a checkable finish is the part that takes judgement, and it is
-the part a second contributor would otherwise have to repeat.
-
-Say where you stopped and why. A completed run lists unfinished work in its
-final pull request under `## Carried forward`. A run you are leaving earlier
-should say the same thing in its own pull request body or on the issue.
-
-**One limit worth knowing.** The controller's state and receipt ledger live in
-`.hexaemeron/`, which is untracked. Resuming is a local operation, so a
-half-finished run does not transfer to another machine. What transfers is what
-you pushed: the branches, the pull requests and the committed study and
-runbook. Push before you stop.
+Checkpointing work is active in the repository. The first design package is
+[PR #479](https://github.com/wildcat-finance/skills/pull/479). Until the
+checkpointing system is ready, begin only when you intend to complete the
+entire Fiat run locally.
 
 ## Whose inference pays for this
 
@@ -135,14 +137,17 @@ receipts and prose.
 PR #445 is the existing proof. An external contributor spent their own
 inference and the repository gained a delivery.
 
-This is why the checkpoint rule above matters. If helping meant funding a
-delivery end to end, the number of people who could help would stay near one.
-A study, a runbook or a single audited step is a real contribution at a size
-you choose.
+This is why the local-completion rule above matters. Until checkpointing ships,
+contributing through Fiat means running one complete delivery under your own
+account on your own machine. Choose a bounded issue you can finish, and do not
+start with a plan to hand off a study, runbook or partial step.
 
 ## A good first contribution
 
-Choose work that fits inside one Fiat run. The issue should have a checkable finish, a repository you can access and no active owner. Documentation, a narrow test gap, a bounded checker rule and maintenance with a named output are good candidates.
+Choose work that fits inside one Fiat run you can finish locally. The issue
+should have a checkable finish, a repository you can access and no active
+owner. Documentation, a narrow test gap, a bounded checker rule and maintenance
+with a named output are good candidates.
 
 Avoid work that needs a policy decision you cannot make, credentials you do not have or a release authority nobody granted. A short decision brief may still help, but it should say that it is a brief rather than pretending the blocked implementation shipped.
 
