@@ -13258,3 +13258,92 @@ dispositions, qualifications, unknowns, negative results, and lead disposition;
 it changes no earlier audit byte.
 
 Leads not pursued: none.
+
+## Capture receipt binding, step 1, round 1 -- 2026-08-24
+
+Non-Solidity round over the two Markdown documents step 1 commits, at
+`3dbabca3f87a5dd542fc0f49d04cbede60de1742`. Zero findings.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over both new documents and over the required tree
+`README.md AGENTS.md .agents plugins docs`. Protasis accepts the study in
+`--study` mode and the runbook in runbook mode. Imprimatur reports no defect on
+either, both scoring 100.0. Horos reports the boundary matches the tree, so
+`.horos/boundary.json` stands unchanged. The Hexaemeron suite passes 962/962.
+The commit's local signature is good and it carries exactly one co-author and
+one origin trailer.
+
+The root suite needs stating precisely, because this step's exit criterion was
+written before the receipts it describes existed. In a clean worktree of
+`3dbabca` it reports 345 tests, `OK (skipped=5)`, which is the criterion as
+written. In this run's own worktree the same command reports 5 failures, every
+one of them `tests/test_run_observation_capture.py` reading this delivery's
+`.hexaemeron/study.md` and `.hexaemeron/runbook.md` instead of issue 435's. That
+is issue 574 itself, the defect step 2 removes, and it shows up at step 1
+because writing a study and a runbook is what creates it. The tracked tree meets
+the exit and the run worktree cannot. No amendment was made: the criterion is
+right about the artefact the step delivers, and the run worktree figure is the
+reproduction step 2 starts from.
+
+Two register concerns are reachable at this step and both were checked.
+`digest-transcription`: both digests the study quotes,
+`6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404` and
+`56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5`, appear
+byte-identical in `tests/test_run_observation_capture.py`, and the base SHA the
+study states matches the run's recorded base `7f4264ecc26ac2149ddb99834433bee3b5dd9fdc`.
+`untracked-path-read`: the step changes no code, so every read in the module is
+byte-identical to the entry state. The other four concerns, `weakened-claim`,
+`guard-map-drift`, `dormant-skip` and `subprocess-argv`, sit in step 2's diff
+and are not yet reachable.
+
+Brevitas is recorded rather than gated: clean on the study, B010 and B001 on the
+runbook, which a two-step specification cannot satisfy. The shipped
+`docs/hypomnema-quoted-specimen-runbook.md` carries the same two codes on `main`.
+
+Leads not pursued: none.
+
+## Capture receipt binding, step 2, round 1 -- 2026-08-24
+
+Non-Solidity round over the test rebinding at
+`4141b8593e9c568f9e01d04c2dbd70ebd228f599`. Zero findings.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over the required tree `README.md AGENTS.md .agents plugins docs`.
+Horos reports the boundary matches the tree. `promise_machine.py` reports clean
+on `coverage --check`, `check` and `sync --check` after the module's recorded
+digest moved to
+`cb2eb238380a216033f115a23398c18072ad1f227113aae97b57a4bb74c05b74`. The Elenchus
+reporter exits 0 with 0 failures, 0 errors and 0 skipped. The root suite reports
+345 tests OK with no skips, where the same command reported 5 failures at the
+step's entry. The Hexaemeron suite passes 962/962. The commit's local signature
+is good and it carries exactly one co-author and one origin trailer.
+
+All six register concerns are reachable at this step and each was checked.
+`weakened-claim`: appending one byte to
+`docs/promise-machine/run-observation-capture-study.md` fails four of the five,
+and appending the two-byte sequence `5c 6e` to the runbook copy fails the fifth,
+so each assertion still bites on the artefact it now reads.
+`guard-map-drift`: the union-manifest test passes, so all twenty-three carryover
+ids still name a test that exists, R9-01 among them under its new name
+`test_receipt_assertions_never_read_a_live_run_path`.
+`dormant-skip`: the module reports 0 skipped, and the one remaining `skipTest`
+is the class setUp's guard for a detached parent worktree with no capture
+runtime, which is a real absence rather than a path a live run owns.
+`digest-transcription`: both recorded digests are unchanged from the entry state
+and each equals the recomputed hash of its tracked copy, which is what two of
+the five now assert.
+`untracked-path-read`: the module carries no live-run state read at all, down
+from ten lines at the step's entry, and the new guard makes that a standing
+assertion rather than a one-time check.
+`subprocess-argv`: two subprocess calls remain, the `git show` in the
+newline-escape test and the `elenchus.py --help` in R1-08, both argv lists, with
+no `shell=True` anywhere in the module.
+
+One deviation from the runbook's stated method. Its Tests field said the
+mutation proof would run against a copy in a temporary directory. It ran against
+the tracked copies in the worktree instead, restored with `git checkout --` after
+each of the two mutations, with `git status --short docs/` empty afterwards. The
+proof is the same and the tree is where it started, but the method is not the one
+the step named.
+
+Leads not pursued: none.
