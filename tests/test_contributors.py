@@ -364,7 +364,9 @@ def fake_reader(contributors_rows=None, merged=None, authors=None, issues=None, 
                 recorded = fixture(f"authors-{login}.json")
             return {"items": [{"commit": {"author": pair}} for pair in recorded]}
         if "type:issue" in path:
-            return {"items": [{"user": {"login": login}} for login in issues]}
+            page = int(path.split("&page=")[1]) if "&page=" in path else 1
+            issue_rows = [{"user": {"login": login}} for login in issues]
+            return {"total_count": len(issue_rows), "items": issue_rows if page == 1 else []}
         raise AssertionError(f"unexpected api path: {path}")
 
     return read
@@ -690,17 +692,58 @@ class Coverage(RequiresSymbol, unittest.TestCase):
             pager(read, "/x?per_page={per_page}&page={page}", "test endpoint")
         self.assertIn("truncated", str(caught.exception))
 
-    def test_stops_when_closed_issue_coverage_is_partial(self):
+    def test_closed_issue_coverage_reads_every_page(self):
+        """The first live run failed here: 391 closed issues, one page read.
+
+        Worse, the code stopped on the shortfall while its own comment said a
+        partial read is a caveat rather than a failure. The read now paginates,
+        and only the search API's hard result cap leaves a remainder.
+        """
+        pages = {
+            1: [{"user": {"login": f"user{i:03d}"}} for i in range(100)],
+            2: [{"user": {"login": f"user{i:03d}"}} for i in range(100, 200)],
+            3: [{"user": {"login": f"user{i:03d}"}} for i in range(200, 291)],
+        }
+
         def read(path):
             if "/contributors" in path:
                 return []
             if "type:issue" in path:
-                return {"total_count": 340, "items": [{"user": {"login": "someone"}}]}
+                page = int(path.split("&page=")[1])
+                return {"total_count": 291, "items": pages[page]}
             raise AssertionError(path)
 
-        with self.assertRaises(contributors.Stop) as caught:
-            contributors.compute(read, repo="x/y")
-        self.assertIn("read 1 of 340", str(caught.exception))
+        payload = contributors.compute(read, repo="x/y")
+        self.assertEqual(len(payload["issue_activity_without_ranked_commits"]), 291)
+        self.assertIsNone(payload["issue_coverage_caveat"])
+
+    def test_coverage_past_the_search_cap_is_a_caveat_not_a_stop(self):
+        """The search API refuses to serve past a thousand results. That limit
+        is nobody's defect and must not fail the refresh; it must also not be
+        silent, because silence reads as full coverage."""
+
+        def read(path):
+            if "/contributors" in path:
+                return []
+            if "type:issue" in path:
+                page = int(path.split("&page=")[1])
+                start = (page - 1) * 100
+                return {
+                    "total_count": 1400,
+                    "items": [{"user": {"login": f"user{i:04d}"}} for i in range(start, start + 100)],
+                }
+            raise AssertionError(path)
+
+        payload = contributors.compute(read, repo="x/y")
+        self.assertEqual(len(payload["issue_activity_without_ranked_commits"]), 1000)
+        caveat = payload["issue_coverage_caveat"]
+        self.assertIsNotNone(caveat)
+        self.assertIn("1000 of 1400", caveat)
+        lines = contributors.classification_lines(payload)
+        self.assertTrue(
+            any(line.startswith("caveat") for line in lines),
+            "a partial coverage read must be visible in the classification lines",
+        )
 
     def test_reports_the_corroboration_evidence_it_gathered(self):
         payload = contributors.compute(
