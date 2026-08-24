@@ -34,8 +34,8 @@ lives in the [Shoggoth identity contract](./SHOGGOTH.md).
 The [Shoggoth Wave Atlas](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/)
 offers one open issue at a time: any issue in a wave whose recorded hard
 dependencies are all closed. Choose an assistant below. The button asks the
-Atlas for one issue, then opens a new chat with its number and a
-checkpoint-aware install and Fiat request filled in. Read it, then send it.
+Atlas for one issue, then opens a new chat with its number and an install and
+Fiat request filled in. Read it, then send it.
 
 [![OpenAI · ChatGPT](https://img.shields.io/badge/OpenAI-ChatGPT-10A37F?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/chatgpt)
 [![Anthropic · Claude](https://img.shields.io/badge/Anthropic-Claude-D97757?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/claude)
@@ -43,15 +43,18 @@ checkpoint-aware install and Fiat request filled in. Read it, then send it.
 You do not need to invent the work or choose among the whole backlog. The Atlas
 already holds the list and offers an eligible issue. What the project needs
 from you is the inference and judgement to understand that bounded problem and
-move it forward at one checkpoint. You do not have to carry the whole issue to
-the end. The job may be a missing regression test, an input a checker cannot
-yet handle, a weak handoff, or support for another environment. Each accepted
-piece makes the shared system more reliable, useful, or flexible for the next
-developer.
+complete it through one local Fiat run. The job may be a missing regression
+test, an input a checker cannot yet handle, a weak handoff, or support for
+another environment. Each completed job makes the shared system more reliable,
+useful, or flexible for the next developer.
 
-The intended model lets you stop at a clean checkpoint and lets somebody else
-resume from its receipts. Durable parking of the run's `.hexaemeron` state is
-not finished yet, so reliable handover remains work in progress. The
+Fiat does not yet support checkpointing. Work is actively ongoing; the
+repository design package starts in
+[PR #479](https://github.com/wildcat-finance/skills/pull/479). Until
+checkpointing is ready, an external contributor who starts a Fiat run must
+complete the entire run locally. If the run is interrupted, abandoned, or
+handed off before completion, unfinished work may be lost. Do not assume that
+another contributor or session can resume it. The
 [contributor guide](./docs/how-to-help-shoggoth.md) and its
 [printable PDF](./docs/pdf/how-to-help-shoggoth.pdf) describe the route that
 works today. If a completed job is merged with your authorship intact, GitHub
