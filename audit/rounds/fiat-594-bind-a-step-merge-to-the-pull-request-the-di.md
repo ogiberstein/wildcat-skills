@@ -106,3 +106,46 @@ same question with no objects and no fetch. The concern stays in the register
 because the study is receipted; this is the record of why it is not reachable.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-24
+
+Non-Solidity round over the merge command in the directive, at
+`0bd4521194805290e9a214894046b27cd90156ae`. Zero findings.
+
+The three bundled lints exit 0, `scripts/promise_machine.py check` and
+`coverage --check` are clean after the recorded controller digest moved, Horos
+reports that the boundary matches the tree, the root suite reports 349 tests OK
+with no skips and the Hexaemeron suite 1,063/1,063. Four of the six new
+assertions fail against the step 2 tip.
+
+The `printed-command` register concern is the whole of this diff and was checked
+against what it warns about. The string is built from the pull request URL the
+push receipt recorded, which `GITHUB_PR_RE` has to match in full before the
+command exists at all, and from nothing else: no repository flag, no number, no
+value the operator supplies. It reaches `json.dumps` and a terminal, never
+`subprocess`, and `test_no_other_directive_gains_a_command` asserts that no other
+directive carries one. A receipt with no usable URL refuses, which
+`test_a_missing_recorded_url_refuses_rather_than_guessing` and its malformed
+companion cover, because a directive that guesses a merge target is the fault
+this run exists to remove rather than a smaller version of it.
+
+`retarget-drift` was reachable at this step and is not addressed. The study's
+option A named it as a third question the walk could answer, and the delivered
+walk answers two: has the branch moved since its push, and did the run branch
+move outside the loop. Reading each waiting step's pull request base costs a
+GitHub call per step at every directive, and the fault it would catch already
+refuses at that step's own `done merge-step`, where `inspect_pull_request`
+requires the base to be the run branch. The difference is when, not whether, and
+the two checks that did ship already move the refusal to the directive. Recorded
+as a lead rather than done quietly.
+
+`false-refusal` was re-checked: the full suite passes at 1,063 with the command
+live on every merge-step directive in every existing test.
+
+Leads not pursued: one. Retarget drift, above. A waiting step whose pull request
+base has been changed away from the run branch is still only caught at its own
+merge-step receipt rather than at the directive before it. Catching it earlier
+means one GitHub call per waiting step per directive, which is a real cost in a
+phase that already makes several per receipt, and the study's chosen option did
+not price it. Worth its own filing if a run ever loses a step to it; #429 lost
+its steps to the branch-moved fault, which does refuse at the directive now.
