@@ -40,10 +40,11 @@ skill or landing page is that member's visual reference.
 
 ## Authorship and host provenance
 
-Repository work produced by an agent after invoking a Wildcat domain or phase
-skill is authored by Shoggoth, not by the runtime host or model. Every piece of
-work produced through the Shoggoth Interceptor follows the same rule, including
-work for which the Interceptor selects no domain or phase skill.
+Authorship follows the contributing actor, not the runtime host. When that
+actor is Shoggoth, repository work produced by an agent after invoking a Wildcat
+domain or phase skill is authored by Shoggoth. Every piece of work produced
+through the Shoggoth Interceptor follows the same rule, including work for which
+the Interceptor selects no domain or phase skill.
 
 Claude, Codex, ChatGPT, Copilot, and similar host or model identities must not
 appear as the Git author, co-author, pull-request byline, or generated-by footer
@@ -53,9 +54,13 @@ environment that can sign and publish it. Host identity may remain in private
 execution metadata where it describes how the work ran rather than who authored
 it.
 
-A human contributor keeps authorship of their own work. Shoggoth provenance or
-sign-off supplements that authorship; it does not replace the human with a
-model name. Outside the Interceptor, work that invokes no Wildcat domain or
+A human contributor keeps authorship of their own work, including when a host
+helps them carry it through Fiat. The human remains the Git author and signer
+and publishes through their own GitHub account. Shoggoth provenance or sign-off
+supplements that authorship; it does not replace the human with a model name or
+make the Shoggoth private signing key or GitHub account contributor setup. Never
+request, copy, upload or provision those Shoggoth credentials for a human
+contributor. Outside the Interceptor, work that invokes no Wildcat domain or
 phase skill may retain the host's ordinary authorship.
 
 ## Boundary

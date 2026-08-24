@@ -238,6 +238,18 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertIn("[", readme)
                 self.assertIn("./plugins/%s" % name, readme)
 
+    def test_external_contributor_prose_keeps_the_human_identity(self):
+        paths = (ROOT / "README.md", ROOT / "docs" / "how-to-help-shoggoth.md")
+        for path in paths:
+            with self.subTest(path=path):
+                text = " ".join(path.read_text(encoding="utf-8").split())
+                self.assertIn("not Shoggoth", text)
+                self.assertIn("own Git author", text)
+                self.assertIn("signing identity", text)
+                self.assertIn("GitHub account", text)
+                self.assertNotIn("pull/479", text)
+                self.assertNotIn("PR #479", text)
+
     def test_root_readme_documents_how_to_publish(self):
         """Install was documented for three hosts and publishing for none.
 
