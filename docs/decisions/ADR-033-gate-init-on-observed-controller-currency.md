@@ -85,7 +85,7 @@ observed head and the two exits stated. The guarantee is only as strong as
 the network: a blanked read downgrades to `unknown` and proceeds, so the
 receipt, not the refusal, is the durable evidence in that case.
 
-The gate ships inside the artifact it gates, so it cannot govern the run
+The gate ships inside the artefact it gates, so it cannot govern the run
 that writes it; it governs every run after the next re-pin. The waiver is
 recorded evidence rather than a silence, and a receipt field that later
 proves wrong points at the observation that produced it, because every value
