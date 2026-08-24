@@ -644,10 +644,17 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        # A real push receipt always records the branch's actual head, because
+        # `done push` takes the sha the agent pushed. A placeholder like
+        # "head2" broke that invariant: the fake remote stores fake_sha(head)
+        # as the branch tip, so the receipt and the tip disagreed and the
+        # rewritten-stack refusal fired on a stack nothing had rewritten.
+        # Passing a 40-hex head makes fake_sha the identity, which is exactly
+        # the receipt-equals-tip state a genuine run is in.
         self.run_ctl(
             "done", "push",
             "--pr-url", f"https://github.com/wildcat-finance/example/pull/{step_no}",
-            "--head-commit", f"head{step_no}",
+            "--head-commit", self.fake_sha(f"head{step_no}"),
             "--pr-base", self.step_base(step_no),
         )
 
@@ -5084,3 +5091,112 @@ class GitHubSignerDiagnosis(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 module.verify_local_commit(".", "a" * 40, "step 1")
         self.assertIn("no valid local signature", captured.getvalue())
+
+
+class RewrittenStackRefusal(unittest.TestCase):
+    """The stack rewrite is caught at the first merge-step after it happens.
+
+    GitHub's native stacked-pull-request flow rebases every downstream branch on
+    each merge and re-signs the rewritten commits with its own key. Before this
+    check, the first symptom was an invalid local signature at a later
+    merge-step, which reads as a broken signing setup, and by then several steps
+    had already merged. The check compares each waiting step's remote tip with
+    the head its push receipt names, so the rewrite is named before any further
+    merge is receipted.
+    """
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+
+    def _state(self):
+        return {
+            "integrate": {"merged": [1]},
+            "steps": [
+                {"n": 1, "title": "one",
+                 "receipts": {"push": {"head_commit": "a" * 40}}},
+                {"n": 2, "title": "two",
+                 "receipts": {"push": {"head_commit": "b" * 40}}},
+                {"n": 3, "title": "three",
+                 "receipts": {"push": {"head_commit": "c" * 40}}},
+            ],
+        }
+
+    def _refusal(self, state, current_step, tips):
+        """The stderr the check dies with, or None when it returns."""
+        module = self.hexctl
+
+        def tip(_dir, branch, label="remote run branch tip"):
+            value = tips[branch]
+            if value is SystemExit:
+                module.die(f"{label} could not be read")
+            return value
+
+        captured = StringIO()
+        with mock.patch.object(module, "step_branch_name",
+                               side_effect=lambda _s, step: f"branch-{step['n']}"), \
+             mock.patch.object(module, "remote_branch_tip", side_effect=tip), \
+             redirect_stderr(captured):
+            try:
+                module.refuse_rewritten_stack(".", state, current_step)
+            except SystemExit:
+                return captured.getvalue()
+        return None
+
+    def test_an_untouched_stack_passes(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": "c" * 40}
+        )
+        self.assertIsNone(message)
+
+    def test_a_rewritten_waiting_branch_is_refused_and_the_rewrite_named(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": "d" * 40}
+        )
+        self.assertIsNotNone(message, "a rewritten waiting branch was not refused")
+        self.assertIn("has been rewritten since it was pushed", message)
+        self.assertIn("branch-3", message)
+        self.assertIn("stacked-pull-request", message)
+        self.assertIn(
+            "do not import GitHub's public key",
+            message,
+            "the wrong repair is the obvious one and must be ruled out in the message",
+        )
+
+    def test_the_step_being_merged_is_never_queried(self):
+        """The current step's branch may legitimately differ from its receipt
+        after audit-branch fast-forwards; only the WAITING steps are the rewrite
+        signal. Step order is enforced before this check runs, so the current
+        step is always the lowest unmerged one and everything below it is in
+        `merged`."""
+        module = self.hexctl
+        queried = []
+
+        def tip(_dir, branch, label="remote run branch tip"):
+            queried.append(branch)
+            return "c" * 40
+
+        with mock.patch.object(module, "step_branch_name",
+                               side_effect=lambda _s, step: f"branch-{step['n']}"), \
+             mock.patch.object(module, "remote_branch_tip", side_effect=tip):
+            module.refuse_rewritten_stack(".", self._state(), 2)
+        self.assertEqual(queried, ["branch-3"], "only the waiting steps are compared")
+
+    def test_merged_steps_are_not_compared(self):
+        state = self._state()
+        state["integrate"]["merged"] = [1, 2]
+        message = self._refusal(state, 3, {})
+        self.assertIsNone(message)
+
+    def test_an_unreadable_waiting_branch_is_reported_not_skipped(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": SystemExit}
+        )
+        self.assertIsNotNone(message)
+        self.assertIn("could not be read", message)
+        self.assertIn("step 3", message)
+
+    def test_a_step_without_a_push_receipt_is_left_alone(self):
+        state = self._state()
+        state["steps"][2]["receipts"] = {}
+        message = self._refusal(state, 2, {})
+        self.assertIsNone(message)
