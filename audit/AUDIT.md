@@ -11990,3 +11990,32 @@ dispositions, the recorded behaviour change, the three lint exits, both suite
 counts, the Promise Machine counts, the Elenchus report fields, and both
 unpursued leads survive unchanged. Only connective and process prose was
 compacted.
+
+## Fiat frontier row attribution, step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0. The re-read followed the shared slicing
+through both callers. `frontier_rows_after_anchor` is the only place the anchor
+rule lives, the gate counts what it returns, and `frontier_subtracted_rows`
+intersects the same slice with the base set, so the refusal and the receipt
+cannot name different rows. A regression asserts that agreement directly.
+
+Risk register disposition. All six ids read clean on the fixed tree.
+`base-read-failure` and `bounded-git-read` are unchanged by the fix, which
+touched neither the read nor its fallback.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 196/196, Hexaemeron suite
+912/912. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `37b6f941431452670faede130e32bef46af3fc49` has a good local signature
+and exactly one copy of each required trailer.
+
+Leads not pursued: the installed-controller split and the Brevitas budget on a
+one-step runbook, both as round 1 recorded them.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item:
+verdict, status, the three lint exits, both suite counts, the Promise Machine
+counts, the six risk ids, the fixes commit with its signature and trailer
+attribution, and both unpursued leads survive unchanged. Only connective and
+process prose was compacted.
