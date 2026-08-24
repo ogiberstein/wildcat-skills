@@ -12464,3 +12464,36 @@ those field maps as unchanged; `pull` / `push` are not those promises' result
 surface.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-24
+
+Non-Solidity round on the skill text, the generation row and ADR-022. The
+Solidity suite is waived for this run. phylax exit 0, ephoros exit 0,
+hypomnema exit 0 over `plugins/hexaemeron/skills/kronos`, `docs/decisions`
+and `docs/kronos-durable-home`.
+
+<!-- brevitas: archival-table rendered as a record because this historical table is below the 3x3 presentation threshold -->
+- id: --; severity: --; file: --; finding: none; status: --
+
+This step adds no boundary and no new subprocess. The look went at the
+records. `SKILL.md` frontmatter is `0.6.0` and matches the ledger. The new
+history row is generation `kronos-v0.6.0` with frontier revision
+`terminal-goal-loop` and digest
+`ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1`, matching
+the prior row byte for byte. Status remains `mature` and the next job remains
+`None -- mature`. ADR-022 has the dated status and the five template sections.
+The five discipline links in the committed study still resolve. The field-drift
+guard still finds every `record` field named in the skill. The demo path on a
+local bare remote: `parked` on the second tree exits 3 with the same held-job
+hash and the same reason bytes; `show` prints the pass; `git status --short`
+is empty.
+
+Root suite 310/310. Plugin suite 944/946: the two failures are
+`test_elenchus_checker.ForgeReports.test_fixture_exercised_the_declared_forge_version`
+(`1.7.1` vs local `1.4.0`) and
+`test_elenchus_checker.NodeReports.test_fixture_exercised_the_declared_node_version`
+(`v26.6.0` vs local `v22.14.0`). Both fail on the unfixed starting commit
+`2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` as well. This step does not touch
+those fixtures.
+
+Leads not pursued: none.
