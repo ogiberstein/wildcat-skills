@@ -11511,3 +11511,53 @@ Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
 local signature and exactly one copy of each required trailer.
 
 Leads not pursued: none beyond the accepted S1-R1-01, which is carried forward.
+
+## Fiat merged attribution, step 2, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records: this step
+changes a Python controller and its tests. The three bundled lints exited 0.
+The review then read the diff against every id in the study's risk register,
+and both findings came out of that read rather than out of a lint.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `checked_login` treated an `author` object carrying no usable login as an unlinked commit and recorded `null`. GitHub spells "matched to no account" as a literal `null`, so an object without a login is a payload nobody predicted, and reading it as unlinked lets a shape the reader does not understand become a claim about a person. | fixed in this round: only a literal `null` records `null`; an object must carry a login string |
+| S2-R1-02 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `verify_github_commits` was implemented over the attribution reader, so the identity checks silently gated the merge-step, integration and run-sync receipts as well. A merge commit whose author name exceeded the cap, or whose message was absent, would have refused a receipt that has nothing to do with attribution. The step widened a gate it did not declare. | fixed in this round: verification keeps its own reader and fails only on GitHub's verification result |
+
+Both fixes are guarded. Against the implementation commit
+`afd1c92a00b289538af5851e74e1307c046ab914` the two guards report
+`FAILED (failures=1, errors=2)`; against the fixed tree they pass. The
+`attribution-null-account-object` case moved out of the "records null" test and
+into the negative matrix, and
+`test_verification_alone_does_not_apply_the_attribution_checks` is new.
+
+Risk register disposition. `attribution-null-login` carried S2-R1-01 and is
+closed by the fix: a literal `null` records `null`, an unlinked author keeps its
+digest, and the refusal names the commit. `attribution-unbounded-field` is
+clean: the account login is matched against a closed expression, the name and
+address are type-checked and capped at 256 and 320 bytes, and the co-author
+count is capped at 32. `attribution-coauthor-parse` is clean: the trailer is
+parsed with the same expression the local range gate uses, so the two cannot
+disagree, and a host identity in a trailer refuses on either view.
+`attribution-private-email` is clean: the recorded container holds a login, a
+display name and a digest, and the receipt and ledger tests both assert that no
+`@` appears in the recorded bytes. `attribution-state-shape` is clean: the new
+container sits inside `steps[i].receipts`, which the version-1 spine already
+validates, so `load_state` needed no change. `attribution-ancestor-check` and
+`attribution-rewritten-merge` belong to step 3. `attribution-overclaim` is not
+applicable: this step ships no prose.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+882/882 with 8 new tests. `python3 scripts/promise_machine.py check` reports 14
+plugins and 14 copies clean after the three `fiat-*` runtime digests were
+refreshed to `64a9d2b7e16235e6503eac3b496bf281b2d9259e90a0272679175e2569b53f4a`.
+The Elenchus report at `tmp/elenchus/step-2.json` records
+`elenchus.unittest.v1`, complete, 882 tests, 0 failures.
+
+Leads not pursued, carried to step 3: `done_merge_step`'s repair path recomputes
+the verified range and the GitHub verification for a moved branch head but does
+not recompute the attribution container, so a repaired push receipt can hold
+attribution for commits that are no longer the branch tip. Step 3 owns the
+merged-state binding and must not read a stale container as current. Logged
+here rather than fixed, because the consumer does not exist yet and a guard
+written against no consumer guards nothing.

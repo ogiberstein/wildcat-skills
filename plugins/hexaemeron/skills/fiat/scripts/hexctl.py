@@ -2893,17 +2893,19 @@ def identity_digest(email: str) -> str:
 def checked_login(value: object, label: str) -> str | None:
     """The GitHub account a commit is linked to, or None when it is linked to none.
 
-    `None` is the ordinary outcome for a contributor whose commit address is
-    not on their account, so it is recorded as itself. Coercing it to a
-    placeholder would turn "GitHub could not match this" into a name.
+    A literal `null` is the ordinary outcome for a contributor whose commit
+    address is not on their account, so it is recorded as itself. Coercing it
+    to a placeholder would turn "GitHub could not match this" into a name.
+
+    An account object without a usable login is not that outcome. It is a
+    payload nobody predicted, and reading it as "unlinked" would let a shape
+    the reader does not understand become a claim about a person.
     """
     if value is None:
         return None
     if not isinstance(value, dict):
         die(f"{label} account is not an object")
     login = value.get("login")
-    if login is None:
-        return None
     if not isinstance(login, str):
         die(f"{label} account login is not a string")
     if login.casefold() in HOST_PR_LOGINS:
@@ -3312,8 +3314,22 @@ def verified_github_attribution(
 
 
 def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
-    """Require GitHub's valid verification result for each exact SHA."""
-    return verified_github_attribution(base_dir, commits)[0]
+    """Require GitHub's valid verification result for each exact SHA.
+
+    Deliberately not implemented over `verified_github_attribution`. This gate
+    also covers merge commits and the run sync, and routing it through the
+    attribution reader would make an unexpected identity shape on a merge
+    commit refuse a receipt that has nothing to do with attribution. The two
+    read the same payload for different reasons and fail for different ones.
+    """
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
+    repository = github_repository(base_dir)
+    verified = []
+    for commit_sha in commits:
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
+        verified.append(commit_sha)
+    return verified
 
 
 def scribe_files(base_dir: str, pr_base: str, branch: str) -> list[str]:

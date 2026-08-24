@@ -1590,11 +1590,9 @@ class TestMergedAttribution(HexctlCase):
         )
 
     def test_an_unlinked_author_records_an_explicit_null(self):
-        for mode in ("unlinked-author", "attribution-null-account-object"):
-            with self.subTest(mode=mode):
-                record = self.attribution_of(mode)[0]
-                self.assertIsNone(record["login"])
-                self.assertEqual(len(record["email_sha256"]), 64)
+        record = self.attribution_of("unlinked-author")[0]
+        self.assertIsNone(record["login"])
+        self.assertEqual(len(record["email_sha256"]), 64)
 
     def test_every_coauthor_trailer_becomes_its_own_identity(self):
         record = self.attribution_of("attribution-second-coauthor")[0]
@@ -1611,6 +1609,7 @@ class TestMergedAttribution(HexctlCase):
         for mode, expected in (
             ("attribution-host-account", "runtime host account"),
             ("attribution-account-not-object", "account is not an object"),
+            ("attribution-null-account-object", "account login is not a string"),
             ("attribution-bad-login", "account login is malformed"),
             ("attribution-host-author", "runtime host as author"),
             ("attribution-missing-identity", "identity is not an object"),
@@ -1632,6 +1631,25 @@ class TestMergedAttribution(HexctlCase):
                 self.assertIn(expected, error.getvalue())
                 self.assertNotIn("RAW FAKE SIGNATURE", error.getvalue())
                 self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
+
+    def test_verification_alone_does_not_apply_the_attribution_checks(self):
+        """A merge commit refuses on its signature, never on its identity shape.
+
+        `verify_github_commits` also covers the merge and sync receipts. If it
+        read identities too, an unexpected author shape on a merge commit would
+        refuse a receipt that has nothing to do with attribution.
+        """
+        module = hexctl_module()
+        for mode in ("attribution-long-name", "attribution-missing-message",
+                     "attribution-null-account-object"):
+            with self.subTest(mode=mode):
+                with mock.patch.dict(
+                    os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+                ):
+                    self.assertEqual(
+                        module.verify_github_commits(self.dir, ["a" * 40]),
+                        ["a" * 40],
+                    )
 
     def test_verification_and_attribution_share_one_request_per_sha(self):
         module = hexctl_module()
