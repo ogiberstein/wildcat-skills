@@ -2192,6 +2192,22 @@ def currency_report(
     return rows, None
 
 
+def currency_text_field(value) -> str:
+    """One row value rendered for the line-per-plugin text report.
+
+    Plugin names and versions are registry bytes, and a control byte inside
+    one would forge row boundaries -- a newline in a key prints a fabricated
+    row that the eye reads as another plugin's verdict (S3-R1-01). Controls
+    render as `?`; the exit code and `--json`, which escapes them natively,
+    are the machine surfaces either way.
+    """
+    if value is None:
+        return "null"
+    return "".join(
+        "?" if ord(ch) < 0x20 or ch == "\x7f" else ch for ch in str(value)
+    )
+
+
 def cmd_currency(args) -> None:
     """Report pin-versus-upstream currency for every installed plugin.
 
@@ -2207,7 +2223,7 @@ def cmd_currency(args) -> None:
     else:
         for row in rows:
             line = " ".join(
-                str(row[field]) if row[field] is not None else "null"
+                currency_text_field(row[field])
                 for field in ("plugin", "version", "route", "pin",
                               "observed_head", "verdict")
             )

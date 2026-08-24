@@ -695,3 +695,37 @@ class TestControllerCurrency(HexctlCase):
             controller, "currency", "--json", expect=3).stdout)
         for row in rows:
             self.assertEqual(set(row), self.ROW_FIELDS, row["plugin"])
+
+    def test_currency_text_neutralises_control_bytes_in_registry_strings(self):
+        """A control byte in a registry string cannot forge a text row (S3-R1-01).
+
+        A plugin key carrying a newline printed a fabricated line that read
+        as another plugin's all-clear row while only `--json` and the exit
+        code stayed honest; controls must render inert in text mode.
+        """
+        controller = self.fleet_layout(
+            {plugin: self.HEAD for plugin in self.FLEET})
+        registry = os.path.join(self.dir, "plugins-root",
+                                "installed_plugins.json")
+        with open(registry, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        install = payload["plugins"]["hexaemeron@wildcat-labs"][0][
+            "installPath"]
+        forged = ("zzz\nhexaemeron 9.9.9 git-backed "
+                  f"{self.HEAD} {self.HEAD} current")
+        payload["plugins"][forged + "@wildcat-labs"] = [{
+            "installPath": install,
+            "version": "1.0\n0",
+            "gitCommitSha": self.PIN,
+        }]
+        with open(registry, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+        proc = self.run_installed_ctl(controller, "currency", expect=3)
+        rows = json.loads(self.run_installed_ctl(
+            controller, "currency", "--json", expect=3).stdout)
+        lines = [line for line in proc.stdout.splitlines() if line]
+        self.assertEqual(len(lines), len(rows),
+                         "control bytes forged extra report lines")
+        self.assertEqual(
+            sum(1 for line in lines if line.startswith("hexaemeron ")), 1,
+            "a forged line impersonates another plugin's row")
