@@ -176,7 +176,7 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             merge = args[args.index("--merge-commit") + 1]
             head = pending_refs.get(state["run_branch"], self.fake_sha(state["run_branch"]))
             pending_prs[url] = self.fake_pr(
-                url, state["run_branch"], state["base"], head, merge
+                url, state["run_branch"], self.integration_base(state), head, merge
             )
         env = dict(self.env)
         env["FAKE_GIT_REFS"] = json.dumps(pending_refs)
@@ -456,11 +456,20 @@ print(json.dumps(payload))
             body += "\n## Carried forward\n\n" + carried
         return self.write(os.path.join(".hexaemeron", "run-pr.md"), body)
 
-    def init(self, topic="test topic", task_issue=None):
+    def init(self, topic="test topic", task_issue=None, base=None):
         args = ["init", "--topic", topic]
         if task_issue is not None:
             args += ["--task-issue", task_issue]
+        if base is not None:
+            args += ["--base", base]
         self.run_ctl(*args)
+
+    @staticmethod
+    def integration_base(state):
+        starting_base = state["base"]
+        if re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", starting_base):
+            return state["config"]["git"]["base"]
+        return starting_base
 
     def state(self):
         return json.loads(self.run_ctl("status", "--json").stdout)
@@ -564,8 +573,8 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         stdout, stderr = process.communicate(timeout=5)
         self.assertEqual(process.returncode, 0, (stdout, stderr))
 
-    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None):
-        self.init(task_issue=task_issue)
+    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None, base=None):
+        self.init(task_issue=task_issue, base=base)
         study = self.write(
             "study.md",
             "# Study\n\n```risk-register\n"
@@ -1753,8 +1762,8 @@ class TestMergedState(HexctlCase):
     URL = "https://github.com/wildcat-finance/example/pull/1"
     RUN_URL = "https://github.com/wildcat-finance/example/pull/9"
 
-    def to_integrate(self, push_mode="external-author"):
-        self.to_steps(("Ship",))
+    def to_integrate(self, push_mode="external-author", base=None):
+        self.to_steps(("Ship",), base=base)
         self.run_ctl(
             "done", "implement", "--branch", self.step_branch(1),
             "--commit", "abc123",
@@ -1785,7 +1794,7 @@ class TestMergedState(HexctlCase):
             state = self.state()
             self.fake_refs[state["run_branch"]] = "e" * 40
             self.fake_prs[self.RUN_URL] = self.fake_pr(
-                self.RUN_URL, state["run_branch"], state["base"],
+                self.RUN_URL, state["run_branch"], self.integration_base(state),
                 "e" * 40, "f" * 40,
             )
         if git_mode:
@@ -1968,8 +1977,8 @@ class TestMergedState(HexctlCase):
 
 
 class TestPublicationBindings(HexctlCase):
-    def to_push(self):
-        self.to_steps(("Ship",))
+    def to_push(self, base=None):
+        self.to_steps(("Ship",), base=base)
         self.run_ctl(
             "done", "implement", "--branch", self.step_branch(1),
             "--commit", "abc123",
@@ -1982,16 +1991,16 @@ class TestPublicationBindings(HexctlCase):
             "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
 
-    def to_merge_step(self):
-        self.to_push()
+    def to_merge_step(self, base=None):
+        self.to_push(base=base)
         self.run_ctl(
             "done", "push",
             "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
         )
 
-    def to_integrate(self):
-        self.to_merge_step()
+    def to_integrate(self, base=None):
+        self.to_merge_step(base=base)
         self.run_ctl(
             "done", "merge-step", "--step", "1",
             "--merge-commit", "e" * 40,
@@ -2236,13 +2245,15 @@ class TestPublicationBindings(HexctlCase):
         )
         self.assertIn("final recorded step merge", proc.stderr)
 
-    def prepare_run_sync(self, sync_sha="7" * 40, base_sha="6" * 40):
-        self.to_integrate()
+    def prepare_run_sync(
+        self, sync_sha="7" * 40, base_sha="6" * 40, starting_base=None
+    ):
+        self.to_integrate(base=starting_base)
         state = self.state()
         final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
         base_before = "4" * 40
         self.fake_refs[state["run_branch"]] = sync_sha
-        self.fake_refs[state["base"]] = base_sha
+        self.fake_refs[self.integration_base(state)] = base_sha
         self.fake_parents[sync_sha] = [final_merge, base_sha]
         self.env["FAKE_GIT_MERGE_BASE"] = base_before
         self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
@@ -2262,6 +2273,64 @@ class TestPublicationBindings(HexctlCase):
             }
         )
         return state, sync_sha, base_sha
+
+    def test_pinned_starting_commit_syncs_and_integrates_into_the_named_base(self):
+        starting_base = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        _, sync_sha, base_sha = self.prepare_run_sync(
+            starting_base=starting_base
+        )
+        directive = self.next_json()
+        self.assertEqual(directive["base"], "main")
+        self.assertEqual(directive["starting_base"], starting_base)
+
+        revalidation = self.write_integration_revalidation()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        self.assertIn("synced with main", proc.stdout)
+        sync = self.state()["integrate"]["sync"]
+        self.assertEqual(sync["base"], "main")
+        self.assertEqual(sync["starting_base"], starting_base)
+
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["base"], "main")
+        self.assertEqual(receipt["starting_base"], starting_base)
+
+    def test_integration_base_distinguishes_a_branch_from_a_pinned_commit(self):
+        module = hexctl_module()
+        self.assertEqual(
+            module.integration_base_of(
+                {"base": "release/one", "config": {"git": {"base": "main"}}}
+            ),
+            "release/one",
+        )
+        for configured, message in (
+            (None, "needs config.git.base"),
+            ("6" * 40, "must name an integration branch"),
+            ("../main", "not a usable branch name"),
+        ):
+            with self.subTest(configured=configured):
+                error = StringIO()
+                state = {
+                    "base": "5" * 40,
+                    "config": {"git": {"base": configured}},
+                }
+                with redirect_stderr(error), self.assertRaises(SystemExit):
+                    module.integration_base_of(state)
+                self.assertIn(message, error.getvalue())
 
     def write_integration_revalidation(
         self, *, affected_paths=None, checks=None

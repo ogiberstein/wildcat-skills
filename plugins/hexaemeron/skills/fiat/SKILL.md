@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.17.1"
+  version: "5.18.1"
 ---
 
 # Fiat
@@ -445,7 +445,10 @@ step's, and delete no branch here; receipt each merge before starting the next.
 Deleting a merged step's branch closes the pull request stacked on it, and a
 closed pull request whose base ref is gone can be neither reopened nor
 retargeted, so the order is not a preference. With the stack landed, open one
-pull request from the run branch into the recorded base. If concurrent work
+pull request from the run branch into the recorded base. When a run was pinned
+to an exact starting commit, that commit remains the starting-base evidence and
+`config.git.base` names the branch the run integrates into; the directive,
+sync receipt and final receipt keep both identities. If concurrent work
 advanced the base and that pull request conflicts, merge the exact remote base
 tip into the run branch once with a signed two-parent commit whose first parent
 is the final recorded step merge, push it, require GitHub valid verification,

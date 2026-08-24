@@ -226,6 +226,12 @@ With every step merged, the run branch holds the whole delivery. Open one pull
 request from the run branch into the recorded base, using the prose phase's
 run-level title and body, and apply the same provenance markers:
 
+An exact commit recorded as `state.base` remains the immutable starting point;
+it is not a remote branch name. For such a pinned run, `config.git.base` names
+the integration branch, and the integrate directive, sync receipt and terminal
+receipt record that branch beside the starting commit. A run whose starting
+base is already a branch keeps using that branch directly.
+
 ```text
 gh pr create --base <recorded base> --head <run branch> ...
 ```
