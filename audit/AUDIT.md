@@ -12437,3 +12437,47 @@ hand edited afterwards. The working tree is clean and the guard-shape comparison
 against the parent commit reports nothing that would error rather than fail.
 
 Leads not pursued: none.
+
+## H003 quoted specimen, step 1, round 1 -- 2026-08-24
+
+Non-Solidity round over the two Markdown documents step 1 commits. Zero
+findings.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over both changed documents and over the required tree
+`README.md AGENTS.md .agents plugins docs`. Protasis accepts the study and the
+runbook. Imprimatur reports no defect on either. The Hexaemeron suite passes
+935/935 and the boundary-currency guard 7/7 at commit
+`85933daa48353759b177c4a1a66588501b53d962`, whose local signature is good and
+which carries exactly one co-author and one origin trailer. The committed
+boundary still describes the tree, so `.horos/boundary.json` stands unchanged.
+
+Two register concerns are reachable at this step and both were checked.
+`code-scope-creep`: the step changes no script, so every H000 to H007 case is
+byte-identical to the entry state. `span-hides-live-pointer`: neither new
+document produces a pointer match at all, under the current rule or the one
+step 2 introduces, and the study carries exactly one Markdown link, which is
+absolute. The other five concerns sit in step 2's diff and are not yet
+reachable.
+
+Brevitas is recorded rather than gated, as the step states: B010 and B001 on
+the runbook, which a two-step specification cannot satisfy, and two B022
+line-start matches on the study where a wrapped line begins with the word
+`reading`. The shipped `docs/hypomnema-runbook-shape-check-runbook.md` carries
+the same two structure codes on `main`, and the study's bytes are frozen by its
+receipt.
+
+Leads not pursued: the root suite reports 5 failures in this worktree and none
+of them belong to this run. `tests/test_run_observation_capture.py` asserts
+that `.hexaemeron/study.md` and `.hexaemeron/runbook.md` under the repository
+root are byte-identical to the tracked issue 435 capture-profile copies,
+against the hard-coded digests
+`6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404` and
+`56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5`, and it
+skips only when those two files are absent. Every live Fiat run worktree holds
+them and they always belong to that run, so the five tests fail for every run
+except issue 435's. The same suite reports `OK (skipped=5)` on a clean checkout
+of `main` at `5d6fc67bb6c861f2be631eef2d7bef3c01c73e84`, which places the cause
+on `main` rather than in this step. Repairing it means editing another
+delivery's receipted evidence binding, which is outside issue 500 and outside
+this step's files, so it is named here rather than touched.
