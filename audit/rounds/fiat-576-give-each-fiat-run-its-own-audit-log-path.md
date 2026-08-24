@@ -139,3 +139,30 @@ and never again, so it does not reintroduce the churn; this run pays the overlap
 one last time to leave the note.
 
 Leads not pursued: none.
+
+## Step 2, round 2 -- 2026-08-24
+
+Non-Solidity round over the fixed tree at
+`02f53def2f325c7e9dd7d4784481830a234ba6ad`. Zero findings.
+
+The three bundled lints exit 0 over the same trees as round 1.
+`scripts/promise_machine.py check` and `coverage --check` are clean, Horos
+reports that the boundary matches the tree, the root suite reports 349 tests OK
+with no skips, and the Hexaemeron suite reports 1,001 tests run with 0 failures,
+0 errors and 0 skipped through the Elenchus reporter.
+
+Round 1's two fixes were re-read for what a fix can break. The section write
+takes the value `parse_value` just produced, so the in-place assignment touches
+no stored object, and the ledger still records the section it wrote.
+`args.path` cannot be both `audit` and `audit.log_path`, so the branch order
+decides nothing. A section write that drops `log_path` altogether is still
+accepted and still fails later in the Warden packet with the message that
+absence already had, which is the behaviour every other missing config key has
+and not something round 1 introduced. `run_audit_log_path` has two callers,
+`cmd_init` after `check_branch_name` and `check_audit_log_path` after the type
+guard, so neither reaches the regex with something it cannot match.
+
+All five reachable register concerns were re-checked against the fixed tree and
+each holds as recorded in round 1.
+
+Leads not pursued: none.
