@@ -242,6 +242,9 @@ if args and args[0] == "rev-parse" and "--show-toplevel" not in args:
 elif args[:3] == ["remote", "get-url", "origin"]:
     print(os.environ.get("FAKE_GIT_ORIGIN", "https://github.com/wildcat-finance/example.git"))
 elif args and args[0] == "ls-remote":
+    if os.environ.get("FAKE_GIT_LS_REMOTE_LOG"):
+        with open(os.environ["FAKE_GIT_LS_REMOTE_LOG"], "a", encoding="utf-8") as log:
+            log.write(json.dumps({{"args": args, "cwd": os.getcwd()}}) + "\\n")
     ref = args[-1]
     branch = ref.removeprefix("refs/heads/")
     refs = json.loads(os.environ.get("FAKE_GIT_REFS", "{{}}"))
