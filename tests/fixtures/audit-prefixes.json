@@ -38,5 +38,192 @@
       "lines": 262,
       "sha256": "1de310b5df5784d7e623ea9dbda83ae77e02cb1798b3aeedffc5d0c715f8e3a7"
     }
-  ]
+  ],
+  "git_witness": {
+    "schema": "fiat-audit-git-witness/v1",
+    "objects": [
+      {
+        "type": "commit",
+        "oid": "ced4e6f439021b7509833ed5da66348c86d22f01",
+        "base64": [
+          "dHJlZSBhNzUzNDE0ZjkwZTY3NTg1NzBlYWM3MTUwZTQyYTdlOGI4Yjg5MTdmCnBhcmVudCA0",
+          "NTRiZjNjOTkzMGM5NDk4NWU1ZWI2MTc5ZjNiMDFiZTJiZjc0MWMyCnBhcmVudCA2MjZlODJh",
+          "ZjM3ODA4N2ZkMDcwNjA4NGQ1ZjBlN2Y4MzE5MDRjOTQ1CmF1dGhvciBLZXRoaWMgPDk0NDE1",
+          "ODYzK2tldGhjb2RlQHVzZXJzLm5vcmVwbHkuZ2l0aHViLmNvbT4gMTc4NzQ0ODc1MiAtMDcw",
+          "MApjb21taXR0ZXIgR2l0SHViIDxub3JlcGx5QGdpdGh1Yi5jb20+IDE3ODc0NDg3NTIgLTA3",
+          "MDAKZ3Bnc2lnIC0tLS0tQkVHSU4gUEdQIFNJR05BVFVSRS0tLS0tCiAKIHdzRmNCQUFCQ0FB",
+          "UUJRSnFpazJ3Q1JDMWFRN3V1NVVobEFBQVFpNFFBR051a3EwQkR1ZWFhV3N4ZG9aQUpSTDYK",
+          "IHVaMUU1UFhRaUkzcXQycm9GSVVFUXo0d0FMS1R6QmZ6bHJ6RGVuT1JMYTdWc1F4YWpIUnYr",
+          "SEZ6cHBoQ1RPT2QKIGw1MWtFa3EzZ2tWYkhyVkdoSkZKZ0lkVHBLSHJkNFhHZTQ4Mk5OVGNL",
+          "WW1SbVhMdi9xMnJyZ2IxN0ErWVVHZmIKIFpQZit1MFFGUmoydExrMnIzL09JUmphWlNOMDRF",
+          "YmVTTUdxQURUaFpudTh5cmx4NE43T1ZESnlmRjBDMFhocisKIE1ITjNyOW8vanBGaHhkSFdi",
+          "dDNyaWtnZ2hyR2ZvWDFsVzlNZzZxMGNsN0liRy9HN1hJK1JuYUxXNyt5dkduQnAKIEZnVXpN",
+          "WFYzVjRaQXREL3pVRUZRZ0NLcEtkSytNbnlDb1h4bDdpVVNTU0ZUK0k3V1gwM2N5L0g4NjRR",
+          "MWRCeE8KIG4yaHRoMVNyeFhkcERpZW5lUzB2b2x0ZUt0SWRMQzNKUi85bVh5c2pFWHBsQ3RS",
+          "akMrRTRSS2lqSVdjRURWazIKIFhvWUFDalV4ME1HSDVQQ2RKei85WXh6TkdMbkpkemc4RUl4",
+          "SFl1RzJJZ1B0WlVJdG51NkhUUHpyNnd3YmszcG8KIEJzeXN6Y3NsZldPOWNBczJBbGw1R1py",
+          "T2VGaHYxVUIwMlQzdEUxcHlDdGV4QkJuUUVzSmlYRWtvcEtuTm42MzAKIFU3bkRKemlUbFVP",
+          "TUE0VWN3Q2N0UGprcTBaRXpLQmpyRzhUVnI1UkQ2alNlb0R3ck9ZMXdMaHZjTk1DTmdIRkUK",
+          "IE1zT3Y3eEFhMStxU2VubzlkSXVYNUU2dnRFNk5wM1ZGN0VSK0F5ZzdNbGErd0lCMm85MDJw",
+          "d2Q5MnlhTERqUGkKIFhvMis0K1hwR0Q3Vk9MMmhvSDJiCiA9UTQ3aAogLS0tLS1FTkQgUEdQ",
+          "IFNJR05BVFVSRS0tLS0tCiAKCk1lcmdlIHB1bGwgcmVxdWVzdCAjNDkzIGZyb20gd2lsZGNh",
+          "dC1maW5hbmNlL2ZpYXQvMzI3LWVsZW5jaHVzLTItZmVlZC10aGUtZ3VhcmQtdmVyZGljdC1p",
+          "bnRvLWZpYXQKCnJlY29yZCBFbGVuY2h1cyB2ZXJkaWN0cyBvbiBGaWF0IGF1ZGl0IGZpeGVz"
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "4a06e32dba182716c41c4186aee27c1abd5b9209",
+        "base64": [
+          "MTAwNjQ0IEFVRElULm1kAD7mQBvsBGIk4diLxJcLriTrn0hp"
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "64fafacb37490112d28ba35f7feaf9b8e6560203",
+        "base64": [
+          "NDAwMDAgLmNsYXVkZS1wbHVnaW4AQobRVMwgY/JHhm/i3Mp9ASGypYo0MDAwMCAuY29kZXgt",
+          "cGx1Z2luAFkcwv9p1s5CXwQMtNnd0mpfkFBkMTAwNjQ0IEFHRU5UUy5tZACw35nyfFgwOnwg",
+          "DgydAvqziNIxHTEwMDY0NCBMSUNFTlNFANVVaiTx4QLMdaBPDh5bie5fHMHiMTAwNjQ0IFBS",
+          "T01JU0VfTUFDSElORS5tZAA5TOuqe0qOyypOmGDuzFviAiHNuTEwMDY0NCBSRUFETUUubWQA",
+          "ddthvU3dHIecNKQ6nxpImHR3pRM0MDAwMCBhc3NldHMA15mbhOzEue81mSvnC2F7qihJ4Tk0",
+          "MDAwMCBhdWRpdAC2yXlizUcFvLLG/RG5PxZ5zVJNozQwMDAwIGRvY3MAiL6JPU7xbPTon8V4",
+          "ZBrBY64MkB00MDAwMCBzY3JpcHRzAA8RTiyultKTvKnlsurdmHo14yvqNDAwMDAgc2tpbGxz",
+          "AMqaRta3Sha65fP1rqDHL0wCLFXZNDAwMDAgdGVzdHMAC7dF5mdXaMqZ2mCYdueTHRv/MHQ="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "6b1bb41f57b4cfe8539b04c35d1cb99ff45c6f34",
+        "base64": [
+          "MTAwNjQ0IEFVRElULm1kAEaQOYqkSE7+vGmhEuVWcpF/8rVX"
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "6c149697eee47f1be310324d85a0f30bd5b76568",
+        "base64": [
+          "NDAwMDAgLmNsYXVkZS1wbHVnaW4A787boK2nIdM/1UD82kA+MJEjjgk0MDAwMCAuY29kZXgt",
+          "cGx1Z2luAG53ypDC8iX8ReefeQvivb/S2DJsMTAwNjQ0IEFHRU5UUy5tZAAl8b1AELAulQOz",
+          "abg11juk0MJLNTEwMDY0NCBMSUNFTlNFANVVaiTx4QLMdaBPDh5bie5fHMHiMTAwNjQ0IFBS",
+          "T01JU0VTLm1kAG0iw6fcfCx10RUJFMkAevI4CGakMTAwNjQ0IFBST01JU0VfTUFDSElORS5t",
+          "ZAA5TOuqe0qOyypOmGDuzFviAiHNuTEwMDY0NCBSRUFETUUubWQAxucUq5Nefo7ACdf2qav3",
+          "aEwkFJ80MDAwMCBhZ2VudHMAXE2cCgIiW4WwxEPX0ydTCOYUvic0MDAwMCBhdWRpdABwPxNg",
+          "EGrffq3ld5dIkFxODLj1aDQwMDAwIGRvY3MAjyJbzIs3E1vT0Y1gFtIwuKp1NVs0MDAwMCBs",
+          "aWIAk4key1mWznSFDhrPFjJbkIsMDJ00MDAwMCBza2lsbHMA+/VtyVU0Jx3VknXbhIJIlSm0",
+          "hKk0MDAwMCB0ZXN0cwBtHlNN+MyhuLAO2MW2/x2XV8kziQ=="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "6d338bb10c1de19d2d1cf12d05a95a193f431faf",
+        "base64": [
+          "NDAwMDAgLmNsYXVkZS1wbHVnaW4ADkMvGegclCqhZW6gS24MHp0/3gk0MDAwMCAuY29kZXgt",
+          "cGx1Z2luALsQ0kq9w67FJeyD4VZtlkca256pMTAwNjQ0IEFHRU5UUy5tZABEi9IZnIWYWL+l",
+          "ODmaHIS5qjYkKTEwMDY0NCBMSUNFTlNFANVVaiTx4QLMdaBPDh5bie5fHMHiMTAwNjQ0IFBS",
+          "T01JU0VfTUFDSElORS5tZAA5TOuqe0qOyypOmGDuzFviAiHNuTEwMDY0NCBSRUFETUUubWQA",
+          "WJYwa1OdRSPtF5SwSmY0yzMI9NA0MDAwMCBhZGFwdGVycwDgn/n4FSEcNtBEQZc4VDs/w/ZY",
+          "gzQwMDAwIGF1ZGl0ANVDZjiViNVqunrP4seAn/+enuzCNDAwMDAgY2F0YWxvZ3VlALAr7dZC",
+          "iZV84gYkBe9KHSKD+yOwNDAwMDAgZG9jcwAAKFhqnNUfGgG33OHU4QQPCg4UujEwMDY0NCBm",
+          "b3VuZHJ5LnRvbWwA/io0C3eQqsSvQAiHiSx7i9C2F3g0MDAwMCBpbnRlZ3JhdGlvbnMAu1pc",
+          "LCK0QAQGN5UgtfsLG+OarBc0MDAwMCBzY3JpcHRzAIHHahYnAqYb+GQPpiqLd4sxlLanMTAw",
+          "NjQ0IHNlYXJjaC1yZWNvcmQuanNvbgDIrrXLBaEoXfRjD8SRXUdiiRbrTjQwMDAwIHNraWxs",
+          "cwDFDaHt2rAxZEhyNiNzWMGTY6/+WDQwMDAwIHNwZWNpbWVucwBDkgDGYRyYgoAiBbM4LXHh",
+          "6euqvTQwMDAwIHNyYwBvqo7Ezuow6ALk5hbA9Sv6s51ScTQwMDAwIHRlc3QAoSRQoJpys1nF",
+          "8PVLgHygRkSHucQ0MDAwMCB0ZXN0cwCUVAekfFdCFoH1V22+yUm41WESBA=="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "703f1360106adf7eade5779748905c4e0cb8f568",
+        "base64": [
+          "MTAwNjQ0IEFVRElULm1kAD0s6Jo/fPmvONekbHkh3v1QQPmR"
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "7b7603bd37e4be31790e13935a8d999df492b5c2",
+        "base64": [
+          "NDAwMDAgLmNsYXVkZS1wbHVnaW4AyZETpbbH4wf1n4aFgK6nJMv/BYs0MDAwMCAuY29kZXgt",
+          "cGx1Z2luAL3aAmvRzv1l5yGBBKV5Cs8TyKiVMTAwNjQ0IEFHRU5UUy5tZAA0UTGsS4Vqxf2+",
+          "vhHhtD9rz7ZG5jEwMDY0NCBMSUNFTlNFANVVaiTx4QLMdaBPDh5bie5fHMHiMTAwNjQ0IFBS",
+          "T01JU0VfTUFDSElORS5tZAA5TOuqe0qOyypOmGDuzFviAiHNuTEwMDY0NCBSRUFETUUubWQA",
+          "X+iAMqebHPx+wkuNICienePjqyY0MDAwMCBhdWRpdABKBuMtuhgnFsQcQYau4nwavVuSCTQw",
+          "MDAwIGRvY3MAx1JQ6a0iXkwiiWDP84TuMCj49s00MDAwMCBleGFtcGxlcwCeirB86TBE5tGC",
+          "Z11Quu3gqVGaXTQwMDAwIHNjaGVtYXMAQCRrsK46Wun/qNLKYugDjlAi6oc0MDAwMCBzY3Jp",
+          "cHRzANXLBT19cHVkk9EcplXUE71XYjGBNDAwMDAgc2tpbGxzAHbBPw06ClKAFWCad2SKrbay",
+          "zKFyNDAwMDAgdGVzdHMACYsr3w1t50dEuY7d7VZxodnrDfU="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "90c7efef4540e1bdb81a2d6da5b613f5dd3303f8",
+        "base64": [
+          "NDAwMDAgLmNsYXVkZS1wbHVnaW4AG3QAuEn1VD6qP8rvVq9hNnWgGNQ0MDAwMCAuY29kZXgt",
+          "cGx1Z2luABU9JI/ZH2SgdBA1HlChbeifB40cMTAwNjQ0IEFHRU5UUy5tZABwRGxQjpBMH7jx",
+          "Y53JeMnV5MvbPjEwMDY0NCBMSUNFTlNFANVVaiTx4QLMdaBPDh5bie5fHMHiMTAwNjQ0IFBS",
+          "T01JU0VfTUFDSElORS5tZAA5TOuqe0qOyypOmGDuzFviAiHNuTEwMDY0NCBSRUFETUUubWQA",
+          "OtAwhrDFYMzZAMzYlx2GSK3SKV00MDAwMCBhdWRpdABrG7QfV7TP6FObBMNdHLmf9FxvNDQw",
+          "MDAwIGRvY3MA3hojW3LBDYRnNu7Lor6/Qkkz3YY0MDAwMCBleGFtcGxlcwCWGpYK8/563e51",
+          "gVNZGtXNK/vQOjQwMDAwIHNjaGVtYXMAzbSMVHWsxVvJ2gxdsBk2A8OZUWs0MDAwMCBzY3Jp",
+          "cHRzABpvyu52+ND3moawB6xQPe13ADKnNDAwMDAgc2tpbGxzAGhr+NFcxMzB3uxd/JDxuknn",
+          "frghNDAwMDAgdGVzdHMAQlnSOwer2QC5LvrspXjqWd05Z0g="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "a753414f90e6758570eac7150e42a7e8b8b8917f",
+        "base64": [
+          "NDAwMDAgLmFnZW50cwDUb61eT47g4/hz32d9yRm7jaOaDzQwMDAwIC5jbGF1ZGUtcGx1Z2lu",
+          "ADkvZIAOmHeDjNiPSqIoKtWPaAwdNDAwMDAgLmdpdGh1YgAY6BI/xSGJWMZ0xAf53oc76xTm",
+          "tzEwMDY0NCAuZ2l0aWdub3JlAI5XM4w3qfVVIjaD58xofm5UVaEZNDAwMDAgLmhvcm9zAE3T",
+          "IB+UzSLDmxX7Yg9vcWCgXrFQMTAwNjQ0IEFHRU5UUy5tZADtClVZUWYv72zd+yzss1HnbdBi",
+          "FzEwMDY0NCBJTlNUQUxMLm1kADnuaWikOpcD8ppVZ2IVRMQ6xZk/MTAwNjQ0IExJQ0VOU0UA",
+          "1VVqJPHhAsx1oE8OHluJ7l8cweIxMDA2NDQgUFJPTUlTRV9NQUNISU5FLm1kADlM66p7So7L",
+          "Kk6YYO7MW+ICIc25MTAwNjQ0IFJFQURNRS5tZAA54HNZvWPveXuZF7m7IIkessPxDTEwMDY0",
+          "NCBTSE9HR09USC5tZADWr7/YoQqBoVCtP51sA9Dk9DilcTQwMDAwIGFzc2V0cwD8a9ksIGX3",
+          "mreemuNBjRq5lAGM0jQwMDAwIGF1ZGl0APL6nPTD520B0WLKfrUTZeB3PlaNNDAwMDAgZG9j",
+          "cwBY0A5C+QeYWCcf7QcxroF/MmNKlDQwMDAwIHBsdWdpbnMA068f9dNzZaPo2y3qNBQx3O3V",
+          "hos0MDAwMCBzY3JpcHRzAHdpdgkaS7x5ggrmRn/YCxjNKnv8NDAwMDAgdGVzdHMAV5PmOyK0",
+          "xiE/sx9L2nrrkW7kX3k="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "b6c97962cd4705bcb2c6fd11b93f1679cd524da3",
+        "base64": [
+          "MTAwNjQ0IEFVRElULm1kACw1kt4pJ/1wxt3c/IG7nyqF52yW"
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "d3af1ff5d37365a3e8db2dea341431dcedd5868b",
+        "base64": [
+          "NDAwMDAgYWxleGFuZHJpYQDgjJ9xg1bk07Capw3KyXxM1iKXmTQwMDAwIGFyaWFkbmUAkMfv",
+          "70VA4b24Gi1tpbYT9d0zA/g0MDAwMCBiZXJlYW4A/FUAi6JV37kmblHm5nIZxTqP6vc0MDAw",
+          "MCBicmV2aXRhcwAlASHOE+3QPL11oIU7BNXdEE5hcDQwMDAwIGhlcm1lcwCDQrm2UudFTGYj",
+          "rW9MbjOSWUxi5TQwMDAwIGhleGFlbWVyb24AbBSWl+7kfxvjEDJNhaDzC9W3ZWg0MDAwMCBo",
+          "b3JvcwBTnyvL0VZIaZbNEbXS5kkPE6VSiDQwMDAwIGphbnVzAIFiA86kGcCn0qoWW1+p0QXx",
+          "WrvaNDAwMDAgbGF6YXJ1cwCVcYWZp2uM/W4vV+kItYpV0/gUkjQwMDAwIGxlbW1hAN4eCBRU",
+          "MKnP6k/i8tybPzX+ijEINDAwMDAgcGFuZGVjdHMAbTOLsQwd4Z0tHPEtBalaGT9DH680MDAw",
+          "MCBwcm9iaXRhcwBk+vrLN0kBEtKLo19/6vm45lYCAzQwMDAwIHNhcGhlbmVpYQDtjgBtYhZ6",
+          "Tj14I4m9iQrrhbUE+jQwMDAwIHRhYnVsYXJpdW0Ae3YDvTfkvjF5DhOTWo2ZnfSStcI="
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "d54366389588d56aba7acfe2c7809fff9e9eecc2",
+        "base64": [
+          "MTAwNjQ0IEFVRElULm1kABVW3DU4F3QRs5w0RkP8crw7XVHM"
+        ]
+      },
+      {
+        "type": "tree",
+        "oid": "f2fa9cf4c3e76d01d162ca7eb51365e0773e568d",
+        "base64": [
+          "MTAwNjQ0IEFVRElULm1kAKGvwZlzFta/2OHth1fNaMBWDTnQ"
+        ]
+      }
+    ]
+  }
 }

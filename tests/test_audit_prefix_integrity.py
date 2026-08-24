@@ -1,12 +1,13 @@
 """Keep every audit byte present when issue 429 started."""
 
 from pathlib import Path
+import base64
+import binascii
 import contextlib
 import hashlib
 import json
 import os
 import stat
-import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -73,14 +74,118 @@ def check_starting_ref(data, expected):
         raise ValueError(f"{expected['path']}: starting ref line count disagrees")
 
 
-def source_at(ref, path):
-    return subprocess.run(
-        ["git", "--no-replace-objects", "show", f"{ref}:{path}"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        timeout=30,
-    ).stdout
+def git_object_oid(kind, data):
+    """Return Git's object id; SHA-1 is the repository format, not a cipher."""
+    header = f"{kind} {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
+
+
+def decode_git_witness(witness):
+    """Validate and decode the commit/tree objects carried by the fixture."""
+    if not isinstance(witness, dict):
+        raise ValueError("starting ref witness is not an object")
+    if witness.get("schema") != "fiat-audit-git-witness/v1":
+        raise ValueError("starting ref witness schema disagrees")
+    items = witness.get("objects")
+    if not isinstance(items, list) or not items:
+        raise ValueError("starting ref witness objects are missing")
+
+    objects = {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("starting ref witness object is invalid")
+        kind = item.get("type")
+        oid = item.get("oid")
+        chunks = item.get("base64")
+        if kind not in {"commit", "tree"}:
+            raise ValueError("starting ref witness object type is invalid")
+        if (
+            not isinstance(oid, str)
+            or len(oid) != 40
+            or any(character not in "0123456789abcdef" for character in oid)
+        ):
+            raise ValueError("starting ref witness object id is invalid")
+        if (
+            not isinstance(chunks, list)
+            or not chunks
+            or any(not isinstance(chunk, str) for chunk in chunks)
+        ):
+            raise ValueError("starting ref witness object bytes are invalid")
+        try:
+            data = base64.b64decode("".join(chunks), validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(
+                "starting ref witness object bytes are invalid"
+            ) from exc
+        if git_object_oid(kind, data) != oid:
+            raise ValueError("starting ref witness object id disagrees")
+        if oid in objects:
+            raise ValueError("starting ref witness object is duplicated")
+        objects[oid] = (kind, data)
+    return objects
+
+
+def commit_tree_oid(data):
+    first_line = data.split(b"\n", 1)[0]
+    if len(first_line) != 45 or not first_line.startswith(b"tree "):
+        raise ValueError("starting ref commit has no root tree")
+    oid = first_line[5:].decode("ascii", errors="strict")
+    if any(character not in "0123456789abcdef" for character in oid):
+        raise ValueError("starting ref commit tree id is invalid")
+    return oid
+
+
+def tree_entries(data):
+    entries = {}
+    offset = 0
+    while offset < len(data):
+        separator = data.find(b" ", offset)
+        terminator = data.find(b"\0", separator + 1)
+        object_end = terminator + 21
+        if (
+            separator <= offset
+            or terminator <= separator + 1
+            or object_end > len(data)
+        ):
+            raise ValueError("starting ref tree object is malformed")
+        mode = data[offset:separator]
+        name = data[separator + 1 : terminator]
+        if b"/" in name or name in {b"", b".", b".."} or name in entries:
+            raise ValueError("starting ref tree entry is invalid")
+        entries[name] = (mode, data[terminator + 1 : object_end].hex())
+        offset = object_end
+    return entries
+
+
+def witness_blob_oid(objects, starting_ref, path):
+    commit = objects.get(starting_ref)
+    if commit is None or commit[0] != "commit":
+        raise ValueError("starting ref commit is absent from witness")
+    oid = commit_tree_oid(commit[1])
+    components = path.split("/")
+    if any(component in {"", ".", ".."} for component in components):
+        raise ValueError(f"{path}: starting ref path is invalid")
+
+    for index, component in enumerate(components):
+        tree = objects.get(oid)
+        if tree is None or tree[0] != "tree":
+            raise ValueError(f"{path}: starting ref tree is absent from witness")
+        entry = tree_entries(tree[1]).get(component.encode("utf-8"))
+        if entry is None:
+            raise ValueError(f"{path}: starting ref path is absent from witness")
+        mode, oid = entry
+        terminal = index == len(components) - 1
+        if terminal and mode != b"100644":
+            raise ValueError(f"{path}: starting ref file mode disagrees")
+        if not terminal and mode != b"40000":
+            raise ValueError(f"{path}: starting ref tree mode disagrees")
+    return oid
+
+
+def check_starting_ref_witness(data, expected, objects, starting_ref):
+    expected_oid = witness_blob_oid(objects, starting_ref, expected["path"])
+    if git_object_oid("blob", data) != expected_oid:
+        raise ValueError(f"{expected['path']}: starting ref blob disagrees")
 
 
 def current_source(root, path, prefix_bytes):
@@ -151,6 +256,11 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
     def setUpClass(cls):
         cls.fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
+    def witness_objects(self):
+        witness = self.fixture.get("git_witness")
+        self.assertIsNotNone(witness, "starting ref witness is missing")
+        return decode_git_witness(witness)
+
     def test_fixture_identity_and_current_prefixes(self):
         self.assertEqual(self.fixture["schema"], "fiat-audit-prefixes/v1")
         self.assertEqual(
@@ -161,34 +271,33 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
             tuple(item["path"] for item in self.fixture["prefixes"]),
             AUDIT_PATHS,
         )
+        objects = self.witness_objects()
         for expected in self.fixture["prefixes"]:
             with self.subTest(path=expected["path"]):
-                check_starting_ref(
-                    source_at(self.fixture["starting_ref"], expected["path"]),
-                    expected,
+                source = current_source(
+                    ROOT, expected["path"], expected["bytes"]
                 )
-                check_prefix(
-                    current_source(ROOT, expected["path"], expected["bytes"]),
+                check_starting_ref(source, expected)
+                check_starting_ref_witness(
+                    source,
                     expected,
+                    objects,
+                    self.fixture["starting_ref"],
                 )
+                check_prefix(source, expected)
 
-    def test_root_suite_ci_jobs_fetch_the_pinned_starting_ref(self):
-        checkout = (
-            "      - uses: actions/checkout@v4\n"
-            "        with:\n"
-            "          fetch-depth: 0"
-        )
+    def test_root_suite_ci_jobs_need_no_history(self):
         for relative, job in ROOT_SUITE_JOBS:
             with self.subTest(path=relative, job=job):
                 body = workflow_job(ROOT / relative, job)
                 self.assertIn(
                     "run: python3 -m unittest discover -s tests -v", body
                 )
-                self.assertIn(checkout, body)
+                self.assertNotIn("fetch-depth: 0", body)
 
     def test_a_changed_prefix_cannot_be_reblessed_in_the_fixture(self):
         expected = self.fixture["prefixes"][2]
-        original = source_at(self.fixture["starting_ref"], expected["path"])
+        original = current_source(ROOT, expected["path"], expected["bytes"])
         changed = bytearray(original)
         changed[10] ^= 1
         reblessed = {
@@ -197,8 +306,14 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
         }
 
         check_prefix(bytes(changed), reblessed)
-        with self.assertRaisesRegex(ValueError, "starting ref digest disagrees"):
-            check_starting_ref(original, reblessed)
+        check_starting_ref(bytes(changed), reblessed)
+        with self.assertRaisesRegex(ValueError, "starting ref blob disagrees"):
+            check_starting_ref_witness(
+                bytes(changed),
+                reblessed,
+                self.witness_objects(),
+                self.fixture["starting_ref"],
+            )
 
     def test_edit_truncate_and_insertion_fail_while_append_passes(self):
         expected = self.fixture["prefixes"][2]

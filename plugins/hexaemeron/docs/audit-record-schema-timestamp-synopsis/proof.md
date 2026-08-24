@@ -144,6 +144,12 @@ each live source still begins with these exact bytes from
 | `plugins/probitas/audit/AUDIT.md` | 52,540 / 842 | `ba532815ae3abe13be3494b96044bf5d874cfb23842249d8e1cd867186e486c9` |
 | `plugins/tabularium/audit/AUDIT.md` | 14,400 / 262 | `1de310b5df5784d7e623ea9dbda83ae77e02cb1798b3aeedffc5d0c715f8e3a7` |
 
+the round 1 correction extends that metadata with a self-contained Git
+membership witness. its 14 exact commit and tree objects occupy 5,070 decoded
+bytes and bind all six paths to the named commit without carrying the audit
+blobs. the extended fixture has SHA-256
+`bff474effb5917fce29da78b908a1986ba0c3e8e8c3e76b878d76a3e7aada7b0`.
+
 the checked-in generator then rendered all six in memory. each committed view
 matched its fresh bytes and stayed below the integer budget:
 
@@ -187,13 +193,16 @@ issues 369 or 453; the Fiat frontier text does not implement issue 363. issue
 state itself was not refreshed because this replay was required to stay
 offline.
 
-one cold-read discrepancy remains visible. commit
+the cold read found that commit
 `60697037cfa9c3929797301616c86f8c7f6fbe80` added `fetch-depth: 0` to the
 Janus, Lazarus, and Pandects workflows so their root-test jobs can resolve the
-pinned prefix commit. that is a causal fix for the permanent-prefix check, but
-it conflicts with study assumption A10 and the study's stated ask-first CI
-boundary. no later study amendment records that scope change. step 3 does not
-rewrite or expand those workflow changes.
+pinned prefix commit. that conflicts with study assumption A10 and the study's
+stated ask-first CI boundary; no later study amendment records the change.
+round 1 removes those checkout options. the prefix test now recomputes the
+object ids in the checked-in witness, walks each committed tree path, and
+matches the protected bytes to the resulting blob id. this keeps the permanent
+guard authoritative under a default shallow checkout without expanding CI
+scope.
 
 the required Brevitas report pass found a second pre-existing discrepancy.
 the runbook, proof, Fiat contract and ledger, README, Warden contract, and
