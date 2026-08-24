@@ -12437,3 +12437,81 @@ hand edited afterwards. The working tree is clean and the guard-shape comparison
 against the parent commit reports nothing that would error rather than fail.
 
 Leads not pursued: none.
+
+## Issue 436 run-observation receipt binding, step 1, round 1 -- 2026-08-24
+
+### State
+
+Audit of signed implementation `8296e09402d1061508f976cc7b9027aaccd5927a`.
+Six findings were reproduced against that tree and repaired together in signed
+commit `f22e235dad0c20485eb3e10d96d38ffd551bb4dc`. The repair does not advance a
+Fiat phase or strengthen the observation claim.
+
+### Findings
+
+| id | severity | mechanism | remediation |
+| --- | --- | --- | --- |
+| I436-S1-R1-01 | high | The controller captured one stable byte snapshot, then asked the validator to reopen the named path. An ABA replacement could therefore validate later bytes while the receipt digested earlier invalid bytes. | Added immutable-byte validation, path/byte parity guards, and made binding validate only the captured snapshot. |
+| I436-S1-R1-02 | medium | Verification summed the unbound tail after every historical prefix. Two bindings over one stream overstated the actual latest tail. | Report only the bytes after the newest verified prefix; the two-binding guard pins the exact count. |
+| I436-S1-R1-03 | high | Each binding verified in isolation, but verification did not re-establish one ordered, strictly increasing stream. A later valid binding could name a different artefact or cease extending the earlier digest. | Recompute record order, artefact identity, byte and event growth, and the earlier-prefix digest for every adjacent binding. |
+| I436-S1-R1-04 | high | A binding was joined to a ledger record only by its binding digest and line adjacency. Edited `receipt_hash` or `capture_status` record data still verified. | Require one unused exact observation record whose receipt hash and capture status equal the binding. |
+| I436-S1-R1-05 | high | Extra `record:run-observation` ledger entries with no state binding were ignored. Verification could report one clean prefix while another observation receipt was orphaned. | Require an exact count match between bindings and observation ledger records, then consume each record once. |
+| I436-S1-R1-06 | high | Verification recomputed digest, count and interval but did not rerun structural validation. Malformed bytes carrying a forbidden hidden-work field could be rehashed into state and ledger and verify cleanly. | Rerun the immutable-byte structural validator over every exact bound prefix before accepting its summary. |
+
+### Risk dispositions
+
+- `companion-path` -- exercised. Canonical confined no-follow reads, symlinked
+  file and parent refusals, and stable double reads remain green.
+- `prefix-drift` -- exercised. Replacement, truncation, reorder, ABA capture,
+  and post-receipt mutation guards refuse with `FOB003` or `FOB004`.
+- `unbound-tail` -- exercised. One and two-binding guards preserve the earlier
+  claim and report only the newest tail.
+- `run-association` -- exercised. Wrong contract and wrong run refuse without
+  echoing either rejected value.
+- `receipt-association` -- exercised and repaired. Line adjacency, exact receipt
+  fields, record data, record count, uniqueness, and increasing ledger order are checked.
+- `contract-identity` -- exercised. Binding and observation contract drift
+  refuse, and every exact prefix is structurally revalidated.
+- `count-agreement` -- exercised. Byte count, event count, interval, final
+  newline, and adjacent-prefix growth are recomputed.
+- `gate-status` -- exercised and repaired. Accepted claims require passing
+  capture, validation and redaction fields plus a fresh structural result.
+- `controller-independence` -- exercised. Ordinary `hexctl verify` remains green
+  while each corrupted dependent observation claim refuses.
+- `legacy-state` -- exercised. A version-1 run without a binding verifies
+  normally; only `verify --observations` returns `FOB001`.
+- `partial-write` -- exercised. Stable descriptor reads, exact captured-byte
+  validation, final rereads, and digest checks prevent a clean torn prefix.
+- `diagnostic-echo` -- exercised. Findings expose only stable codes, bounded
+  descriptions and recovery; hostile path and event values remain absent.
+- `binding-growth` -- exercised and repaired. The 64-binding cap, one-to-one
+  ledger join, strict extension and increasing record order bound growth.
+- `coverage-drift` -- exercised. Promise coverage binds controller, validator,
+  documentation, fixtures, both test surfaces, and every new selector.
+
+### Evidence
+
+- Focused observation and Promise surface: 157 of 157 tests passed.
+- Root suite: 349 tests run; 344 passed and five detached-receipt tests skipped
+  under their existing explicit condition.
+- Hexaemeron suite and Elenchus fixed-tree report: 955 of 955 tests passed.
+- Inoculation matrix: 1,258 cases, zero crashes and zero unexpected clean.
+- Promise Machine: 14 copies exact; 70 promises and 70 selected coverage rows.
+- Elenchus verdict for `f22e235`: `guarded`; its parent report records assertion
+  failure in the new guard surfaces, with no infrastructure substitution.
+- Phylax, Ephoros, Hypomnema, both Protasis modes, Horos, syntax, JSON, receipt
+  byte identity, diff check, and all eight per-document prose gates exited zero.
+
+### Boundary and next
+
+ADR-024 is the allocated observation-binding decision; reserved ADR-023 and
+accepted ADR-015 and ADR-022 remain unchanged. No Solidity surface exists, so
+the security suite remains waived and Phylax carries the off-chain review.
+No push, pull request, issue mutation, integration or controller receipt was
+performed by Warden. Six findings prevent closure; an independent round 2 must
+review the repaired tree.
+
+Leads not pursued: none. A filename's host-specific Unicode spelling is not a
+portable artefact claim here; the declared boundary is lexical confinement,
+no-follow regular-file access and no rejected-path echo, all of which were
+exercised.
