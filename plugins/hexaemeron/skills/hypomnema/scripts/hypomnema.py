@@ -33,6 +33,13 @@ and Consequences. Directory walks skip `fixtures` directories relative to
 the walked root, because a specimen documenting a fault is not a record;
 naming a fixtures path directly still reads it.
 
+In Markdown, a `runbook:` keyword inside an inline code span is a quoted
+specimen rather than a live pointer, so H003 passes over it. The keyword's
+own position decides that: `runbook: ` followed by a backticked path is
+still read and still resolved. Spans are paired per line, an unmatched
+backtick run stays literal text, and a backtick escaped by an odd number of
+backslashes opens nothing.
+
 An alert runbook is a Markdown file below a directory named `runbooks`.
 It carries non-empty `## What fired`, `## First check` and `## Who to wake`
 sections outside fenced examples. A reasoned pragma suppresses H007 only on
@@ -57,6 +64,10 @@ ADR_NUMBER = re.compile(r"ADR-(\d+)", re.IGNORECASE)
 # A path, not whatever word follows a colon: "a runbook: what fired" is prose.
 RUNBOOK = re.compile(r"runbook:\s*[`\"']?(?P<path>[\w./-]+\.md|[\w./-]+/[\w./-]+)[`\"']?",
                      re.IGNORECASE)
+# A quoted specimen is a mention, not a promise that the target exists. The
+# lexicon pass next door already draws this line for a banned term inside
+# quotation marks; the append-only audit ledger is where a record lint needs it.
+BACKTICK_RUN = re.compile(r"`+")
 YAML_RUNBOOK = re.compile(r"^runbook\s*:\s*(?P<path>.+?)\s*$", re.DOTALL)
 YAML_SUFFIXES = {".yaml", ".yml"}
 MAX_YAML_BYTES = 1 << 20
@@ -141,6 +152,51 @@ def _yaml_target(value: str) -> str:
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
         return value[1:-1].strip()
     return value
+
+
+def _code_spans(line: str) -> list[tuple[int, int]]:
+    """Half-open offsets of every inline code span on one line.
+
+    CommonMark pairs a backtick run with the next run of the same length and
+    leaves an unmatched run as literal text, so an odd backtick cannot open a
+    span that swallows the rest of a line. Pairing is one pass keyed by run
+    length rather than a search for a partner: this plugin's own adversarial
+    sweep uses 60k-character lines and 30k backticks, and a pair search over
+    those is quadratic in the runs that never match.
+
+    A run whose first backtick carries an odd number of preceding backslashes
+    starts one character later, because that backtick is literal text. Without
+    it an escaped pair would open a span and hide a live pointer, which is the
+    one direction this check must not fail in.
+    """
+    pending: dict[int, int] = {}
+    spans: list[tuple[int, int]] = []
+    for match in BACKTICK_RUN.finditer(line):
+        start, end = match.start(), match.end()
+        # Counted backwards from the run rather than over a prefix slice: a
+        # slice per run is linear in the line and turns 30k runs quadratic
+        # again, which is the cost this pairing exists to avoid.
+        backslashes = 0
+        cursor = start - 1
+        while cursor >= 0 and line[cursor] == "\\":
+            backslashes += 1
+            cursor -= 1
+        if backslashes % 2:
+            start += 1
+            if start == end:
+                continue
+        length = end - start
+        opened = pending.pop(length, None)
+        if opened is None:
+            pending[length] = start
+        else:
+            spans.append((opened, end))
+    return spans
+
+
+def _within(spans, index: int) -> bool:
+    """Whether one offset falls inside any span."""
+    return any(start <= index < end for start, end in spans)
 
 
 def _relative_markdown(value: str) -> bool:
@@ -470,7 +526,13 @@ def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
                 findings.append(Finding(path, number, "H002",
                                         f"superseded by `{reference}`, which does not exist"))
 
-        for match in RUNBOOK.finditer(line):
+        pointers = list(RUNBOOK.finditer(line))
+        # Only a line carrying a pointer pays for the span scan, which keeps the
+        # cost off the other 1,375 files in a tree walk.
+        spans = _code_spans(line) if pointers else ()
+        for match in pointers:
+            if _within(spans, match.start()):
+                continue
             target = match.group("path").strip("`\"'")
             if not _external(target) and not (path.parent / target).exists():
                 findings.append(Finding(path, number, "H003",

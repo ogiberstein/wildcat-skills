@@ -12481,3 +12481,98 @@ of `main` at `5d6fc67bb6c861f2be631eef2d7bef3c01c73e84`, which places the cause
 on `main` rather than in this step. Repairing it means editing another
 delivery's receipted evidence binding, which is outside issue 500 and outside
 this step's files, so it is named here rather than touched.
+
+## H003 quoted specimen, step 2, round 1 -- 2026-08-24
+
+Non-Solidity round over the checker change at
+`af576c1bc9be26ed3884a1296a0f9ad06ceb592d`. Zero findings.
+
+All three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over the required tree `README.md AGENTS.md .agents plugins docs`.
+The demo path from the study's problem statement,
+`hypomnema.py audit/AUDIT.md`, exits 0 where it reported two findings at the
+step's entry. The Hexaemeron suite passes 946/946, the evolution and version
+propagation suites 16/16, boundary currency 7/7, and Promise Machine reports
+14 plugins and 14 copies clean after the `hypomnema-record-placement` runtime
+binding digest was moved to `dff041c5b5a4db5ff9556bdae566b25bdd6d3b5229b139282d151a263f72c5be`
+to match the edited `SKILL.md`. That file, `tests/promise_machine_coverage.json`,
+is the one path this step changed that its runbook Files field did not name; the
+gate the same step's exit runs is what required it. Imprimatur and per-file
+Brevitas accept `SKILL.md` and `EVOLUTION.md`. The commit has a good local
+signature and exactly one co-author and one origin trailer.
+
+The whole-tree finding sets were compared between the parent checker at
+`008364c78a47972dc033382e5b66d7983dd39a76` and this one, vendored trees
+included. The parent reports four findings, this one reports two, and the
+difference is exactly the two intended ledger specimens at `audit/AUDIT.md`
+lines 6041 and 6186. Nothing anywhere in the repository is newly reported. The
+two surviving findings are H001 link targets in
+`plugins/hexaemeron/skills/x-ray/SKILL.md` line 344, inside the vendored Pashov
+suite the default walk excludes, and they are unchanged by this step.
+
+Every register concern was exercised. `backtick-run-blowup`: pairing is one
+pass keyed by run length and the escape count walks backwards from each run
+rather than over a prefix slice, which was the first draft and quadratic; a
+line of 30,000 runs resolves its pointer in 0.008s, one of 20,000 mixed-length
+runs in 0.006s, and 30,000 preceding backslashes in 0.002s. `span-hides-live-pointer`:
+21 hand-built probes covering bare and quoted keywords, a backticked path after
+a bare keyword, two spans with the keyword between them, a span closing
+immediately before the keyword, double and triple backtick runs, an unbalanced
+double-open, case variants, table cells, and a hash-bearing path all classify as
+specified. `unmatched-run-drift`: an unpaired run opens no span, so a single
+stray backtick cannot swallow a later pointer. `multiline-span-boundary`: a span
+opened on one line and closed on the next is not read as a span and the pointer
+stays reported. `code-scope-creep`: H001 and H002 still fire inside a span, and
+the whole-tree comparison above is the wider proof. `yaml-pass-isolation`: the
+YAML pass shares no helper with the span scan and its cases are byte-identical.
+`pragma-interaction`: suppression runs after span state is computed and still
+suppresses a live pointer.
+
+One property of the demo path was checked rather than assumed. The fence state
+machine over `audit/AUDIT.md` is balanced: 2 fence markers, 5 lines inside a
+fence, the file ends outside one, and no pointer anywhere in it is hidden by
+fence state. The clean exit is therefore a real clean and not a fence artefact.
+
+Eleven guards ship with the change. Three are red against the parent: a wholly
+quoted pointer earns no finding, an escaped backslash still opens a span, and
+both recorded ledger specimens go clean. Eight are invariance pins, green on
+both sides by construction, and the study's dated amendment of 2026-08-24
+records why demanding red from those inverts their purpose.
+
+Leads not pursued: three, each named rather than fixed.
+
+The `RUNBOOK` pattern carries no leading word boundary, so `myrunbook: a/b`
+matches and reports. That is a false positive rather than a false clean, it
+predates this step, and closing it means narrowing what H003 reads in the same
+run that narrows where it reads, which is the scope creep the study rules out
+as a non-goal.
+
+A backtick run of three or more on its own line is a fence opener under
+CommonMark and the existing scan treats it as one, so a pointer on that line is
+never reached. This is the fence rule rather than the span rule and it predates
+the step; the parity check above establishes that it hides nothing in the
+document this step unblocks.
+
+The root suite still reports the same five capture-profile failures step 1
+recorded, from the issue 435 receipt binding on `main`. Nothing in this step
+touches them.
+
+## H003 quoted specimen, step 2, round 2 -- 2026-08-24
+
+Against the tree with round 1's record appended. Zero findings.
+
+All three lints exit 0 again, the demo path over `audit/AUDIT.md` exits 0, and
+the focused Hypomnema suite passes 91/91.
+
+Round 1's own record turned out to be the clearest evidence the change was
+needed. That block quotes a pattern specimen inside a code span, and the parent
+checker at `008364c78a47972dc033382e5b66d7983dd39a76` reports H003 on it at
+line 12544 for the target `a/b`, alongside the two older specimens at 6041 and
+6186. The fixed checker reports none of the three. So the defect was not a
+historical residue of two frozen lines: an ordinary round writing an ordinary
+record added a third instance, permanently, on a file whose append-only
+contract forbids the repair. That is what the three earlier rounds were
+recording as a lead each time they met it.
+
+Leads not pursued: the three named in round 1 stand unchanged, and no new lead
+was found.
