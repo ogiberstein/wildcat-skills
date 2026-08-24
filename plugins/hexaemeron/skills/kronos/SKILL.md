@@ -252,7 +252,7 @@ times out, or exceeds the output cap refuses with `K021`. `record`, `park`,
 Kronos diagnostics.
 
 The store decision is
-[ADR-022](../../../../docs/decisions/ADR-022-store-kronos-working-state-on-a-dedicated-git-ref.md).
+[ADR-023](../../../../docs/decisions/ADR-023-store-kronos-working-state-on-a-dedicated-git-ref.md).
 
 ## Hard rules
 

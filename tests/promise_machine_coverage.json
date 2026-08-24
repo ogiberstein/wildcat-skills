@@ -451,6 +451,26 @@
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
       "selector": "test_state_edit_detected_by_verify"
     },
+    "fiat-sync-m": {
+      "claim": "A replacement without the exact active sync receipt or a bounded reason is refused before composition evidence changes.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_supersession_requires_a_receipt_and_reason"
+    },
+    "fiat-sync-p": {
+      "claim": "One signed replacement retains the failed receipt and exact product evidence while making only the replacement eligible for integration.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_run_supersedes_one_failed_composition_without_reopening_product"
+    },
+    "fiat-sync-r": {
+      "claim": "Composition repair remains bounded to an existing receipt and stops after eight recorded replacements.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_supersession_is_bounded_and_requires_an_existing_receipt"
+    },
+    "fiat-sync-s": {
+      "claim": "A stale sync identity, same-commit replacement or malformed reason cannot inherit the active receipt's authority.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_supersession_refuses_stale_or_malformed_subject_evidence"
+    },
     "hermes-corpus-m": {
       "claim": "Missing required evidence is refused rather than treated as success.",
       "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
@@ -1386,11 +1406,11 @@
     },
     {
       "cases": {
-        "M": "fiat-m",
+        "M": "fiat-sync-m",
         "O": "fiat-o",
-        "P": "fiat-p",
-        "R": "fiat-r",
-        "S": "fiat-s",
+        "P": "fiat-sync-p",
+        "R": "fiat-sync-r",
+        "S": "fiat-sync-s",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."
@@ -2429,6 +2449,74 @@
     },
     "transition": "treat only the named bytes as structurally conforming and pass the bounded result without strengthening it"
   },
+  "run_observation_capture": {
+    "contract": "promise-machine-run-observation-capture/v1",
+    "documentation": {
+      "path": "docs/promise-machine/run-observation-capture-v1.md",
+      "sha256": "7b6743d2d3d754d0fa43d3d69387924bd9679c7f5615c5093c3a9b1bc3a51df0"
+    },
+    "fixtures": [
+      {
+        "path": "tests/fixtures/run-observation-capture/valid/accepted.json",
+        "sha256": "a37b73b4c081aa8fa717b6984b946ce491f7935c584413f67f7c793585833994"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/valid/fingerprinted.json",
+        "sha256": "fcc4631afe2fd78bc4e79ba6043a0d5f33a478d4c716eedb2b05c7038ffafe2d"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/valid/gap.json",
+        "sha256": "42347ea70ec34b86406a50624d66f8c7bbb6c39e5b22198b3df26db469ae74d2"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/invalid/raw-payload.json",
+        "sha256": "756d1cc40cec78bc76e5660639c7e44618fad8168bbabd2263ac87d8b8160133"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/invalid/unsafe-path.json",
+        "sha256": "cfb73e995c205f9a43b085a7f5a4d428aa35887b602e1cfb349644ae5a29168d"
+      }
+    ],
+    "promise_id": "promise-machine-run-observation-capture",
+    "reporter": {
+      "path": "tests/emit_run_observation_capture_report.py",
+      "sha256": "e0ee8f9c57970e943d0646f950e068a1561ce83e1501cd6a1a38caf8d545e526"
+    },
+    "runtime": {
+      "path": "scripts/run_observation_capture.py",
+      "sha256": "a2c964edb4024a6287e6d6173dba6d606a6fb247e75b19c4b2b6348b77390e55"
+    },
+    "schema_source": {
+      "path": "schemas/promise-machine-run-observation-capture-v1.schema.json",
+      "sha256": "3015cc3a7e482a568fda40fad7e37cdefb7830dd4570110e010aa7fce8efff49"
+    },
+    "tests": [
+      {
+        "path": "tests/test_run_observation_capture.py",
+        "selectors": [
+          "test_accepted_candidate_has_only_allowed_descriptors",
+          "test_forbidden_payload_becomes_a_safe_gap_without_echo",
+          "test_path_is_dehosted_and_escape_is_a_gap",
+          "test_high_entropy_fingerprint_is_scoped_and_source_is_absent",
+          "test_writer_refuses_bypass_and_never_writes_a_gap",
+          "test_schema_and_runtime_document_the_same_closed_vocabulary"
+        ],
+        "sha256": "e5ebb367e03aea24a311414253497c98d191c705f43226e6af1e7bc278ae3c8d"
+      },
+      {
+        "path": "tests/test_run_observation_capture_inoculation.py",
+        "selectors": [
+          "test_every_hostile_location_becomes_a_safe_gap",
+          "test_aliases_nested_values_and_unknown_objects_do_not_bypass_allowlist",
+          "test_bad_redaction_unknown_method_and_low_entropy_do_not_persist",
+          "test_non_nfc_and_symlink_escape_paths_are_gaps",
+          "test_container_and_input_ceilings_refuse_without_echo"
+        ],
+        "sha256": "c2d765083a2e04a38700451f2480a3343d16c337c4d547007e2a32a1ac711396"
+      }
+    ],
+    "transition": "pass only an accepted capture result to the durable writer, or retain the bounded gap or refusal"
+  },
   "runtime": {
     "alexandria-derived-view": {
       "bindings": {
@@ -2539,7 +2627,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
+      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2553,7 +2641,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
+      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2567,7 +2655,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
+      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {

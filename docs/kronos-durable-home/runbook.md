@@ -153,7 +153,7 @@ generation row `kronos-v0.6.0` retaining frontier revision
 `terminal-goal-loop` and digest
 `ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1` byte for
 byte, with status still `mature` and next job still `None -- mature`.
-`docs/decisions/ADR-022-store-kronos-working-state-on-a-dedicated-git-ref.md`
+`docs/decisions/ADR-023-store-kronos-working-state-on-a-dedicated-git-ref.md`
 records the chosen store and the three options the study rejected. The
 field-drift guard still finds every `record` field named in the skill.
 Proved by `python3 -m unittest discover -s tests -p "test_*.py"`, which is
@@ -181,7 +181,7 @@ git -C <B> status --short   # empty
 
 **Files.** `plugins/hexaemeron/skills/kronos/SKILL.md`,
 `plugins/hexaemeron/skills/kronos/EVOLUTION.md`,
-`docs/decisions/ADR-022-store-kronos-working-state-on-a-dedicated-git-ref.md`.
+`docs/decisions/ADR-023-store-kronos-working-state-on-a-dedicated-git-ref.md`.
 
 **Tests.** No new test file. The root suite's evolution-contract and
 version-propagation cases prove the ledger row and the version bump agree,
@@ -203,5 +203,5 @@ documents. ephoros: none beyond what step 2 emits; the skill text now says
 when those two lines are printed. metron: none, no performance claim.
 elenchus: none, no failure in hand. hypomnema: the two decisions the study
 named as expensive to reverse are recorded here, the store location in
-ADR-022 because harnesses will grow against it, and the generation row in
+ADR-023 because harnesses will grow against it, and the generation row in
 the skill ledger because Kronos stays mature.

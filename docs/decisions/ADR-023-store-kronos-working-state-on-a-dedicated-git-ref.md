@@ -1,4 +1,4 @@
-# ADR-022: Store Kronos working state on a dedicated git ref
+# ADR-023: Store Kronos working state on a dedicated git ref
 
 ## Status
 
@@ -7,6 +7,12 @@ Accepted, 2026-08-24. Recorded for
 the dirty-tree rule recorded in
 [docs/kronos-ranking-scoreboard/study.md](../kronos-ranking-scoreboard/study.md)
 and on S2-R1-01, which forbids writing through a symlink at `.kronos`.
+
+The product tree receipted this decision as ADR-022. Composition with current
+`main` found that number already assigned to the run-observation capture
+profile, so integration moved this record to ADR-023 without changing the
+decision. The receipted study and runbook remain unchanged as evidence of the
+product tree.
 
 ## Context
 
