@@ -1,5 +1,63 @@
 {
   "contract": "promise-machine/v1",
+  "contributor_ranking": {
+    "contract": "promise-machine-contributor-ranking/v1",
+    "documentation": {
+      "path": "docs/promise-machine/contributors-v1.md",
+      "sha256": "88a503abed3b32e91b294b2be7af841eb85abd3913b2a125147143a0a4758fd9"
+    },
+    "fixtures": [
+      {
+        "path": "tests/fixtures/contributors/authors-kethcode.json",
+        "sha256": "167bb1ab5a14aebd45be463191cfe871fcb239fe4d9c9f3ed493e4576a2905c7"
+      },
+      {
+        "path": "tests/fixtures/contributors/authors-radup1337.json",
+        "sha256": "e1fba9a46e9d5615fb2b5bbcc7f03bcf7e1f1007be84e62463a8a54358ed6d7f"
+      },
+      {
+        "path": "tests/fixtures/contributors/contributors.json",
+        "sha256": "f7f3d9e21eb378d53cfb74b1df5555dd759ce85ce5f04c78d99dab0e1e5f6110"
+      }
+    ],
+    "promise_id": "promise-machine-contributor-ranking",
+    "runtime": {
+      "path": "scripts/contributors.py",
+      "sha256": "bdd679c72e1ce360fde684125d34fb7504103529905e9e12cc9f067aea17b805"
+    },
+    "tests": {
+      "path": "tests/test_contributors.py",
+      "selectors": [
+        "test_a_rerun_that_changed_nothing_produces_no_diff",
+        "test_an_interrupted_write_leaves_the_original_intact",
+        "test_check_names_the_file_that_is_out_of_date",
+        "test_equal_counts_order_deterministically",
+        "test_names_a_reason_for_every_exclusion",
+        "test_no_api_field_other_than_login_reaches_the_payload",
+        "test_no_excluded_login_reaches_either_artefact",
+        "test_one_human_split_across_two_emails_ranks_once",
+        "test_ranks_only_the_human_contributors",
+        "test_readme_block_carries_handles_and_no_aggregate",
+        "test_shoggoth_is_never_ranked",
+        "test_stops_on_a_changed_member_of_a_known_set",
+        "test_stops_on_a_readme_that_is_not_utf8",
+        "test_stops_on_a_repository_carrying_query_syntax",
+        "test_stops_on_an_unknown_account_type",
+        "test_stops_on_api_failure",
+        "test_stops_on_bad_login_grammar",
+        "test_stops_on_host_set_drift",
+        "test_stops_on_markers_in_the_wrong_order",
+        "test_stops_on_one_marker_without_the_other",
+        "test_stops_on_owner_in_output",
+        "test_stops_on_unknown_identity",
+        "test_the_digest_changes_when_the_ranking_changes",
+        "test_the_digest_covers_the_ranking_and_nothing_else",
+        "test_the_real_reader_stops_on_an_unroutable_host"
+      ],
+      "sha256": "a52b5edfaf58e96c992e680a2e390a44a756d67a4393b546ada71002a3bf7ff7"
+    },
+    "transition": "place every contributor row in exactly one of ranked, excluded with a named reason, or refused, and render both artefacts from that one computation without strengthening what the counts mean"
+  },
   "evidence": {
     "alexandria-m": {
       "claim": "Missing required evidence is refused rather than treated as success.",
