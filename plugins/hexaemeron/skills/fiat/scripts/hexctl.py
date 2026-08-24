@@ -408,7 +408,21 @@ def refuse_audit_renderer(message) -> None:
         if binary_stderr is None:
             sys.stderr.write(frame.decode("ascii"))
         else:
-            binary_stderr.write(frame)
+            remaining = frame
+            while remaining:
+                written = binary_stderr.write(remaining)
+                if (
+                    isinstance(written, bool)
+                    or not isinstance(written, int)
+                    or written <= 0
+                    or written > len(remaining)
+                ):
+                    break
+                remaining = remaining[written:]
+            if not remaining:
+                flush = getattr(binary_stderr, "flush", None)
+                if callable(flush):
+                    flush()
     except (Exception, SystemExit):
         pass
     raise SystemExit(2)

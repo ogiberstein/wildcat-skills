@@ -2894,6 +2894,95 @@ class AuditRecordSchemaTests(HexctlCase):
                 finally:
                     stderr.detach()
 
+    def test_renderer_diagnostic_completes_binary_short_writes(self):
+        controller = hexctl_module()
+        expected = b"hexctl: error: renderer refusal\n"
+
+        class ShortBuffer:
+            def __init__(self, limit):
+                self.limit = limit
+                self.output = bytearray()
+                self.flushed = False
+
+            def write(self, value):
+                size = min(self.limit, len(value))
+                self.output.extend(value[:size])
+                return size
+
+            def flush(self):
+                self.flushed = True
+
+        for limit in (1, 3, len(expected) - 1):
+            with self.subTest(limit=limit):
+                stderr = argparse.Namespace(buffer=ShortBuffer(limit))
+                with mock.patch.object(controller.sys, "stderr", stderr):
+                    with self.assertRaises(SystemExit) as raised:
+                        controller.refuse_audit_renderer("renderer refusal")
+                self.assertEqual(raised.exception.code, 2)
+                self.assertEqual(bytes(stderr.buffer.output), expected)
+                self.assertTrue(stderr.buffer.flushed)
+
+    def test_renderer_diagnostic_binary_write_boundaries_preserve_exit(self):
+        controller = hexctl_module()
+        full_write = object()
+
+        class BoundaryBuffer:
+            def __init__(
+                self, *, result=full_write, write_error=None, flush_error=None
+            ):
+                self.result = result
+                self.write_error = write_error
+                self.flush_error = flush_error
+
+            def write(self, value):
+                if self.write_error is not None:
+                    raise self.write_error
+                return len(value) if self.result is full_write else self.result
+
+            def flush(self):
+                if self.flush_error is not None:
+                    raise self.flush_error
+
+        for result in (None, 0, -1, True, 10_000):
+            with self.subTest(result=result):
+                stderr = argparse.Namespace(buffer=BoundaryBuffer(result=result))
+                with mock.patch.object(controller.sys, "stderr", stderr):
+                    with self.assertRaises(SystemExit) as raised:
+                        controller.refuse_audit_renderer("renderer refusal")
+                self.assertEqual(raised.exception.code, 2)
+
+        for stage in ("write", "flush"):
+            for failure in (OSError("diagnostic failure"), SystemExit(0)):
+                with self.subTest(stage=stage, failure=type(failure).__name__):
+                    stderr = argparse.Namespace(buffer=BoundaryBuffer(**{
+                        f"{stage}_error": failure,
+                    }))
+                    with mock.patch.object(controller.sys, "stderr", stderr):
+                        with self.assertRaises(SystemExit) as raised:
+                            controller.refuse_audit_renderer("renderer refusal")
+                    self.assertEqual(raised.exception.code, 2)
+
+        for stage in ("write", "flush"):
+            for failure in (KeyboardInterrupt(), GeneratorExit()):
+                with self.subTest(stage=stage, failure=type(failure).__name__):
+                    stderr = argparse.Namespace(buffer=BoundaryBuffer(**{
+                        f"{stage}_error": failure,
+                    }))
+                    with mock.patch.object(controller.sys, "stderr", stderr):
+                        try:
+                            controller.refuse_audit_renderer("renderer refusal")
+                        except BaseException as error:
+                            caught = error
+                        else:
+                            self.fail("renderer diagnostic did not terminate")
+                    self.assertIs(caught, failure)
+
+        stderr = StringIO()
+        with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+            controller.refuse_audit_renderer("renderer refusal")
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(stderr.getvalue(), "hexctl: error: renderer refusal\n")
+
     def test_renderer_diagnostic_emission_cannot_report_false_success(self):
         controller = hexctl_module()
 
