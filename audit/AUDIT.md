@@ -12693,3 +12693,73 @@ receipt was performed by Warden. Two findings require an independent round 4.
 
 Leads not pursued: no new product mechanism after the complete fixed-tree
 matrix.
+
+## Issue 436 run-observation receipt binding, step 1, round 4 -- 2026-08-24
+
+### State
+
+Independent review of the signed round-3 tree at
+`69a9ab36a307e58cf4da24933451a44e0bbae064`. The controller verified an
+11-entry intact chain before review. No product or dependency bytes changed
+after the fixed-tree reporter and root evidence recorded in round 3. This
+round found zero product findings.
+
+### Risk dispositions
+
+- `companion-path` -- re-read. The final no-follow directory chain remains
+  bound to the run root; the parent-escape regression refuses.
+- `prefix-drift` -- re-read. Bind and verify still refuse replacement before,
+  during, and after validation.
+- `unbound-tail` -- re-read. The selected prefix remains distinct from later
+  bytes in the same stream.
+- `run-association` -- re-read. The controller-derived run identity and
+  observation event identity remain exact.
+- `receipt-association` -- re-read. A malformed matching ledger data value
+  returns `FOB003`, not a Python exception.
+- `contract-identity` -- re-read. Immutable bytes undergo the validator and
+  closed interval checks before a receipt claim.
+- `count-agreement` -- re-read. Digest, byte count, event count, and
+  contiguous interval remain recomputed.
+- `gate-status` -- re-read. Only accepted capture, passing validation, and
+  passing redaction can support the dependent claim.
+- `controller-independence` -- re-read. Ordinary controller verification
+  remains separate from the optional observation claim.
+- `legacy-state` -- re-read. The explicit observation verifier retains the
+  bounded absence result for an older run.
+- `partial-write` -- re-read. Stable double reads and the final named reread
+  refuse torn, replaced, or escaped subjects.
+- `diagnostic-echo` -- re-read. Refusals expose codes and recovery only.
+- `binding-growth` -- re-read. Ordered receipt joins, strict extension, and
+  the binding cap remain in force.
+- `coverage-drift` -- re-read. Promise source digests, reporter guard, and
+  all selected coverage rows remain current.
+
+### Evidence
+
+- The fresh binding and observation-validator slice passed 88 of 88 tests in
+  28.468 seconds. It includes the three post-validation and parent-escape
+  refusal guards.
+- A direct malformed-ledger-data probe returned the bounded `FOB003`
+  refusal. Positional and flagged reporter forms both resolved to confined
+  in-worktree targets without creating a file; the duplicate-form probe exited
+  2 before a write.
+- The unchanged signed product tree retains round 3's fixed reporter result of
+  959 of 959 tests passed and root result of 349 of 349 passed with five
+  explicit detached-receipt skips. The 1,258-case inoculation matrix has zero
+  crashes and zero unexpected clean results.
+- Promise Machine remains at 14 exact copies and 70 selected coverage rows of
+  70. The required discipline, copy, prose, syntax, JSON, Horos, and diff
+  gates have the clean exits recorded in round 3.
+
+### Boundary and next
+
+No repair was made in this round, so no new Elenchus comparison is claimed.
+The round-3 source-bound result remains `passed` with its classifier
+limitation recorded there. Whole-file Brevitas retains historical findings
+before the issue #436 sections; no new-line defect is introduced here.
+No push, pull request, issue mutation, integration, or controller receipt was
+performed by Warden. A zero-finding record permits the controller's audit-close
+transition.
+
+Leads not pursued: no new mechanism after the receipt, path, reporter, and
+coverage review.
