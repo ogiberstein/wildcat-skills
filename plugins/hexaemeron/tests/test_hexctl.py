@@ -4954,6 +4954,39 @@ class FrontierRowAttributionTests(OriginCheckoutMixin, unittest.TestCase):
             self.fault_with(module.base_ledger_versions(self.dir, "0" * 40, relative)),
         )
 
+    def test_the_receipt_records_only_what_was_subtracted(self):
+        """Not the whole base ledger: the rows the refusal actually discounted."""
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN, self.OWN])
+        # A base carrying an unrelated row as well; only the overlap counts.
+        published = frozenset({self.FOREIGN, "widget-v0.9.0"})
+        self.assertEqual(
+            module.frontier_subtracted_rows(self.dir, self.before, published),
+            [self.FOREIGN],
+        )
+
+    def test_nothing_published_records_nothing(self):
+        module = hexctl_module()
+        self.write_chain([self.OWN])
+        self.assertEqual(
+            module.frontier_subtracted_rows(self.dir, self.before, frozenset()),
+            [],
+        )
+
+    def test_the_gate_and_the_receipt_slice_the_same_rows(self):
+        """One slicing rule, so a refusal cannot count rows the receipt omits."""
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN, self.OWN])
+        rows = module.ledger_rows(open(self.ledger, encoding="utf-8").read())
+        after = module.frontier_rows_after_anchor(rows, self.before)
+        self.assertEqual([entry["version"] for entry in after],
+                         [self.FOREIGN, self.OWN])
+        self.assertEqual(
+            module.frontier_subtracted_rows(
+                self.dir, self.before, frozenset({self.FOREIGN})),
+            [self.FOREIGN],
+        )
+
     def test_a_missing_ledger_path_subtracts_nothing(self):
         module = hexctl_module()
         head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.dir,
