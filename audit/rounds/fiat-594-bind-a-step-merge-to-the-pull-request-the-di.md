@@ -149,3 +149,46 @@ means one GitHub call per waiting step per directive, which is a real cost in a
 phase that already makes several per receipt, and the study's chosen option did
 not price it. Worth its own filing if a run ever loses a step to it; #429 lost
 its steps to the branch-moved fault, which does refuse at the directive now.
+
+## Step 4, round 1 -- 2026-08-24
+
+Non-Solidity round over the prose, the ledger row and the demonstration, at
+`c6db32ab733998d852acc27e3c0da33b455fc6bd`. Zero findings.
+
+The three bundled lints exit 0. Imprimatur scores `proof.md`,
+`push-discipline.md` and `.hexaemeron/run-pr.md` 100.0 with no defects. Horos
+reports that the boundary matches the tree, so the new document earned no entry.
+The root suite reports 349 tests OK with no skips and the Hexaemeron suite
+1,063/1,063. `tests/test_evolution_contract.py` and
+`plugins/hexaemeron/tests/test_evolution.py` both pass on the new row.
+
+The row was checked against the contract rather than against the previous row's
+shape. `fiat-v5.23.1` is a generation from `fiat-v5.22.1`, it retains
+`state-shape-validation` and the digest
+`e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa` byte for byte,
+the header and the newest row name one version, and the held issue 363 job is
+untouched. `main` was re-read immediately before the row was written: it had
+advanced to `8e64802` for an unrelated change and its Fiat ledger was still at
+`fiat-v5.22.1`, so the arithmetic is against the real predecessor rather than a
+guess. That is the check the issue 576 run could not make from its own branch,
+and it is why that row went in at the sync instead.
+
+The proof was read against what it claims. Every line in it is `hexctl`'s own
+output, driven through the same fake `git` and `gh` the suite uses, and the
+document says that first rather than in a footnote. Both faults only exist in the
+integrate phase, which needs a pushed stack and a GitHub that answers, so a bare
+scratch repository cannot reach them; saying so is more useful than a transcript
+that quietly used the harness. Its closing section states the three things it does
+not establish: that anything prevents a person merging a pull request, that
+retarget drift is covered, and that a run already in the broken state can be
+recovered.
+
+`push-discipline.md` was checked for agreeing with the tree. The `merge` field it
+documents is the one `_integrate_directive` emits, the two refusals it names are
+the two that ship, and the recovery it gives is the one the issue 576 run
+actually took.
+
+No register concern is newly reachable at this step; the four that ship were
+closed in steps 2 and 3 and were re-checked against the final tree.
+
+Leads not pursued: none new. Step 3's retarget-drift lead stands.
