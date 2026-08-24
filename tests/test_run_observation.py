@@ -349,6 +349,39 @@ class RunObservationSchemaTests(unittest.TestCase):
 
 
 class RunObservationValidFlowTests(unittest.TestCase):
+    def test_captured_byte_and_stable_path_validation_are_equivalent(self):
+        paths = sorted((FIXTURES / "valid").glob("*.jsonl"))
+        paths.extend(sorted((FIXTURES / "invalid").glob("*.jsonl")))
+        for path in paths:
+            display = run_observation.display_path(
+                path, run_observation.repository_root()
+            )
+            with self.subTest(path=path):
+                self.assertEqual(
+                    run_observation.validate_bytes(
+                        path.read_bytes(), display_path=display
+                    ),
+                    run_observation.validate_path(path),
+                )
+
+        prefix = b"".join(
+            (FIXTURES / "valid" / "success.jsonl").read_bytes().splitlines(
+                keepends=True
+            )[:-1]
+        )
+        with tempfile.TemporaryDirectory(dir=FIXTURES) as directory:
+            path = Path(directory) / "captured-prefix.jsonl"
+            path.write_bytes(prefix)
+            display = run_observation.display_path(
+                path, run_observation.repository_root()
+            )
+            self.assertEqual(
+                run_observation.validate_bytes(
+                    prefix, display_path=display, allow_prefix=True
+                ),
+                run_observation.validate_path(path, allow_prefix=True),
+            )
+
     def test_valid_records_are_accepted(self):
         for name in ("success.jsonl", "refusal.jsonl", "retry.jsonl", "handoff.jsonl"):
             with self.subTest(name=name):

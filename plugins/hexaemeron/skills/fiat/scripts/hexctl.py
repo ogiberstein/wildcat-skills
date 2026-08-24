@@ -449,7 +449,7 @@ def observation_summary(data: bytes, *, exit_code: int = 2) -> dict:
     }
 
 
-def observation_validator_module():
+def observation_validator_module(*, exit_code: int = 2):
     global _OBSERVATION_VALIDATOR
     if _OBSERVATION_VALIDATOR is not None:
         return _OBSERVATION_VALIDATOR
@@ -469,6 +469,7 @@ def observation_validator_module():
             "FOB003",
             "the bound observation validator is unavailable",
             "restore the receipted validator surface before selecting a prefix",
+            exit_code,
         )
     _OBSERVATION_VALIDATOR = module
     return module
@@ -477,10 +478,9 @@ def observation_validator_module():
 def validated_observation_prefix(base_dir: str, supplied: str, state: dict):
     relative, data = read_observation_bytes(base_dir, supplied)
     validator = observation_validator_module()
-    path = Path(os.path.realpath(base_dir)) / Path(relative)
-    findings = validator.validate_path(
-        path,
-        root=Path(os.path.realpath(base_dir)),
+    findings = validator.validate_bytes(
+        data,
+        display_path=relative,
         allow_prefix=True,
     )
     if findings:
@@ -1837,7 +1837,21 @@ def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
         )
     entries = ledger_entries(base_dir)
     by_hash = {entry.get("hash"): entry for entry in entries}
-    total_tail = 0
+    observation_records = [
+        entry
+        for entry in entries
+        if entry.get("event") == "record:run-observation"
+    ]
+    if len(observation_records) != len(bindings):
+        observation_error(
+            "FOB003",
+            "the observation binding and ledger record counts disagree",
+            "restore the bound state and every matching observation ledger record",
+            1,
+        )
+    used_record_lines = set()
+    latest_tail = 0
+    previous = None
     for binding in bindings:
         if not isinstance(binding, dict):
             observation_error(
@@ -1849,23 +1863,25 @@ def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
         receipt = binding.get("receipt")
         selected = by_hash.get(receipt.get("hash")) if isinstance(receipt, dict) else None
         binding_digest = hashlib.sha256(canonical(binding).encode()).hexdigest()
-        record = next(
-            (
-                entry
-                for entry in entries
-                if entry.get("event") == "record:run-observation"
-                and isinstance(entry.get("data"), dict)
-                and entry["data"].get("binding_sha256") == binding_digest
-            ),
-            None,
-        )
+        matching_records = [
+            entry
+            for entry in observation_records
+            if isinstance(entry.get("data"), dict)
+            and entry["data"].get("binding_sha256") == binding_digest
+        ]
+        record = matching_records[0] if len(matching_records) == 1 else None
+        record_data = record.get("data") if isinstance(record, dict) else None
         if (
             binding.get("schema") != OBSERVATION_BINDING_CONTRACT
             or binding.get("observation_contract") != OBSERVATION_CONTRACT
             or binding.get("controller_run_id") != controller_run_id(state)
             or selected is None
+            or selected.get("event") == "record:run-observation"
             or record is None
+            or record.get("_line") in used_record_lines
             or selected.get("_line") + 1 != record.get("_line")
+            or record_data.get("receipt_hash") != receipt.get("hash")
+            or record_data.get("capture_status") != binding.get("capture_status")
             or receipt
             != {
                 "line": selected.get("_line"),
@@ -1880,6 +1896,7 @@ def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
                 "restore the bound state and its immediately preceding ledger receipt",
                 1,
             )
+        used_record_lines.add(record.get("_line"))
         if (
             binding.get("capture_status") != "accepted"
             or binding.get("validation_status") != "passed"
@@ -1930,6 +1947,18 @@ def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
                 "restore the exact bound prefix bytes or record a later receipt",
                 1,
             )
+        findings = observation_validator_module(exit_code=1).validate_bytes(
+            prefix,
+            display_path=artifact,
+            allow_prefix=True,
+        )
+        if findings:
+            observation_error(
+                "FOB003",
+                "the bound prefix no longer passes structural validation",
+                "restore the exact validated prefix and verify again",
+                1,
+            )
         summary = observation_summary(prefix, exit_code=1)
         expected_interval = {
             "first_sequence": summary["first_sequence"],
@@ -1949,8 +1978,29 @@ def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
                 "restore the exact binding metadata and selected prefix",
                 1,
             )
-        total_tail += len(current) - byte_count
-    return len(bindings), total_tail
+        if previous is not None and (
+            record.get("_line") <= previous["record_line"]
+            or artifact != previous["artifact"]
+            or byte_count <= previous["byte_count"]
+            or event_count <= previous["event_count"]
+            or hashlib.sha256(prefix[: previous["byte_count"]]).hexdigest()
+            != previous["sha256"]
+        ):
+            observation_error(
+                "FOB004",
+                "the recorded observation sequence is not one monotonic stream",
+                "restore each earlier bound prefix and append later events to the same file",
+                1,
+            )
+        previous = {
+            "artifact": artifact,
+            "byte_count": byte_count,
+            "event_count": event_count,
+            "record_line": record.get("_line"),
+            "sha256": digest,
+        }
+        latest_tail = len(current) - byte_count
+    return len(bindings), latest_tail
 
 
 def cmd_config(args) -> None:

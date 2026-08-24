@@ -4,11 +4,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from unittest import mock
 
 try:
-    from plugins.hexaemeron.tests.test_hexctl import HexctlCase
+    from plugins.hexaemeron.tests.test_hexctl import HexctlCase, hexctl_module
 except ModuleNotFoundError:  # plugin-root discovery
-    from test_hexctl import HexctlCase
+    from test_hexctl import HexctlCase, hexctl_module
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -19,6 +20,30 @@ OBSERVATION_CONTRACT = "promise-machine-run-observation/v1"
 
 
 class ObservationBindingTests(HexctlCase):
+    def test_binding_validates_the_captured_bytes_not_a_later_path_snapshot(self):
+        self.to_steps(("Bind",))
+        relative, _, captured = self.write_prefix()
+        events = [json.loads(line) for line in captured.splitlines()]
+        events[0]["chainOfThought"] = "not-receiptable"
+        rejected = b"".join(
+            json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+            + b"\n"
+            for event in events
+        )
+        controller = hexctl_module()
+
+        with mock.patch.object(
+            controller,
+            "read_observation_bytes",
+            return_value=(relative, rejected),
+        ):
+            with self.assertRaises(SystemExit):
+                controller.validated_observation_prefix(
+                    self.target,
+                    relative,
+                    controller.load_state(self.target),
+                )
+
     def test_status_exposes_a_stable_run_id_without_persisting_it(self):
         self.init("Bind observation identity")
         first = json.loads(self.run_ctl("status", "--json").stdout)
@@ -130,6 +155,22 @@ class ObservationBindingTests(HexctlCase):
         with open(state_path, "w", encoding="utf-8") as handle:
             json.dump(state, handle, indent=2)
             handle.write("\n")
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+    def rewrite_last_ledger_data(self, mutate):
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        mutate(entries[-1]["data"])
+        unsigned = {
+            key: entries[-1][key]
+            for key in ("ts", "event", "data", "prev", "state")
+        }
+        entries[-1]["hash"] = hashlib.sha256(
+            self.canonical(unsigned).encode()
+        ).hexdigest()
         with open(ledger_path, "w", encoding="utf-8") as handle:
             for entry in entries:
                 handle.write(json.dumps(entry, sort_keys=True) + "\n")
@@ -255,6 +296,113 @@ class ObservationBindingTests(HexctlCase):
         self.run_ctl("record", "boundary", '"unchanged prefix"')
         refused = self.bind(relative, expect=2)
         self.assertIn("FOB004", refused.stderr)
+
+    def test_multiple_bindings_report_only_the_latest_unbound_tail(self):
+        self.to_steps(("Bind",))
+        relative, target, _ = self.write_prefix()
+        self.bind(relative)
+        self.append_finish(target)
+        self.run_ctl("record", "boundary", '"later receipt"')
+        self.bind(relative)
+        tail = b'{"unbound":"latest-tail"}\n'
+        with open(target, "ab") as handle:
+            handle.write(tail)
+
+        verified = self.run_ctl("verify", "--observations")
+        self.assertIn(f"unbound tail: {len(tail)} bytes", verified.stdout)
+
+    def test_verification_recomputes_monotonic_stream_relationships(self):
+        self.to_steps(("Bind",))
+        relative, target, _ = self.write_prefix()
+        self.bind(relative)
+        self.append_finish(target)
+        self.run_ctl("record", "boundary", '"later receipt"')
+        self.bind(relative)
+        other_relative = os.path.join(
+            ".hexaemeron", "observations", "other.jsonl"
+        )
+        other = os.path.join(self.target, other_relative)
+        with open(target, "rb") as source, open(other, "wb") as destination:
+            destination.write(source.read())
+        self.rewrite_last_binding(
+            lambda binding: binding.__setitem__("artifact", other_relative)
+        )
+
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB004", refused.stderr)
+
+    def test_verification_recomputes_the_structural_validation_gate(self):
+        self.to_steps(("Bind",))
+        relative, target, captured = self.write_prefix()
+        self.bind(relative)
+        events = [json.loads(line) for line in captured.splitlines()]
+        events[1]["chainOfThought"] = "must-not-be-receipted"
+        rejected = b"".join(
+            json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+            + b"\n"
+            for event in events
+        )
+        with open(target, "wb") as handle:
+            handle.write(rejected)
+        self.rewrite_last_binding(
+            lambda binding: binding.update(
+                byte_count=len(rejected),
+                sha256=hashlib.sha256(rejected).hexdigest(),
+            )
+        )
+
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB003", refused.stderr)
+
+    def test_verification_joins_each_binding_to_one_exact_ledger_record(self):
+        self.to_steps(("Bind",))
+        relative, _, _ = self.write_prefix()
+        self.bind(relative)
+        self.rewrite_last_ledger_data(
+            lambda data: data.__setitem__("receipt_hash", "0" * 64)
+        )
+
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB003", refused.stderr)
+
+    def test_verification_refuses_an_orphaned_observation_record(self):
+        self.to_steps(("Bind",))
+        relative, target, _ = self.write_prefix()
+        self.bind(relative)
+        self.append_finish(target)
+        self.run_ctl("record", "boundary", '"later receipt"')
+        self.bind(relative)
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["receipts"]["run_observations"] = state["receipts"][
+            "run_observations"
+        ][1:]
+        state_digest = hashlib.sha256(self.canonical(state).encode()).hexdigest()
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        entries[-1]["state"] = state_digest
+        unsigned = {
+            key: entries[-1][key]
+            for key in ("ts", "event", "data", "prev", "state")
+        }
+        entries[-1]["hash"] = hashlib.sha256(
+            self.canonical(unsigned).encode()
+        ).hexdigest()
+        with open(state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, indent=2)
+            handle.write("\n")
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB003", refused.stderr)
 
     def test_wrong_run_contract_and_failed_redaction_refuse_before_receipt(self):
         cases = (

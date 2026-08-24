@@ -2407,11 +2407,11 @@
     "contract": "fiat-run-observation-binding/v1",
     "controller": {
       "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "4ed321a43f2a99638ed6147b6978693ddc1717484ed8bc2046a5e67a5d863d90"
+      "sha256": "731bb758c559338ef5d195165eba477ae090f0591581f94e72a811fc36927c70"
     },
     "validator": {
       "path": "scripts/run_observation.py",
-      "sha256": "1229cc654d82a4595459da09fc5cbb6b749c812a70c0b9ecf899ddc8954bdcca"
+      "sha256": "712f2afc40f7703cc64a92cd850559684a28f1b98e3241652a67ac6b48124d40"
     },
     "documentation": {
       "path": "docs/fiat-run-observation-binding-v1.md",
@@ -2428,8 +2428,9 @@
     "tests": [
       {
         "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
-        "sha256": "6e3b170daca1f47ac03f1ff1951ad3ab57848a37cfcda4d72ea305861b35daf4",
+        "sha256": "7bbf59fd536e49e34dd401117126262b0b1b1e0cd850d51dd30955e979d453db",
         "selectors": [
+          "test_binding_validates_the_captured_bytes_not_a_later_path_snapshot",
           "test_status_exposes_a_stable_run_id_without_persisting_it",
           "test_normal_prefix_binds_to_the_selected_receipt",
           "test_legacy_run_stays_valid_until_the_dependent_claim_is_requested",
@@ -2438,13 +2439,19 @@
           "test_bound_run_contract_and_event_count_are_recomputed",
           "test_appended_bytes_remain_explicitly_unbound",
           "test_later_receipt_binds_only_a_strict_extension_of_the_same_stream",
+          "test_multiple_bindings_report_only_the_latest_unbound_tail",
+          "test_verification_recomputes_monotonic_stream_relationships",
+          "test_verification_recomputes_the_structural_validation_gate",
+          "test_verification_joins_each_binding_to_one_exact_ledger_record",
+          "test_verification_refuses_an_orphaned_observation_record",
           "test_symlinked_file_and_parent_are_refused_before_receipt"
         ]
       },
       {
         "path": "tests/test_run_observation.py",
-        "sha256": "559c253a37ca653974504a3bf9f5b6be7ba2b243583e42d3b890e7c52551f5f2",
+        "sha256": "649f68ee35e11ccd17db40e4b14f6f6c0c4d429c5e0f1740fdeca669a8fa0db1",
         "selectors": [
+          "test_captured_byte_and_stable_path_validation_are_equivalent",
           "test_safe_unfinished_prefix_is_accepted_without_weakening_full_check",
           "test_prefix_still_refuses_an_unclosed_capability"
         ]
@@ -2499,7 +2506,7 @@
     "promise_id": "promise-machine-run-observation-structural-validation",
     "runtime": {
       "path": "scripts/run_observation.py",
-      "sha256": "1229cc654d82a4595459da09fc5cbb6b749c812a70c0b9ecf899ddc8954bdcca"
+      "sha256": "712f2afc40f7703cc64a92cd850559684a28f1b98e3241652a67ac6b48124d40"
     },
     "schema_source": {
       "path": "schemas/promise-machine-run-observation-v1.schema.json",
@@ -2508,6 +2515,7 @@
     "tests": {
       "path": "tests/test_run_observation.py",
       "selectors": [
+        "test_captured_byte_and_stable_path_validation_are_equivalent",
         "test_schema_binds_the_contract_and_closed_event_union",
         "test_valid_records_are_accepted",
         "test_issue_acceptance_faults_have_distinct_codes",
@@ -2535,7 +2543,7 @@
         "test_runbook_separates_direct_and_elenchus_report_targets",
         "test_unhashable_and_non_string_typed_fields_refuse_without_crashing"
       ],
-      "sha256": "559c253a37ca653974504a3bf9f5b6be7ba2b243583e42d3b890e7c52551f5f2"
+      "sha256": "649f68ee35e11ccd17db40e4b14f6f6c0c4d429c5e0f1740fdeca669a8fa0db1"
     },
     "transition": "treat only the named bytes as structurally conforming and pass the bounded result without strengthening it"
   },
@@ -2717,7 +2725,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "4ed321a43f2a99638ed6147b6978693ddc1717484ed8bc2046a5e67a5d863d90",
+      "sha256": "731bb758c559338ef5d195165eba477ae090f0591581f94e72a811fc36927c70",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2731,7 +2739,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "4ed321a43f2a99638ed6147b6978693ddc1717484ed8bc2046a5e67a5d863d90",
+      "sha256": "731bb758c559338ef5d195165eba477ae090f0591581f94e72a811fc36927c70",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2745,7 +2753,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "4ed321a43f2a99638ed6147b6978693ddc1717484ed8bc2046a5e67a5d863d90",
+      "sha256": "731bb758c559338ef5d195165eba477ae090f0591581f94e72a811fc36927c70",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-run-observation-binding": {
@@ -2759,7 +2767,7 @@
         "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
         "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
       },
-      "sha256": "4ed321a43f2a99638ed6147b6978693ddc1717484ed8bc2046a5e67a5d863d90",
+      "sha256": "731bb758c559338ef5d195165eba477ae090f0591581f94e72a811fc36927c70",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {
