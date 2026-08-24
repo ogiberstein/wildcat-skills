@@ -50,7 +50,7 @@ def build_repository(directory, files, boundary_entries, commit=True):
     return directory
 
 
-def entry(path, category="generated", evidence="marker 'do not edit'", grade="hard"):
+def entry(path, category="generated", evidence="classified by the fixture", grade="hard"):
     return {"path": path, "category": category, "evidence": evidence, "grade": grade, "bytes": 1}
 
 
@@ -107,13 +107,13 @@ class ClassificationJoinTests(TemporaryRepositoryTestCase):
         build_repository(
             self.root,
             {"a.py": "x = 1\n", "CONTRIBUTORS.md": "generated\n"},
-            [entry("CONTRIBUTORS.md", evidence="marker 'do not edit' in the first 4096 bytes")],
+            [entry("CONTRIBUTORS.md", evidence="a generation marker in the first 4096 bytes")],
         )
         universe = dead_code.discover(self.root)
         self.assertNotIn("CONTRIBUTORS.md", universe.analysed)
         excluded = {item.path: item for item in universe.excluded}
         self.assertEqual(excluded["CONTRIBUTORS.md"].category, "generated")
-        self.assertIn("do not edit", excluded["CONTRIBUTORS.md"].evidence)
+        self.assertIn("generation marker", excluded["CONTRIBUTORS.md"].evidence)
 
     def test_a_candidate_grade_does_not_exclude_because_the_boundary_is_fail_open(self):
         build_repository(
@@ -129,6 +129,44 @@ class ClassificationJoinTests(TemporaryRepositoryTestCase):
         build_repository(self.root, {"a.py": "x = 1\n"}, [entry("gone.md")])
         universe = dead_code.discover(self.root)
         self.assertEqual(universe.excluded, ())
+
+    def test_a_classified_directory_excludes_every_tracked_file_beneath_it(self):
+        build_repository(
+            self.root,
+            {
+                "a.py": "x = 1\n",
+                "vendor/left-pad/index.js": "module.exports = 1\n",
+                "vendor/left-pad/package.json": "{}\n",
+            },
+            [entry("vendor/", category="vendored", evidence="directory name 'vendor'")],
+        )
+        universe = dead_code.discover(self.root)
+        self.assertIn("a.py", universe.analysed)
+        self.assertNotIn("vendor/left-pad/index.js", universe.analysed)
+        self.assertNotIn("vendor/left-pad/package.json", universe.analysed)
+        self.assertEqual(universe.excluded_by_category(), {"vendored": 2})
+
+    def test_an_inherited_exclusion_names_the_tree_its_evidence_came_from(self):
+        build_repository(
+            self.root,
+            {"a.py": "x = 1\n", "build/out/artifact.json": "{}\n"},
+            [entry("build/", category="generated", evidence="directory name 'build'")],
+        )
+        universe = dead_code.discover(self.root)
+        excluded = {item.path: item for item in universe.excluded}
+        self.assertIn("build/out/artifact.json", excluded)
+        self.assertIn("directory name 'build'", excluded["build/out/artifact.json"].evidence)
+        self.assertIn("build/", excluded["build/out/artifact.json"].evidence)
+
+    def test_a_directory_prefix_does_not_capture_a_sibling_sharing_its_stem(self):
+        build_repository(
+            self.root,
+            {"lib/vendored.py": "x = 1\n", "libexec/kept.py": "y = 2\n"},
+            [entry("lib/", category="vendored", evidence="directory name 'lib'")],
+        )
+        universe = dead_code.discover(self.root)
+        self.assertIn("libexec/kept.py", universe.analysed)
+        self.assertNotIn("lib/vendored.py", universe.analysed)
 
     def test_the_excluded_counts_group_by_category(self):
         build_repository(

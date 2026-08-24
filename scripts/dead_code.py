@@ -66,6 +66,34 @@ class ClassifiedPath:
 
 
 @dataclass(frozen=True)
+class Classification:
+    """The Horos boundary, ready to answer whether one path is a sink.
+
+    Horos classifies whole trees as well as single files, and a tree entry
+    carries a trailing separator. Matching only exact paths would leave every
+    tracked file inside a vendored or generated directory in the analysed
+    universe, which is the one mistake this join exists to prevent.
+    """
+
+    files: dict[str, ClassifiedPath]
+    directories: tuple[ClassifiedPath, ...]
+
+    def match(self, path: str) -> ClassifiedPath | None:
+        exact = self.files.get(path)
+        if exact is not None:
+            return exact
+        for tree in self.directories:
+            if path.startswith(tree.path):
+                return ClassifiedPath(
+                    path=path,
+                    category=tree.category,
+                    evidence=f"{tree.evidence}, inherited from the classified tree {tree.path}",
+                    grade=tree.grade,
+                )
+        return None
+
+
+@dataclass(frozen=True)
 class Universe:
     """What was analysed at one commit, and what was excluded from it."""
 
@@ -223,7 +251,7 @@ def tracked_paths(root: Path, commit: str) -> tuple[str, ...]:
     return paths
 
 
-def load_boundary(root: Path) -> dict[str, ClassifiedPath]:
+def load_boundary(root: Path) -> Classification:
     """Read the Horos boundary and return its hard entries by path.
 
     The document is validated before use. A malformed boundary is refused by
@@ -248,7 +276,8 @@ def load_boundary(root: Path) -> dict[str, ClassifiedPath]:
     if not isinstance(entries, list):
         raise Refusal(f"{BOUNDARY_PATH.as_posix()} has no entries list")
 
-    classified: dict[str, ClassifiedPath] = {}
+    files: dict[str, ClassifiedPath] = {}
+    directories: list[ClassifiedPath] = []
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict):
             raise Refusal(f"{BOUNDARY_PATH.as_posix()} entry {index} is not an object")
@@ -262,8 +291,16 @@ def load_boundary(root: Path) -> dict[str, ClassifiedPath]:
             fields[name] = value
         if fields["grade"] != EXCLUDING_GRADE:
             continue
-        classified[fields["path"]] = ClassifiedPath(**fields)
-    return classified
+        classified = ClassifiedPath(**fields)
+        if classified.path.endswith("/"):
+            directories.append(classified)
+        else:
+            files[classified.path] = classified
+
+    # Longest prefix first, so a tree nested inside another classified tree
+    # reports the category that actually describes it.
+    directories.sort(key=lambda item: len(item.path), reverse=True)
+    return Classification(files=files, directories=tuple(directories))
 
 
 def discover(root: Path) -> Universe:
@@ -273,8 +310,9 @@ def discover(root: Path) -> Universe:
     tracked = tracked_paths(root, commit)
     classified = load_boundary(root)
 
-    analysed = tuple(path for path in tracked if path not in classified)
-    excluded = tuple(classified[path] for path in tracked if path in classified)
+    matches = {path: classified.match(path) for path in tracked}
+    analysed = tuple(path for path in tracked if matches[path] is None)
+    excluded = tuple(matches[path] for path in tracked if matches[path] is not None)
 
     if len(analysed) < UNIVERSE_FLOOR:
         raise Refusal(
