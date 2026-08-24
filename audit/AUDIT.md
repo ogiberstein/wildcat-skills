@@ -13347,3 +13347,142 @@ proof is the same and the tree is where it started, but the method is not the on
 the step named.
 
 Leads not pursued: none.
+
+## Step 1, round 1 -- 2026-08-24
+
+Issue 555, stack-landing guard. Finding count: 3. Audit filter declaration:
+`--audit-filter sapheneia:sapheneia`. The security-suite receipt is
+`waived: declared Files contain only Python, Markdown, and JSON; no Solidity
+contract, Foundry project, or Hardhat project`; this replaces only the Pashov
+pair. All three findings were repaired on the stacked audit branch before this
+record was appended.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:5481` | Exact tip fetches do not complete a shallow repository. In a depth-one clone, a true later-to-lower ancestor returned status 1 and cleared the guard; replacement refs and legacy grafts could change the same local ancestry answer. | Fixed in `5c59cec379f46f63534e7393829846aabdb368c1`: require non-shallow native history, refuse graft state, and run ancestry with replacement refs disabled. |
+| S1-R1-02 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:5318` | The local plan accepted duplicate or non-prefix merged-step lists, collapsed wrong-kind falsey values to an empty list, accepted `True` as step 1, and could raise on a non-string title. `next` and `status` do not independently run the full ledger verifier. | Fixed in `5c59cec379f46f63534e7393829846aabdb368c1`: require one exact ordered integer prefix, exact integer step numbers, and string titles before any remote read. |
+| S1-R1-03 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:5513`, `:5592`, and `:673` | Pull-request validation accepted an `OPEN` response carrying a merge SHA, did not validate `baseRefOid`, flattened a wrong-kind `mergeCommit`, and allowed a newline-suffixed branch through the branch regex. These malformed external responses did not consistently become unavailable. | Fixed in `5c59cec379f46f63534e7393829846aabdb368c1`: validate raw merge shape, full head and base OIDs, state-consistent merge OIDs, and branch names by full match. The historical base OID remains diagnostic only. |
+
+### Evidence
+
+The audited Mason commit is
+`eec7e9d081e5df44e84226c0dc035f378297fd9e`, with immutable parent
+`08512d4ada7b1d7418e1af213be0d4b8c1494b6d`, on the exact step branch. Its
+local Shoggoth signature is good and it carries exactly one required co-author
+and one origin trailer. The complete eleven-path committed range was reviewed.
+The repair commit
+`5c59cec379f46f63534e7393829846aabdb368c1` is also locally signature-valid,
+has the same two exact trailers once each, and changes seven declared paths.
+The controller and focused test file SHA-256 values at that commit are
+`35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77`
+and `1adc313cacbb68c98a0d80b14c5ca6a895292d3a3981e18edd420e10d6325181`.
+
+The source packet retained receipted study SHA-256
+`fe5f3c4b2a5f71f70f71dae61c1c25c6dff65b998393ddb3527bfed21e891863`,
+runbook SHA-256
+`9bc97bbce72aee0b73653555ded6ff5a02d0d5aadf0c5680e9c0d4b7d3defcd2`,
+amendment SHA-256
+`d8c1988abdef7a67f823a1e98ed9567e7035d0cb71dedb6ce963243452e752f3`,
+and effective Step 1 SHA-256
+`f9ec8126d7b9d885c385c5571767662277ea624bf089155060d54b9c6e99a363`.
+Both tracked specifications remain byte-identical to their receipted copies,
+and Protasis accepts each in its declared mode.
+
+The original Mason red report
+`.elenchus/fiat-555-misdirected-step-merge-guard-step-1-red.json` retains
+SHA-256
+`479bf130d70efc594d447902d05cd05e408d32f6c2365d1970576d61c1a9ac26`,
+1,033 tests, one assertion failure, and 20 errors. Its original green report
+retains SHA-256
+`1d1ed8d7dcf8813e18ee9fad720258f66adc602ffcad61911aec2bb0cb072052`
+and 1,033/1,033 green. The Warden causal report
+`.elenchus/fiat-555-misdirected-step-merge-guard-step-1-warden-round-1-red.json`
+has SHA-256
+`16298e304103c4fc7e12a42bf4d68772bc64927828ba681126b95a2c9b1f9ef3`,
+1,033 tests, eight assertion failures, and zero errors. The final source-bound
+Elenchus replay of the repair against the parent is `guarded`: 1,033 executed,
+11 assertion failures, zero errors, and zero skips. A fresh final green run on
+the exact signed repair is 1,033/1,033 and produces the same content-only green
+report SHA-256 `1d1ed8d7dcf8813e18ee9fad720258f66adc602ffcad61911aec2bb0cb072052`.
+The CLI report format is `unittest-json-v1`; the JSON schema is
+`elenchus.unittest.v1`.
+
+The focused guard suite passes 14/14, including the maximum 500-step fixture
+and its 249,500 local ancestry pairs. The controller and Fiat focused suite
+passes 409/409; the root suite passes 349/349; the final Hexaemeron suite
+passes 1,033/1,033; and the evolution guard passes 9/9. Promise Machine sync
+and contract checks are clean across 14 plugins and 14 copies, with coverage
+72/72 and valid JSON. Phylax, Ephoros, and Hypomnema each exit 0. All six
+specified Imprimatur runs report zero defects. Brevitas exits 0 for Fiat's
+SKILL, EVOLUTION, push discipline, ADR-021, and the tracked runbook; the
+byte-identical study exits 1 only with the required nine B023 findings at lines
+351, 353, 355, 357, 359, 361, 363, 365, and 367, so no Brevitas-clean claim is
+made for it. Horos, `py_compile`, both byte comparisons, both relative-link
+checks, and `git diff --check` exit 0.
+
+The shallow-history probe used the same true ancestor in a complete clone and
+a depth-one clone after exact-tip fetch: full history answered ancestor, while
+the shallow clone answered non-ancestor. The repaired reader accepts the full
+clone and refuses the shallow clone. A replacement-ref specimen changed a
+native ancestor answer until `--no-replace-objects` was used. A non-empty
+legacy graft changed the answer even with that option, so the guard separately
+refuses graft state. Hostile local-state probes `[2]`, `[1, 1]`, `0`, `""`, a
+boolean step number, and a non-string title now all return local-state
+unavailable. Hostile pull-request probes with an `OPEN` merge SHA, wrong-kind
+base OID, wrong-kind raw merge object, or newline-suffixed branch now return
+pull-request unavailable. No probe changed controller state or ledger bytes.
+
+### Fourteen specimen dispositions
+
+1. Exact PR-542 downward reachability blocks and names the owned commit and lower carrier.
+2. An `OPEN` current PR on the wrong base blocks with retarget-and-retry recovery.
+3. A carried non-head commit is found by checking the whole verified list.
+4. Healthy upward reachability remains clear, including the maximum bounded shape.
+5. A future PR already retargeted during the retarget-first window is not judged as current.
+6. A correct `MERGED` current PR into the run branch remains receiptable.
+7. A rewritten waiting branch blocks with the original-commit recovery.
+8. Missing branches and malformed ref output are unavailable.
+9. GitHub timeout, authentication failure, malformed JSON, wrong URL, and the added strict-shape probes are unavailable without mutation.
+10. Different first and second ref snapshots are unavailable.
+11. A full historical `baseRefOid` is accepted only as diagnostic evidence; the named live base still decides topology.
+12. A legacy receipt without `verified_commits`, and the added malformed local plans, are unavailable without range reconstruction.
+13. Study, runbook, build, audit, prose, and push phases make no new topology call.
+14. Fiat remains generation `5.22.1` on frontier `state-shape-validation`, digest `e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa`, with the open frontier and issue 363 next job unchanged.
+
+### Risk dispositions
+
+- `directional-ancestry`: fixed by S1-R1-01. Native complete history is required; only later-owned commits against lower step tips are forbidden, and healthy upward ancestry remains accepted.
+- `partial-commit-carry`: clean. Every exact verified commit is checked, not only the recorded head.
+- `mutable-ref-snapshot`: clean. One PR read remains bracketed by equal bounded multi-ref snapshots.
+- `pr-base-state`: fixed by S1-R1-03. URL, head, base, state, head OID, base OID, and state-consistent merge OID have strict kinds and topology.
+- `offline-evidence`: fixed by S1-R1-01 and S1-R1-02. Incomplete local graph or invalid local plan withholds merge while status retains labelled local inspection.
+- `legacy-receipt-gap`: clean. Missing immutable commit ownership is unavailable and no mutable range is inferred.
+- `missing-step-ref`: clean. Every exact named step ref is required in both snapshots.
+- `retarget-window`: clean. Only the first unmerged PR base is gated, preserving retarget-first order.
+- `post-check-race`: qualified. The receipt path repeats the check, but no result claims a lock on GitHub or atomic prevention.
+- `recovery-overreach`: clean. The guard refuses damage and points to original signed commits; it changes no ref, receipt, signature, state, or ledger.
+- `diagnostic-bounds`: clean. Fixed messages and capped identifiers expose no raw response, environment value, token, or credential.
+- `frontier-drift`: clean. Version arithmetic and every held frontier field remain unchanged except the declared generation label already in the Mason range.
+- `amendment-overclaim`: clean. The effective amendment changes source instructions only and does not clear unavailable Git or GitHub evidence.
+
+### Qualifications
+
+This round did not query or mutate live GitHub, push a ref, open or merge a pull
+request, run Solidity tooling, or invoke the controller. The graph probes were
+hermetic local repositories and the response probes were bounded fixtures.
+The repair refuses shallow or grafted history; it does not deepen or rewrite a
+repository. Replacement refs are ignored only for this ancestry predicate; no
+broader Git-hardening claim is made. A clear result still covers only the
+recorded branches, exact commits, and current PR at one coherent snapshot.
+It does not prove another SHA equivalent, inspect arbitrary branches, prevent a
+later external click, or promise latency for the maximum local-pair shape.
+
+The bounded Sapheneia comparison preserves item by item: the three finding
+IDs, severities, paths, locations, facts and fixed statuses; both signed commit
+identities; every report path, role, hash, schema, format and count; all gate
+counts and qualified Brevitas result; all fourteen specimen dispositions; all
+thirteen risk-register dispositions; the exact security waiver; qualifications,
+unknowns, negative results, and lead disposition. It changes no earlier audit
+byte and makes no claim that the audit host enforced these facts.
+
+Leads not pursued: none.
