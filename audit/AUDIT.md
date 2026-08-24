@@ -11927,3 +11927,95 @@ verdict, status, the three lint exits, both suite counts, the Promise Machine
 counts, the byte-for-byte artefact claim, the eight risk ids, the fixes commit
 with its signature and trailer attribution, and all three unpursued leads
 survive unchanged. Only connective and process prose was compacted.
+
+## Fiat frontier row attribution, step 1, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records: this step
+changes a Python controller and its tests. The three bundled lints exited 0.
+The review then read the diff against every id in the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The integration receipt recorded `frontier_published_rows` as the base ledger's entire row set, which for this repository is twenty versions, under a field name that says the gate subtracted them. The runbook's exit says the receipt records the subtracted versions. A reader would have taken a twenty-entry list as twenty discounted rows. | fixed in this round: `frontier_subtracted_rows` records the intersection of the base set with the rows after the anchor, and the field is renamed to match |
+| S1-R1-02 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The row slicing existed twice in effect: the gate sliced rows after the anchor to count them, and the receipt would have had to slice them again to say which were subtracted. Two copies of that rule drift, and a refusal would then count rows the receipt omitted. | fixed in this round: `frontier_rows_after_anchor` is shared by both, with a regression asserting they agree |
+
+Both fixes are guarded. Against the implementation commit
+`332c58e8b407d7bf527c7bb69ad58e6d8cc8c44a` the two new guards report
+`FAILED (errors=2)`; against the fixed tree they pass.
+
+Risk register disposition. `base-read-failure` is clean: the read goes through
+`bounded_run` rather than `bounded_git`, so a blob it cannot fetch returns a
+status this function handles instead of printing a refusal and exiting, and an
+unfetchable, non-UTF-8 or malformed blob subtracts nothing and leaves the older
+count. Three regressions cover an empty base, a non-SHA base and an
+unreachable SHA, and one asserts the fallback still refuses the issue 466
+topology. `foreign-row-overcount` is clean: only exact version labels present
+in the base are subtracted, and a regression shows a duplicated label
+subtracting both of its rows to `gained 0` rather than one of them.
+`own-row-not-newest` is clean and covered by a regression whose topology puts a
+published row after the run's own, which is the only arrangement where the
+count passes and the newest-row rule has to fire. `two-own-rows` is clean: a run
+appending two of its own rows is still refused, with and without an irrelevant
+published set. `no-sync-unchanged` is clean: `done_integrate` consults the base
+only when a sync receipt exists, so a run without one keeps today's arithmetic.
+`bounded-git-read` is clean: argv-only, no shell, the existing output cap, and
+the status distinguished from empty output.
+
+One behaviour change is not a finding and is recorded here. On the legacy path
+with no `version_at_init`, a ledger that has lost rows since `init` previously
+reported a negative `gained` and now reports `0`. Both refuse; only the number
+in the message differs. The append-only anchor check catches the same case
+whenever `version_at_init` is recorded, which every current run records.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 196/196, Hexaemeron suite
+912/912 with 12 new tests. Promise Machine reports 14 plugins and 14 copies
+clean after the three `fiat-*` runtime digests were refreshed. The Elenchus
+report at `tmp/elenchus/step-1.json` records `elenchus.unittest.v1`, complete,
+909 tests, 0 failures, against the implementation commit.
+
+Leads not pursued. This run drives the installed `fiat-v5.14.1` controller
+while the repository holds `fiat-v5.15.1`, recorded in the `controller_version`
+receipt, so its own receipts carry no attribution container and its own
+integration will not exercise the field this step adds. A run under a
+controller carrying `fiat-v5.16.1` is the first that can. Brevitas reports B010
+and B001 against the one-step runbook, because Protasis fixes that artefact's
+shape at one heading per step; Protasis owns the schema, so the runbook was not
+padded to satisfy a budget written for prose answers.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item: both
+findings with their ids, severities, files and statuses, the red-side result
+against the exact implementation commit, all six risk ids with their
+dispositions, the recorded behaviour change, the three lint exits, both suite
+counts, the Promise Machine counts, the Elenchus report fields, and both
+unpursued leads survive unchanged. Only connective and process prose was
+compacted.
+
+## Fiat frontier row attribution, step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0. The re-read followed the shared slicing
+through both callers. `frontier_rows_after_anchor` is the only place the anchor
+rule lives, the gate counts what it returns, and `frontier_subtracted_rows`
+intersects the same slice with the base set, so the refusal and the receipt
+cannot name different rows. A regression asserts that agreement directly.
+
+Risk register disposition. All six ids read clean on the fixed tree.
+`base-read-failure` and `bounded-git-read` are unchanged by the fix, which
+touched neither the read nor its fallback.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 196/196, Hexaemeron suite
+912/912. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `37b6f941431452670faede130e32bef46af3fc49` has a good local signature
+and exactly one copy of each required trailer.
+
+Leads not pursued: the installed-controller split and the Brevitas budget on a
+one-step runbook, both as round 1 recorded them.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item:
+verdict, status, the three lint exits, both suite counts, the Promise Machine
+counts, the six risk ids, the fixes commit with its signature and trailer
+attribution, and both unpursued leads survive unchanged. Only connective and
+process prose was compacted.
