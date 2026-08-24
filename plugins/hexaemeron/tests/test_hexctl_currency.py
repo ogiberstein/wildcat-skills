@@ -524,3 +524,174 @@ class TestControllerCurrency(HexctlCase):
         self.assertIsNone(warning)
         with open(witness, encoding="utf-8") as handle:
             self.assertEqual(json.load(handle), "0")
+
+    # ------------------------------------------------ the currency report
+
+    FLEET = (
+        "alexandria", "ariadne", "berean", "brevitas", "hermes",
+        "hexaemeron", "horos", "janus", "lazarus", "lemma",
+        "pandects", "probitas", "sapheneia", "tabularium",
+    )
+    """The fourteen-plugin shape the host registry held on 2026-08-24."""
+
+    ROW_FIELDS = {"plugin", "version"} | (
+        PROVENANCE_FIELDS - {"ledger_version", "waiver"}
+    )
+    """A report row: identity plus the init observation's own field names."""
+
+    def fleet_layout(self, pins, marketplaces=None):
+        """A fourteen-plugin install registry around one controller copy.
+
+        `pins` maps plugin name to a commit SHA, None for a pinless managed
+        record, or a non-SHA string for a hostile pin. Every plugin shares
+        the wildcat-labs marketplace clone unless `marketplaces` names
+        another for it; each named marketplace gets its own clone.
+        """
+        root = os.path.join(self.dir, "plugins-root")
+        marketplaces = marketplaces or {}
+        plugins = {}
+        controller = None
+        for plugin in self.FLEET:
+            marketplace = marketplaces.get(plugin, "wildcat-labs")
+            install = os.path.join(root, "cache", marketplace, plugin, "1.0.0")
+            os.makedirs(install)
+            if plugin == "hexaemeron":
+                scripts = os.path.join(install, "skills", "fiat", "scripts")
+                os.makedirs(scripts)
+                controller = os.path.join(scripts, "hexctl.py")
+                shutil.copyfile(HEXCTL, controller)
+                with open(os.path.join(install, "skills", "fiat",
+                                       "EVOLUTION.md"), "w",
+                          encoding="utf-8") as handle:
+                    handle.write("- Current version: `fiat-vTEST`\n")
+            plugins[f"{plugin}@{marketplace}"] = [{
+                "scope": "user",
+                "installPath": install + os.sep,
+                "version": "1.0.0",
+                "installedAt": "2026-08-24T00:00:00Z",
+                "gitCommitSha": pins[plugin],
+            }]
+        with open(os.path.join(root, "installed_plugins.json"), "w",
+                  encoding="utf-8") as handle:
+            json.dump({"version": 2, "plugins": plugins}, handle)
+        for marketplace in {"wildcat-labs", *marketplaces.values()}:
+            clone_git = os.path.join(root, "marketplaces", marketplace, ".git")
+            os.makedirs(clone_git)
+            with open(os.path.join(clone_git, "HEAD"), "w",
+                      encoding="utf-8") as handle:
+                handle.write("ref: refs/heads/main\n")
+        return controller
+
+    def mixed_pins(self):
+        """Ten current, two behind, one managed, one hostile pin."""
+        pins = {plugin: self.HEAD for plugin in self.FLEET}
+        pins["ariadne"] = self.PIN
+        pins["lemma"] = self.PIN
+        pins["horos"] = None
+        pins["janus"] = "not-a-sha"
+        return pins
+
+    def test_currency_reports_every_installed_plugin_with_mixed_verdicts(self):
+        controller = self.fleet_layout(self.mixed_pins())
+        proc = self.run_installed_ctl(controller, "currency", "--json",
+                                      expect=3)
+        rows = json.loads(proc.stdout)
+        self.assertEqual([row["plugin"] for row in rows],
+                         sorted(self.FLEET))
+        verdicts = {row["plugin"]: row["verdict"] for row in rows}
+        self.assertEqual(verdicts["ariadne"], "behind")
+        self.assertEqual(verdicts["lemma"], "behind")
+        self.assertEqual(verdicts["horos"], "managed")
+        self.assertEqual(verdicts["janus"], "unknown")
+        self.assertEqual(
+            sum(1 for row in rows if row["verdict"] == "current"), 10)
+        behind = next(row for row in rows if row["plugin"] == "ariadne")
+        self.assertEqual(behind["pin"], self.PIN)
+        self.assertEqual(behind["observed_head"], self.HEAD)
+        self.assertEqual(behind["route"], "git-backed")
+        hostile = next(row for row in rows if row["plugin"] == "janus")
+        self.assertEqual(hostile["warning"], "registry-pin-malformed")
+        self.assertFalse(
+            os.path.exists(os.path.join(self.dir, ".hexaemeron")),
+            "a read-only report created run state")
+
+    def test_currency_exits_zero_when_nothing_is_behind(self):
+        controller = self.fleet_layout(
+            {plugin: self.HEAD for plugin in self.FLEET})
+        proc = self.run_installed_ctl(controller, "currency", "--json")
+        rows = json.loads(proc.stdout)
+        self.assertEqual(len(rows), len(self.FLEET))
+        self.assertEqual({row["verdict"] for row in rows}, {"current"})
+
+    def test_currency_text_rows_match_the_json_rows(self):
+        controller = self.fleet_layout(self.mixed_pins())
+        text = self.run_installed_ctl(controller, "currency", expect=3)
+        rows = json.loads(self.run_installed_ctl(
+            controller, "currency", "--json", expect=3).stdout)
+        lines = [line for line in text.stdout.splitlines() if line]
+        self.assertEqual(len(lines), len(rows))
+        for line, row in zip(lines, rows):
+            fields = line.split()
+            self.assertEqual(fields[0], row["plugin"])
+            self.assertEqual(fields[5], row["verdict"])
+            self.assertEqual(fields[3], row["pin"] or "null")
+            self.assertEqual(fields[4], row["observed_head"] or "null")
+        hostile = next(line for line in lines if line.startswith("janus "))
+        self.assertIn("(registry-pin-malformed)", hostile)
+
+    def test_currency_reads_upstream_once_per_distinct_origin(self):
+        """Fourteen plugins over two marketplaces cost exactly two reads."""
+        module = hexctl_module()
+        pins = {plugin: self.HEAD for plugin in self.FLEET}
+        controller = self.fleet_layout(
+            pins, marketplaces={"tabularium": "mirror-labs"})
+        calls = []
+
+        def reader(clone_dir, branch):
+            calls.append((os.path.realpath(clone_dir), branch))
+            return self.HEAD, None
+
+        rows, refusal = module.currency_report(
+            controller_file=controller, remote_reader=reader)
+        self.assertIsNone(refusal)
+        self.assertEqual(len(rows), len(self.FLEET))
+        self.assertEqual({row["verdict"] for row in rows}, {"current"})
+        marketplaces = os.path.join(self.dir, "plugins-root", "marketplaces")
+        self.assertEqual(sorted(calls), [
+            (os.path.realpath(os.path.join(marketplaces, "mirror-labs")),
+             "main"),
+            (os.path.realpath(os.path.join(marketplaces, "wildcat-labs")),
+             "main"),
+        ], "one remote read per distinct marketplace origin, no more")
+
+    def test_currency_refuses_an_unreadable_registry(self):
+        """A registry that cannot answer is exit 1, not an empty success.
+
+        A read-only reporter that printed nothing and exited 0 would read as
+        a fleet with nothing behind, which is the silent hole again.
+        """
+        controller = self.install_layout(registry=False)
+        proc = self.run_installed_ctl(controller, "currency", expect=1)
+        self.assertIn("registry-missing", proc.stderr)
+        self.assertEqual(proc.stdout, "")
+        registry = os.path.join(self.dir, "plugins-root",
+                                "installed_plugins.json")
+        with open(registry, "w", encoding="utf-8") as handle:
+            handle.write("{not json")
+        proc = self.run_installed_ctl(controller, "currency", expect=1)
+        self.assertIn("registry-malformed", proc.stderr)
+        self.assertEqual(proc.stdout, "")
+
+    def test_currency_refuses_outside_an_install_cache(self):
+        """The in-repo dev controller cannot say whose installs to report."""
+        proc = self.run_ctl("currency", expect=1)
+        self.assertIn("install cache", proc.stderr)
+        self.assertEqual(proc.stdout, "")
+
+    def test_currency_row_fields_match_the_init_observation(self):
+        """Rows and the init receipt share one observation vocabulary."""
+        controller = self.fleet_layout(self.mixed_pins())
+        rows = json.loads(self.run_installed_ctl(
+            controller, "currency", "--json", expect=3).stdout)
+        for row in rows:
+            self.assertEqual(set(row), self.ROW_FIELDS, row["plugin"])

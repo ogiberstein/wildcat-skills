@@ -1883,13 +1883,11 @@ def currency_cache_split(real_file: str) -> tuple[str, str] | None:
     return None
 
 
-def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str | None]:
-    """The pin the host registry records for the install holding one file.
+def currency_registry_load(plugins_root: str) -> tuple[str, dict | str]:
+    """The host registry's plugins mapping, read once and bounded.
 
-    Returns ("pin", sha) when the matching install records a commit SHA,
-    ("absent", None) when it records none, and ("unknown", warning) when the
-    registry cannot answer: missing, oversized, malformed, wrong kind, no
-    install path holding the file, or a pin that is not a commit SHA. Hostile
+    Returns ("ok", plugins) or ("unknown", warning) when the registry cannot
+    answer at all: missing, oversized, malformed, or the wrong kind. Hostile
     bytes are named by kind, never echoed.
     """
     path = os.path.join(plugins_root, CURRENCY_REGISTRY_FILE)
@@ -1907,6 +1905,35 @@ def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str |
     plugins = registry.get("plugins") if isinstance(registry, dict) else None
     if not isinstance(plugins, dict):
         return "unknown", "registry-wrong-kind"
+    return "ok", plugins
+
+
+def currency_record_pin(record: dict) -> tuple[str, str | None]:
+    """One install record's pin answer.
+
+    ("pin", sha) when the record carries a commit SHA, ("absent", None) when
+    it carries none, and ("unknown", "registry-pin-malformed") for anything
+    else, because a pin that is not a commit is hostile input, not a null.
+    """
+    pin = record.get("gitCommitSha")
+    if pin is None:
+        return "absent", None
+    if isinstance(pin, str) and COMMIT_RE.fullmatch(pin):
+        return "pin", pin
+    return "unknown", "registry-pin-malformed"
+
+
+def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str | None]:
+    """The pin the host registry records for the install holding one file.
+
+    Returns ("pin", sha) when the matching install records a commit SHA,
+    ("absent", None) when it records none, and ("unknown", warning) when the
+    registry cannot answer: missing, oversized, malformed, wrong kind, no
+    install path holding the file, or a pin that is not a commit SHA.
+    """
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return "unknown", plugins
     for records in plugins.values():
         if not isinstance(records, list):
             continue
@@ -1919,12 +1946,7 @@ def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str |
             prefix = os.path.join(os.path.realpath(install_path), "")
             if not real_file.startswith(prefix):
                 continue
-            pin = record.get("gitCommitSha")
-            if pin is None:
-                return "absent", None
-            if isinstance(pin, str) and COMMIT_RE.fullmatch(pin):
-                return "pin", pin
-            return "unknown", "registry-pin-malformed"
+            return currency_record_pin(record)
     return "unknown", "registry-unmatched"
 
 
@@ -2019,20 +2041,48 @@ def observe_controller_currency(
         return observation
     plugins_root, marketplace = split
     kind, value = currency_registry_pin(plugins_root, real)
+    observation.update(
+        currency_pin_observation(plugins_root, marketplace, kind, value,
+                                 remote_reader)
+    )
+    return observation
+
+
+def currency_pin_observation(
+    plugins_root: str,
+    marketplace: str,
+    kind: str,
+    value: str | None,
+    remote_reader,
+) -> dict:
+    """Route, pin, head, verdict and warning for one registry pin answer.
+
+    The shared tail of the init gate and the `currency` report: `kind` and
+    `value` come from the registry ("pin", "absent" or "unknown"), and
+    everything past them is observed from the marketplace clone under the
+    same plugins root. A recorded pin makes the install git-backed even when
+    the marketplace clone is gone: claiming `managed` there would let one
+    deleted directory silence the gate without a warning (S2-R1-02). The pin
+    stays recorded, the head stays an explicit null, and the verdict stays
+    `unknown`.
+    """
+    observation = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
     if kind == "unknown":
         observation["warning"] = value
         return observation
-    clone = os.path.join(plugins_root, CURRENCY_MARKETPLACES_DIR, marketplace)
     if kind == "absent":
         observation["route"] = "managed"
         observation["verdict"] = "managed"
         return observation
-    # A recorded pin makes the install git-backed even when the marketplace
-    # clone is gone: claiming `managed` there would let one deleted directory
-    # silence the gate without a warning (S2-R1-02). The pin stays recorded,
-    # the head stays an explicit null, and the verdict stays `unknown`.
     observation["route"] = "git-backed"
     observation["pin"] = value
+    clone = os.path.join(plugins_root, CURRENCY_MARKETPLACES_DIR, marketplace)
     if not os.path.exists(os.path.join(clone, ".git")):
         observation["warning"] = "clone-missing"
         return observation
@@ -2047,6 +2097,125 @@ def observe_controller_currency(
     observation["observed_head"] = head
     observation["verdict"] = "current" if head == value else "behind"
     return observation
+
+
+def currency_record_marketplace(plugins_root: str, record: dict) -> str | None:
+    """The marketplace directory an install record sits under, or None.
+
+    Observed from the record's install path relative to the same plugins
+    root the controller derived from its own file, so a hostile registry
+    entry cannot point the clone read outside that root.
+    """
+    install_path = record.get("installPath")
+    if not isinstance(install_path, str) or not install_path:
+        return None
+    real = os.path.realpath(install_path)
+    prefix = os.path.join(plugins_root, CURRENCY_CACHE_DIR, "")
+    if not real.startswith(prefix):
+        return None
+    return real[len(prefix):].split(os.sep, 1)[0] or None
+
+
+def currency_report(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> tuple[list[dict], str | None]:
+    """One currency row per installed plugin, or a named refusal.
+
+    Returns (rows, None) or ([], refusal). The plugins root comes from the
+    running controller's own resolved file exactly as the init gate derives
+    it, the registry is one bounded read, and upstream is asked at most once
+    per distinct marketplace clone rather than once per plugin. A defective
+    record is a row with verdict `unknown`, so a plugin never vanishes from
+    the report; a registry that cannot answer at all is a refusal, because an
+    empty success would read as a fleet with nothing behind. Every install
+    record in the registry gets a row: filtering by a hard-coded marketplace
+    name would blind the report on a private-mirror host.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    split = currency_cache_split(real)
+    if split is None:
+        return [], (
+            "currency reports the install registry, and this controller does "
+            "not run from an install cache; run the installed copy instead"
+        )
+    plugins_root, _ = split
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return [], f"the install registry cannot be read ({plugins})"
+
+    memo: dict = {}
+
+    def read_once(clone_dir: str, branch: str):
+        key = (clone_dir, branch)
+        if key not in memo:
+            memo[key] = remote_reader(clone_dir, branch)
+        return memo[key]
+
+    unknown_row = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+    }
+    rows = []
+    for key in sorted(plugins):
+        plugin = key.rsplit("@", 1)[0] or key
+        records = plugins[key]
+        if not isinstance(records, list) or not records:
+            rows.append({"plugin": plugin, "version": None, **unknown_row,
+                         "warning": "registry-wrong-kind"})
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                rows.append({"plugin": plugin, "version": None, **unknown_row,
+                             "warning": "registry-wrong-kind"})
+                continue
+            version = record.get("version")
+            row = {
+                "plugin": plugin,
+                "version": version if isinstance(version, str) else None,
+            }
+            marketplace = currency_record_marketplace(plugins_root, record)
+            if marketplace is None:
+                row.update(unknown_row)
+                row["warning"] = "install-path-unrecognised"
+            else:
+                kind, value = currency_record_pin(record)
+                row.update(currency_pin_observation(
+                    plugins_root, marketplace, kind, value, read_once))
+            rows.append(row)
+    return rows, None
+
+
+def cmd_currency(args) -> None:
+    """Report pin-versus-upstream currency for every installed plugin.
+
+    Read-only: no state, no lock, no `.hexaemeron`. Exit 0 when nothing is
+    behind, 3 while anything is, 1 on a refusal, so a loop can gate a re-pin
+    on the status alone.
+    """
+    rows, refusal = currency_report()
+    if refusal is not None:
+        die(refusal, 1)
+    if args.json:
+        print(json.dumps(rows, indent=2))
+    else:
+        for row in rows:
+            line = " ".join(
+                str(row[field]) if row[field] is not None else "null"
+                for field in ("plugin", "version", "route", "pin",
+                              "observed_head", "verdict")
+            )
+            if row["warning"] is not None:
+                line += f" ({row['warning']})"
+            print(line)
+    if any(row["verdict"] == "behind" for row in rows):
+        sys.exit(3)
 
 
 RESERVED_RECEIPTS = {"study", "runbook", "run_observations"}
@@ -6164,6 +6333,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("status", help="show run state")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=cmd_status)
+
+    sp = sub.add_parser(
+        "currency",
+        help="report pin-versus-upstream currency for installed plugins",
+    )
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=cmd_currency)
 
     sp = sub.add_parser("next", help="emit the single next action as JSON")
     sp.set_defaults(fn=cmd_next)
