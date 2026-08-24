@@ -13891,3 +13891,56 @@ the defective-record row shapes and the unknowns-only fleet still carry no
 dedicated suite guard. One new lead: lookalike printable names (homoglyphs)
 remain renderable, as any name display leaves them. The step 2 leads stand
 as recorded.
+
+## Step 3, round 3 -- 2026-08-24
+
+Zero findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+This convergence round re-audits round 2's fix commit
+`f4cc25c1bfff65940b12c49fa34d043f0bbc0e9f` on
+`fiat/controller-currency-guarantee-step-3-expose-the-currency-observation--audit`,
+entered at `4d858a7570659cecc3654e822e3cd85dce448954` with a clean tree.
+
+The printability predicate cannot misrender a value this registry
+legitimately carries. A direct probe passes byte for byte: plugin slugs
+including hyphenated ones, semver strings including pre-release and build
+metadata, 40- and 64-hex pins, every route and verdict token, marketplace
+names, and exotic-but-printable names -- accented, CJK, emoji and umlaut
+samples -- while `None` renders `null` and interior spaces are kept, since
+U+0020 is the one whitespace `str.isprintable` admits. The only characters
+the helper mutates are non-printables, which no legitimate name, version,
+hex pin or enum contains.
+
+The round 2 guard reads the fix and not an accident: with the predicate
+reverted in place to round 1's byte-class form, the guard fails on the
+separator-forgery assertion, and the tree was restored byte-clean
+afterwards.
+
+No rendering path in the range prints registry bytes unsanitized. The
+range's complete output inventory in the controller: the two refusal
+strings, whose only interpolation is the fixed registry warning token; the
+row warning suffix, a closed vocabulary; the text line, built exclusively
+from the sanitizing field helper; and the `--json` dump, the deliberate raw
+machine surface under native JSON escaping.
+
+Mechanical results: Phylax, Ephoros and Hypomnema print `clean` and exit 0.
+The Hexaemeron suite passes 1048/1048 and the root suite 349/349. The
+security suite stays waived: no Solidity in scope, unchanged. No repair was
+made this round, so no Elenchus report was created and no Elenchus verdict
+applies.
+
+Qualification: this round establishes the sanitizer's convergence and the
+range's rendering inventory, not the reinstall operation, step 4 behaviour,
+remote signature verification, push, pull request, or integration state.
+
+The Sapheneia durable-record comparison preserved the heading, the zero
+count, the empty finding table, the date, both commit SHAs, the probe
+inventories, the revert-check result, the rendering inventory, every exit
+code and suite count, the qualification, and the lead line below, item by
+item. It changes no existing audit byte.
+
+Leads not pursued: the standing step 2 and step 3 leads as recorded at
+rounds 1 and 2, unchanged. No new lead was found this round.
