@@ -12018,6 +12018,45 @@ verdict, status, the three lint exits, both suite counts, the Promise Machine
 counts, the six risk ids, the fixes commit with its signature and trailer
 attribution, and both unpursued leads survive unchanged. Only connective and
 process prose was compacted.
+## Issue 435 CARRYOVER-12, step 1, round 1 -- 2026-08-24
+
+### Verdict
+
+Zero findings. The signed implementation under review is
+`5d41815783e27beeae5dfa81cfdd0862f2e4f7d0`; its signature is good and its
+required co-author and origin trailers each occur once. The tree is clean.
+
+### Risk register
+
+- `raw-descriptor`: raw prompt, command, header, and analysis probes become
+  non-echoing gaps.
+- `report-path`: writer-forgery and symlink-parent guards pass; absolute
+  outside and lexical-escape targets refuse with exit 2.
+- `receipt-drift`, `terminal-bytes`, and `authored-escape`: source/copy
+  comparisons pass, tails are `2e 0a`, and authored bytes contain no `5c 6e`.
+- `partial-tree`, `adr-allocation`, `coverage-drift`, `receipt-mutation`, and
+  `base-divergence`: the 25-ID preflight, ADR checks, coverage bindings, source
+  digests, and controller identity pass.
+- `detached-tree`: the narrow receipt-unavailable guard passes.
+- `guard-evidence`: no repair exists in this round, so no Elenchus verdict is
+  claimed.
+
+### Evidence and leads
+
+Gates: focused 107/107; direct reporter 108/108 with zero failures, errors,
+and skips; root 231/231; inoculation 1,258 cases with zero crashes and zero
+unexpected clean results; Promise sync/check/coverage 14/14 and 69/69;
+Phylax, Ephoros, Hypomnema, Imprimatur, Brevitas, Horos, and both diff checks
+exit 0.
+
+Leads not pursued: live capture, #436 receipt binding, #437 handover, and #508
+process work are outside issue #435. No controller receipt, push, PR, merge, or
+issue closure occurred in this audit.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory retained the zero-finding verdict,
+all twelve risk dispositions, signed implementation identity, check counts,
+known limits, and non-actions.
 ## Step 1, round 1 -- 2026-08-24
 
 Non-Solidity round. The security suite is waived for this run: the step ships
