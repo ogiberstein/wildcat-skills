@@ -247,10 +247,12 @@ elif args and args[0] == "ls-remote":
         print(f"{{tip}}\\t{{ref}}")
 elif args and args[0] == "merge-base":
     if "--is-ancestor" in args:
-        if mode == "not-ancestor":
-            raise SystemExit(1)
         if mode == "ancestry-error":
             raise SystemExit(128)
+        if mode == "not-ancestor":
+            detached = os.environ.get("FAKE_GIT_NOT_ANCESTOR", "d" * 40).split(",")
+            if args[-2] in detached:
+                raise SystemExit(1)
     raise SystemExit(0)
 elif args and args[0] == "rev-list":
     pair = next(value for value in args if ".." in value)
@@ -1780,7 +1782,10 @@ class TestMergedState(HexctlCase):
         self.assertEqual(
             [entry["login"] for entry in recorded["identities"]], ["kethcode"]
         )
-        self.assertIsNone(recorded["merge_login"])
+        self.assertEqual(recorded["carriers"], {})
+        self.assertEqual(
+            [entry["carrier"] for entry in recorded["identities"]], [None]
+        )
         self.run_ctl("verify")
 
     def test_a_rewritten_merge_may_be_carried_by_the_merge_author(self):
@@ -1788,21 +1793,26 @@ class TestMergedState(HexctlCase):
         self.integrate(git_mode="not-ancestor", gh_mode="external-author")
         recorded = self.recorded()
         self.assertEqual(recorded["mechanisms"], ["merge-author"])
-        self.assertEqual(recorded["merge_login"], "kethcode")
+        # The step's own merge into the run branch is tried before the base
+        # merge, and under this fixture it carries the identity.
+        self.assertEqual(
+            [entry["carrier"] for entry in recorded["identities"]], ["e" * 40]
+        )
+        self.assertEqual(recorded["carriers"], {"e" * 40: "kethcode"})
 
     def test_a_rewritten_merge_may_be_carried_by_a_coauthor_trailer(self):
         self.to_integrate()
         self.integrate(git_mode="not-ancestor", gh_mode="attribution-merge-coauthor")
         recorded = self.recorded()
         self.assertEqual(recorded["mechanisms"], ["merge-coauthor"])
-        self.assertEqual(recorded["merge_login"], "maintainer")
+        self.assertEqual(recorded["carriers"], {"e" * 40: "maintainer"})
 
     def test_a_rewritten_merge_that_dropped_the_identity_refuses(self):
         self.to_integrate()
         proc = self.integrate(
             expect=2, git_mode="not-ancestor", gh_mode="attribution-merge-stranger"
         )
-        self.assertIn("carries neither that commit nor that identity", proc.stderr)
+        self.assertIn("no merge this run recorded carries that commit", proc.stderr)
         self.assertIn("kethcode", proc.stderr)
         self.assertNotIn("@", proc.stderr)
         self.assertEqual(self.state()["phase"], "integrate")
@@ -1825,6 +1835,50 @@ class TestMergedState(HexctlCase):
         recorded = self.recorded()
         self.assertEqual(recorded["identities"], [])
         self.assertEqual(recorded["mechanisms"], [])
+        self.assertEqual(recorded["carriers"], {})
+
+    def test_a_step_merge_is_tried_before_the_base_merge(self):
+        """A squashed step keeps its identity on its own merge, not the base one.
+
+        The base merge's message names no contributor, so a fallback that
+        looked only there would refuse an identity that did reach the base.
+        """
+        self.to_integrate()
+        state = self.state()
+        self.assertEqual(
+            state["integrate"]["merges"]["1"]["merge_commit"], "e" * 40
+        )
+        self.integrate(git_mode="not-ancestor", gh_mode="attribution-merge-coauthor")
+        identities = self.recorded()["identities"]
+        self.assertEqual([entry["carrier"] for entry in identities], ["e" * 40])
+        self.assertNotIn("f" * 40, self.recorded()["carriers"])
+
+    def test_a_step_merge_that_never_reached_the_base_is_not_a_carrier(self):
+        """A recorded merge only counts while it is reachable from the base."""
+        self.to_integrate()
+        self.env["FAKE_GIT_NOT_ANCESTOR"] = ",".join(("d" * 40, "e" * 40))
+        try:
+            self.integrate(git_mode="not-ancestor", gh_mode="external-author")
+        finally:
+            self.env.pop("FAKE_GIT_NOT_ANCESTOR", None)
+        identities = self.recorded()["identities"]
+        self.assertEqual([entry["carrier"] for entry in identities], ["f" * 40])
+        self.assertEqual(self.recorded()["carriers"], {"f" * 40: "kethcode"})
+
+    def test_an_empty_repaired_container_is_current_not_absent(self):
+        """A repair that recorded no commits does not fall back to stale data.
+
+        `effective_push` is the fresher record by construction. Reading it by
+        truthiness rather than presence would treat an empty container as
+        absent and quietly use the head the repair replaced.
+        """
+        module = hexctl_module()
+        state = {
+            "steps": [{"n": 1, "receipts": {"push": {"attribution": {
+                "commits": [{"commit": "d" * 40, "login": "stale"}]}}}}],
+            "integrate": {"merges": {"1": {"effective_push": {"attribution": {}}}}},
+        }
+        self.assertEqual(module.recorded_run_attribution(state), [])
 
     def test_the_integrate_directive_names_the_preserving_merge_method(self):
         self.to_integrate()
