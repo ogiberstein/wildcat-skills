@@ -1,5 +1,6 @@
 """Keep issue 429's checked-in release evidence reproducible."""
 
+import hashlib
 from pathlib import Path
 import re
 import shlex
@@ -20,6 +21,7 @@ ISSUE_429_RUNBOOK = (
     / "audit-record-schema-timestamp-synopsis"
     / "runbook.md"
 )
+ISSUE_429_PROOF = ISSUE_429_RUNBOOK.with_name("proof.md")
 ISSUE_429_ELENCHUS_COMMAND = (
     "npx --yes --package=node@26.6.0 -- python3.12 "
     "plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}"
@@ -54,6 +56,37 @@ class Issue429ReleaseTests(unittest.TestCase):
         self.assertEqual(
             shlex.split(ISSUE_429_ELENCHUS_COMMAND).count("{report}"), 1
         )
+
+    def test_proof_binds_the_current_runbook_and_corrected_gate(self):
+        runbook_digest = hashlib.sha256(ISSUE_429_RUNBOOK.read_bytes()).hexdigest()
+        proof = ISSUE_429_PROOF.read_text(encoding="utf-8")
+        current_binding = (
+            "| release runbook, "
+            "`plugins/hexaemeron/docs/audit-record-schema-timestamp-synopsis/"
+            f"runbook.md` | `{runbook_digest}` |"
+        )
+        corrected_gate = (
+            "--test-command \"npx --yes --package=node@26.6.0 -- "
+            "python3.12 plugins/hexaemeron/tests/run_tests.py "
+            "--elenchus-report {report}\""
+        )
+        corrected_result = (
+            "`guarded`: 928 tests executed; one parent assertion failure, "
+            "zero errors, and zero skips"
+        )
+        historical_gate = (
+            "--test-command \"npx --yes --package=node@26.6.0 --call "
+            "'python3.12 plugins/hexaemeron/tests/run_tests.py "
+            "--elenchus-report {report}'\""
+        )
+        for name, needle in (
+            ("current-binding", current_binding),
+            ("corrected-command", corrected_gate),
+            ("corrected-result", corrected_result),
+            ("historical-command", historical_gate),
+        ):
+            with self.subTest(name=name):
+                self.assertIn(needle, proof)
 
 
 if __name__ == "__main__":

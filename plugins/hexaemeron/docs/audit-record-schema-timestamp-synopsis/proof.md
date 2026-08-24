@@ -21,7 +21,7 @@ on those generated values.
 | `plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py` | `fba96f11812c33e18a406d3724ae4aa18c4b0527577c6021c4e5dc31729cc1dc` | every disposable and release render |
 | `study.md` | `65b804081a676a42f0ee52af72bf149776d0e54bebc8f258792ba67ba2c25fd3` | the exact 13-id risk register |
 | accepted replay runbook, `.hexaemeron/runbook.md` | `457cdd395b37dcfe89e1b36ae89ff04b584cd81a56b6d7c21407a94f85acc2e5` | the exact three-step plan used by the replay |
-| release runbook, `plugins/hexaemeron/docs/audit-record-schema-timestamp-synopsis/runbook.md` | `f7e9726f36133be913321c9f49af2789a93e5eb8b47abed343414bcaace88199` | the same plan with its Elenchus runner pinned to Node 26.6.0 |
+| release runbook, `plugins/hexaemeron/docs/audit-record-schema-timestamp-synopsis/runbook.md` | `07003da0855c317d78d00f3287d6fa38eefa1b49dfe6f3037dcda60fc2236998` | the same plan with its Elenchus runner pinned to Node 26.6.0 and `{report}` exposed as one argument |
 
 the driver used `subprocess.run` with argument lists and `pathlib` writes. its
 controller command sequence was:
@@ -247,6 +247,7 @@ establishes only the named check.
 | `python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report .elenchus/hexaemeron-unittest.json` | host Node v22.22.3 contradicted the declared v26.6.0; 925 of 926 passed | 1 |
 | `npm_config_offline=true npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report .elenchus/hexaemeron-unittest.json'` | 926 tests passed in 229.638s; report schema `elenchus.unittest.v1`, 926 run, zero failures, errors, skips, or unexpected outcomes | 0 |
 | `python3.12 plugins/hexaemeron/skills/elenchus/scripts/elenchus.py --ref HEAD --test-command "npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'" --report-format unittest-json-v1 --report-file .elenchus/hexaemeron-unittest.json --format json` | historical invocation returned `unguarded` before validating the command because the proof commit changed no test files | 0 |
+| `python3.12 plugins/hexaemeron/skills/elenchus/scripts/elenchus.py --ref e9ca4ecb74f8b5de2a312c9296723c3c4eed5b00 --test-command "npx --yes --package=node@26.6.0 -- python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}" --report-format unittest-json-v1 --report-file .elenchus/hexaemeron-unittest.json --format json` | `guarded`: 928 tests executed; one parent assertion failure, zero errors, and zero skips | 0 |
 | `git diff --check` | clean | 0 |
 
 the successful `unittest-json-v1` report was 161 bytes on one line with
