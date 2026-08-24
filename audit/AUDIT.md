@@ -11522,3 +11522,68 @@ No protected item changed or disappeared.
 Leads not pursued: reconcile PR #509 only if its integration branch approaches
 `main`; exercise the task-issue comment sequence when a run has a bound issue;
 verify remote signatures only after publication.
+
+## Step 2, round 2 -- 2026-08-24
+
+Finding count: 0. Audit filter declaration:
+`--audit-filter sapheneia:sapheneia`. Security suite: waived because the
+repository framework change contains no Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Prior finding `S2-R1-01` is fixed at the instruction layer by signed commit
+`2290b6851c67423867f26e72c25fd57ef5776675`. Receipted amendment SHA-256
+`9d347b7cb89e6971e019cae3c6f5e8362e6bdeb39b0e8eea49532b378f85a989`
+supersedes the runbook's rebase wording with Fiat's canonical rule: do not
+rewrite the signed stack; if the integration pull request conflicts, merge the
+exact remote base tip once through a signed `sync-run` after the final step
+merge. PR #518's actual main merge, the `.horos/boundary.json` conflict,
+combined-tree regeneration, and all post-sync checks remain mandatory
+integrate-phase work. They are not claimed complete here.
+
+Elenchus verdict: `unguarded`. The exact fixed commit changed no test files, so
+Elenchus returned `the commit changed no test files`; no process exit or clean
+fixed-tree suite was substituted for that verdict.
+
+Risk coverage: `evidence-loss`, `false-semantic-proof`, `final-byte-drift`,
+`queue-format-drift`, `github-bypass`, `history-rewrite`, `session-leak`,
+`open-issue-collision`, `frontier-drift`, and `task-comment-mismatch` are
+clean for the fixes range. `pr-509-overlap` remains external and unresolved:
+its non-main branch still overlaps the controller, Warden contract, audit-loop
+reference, evolution ledger, manifests, and tests.
+
+Evidence: fixes range
+`6dcfb93374ab825817fa2bcd5f832fe9aea22397..2290b6851c67423867f26e72c25fd57ef5776675`
+contains one locally verified Shoggoth commit with both provenance trailers
+once. The canonical rule is at
+`plugins/hexaemeron/skills/fiat/SKILL.md:443-446` and
+`plugins/hexaemeron/skills/fiat/references/push-discipline.md:180-189`.
+The controller packet names round 2, study digest
+`cdb4c122872db7e291bc4057531e198a7faa32557ae87f3eb2c909a221106f19`,
+state digest `372160e4aa61cb90991bbc4e59e8f05b2f99b1695315b18402da5be98a9fa949`,
+and the exact audit-filter obligation.
+
+Checks: Phylax exit 0; Ephoros exit 0; Hypomnema exit 0. Hexaemeron passed
+881/881; root passed 196/196; Sapheneia passed 11/11. Promise Machine,
+Protasis, Horos, controller verification, and `git diff --check` passed.
+Round-1 Imprimatur and Brevitas evidence covered every changed target required
+by the runbook. This round does not claim that this one-row audit candidate is
+Brevitas-clean: Fiat's required five-column audit table conflicts with that
+structural rule.
+
+Unknowns: no `sync-run`, Horos regeneration on the combined tree, remote
+signature check, task-issue comment publication, remote byte readback, PR #509
+reconciliation, or model-level semantic proof occurred in this round.
+
+Sapheneia comparison: the compact candidate retains the zero finding count,
+prior finding id and fix status, exact SHAs, amendment and state digests,
+locations, verdict and cause, lint exits, test counts, waiver, declaration,
+qualifications, unknowns, negative evidence, and unpursued leads. The table
+shape and every protected token match the source inventory.
+
+Leads not pursued: execute and receipt the signed `sync-run` only at the
+canonical integrate transition if the integration pull request conflicts;
+reconcile PR #509 only if it approaches `main`; exercise the task-issue comment
+sequence only for a bound issue.
