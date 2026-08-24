@@ -13593,3 +13593,79 @@ echoed or dereferenced; `bounded_probe` inherits stdin as every
 `.git/HEAD` is detached or unreadable reads `clone-head-unreadable` by
 probe, without a dedicated suite guard. None of these changes a verdict or
 crosses a boundary; they stand for a later round or step.
+
+## Step 2, round 2 -- 2026-08-24
+
+Zero findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+The audited range is
+`d113c06b7eb267e1aade53d81a3c0ad940e7a72a..fb98d4da595070ec3533f6cabdf30e59355653b0`
+on
+`fiat/controller-currency-guarantee-step-2-observe-controller-currency-at-i--audit`,
+two commits: `561252ff2f287e72c4e339f81ed921cb62cc75fc` carries the round 1
+fixes for S2-R1-01 and S2-R1-02 with their guard tests and the six digest
+pins refreshed to
+`43ee3e565d20a41fab4df1c8b417ec562828e73c008199ff416fe2538e1c50f5`, and
+`fb98d4da595070ec3533f6cabdf30e59355653b0` appends the round 1 record to
+`audit/AUDIT.md` and touches nothing else. Both commits have a good local
+Shoggoth signature and exactly one
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer and one
+`Wildcat-Origin: shoggoth` trailer. This round re-audits the two repairs on
+the fixed tree.
+
+The S2-R1-01 repair breaks no legitimate record path: the only writers of
+the `controller_currency` key are init's receipt and init transition, a
+search across `plugins/hexaemeron/skills`, `docs` and `README.md` finds no
+flow that directs `hexctl record controller_currency`, and the refusal sits
+after the phase-receipt check and before the `halt_note` and `task_issue`
+handling, which keep their behaviour. The refusal message is one fixed
+string with no interpolated value.
+
+The S2-R1-02 repair reads honestly on every side. A pinned install with the
+marketplace clone missing warns on stderr with the pre-existing unknown
+sentence naming `clone-missing` and stating that the receipt records the
+nulls rather than a verdict, so the wording claims neither `current` nor
+`behind`; the guard test pins the receipt to route `git-backed`, verdict
+`unknown`, warning `clone-missing`, the pin recorded and the head an
+explicit null, with no network read. The rewritten managed fixture is a true
+pinless install: `gitCommitSha` null classifies `absent`, the receipt
+asserts `pin` null, and the clone is present but unread.
+
+The four risk ids the fixes touched were re-checked on the fixed code.
+`verdict-honesty`: the `clone-missing` path returns before the comparison,
+and the only verdict assignments remain `no-pin`, `managed` on a pin-absent
+record, `current`/`behind` after one validated head, and `unknown`
+everywhere else. `route-misdetection`: `git-backed` now follows the
+registry's recorded pin, matching the study glossary, and the cache-split
+precedence is unchanged. `registry-hostile-input`: registry parsing is
+untouched by the fixes and its named-warning vocabulary is unchanged.
+`secret-echo`: the two new strings -- the `clone-missing` warning token and
+the record refusal -- are fixed vocabulary with no value bytes.
+
+Mechanical results for this round: Phylax, Ephoros (each over `plugins
+tests`) and Hypomnema (over `README.md AGENTS.md .agents plugins docs`) all
+print `clean` and exit 0. The Hexaemeron suite passes 1039/1039 and the root
+suite passes 349/349. Horos reports `boundary matches the tree` and `git
+diff --check` exits 0 over the range. The security suite stays waived: no
+Solidity in scope, unchanged from round 1. No repair was made this round, so
+no Elenchus report was created and no Elenchus verdict applies.
+
+Qualification: this round establishes that the round 1 repairs hold on the
+fixed tree and that the tree is healthy, not step 3 or 4 behaviour, remote
+signature verification, push, pull request, or integration state.
+
+The Sapheneia durable-record comparison preserved the heading, the zero
+count, the empty finding table, the date, the range, branch and both commit
+SHAs, the refreshed digest, both finding ids named as context with their
+held repairs, every exit code and suite count, all four re-checked register
+dispositions, the qualification, and the lead line below, item by item. It
+changes no existing audit byte.
+
+Leads not pursued: the five recorded at round 1 stand unchanged --
+the unguarded `registry-pin-malformed` branch, the 64-hex pin acceptance,
+the crafted `installPath` prefix inside the registry's existing authority,
+`bounded_probe` stdin inheritance, and the unguarded `clone-head-unreadable`
+branch. No new lead was found this round.
