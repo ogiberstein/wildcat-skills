@@ -1,16 +1,17 @@
-# ADR-018: Rank contributors by resolved identity, not by provenance trailer
+# ADR-019: Rank contributors by resolved identity, not by provenance trailer
 
 ## Status
 
-Accepted, 2026-08-24. Numbered 018 rather than 017: the concurrent delivery for
-issue #466 claimed 017 first, as
-`ADR-017-bind-merged-authorship-to-the-integration-receipt.md` in pull request
-521, and two records cannot share a number. That file is deliberately named
-rather than linked here, because it does not exist on this branch and will not
-until #466 lands. Depends on
+Accepted, 2026-08-24. Numbered 019, having been renumbered twice while two
+concurrent deliveries landed ahead of it. 017 went to
+[ADR-017](ADR-017-gate-durable-agent-prose.md), which gates durable agent prose
+before publication. 018 went to
+[ADR-018](ADR-018-bind-merged-authorship-to-the-integration-receipt.md), the
+record for issue #466. Both are on the default branch, so both are linked here
+rather than named in the abstract. Depends on
 [ADR-016](ADR-016-attribute-governed-agent-work-to-shoggoth.md) for what an
-agent identity is. Consumes the authorship evidence that issue #466 exists to
-make correct at integration time.
+agent identity is, and consumes the authorship evidence ADR-018 binds at
+integration time.
 
 ## Context
 

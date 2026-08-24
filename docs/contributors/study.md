@@ -343,7 +343,7 @@ Two decisions here are expensive to reverse.
 The first is that identity, not the `Wildcat-Origin` trailer, decides who is a
 contributor, and that a human running Shoggoth keeps their credit. Reversing it
 would empty the file and contradict ADR-016's "human contributors remain
-visible". It gets `docs/decisions/ADR-018-rank-contributors-by-resolved-identity.md`,
+visible". It gets `docs/decisions/ADR-019-rank-contributors-by-resolved-identity.md`,
 recording the trailer option's rejection with the counts that disprove it, so a
 later round does not reopen a question this study already settled.
 
@@ -370,3 +370,24 @@ number. The renumbering is external to this run's reasoning and changes nothing
 about the decision itself.
 **Steps touched.** Step 5's files and exit, which name the record's path.
 **Still holding.** Step 5: entry holds; exit holds.
+
+### Amendment -- 2026-08-24 (second)
+
+**What changed.** The decision record is numbered ADR-019, not ADR-018 as the
+first amendment above states.
+**Why.** Two concurrent deliveries landed while this run was held. Pull request
+524 merged `ADR-017-gate-durable-agent-prose.md`, and the delivery for issue
+#466 merged `ADR-018-bind-merged-authorship-to-the-integration-receipt.md`. The
+first amendment's reasoning was also incomplete: it named pull request 521 as
+having claimed 017, which was true of that branch but not of the default branch,
+where 017 had already been taken by 524. Filenames differing is not protection
+here, because git merges two records with different names without conflict and
+the repository then carries two of the same number; it already carries two
+ADR-012s that way.
+**Steps touched.** Step 5's files and exit, and every pointer at the record's
+path.
+**Still holding.** Step 5: entry holds; exit holds. No unbuilt steps remain.
+
+Divergence from the receipted study is deliberate and limited to this block and
+to link paths. The copy the delivery controller pinned keeps the exact bytes its
+receipt covers; this published copy is kept accurate for a reader instead.

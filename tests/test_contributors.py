@@ -220,7 +220,7 @@ class CommittedSpecLinks(unittest.TestCase):
     SPEC = (
         "docs/contributors/study.md",
         "docs/contributors/runbook.md",
-        "docs/decisions/ADR-018-rank-contributors-by-resolved-identity.md",
+        "docs/decisions/ADR-019-rank-contributors-by-resolved-identity.md",
         "docs/promise-machine/contributors-v1.md",
         "CONTRIBUTORS.md",
     )
@@ -267,7 +267,7 @@ class CommittedSpecLinks(unittest.TestCase):
 class RecordedDecisions(unittest.TestCase):
     """The claims and records this work is obliged to leave behind."""
 
-    ADR = REPOSITORY_ROOT / "docs/decisions/ADR-018-rank-contributors-by-resolved-identity.md"
+    ADR = REPOSITORY_ROOT / "docs/decisions/ADR-019-rank-contributors-by-resolved-identity.md"
     PROMISE_DOC = REPOSITORY_ROOT / "docs/promise-machine/contributors-v1.md"
     GUIDE = REPOSITORY_ROOT / "docs/how-to-help-shoggoth.md"
     README = REPOSITORY_ROOT / "README.md"
@@ -313,7 +313,7 @@ class RecordedDecisions(unittest.TestCase):
     def test_the_guide_says_what_the_list_does_not_establish(self):
         text = self.GUIDE.read_text(encoding="utf-8")
         self.assertIn("CONTRIBUTORS.md", text)
-        self.assertIn("ADR-018-rank-contributors-by-resolved-identity", text)
+        self.assertIn("ADR-019-rank-contributors-by-resolved-identity", text)
         self.assertIn("not a ranking of people", text)
 
 
