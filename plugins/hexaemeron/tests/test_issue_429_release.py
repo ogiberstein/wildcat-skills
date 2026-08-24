@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import re
+import shlex
 import unittest
 
 
@@ -10,6 +11,18 @@ ROOT_SUITE_JOBS = (
     (".github/workflows/janus.yml", "contracts"),
     (".github/workflows/lazarus.yml", "tests"),
     (".github/workflows/pandects.yml", "catalogue"),
+)
+ISSUE_429_RUNBOOK = (
+    REPO_ROOT
+    / "plugins"
+    / "hexaemeron"
+    / "docs"
+    / "audit-record-schema-timestamp-synopsis"
+    / "runbook.md"
+)
+ISSUE_429_ELENCHUS_COMMAND = (
+    "npx --yes --package=node@26.6.0 -- python3.12 "
+    "plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}"
 )
 
 
@@ -33,6 +46,14 @@ class Issue429ReleaseTests(unittest.TestCase):
                     "run: python3 -m unittest discover -s tests -v", body
                 )
                 self.assertNotIn("fetch-depth: 0", body)
+
+    def test_runbook_exposes_the_elenchus_report_argument(self):
+        runbook = ISSUE_429_RUNBOOK.read_text(encoding="utf-8")
+        self.assertEqual(runbook.count("--elenchus-report {report}"), 4)
+        self.assertEqual(runbook.count(ISSUE_429_ELENCHUS_COMMAND), 4)
+        self.assertEqual(
+            shlex.split(ISSUE_429_ELENCHUS_COMMAND).count("{report}"), 1
+        )
 
 
 if __name__ == "__main__":

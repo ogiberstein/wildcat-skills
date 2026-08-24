@@ -17,7 +17,7 @@ npx --yes --package=node@26.6.0 --call \
 every step gives Warden the same source-bound Elenchus runner contract:
 
 ```text
-test command: npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'
+test command: npx --yes --package=node@26.6.0 -- python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}
 report format: unittest-json-v1
 report file: .elenchus/hexaemeron-unittest.json
 ```
@@ -120,7 +120,7 @@ legacy missing-key sequence through `status`, `next`, `verify`, a later round,
 and audit close. Each refusal test hashes state and ledger before and after.
 The prefix test mutates one old byte, truncates, inserts inside the prefix, and
 appends after it. Runbook Elenchus test command:
-`npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'`.
+`npx --yes --package=node@26.6.0 -- python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}`.
 Elenchus report format: `unittest-json-v1`. Elenchus report file:
 `.elenchus/hexaemeron-unittest.json`.
 
@@ -224,7 +224,7 @@ dropped duplicate lead, line-budget breach, unsafe path, cap breach, and
 interrupted replacement; see exact regeneration repair each recoverable case.
 Controller tests prove synopsis refusal has no state or ledger drift. Runbook
 Elenchus test command:
-`npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'`.
+`npx --yes --package=node@26.6.0 -- python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}`.
 Elenchus report format: `unittest-json-v1`. Elenchus report file:
 `.elenchus/hexaemeron-unittest.json`.
 
@@ -311,7 +311,7 @@ retention, and line-budget checks instead of a prose rewrite.
 disposable repository, asserts exact state and ledger digests around each
 refusal, and reruns the focused guards plus every command above. Runbook
 Elenchus test command:
-`npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'`.
+`npx --yes --package=node@26.6.0 -- python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}`.
 Elenchus report format: `unittest-json-v1`. Elenchus report file:
 `.elenchus/hexaemeron-unittest.json`.
 

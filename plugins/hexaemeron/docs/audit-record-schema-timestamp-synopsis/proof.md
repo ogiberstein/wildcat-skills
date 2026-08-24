@@ -212,12 +212,15 @@ the fenced release suite does not make that report a zero-exit gate. rewriting
 the accepted study here would repin its bytes after implementation, so step 3
 records the result and does not call the study Brevitas-clean.
 
-the Elenchus report runner exposed one stale runbook command. its direct
+the Elenchus report runner exposed a stale runbook command. its direct
 `python3.12` form inherited host Node v22.22.3 and exited 1 after 925 of 926
 tests passed; `test_fixture_exercised_the_declared_node_version` required
-v26.6.0. all four committed runbook occurrences now use the same pinned `npx`
-form as the covering suite. the accepted `.hexaemeron/runbook.md` remains at
-its receipted digest above; no controller state was rewritten.
+v26.6.0. the first pinned replacement hid `{report}` inside the `--call`
+string, so Elenchus refused it as `inconclusive` when a later fix carried a
+test. round 1 replaces all four occurrences with the direct `npx` executable
+form, where `{report}` is one exact argument and the child still sees Node
+v26.6.0. the accepted `.hexaemeron/runbook.md` remains at its receipted digest
+above; no controller state was rewritten.
 
 ## release gates
 
@@ -243,7 +246,7 @@ establishes only the named check.
 | `python3.12 plugins/brevitas/skills/brevitas/scripts/brevitas.py plugins/hexaemeron/docs/audit-record-schema-timestamp-synopsis/proof.md --mode report` | no diagnostics | 0 |
 | `python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report .elenchus/hexaemeron-unittest.json` | host Node v22.22.3 contradicted the declared v26.6.0; 925 of 926 passed | 1 |
 | `npm_config_offline=true npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report .elenchus/hexaemeron-unittest.json'` | 926 tests passed in 229.638s; report schema `elenchus.unittest.v1`, 926 run, zero failures, errors, skips, or unexpected outcomes | 0 |
-| `python3.12 plugins/hexaemeron/skills/elenchus/scripts/elenchus.py --ref HEAD --test-command "npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'" --report-format unittest-json-v1 --report-file .elenchus/hexaemeron-unittest.json --format json` | `unguarded`: the proof commit changed no test files | 0 |
+| `python3.12 plugins/hexaemeron/skills/elenchus/scripts/elenchus.py --ref HEAD --test-command "npx --yes --package=node@26.6.0 --call 'python3.12 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}'" --report-format unittest-json-v1 --report-file .elenchus/hexaemeron-unittest.json --format json` | historical invocation returned `unguarded` before validating the command because the proof commit changed no test files | 0 |
 | `git diff --check` | clean | 0 |
 
 the successful `unittest-json-v1` report was 161 bytes on one line with
