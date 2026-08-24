@@ -426,6 +426,31 @@
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
       "selector": "test_post_amendment_drift_refuses_next_and_verify"
     },
+    "fiat-observation-m": {
+      "claim": "A requested observation claim without a selected binding refuses while ordinary controller verification remains available.",
+      "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
+      "selector": "test_legacy_run_stays_valid_until_the_dependent_claim_is_requested"
+    },
+    "fiat-observation-o": {
+      "claim": "An unavailable observer remains recorded without a digest and cannot strengthen the preceding delivery receipt.",
+      "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
+      "selector": "test_non_available_capture_records_no_digest_and_does_not_break_verify"
+    },
+    "fiat-observation-p": {
+      "claim": "A checked prefix binds to the immediately preceding receipt without changing the controller phase.",
+      "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
+      "selector": "test_normal_prefix_binds_to_the_selected_receipt"
+    },
+    "fiat-observation-r": {
+      "claim": "Changed or truncated prefix bytes refuse only the dependent claim and retain an exact restoration or later-receipt recovery.",
+      "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
+      "selector": "test_replacement_and_truncation_break_only_the_dependent_claim"
+    },
+    "fiat-observation-s": {
+      "claim": "A different run, contract, interval, or count cannot inherit the selected receipt's binding.",
+      "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
+      "selector": "test_bound_run_contract_and_event_count_are_recomputed"
+    },
     "fiat-m": {
       "claim": "Missing required evidence is refused rather than treated as success.",
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
@@ -1438,6 +1463,22 @@
     },
     {
       "cases": {
+        "M": "fiat-observation-m",
+        "O": "fiat-observation-o",
+        "P": "fiat-observation-p",
+        "R": "fiat-observation-r",
+        "S": "fiat-observation-s",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      },
+      "group": "executable",
+      "promise_id": "fiat-run-observation-binding",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md"
+    },
+    {
+      "cases": {
         "M": "fiat-m",
         "O": "fiat-o",
         "P": "fiat-p",
@@ -2362,6 +2403,70 @@
       "skill_path": "plugins/hexaemeron/skills/vulgate/SKILL.md"
     }
   ],
+  "run_observation_binding": {
+    "contract": "fiat-run-observation-binding/v1",
+    "controller": {
+      "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
+      "sha256": "c311ad608326dd5ff524ee6f5f026dc9cf386bc7ad23fea4da4b3544a4daff9d"
+    },
+    "validator": {
+      "path": "scripts/run_observation.py",
+      "sha256": "712f2afc40f7703cc64a92cd850559684a28f1b98e3241652a67ac6b48124d40"
+    },
+    "documentation": {
+      "path": "docs/fiat-run-observation-binding-v1.md",
+      "sha256": "eb6b6f9431e0b1f12d9d6d30f572b8b08689a730ca4c2df3a68263de8c936e4f"
+    },
+    "decision": {
+      "path": "docs/decisions/ADR-024-bind-run-observation-prefixes-to-fiat-receipts.md",
+      "sha256": "50e8e9fae79554af9ad8b9a342393db2c657f0cac0f550db4bd6e2d1c3044e98"
+    },
+    "fixture_manifest": {
+      "path": "plugins/hexaemeron/tests/fixtures/run-observation-binding/cases.json",
+      "sha256": "12a3eb914926275e8b40fc23c5ae82e5121c0e4c554ef10ce3a8a37aa17d4a67"
+    },
+    "reporter": {
+      "path": "plugins/hexaemeron/tests/run_tests.py",
+      "sha256": "2329a9f8e65726419d004e00baa5e0ff8825a68352826446b1973f3bba25456f"
+    },
+    "tests": [
+      {
+        "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
+        "sha256": "0d5bc849287e5811a5027575adcbeb66a05532de317d06714547c62cd1e7a6c9",
+        "selectors": [
+          "test_binding_validates_the_captured_bytes_not_a_later_path_snapshot",
+          "test_binding_finally_rechecks_the_named_bytes_after_validation",
+          "test_status_exposes_a_stable_run_id_without_persisting_it",
+          "test_normal_prefix_binds_to_the_selected_receipt",
+          "test_legacy_run_stays_valid_until_the_dependent_claim_is_requested",
+          "test_replacement_and_truncation_break_only_the_dependent_claim",
+          "test_reordered_events_break_only_the_dependent_claim",
+          "test_bound_run_contract_and_event_count_are_recomputed",
+          "test_appended_bytes_remain_explicitly_unbound",
+          "test_later_receipt_binds_only_a_strict_extension_of_the_same_stream",
+          "test_multiple_bindings_report_only_the_latest_unbound_tail",
+          "test_verification_recomputes_monotonic_stream_relationships",
+          "test_verification_recomputes_the_structural_validation_gate",
+          "test_verification_finally_rechecks_named_bytes_after_validation",
+          "test_verification_joins_each_binding_to_one_exact_ledger_record",
+          "test_verification_refuses_an_orphaned_observation_record",
+          "test_symlinked_file_and_parent_are_refused_before_receipt",
+          "test_final_read_refuses_parent_escape_during_second_snapshot",
+          "test_receipted_elenchus_reporter_accepts_positional_target"
+        ]
+      },
+      {
+        "path": "tests/test_run_observation.py",
+        "sha256": "649f68ee35e11ccd17db40e4b14f6f6c0c4d429c5e0f1740fdeca669a8fa0db1",
+        "selectors": [
+          "test_captured_byte_and_stable_path_validation_are_equivalent",
+          "test_safe_unfinished_prefix_is_accepted_without_weakening_full_check",
+          "test_prefix_still_refuses_an_unclosed_capability"
+        ]
+      }
+    ],
+    "transition": "record only the exact checked prefix against one selected receipt without advancing Fiat or strengthening delivery evidence"
+  },
   "run_observation": {
     "contract": "promise-machine-run-observation/v1",
     "documentation": {
@@ -2409,7 +2514,7 @@
     "promise_id": "promise-machine-run-observation-structural-validation",
     "runtime": {
       "path": "scripts/run_observation.py",
-      "sha256": "a03a37e1d447d58ed7eeb64cd1a2d4487452c77803343c011044352d5a5eb61c"
+      "sha256": "712f2afc40f7703cc64a92cd850559684a28f1b98e3241652a67ac6b48124d40"
     },
     "schema_source": {
       "path": "schemas/promise-machine-run-observation-v1.schema.json",
@@ -2418,6 +2523,7 @@
     "tests": {
       "path": "tests/test_run_observation.py",
       "selectors": [
+        "test_captured_byte_and_stable_path_validation_are_equivalent",
         "test_schema_binds_the_contract_and_closed_event_union",
         "test_valid_records_are_accepted",
         "test_issue_acceptance_faults_have_distinct_codes",
@@ -2445,7 +2551,7 @@
         "test_runbook_separates_direct_and_elenchus_report_targets",
         "test_unhashable_and_non_string_typed_fields_refuse_without_crashing"
       ],
-      "sha256": "68ef3d5c0f11f1fb26a53549d3fba28c7ba65d6ac7081558dd78bc622414f32c"
+      "sha256": "649f68ee35e11ccd17db40e4b14f6f6c0c4d429c5e0f1740fdeca669a8fa0db1"
     },
     "transition": "treat only the named bytes as structurally conforming and pass the bounded result without strengthening it"
   },
@@ -2501,7 +2607,7 @@
           "test_writer_refuses_bypass_and_never_writes_a_gap",
           "test_schema_and_runtime_document_the_same_closed_vocabulary"
         ],
-        "sha256": "e5ebb367e03aea24a311414253497c98d191c705f43226e6af1e7bc278ae3c8d"
+        "sha256": "e49ee02370a8b9d5e54ca80bd01c25d3eb8ab2cc26b737558271294272b6bf0f"
       },
       {
         "path": "tests/test_run_observation_capture_inoculation.py",
@@ -2627,7 +2733,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
+      "sha256": "c311ad608326dd5ff524ee6f5f026dc9cf386bc7ad23fea4da4b3544a4daff9d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2641,7 +2747,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
+      "sha256": "c311ad608326dd5ff524ee6f5f026dc9cf386bc7ad23fea4da4b3544a4daff9d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2655,7 +2761,21 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
+      "sha256": "c311ad608326dd5ff524ee6f5f026dc9cf386bc7ad23fea4da4b3544a4daff9d",
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
+    },
+    "fiat-run-observation-binding": {
+      "bindings": {
+        "evidence_classes": "checked prefix and recorded binding joined to the canonical Evidence classes field",
+        "evidence_references": "validator result, exact bytes, interval, counts, digest, receipt hash and record:run-observation event",
+        "exception": "canonical Exceptions field",
+        "promise_id": "coverage key joined to the canonical promise heading and binding contract",
+        "scope": "one selected run-local prefix and its immediately preceding Fiat receipt",
+        "subject": "controller run identity, companion path, bound prefix digest and selected receipt hash",
+        "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
+        "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
+      },
+      "sha256": "c311ad608326dd5ff524ee6f5f026dc9cf386bc7ad23fea4da4b3544a4daff9d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {

@@ -128,6 +128,9 @@ In particular:
   cross-host conformance.
 - Ariadne binds an artefact digest to declared evidence; without an external
   signature verifier it does not establish author identity.
+- A Fiat run-observation binding preserves the observation validator and
+  capture boundaries. It attaches only the checked prefix to one receipt; it
+  does not make observation availability or event truth delivery evidence.
 
 Any unexplained strengthening is a conformance failure.
 
@@ -208,7 +211,7 @@ findings. The checker reaches no network and executes no evidence command.
 - Promise: A successful `python3 scripts/run_observation_capture.py check <candidate>` establishes that the named bounded candidate was processed by `promise-machine-run-observation-capture/v1` into one accepted event, visible gap, or refusal before a durable observation exists.
 - Evidence: The named candidate, closed standard-library adapter, capture schema, direct-allowlist fixtures, hostile byte-survival tests, source-owned reporter, and zero command exit.
 - Evidence classes: checked
-- Boundary: The result does not prove the source is true or complete, detect every secret, govern another host memory, bind a Fiat receipt, make a security conclusion, or authorise #436, #437, or #508 changes.
+- Boundary: The result does not prove the source is true or complete, detect every secret, govern another host memory, itself bind a Fiat receipt, make a security conclusion, or authorise another controller transition.
 - Authorises: Passing an accepted result to the capture writer, or recording the bounded gap or refusal without treating it as an accepted observation.
 - Consequence: 1
 - Refuses: An open or oversized candidate, raw payload family, malformed redaction, unsafe repository path, low-entropy correlation input, unknown shape, or writer bypass.

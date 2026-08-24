@@ -12,6 +12,7 @@ Pandects Foundry checks pass.
 
 Leads not pursued: none.
 
+
 ## Compound v3 Phase 0, step 1, round 1 -- 2026-08-17
 
 | id | severity | file | finding | status |
@@ -12438,6 +12439,330 @@ against the parent commit reports nothing that would error rather than fail.
 
 Leads not pursued: none.
 
+## Issue 436 run-observation receipt binding, step 1, round 1 -- 2026-08-24
+
+### State
+
+Audit of signed implementation `8296e09402d1061508f976cc7b9027aaccd5927a`.
+Six findings were reproduced against that tree and repaired together in signed
+commit `f22e235dad0c20485eb3e10d96d38ffd551bb4dc`. The repair does not advance a
+Fiat phase or strengthen the observation claim.
+
+### Findings
+
+| id | severity | mechanism | remediation |
+| --- | --- | --- | --- |
+| I436-S1-R1-01 | high | The controller captured one stable byte snapshot, then asked the validator to reopen the named path. An ABA replacement could therefore validate later bytes while the receipt digested earlier invalid bytes. | Added immutable-byte validation, path/byte parity guards, and made binding validate only the captured snapshot. |
+| I436-S1-R1-02 | medium | Verification summed the unbound tail after every historical prefix. Two bindings over one stream overstated the actual latest tail. | Report only the bytes after the newest verified prefix; the two-binding guard pins the exact count. |
+| I436-S1-R1-03 | high | Each binding verified in isolation, but verification did not re-establish one ordered, strictly increasing stream. A later valid binding could name a different artefact or cease extending the earlier digest. | Recompute record order, artefact identity, byte and event growth, and the earlier-prefix digest for every adjacent binding. |
+| I436-S1-R1-04 | high | A binding was joined to a ledger record only by its binding digest and line adjacency. Edited `receipt_hash` or `capture_status` record data still verified. | Require one unused exact observation record whose receipt hash and capture status equal the binding. |
+| I436-S1-R1-05 | high | Extra `record:run-observation` ledger entries with no state binding were ignored. Verification could report one clean prefix while another observation receipt was orphaned. | Require an exact count match between bindings and observation ledger records, then consume each record once. |
+| I436-S1-R1-06 | high | Verification recomputed digest, count and interval but did not rerun structural validation. Malformed bytes carrying a forbidden hidden-work field could be rehashed into state and ledger and verify cleanly. | Rerun the immutable-byte structural validator over every exact bound prefix before accepting its summary. |
+
+### Risk dispositions
+
+- `companion-path` -- exercised. Canonical confined no-follow reads, symlinked
+  file and parent refusals, and stable double reads remain green.
+- `prefix-drift` -- exercised. Replacement, truncation, reorder, ABA capture,
+  and post-receipt mutation guards refuse with `FOB003` or `FOB004`.
+- `unbound-tail` -- exercised. One and two-binding guards preserve the earlier
+  claim and report only the newest tail.
+- `run-association` -- exercised. Wrong contract and wrong run refuse without
+  echoing either rejected value.
+- `receipt-association` -- exercised and repaired. Line adjacency, exact receipt
+  fields, record data, record count, uniqueness, and increasing ledger order are checked.
+- `contract-identity` -- exercised. Binding and observation contract drift
+  refuse, and every exact prefix is structurally revalidated.
+- `count-agreement` -- exercised. Byte count, event count, interval, final
+  newline, and adjacent-prefix growth are recomputed.
+- `gate-status` -- exercised and repaired. Accepted claims require passing
+  capture, validation and redaction fields plus a fresh structural result.
+- `controller-independence` -- exercised. Ordinary `hexctl verify` remains green
+  while each corrupted dependent observation claim refuses.
+- `legacy-state` -- exercised. A version-1 run without a binding verifies
+  normally; only `verify --observations` returns `FOB001`.
+- `partial-write` -- exercised. Stable descriptor reads, exact captured-byte
+  validation, final rereads, and digest checks prevent a clean torn prefix.
+- `diagnostic-echo` -- exercised. Findings expose only stable codes, bounded
+  descriptions and recovery; hostile path and event values remain absent.
+- `binding-growth` -- exercised and repaired. The 64-binding cap, one-to-one
+  ledger join, strict extension and increasing record order bound growth.
+- `coverage-drift` -- exercised. Promise coverage binds controller, validator,
+  documentation, fixtures, both test surfaces, and every new selector.
+
+### Evidence
+
+- Focused observation and Promise surface: 157 of 157 tests passed.
+- Root suite: 349 tests run; 344 passed and five detached-receipt tests skipped
+  under their existing explicit condition.
+- Hexaemeron suite and Elenchus fixed-tree report: 955 of 955 tests passed.
+- Inoculation matrix: 1,258 cases, zero crashes and zero unexpected clean.
+- Promise Machine: 14 copies exact; 70 promises and 70 selected coverage rows.
+- Elenchus verdict for `f22e235`: `guarded`; its parent report records assertion
+  failure in the new guard surfaces, with no infrastructure substitution.
+- Phylax, Ephoros, Hypomnema, both Protasis modes, Horos, syntax, JSON, receipt
+  byte identity, diff check, and all eight per-document prose gates exited zero.
+
+### Boundary and next
+
+ADR-024 is the allocated observation-binding decision; reserved ADR-023 and
+accepted ADR-015 and ADR-022 remain unchanged. No Solidity surface exists, so
+the security suite remains waived and Phylax carries the off-chain review.
+No push, pull request, issue mutation, integration or controller receipt was
+performed by Warden. Six findings prevent closure; an independent round 2 must
+review the repaired tree.
+
+Leads not pursued: none. A filename's host-specific Unicode spelling is not a
+portable artefact claim here; the declared boundary is lexical confinement,
+no-follow regular-file access and no rejected-path echo, all of which were
+exercised.
+
+## Issue 436 run-observation receipt binding, step 1, round 2 -- 2026-08-24
+
+### State
+
+Audit of round 1's signed fixed tree at
+`71f1471722c4de5e14f9ed7e7efd2435da97f7fa`. One high finding was reproduced
+twice on both affected command paths and repaired in signed commit
+`49b8652db3d19c1501e074582454d08fab54b8e6`.
+
+### Finding
+
+`I436-S1-R2-01` -- high -- `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`.
+Binding and verification each captured stable named bytes and validated that
+immutable snapshot, but neither re-established the named file after validation
+finished. A deterministic replacement during the validator call therefore let
+`observe` record a receipt, or let `verify --observations` return clean, while
+the named path already held different bytes. The repair adds one shared final
+no-follow double reread after all validation and summary work. It compares the
+entire named snapshot, including any unbound tail, before state mutation or a
+clean verification result. Separate bind and verify guards fail on the signed
+parent and pass on the repair.
+
+### Risk dispositions
+
+- `companion-path` -- exercised and repaired: final named-byte identity now
+  follows validation on both commands.
+- `prefix-drift` -- exercised: before, during, and after-validation replacement
+  mechanisms refuse without weakening an earlier digest.
+- `unbound-tail` -- exercised: the final reread compares the complete current
+  file while the claim remains limited to the selected prefix.
+- `run-association` -- exercised: the derived controller identity and event run
+  id still match after final reread.
+- `receipt-association` -- exercised: exact selected entry, observation record,
+  record data, count, and order remain joined.
+- `contract-identity` -- exercised: both contract identifiers and structural
+  rules are checked against the captured bytes.
+- `count-agreement` -- exercised: byte count, event count, interval, prefix
+  digest, and final named bytes agree.
+- `gate-status` -- exercised: capture, validation and redaction must pass; the
+  validation result is no longer separated from the final named subject.
+- `controller-independence` -- exercised: ordinary verification remains green
+  when the dependent observation check refuses.
+- `legacy-state` -- exercised: no-binding runs remain valid outside the explicit
+  dependent claim.
+- `partial-write` -- exercised and repaired: deterministic post-validation swaps
+  now return bounded `FOB002` refusals in bind and verify.
+- `diagnostic-echo` -- exercised: the new refusal names no path or rejected byte.
+- `binding-growth` -- exercised: the count cap, exact record join and strict
+  extension checks remain green with the final reread.
+- `coverage-drift` -- exercised: both new selectors and the repaired controller
+  digest are bound in Promise coverage.
+
+### Evidence
+
+- Focused observation and Promise surface: 159 of 159 tests passed.
+- Root suite: 349 tests run; 344 passed and five explicit detached-receipt tests
+  skipped.
+- Hexaemeron suite and Elenchus fixed-tree report: 957 of 957 tests passed.
+- Inoculation matrix: 1,258 cases, zero crashes and zero unexpected clean.
+- Promise Machine: 14 exact copies and 70 of 70 coverage rows.
+- Elenchus verdict for `49b8652`: `guarded`; its parent report records assertion
+  failures rather than errors or missing tests.
+- All three discipline lints, both Protasis modes, Horos, syntax, JSON, receipt
+  byte identity, diff check, and eight per-document prose gates exited zero.
+
+### Boundary and next
+
+The exact round-2 section is Imprimatur- and Brevitas-clean. Whole-file Brevitas
+still names historical diagnostics before the issue #436 records; this round
+does not rewrite unrelated audit history or claim that whole-file result.
+ADR-024 remains the allocated decision and ADR-023 remains untouched. No push,
+pull request, issue mutation, integration or controller receipt was performed
+by Warden. One finding requires an independent round 3.
+
+Leads not pursued: none.
+
+## Issue 436 run-observation receipt binding, step 1, round 3 -- 2026-08-24
+
+### State
+
+Audit of the round-2 fixed tree at
+`811e7d43c3f5e670ffe770bb169fd8eec99f0f2f`. Two high findings were
+reproduced twice. The first is repaired in signed commit
+`08bafba5629692873cce5ecc58feed3009f1ee0a`; the second is repaired in
+signed commit `066e4524023a26aca1dcf2e1938536c0a6826f13`, which has the first
+repair in its ancestry. The third receipted study amendment, SHA-256
+`4fff8fe9b5a62463a6287e1b2f2395125235147c2ec1227b703975d5905a55be`,
+adds only the source-owned reporter and its coverage guard to this step.
+
+### Findings
+
+`I436-S1-R3-01` -- high -- the final stable read checked the named file and
+held its file descriptor, but it released the directory descriptors before
+returning. Renaming `.hexaemeron/observations` outside the worktree at that
+point left the original descriptor readable and made the named path disappear;
+the command could return a clean snapshot that no longer named an in-root
+artefact. The repair keeps the full no-follow descriptor chain and rechecks
+the root and each opened directory identity before returning the snapshot.
+The regression guard is
+`test_final_read_refuses_parent_escape_during_second_snapshot`.
+
+`I436-S1-R3-02` -- high -- the receipted source-bound command
+`python3 plugins/hexaemeron/tests/run_tests.py {report}` was rejected before
+the reporter emitted JSON because the runner accepted only
+`--elenchus-report PATH`. The exact command exited 2 twice on signed
+`08bafba`. The repair accepts one positional path as a compatibility alias,
+keeps the existing confined no-follow report handling, and refuses the
+positional and flagged forms together before creating either target. The guard
+is `test_receipted_elenchus_reporter_accepts_positional_target`.
+
+### Risk dispositions
+
+- `companion-path` -- exercised and repaired. Final reads retain and verify
+  every directory identity back to the confined root.
+- `prefix-drift` -- exercised. Replacement, truncation, reordering, and
+  before, during, and after-validation swaps refuse the dependent claim.
+- `unbound-tail` -- exercised. The complete final reread detects alteration
+  while preserving the prior prefix boundary.
+- `run-association` -- exercised. The stable controller run identity remains
+  required for the recorded prefix.
+- `receipt-association` -- exercised. Each prefix still consumes one exact
+  preceding receipt and record data.
+- `contract-identity` -- exercised. Event and capture contracts are
+  structurally revalidated over immutable bytes.
+- `count-agreement` -- exercised. Byte count, event count, interval, and
+  digest remain recomputed from the final stable snapshot.
+- `gate-status` -- exercised. Capture, validation, and redaction status must
+  pass before a binding can be recorded.
+- `controller-independence` -- exercised. A refused observation never
+  invalidates ordinary Fiat verification.
+- `legacy-state` -- exercised. Version-1 runs remain valid until the
+  explicitly dependent observation claim is requested.
+- `partial-write` -- exercised and repaired. The second-snapshot
+  parent-escape and post-validation replacement guards return bounded
+  refusals rather than a clean result.
+- `diagnostic-echo` -- exercised. The new path and argument refusals retain
+  codes and recovery without echoing hostile bytes or paths.
+- `binding-growth` -- exercised. Exact ordered receipt joins and the
+  64-binding cap remain unchanged.
+- `coverage-drift` -- exercised and repaired. Promise coverage now binds the
+  reporter source, its exact digest, and the positional compatibility guard.
+
+### Evidence
+
+- Focused binding suite: 23 of 23 tests passed.
+- Observation validator suite: 65 of 65 tests passed.
+- Promise-contract suite: 73 of 73 tests passed.
+- Source-owned fixed-tree reporter: 959 of 959 tests passed in 289.684
+  seconds; its `elenchus.unittest.v1` record is complete with zero failures,
+  errors, skips, expected failures, and unexpected successes. Its generated
+  report was checked then removed.
+- Root suite: 349 of 349 tests passed, with five existing explicit
+  detached-receipt skips. The inoculation matrix ran 1,258 cases with zero
+  crashes and zero unexpected clean results.
+- Promise Machine has 14 exact copies and 70 selected coverage rows of 70.
+  Both Protasis modes, Phylax, Ephoros, Hypomnema, Horos, syntax, JSON,
+  receipt-copy parity, and diff check exited zero. Each of the four changed
+  documents passed Imprimatur and Brevitas separately.
+- The exact source-bound Elenchus command against `066e452` returned
+  `passed`, not `guarded`: it overlays changed files in a detached parent
+  worktree, and its current test classifier treats
+  `plugins/hexaemeron/tests/run_tests.py` as a test because it is below a
+  `tests` directory. The fixed reporter therefore also runs in the parent.
+  This is not represented as `guarded`. The direct exact command red result
+  on signed `08bafba` was preserved twice, and `passed` is an accepted
+  controller verdict.
+
+### Boundary and next
+
+The framework classification detail is retained as a bounded lead for the
+existing executable-gate prior art; no framework file is changed inside issue
+#436. No push, pull request, issue mutation, integration, or controller
+receipt was performed by Warden. Two findings require an independent round 4.
+
+Leads not pursued: no new product mechanism after the complete fixed-tree
+matrix.
+
+## Issue 436 run-observation receipt binding, step 1, round 4 -- 2026-08-24
+
+### State
+
+Independent review of the signed round-3 tree at
+`69a9ab36a307e58cf4da24933451a44e0bbae064`. The controller verified an
+11-entry intact chain before review. No product or dependency bytes changed
+after the fixed-tree reporter and root evidence recorded in round 3. This
+round found zero product findings.
+
+### Risk dispositions
+
+- `companion-path` -- re-read. The final no-follow directory chain remains
+  bound to the run root; the parent-escape regression refuses.
+- `prefix-drift` -- re-read. Bind and verify still refuse replacement before,
+  during, and after validation.
+- `unbound-tail` -- re-read. The selected prefix remains distinct from later
+  bytes in the same stream.
+- `run-association` -- re-read. The controller-derived run identity and
+  observation event identity remain exact.
+- `receipt-association` -- re-read. A malformed matching ledger data value
+  returns `FOB003`, not a Python exception.
+- `contract-identity` -- re-read. Immutable bytes undergo the validator and
+  closed interval checks before a receipt claim.
+- `count-agreement` -- re-read. Digest, byte count, event count, and
+  contiguous interval remain recomputed.
+- `gate-status` -- re-read. Only accepted capture, passing validation, and
+  passing redaction can support the dependent claim.
+- `controller-independence` -- re-read. Ordinary controller verification
+  remains separate from the optional observation claim.
+- `legacy-state` -- re-read. The explicit observation verifier retains the
+  bounded absence result for an older run.
+- `partial-write` -- re-read. Stable double reads and the final named reread
+  refuse torn, replaced, or escaped subjects.
+- `diagnostic-echo` -- re-read. Refusals expose codes and recovery only.
+- `binding-growth` -- re-read. Ordered receipt joins, strict extension, and
+  the binding cap remain in force.
+- `coverage-drift` -- re-read. Promise source digests, reporter guard, and
+  all selected coverage rows remain current.
+
+### Evidence
+
+- The fresh binding and observation-validator slice passed 88 of 88 tests in
+  28.468 seconds. It includes the three post-validation and parent-escape
+  refusal guards.
+- A direct malformed-ledger-data probe returned the bounded `FOB003`
+  refusal. Positional and flagged reporter forms both resolved to confined
+  in-worktree targets without creating a file; the duplicate-form probe exited
+  2 before a write.
+- The unchanged signed product tree retains round 3's fixed reporter result of
+  959 of 959 tests passed and root result of 349 of 349 passed with five
+  explicit detached-receipt skips. The 1,258-case inoculation matrix has zero
+  crashes and zero unexpected clean results.
+- Promise Machine remains at 14 exact copies and 70 selected coverage rows of
+  70. The required discipline, copy, prose, syntax, JSON, Horos, and diff
+  gates have the clean exits recorded in round 3.
+
+### Boundary and next
+
+No repair was made in this round, so no new Elenchus comparison is claimed.
+The round-3 source-bound result remains `passed` with its classifier
+limitation recorded there. Whole-file Brevitas retains historical findings
+before the issue #436 sections; no new-line defect is introduced here.
+No push, pull request, issue mutation, integration, or controller receipt was
+performed by Warden. A zero-finding record permits the controller's audit-close
+transition.
+
+Leads not pursued: no new mechanism after the receipt, path, reporter, and
+coverage review.
 # Run: give the Kronos scoreboard and parked lane a durable home across ephemeral runners
 
 ## Step 1, round 1 -- 2026-08-24
