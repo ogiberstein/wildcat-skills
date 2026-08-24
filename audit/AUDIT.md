@@ -11561,3 +11561,32 @@ attribution for commits that are no longer the branch tip. Step 3 owns the
 merged-state binding and must not read a stale container as current. Logged
 here rather than fixed, because the consumer does not exist yet and a guard
 written against no consumer guards nothing.
+
+## Fiat merged attribution, step 2, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0 again over the controller and its tests. The
+re-read confirmed both fixes and found no regression introduced by either.
+`checked_login` now refuses an account object without a login string and still
+records a literal `null` as `null` with the author's digest intact.
+`verify_github_commits` has its own loop over `github_commit_payload` and
+`require_github_verified`, so an oversized author name or an absent message on
+a merge commit no longer refuses a verification receipt, while the attribution
+reader still refuses both. The duplication is two lines of loop and is
+documented in the docstring as deliberate, because the alternative is one
+reader failing for two unrelated reasons.
+
+Risk register disposition. All eight ids read clean on the fixed tree, with
+`attribution-ancestor-check`, `attribution-rewritten-merge` still belonging to
+step 3 and `attribution-overclaim` still not applicable to a step shipping no
+prose. `attribution-null-login` is closed on the fixed tree.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+882/882. Promise Machine reports 14 plugins and 14 copies clean.
+`hexctl verify` reports 15 ledger entries, chain intact, state consistent. The
+fixes commit `3800bd437524e1ec0db27e601f904932b1d42ce2` has a good local
+signature and exactly one copy of each required trailer.
+
+Leads not pursued: the stale-attribution repair path stays carried to step 3,
+as round 1 recorded.
