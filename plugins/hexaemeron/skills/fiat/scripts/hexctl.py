@@ -25,6 +25,7 @@ import datetime
 import fcntl
 import glob
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -113,6 +114,7 @@ AUDIT_TIMESTAMP_RE = re.compile(
 )
 AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 AUDIT_PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
+AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX = 4096
 
 
 def elenchus_verdict_obligation() -> dict:
@@ -278,9 +280,81 @@ def read_configured_audit_log(
         handle = os.fdopen(file_descriptor, "rb")
         file_descriptor = None
         with handle:
-            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            opened = os.fstat(handle.fileno())
+            if not stat.S_ISREG(opened.st_mode):
                 die("audit log path is not a regular file")
+            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                die("audit log path changed during access")
             data = handle.read(SOURCE_BYTES_MAX + 1)
+            finished = os.fstat(handle.fileno())
+            opened_identity = (
+                opened.st_dev,
+                opened.st_ino,
+                opened.st_size,
+                opened.st_mtime_ns,
+                opened.st_ctime_ns,
+            )
+            finished_identity = (
+                finished.st_dev,
+                finished.st_ino,
+                finished.st_size,
+                finished.st_mtime_ns,
+                finished.st_ctime_ns,
+            )
+            current_directory_descriptor = None
+            current_file_descriptor = None
+            try:
+                current_directory_descriptor = os.open(root, directory_flags)
+                for component in components[:-1]:
+                    next_descriptor = None
+                    try:
+                        next_descriptor = os.open(
+                            component,
+                            directory_flags,
+                            dir_fd=current_directory_descriptor,
+                        )
+                        os.close(current_directory_descriptor)
+                        current_directory_descriptor = next_descriptor
+                        next_descriptor = None
+                    finally:
+                        if next_descriptor is not None:
+                            with contextlib.suppress(OSError):
+                                os.close(next_descriptor)
+                current_file_descriptor = os.open(
+                    components[-1],
+                    file_flags,
+                    dir_fd=current_directory_descriptor,
+                )
+                current_directory = os.fstat(current_directory_descriptor)
+                current_file = os.fstat(current_file_descriptor)
+            except OSError:
+                die("audit log path changed during read")
+            finally:
+                if current_file_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(current_file_descriptor)
+                if current_directory_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(current_directory_descriptor)
+            if opened_identity != finished_identity or (
+                len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size
+            ) or (
+                (current_directory.st_dev, current_directory.st_ino)
+                != (
+                    os.fstat(directory_descriptor).st_dev,
+                    os.fstat(directory_descriptor).st_ino,
+                )
+            ) or (
+                finished_identity
+                != (
+                    current_file.st_dev,
+                    current_file.st_ino,
+                    current_file.st_size,
+                    current_file.st_mtime_ns,
+                    current_file.st_ctime_ns,
+                )
+            ):
+                die("audit log path changed during read")
     except OSError:
         die("audit log path cannot be read")
     finally:
@@ -302,6 +376,56 @@ def plugin_root() -> str:
 def die(msg: str, code: int = 2) -> None:
     print(f"hexctl: error: {msg}", file=sys.stderr)
     sys.exit(code)
+
+
+def refuse_audit_renderer(message) -> None:
+    """Emit one bounded ASCII renderer refusal, then return code 2.
+
+    The renderer is executable input to this controller. Its declared errors and
+    the diagnostic stream can both fail while a receipt is being refused, so this
+    boundary cannot delegate formatting or the final exit status to either one.
+    KeyboardInterrupt and GeneratorExit remain process-level interrupts.
+    """
+    prefix = b"hexctl: error: "
+    fallback = "audit synopsis renderer validation failed"
+    payload_bytes_max = AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX - len(prefix) - 1
+    try:
+        rendered = str(message)
+        if not rendered or len(rendered) > AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX:
+            escaped = fallback
+        else:
+            escaped = rendered.encode("unicode_escape").decode("ascii")
+            if len(escaped) > payload_bytes_max:
+                escaped = fallback
+    except (Exception, SystemExit):
+        escaped = fallback
+    frame = prefix + escaped.encode("ascii") + b"\n"
+    try:
+        binary_stderr = getattr(sys.stderr, "buffer", None)
+    except (Exception, SystemExit):
+        binary_stderr = None
+    try:
+        if binary_stderr is None:
+            sys.stderr.write(frame.decode("ascii"))
+        else:
+            remaining = frame
+            while remaining:
+                written = binary_stderr.write(remaining)
+                if (
+                    isinstance(written, bool)
+                    or not isinstance(written, int)
+                    or written <= 0
+                    or written > len(remaining)
+                ):
+                    break
+                remaining = remaining[written:]
+            if not remaining:
+                flush = getattr(binary_stderr, "flush", None)
+                if callable(flush):
+                    flush()
+    except (Exception, SystemExit):
+        pass
+    raise SystemExit(2)
 
 
 def canonical(obj) -> str:
@@ -1644,15 +1768,16 @@ def audit_table_cells(line: str) -> list[str]:
         or trailing_slashes % 2
     ):
         return []
-    cells = [""]
+    cells = []
+    start = 1
     slashes = 0
-    for char in line[1:-1]:
+    for index, char in enumerate(line[1:-1], 1):
         if char == "|" and slashes % 2 == 0:
-            cells.append("")
-        else:
-            cells[-1] += char
+            cells.append(line[start:index].strip())
+            start = index + 1
         slashes = slashes + 1 if char == "\\" else 0
-    return [cell.strip() for cell in cells]
+    cells.append(line[start:-1].strip())
+    return cells
 
 
 def audit_raw_field(line: str, label: str) -> str:
@@ -1792,12 +1917,60 @@ def validated_audit_record(
     schema, timestamp = parse_audit_record(
         entry_bytes, base_dir, state, step, args
     )
+    synopsis_path = os.path.join(
+        os.path.dirname(__file__), "audit_synopsis.py"
+    )
+    if not os.path.isfile(synopsis_path):
+        refuse_audit_renderer("audit synopsis renderer is unavailable")
+    try:
+        specification = importlib.util.spec_from_file_location(
+            "fiat_audit_synopsis", synopsis_path
+        )
+        if specification is None or specification.loader is None:
+            raise ImportError("renderer has no executable module specification")
+        renderer = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(renderer)
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        synopsis_validator = getattr(renderer, "validate_committed_synopsis", None)
+        synopsis_error = getattr(renderer, "SynopsisError", None)
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        interface_valid = (
+            callable(synopsis_validator)
+            and isinstance(synopsis_error, type)
+            and issubclass(synopsis_error, Exception)
+        )
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    if not interface_valid:
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
+    except synopsis_error as error:
+        refuse_audit_renderer(error)
+    except SystemExit:
+        refuse_audit_renderer(
+            "audit synopsis renderer validation terminated unexpectedly"
+        )
+    try:
+        digest_valid = (
+            isinstance(synopsis_sha256, str)
+            and re.fullmatch(r"[0-9a-f]{64}", synopsis_sha256) is not None
+        )
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer returned an invalid digest")
+    if not digest_valid:
+        refuse_audit_renderer("audit synopsis renderer returned an invalid digest")
     return {
         "schema": schema,
         "log": log_path,
         "record_timestamp": timestamp,
         "entry_sha256": hashlib.sha256(entry_bytes).hexdigest(),
         "log_end_offset": len(data),
+        "synopsis_sha256": synopsis_sha256,
     }
 
 
