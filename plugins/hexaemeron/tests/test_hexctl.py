@@ -644,10 +644,17 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        # A real push receipt always records the branch's actual head, because
+        # `done push` takes the sha the agent pushed. A placeholder like
+        # "head2" broke that invariant: the fake remote stores fake_sha(head)
+        # as the branch tip, so the receipt and the tip disagreed and the
+        # rewritten-stack refusal fired on a stack nothing had rewritten.
+        # Passing a 40-hex head makes fake_sha the identity, which is exactly
+        # the receipt-equals-tip state a genuine run is in.
         self.run_ctl(
             "done", "push",
             "--pr-url", f"https://github.com/wildcat-finance/example/pull/{step_no}",
-            "--head-commit", f"head{step_no}",
+            "--head-commit", self.fake_sha(f"head{step_no}"),
             "--pr-base", self.step_base(step_no),
         )
 
