@@ -204,3 +204,28 @@ decide would pull symlink resolution into a receipt check. And
 same record either way. The five step 2 concerns were re-checked and hold.
 
 Leads not pursued: none.
+
+## Step 3, round 2 -- 2026-08-24
+
+Non-Solidity round over the fixed tree at
+`da1713851403871b82ccb58461926b98cd7264d7`. Zero findings.
+
+The three bundled lints exit 0, `scripts/promise_machine.py check` and
+`coverage --check` are clean, Horos reports that the boundary matches the tree,
+the root suite reports 349 tests OK with no skips, and the Hexaemeron suite
+reports 1,012 tests run with 0 failures, 0 errors and 0 skipped through the
+Elenchus reporter.
+
+Round 1's fixes were re-read for what a narrowed read can miss. `done audit`
+now has three paths and each was exercised: a declared log that matches is
+checked and recorded, an omitted log with a recorded round keeps that round's
+value without touching config, and an omitted log with nothing recorded falls
+back to config and is refused when config has nothing either. `cmd_audit_round`
+has the two it always had. Removing the `str()` coercion changed no call, since
+argparse hands both call sites a string or `None` and each now tests for `None`
+before calling.
+
+The two step 3 register concerns and the five from step 2 were re-checked
+against the fixed tree and each holds as recorded.
+
+Leads not pursued: none.
