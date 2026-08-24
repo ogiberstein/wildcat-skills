@@ -386,7 +386,7 @@ def refuse_audit_renderer(message) -> None:
     boundary cannot delegate formatting or the final exit status to either one.
     KeyboardInterrupt and GeneratorExit remain process-level interrupts.
     """
-    prefix = "hexctl: error: "
+    prefix = b"hexctl: error: "
     fallback = "audit synopsis renderer validation failed"
     payload_bytes_max = AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX - len(prefix) - 1
     try:
@@ -399,8 +399,16 @@ def refuse_audit_renderer(message) -> None:
                 escaped = fallback
     except (Exception, SystemExit):
         escaped = fallback
+    frame = prefix + escaped.encode("ascii") + b"\n"
     try:
-        print(f"{prefix}{escaped}", file=sys.stderr)
+        binary_stderr = getattr(sys.stderr, "buffer", None)
+    except (Exception, SystemExit):
+        binary_stderr = None
+    try:
+        if binary_stderr is None:
+            sys.stderr.write(frame.decode("ascii"))
+        else:
+            binary_stderr.write(frame)
     except (Exception, SystemExit):
         pass
     raise SystemExit(2)

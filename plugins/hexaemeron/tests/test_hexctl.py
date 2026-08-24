@@ -2876,6 +2876,24 @@ class AuditRecordSchemaTests(HexctlCase):
                     stderr.detach()
         self.assertEqual(self.state_ledger_digests(), before)
 
+    def test_renderer_diagnostic_byte_cap_is_encoding_independent(self):
+        controller = hexctl_module()
+        for encoding in ("utf-8", "utf-16"):
+            with self.subTest(encoding=encoding):
+                output = BytesIO()
+                stderr = TextIOWrapper(output, encoding=encoding, errors="strict")
+                try:
+                    with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+                        controller.refuse_audit_renderer("x" * 4_080)
+                    stderr.flush()
+                    self.assertEqual(raised.exception.code, 2)
+                    self.assertEqual(
+                        len(output.getvalue()),
+                        controller.AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX,
+                    )
+                finally:
+                    stderr.detach()
+
     def test_renderer_diagnostic_emission_cannot_report_false_success(self):
         controller = hexctl_module()
 
