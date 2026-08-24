@@ -96,8 +96,12 @@ class FiatSkillContractTests(unittest.TestCase):
 
     def test_runtime_hosts_are_not_governed_authors(self):
         flat = " ".join(self.push_discipline.split())
-        self.assertIn("Attribute agent-produced run work to `Shoggoth", flat)
-        self.assertIn("Preserve a human contributor as author", flat)
+        self.assertIn("Authorship follows the contributing actor", flat)
+        self.assertIn("Attribute Shoggoth's own agent-produced run work to `Shoggoth", flat)
+        self.assertIn("Preserve a human contributor as Git author and signer", flat)
+        self.assertIn("publish through their own GitHub account", flat)
+        self.assertIn("Never ask for, copy, upload, configure or use the Shoggoth private signing key", flat)
+        self.assertIn("Only a run contributed by Shoggoth needs the Shoggoth publication identity", flat)
         self.assertIn("is neither author nor co-author", flat)
         self.assertIn("stops before publication", flat)
         self.assertIn("known host account as pull-request author", flat)

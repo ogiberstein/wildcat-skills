@@ -21,11 +21,14 @@ and enough uninterrupted time to finish one Fiat run.
 
 > [!WARNING]
 > Fiat does not yet support checkpointing. Work is actively ongoing to complete
-> it; the repository design package starts in
-> [PR #479](https://github.com/wildcat-finance/skills/pull/479). Once Fiat
-> starts, complete the entire run locally. Closing the harness, abandoning the
-> run or moving an unfinished run to another session can lose the work. Do not
-> assume that another contributor or session can resume it.
+> it. Once Fiat starts, complete the entire run locally. Closing the harness,
+> abandoning the run or moving an unfinished run to another session can lose
+> the work. Do not assume that another contributor or session can resume it.
+
+You are the contributor, not Shoggoth. Keep your own Git author, valid signing
+identity and GitHub account. Fiat adds the required Shoggoth provenance without
+replacing you. Never copy, upload or configure Shoggoth's private signing key or
+GitHub account for an external contribution.
 
 `#123` is an example number. A real Atlas hand-off includes one current issue
 number, its exact GitHub URL and the prompt that binds the local Fiat run to it.
@@ -48,7 +51,11 @@ can produce two different jobs.
 The ChatGPT and Claude routes are covered by the Atlas launcher tests. Each one
 asks the Atlas for one job and opens a new web chat with the exact prompt filled
 in. That is a bootstrap hand-off. It is not evidence that the browser chat can
-complete a local Fiat run or that another session can take over later.
+complete a local Fiat run or that another session can take over later. Before
+`hexctl init`, the prompt asks the chat to confirm that it can work in the
+repository, use your signing identity and publish through your GitHub account.
+If it cannot, move the same prompt to a suitable local coding harness before
+the run starts.
 
 ## Pick the local harness you will keep open
 
@@ -86,9 +93,9 @@ steps. Each step is implemented, tested, reviewed and explained before the
 controller allows the next dependent action. A failed check stops that action
 while leaving inspection, repair, rerun and safe exit available.
 
-You still own the decisions and access that only a contributor can supply.
-Answer a real question when Fiat asks one. Do not skip a failed gate, widen the
-issue or declare the job finished because the code looks done.
+You still own the decisions, identity and access that only a contributor can
+supply. Answer a real question when Fiat asks one. Do not skip a failed gate,
+widen the issue or declare the job finished because the code looks done.
 
 ## What completion means
 
@@ -118,8 +125,9 @@ implementation and review evidence for a maintainer. The local-completion rule
 keeps an unfinished controller state from being mistaken for a portable hand-off
 before checkpointing exists.
 
-The contributor supplies time, judgement and their own harness account. The
-repository receives an ordinary attributable contribution, not a sample task.
+The contributor supplies time, judgement, their own signing identity and their
+own harness and GitHub accounts. The repository receives an ordinary
+attributable contribution, not a sample task.
 
 ## The secondary manual route
 

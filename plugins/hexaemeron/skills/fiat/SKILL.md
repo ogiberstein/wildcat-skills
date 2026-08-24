@@ -421,12 +421,15 @@ whole order immediately before posting. The receipt refuses a skills list
 missing either configured id.
 
 **Push.** Stage and commit every intended final change with a valid local
-signature and the two exact provenance trailers. Agent-produced work is
-authored by Shoggoth; a human contributor keeps their own authorship. Claude,
-Codex, another runtime host, or its generated-by footer is not authorship for a
-Fiat run. If a cloud runtime cannot sign and publish through the Shoggoth
-identity, stop before the commit or pull request and hand the exact branch or
-patch to an environment that can. Then push the step branch,
+signature and the two exact provenance trailers. Authorship follows the
+contributing actor. A human contributor keeps their own Git author and valid
+signer and publishes through their own GitHub account; never ask for or use the
+Shoggoth private signing key or account for that contribution. Work contributed
+by Shoggoth uses the Shoggoth identity. If a cloud runtime cannot publish that
+Shoggoth work through the Shoggoth signer and account, stop before the commit or
+pull request and hand the exact branch or patch to an environment that can.
+Claude, Codex, another runtime host, or its generated-by footer is not
+authorship for either case. Then push the step branch,
 and open its pull request against the `pr_base` the directive names, using the
 prepared prose. Wait for its gates but leave it open: a step's work lands in the
 integrate phase, not here. Do not add an issue reference unless one was

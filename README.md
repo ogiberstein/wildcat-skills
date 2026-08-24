@@ -47,23 +47,30 @@ The friendly hand-off looks like: **Aye, here you go - #123.**
 
 > [!WARNING]
 > Fiat does not yet support checkpointing. Work is actively ongoing to complete
-> it; the repository design package starts in
-> [PR #479](https://github.com/wildcat-finance/skills/pull/479). Once Fiat
-> starts, complete the entire run locally. Closing the harness, abandoning the
-> run or moving an unfinished run to another session can lose the work. Do not
-> assume that another contributor or session can resume it.
+> it. Once Fiat starts, complete the entire run locally. Closing the harness,
+> abandoning the run or moving an unfinished run to another session can lose
+> the work. Do not assume that another contributor or session can resume it.
+
+This route is for an external human contributor, not Shoggoth. Keep your own
+Git author, valid signing identity and GitHub account. The required Shoggoth
+provenance trailers supplement that authorship; they do not authorise use of
+Shoggoth's private key or account. Confirm that the coding environment can sign
+and publish as you before `hexctl init`; otherwise move the Atlas prompt to a
+suitable local harness before the run starts.
 
 The ChatGPT and Claude links are the only Atlas routes covered by the current
 launcher tests. They allocate a job and prefill its prompt; they do not prove
-that a browser chat can complete a local Fiat run. Open the repository in the
-local coding harness you will keep for the whole run. [Codex](./INSTALL.md#codex)
-and [Claude Code](./INSTALL.md#claude-code) have native Wildcat marketplace
-packages. GitHub Copilot, Cursor, Gemini CLI and Windsurf use the
-[manual route](./docs/how-to-help-shoggoth.md#the-secondary-manual-route): open
-the repository, read `AGENTS.md`, then paste the exact Atlas prompt. They are
-not presented as tested one-click Atlas launchers. Cline and Roo Code are not
-listed as launch options because this repository has no checked Atlas hand-off
-for them.
+that a browser chat can complete a local Fiat run. The prompt tells the chat to
+stop before `hexctl init` when it cannot work in the repository, sign as the
+human contributor and publish through that contributor's GitHub account. Open
+the repository in the local coding harness you will keep for the whole run.
+[Codex](./INSTALL.md#codex) and [Claude Code](./INSTALL.md#claude-code) have
+native Wildcat marketplace packages. GitHub Copilot, Cursor, Gemini CLI and
+Windsurf use the [manual route](./docs/how-to-help-shoggoth.md#the-secondary-manual-route):
+open the repository, read `AGENTS.md`, then paste the exact Atlas prompt. They
+are not presented as tested one-click Atlas launchers. Cline and Roo Code are
+not listed as launch options because this repository has no checked Atlas
+hand-off for them.
 
 Fiat keeps the bounded run in order: study, runbook, implementation, audit,
 prose, push and integration. Code that looks finished is not the endpoint. The

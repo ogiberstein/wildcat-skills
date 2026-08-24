@@ -35,7 +35,6 @@ ATLAS = "https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/"
 CHATGPT = f"{ATLAS}go/chatgpt"
 CLAUDE = f"{ATLAS}go/claude"
 JOB_API = f"{ATLAS}api/job"
-CHECKPOINT = "https://github.com/wildcat-finance/skills/pull/479"
 INSTALL_CODEX = "https://github.com/wildcat-finance/skills/blob/main/INSTALL.md#codex"
 INSTALL_CLAUDE = "https://github.com/wildcat-finance/skills/blob/main/INSTALL.md#claude-code"
 GUIDE = "https://github.com/wildcat-finance/skills/blob/main/docs/how-to-help-shoggoth.md"
@@ -274,7 +273,7 @@ def draw_number_page(c: canvas.Canvas) -> None:
     label(c, "No checkpoints yet", 64, 438, GOLD)
     para(
         c,
-        "Fiat does not yet support checkpointing. Work is actively ongoing to complete it in PR #479. Once Fiat starts, finish the entire run locally. Closing the harness or abandoning the unfinished run can lose the work.",
+        "Fiat does not yet support checkpointing. Work is actively ongoing to complete it. Once Fiat starts, finish the entire run locally. Closing the harness or abandoning the unfinished run can lose the work.",
         64,
         370,
         545,
@@ -286,8 +285,7 @@ def draw_number_page(c: canvas.Canvas) -> None:
     )
     c.setFillColor(GOLD)
     c.roundRect(632, 373, 142, 46, 10, stroke=0, fill=1)
-    para(c, "CHECKPOINT WORK<br/>PR #479", 642, 382, 122, 28, size=9, leading=12, color=BUNKER, font="Helvetica-Bold", align=TA_CENTER)
-    c.linkURL(CHECKPOINT, (632, 373, 774, 419), relative=0, thickness=0)
+    para(c, "YOU ARE NOT<br/>SHOGGOTH", 642, 382, 122, 28, size=9, leading=12, color=BUNKER, font="Helvetica-Bold", align=TA_CENTER)
 
     boxes = [
         (
@@ -371,7 +369,7 @@ def draw_harness_page(c: canvas.Canvas) -> None:
     c.roundRect(44, 270, 754, 42, 9, stroke=1, fill=1)
     para(
         c,
-        "These buttons start the hand-off. They do not prove that a browser chat can finish a local Fiat run.",
+        "If a web chat cannot work in the repository and publish as you, stop before init and move the prompt to a local coding harness.",
         60,
         280,
         722,
@@ -443,7 +441,7 @@ def draw_fiat_page(c: canvas.Canvas) -> None:
 
     card(c, 420, 195, 378, 142, fill=white, accent=GOLD)
     label(c, "The contributor owns", 438, 307, GOLD)
-    bullet(c, "The access and decisions only a person can supply.", 438, 274, 332, color=GOLD)
+    bullet(c, "Their own Git author, signer and GitHub account.", 438, 274, 332, color=GOLD)
     bullet(c, "Keeping the same local workspace available.", 438, 242, 332, color=GOLD)
     bullet(c, "Following a failed gate instead of skipping it.", 438, 210, 332, color=GOLD)
 
