@@ -290,6 +290,14 @@ class StackBringDownTests(unittest.TestCase):
         self.assertIn("delete the run branch and every step branch", " ".join(integration.split()))
         self.assertIn("one place branch cleanup happens", " ".join(integration.split()))
 
+    def test_base_drift_preserves_product_evidence(self):
+        integration = self.push_discipline.split("## The integration pull request")[1]
+        flat = " ".join(integration.split())
+        self.assertIn("fiat-integration-revalidation/v1", integration)
+        self.assertIn("--revalidation .hexaemeron/integration-revalidation.json", flat)
+        self.assertIn("implementation and audit remain evidence", flat)
+        self.assertIn("Base advancement alone never authorises a carryover", flat)
+
 
 class OriginLabelTests(unittest.TestCase):
     """The provenance label, and not trusting a query that failed.

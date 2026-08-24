@@ -263,7 +263,19 @@ elif args and args[0] == "merge-base":
             detached = os.environ.get("FAKE_GIT_NOT_ANCESTOR", "d" * 40).split(",")
             if args[-2] in detached:
                 raise SystemExit(1)
-    raise SystemExit(0)
+        raise SystemExit(0)
+    print(os.environ.get("FAKE_GIT_MERGE_BASE", "4" * 40))
+elif (
+    args
+    and args[0] == "diff"
+    and "--name-only" in args
+    and any(".." in value for value in args)
+    and "FAKE_GIT_DIFF_PATHS" in os.environ
+):
+    pair = next(value for value in args if ".." in value)
+    paths = json.loads(os.environ.get("FAKE_GIT_DIFF_PATHS", "{{}}")).get(pair, [])
+    if paths:
+        sys.stdout.write("\\0".join(paths) + "\\0")
 elif args and args[0] == "rev-list":
     pair = next(value for value in args if ".." in value)
     base, head = pair.split("..", 1)
@@ -2228,17 +2240,84 @@ class TestPublicationBindings(HexctlCase):
         self.to_integrate()
         state = self.state()
         final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        base_before = "4" * 40
         self.fake_refs[state["run_branch"]] = sync_sha
         self.fake_refs[state["base"]] = base_sha
         self.fake_parents[sync_sha] = [final_merge, base_sha]
+        self.env["FAKE_GIT_MERGE_BASE"] = base_before
+        self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
+            {
+                f"{base_before}..{final_merge}": [
+                    "product.py",
+                    "shared.json",
+                ],
+                f"{base_before}..{base_sha}": [
+                    "shared.json",
+                    "upstream.py",
+                ],
+                f"{final_merge}..{sync_sha}": [
+                    "shared.json",
+                    "upstream.py",
+                ],
+            }
+        )
         return state, sync_sha, base_sha
+
+    def write_integration_revalidation(
+        self, *, affected_paths=None, checks=None
+    ):
+        affected_paths = (
+            ["shared.json", "upstream.py"]
+            if affected_paths is None else affected_paths
+        )
+        checks = checks or [
+            {
+                "id": "root-suite",
+                "command": "python3 -m unittest discover -s tests",
+                "paths": affected_paths,
+                "exit": 0,
+            }
+        ]
+        return self.write(
+            ".hexaemeron/integration-revalidation.json",
+            json.dumps(
+                {
+                    "schema": "fiat-integration-revalidation/v1",
+                    "affected_paths": affected_paths,
+                    "checks": checks,
+                }
+            ),
+        )
 
     def test_sync_run_receipts_exact_merge_and_allows_integration(self):
         state, sync_sha, base_sha = self.prepare_run_sync()
+        before = self.state()
+        revalidation = self.write_integration_revalidation()
         self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
         )
+        after_sync = self.state()
+        self.assertEqual(before["steps"], after_sync["steps"])
+        sync = after_sync["integrate"]["sync"]
+        self.assertEqual(sync["product_evidence"]["head"], "e" * 40)
+        self.assertEqual(sync["revalidation"]["base_before"], "4" * 40)
+        self.assertEqual(sync["revalidation"]["product_paths"], [
+            "product.py", "shared.json",
+        ])
+        self.assertEqual(sync["revalidation"]["upstream_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        self.assertEqual(sync["revalidation"]["overlap_paths"], ["shared.json"])
+        self.assertEqual(sync["revalidation"]["composition_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        self.assertEqual(sync["revalidation"]["affected_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        status = self.run_ctl("status").stdout
+        self.assertIn("product eeeeeeeeeeee preserved", status)
+        self.assertIn("1 integration revalidation check(s) recorded", status)
         self.write_run_pr()
         self.run_ctl(
             "done", "integrate",
@@ -2250,38 +2329,134 @@ class TestPublicationBindings(HexctlCase):
         self.assertEqual(receipt["sync"]["base_head"], base_sha)
         self.assertEqual(receipt["sync"]["parents"], ["e" * 40, base_sha])
 
-    def test_sync_run_refuses_wrong_merge_parents(self):
+    def test_sync_run_requires_bounded_green_revalidation(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
-        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
             "--base-commit", base_sha, expect=2,
+        )
+        self.assertIn("--revalidation is required", proc.stderr)
+
+        failed = self.write_integration_revalidation(
+            checks=[
+                {
+                    "id": "root-suite",
+                    "command": "python3 -m unittest discover -s tests",
+                    "paths": ["shared.json", "upstream.py"],
+                    "exit": 1,
+                }
+            ]
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", failed, expect=2,
+        )
+        self.assertIn("must record exit 0", proc.stderr)
+
+    def test_sync_run_revalidation_covers_the_computed_composition_surface(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        outside = self.write_integration_revalidation(
+            affected_paths=["not-in-delta.py"]
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", outside, expect=2,
+        )
+        self.assertIn("outside the computed integration delta", proc.stderr)
+
+        omitted = self.write_integration_revalidation(
+            affected_paths=["upstream.py"],
+            checks=[
+                {
+                    "id": "upstream-suite",
+                    "command": "python3 -m unittest upstream_tests",
+                    "paths": ["upstream.py"],
+                    "exit": 0,
+                }
+            ],
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", omitted, expect=2,
+        )
+        self.assertIn("omits the computed integration surface", proc.stderr)
+
+        uncovered = self.write_integration_revalidation(
+            affected_paths=["shared.json", "upstream.py"],
+            checks=[
+                {
+                    "id": "shared-suite",
+                    "command": "python3 -m unittest shared_tests",
+                    "paths": ["shared.json"],
+                    "exit": 0,
+                }
+            ],
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", uncovered, expect=2,
+        )
+        self.assertIn("do not cover every affected path", proc.stderr)
+
+    def test_integrate_directive_preserves_product_evidence_on_base_drift(self):
+        self.to_integrate()
+        directive = self.next_json()
+        self.assertEqual(
+            directive["product_evidence"]["status"], "preserved-exact-tree"
+        )
+        self.assertEqual(directive["product_evidence"]["head"], "e" * 40)
+        self.assertEqual(
+            directive["base_advance"]["recovery"], "sync-run-and-revalidate"
+        )
+        self.assertIn(
+            "--revalidation .hexaemeron/integration-revalidation.json",
+            directive["base_advance"]["then"],
+        )
+        self.assertIn(
+            "does not authorise a carryover",
+            directive["base_advance"]["boundary"],
+        )
+
+    def test_sync_run_refuses_wrong_merge_parents(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("merge parents", proc.stderr)
 
     def test_sync_run_refuses_unsigned_commit(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         self.env["FAKE_GIT_MODE"] = "unsigned"
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha, expect=2,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("valid local signature", proc.stderr)
 
     def test_sync_run_refuses_stale_remote_base(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", "5" * 40, expect=2,
+            "--base-commit", "5" * 40, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("remote base branch tip", proc.stderr)
 
     def test_sync_run_refuses_invalid_github_verification(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         self.env["FAKE_GH_MODE"] = "verified-false"
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha, expect=2,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("not verified:true", proc.stderr)
 
