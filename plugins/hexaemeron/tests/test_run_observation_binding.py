@@ -1,0 +1,304 @@
+"""Focused guards for Fiat's companion observation-prefix receipt."""
+
+import hashlib
+import json
+import os
+from pathlib import Path
+
+from plugins.hexaemeron.tests.test_hexctl import HexctlCase
+
+
+ROOT = Path(__file__).resolve().parents[3]
+SUCCESS = ROOT / "tests" / "fixtures" / "run-observation" / "valid" / "success.jsonl"
+CASES = Path(__file__).resolve().parent / "fixtures" / "run-observation-binding" / "cases.json"
+BINDING_CONTRACT = "fiat-run-observation-binding/v1"
+OBSERVATION_CONTRACT = "promise-machine-run-observation/v1"
+
+
+class ObservationBindingTests(HexctlCase):
+    def test_fixture_manifest_names_the_normal_and_nine_negative_mechanisms(self):
+        manifest = json.loads(CASES.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["contract"], BINDING_CONTRACT)
+        cases = manifest["cases"]
+        self.assertGreaterEqual(len(cases), 10)
+        self.assertEqual(len({case["id"] for case in cases}), len(cases))
+        self.assertEqual(
+            {
+                "normal-prefix",
+                "replacement",
+                "truncation",
+                "reordered-events",
+                "wrong-run-association",
+                "event-count-mismatch",
+                "contract-drift",
+                "failed-redaction",
+                "missing-binding",
+                "appended-event-confusion",
+            }
+            - {case["id"] for case in cases},
+            set(),
+        )
+        for case in cases:
+            self.assertTrue(hasattr(self, case["guard"]), case)
+
+    def controller_run_id(self):
+        state = self.state()
+        identity = {
+            "base": state["base"],
+            "controller": state["controller"],
+            "created_at": state["created_at"],
+            "run_branch": state["run_branch"],
+            "topic": state["topic"],
+            "version": state["version"],
+        }
+        encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+        return "fiat-" + hashlib.sha256(encoded).hexdigest()
+
+    def write_prefix(self, *, run_id=None, contract=OBSERVATION_CONTRACT):
+        run_id = run_id or self.controller_run_id()
+        events = [json.loads(line) for line in SUCCESS.read_text().splitlines()][:-1]
+        for event in events:
+            event["run_id"] = run_id
+            event["schema_id"] = contract
+        relative = os.path.join(".hexaemeron", "observations", "run.jsonl")
+        target = os.path.join(self.target, relative)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        data = "".join(
+            json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
+            for event in events
+        ).encode()
+        with open(target, "wb") as handle:
+            handle.write(data)
+        return relative, target, data
+
+    def ledger(self):
+        path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(path, encoding="utf-8") as handle:
+            return [json.loads(line) for line in handle if line.strip()]
+
+    @staticmethod
+    def canonical(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+    def rewrite_last_binding(self, mutate):
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        binding = state["receipts"]["run_observations"][-1]
+        mutate(binding)
+        state_digest = hashlib.sha256(self.canonical(state).encode()).hexdigest()
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        entries[-1]["data"]["binding_sha256"] = hashlib.sha256(
+            self.canonical(binding).encode()
+        ).hexdigest()
+        entries[-1]["state"] = state_digest
+        unsigned = {
+            key: entries[-1][key]
+            for key in ("ts", "event", "data", "prev", "state")
+        }
+        entries[-1]["hash"] = hashlib.sha256(
+            self.canonical(unsigned).encode()
+        ).hexdigest()
+        with open(state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, indent=2)
+            handle.write("\n")
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+    def bind(self, relative, *, expect=0):
+        return self.run_ctl(
+            "observe",
+            "--artifact",
+            relative,
+            "--capture-status",
+            "accepted",
+            "--redaction-status",
+            "passed",
+            expect=expect,
+        )
+
+    def test_normal_prefix_binds_to_the_selected_receipt(self):
+        self.to_steps(("Bind",))
+        relative, _, data = self.write_prefix()
+        selected = self.ledger()[-1]
+        phase = self.state()["steps"][0]["phase"]
+
+        result = self.bind(relative)
+
+        self.assertIn(BINDING_CONTRACT, result.stdout)
+        state = self.state()
+        self.assertEqual(state["steps"][0]["phase"], phase)
+        binding = state["receipts"]["run_observations"][0]
+        self.assertEqual(binding["schema"], BINDING_CONTRACT)
+        self.assertEqual(binding["observation_contract"], OBSERVATION_CONTRACT)
+        self.assertEqual(binding["controller_run_id"], self.controller_run_id())
+        self.assertEqual(binding["artifact"], relative)
+        self.assertEqual(binding["event_count"], 3)
+        self.assertEqual(binding["byte_count"], len(data))
+        self.assertEqual(binding["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(binding["receipt"]["hash"], selected["hash"])
+        self.assertEqual(binding["receipt"]["event"], selected["event"])
+        self.assertEqual(self.ledger()[-1]["event"], "record:run-observation")
+        verified = self.run_ctl("verify", "--observations")
+        self.assertIn("1 observation prefix", verified.stdout)
+
+    def test_legacy_run_stays_valid_until_the_dependent_claim_is_requested(self):
+        self.to_steps(("Bind",))
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB001", refused.stderr)
+
+    def test_non_available_capture_records_no_digest_and_does_not_break_verify(self):
+        self.to_steps(("Bind",))
+        self.run_ctl(
+            "observe",
+            "--capture-status",
+            "unavailable",
+            "--redaction-status",
+            "unknown",
+            "--reason-code",
+            "observer-unavailable",
+        )
+        binding = self.state()["receipts"]["run_observations"][0]
+        self.assertEqual(binding["capture_status"], "unavailable")
+        for key in ("artifact", "byte_count", "event_count", "sha256"):
+            self.assertNotIn(key, binding)
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB005", refused.stderr)
+
+    def test_replacement_and_truncation_break_only_the_dependent_claim(self):
+        replacements = (b"{}\n", b"")
+        for replacement in replacements:
+            with self.subTest(replacement=replacement):
+                self.to_steps(("Bind",))
+                relative, target, _ = self.write_prefix()
+                self.bind(relative)
+                with open(target, "wb") as handle:
+                    handle.write(replacement)
+
+                self.run_ctl("verify")
+                refused = self.run_ctl("verify", "--observations", expect=1)
+                self.assertIn("FOB004", refused.stderr)
+
+                self.tearDown()
+                self.setUp()
+
+    def test_reordered_events_break_only_the_dependent_claim(self):
+        self.to_steps(("Bind",))
+        relative, target, data = self.write_prefix()
+        self.bind(relative)
+        lines = data.splitlines(keepends=True)
+        with open(target, "wb") as handle:
+            handle.write(lines[1] + lines[0] + b"".join(lines[2:]))
+
+        self.run_ctl("verify")
+        refused = self.run_ctl("verify", "--observations", expect=1)
+        self.assertIn("FOB004", refused.stderr)
+
+    def test_appended_bytes_remain_explicitly_unbound(self):
+        self.to_steps(("Bind",))
+        relative, target, original = self.write_prefix()
+        self.bind(relative)
+        tail = b'{"unbound":"tail"}\n'
+        with open(target, "ab") as handle:
+            handle.write(tail)
+
+        verified = self.run_ctl("verify", "--observations")
+        self.assertIn(f"unbound tail: {len(tail)} bytes", verified.stdout)
+        binding = self.state()["receipts"]["run_observations"][0]
+        self.assertEqual(binding["byte_count"], len(original))
+
+    def test_wrong_run_contract_and_failed_redaction_refuse_before_receipt(self):
+        cases = (
+            ("wrong-run", OBSERVATION_CONTRACT, "passed", "FOB003"),
+            (None, "wrong-contract/v1", "passed", "FOB003"),
+            (None, OBSERVATION_CONTRACT, "failed", "FOB005"),
+        )
+        for run_id, contract, redaction, code in cases:
+            with self.subTest(run_id=run_id, contract=contract, redaction=redaction):
+                self.to_steps(("Bind",))
+                relative, _, _ = self.write_prefix(run_id=run_id, contract=contract)
+                before = len(self.ledger())
+                refused = self.run_ctl(
+                    "observe",
+                    "--artifact",
+                    relative,
+                    "--capture-status",
+                    "accepted",
+                    "--redaction-status",
+                    redaction,
+                    expect=2,
+                )
+                self.assertIn(code, refused.stderr)
+                self.assertEqual(len(self.ledger()), before)
+
+                self.tearDown()
+                self.setUp()
+
+    def test_bound_run_contract_and_event_count_are_recomputed(self):
+        mutations = (
+            (lambda binding: binding.__setitem__("controller_run_id", "wrong-run")),
+            (lambda binding: binding.__setitem__("observation_contract", "wrong/v1")),
+            (lambda binding: binding.__setitem__("event_count", 99)),
+        )
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                self.to_steps(("Bind",))
+                relative, _, _ = self.write_prefix()
+                self.bind(relative)
+                self.rewrite_last_binding(mutate)
+
+                self.run_ctl("verify")
+                refused = self.run_ctl("verify", "--observations", expect=1)
+                self.assertIn("FOB003", refused.stderr)
+
+                self.tearDown()
+                self.setUp()
+
+    def test_symlinked_file_and_parent_are_refused_before_receipt(self):
+        for parent_link in (False, True):
+            with self.subTest(parent_link=parent_link):
+                self.to_steps(("Bind",))
+                relative, target, _ = self.write_prefix()
+                external = os.path.join(self.target, "external.jsonl")
+                os.replace(target, external)
+                if parent_link:
+                    observations = os.path.dirname(target)
+                    os.rmdir(observations)
+                    os.symlink(os.path.dirname(external), observations)
+                else:
+                    os.symlink(external, target)
+                before = len(self.ledger())
+
+                refused = self.run_ctl(
+                    "observe",
+                    "--artifact",
+                    relative,
+                    "--capture-status",
+                    "accepted",
+                    "--redaction-status",
+                    "passed",
+                    expect=2,
+                )
+                self.assertIn("FOB002", refused.stderr)
+                self.assertEqual(len(self.ledger()), before)
+
+                self.tearDown()
+                self.setUp()
+
+    def test_consecutive_binding_cannot_select_an_observation_receipt(self):
+        self.to_steps(("Bind",))
+        relative, _, _ = self.write_prefix()
+        self.bind(relative)
+        refused = self.bind(relative, expect=2)
+        self.assertIn("FOB003", refused.stderr)
+
+
+if __name__ == "__main__":
+    import unittest
+
+    unittest.main()

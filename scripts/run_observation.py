@@ -1679,7 +1679,7 @@ class Validator:
                     event=event,
                 )
 
-    def relations(self) -> None:
+    def relations(self, *, allow_prefix: bool = False) -> None:
         seen_events: dict[str, tuple[int, dict[str, Any]]] = {}
         evidence: dict[str, tuple[int, dict[str, Any]]] = {}
         capabilities: dict[str, tuple[int, dict[str, Any]]] = {}
@@ -2116,7 +2116,7 @@ class Validator:
                 "record has no run.started event",
                 "place exactly one run.started event first",
             )
-        if finished is None:
+        if finished is None and not allow_prefix:
             self.add(
                 "RO009",
                 "lifecycle",
@@ -2255,13 +2255,18 @@ def display_path(path: Path, root: Path) -> str:
     return escaped[: MAX_DISPLAY_PATH - len(suffix)] + suffix
 
 
-def validate_path(path: Path, *, root: Path | None = None) -> list[Finding]:
+def validate_path(
+    path: Path,
+    *,
+    root: Path | None = None,
+    allow_prefix: bool = False,
+) -> list[Finding]:
     root = repository_root() if root is None else root
     display = display_path(path, root)
     validator = Validator(display)
     validator.read(path, root)
     if validator.events:
-        validator.relations()
+        validator.relations(allow_prefix=allow_prefix)
     elif not validator.findings:
         validator.add(
             "RO009",
@@ -2301,19 +2306,25 @@ def text_lines(findings: list[Finding]) -> list[str]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Check one bounded promise-machine-run-observation/v1 JSONL record."
+        description="Check one bounded promise-machine-run-observation/v1 JSONL record or prefix."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     check = subparsers.add_parser("check", help="validate one confined JSONL record")
     check.add_argument("path")
     check.add_argument("--json", action="store_true", help="emit canonical JSON")
+    prefix = subparsers.add_parser(
+        "check-prefix",
+        help="validate one confined JSONL prefix without requiring run.finished",
+    )
+    prefix.add_argument("path")
+    prefix.add_argument("--json", action="store_true", help="emit canonical JSON")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     path = Path(args.path)
-    findings = validate_path(path)
+    findings = validate_path(path, allow_prefix=args.command == "check-prefix")
     if args.json:
         report = {
             "contract": CONTRACT_ID,

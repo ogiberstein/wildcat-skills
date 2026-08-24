@@ -25,15 +25,18 @@ import datetime
 import fcntl
 import glob
 import hashlib
+import importlib.util
 import json
 import os
 import re
 import selectors
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.parse
+from pathlib import Path
 
 STATE_DIR_NAME = ".hexaemeron"
 STATE_FILE = "state.json"
@@ -168,6 +171,21 @@ INTEGRATION_COMMAND_BYTES_MAX = 2048
 INTEGRATION_CHECK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 INTEGRATION_SYNC_SUPERSESSIONS_MAX = 8
 INTEGRATION_SYNC_REASON_BYTES_MAX = 1024
+OBSERVATION_BINDING_CONTRACT = "fiat-run-observation-binding/v1"
+OBSERVATION_CONTRACT = "promise-machine-run-observation/v1"
+OBSERVATION_BYTES_MAX = 1_048_576
+OBSERVATION_BINDINGS_MAX = 64
+OBSERVATION_PATH_BYTES_MAX = 1024
+OBSERVATION_CAPTURE_STATUSES = (
+    "accepted",
+    "gap",
+    "refused",
+    "unknown",
+    "unavailable",
+)
+OBSERVATION_REDACTION_STATUSES = ("passed", "failed", "unknown")
+OBSERVATION_REASON_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+_OBSERVATION_VALIDATOR = None
 
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
@@ -197,6 +215,291 @@ def read_bounded_source(base_dir: str, supplied: str, label: str) -> tuple[str, 
     if len(data) > SOURCE_BYTES_MAX:
         die(f"{label} exceeds {SOURCE_BYTES_MAX}-byte cap")
     return path, data
+
+
+def controller_run_id(state: dict) -> str:
+    """Return the stable observation identity for one controller run."""
+    identity = {
+        "base": state.get("base"),
+        "controller": state.get("controller", "hexctl"),
+        "created_at": state.get("created_at"),
+        "run_branch": state.get("run_branch"),
+        "topic": state.get("topic"),
+        "version": state.get("version", 1),
+    }
+    return "fiat-" + hashlib.sha256(canonical(identity).encode()).hexdigest()
+
+
+def observation_error(code: str, message: str, recovery: str, exit_code: int = 2):
+    die(f"{code} {message}; recovery: {recovery}", exit_code)
+
+
+def observation_relative_path(base_dir: str, supplied: str, *, exit_code: int = 2) -> str:
+    """Admit one canonical run-local observation path without following links."""
+    if not isinstance(supplied, str) or not supplied or os.path.isabs(supplied):
+        observation_error(
+            "FOB002",
+            "the companion path is not a canonical run-local relative path",
+            "name a regular file beneath .hexaemeron/observations",
+            exit_code,
+        )
+    if supplied != os.path.normpath(supplied):
+        observation_error(
+            "FOB002",
+            "the companion path is not lexically canonical",
+            "remove dot segments and name a file beneath .hexaemeron/observations",
+            exit_code,
+        )
+    try:
+        encoded = supplied.encode("utf-8")
+    except UnicodeEncodeError:
+        encoded = b""
+    parts = supplied.split(os.sep)
+    if (
+        not encoded
+        or len(encoded) > OBSERVATION_PATH_BYTES_MAX
+        or len(parts) < 3
+        or parts[:2] != [STATE_DIR_NAME, "observations"]
+        or any(
+            not part
+            or part in {".", ".."}
+            or any(ord(character) < 32 or ord(character) == 127 for character in part)
+            for part in parts
+        )
+    ):
+        observation_error(
+            "FOB002",
+            "the companion path is outside the bounded observation namespace",
+            "name a canonical regular file beneath .hexaemeron/observations",
+            exit_code,
+        )
+    return os.sep.join(parts)
+
+
+def _read_observation_once(
+    base_dir: str, relative: str, *, exit_code: int = 2
+) -> tuple[bytes, tuple]:
+    """Read through no-follow directory descriptors and retain one identity."""
+    root_fd = None
+    directory_fd = None
+    file_fd = None
+    try:
+        root_fd = os.open(
+            os.path.realpath(base_dir),
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0),
+        )
+        directory_fd = root_fd
+        parts = relative.split(os.sep)
+        for part in parts[:-1]:
+            next_fd = os.open(
+                part,
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=directory_fd,
+            )
+            if directory_fd != root_fd:
+                os.close(directory_fd)
+            directory_fd = next_fd
+        file_fd = os.open(
+            parts[-1],
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_fd,
+        )
+        before = os.fstat(file_fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise OSError("not regular")
+        chunks = []
+        remaining = OBSERVATION_BYTES_MAX + 1
+        while remaining:
+            chunk = os.read(file_fd, min(65536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        data = b"".join(chunks)
+        if len(data) > OBSERVATION_BYTES_MAX:
+            raise OSError("too large")
+        after = os.fstat(file_fd)
+        named = os.stat(parts[-1], dir_fd=directory_fd, follow_symlinks=False)
+        identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        final_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        named_identity = (
+            named.st_dev,
+            named.st_ino,
+            named.st_size,
+            named.st_mtime_ns,
+            named.st_ctime_ns,
+        )
+        if identity != final_identity or identity != named_identity or len(data) != after.st_size:
+            raise OSError("changed during read")
+        return data, identity
+    except OSError:
+        observation_error(
+            "FOB002",
+            "the companion path is missing, unsafe, unstable, or outside its byte ceiling",
+            "write one stable regular file beneath .hexaemeron/observations and retry",
+            exit_code,
+        )
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        if directory_fd is not None and directory_fd != root_fd:
+            os.close(directory_fd)
+        if root_fd is not None:
+            os.close(root_fd)
+
+
+def read_observation_bytes(
+    base_dir: str, supplied: str, *, exit_code: int = 2
+) -> tuple[str, bytes]:
+    """Read the same named bytes twice so a clean receipt has one stable subject."""
+    relative = observation_relative_path(base_dir, supplied, exit_code=exit_code)
+    first, first_identity = _read_observation_once(
+        base_dir, relative, exit_code=exit_code
+    )
+    second, second_identity = _read_observation_once(
+        base_dir, relative, exit_code=exit_code
+    )
+    if first_identity != second_identity or first != second:
+        observation_error(
+            "FOB002",
+            "the companion bytes changed while they were selected",
+            "stop the writer, publish one stable prefix, and retry",
+            exit_code,
+        )
+    return relative, second
+
+
+def _strict_observation_object(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate member")
+        value[key] = item
+    return value
+
+
+def observation_summary(data: bytes, *, exit_code: int = 2) -> dict:
+    """Extract the exact closed identity and interval from accepted JSONL bytes."""
+    try:
+        text = data.decode("utf-8")
+        lines = text.splitlines()
+        events = [
+            json.loads(
+                line,
+                object_pairs_hook=_strict_observation_object,
+                parse_constant=lambda _: (_ for _ in ()).throw(ValueError("non-finite")),
+            )
+            for line in lines
+        ]
+    except (UnicodeDecodeError, ValueError, TypeError):
+        observation_error(
+            "FOB003",
+            "the selected prefix is not closed UTF-8 JSONL",
+            "validate and republish the prefix before binding it",
+            exit_code,
+        )
+    if not events or any(not isinstance(event, dict) for event in events):
+        observation_error(
+            "FOB003",
+            "the selected prefix has no closed event sequence",
+            "record one run.started event and a valid closed prefix",
+            exit_code,
+        )
+    run_values = [event.get("run_id") for event in events]
+    contract_values = [event.get("schema_id") for event in events]
+    sequences = [event.get("sequence") for event in events]
+    event_ids = [event.get("event_id") for event in events]
+    if (
+        any(not isinstance(value, str) or not value for value in run_values)
+        or any(not isinstance(value, str) or not value for value in contract_values)
+        or len(set(run_values)) != 1
+        or len(set(contract_values)) != 1
+        or sequences != list(range(1, len(events) + 1))
+        or any(not isinstance(value, str) or not value for value in event_ids)
+    ):
+        observation_error(
+            "FOB003",
+            "the selected prefix identity or interval is inconsistent",
+            "emit one contract, run identity, and contiguous event interval",
+            exit_code,
+        )
+    return {
+        "contract": contract_values[0],
+        "run_id": run_values[0],
+        "event_count": len(events),
+        "first_sequence": sequences[0],
+        "last_sequence": sequences[-1],
+        "first_event_id": event_ids[0],
+        "last_event_id": event_ids[-1],
+    }
+
+
+def observation_validator_module():
+    global _OBSERVATION_VALIDATOR
+    if _OBSERVATION_VALIDATOR is not None:
+        return _OBSERVATION_VALIDATOR
+    repository = os.path.realpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
+    )
+    source = os.path.join(repository, "scripts", "run_observation.py")
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "fiat_run_observation_validator", source
+        )
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+    except (AttributeError, ImportError, OSError):
+        observation_error(
+            "FOB003",
+            "the bound observation validator is unavailable",
+            "restore the receipted validator surface before selecting a prefix",
+        )
+    _OBSERVATION_VALIDATOR = module
+    return module
+
+
+def validated_observation_prefix(base_dir: str, supplied: str, state: dict):
+    relative, data = read_observation_bytes(base_dir, supplied)
+    validator = observation_validator_module()
+    path = Path(os.path.realpath(base_dir)) / Path(relative)
+    findings = validator.validate_path(
+        path,
+        root=Path(os.path.realpath(base_dir)),
+        allow_prefix=True,
+    )
+    if findings:
+        observation_error(
+            "FOB003",
+            "the selected observation prefix failed its bound validator",
+            "repair the prefix and rerun check-prefix before binding it",
+        )
+    summary = observation_summary(data)
+    if (
+        summary["contract"] != OBSERVATION_CONTRACT
+        or summary["run_id"] != controller_run_id(state)
+    ):
+        observation_error(
+            "FOB003",
+            "the selected prefix names the wrong contract or controller run",
+            "emit the current contract and observation_run_id, then retry",
+        )
+    return relative, data, summary
 
 
 def decoded_source(data: bytes, label: str) -> str:
@@ -580,6 +883,7 @@ def load_state(base_dir: str, *, allow_pending_amendment: bool = False) -> dict:
 MUTATING = frozenset(
     {
         "cmd_init",
+        "cmd_observe",
         "cmd_record",
         "cmd_config",
         "cmd_amend_study",
@@ -1320,7 +1624,7 @@ def stale_controller(target_dir: str) -> tuple[str, str, str] | None:
     return None
 
 
-RESERVED_RECEIPTS = {"study", "runbook"}
+RESERVED_RECEIPTS = {"study", "runbook", "run_observations"}
 
 
 def cmd_record(args) -> None:
@@ -1344,6 +1648,274 @@ def cmd_record(args) -> None:
     state["receipts"][args.key] = value
     commit(args.dir, state, "record", {"key": args.key, "value": value})
     print(f"recorded {args.key}")
+
+
+def ledger_entries(base_dir: str) -> list[dict]:
+    entries = []
+    try:
+        with open(ledger_path(base_dir), encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                entry = dict(entry)
+                entry["_line"] = line_number
+                entries.append(entry)
+    except (OSError, ValueError, TypeError):
+        die("ledger unreadable; run `hexctl verify`", 1)
+    return entries
+
+
+def selected_observation_receipt(base_dir: str) -> dict:
+    entries = ledger_entries(base_dir)
+    if not entries or entries[-1].get("event") == "record:run-observation":
+        observation_error(
+            "FOB003",
+            "there is no new controller receipt immediately before this selection",
+            "record the observation after the delivery receipt it describes",
+        )
+    entry = entries[-1]
+    return {
+        "line": entry["_line"],
+        "event": entry.get("event"),
+        "hash": entry.get("hash"),
+        "state": entry.get("state"),
+    }
+
+
+def cmd_observe(args) -> None:
+    """Bind one validated prefix, or one explicit unavailable observation state."""
+    verify_run(args.dir)
+    state = load_state(args.dir)
+    receipt = selected_observation_receipt(args.dir)
+    existing = state["receipts"].get("run_observations", [])
+    if not isinstance(existing, list) or len(existing) >= OBSERVATION_BINDINGS_MAX:
+        observation_error(
+            "FOB003",
+            "the observation receipt collection is malformed or full",
+            "verify the run or start a fresh bounded run before recording more prefixes",
+        )
+
+    common = {
+        "schema": OBSERVATION_BINDING_CONTRACT,
+        "observation_contract": OBSERVATION_CONTRACT,
+        "controller_run_id": controller_run_id(state),
+        "recorded_at": now(),
+        "capture_status": args.capture_status,
+        "redaction_status": args.redaction_status,
+        "receipt": receipt,
+    }
+    if args.capture_status == "accepted":
+        if not args.artifact:
+            observation_error(
+                "FOB002",
+                "an accepted observation has no companion artifact",
+                "supply one stable path beneath .hexaemeron/observations",
+            )
+        if args.reason_code:
+            observation_error(
+                "FOB003",
+                "an accepted observation cannot carry an unavailable reason",
+                "remove the reason code or record a non-available capture status",
+            )
+        if args.redaction_status != "passed":
+            observation_error(
+                "FOB005",
+                "the selected prefix has no passing redaction result",
+                "complete redaction successfully or record a non-available status",
+            )
+        relative, data, summary = validated_observation_prefix(
+            args.dir, args.artifact, state
+        )
+        binding = {
+            **common,
+            "validation_status": "passed",
+            "artifact": relative,
+            "byte_count": len(data),
+            "event_count": summary["event_count"],
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "interval": {
+                "first_sequence": summary["first_sequence"],
+                "last_sequence": summary["last_sequence"],
+                "first_event_id": summary["first_event_id"],
+                "last_event_id": summary["last_event_id"],
+            },
+        }
+    else:
+        if args.artifact:
+            observation_error(
+                "FOB005",
+                "a non-available observation cannot bind artifact bytes",
+                "remove the artifact or record an accepted capture",
+            )
+        if not args.reason_code or not OBSERVATION_REASON_RE.fullmatch(args.reason_code):
+            observation_error(
+                "FOB005",
+                "the non-available observation has no bounded reason code",
+                "supply one lowercase reason code of at most 64 characters",
+            )
+        if args.redaction_status == "passed":
+            observation_error(
+                "FOB005",
+                "an unavailable capture cannot claim successful redaction",
+                "record redaction as failed or unknown",
+            )
+        binding = {
+            **common,
+            "validation_status": "unknown",
+            "reason_code": args.reason_code,
+        }
+
+    state["receipts"]["run_observations"] = [*existing, binding]
+    binding_digest = hashlib.sha256(canonical(binding).encode()).hexdigest()
+    commit(
+        args.dir,
+        state,
+        "record:run-observation",
+        {
+            "binding_sha256": binding_digest,
+            "capture_status": binding["capture_status"],
+            "receipt_hash": receipt["hash"],
+        },
+    )
+    print(
+        f"recorded {OBSERVATION_BINDING_CONTRACT}: "
+        f"capture={binding['capture_status']} phase unchanged"
+    )
+
+
+def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
+    bindings = state["receipts"].get("run_observations")
+    if not isinstance(bindings, list) or not bindings:
+        observation_error(
+            "FOB001",
+            "the requested run has no observation binding",
+            "record one available or explicit non-available observation receipt",
+            1,
+        )
+    if len(bindings) > OBSERVATION_BINDINGS_MAX:
+        observation_error(
+            "FOB003",
+            "the observation receipt collection exceeds its bound",
+            "restore the receipted state and verify again",
+            1,
+        )
+    entries = ledger_entries(base_dir)
+    by_hash = {entry.get("hash"): entry for entry in entries}
+    total_tail = 0
+    for binding in bindings:
+        if not isinstance(binding, dict):
+            observation_error(
+                "FOB003",
+                "an observation binding is not a closed record",
+                "restore the receipted state and verify again",
+                1,
+            )
+        receipt = binding.get("receipt")
+        selected = by_hash.get(receipt.get("hash")) if isinstance(receipt, dict) else None
+        binding_digest = hashlib.sha256(canonical(binding).encode()).hexdigest()
+        record = next(
+            (
+                entry
+                for entry in entries
+                if entry.get("event") == "record:run-observation"
+                and isinstance(entry.get("data"), dict)
+                and entry["data"].get("binding_sha256") == binding_digest
+            ),
+            None,
+        )
+        if (
+            binding.get("schema") != OBSERVATION_BINDING_CONTRACT
+            or binding.get("observation_contract") != OBSERVATION_CONTRACT
+            or binding.get("controller_run_id") != controller_run_id(state)
+            or selected is None
+            or record is None
+            or selected.get("_line") + 1 != record.get("_line")
+            or receipt
+            != {
+                "line": selected.get("_line"),
+                "event": selected.get("event"),
+                "hash": selected.get("hash"),
+                "state": selected.get("state"),
+            }
+        ):
+            observation_error(
+                "FOB003",
+                "an observation binding disagrees with its contract, run, or receipt",
+                "restore the bound state and its immediately preceding ledger receipt",
+                1,
+            )
+        if (
+            binding.get("capture_status") != "accepted"
+            or binding.get("validation_status") != "passed"
+            or binding.get("redaction_status") != "passed"
+        ):
+            observation_error(
+                "FOB005",
+                "the requested observation claim is unavailable or failed",
+                "capture, validate, and redact an accepted prefix before claiming it",
+                1,
+            )
+        artifact = binding.get("artifact")
+        byte_count = binding.get("byte_count")
+        event_count = binding.get("event_count")
+        digest = binding.get("sha256")
+        interval = binding.get("interval")
+        if (
+            not isinstance(artifact, str)
+            or isinstance(byte_count, bool)
+            or not isinstance(byte_count, int)
+            or byte_count < 1
+            or isinstance(event_count, bool)
+            or not isinstance(event_count, int)
+            or event_count < 1
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or not isinstance(interval, dict)
+        ):
+            observation_error(
+                "FOB003",
+                "an available observation binding has an invalid closed shape",
+                "restore the complete receipted binding and verify again",
+                1,
+            )
+        _, current = read_observation_bytes(base_dir, artifact, exit_code=1)
+        if len(current) < byte_count:
+            observation_error(
+                "FOB004",
+                "the bound observation prefix was truncated",
+                "restore the exact bound prefix bytes or record a later receipt",
+                1,
+            )
+        prefix = current[:byte_count]
+        if hashlib.sha256(prefix).hexdigest() != digest:
+            observation_error(
+                "FOB004",
+                "the bound observation prefix was replaced, reordered, or changed",
+                "restore the exact bound prefix bytes or record a later receipt",
+                1,
+            )
+        summary = observation_summary(prefix, exit_code=1)
+        expected_interval = {
+            "first_sequence": summary["first_sequence"],
+            "last_sequence": summary["last_sequence"],
+            "first_event_id": summary["first_event_id"],
+            "last_event_id": summary["last_event_id"],
+        }
+        if (
+            summary["contract"] != OBSERVATION_CONTRACT
+            or summary["run_id"] != controller_run_id(state)
+            or summary["event_count"] != event_count
+            or interval != expected_interval
+        ):
+            observation_error(
+                "FOB003",
+                "the bound event count or identity interval diverges",
+                "restore the exact binding metadata and selected prefix",
+                1,
+            )
+        total_tail += len(current) - byte_count
+    return len(bindings), total_tail
 
 
 def cmd_config(args) -> None:
@@ -4334,12 +4906,15 @@ def clean(text: str) -> str:
 def cmd_status(args) -> None:
     state = load_state(args.dir)
     if args.json:
-        print(json.dumps(state, indent=2))
+        payload = dict(state)
+        payload["observation_run_id"] = controller_run_id(state)
+        print(json.dumps(payload, indent=2))
         return
     print(f"topic: {clean(state['topic'])}")
     print(f"base:  {state['base']}")
     if state.get("run_branch"):
         print(f"run:   {state['run_branch']} -> {state['base']}")
+    print(f"observe: {controller_run_id(state)}")
     if state.get("halted"):
         print(f"HALTED: {state['halted']['reason']}")
     blocked = amendment_block(state)
@@ -4467,6 +5042,18 @@ def verify_run(base_dir: str, *, allow_pending_amendment: bool = False) -> int:
 
 def cmd_verify(args) -> None:
     count = verify_run(args.dir)
+    if args.observations:
+        state = load_state(args.dir)
+        observation_count, tail_bytes = verify_observation_bindings(args.dir, state)
+        suffix = (
+            f"; unbound tail: {tail_bytes} bytes" if tail_bytes else ""
+        )
+        noun = "prefix" if observation_count == 1 else "prefixes"
+        print(
+            f"ok: {count} ledger entries, chain intact, state consistent; "
+            f"{observation_count} observation {noun} verified{suffix}"
+        )
+        return
     print(f"ok: {count} ledger entries, chain intact, state consistent")
 
 
@@ -4571,6 +5158,24 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("value")
     sp.set_defaults(fn=cmd_record)
 
+    sp = sub.add_parser(
+        "observe",
+        help="bind one companion observation prefix or unavailable capture state",
+    )
+    sp.add_argument("--artifact")
+    sp.add_argument(
+        "--capture-status",
+        required=True,
+        choices=OBSERVATION_CAPTURE_STATUSES,
+    )
+    sp.add_argument(
+        "--redaction-status",
+        required=True,
+        choices=OBSERVATION_REDACTION_STATUSES,
+    )
+    sp.add_argument("--reason-code")
+    sp.set_defaults(fn=cmd_observe)
+
     sp = sub.add_parser("amend", help="receipt a bounded mid-run amendment")
     amend = sp.add_subparsers(dest="amend_subject", required=True)
     study = amend.add_parser("study", help="receipt one append-only study amendment")
@@ -4640,6 +5245,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(fn=cmd_reset)
 
     sp = sub.add_parser("verify", help="check ledger chain and state consistency")
+    sp.add_argument(
+        "--observations",
+        action="store_true",
+        help="also recompute every selected companion observation prefix",
+    )
     sp.set_defaults(fn=cmd_verify)
 
     return p
