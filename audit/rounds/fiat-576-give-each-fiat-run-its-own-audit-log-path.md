@@ -298,3 +298,54 @@ obligation recorded in round 1, to re-read `main` for the ADR number and the
 ledger version before writing either, stands unchanged.
 
 Leads not pursued: none.
+
+## Step 5, round 1 -- 2026-08-24
+
+Non-Solidity round over the demonstration and the run-level body, at
+`2f51f6bd8bb002c312842beaf10fa561f51bc082`. Zero findings.
+
+The three bundled lints exit 0. Imprimatur scores
+`plugins/hexaemeron/docs/fiat-per-run-audit-log/proof.md` and
+`.hexaemeron/run-pr.md` 100.0 with no defects, and Brevitas is clean on the
+proof. Horos reports that the boundary matches the tree, so the new document
+earned no entry and `.horos/boundary.json` is unchanged. The root suite reports
+349 tests OK with no skips and the Hexaemeron suite 1,012/1,012.
+
+The transcript was re-read against what it claims. Every line in it came from a
+scratch run this step created, driven by this branch's `hexctl.py` rather than
+the `fiat-v5.20.1` controller driving this delivery, and the document says so
+first rather than in a footnote. Section 4 shows the refusal and then shows one
+round on the ledger rather than two, which is the part that would be worth
+nothing without it. The closing section states the two things the transcript
+does not establish: that anything was written to the file, because the
+controller never opens it, and that the sync gate stops asking for a check over
+the record, because that needs a base that advanced and the scratch run has
+none.
+
+Two deviations from the step's stated exit, both deliberate and both recorded in
+`.hexaemeron/run-pr.md` under carried forward.
+
+The ledger row is not in this step. `main` published `fiat-v5.21.1` from issue
+554 between this run's base and now, so the row this run owes is `fiat-v5.22.1`,
+and its axis arithmetic is checked against the row before it by
+`tests/test_evolution_contract.py`. On this branch the row before it is
+`fiat-v5.20.1`, so writing `fiat-v5.22.1` here fails that check and writing
+`fiat-v5.21.1` duplicates a label already on `main`. The row goes in the sync
+commit, which is the first point where the arithmetic is against the real
+predecessor, and `done integrate` refuses the run if it is absent, malformed or
+already published. The sync is certain: `tests/promise_machine_coverage.json`
+and `audit/AUDIT.md` both changed on both sides.
+
+`.horos/boundary.json` is unchanged rather than regenerated. `scan . --write`
+inside a run worktree rewrites `counts.files_walked` while every one of the 100
+entries stays identical, which is the observation step 1 round 1 recorded.
+`horos check .` answers the question the exit was asking and reports that the
+boundary matches the tree, and `tests/test_boundary_currency.py` passes, which
+compares entries rather than counts.
+
+`ADR-025` and `fiat-v5.22.1` were both re-read against `main` at `08512d4`
+immediately before this round. ADR numbers 025, 026 and 027 are free, the only
+open pull request touching `docs/decisions/` is this run's own step 4, and no
+open pull request touches the Fiat ledger.
+
+Leads not pursued: none.
