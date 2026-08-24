@@ -2791,5 +2791,73 @@
         }
       }
     }
-  ]
+  ],
+  "run_observation_capture": {
+    "contract": "promise-machine-run-observation-capture/v1",
+    "promise_id": "promise-machine-run-observation-capture",
+    "transition": "pass only an accepted capture result to the durable writer, or retain the bounded gap or refusal",
+    "runtime": {
+      "path": "scripts/run_observation_capture.py",
+      "sha256": "a2c964edb4024a6287e6d6173dba6d606a6fb247e75b19c4b2b6348b77390e55"
+    },
+    "schema_source": {
+      "path": "schemas/promise-machine-run-observation-capture-v1.schema.json",
+      "sha256": "3015cc3a7e482a568fda40fad7e37cdefb7830dd4570110e010aa7fce8efff49"
+    },
+    "documentation": {
+      "path": "docs/promise-machine/run-observation-capture-v1.md",
+      "sha256": "7b6743d2d3d754d0fa43d3d69387924bd9679c7f5615c5093c3a9b1bc3a51df0"
+    },
+    "reporter": {
+      "path": "tests/emit_run_observation_capture_report.py",
+      "sha256": "e0ee8f9c57970e943d0646f950e068a1561ce83e1501cd6a1a38caf8d545e526"
+    },
+    "tests": [
+      {
+        "path": "tests/test_run_observation_capture.py",
+        "sha256": "fc9a5c03fd551c63ebd5e01d8b5a1c07892ea42e68aed7c346e7a6c85dd883c0",
+        "selectors": [
+          "test_accepted_candidate_has_only_allowed_descriptors",
+          "test_forbidden_payload_becomes_a_safe_gap_without_echo",
+          "test_path_is_dehosted_and_escape_is_a_gap",
+          "test_high_entropy_fingerprint_is_scoped_and_source_is_absent",
+          "test_writer_refuses_bypass_and_never_writes_a_gap",
+          "test_schema_and_runtime_document_the_same_closed_vocabulary"
+        ]
+      },
+      {
+        "path": "tests/test_run_observation_capture_inoculation.py",
+        "sha256": "c2d765083a2e04a38700451f2480a3343d16c337c4d547007e2a32a1ac711396",
+        "selectors": [
+          "test_every_hostile_location_becomes_a_safe_gap",
+          "test_aliases_nested_values_and_unknown_objects_do_not_bypass_allowlist",
+          "test_bad_redaction_unknown_method_and_low_entropy_do_not_persist",
+          "test_non_nfc_and_symlink_escape_paths_are_gaps",
+          "test_container_and_input_ceilings_refuse_without_echo"
+        ]
+      }
+    ],
+    "fixtures": [
+      {
+        "path": "tests/fixtures/run-observation-capture/valid/accepted.json",
+        "sha256": "a37b73b4c081aa8fa717b6984b946ce491f7935c584413f67f7c793585833994"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/valid/fingerprinted.json",
+        "sha256": "fcc4631afe2fd78bc4e79ba6043a0d5f33a478d4c716eedb2b05c7038ffafe2d"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/valid/gap.json",
+        "sha256": "42347ea70ec34b86406a50624d66f8c7bbb6c39e5b22198b3df26db469ae74d2"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/invalid/raw-payload.json",
+        "sha256": "756d1cc40cec78bc76e5660639c7e44618fad8168bbabd2263ac87d8b8160133"
+      },
+      {
+        "path": "tests/fixtures/run-observation-capture/invalid/unsafe-path.json",
+        "sha256": "cfb73e995c205f9a43b085a7f5a4d428aa35887b602e1cfb349644ae5a29168d"
+      }
+    ]
+  }
 }
