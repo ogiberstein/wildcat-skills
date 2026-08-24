@@ -1727,6 +1727,41 @@ def cmd_observe(args) -> None:
         relative, data, summary = validated_observation_prefix(
             args.dir, args.artifact, state
         )
+        prior = next(
+            (
+                item
+                for item in reversed(existing)
+                if isinstance(item, dict)
+                and item.get("capture_status") == "accepted"
+            ),
+            None,
+        )
+        if prior is not None:
+            prior_count = prior.get("byte_count")
+            prior_events = prior.get("event_count")
+            prior_interval = prior.get("interval")
+            if (
+                relative != prior.get("artifact")
+                or isinstance(prior_count, bool)
+                or not isinstance(prior_count, int)
+                or prior_count < 1
+                or len(data) <= prior_count
+                or hashlib.sha256(data[:prior_count]).hexdigest()
+                != prior.get("sha256")
+                or isinstance(prior_events, bool)
+                or not isinstance(prior_events, int)
+                or summary["event_count"] <= prior_events
+                or not isinstance(prior_interval, dict)
+                or summary["first_event_id"]
+                != prior_interval.get("first_event_id")
+                or summary["first_sequence"]
+                != prior_interval.get("first_sequence")
+            ):
+                observation_error(
+                    "FOB004",
+                    "the new selection is not a strict extension of the bound stream",
+                    "preserve every earlier bound byte and append later events to the same file",
+                )
         binding = {
             **common,
             "validation_status": "passed",

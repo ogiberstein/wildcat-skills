@@ -252,6 +252,16 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("re-pinning", promise)
         self.assertIn("durable blocked directive", promise)
 
+    def test_observation_binding_is_optional_and_non_authorising(self):
+        flat = " ".join(self.fiat.split())
+        self.assertIn("Observation is never a phase gate", self.fiat)
+        self.assertIn("hexctl verify --observations", self.fiat)
+        self.assertIn("appended bytes remain unbound", flat)
+        promise = self.fiat.split("### fiat-run-observation-binding", 1)[1]
+        promise = promise.split("### ", 1)[0]
+        self.assertIn("- Consequence: 2", promise)
+        self.assertIn("does not establish that events are true or complete", promise)
+
 
 class StackBringDownTests(unittest.TestCase):
     """The order the stack comes down in, and why deleting early is fatal.

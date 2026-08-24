@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.19.1"
+  version: "5.20.1"
 ---
 
 # Fiat
@@ -522,6 +522,26 @@ Use `hexctl halt --reason ...` so the stop itself is on the ledger.
   its context without changing its target or acceptance condition. An epoch
   may replace it only with the reopening evidence required by the ledger.
 
+## Optional companion observation receipt
+
+Observation is never a phase gate. When a selected controller receipt needs a
+companion record, obtain `observation_run_id` from `hexctl status --json`, emit
+the stream beneath `.hexaemeron/observations/`, and run the root
+`scripts/run_observation.py check-prefix` command. Immediately after the
+receipt being described, bind the accepted prefix:
+
+```text
+hexctl observe --artifact .hexaemeron/observations/run.jsonl \
+  --capture-status accepted --redaction-status passed
+```
+
+Record a gap, refusal, unknown, or unavailable observer without an artefact and
+with a bounded `--reason-code`. Ordinary `hexctl verify` remains the controller
+integrity check. Only `hexctl verify --observations` asks the dependent prefix
+claim. Later selected boundaries extend the same file byte for byte; appended
+bytes remain unbound until then. The complete interface and `FOB` recoveries
+are in [the run-observation binding guide](../../../../docs/fiat-run-observation-binding-v1.md).
+
 ## Final report
 
 When `next` returns `done`, run `hexctl status` and `hexctl verify`, then
@@ -542,6 +562,18 @@ the study and runbook live.
 - Consequence: 2
 - Refuses: An edited prefix, ambiguous or malformed amendment, incomplete verdict coverage, unsafe or oversized path, failed checker, unlabelled interrupted mutation, or dependent work after a broken current-step verdict.
 - Recovery: Inspect the pending record and study, rerun `hexctl amend study --artifact <canonical-study>` to finish or roll back an interrupted transaction, halt safely, or use a separately specified runbook-repair transition after a recorded broken verdict.
+- Exceptions: none
+
+### fiat-run-observation-binding
+
+- Promise: A successful `hexctl observe` followed by `hexctl verify --observations` establishes that one bounded `promise-machine-run-observation/v1` prefix passed the structural validator and redaction gate, names this controller run, extends any earlier selected prefix byte for byte, and is digest-bound to the immediately preceding Fiat ledger receipt.
+- Evidence: The derived controller run identity, no-follow run-local path walk, bounded stable rereads, `check-prefix` result, event interval and count, byte count and SHA-256, capture, validation and redaction statuses, exact preceding receipt hash, `record:run-observation` ledger row, recomputation result, unbound-tail count, hostile fixture manifest and focused tests.
+- Evidence classes: checked, recorded
+- Boundary: The binding establishes only the named prefix bytes, structural and gate results, and receipt association. It does not establish that events are true or complete, that capture saw every event, that an unbound tail conforms, or that the preceding receipt or delivery claim is correct.
+- Authorises: Recording the bounded binding without advancing Fiat, and reporting that exact prefix as attached to the named receipt when explicit observation verification succeeds.
+- Consequence: 2
+- Refuses: A missing binding, unsafe or unstable path, wrong contract or controller run, non-contiguous or open prefix, changed earlier bytes, non-increasing selection, mismatched receipt, interval or count, replaced, reordered or truncated bound bytes, or capture, validation or redaction that is not accepted and passed.
+- Recovery: Keep ordinary controller verification available, inspect the stable `FOB` code, restore or append to the exact run-local stream, record one new selected receipt boundary when needed, and rerun `check-prefix`, `observe`, then `verify --observations`.
 - Exceptions: none
 
 ### fiat-receipted-delivery

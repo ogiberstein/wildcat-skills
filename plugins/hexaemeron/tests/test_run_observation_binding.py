@@ -5,7 +5,10 @@ import json
 import os
 from pathlib import Path
 
-from plugins.hexaemeron.tests.test_hexctl import HexctlCase
+try:
+    from plugins.hexaemeron.tests.test_hexctl import HexctlCase
+except ModuleNotFoundError:  # plugin-root discovery
+    from test_hexctl import HexctlCase
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -16,6 +19,19 @@ OBSERVATION_CONTRACT = "promise-machine-run-observation/v1"
 
 
 class ObservationBindingTests(HexctlCase):
+    def test_status_exposes_a_stable_run_id_without_persisting_it(self):
+        self.init("Bind observation identity")
+        first = json.loads(self.run_ctl("status", "--json").stdout)
+        second = json.loads(self.run_ctl("status", "--json").stdout)
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(state_path, encoding="utf-8") as handle:
+            stored = json.load(handle)
+
+        self.assertEqual(first["observation_run_id"], second["observation_run_id"])
+        self.assertEqual(first["observation_run_id"], self.controller_run_id())
+        self.assertNotIn("observation_run_id", stored)
+        self.run_ctl("verify")
+
     def test_fixture_manifest_names_the_normal_and_nine_negative_mechanisms(self):
         manifest = json.loads(CASES.read_text(encoding="utf-8"))
         self.assertEqual(manifest["contract"], BINDING_CONTRACT)
@@ -70,6 +86,16 @@ class ObservationBindingTests(HexctlCase):
         with open(target, "wb") as handle:
             handle.write(data)
         return relative, target, data
+
+    def append_finish(self, target):
+        event = json.loads(SUCCESS.read_text().splitlines()[-1])
+        event["run_id"] = self.controller_run_id()
+        data = (
+            json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
+        ).encode()
+        with open(target, "ab") as handle:
+            handle.write(data)
+        return data
 
     def ledger(self):
         path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
@@ -211,6 +237,24 @@ class ObservationBindingTests(HexctlCase):
         self.assertIn(f"unbound tail: {len(tail)} bytes", verified.stdout)
         binding = self.state()["receipts"]["run_observations"][0]
         self.assertEqual(binding["byte_count"], len(original))
+
+    def test_later_receipt_binds_only_a_strict_extension_of_the_same_stream(self):
+        self.to_steps(("Bind",))
+        relative, target, first = self.write_prefix()
+        self.bind(relative)
+        finish = self.append_finish(target)
+        self.run_ctl("record", "boundary", '"later receipt"')
+
+        self.bind(relative)
+        bindings = self.state()["receipts"]["run_observations"]
+        self.assertEqual(len(bindings), 2)
+        self.assertEqual(bindings[1]["event_count"], 4)
+        self.assertEqual(bindings[1]["byte_count"], len(first + finish))
+        self.run_ctl("verify", "--observations")
+
+        self.run_ctl("record", "boundary", '"unchanged prefix"')
+        refused = self.bind(relative, expect=2)
+        self.assertIn("FOB004", refused.stderr)
 
     def test_wrong_run_contract_and_failed_redaction_refuse_before_receipt(self):
         cases = (

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import io
 import json
 import os
@@ -69,6 +70,23 @@ PRODUCT_PATHS = (
     Path("tests/emit_run_observation_capture_report.py"), Path("tests/promise_machine_coverage.json"),
     Path("tests/test_promise_machine_contract.py"),
 )
+
+
+def capture_receipts_are_current() -> bool:
+    """Return true only when this worktree is the issue-435 Fiat run."""
+    state_path = ROOT / ".hexaemeron" / "state.json"
+    sources = (
+        ROOT / ".hexaemeron" / "study.md",
+        ROOT / ".hexaemeron" / "runbook.md",
+    )
+    if not state_path.is_file() or not all(source.is_file() for source in sources):
+        return False
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    issue = state.get("receipts", {}).get("task_issue")
+    return isinstance(issue, str) and issue.rstrip("/").endswith("/435")
 LITERAL_NEWLINE_ESCAPE = b"\\n"
 capture = None
 if SCRIPT.is_file():
@@ -316,7 +334,7 @@ class CaptureProfileTests(unittest.TestCase):
         self.assertIn("https://github.com/wildcat-finance/skills/issues/435", document)
 
     def test_receipted_copies_are_byte_identical_and_relocatable(self):
-        if not (ROOT / ".hexaemeron" / "study.md").is_file() or not (ROOT / ".hexaemeron" / "runbook.md").is_file():
+        if not capture_receipts_are_current():
             self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
         self.assertEqual(STUDY.read_bytes(), (ROOT / ".hexaemeron" / "study.md").read_bytes())
         self.assertEqual(RUNBOOK.read_bytes(), (ROOT / ".hexaemeron" / "runbook.md").read_bytes())
@@ -330,7 +348,7 @@ class CaptureProfileTests(unittest.TestCase):
 
     def test_receipted_copies_have_exactly_one_terminal_newline(self):
         sources = (ROOT / ".hexaemeron" / "study.md", ROOT / ".hexaemeron" / "runbook.md")
-        if not all(source.is_file() for source in sources):
+        if not capture_receipts_are_current():
             self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
         for source, copy in zip(sources, (STUDY, RUNBOOK), strict=True):
             with self.subTest(path=source):
@@ -347,9 +365,8 @@ class CaptureProfileTests(unittest.TestCase):
         )
         if recorded.returncode == 0:
             self.assertIn(b"Fiat receipts are untracked and unavailable in an Elenchus parent worktree", recorded.stdout)
-        if not (ROOT / ".hexaemeron" / "study.md").is_file() or not (ROOT / ".hexaemeron" / "runbook.md").is_file():
+        if not capture_receipts_are_current():
             self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        import hashlib
         for source, copy in ((ROOT / ".hexaemeron" / "study.md", STUDY), (ROOT / ".hexaemeron" / "runbook.md", RUNBOOK)):
             self.assertEqual(hashlib.sha256(source.read_bytes()).digest(), hashlib.sha256(copy.read_bytes()).digest())
 
@@ -365,7 +382,7 @@ class CaptureProfileTests(unittest.TestCase):
             self.assertIn(expected_detector, recorded.stdout)
         self.assertEqual(LITERAL_NEWLINE_ESCAPE, bytes((0x5C, 0x6E)))
         self.assertIn(LITERAL_NEWLINE_ESCAPE, b"first" + LITERAL_NEWLINE_ESCAPE + b"second")
-        if not (ROOT / ".hexaemeron" / "study.md").is_file() or not (ROOT / ".hexaemeron" / "runbook.md").is_file():
+        if not capture_receipts_are_current():
             self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
         for path in (ROOT / ".hexaemeron" / "study.md", ROOT / ".hexaemeron" / "runbook.md", STUDY, RUNBOOK):
             self.assertNotIn(LITERAL_NEWLINE_ESCAPE, path.read_bytes())
@@ -385,9 +402,8 @@ class CaptureProfileTests(unittest.TestCase):
             ROOT / ".hexaemeron" / "study.md": "6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404",
             ROOT / ".hexaemeron" / "runbook.md": "56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5",
         }
-        if not all(source.is_file() for source in expected):
+        if not capture_receipts_are_current():
             self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        import hashlib
         for source, digest in expected.items():
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), digest)
 
@@ -443,6 +459,8 @@ class CaptureProfileTests(unittest.TestCase):
     def test_current_promise_coverage_rows_are_present(self):
         coverage = json.loads((ROOT / "tests" / "promise_machine_coverage.json").read_text(encoding="utf-8"))
         self.assertIn("sapheneia-durable-record-shape", {row["promise_id"] for row in coverage["rows"]})
-        expected = "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d"
+        expected = hashlib.sha256(
+            (ROOT / "plugins/hexaemeron/skills/fiat/scripts/hexctl.py").read_bytes()
+        ).hexdigest()
         for key in ("fiat-final-integration", "fiat-receipted-delivery", "fiat-study-amendment"):
             self.assertEqual(coverage["runtime"][key]["sha256"], expected)

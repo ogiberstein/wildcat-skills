@@ -472,7 +472,9 @@ print(json.dumps(payload))
         return starting_base
 
     def state(self):
-        return json.loads(self.run_ctl("status", "--json").stdout)
+        payload = json.loads(self.run_ctl("status", "--json").stdout)
+        payload.pop("observation_run_id", None)
+        return payload
 
     def run_branch(self):
         return self.state()["run_branch"]
