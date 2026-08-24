@@ -229,3 +229,47 @@ The two step 3 register concerns and the five from step 2 were re-checked
 against the fixed tree and each holds as recorded.
 
 Leads not pursued: none.
+
+## Step 4, round 1 -- 2026-08-24
+
+Non-Solidity round over the five changed documents and the new decision record,
+at `4af4388c9a31d2f5677cc3905070c012dee0f8a7`. One finding, fixed in this round.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | low | `plugins/hexaemeron/skills/protasis/SKILL.md` | The item 2 replacement was written into the paragraph without re-flowing what followed, leaving line 108 at 94 characters where the rest of that paragraph wraps between 71 and 79. No lint reads column width, so nothing was going to catch it. | fixed in this round: the paragraph is re-flowed at the width it already used, and the same replacement is now nine lines rather than one long one |
+
+The three bundled lints exit 0. Imprimatur scores every changed document 100.0
+with no defects: `references/audit-loop.md`, `plugins/hexaemeron/README.md`,
+Fiat's `SKILL.md`, Protasis's `SKILL.md`, `ADR-025` and the appended section of
+`audit/AUDIT.md`. Brevitas is clean on all of them except the two historical
+tables at `audit/AUDIT.md:12349` and `:12363`, which carry B011 and predate this
+run; nothing above the appended section was touched. The Protasis checker passes
+69 tests, `tests/test_decision_records.py` passes 5, the root suite reports 349
+OK with no skips and the Hexaemeron suite 1,012/1,012. Horos reports that the
+boundary matches the tree.
+
+`git diff fiat/576-give-each-fiat-run-its-own-audit-log-path -- audit/AUDIT.md`
+removes no line, which is the check the step's exit names, so the appended
+section is the whole of this run's change to that file.
+
+Two register concerns are reachable and both were checked. `history-mutation`:
+the diff above is append-only, and `tests/test_run_observation.py` still passes,
+which is the reader that made the file an evidence dependency in the first
+place. `boundary-currency`: `horos check .` is clean, so the new documents earned
+no entry. The five code concerns sit in steps 2 and 3 and were closed there.
+
+One check this round could not make, and step 5 owns it. `ADR-025` states
+`fiat-v5.22.1` as the generation carrying the decision, and the record is
+numbered 025 against a `main` read at
+`08512d4`. Both are global identifiers picked locally, and `fiat-v5.21.1` was
+already taken by issue 554 between this run's base and now. Step 5 re-reads
+`main` for both before it writes the ledger row, and corrects this record if
+either has moved.
+
+A second look at `plugins/hexaemeron/README.md:54`, which still names
+`plugins/hexaemeron/audit/AUDIT.md`. That file exists and is the plugin's own
+fuzz-audit log, a different artefact from the root record this change moves, so
+the sentence is accurate and was left alone.
+
+Leads not pursued: none.
