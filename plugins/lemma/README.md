@@ -3,12 +3,19 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text.
+Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks with quotation, model, and embedding text kept separate.
 
 **Current frontier.** Callable-surface ABI validation does not independently check return types or state mutability.
 
 **Next Fiat job.** Use /hexaemeron:fiat to make callable-surface ABI validation cover return types and state mutability as well as names and input types, with any divergence rejecting the output. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Lemma is a preparation step, not a retrieval system. Berean can use a pinned
+document corpus built from its source-linked output, but Lemma does not embed,
+index, retrieve, answer, grade, or promote an agent. Ariadne may later bind a
+release to its evidence; that does not widen what the chunks themselves prove.
 
 Lemma turns Solidity compiler inputs and Markdown documents into JSONL chunks.
 Each chunk uses the same schema and records enough source information for a

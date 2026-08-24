@@ -3,12 +3,21 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Sapheneia shapes the agent's own interaction with an AuDHD reader and one bounded audit record, GitHub issue, or issue comment without dropping evidence.
+Sapheneia keeps actions, boundaries, state, evidence, unknowns, and next steps visible for an AuDHD reader, or reshapes one bounded durable record without dropping protected evidence.
 
 **Current frontier.** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
 
 **Next Fiat job.** Use /hexaemeron:fiat to build and publish a held cross-model corpus covering debugging, explanation, destructive-action and long-running task turns, then reconcile the ten rules against its results. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Sapheneia shapes the collective's interaction layer and, when called for that
+bounded operation, one agent-authored audit record, GitHub issue, or issue
+comment. Warden uses the durable-record operation before a Fiat audit receipt.
+Imprimatur and Vulgate govern wording, while Brevitas governs engineering-prose
+structure. Sapheneia changes none of their facts or gates and does not activate
+session mode merely because it shaped one record.
 
 Sapheneia is the interaction contract for agents working with AuDHD engineers.
 It keeps the next action, task boundary, done condition, current state, evidence

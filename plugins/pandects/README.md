@@ -3,12 +3,20 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample.
+Pandects supplies executable credit laws, each paired with a deliberately broken specimen it is proved to catch and a replayable counterexample.
 
 **Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 
 **Next Fiat job.** Use /hexaemeron:fiat to widen the search-record runner to the Echidna and Medusa campaigns, so every engine result ships as a record carrying its engine, configuration, sequence length and corpus digest, with a seed where the engine exposes one and a stated absence where it does not. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Pandects states economic properties a credit system should preserve. Fizz or
+another fuzz engine can search those properties, Janus can apply relevant laws
+around a hook transition, and Hermes must preserve them when changing gas.
+Pandects does not discover every protocol property, audit the whole system, or
+turn a successful bounded campaign into security sign-off.
 
 Executable laws for credit contracts.
 

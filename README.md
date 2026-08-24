@@ -4,30 +4,26 @@
 
 # The Shoggoth
 
-The Shoggoth is a collective of specialist assistants built by
-[Wildcat Labs](https://wildcat.finance) to help crypto developers at both the
-protocol and frontend level. Its members preserve evidence, test contracts,
-measure gas, investigate failures, shape documentation, and carry engineering
-work through a controlled delivery loop.
+The Shoggoth is the Wildcat Labs agent-and-skill collective. It is not one
+general assistant wearing a list of names. Each member owns a particular job,
+states what its evidence can support, and stops where another member's work
+begins.
 
-[Hexaemeron](./plugins/hexaemeron) has proved to be an effective engineer on
-work that can be reduced to explicit steps, tests, audits, and receipts. That is
-a claim about recorded repository work, not a claim that it is infallible or
-ready to operate without supervision.
+The current distribution contains 14 plugins, 23 first-party skills, four
+Fiat worker agents, one portable router, and five untouched skills from the
+vendored Pashov security suite. Together they preserve source material, rebuild
+credit records, check economic and hook boundaries, capture historical chain
+state, test grounded agents, optimise Solidity gas, shape usable prose, and
+carry repository work through a receipted delivery.
 
-The illustrated [contributor guide](./docs/how-to-help-shoggoth.md), also
-available as a [PDF](./docs/pdf/how-to-help-shoggoth.pdf), explains how a
-Hexaemeron run moves from a named issue through study, implementation,
-independent review, and a pull request with evidence a maintainer can inspect.
-You do not need to understand the whole collective before taking one bounded
-job through that process.
+`Shog`, `Shoggy`, `Shoggoth`, `Big S`, and `the Goth` may address the active
+member or the whole collective. The complete convention lives in the
+[Shoggoth identity contract](./SHOGGOTH.md). A familiar name does not activate
+a skill or widen anyone's authority.
 
 The [Shoggoth Interceptor](https://github.com/laurenceday/shoggoth-interceptor)
-puts the same collective into a harness for tearing through issue queues in
-external repositories. It is experimental and is not production-ready.
-
-The name Shoggoth can refer to one agent or the collective. The full convention
-lives in the [Shoggoth identity contract](./SHOGGOTH.md).
+is the same collective operating through an external problem-solving harness.
+It is an operating form, not another member, and it remains experimental.
 
 ## So, You Want To Build God?
 
@@ -46,10 +42,11 @@ issue URL, install request and Fiat request filled in.
 The friendly hand-off looks like: **Aye, here you go - #123.**
 
 > [!WARNING]
-> Fiat does not yet support checkpointing. Work is actively ongoing to complete
-> it. Once Fiat starts, complete the entire run locally. Closing the harness,
-> abandoning the run or moving an unfinished run to another session can lose
-> the work. Do not assume that another contributor or session can resume it.
+> Fiat now keeps its run in a dedicated worktree with durable, verified state,
+> so the same local run can be resumed and reconstructed after context loss.
+> Keep using the worktree and state path the controller prints. Do not move an
+> unfinished run between machines, infer progress from chat, or accept a reused
+> worker handle whose visible issue, step, or role belongs to an older run.
 
 This route is for an external human contributor, not Shoggoth. Keep your own
 Git author, valid signing identity and GitHub account. The required Shoggoth
@@ -58,12 +55,12 @@ Shoggoth's private key or account. Confirm that the coding environment can sign
 and publish as you before `hexctl init`; otherwise move the Atlas prompt to a
 suitable local harness before the run starts.
 
-The ChatGPT and Claude links are the only Atlas routes covered by the current
+The ChatGPT and Claude links are the Atlas routes covered by the current
 launcher tests. They allocate a job and prefill its prompt; they do not prove
 that a browser chat can complete a local Fiat run. The prompt tells the chat to
 stop before `hexctl init` when it cannot work in the repository, sign as the
 human contributor and publish through that contributor's GitHub account. Open
-the repository in the local coding harness you will keep for the whole run.
+the repository in the local coding harness that will retain the run worktree.
 [Codex](./INSTALL.md#codex) and [Claude Code](./INSTALL.md#claude-code) have
 native Wildcat marketplace packages. GitHub Copilot, Cursor, Gemini CLI and
 Windsurf use the [manual route](./docs/how-to-help-shoggoth.md#the-secondary-manual-route):
@@ -101,15 +98,19 @@ its reason shown in the generator's output.
 
 ## What Is It?
 
-At the last recorded count, the Shoggoth had 24 members: 15 domain agents and
-9 phase agents. They are independent specialists with separate jobs, evidence,
-and refusal rules, but they can hand work to one another without pretending the
-next agent knows more than the previous one established.
+The identity contract records the adoption-era roster as 24 members: 15 domain agents and
+9 phase agents. That is a historical adoption count, not today's package count.
+The current repository topology is the 23 first-party skills and four Fiat
+worker agents listed below. Hexaemeron is their delivery plugin, while the
+Promise Machine and its portable router govern how the whole suite is selected
+and composed.
 
 The collective works alongside the vendored
 [Pashov security suite](https://github.com/pashov/skills). That suite remains
-Pashov's work under its upstream MIT licence. It is included without being
-renamed, governed, or relicensed by Wildcat Labs.
+Pashov's work under its upstream MIT licence. Its five shipped skill surfaces
+are X-Ray, Solidity Auditor, Fizz, Fizz Convert, and Fizz Sync. They are
+included without being renamed, rewritten, governed, or relicensed by Wildcat
+Labs.
 
 ## The Promise Machine
 
@@ -127,106 +128,130 @@ turn a passing structural check into proof that a domain claim is true.
 
 ## Meet the Shoggoth
 
-### Alexandria
+### Evidence, credit, and protocol specialists
 
-[Alexandria](./plugins/alexandria) keeps original lending and credit data intact
-and produces a smaller view whose sources and mapping choices can be checked.
-It is the archive desk: it preserves what arrived before anybody interprets it.
+- [Alexandria](./plugins/alexandria) preserves heterogeneous lending captures
+  by digest and exposes narrow, source-bound credit views. Tabularium consumes
+  those preserved records; Alexandria does not interpret them into a canonical
+  history.
+- [Tabularium](./plugins/tabularium) maps preserved venue-native records into a
+  reproducible credit-event release with explicit coverage and provenance.
+  Probitas can use that release, but Tabularium does not judge a borrower.
+- [Probitas](./plugins/probitas) builds a sourced borrowing and repayment
+  dossier from addresses the subject declared. Unknowns stay unknown and a
+  person still makes the underwriting decision.
+- [Lazarus](./plugins/lazarus) captures and replays the finite historical
+  Ethereum state and exact RPC evidence one application test needs. It does
+  not turn receipts, logs, calls, or traces into proved state.
+- [Ariadne](./plugins/ariadne) binds a released artefact digest to the evidence
+  that actually supports it through inspectable in-toto statements and gates.
+  It records coverage; it does not certify every claim in the artefact.
+- [Lemma](./plugins/lemma) turns Solidity compiler input or Markdown trees into
+  validated, source-linked JSONL chunks. Berean may use such a corpus, but
+  Lemma stops before embedding, indexing, retrieval, or evaluation.
+- [Berean](./plugins/berean) releases and evaluates a grounded protocol agent
+  against pinned document bytes and preserved chain reads. It does not preserve
+  chain state or prepare the source chunks itself.
+- [Pandects](./plugins/pandects) supplies executable credit laws, each paired
+  with a broken specimen it is proved to catch. Its laws can constrain a Janus
+  hook review or a fuzz campaign; they are not a whole-protocol audit.
+- [Janus](./plugins/janus) checks the effects a contract hook may observe and
+  cause before and after its host action. It tests host-specific permission
+  boundaries rather than treating ABI compatibility as safety.
+- [Hermes](./plugins/hermes) changes Solidity gas use one named optimisation
+  class at a time, keeping only measured wins that preserve behaviour, storage
+  layout, selectors, and required arithmetic evidence.
+- [Horos](./plugins/horos) writes and verifies evidence-backed repository
+  boundaries and skeleton maps for oriented reading. Its exclusions reduce cost;
+  they never apply during security review.
+- [Sapheneia](./plugins/sapheneia) shapes the collective's own replies and
+  bounded audit records, issues, or comments for AuDHD readers without changing
+  their protected evidence.
+- [Brevitas](./plugins/brevitas) constrains the length and structure of
+  engineering prose after the wording masks run, while preserving the evidence
+  that controls a decision.
 
-### Ariadne
+### Delivery controller and workers
 
-[Ariadne](./plugins/ariadne) ties a released file to the evidence behind it in
-a receipt another person can inspect. It records what was built and checked;
-it does not claim that every statement inside the file is true.
+[Hexaemeron](./plugins/hexaemeron) is the delivery plugin. Its controller and
+workers are separate entities with separate authority:
 
-### Berean
+- [Fiat](./plugins/hexaemeron/skills/fiat) is the explicit-only controller. It
+  owns the dedicated worktree, durable state, receipt order, stacked pull
+  requests, audit rounds, signed integration, and final report.
+- **Surveyor** receives one source-bound study packet. It researches the target
+  and writes the study; it cannot receipt the phase or steer the controller.
+- **Mason** receives one exact runbook step and branch pair. It implements and
+  tests that step; it cannot push, open a pull request, merge, or alter Fiat.
+- **Warden** receives one exact audit-round packet. It runs the applicable
+  security suite, preserves the audit record, fixes findings, and reports an
+  Elenchus verdict; it cannot receipt its own round.
+- **Scribe** receives the bounded prose diff and pull-request draft. It runs
+  Imprimatur, applies Vulgate without changing content, reruns Imprimatur, and
+  reports the files and skills used; it cannot invent an issue or publish.
 
-[Berean](./plugins/berean) tests a protocol research assistant against fixed
-source material and recorded questions. It checks whether citations point to
-the claimed bytes and whether live values belong to the stated chain and block.
+Fiat can execute these packets inline when isolated workers are unavailable.
+The packet and receipted artefacts remain the authority, never chat history.
 
-### Brevitas
+### Phase disciplines and prose masks
 
-[Brevitas](./plugins/brevitas) keeps engineering writing short enough to use
-without throwing away addresses, numbers, counterexamples, reproduction steps,
-or other evidence that changes the decision.
+- [Protasis](./plugins/hexaemeron/skills/protasis) decides whether a study and
+  runbook are complete enough to build from. Fiat owns their receipts; Protasis
+  owns their content contract.
+- [Phylax](./plugins/hexaemeron/skills/phylax) hardens off-chain boundaries:
+  external data, subprocesses, URLs, secrets, dependencies, paths, and model
+  output. Solidity review stays with the security suite.
+- [Ephoros](./plugins/hexaemeron/skills/ephoros) decides what unattended work
+  must emit so an operator can explain it later: structured events, bounded
+  metrics, correlation, traces, and useful alerts.
+- [Metron](./plugins/hexaemeron/skills/metron) governs performance outside
+  Solidity gas: baseline, one change, the same measurement again, then keep or
+  revert. Hermes owns gas.
+- [Elenchus](./plugins/hexaemeron/skills/elenchus) starts from a failure already
+  in hand, reduces it to its cause, fixes that cause, and leaves a guard that
+  fails without the fix.
+- [Hypomnema](./plugins/hexaemeron/skills/hypomnema) decides what must be
+  recorded and where it belongs: an ADR, an explanation of why, a runbook, an
+  interface note, or a pointer to the one standing record.
+- [Imprimatur](./plugins/hexaemeron/skills/imprimatur) is the executable prose
+  gate for banned AI tells, unsupported terms of art, and repeated structural
+  formulae. It diagnoses; it does not perform the rewrite.
+- [Vulgate](./plugins/hexaemeron/skills/vulgate) is the content-preserving voice
+  mask. It rewrites into a plain human register while holding facts,
+  commitments, caveats, and links constant.
+- [Kronos](./plugins/hexaemeron/skills/kronos) ranks eligible held frontier jobs
+  and, only when explicitly asked, dispatches the highest unparked one through
+  Fiat until the authorised field is exhausted. It never implements the job
+  itself.
 
-### Hermes
+### Upstream security siblings
 
-[Hermes](./plugins/hermes) reduces the gas used by Solidity code one kind of
-change at a time. It measures the saving, reruns behaviour checks, and rejects
-an optimisation when the proof of safety or improvement does not hold.
-
-### Hexaemeron
-
-[Hexaemeron](./plugins/hexaemeron) turns a request into a study, a runbook, an
-implementation, repeated independent audits, clear prose, and a controlled
-integration. Its phase agents each own one part of that process, while Fiat
-keeps the receipts and decides what may happen next.
-
-### Horos
-
-[Horos](./plugins/horos) identifies generated files, vendored trees, large data
-blobs, and other material an agent can usually leave unread. Every exclusion
-needs evidence, and no exclusion is allowed during security review.
-
-### Janus
-
-[Janus](./plugins/janus) checks what a smart-contract hook is allowed to see or
-change before and after a host action. It tests the real effects against a
-written permission boundary instead of assuming that a matching interface is
-safe.
-
-### Lemma
-
-[Lemma](./plugins/lemma) divides Solidity compiler input or Markdown documents
-into source-linked JSONL records. Each record keeps quotation text separate
-from text prepared for a model or search system.
-
-### Lazarus
-
-[Lazarus](./plugins/lazarus) preserves the finite slice of historical Ethereum
-state and RPC traffic needed by one application test. It can verify and replay
-that fixture later without quietly falling back to a live endpoint.
-
-### Pandects
-
-[Pandects](./plugins/pandects) turns important credit-accounting rules into
-executable Solidity checks. Each rule comes with a deliberately broken example
-that proves the test catches the failure it claims to catch.
-
-### Probitas
-
-[Probitas](./plugins/probitas) assembles a sourced picture of a counterparty's
-borrowing and repayment history from addresses they declared. Gaps remain
-visible, and the result is evidence for a human decision rather than a verdict.
-
-### Sapheneia
-
-[Sapheneia](./plugins/sapheneia) shapes an assistant's replies for an AuDHD
-reader. It keeps the current action, boundaries, evidence, unknowns, and next
-step visible across a long task without changing the underlying facts.
-
-### Tabularium
-
-[Tabularium](./plugins/tabularium) turns preserved source records into a
-rebuildable history of credit events. It keeps the source, mapping, coverage,
-and gaps beside the output so somebody else can reproduce it later.
+Hexaemeron also carries the untouched Pashov suite. **X-Ray** maps a Solidity
+repository before audit; **Solidity Auditor** reviews its contracts; **Fizz**
+builds a stateful fuzz harness; **Fizz Convert** turns recorded English
+properties into assertions; and **Fizz Sync** reconciles that harness after the
+source changes. Warden invokes the applicable upstream skills by path. Their
+instructions, ownership, and MIT licence remain Pashov's.
 
 ## How the members fit together
 
-The names are job boundaries, not personalities pasted onto the same general
-assistant. Alexandria preserves source material; Tabularium interprets it;
-Probitas uses it in a bounded dossier. Lemma prepares source-linked chunks;
-Berean evaluates an assistant that uses a pinned corpus. Lazarus preserves the
-historical state a test needs; Ariadne binds a finished release to its evidence.
-Pandects supplies accounting laws, Janus checks hook effects, and Hermes changes
-gas only against measurements and behavioural evidence.
+The common credit path is Alexandria to Tabularium to Probitas: preserve,
+interpret, then assemble a bounded dossier. Lemma prepares source-linked
+material for a system such as Berean to evaluate. Lazarus preserves a test's
+historical chain boundary, and Ariadne can bind the resulting release to that
+evidence. Pandects supplies economic laws, Janus checks hook effects against a
+host boundary, and Hermes handles measured gas changes.
 
-Hexaemeron coordinates delivery but does not absorb those jobs. It hands a
-task to the relevant specialist and records what came back. The Promise Machine
-is the shared rulebook that prevents any handoff from becoming an excuse to
-claim more.
+For delivery, Protasis shapes the study and runbook before Mason builds a step.
+Phylax, Ephoros, and Metron govern its off-chain boundary, observable behaviour,
+and non-gas performance. Warden applies the relevant security suite; Elenchus
+handles failures and guards; Hypomnema decides what the work must record;
+Imprimatur, Vulgate, and Brevitas shape the final prose. Fiat alone advances the
+receipted loop. Kronos may choose which held frontier enters Fiat, but only on
+an explicit Kronos request.
+
+The Promise Machine is the shared law across every hand-off. A sibling receives
+the evidence that exists, not a stronger story about it.
 
 Installation, host-specific invocation, and publishing instructions live in
 [INSTALL.md](./INSTALL.md).

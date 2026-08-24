@@ -3,15 +3,25 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate.
+Hermes measures one named Solidity gas optimisation class at a time and rejects the candidate unless every Foundry, behaviour, layout, selector, and arithmetic gate clears.
 
 **Current frontier.** Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates.
 
-**Next Fiat job.** Use /hexaemeron:fiat to widen the Hermes optimisation classes against the pinned rule corpus until every rule with a source-level candidate can be selected, starting with the reduction in storage writes that no class names. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to widen the Hermes optimisation classes against the pinned rule corpus until every rule with a source-level candidate can be selected, starting with the reduction in storage writes that STO-09's neighbour STO-12 needs and no class names. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Hermes alone owns Solidity gas optimisation. Metron measures performance in
+every other unit. Pandects supplies economic laws that a candidate may need to
+preserve, Janus checks hook effects against their host boundary, and the Pashov
+suite can review the resulting Solidity. None of those siblings can replace
+Hermes's sealed before-and-after measurement or accept a candidate on its
+behalf.
 
 The canonical workflow and complete gate contract live in
 [`skills/hermes/SKILL.md`](skills/hermes/SKILL.md).
+
 ## How it works
 
 Gas changes are easy to praise and surprisingly easy to get wrong. Hermes takes one optimisation class at a time through a fail-closed Foundry run:
@@ -37,4 +47,3 @@ A candidate only clears Hermes when every gate clears. The run leaves behind `re
 **Developers.** A gas change shaves a few hundred units off a hot path and nobody can say whether behaviour moved with it. Run Hermes on that one optimisation class and the review arrives with the snapshot diff, both fuzz passes, the storage layout comparison and a `result.json`, rather than a number and an assurance.
 
 **Security and audit.** A gas change arrives from outside the team. Instead of reading it for intent, put it through Gate 5 to see whether any protected contract's storage layout or method identifiers moved, and Gate 6 for unchecked arithmetic that reaches persistent state.
-

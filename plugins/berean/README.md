@@ -3,12 +3,20 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Berean pins the corpus, chain readings and evaluation record a protocol agent's answers rest on, so a release can be checked without the model that produced it.
+Berean pins the corpus, chain reads, recorded answers and evaluation needed to check a grounded protocol-agent release without rerunning its model.
 
 **Current frontier.** The reference release answers against a frozen demonstration corpus and preserved Goldfinch mainnet reads; no release yet cites live Wildcat documentation or a captured Wildcat market read, and no Ariadne statement binds a berean release.
 
 **Next Fiat job.** Use /hexaemeron:fiat to ship the first berean release grounded in captured Wildcat documentation and Wildcat market reads, replacing the demonstration corpus in the reference deployment. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Lemma can prepare source-linked chunks for a corpus, and Lazarus can preserve
+the historical chain evidence a test or recorded answer needs. Berean owns
+neither job: it binds the corpus and reads used by an agent, grades recorded
+answers against a held evaluation set, and records promotion or rollback.
+Ariadne can then bind the finished Berean release to its supporting evidence.
 
 A protocol agent can answer from documentation, contract state and its own
 synthesis in one paragraph. Unless those sources stay separate, the reader

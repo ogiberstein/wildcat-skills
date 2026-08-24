@@ -1,7 +1,7 @@
 # Hexaemeron runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Hexaemeron.** Hexaemeron runs an explicit, receipted delivery loop, and every skill it uses answers on its own: fuzzing, audit-readiness and security review, prose lint and voice, and the specification, debugging, hardening, telemetry, measurement and record-keeping skills the loop holds each phase to. Use Hermes for measured gas work, Pandects for reviewed credit laws, and Lemma when the output needed is source-linked retrieval chunks. **Current frontier:** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
+> **Marketplace context: Hexaemeron.** Fiat controls the explicit, receipted delivery; Surveyor, Mason, Warden and Scribe execute source-bound packets; six phase disciplines and two prose masks keep their own contracts; and the Pashov security suite remains upstream-owned. Use Hermes for Solidity gas, Pandects for credit laws, and Lemma for source-linked chunks. **Current frontier:** load_state validates the version-1 state container spine in deterministic order before any command traverses it, with path-and-kind diagnostics shared by verify and mutations; delegated task identities can still expose an earlier issue when a collaboration handle is reused.
 <!-- marketplace-context:end -->
 
 ## Promise Machine binding
@@ -55,11 +55,16 @@ local path and digest comparison before it relies on an overlay. The overlay
 states what the Wildcat suite accepts from the vendored operation; the
 unchanged upstream file still controls how that operation runs.
 
-The first-party `fiat`, `imprimatur`, `vulgate`, and `kronos` directories each
-carry an `EVOLUTION.md` ledger governed by `skills/VERSIONING.md`. Read the
-selected skill's ledger before proposing a frontier run. A `mature` frontier
-is a hard stop unless a maintainer has recorded an evidenced epoch reopening.
-Kronos is terminal by design and excludes itself from its candidate set.
+All ten first-party skill directories in this plugin carry an `EVOLUTION.md`
+ledger governed by `skills/VERSIONING.md`: Fiat, Kronos, Protasis, Elenchus,
+Phylax, Ephoros, Metron, Hypomnema, Imprimatur, and Vulgate. Read the selected
+skill's ledger before proposing a frontier run. A `mature` frontier is a hard
+stop unless a maintainer has recorded an evidenced epoch reopening. Kronos is
+terminal by design and excludes itself from its candidate set.
+
+Surveyor, Mason, Warden, and Scribe are Fiat worker prompts under `agents/`,
+not separately selectable skills. They execute the exact source-bound packet
+Fiat supplies and return evidence to the controller without writing receipts.
 
 ## Translate tool names by capability
 

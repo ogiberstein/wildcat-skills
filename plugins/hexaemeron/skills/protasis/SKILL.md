@@ -26,14 +26,17 @@ Protasis owns the content contract for the `study` and `runbook` phases: what
 those two documents must answer before implementation is allowed to start. It
 owns no state, writes no receipt and gates nothing itself.
 
-Serves the `study` and `runbook` phases.
+Surveyor may write the study packet, while Fiat keeps the artefact paths and
+receipt commands. Mason and Warden later receive the exact source-bound
+runbook step. Phylax, Ephoros, Metron, Elenchus, and Hypomnema answer the five
+discipline questions Protasis requires; Protasis cites their contracts rather
+than copying them. A decision made after the study belongs to Hypomnema's
+recording rules.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
 
-Fiat's study and runbook phases run under this contract. Fiat keeps the
-artefact paths and receipt commands; this skill says what the artefacts must
-contain. Nothing else carries these rules.
+**Current state.** The amendment contract fixes a dated block with four fields for a mid-run change, and no study exercises it yet: nothing enumerates whether an appended amendment carries its date or its fields, so the first live use is checked only by the person who writes it.
 
 ## Refuse these four
 

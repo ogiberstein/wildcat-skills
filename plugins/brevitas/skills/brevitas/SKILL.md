@@ -17,13 +17,16 @@ that ledger is mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Brevitas enforces mechanical volume and structure budgets on engineering review prose while preserving evidence.
+Brevitas enforces mechanical volume and structure limits on engineering prose while protecting every item of evidence that can change the decision.
 
 **Current frontier.** The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked.
 <!-- marketplace-context:end -->
 
-Apply this after a lexicon or register skill such as Imprimatur or Vulgate. Do not
-alter word choice, voice or AuDHD presentation.
+Apply this after Imprimatur has checked the vocabulary and Vulgate has settled
+the register. Sapheneia may separately shape the surrounding interaction or a
+bounded durable record. Brevitas changes volume, structure, and connective
+prose only; it does not alter word choice, voice, AuDHD presentation, or the
+facts another skill established.
 
 ## Precedence
 

@@ -24,10 +24,16 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Pandects supplies executable laws for credit contracts, each paired with a deliberately broken specimen and a reduced counterexample.
+Pandects supplies executable credit laws, each paired with a deliberately broken specimen it is proved to catch and a replayable counterexample.
 
 **Current frontier.** The search-record runner records only the Foundry campaign, so Echidna and Medusa results survive as audit prose rather than as records.
 <!-- marketplace-context:end -->
+
+Fizz or another engine can search these laws, Janus can apply the relevant
+ones around a hook transition, and Hermes must preserve them when changing gas.
+Pandects states and tests the law; it does not generate a target-specific fuzz
+harness, audit the whole protocol, or turn one bounded campaign into security
+sign-off.
 
 A fuzzer searches a state space. It cannot decide which economic facts must
 survive that search. Generic token property libraries cover balances, approvals

@@ -1,8 +1,9 @@
 ---
 name: fiat
 description: >
-  Run the one-shot delivery loop: study, runbook, then per-step
-  implement/audit/prose/push until a working prototype exists.
+  Run the explicit, receipted delivery controller in its own worktree: study,
+  runbook, then per-step implement, audit, prose and push, followed by one
+  signed integration.
   Use only when a Wildcat contributor explicitly asks to start, run, resume,
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
@@ -14,13 +15,17 @@ metadata:
 
 ## Where this sits
 
-Fiat owns the delivery controller, not Hexaemeron's bundled audit or prose
-skills. Its version, held frontier, next job, and maturity state live in
+Fiat owns the delivery controller: dedicated worktree, durable state,
+directives, receipts, stacked branches and pull requests, audit-round order,
+signature checks, one base integration, and the final report. It does not
+silently absorb the workers, phase disciplines, prose masks, Pashov suite, or
+domain specialists it calls.
+
+Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md). Read that ledger before suggesting, starting, or
 resuming work intended to advance Fiat itself.
 
-**Current frontier.** The ledger above is authoritative. Never substitute
-Hexaemeron's plugin-wide Solidity frontier for Fiat's own held target.
+**Current frontier.** load_state validates the version-1 state container spine in deterministic order before any command traverses it, with path-and-kind diagnostics shared by verify and mutations; delegated task identities can still expose an earlier issue when a collaboration handle is reused.
 
 ## Phase skills
 
@@ -39,6 +44,25 @@ defers to them rather than restating their rules. Each slots in as follows:
 Their lints run in every audit round, so meeting them during the step is
 cheaper than meeting them in the round. The phase notes below say how each one
 is applied.
+
+The two prose masks are separate again: Imprimatur diagnoses banned language
+and unsupported terms, then Vulgate rewrites the surface with content held
+fixed. Kronos may select an eligible held frontier and dispatch it here, but it
+never controls a Fiat run after dispatch. Hermes, Pandects, Lemma, Lazarus, and
+the other domain siblings keep their own promises when a run invokes them.
+
+### Worker packets
+
+- Surveyor researches one source-bound topic and writes the study.
+- Mason implements and tests one exact runbook step on the named branch pair.
+- Warden runs one audit round, preserves its record, fixes findings, and
+  reports the exact Elenchus verdict.
+- Scribe applies the prose pass to the bounded diff and pull-request draft.
+
+Fiat can perform the same packet inline when isolated workers are unavailable.
+Workers never receipt themselves or choose the next directive. Reject a reused
+worker handle that still exposes an earlier issue, step, or role; that stale
+identity is Fiat's current held frontier.
 
 Let there be light.
 

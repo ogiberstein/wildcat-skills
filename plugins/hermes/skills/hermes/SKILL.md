@@ -17,10 +17,16 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Hermes measures one Solidity gas optimisation class at a time and rejects the candidate when its Foundry evidence does not clear every gate.
+Hermes measures one named Solidity gas optimisation class at a time and rejects the candidate unless every Foundry, behaviour, layout, selector, and arithmetic gate clears.
 
 **Current frontier.** Hermes's twelve optimisation classes name 62 of the corpus's 120 rules, so 58 documented rules cannot be selected as candidates.
 <!-- marketplace-context:end -->
+
+Hermes alone owns Solidity gas optimisation. Metron handles measured
+performance in every other unit. Pandects can supply economic laws a candidate
+must preserve, Janus can constrain hook effects, and the Pashov suite can audit
+the resulting contracts. None of them can replace Hermes's sealed baseline or
+accept a gas candidate on its behalf.
 
 The ideas are cheap. The evidence is the job.
 
