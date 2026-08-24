@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.20.1"
+  version: "5.21.1"
 ---
 
 # Fiat
@@ -320,7 +320,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `sync-run` | When the base advanced and the integration PR conflicts, preserve the completed product evidence and receipt a signed two-parent merge plus bounded integration revalidation; supersede a failed composition receipt only with the exact active SHA, a reason and fresh evidence | [push-discipline.md](references/push-discipline.md) | `done sync-run --commit <sha> --base-commit <sha> --revalidation .hexaemeron/integration-revalidation.json [--supersede-sync <sha> --reason <text>]` |
 | `integrate` | Open and merge one PR from the run branch into the base, name what the run leaves unfinished in `.hexaemeron/run-pr.md`, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
-| `blocked` | A receipted study amendment broke the current step; inspect it, halt, or use a separately specified repair transition | below | -- |
+| `blocked` | A receipted study or runbook amendment broke the current step; inspect it, halt, or use the runbook repair below | below | -- |
 | `halted` | Report the reason; wait for the user | -- | `resume --note ...` when cleared |
 | `done` | Final report | below | -- |
 
@@ -346,7 +346,7 @@ Run the `imprimatur` lint on each artefact before receipting it, and pass the
 skills that ran to the receipt. Repo copies are committed later, in step 1 of
 the runbook, after the prose pass.
 
-**Amending a receipted study.** After the study and runbook receipts exist,
+**Amending receipted specifications.** After the study and runbook receipts exist,
 and only while build steps are active, append one final dated Protasis
 amendment to the receipted study and run:
 
@@ -375,6 +375,49 @@ exit verdict for the current step is recorded, then `next` returns a durable
 blocked directive and step receipts refuse to advance. Inspect the amendment,
 halt the run, or use a separately specified runbook-repair transition; do not
 resume dependent work by editing state or repeating `done study`.
+
+A runbook correction uses the same dated four-field suffix and runs:
+
+```text
+hexctl amend runbook --artifact <candidate>
+```
+
+The candidate keeps the currently receipted runbook bytes as its exact prefix.
+`What changed` consists only of one or more complete replacement clauses in
+the form `Complete replacement Exit: <full value>`, using one of the six
+runbook field names. A changed Exit includes its replacement command, and a
+changed Tests field includes its complete runner contract. The suffix may not
+add, remove, duplicate, reorder, renumber or rename a step. It may touch only
+current or pending steps and carries one exact entry-and-exit verdict for every
+unbuilt step.
+
+The receipt records the prior, new and amendment digests, exact amendment byte
+offsets, date, touched steps, ordered verdicts, replacement field names and the
+current study digest under `amend:runbook`. `verify`, `status` and delegated
+packet construction recompute both receipted artefacts and the amendment
+history. This establishes byte continuity, shape and carriage. It does not
+establish that a replacement is semantically complete, correct, or likely to
+pass.
+
+Each write-ahead marker names either `study` or `runbook`. One pending subject
+blocks every other command until its exact amend command finishes or rolls it
+back. If both markers exist, recovery refuses without removing either. Study
+markers written before the subject field existed remain readable as study
+transactions.
+
+Mason and Warden receive the same effective step source: one numbered and
+titled baseline block, its digest, and every current-study-bound amendment
+that names the step, in receipt order with exact bytes and digests. The last
+baseline step ends before the first real amendment heading. Fenced decoys,
+unrelated or stale amendments, mismatched history and later unreceipted bytes
+do not enter the packet.
+
+A broken runbook verdict blocks the current step. A holding runbook amendment
+clears a broken study verdict only when it names the current step, carries at
+least one complete replacement field and records the current study digest. A
+later study amendment changes that digest, so an older repair no longer
+applies. Recovery remains another checked amendment or an explicit halt; state
+and ledger history are not edited to manufacture a holding result.
 
 **Implementation.** Pick the construction that takes the least effort to
 comprehend, then stop. The step runs under the phase skills: `phylax` names
@@ -562,6 +605,18 @@ the study and runbook live.
 - Consequence: 2
 - Refuses: An edited prefix, ambiguous or malformed amendment, incomplete verdict coverage, unsafe or oversized path, failed checker, unlabelled interrupted mutation, or dependent work after a broken current-step verdict.
 - Recovery: Inspect the pending record and study, rerun `hexctl amend study --artifact <canonical-study>` to finish or roll back an interrupted transaction, halt safely, or use a separately specified runbook-repair transition after a recorded broken verdict.
+- Exceptions: none
+
+### fiat-runbook-amendment
+
+- Promise: A successful `hexctl amend runbook` establishes that the captured candidate preserved the currently receipted runbook bytes as its exact prefix, carried one structurally accepted final amendment with complete replacement clauses, passed the bundled Protasis runbook check, and recorded bounded digest, current-study binding and unbuilt-step verdict evidence.
+- Evidence: Scoped bounded reads of the receipted runbook and candidate, exact prefix SHA-256, deterministic field, replacement, topology and verdict parsing, complete unbuilt-step verdict coverage, current study digest, bundled checker exit, subject-labelled write-ahead record, canonical artefact digest, receipt history, `amend:runbook` ledger event and recomputed effective packet source.
+- Evidence classes: checked, recorded
+- Boundary: The receipt establishes candidate continuity, structure, recorded operator verdicts and exact source carriage. It does not establish that the free-form replacement is semantically complete or correct, that its command passes, or that a holding verdict is true.
+- Authorises: Recoverably replacing the canonical runbook with the exact checked candidate, re-pinning its receipt, carrying current digest-matched replacement bytes to Mason and Warden, and clearing a study block only through the recorded current-study join and complete-replacement rule.
+- Consequence: 2
+- Refuses: An edited prefix, ambiguous or malformed final block, changed step topology, completed or unknown touched steps, incomplete verdict coverage, partial or duplicate replacement clauses, unsafe or oversized input, failed checker, stale study binding, mismatched receipt history, unlabelled interrupted mutation, pending-subject collision, unreceipted drift or dependent work after an unrepaired broken verdict.
+- Recovery: Inspect the named pending subject and canonical artefact, rerun `hexctl amend runbook --artifact <canonical-runbook>` to finish or roll back exactly once, submit another valid current-study-bound amendment, or halt without editing receipt history.
 - Exceptions: none
 
 ### fiat-run-observation-binding
