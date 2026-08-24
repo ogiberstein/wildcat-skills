@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.21.1"
+  version: "5.22.1"
 ---
 
 # Fiat
@@ -438,7 +438,8 @@ first, then `solidity-auditor`; when the step ships Solidity under Foundry or
 Hardhat, `fizz` builds or refreshes the invariant fuzz suite and its campaign
 results count as part of the round. Read each skill's SKILL.md from
 `$PLUGIN_ROOT/skills/<name>/` and follow it. Every finding is logged
-to the audit file, fixes committed to the stacked branch. Warden receives the
+to the run's own audit file, which `init` derives and the directive names, fixes
+committed to the stacked branch. A supplied `--log` has to be that file. Warden receives the
 exact source-bound runbook step and uses its test command, report format, and
 report file for any fix. A round supplying `--fixes-commit` also supplies one
 exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or

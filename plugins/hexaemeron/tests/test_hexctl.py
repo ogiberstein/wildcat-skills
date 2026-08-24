@@ -708,8 +708,7 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
     def finish_step(self, step_no=1):
         self.run_ctl("done", "implement", "--branch", self.step_branch(step_no),
                      "--commit", f"abc{step_no}")
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
@@ -3066,7 +3065,7 @@ class TestAuditLoop(HexctlCase):
         self.run_ctl("record", "security_suite",
                      '["pashov-xray","pashov-solidity-auditor"]')
         self.assertEqual(self.next_json()["do"], "audit-round")
-        self.run_ctl("audit-round", "--findings", "3", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "3")
         out = self.next_json()
         self.assertEqual(out["do"], "audit-round")
         self.assertEqual(out["round"], 2)
@@ -3832,9 +3831,8 @@ class TestFuzzRegressions(HexctlCase):
 
     def test_state_edit_detected_by_verify(self):
         self.to_audit_with_suite()
-        self.run_ctl("audit-round", "--findings", "2", "--log", "a.md",
-                     "--fixes-commit", "fff",
-                     "--elenchus-verdict", "guarded")
+        self.run_ctl("audit-round", "--findings", "2",
+                     "--fixes-commit", "fff", "--elenchus-verdict", "guarded")
         with open(self.state_file()) as fh:
             st = json.load(fh)
         st["steps"][0]["audit"]["rounds"][0]["findings"] = 0
@@ -3935,9 +3933,7 @@ class StateContainerValidationTests(HexctlCase):
         super().setUp()
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
-        self.run_ctl(
-            "audit-round", "--findings", "1", "--log", "audit/AUDIT.md"
-        )
+        self.run_ctl("audit-round", "--findings", "1")
         self.state_path = os.path.join(self.target, ".hexaemeron", "state.json")
         self.ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(self.state_path, "rb") as handle:
@@ -4245,7 +4241,7 @@ class LintReceiptTests(HexctlCase):
 
     def test_a_solidity_round_needs_none_of_them(self):
         self.to_solidity_audit()
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "0")
         self.assertIsNone(self.rounds()[0]["lints"])
 
     def test_a_solidity_round_may_still_record_them(self):
@@ -4265,7 +4261,7 @@ class LintReceiptTests(HexctlCase):
     def test_the_override_lifts_the_requirement(self):
         self.to_waived_audit()
         self.run_ctl("config", "set", "solidity", "true")
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "0")
         self.assertIsNone(self.rounds()[0]["lints"])
 
     def test_the_override_can_impose_it_on_a_recorded_suite(self):
@@ -4296,8 +4292,7 @@ class LintReceiptTests(HexctlCase):
 
     def test_closing_the_audit_reads_a_round_that_carries_lints(self):
         self.to_waived_audit()
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         self.run_ctl("done", "audit")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
@@ -4316,8 +4311,7 @@ class LintReceiptTests(HexctlCase):
         blocked = self.run_ctl("done", "audit", expect=2)
         self.assertIn("open", blocked.stderr)
 
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         self.run_ctl("done", "audit", "--fixes-ref", "deadbeef")
         receipt = self.state()["steps"][0]["receipts"]["audit"]
         self.assertTrue(receipt["clean"])
@@ -4329,8 +4323,7 @@ class LintReceiptTests(HexctlCase):
         """Rounds already on disk carry no lints key. Every reader has to treat it as
         absent rather than assume it."""
         self.to_waived_audit()
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         path = os.path.join(self.target, ".hexaemeron", "state.json")
         with open(path, encoding="utf-8") as fh:
             state = json.load(fh)

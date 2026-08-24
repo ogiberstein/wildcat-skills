@@ -90,7 +90,9 @@ DEFAULT_CONFIG = {
         "max_rounds": 8,
         "stacked_suffix": "--audit",
         "fold": False,
-        "log_path": "audit/AUDIT.md",
+        # No `log_path` here. A literal put every run's rounds in one file, so
+        # that file entered `sync-run`'s overlap set on every integration where
+        # anything else had merged. `init` derives the run's own path instead.
     },
     "git": {
         "base": "main",
@@ -1312,6 +1314,52 @@ def require_step_phase(state: dict, phase: str) -> dict:
     return step
 
 
+def configured_audit_log(state: dict) -> str:
+    """The one file this run's rounds append to, as its own config records it.
+
+    Read through here rather than off the dict, so the Warden packet, `next` and
+    the two receipts all refuse the same way when a run has no path to write to.
+    """
+    log = as_dict(as_dict(state.get("config")).get("audit")).get("log_path")
+    if not isinstance(log, str) or not log:
+        die(
+            "config audit.log_path is missing or is not a path; a round cannot "
+            "say where it wrote without one"
+        )
+    return log
+
+
+def same_audit_log(declared: str, configured: str) -> bool:
+    """Whether two spellings name one record.
+
+    `audit/rounds/x.md` and `./audit/rounds/x.md` are the same file, and a round
+    turned away over a leading `./` would be turned away for punctuation.
+    """
+    def flatten(value: str) -> str:
+        return os.path.normpath(value.replace("\\", "/"))
+
+    return flatten(declared) == flatten(configured)
+
+
+def check_declared_audit_log(state: dict, declared: str, label: str) -> str:
+    """Hold a declared log to the one the caller was told to write.
+
+    `--log` was a free string stored verbatim while the Warden packet named
+    `config audit.log_path`, so a receipt could record a file the round never
+    opened and nothing noticed. The declaration is checked here and the
+    configured path is what gets recorded, so the two cannot drift apart by
+    spelling either.
+    """
+    configured = configured_audit_log(state)
+    if not same_audit_log(declared, configured):
+        die(
+            f"--log names '{declared}', but {label} writes '{configured}' "
+            "(config audit.log_path); a receipt naming a file nothing opened "
+            "is worse than a receipt naming none"
+        )
+    return configured
+
+
 def max_rounds_of(state: dict) -> int:
     raw = state["config"]["audit"]["max_rounds"]
     try:
@@ -1445,6 +1493,7 @@ def cmd_init(args) -> None:
         "halted": None,
         "frontier": frontier,
     }
+    state["config"]["audit"]["log_path"] = run_audit_log_path(run_branch)
     state["worktree"] = worktree
     state["origin"] = origin_root
     init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
@@ -2208,6 +2257,15 @@ def cmd_config(args) -> None:
             "config solidity takes %s; got %r"
             % (", ".join(json.dumps(m) for m in SOLIDITY_MODES), value)
         )
+    if args.path == "audit.log_path":
+        value = check_audit_log_path(args.dir, state, value)
+    elif args.path == "audit" and isinstance(value, dict) and "log_path" in value:
+        # Replacing the whole section reaches the same field. Without this the
+        # constraint is one `config set audit '{...}'` away from not existing,
+        # which is how the shared path would come back.
+        value["log_path"] = check_audit_log_path(
+            args.dir, state, value["log_path"]
+        )
     node[leaf] = value
     commit(args.dir, state, "config-set", {"path": args.path, "value": node[leaf]})
     print(f"set {args.path}")
@@ -2376,6 +2434,11 @@ def cmd_audit_round(args) -> None:
         )
     if args.elenchus_verdict is not None and not args.fixes_commit:
         die("--elenchus-verdict requires --fixes-commit")
+    recorded_log = (
+        check_declared_audit_log(state, args.log, "this round")
+        if args.log is not None
+        else configured_audit_log(state)
+    )
 
     exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
     for lint, value in exits.items():
@@ -2417,7 +2480,7 @@ def cmd_audit_round(args) -> None:
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
-        "log": args.log,
+        "log": recorded_log,
         "audit_filter": args.audit_filter,
         "fixes_commit": args.fixes_commit,
         "elenchus_verdict": args.elenchus_verdict,
@@ -2456,6 +2519,16 @@ def done_audit(args, state: dict) -> None:
         )
     if args.no_further_leads and not args.reason:
         die("--no-further-leads requires --reason")
+    if args.log is not None:
+        closing_log = check_declared_audit_log(
+            state, args.log, "this step's audit"
+        )
+    else:
+        # A round recorded before this check keeps the value it holds; nothing
+        # rewrites a receipt that is already on the ledger. Config is read only
+        # when there is nothing recorded to keep, so a closure that needs
+        # nothing from it is not refused by it.
+        closing_log = last.get("log") or configured_audit_log(state)
     had_findings = any(r["findings"] > 0 for r in rounds)
     fixes_ref = args.fixes_ref or next(
         (r["fixes_commit"] for r in reversed(rounds) if r.get("fixes_commit")), None
@@ -2483,7 +2556,7 @@ def done_audit(args, state: dict) -> None:
         "no_further_leads": bool(args.no_further_leads),
         "reason": args.reason,
         "fixes_ref": fixes_ref,
-        "log": args.log or last.get("log"),
+        "log": closing_log,
         "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
@@ -4482,6 +4555,67 @@ def repository_root(base_dir: str) -> str:
     return os.path.realpath(reported)
 
 
+AUDIT_LOG_HOME = ("audit", "rounds")
+"""Where a run's own audit record lives, relative to the target directory."""
+
+
+def run_audit_log_path(run_branch: str) -> str:
+    """The one audit log path a run owns, derived from its own branch.
+
+    The branch already names the run's worktree directory, so the same
+    flattening names its record. Deriving it beats holding a literal: a shared
+    default puts the log on both sides of `sync-run`'s product/upstream
+    intersection whenever anything else merged during the run, and the record
+    then owes a green check on a file the run only appended to.
+
+    Separators are POSIX because the value is a repository path that is read
+    back out of state, printed by `config get`, and quoted in prose.
+    """
+    return "/".join((*AUDIT_LOG_HOME, flattened_run_branch(run_branch) + ".md"))
+
+
+def check_audit_log_path(base_dir: str, state: dict, value):
+    """Hold an audit log override to the one file this run owns.
+
+    The directory may move -- three plugins here already keep their rounds under
+    their own tree -- but the file name is the run's identity. Without that, an
+    override can aim at another run's record or back at the shared log, which is
+    the arrangement this default was changed to end.
+
+    A run whose state records no usable branch has nothing to derive from, so it
+    keeps the older unconstrained value rather than being refused for its age.
+    That covers a stored branch of the wrong type as well as an absent one: the
+    flattening runs a regex over it, and a state holding a number there would
+    otherwise raise rather than answer.
+    """
+    if not isinstance(value, str) or not value:
+        die("config audit.log_path takes a non-empty string")
+    run_branch = run_branch_of(state)
+    if not isinstance(run_branch, str) or not run_branch:
+        return value
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        die("config audit.log_path must carry no control character")
+    if os.path.isabs(value):
+        die(
+            "config audit.log_path is relative to the run's directory; "
+            f"got the absolute path '{value}'"
+        )
+    parts = value.replace("\\", "/").split("/")
+    if ".." in parts:
+        die(f"config audit.log_path must carry no '..' component; got '{value}'")
+    required = run_audit_log_path(run_branch).rsplit("/", 1)[-1]
+    if parts[-1] != required:
+        die(
+            f"config audit.log_path must end in '{required}', the record this "
+            f"run owns; got '{value}'. Move the directory if you need to; the "
+            "name is what keeps two runs out of one file."
+        )
+    # Containment last, because a symlinked directory component escapes a path
+    # that has already passed every textual check above.
+    scoped_path(base_dir, value, "audit log path")
+    return value
+
+
 def run_worktree_path(base_dir: str, run_branch: str) -> str:
     """The one path this run's worktree belongs at. Creates nothing."""
     return os.path.join(
@@ -5479,10 +5613,8 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
     root_plugin = plugin_root()
     if action == "audit-round":
         audit = as_dict(as_dict(state.get("config")).get("audit"))
-        log = audit.get("log_path")
+        log = configured_audit_log(state)
         suffix = audit.get("stacked_suffix")
-        if not isinstance(log, str) or not log:
-            die("audit config has no log_path for the warden packet")
         if not isinstance(suffix, str) or not suffix:
             die("audit config has no stacked_suffix for the warden packet")
         stacked_branch = plan["branch"] + suffix
@@ -5578,6 +5710,7 @@ def _next_directive(state: dict) -> dict:
         owed = {
             "audit_filter": audit_filter_obligation(),
             "elenchus_verdict": elenchus_verdict_obligation(),
+            "log_path": configured_audit_log(state),
         }
         if lints_owed:
             owed["lints"] = [f"--{lint}-exit" for lint in LINTS]

@@ -20,8 +20,14 @@ another pass.
    The Warden packet also carries the exact source-bound `runbook_step`.
    For a fix, take the test command, report format, and report file from that
    step, run Elenchus against the fixes commit, and return its exact verdict.
-2. Prepare every finding for the audit file (`config audit.log_path`, default
-   `audit/AUDIT.md`), even when the count is zero:
+2. Prepare every finding for the run's audit file, even when the count is
+   zero. `init` derives it as `audit/rounds/<run branch with separators
+   flattened>.md`, one record per run, and `hexctl next` names the exact path on
+   every `audit-round` directive. Read it from there or from
+   `config audit.log_path` rather than assuming a shared file: appending to one
+   put the record in `sync-run`'s overlap set on every integration where
+   anything else had merged. `audit/AUDIT.md` holds every round written before
+   that change and takes no new ones.
 
    ```markdown
    ## Step <n>, round <r> -- <date>
@@ -47,10 +53,15 @@ another pass.
 4. Record the round:
 
    ```text
-   hexctl audit-round --findings <n> --log audit/AUDIT.md \
+   hexctl audit-round --findings <n> --log <the directive's log_path> \
      --audit-filter sapheneia:sapheneia \
      --fixes-commit <sha> --elenchus-verdict <value>
    ```
+
+   `--log` is optional and checked: supply it and it has to name the file the
+   directive named, or the round is refused and records nothing. Omit it and the
+   round records that same path, because the loop already required the record to
+   go there. Either way the receipt cannot name a file the round never opened.
 
    `--audit-filter sapheneia:sapheneia` is required on every round, whether it
    found anything or produced a fix. The controller checks and records this
@@ -119,7 +130,7 @@ The controller takes the three exits as fields, and refuses the round without
 them:
 
 ```text
-hexctl audit-round --findings <n> --log audit/AUDIT.md \
+hexctl audit-round --findings <n> --log <the directive's log_path> \
   --audit-filter sapheneia:sapheneia \
   --phylax-exit <n> --ephoros-exit <n> --hypomnema-exit <n>
 ```
