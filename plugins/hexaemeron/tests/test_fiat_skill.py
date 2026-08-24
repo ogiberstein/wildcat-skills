@@ -852,6 +852,37 @@ class TestRunbookAmendments(HexctlCase):
                 finally:
                     other.tearDown()
 
+    def test_replacement_exit_without_command_refuses_without_mutation_or_carriage(self):
+        _, original = self.to_runbook_amendable_steps()
+        before = self.state()["receipts"]["runbook"]["sha256"]
+        suffix = self.runbook_amendment(
+            what="Complete replacement Exit: Reviewed and working."
+        )
+        candidate = self.write("candidate.md", original + suffix)
+        proc = self.run_ctl("amend", "runbook", "--artifact", candidate, expect=2)
+        self.assertIn("Protasis rejected", proc.stderr)
+        self.assertEqual(self.state()["receipts"]["runbook"]["sha256"], before)
+        packet = self.next_json()["brief"]["runbook_step"]
+        self.assertNotIn("Reviewed and working.", packet["markdown"])
+
+    def test_indented_code_line_cannot_hide_a_step_heading_from_topology(self):
+        _, original = self.to_runbook_amendable_steps()
+        before = self.state()["receipts"]["runbook"]["sha256"]
+        suffix = self.runbook_amendment().replace(
+            "**What changed.** Complete replacement Exit: Run `fiat-v2.0.0`.\n",
+            "**What changed.** Complete replacement Exit: Run `fiat-v2.0.0`.\n"
+            "    ```\n"
+            "## Step 3: Smuggled visible heading\n\n"
+            "Outside the accepted topology.\n"
+            "    ```\n",
+        )
+        candidate = self.write("candidate.md", original + suffix)
+        proc = self.run_ctl("amend", "runbook", "--artifact", candidate, expect=2)
+        self.assertIn("final section", proc.stderr)
+        self.assertEqual(self.state()["receipts"]["runbook"]["sha256"], before)
+        packet = self.next_json()["brief"]["runbook_step"]
+        self.assertNotIn("Smuggled visible heading", packet["markdown"])
+
     def test_verdict_coverage_unknown_touch_and_completed_touch_refuse(self):
         cases = (
             (

@@ -127,12 +127,37 @@ class RunbookAmendments(unittest.TestCase):
                 )
                 self.assertIn("P005", codes(source))
 
+    def test_a_complete_replacement_exit_still_needs_its_command(self):
+        source = COMPLETE_STEP + COMPLETE_RUNBOOK_AMENDMENT.replace(
+            "Complete replacement Exit: Proved by `fiat-v2.0.0`.",
+            "Complete replacement Exit: Reviewed and working.",
+        )
+        self.assertIn("P005", codes(source))
+
     def test_fenced_amendment_decoy_does_not_end_or_validate_the_step(self):
         decoy = (
             "\n````markdown\n```\n### Amendment -- 2026-08-24\n"
             "**What changed.** vague\n````\n"
         )
         self.assertEqual(codes(COMPLETE_STEP + decoy), [])
+
+    def test_only_three_leading_spaces_may_open_a_markdown_fence(self):
+        hidden = (
+            "**What changed.** Complete replacement Exit: Proved by `fiat-v2.0.0`.\n"
+            "{indent}```\n"
+            "## Step 2: Smuggled visible heading\n"
+            "{indent}```\n"
+        )
+        three_spaces = COMPLETE_RUNBOOK_AMENDMENT.replace(
+            "**What changed.** Complete replacement Exit: Proved by `fiat-v2.0.0`.\n",
+            hidden.format(indent="   "),
+        )
+        four_spaces = COMPLETE_RUNBOOK_AMENDMENT.replace(
+            "**What changed.** Complete replacement Exit: Proved by `fiat-v2.0.0`.\n",
+            hidden.format(indent="    "),
+        )
+        self.assertNotIn("P005", codes(COMPLETE_STEP + three_spaces))
+        self.assertIn("P005", codes(COMPLETE_STEP + four_spaces))
 
     def test_invalid_date_and_a_trailing_step_heading_refuse(self):
         invalid = COMPLETE_RUNBOOK_AMENDMENT.replace("2026-08-24", "2026-02-30")

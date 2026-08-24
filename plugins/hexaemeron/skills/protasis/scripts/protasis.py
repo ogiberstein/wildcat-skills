@@ -71,7 +71,7 @@ FIELD = re.compile(r"^\*\*(?P<name>[A-Za-z]+)\.\*\*")
 HEADING = re.compile(r"^#{1,2}\s+")
 # Backtick or tilde, three or more, per CommonMark. The marker is captured so a
 # fence is closed only by its own kind: ``` inside a ~~~ block is content.
-FENCE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
+FENCE = re.compile(r"^ {0,3}(?P<mark>`{3,}|~{3,})")
 INLINE_CODE = re.compile(r"`[^`\n]+`")
 ALLOW = re.compile(r"<!--\s*protasis:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
 AMENDMENT = re.compile(r"^###\s+Amendment\s+--\s+(?P<date>\d{4}-\d{2}-\d{2})\s*$")
@@ -298,6 +298,8 @@ def _replacement_fields(value: str) -> tuple[list[str], str | None]:
         field = match.group("field")
         if not match.group("value").strip():
             return [], f"complete replacement {field} must not be empty"
+        if field == "Exit" and not _has_command(match.group("value").splitlines()):
+            return [], "complete replacement Exit must name a command"
         fields.append(field)
         cursor = match.end()
     if value[cursor:].strip():

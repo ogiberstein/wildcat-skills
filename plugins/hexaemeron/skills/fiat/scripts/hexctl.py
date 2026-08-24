@@ -3432,7 +3432,7 @@ def receipted_source(base_dir: str, state: dict, name: str):
 STEP_HEADING_RE = re.compile(
     r"^##\s+Step\s+(?P<number>\d+)\s*:\s*(?P<title>.*?)\s*$"
 )
-MARKDOWN_FENCE_RE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
+MARKDOWN_FENCE_RE = re.compile(r"^ {0,3}(?P<mark>`{3,}|~{3,})")
 RISK_REGISTER_INFO = "risk-register"
 AMENDMENT_HEADING_RE = re.compile(
     r"^###\s+Amendment\s+--\s+(?P<date>\d{4}-\d{2}-\d{2})\s*$"
