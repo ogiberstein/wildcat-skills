@@ -4996,3 +4996,91 @@ class FrontierRowAttributionTests(OriginCheckoutMixin, unittest.TestCase):
             module.base_ledger_versions(self.dir, head, "nowhere/EVOLUTION.md"),
             frozenset(),
         )
+
+
+class GitHubSignerDiagnosis(unittest.TestCase):
+    """A refusal must name GitHub's key as the cause, not just fail.
+
+    A commit GitHub rewrote carries GitHub's web-flow signature. `verify-commit`
+    then fails against a local keyring, and the bare message sends whoever reads
+    it looking for a broken signing setup rather than at the branch rewrite that
+    actually happened. The wrong repair for that message is importing GitHub's
+    public key, which makes the check pass and removes the guarantee it exists
+    for, so the message says so explicitly.
+    """
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+
+    def test_the_known_github_keys_are_declared(self):
+        self.assertIn("B5690EEEBB952194", self.hexctl.GITHUB_SIGNING_KEYS)
+        self.assertIn("4AEE18F83AFDEB23", self.hexctl.GITHUB_SIGNING_KEYS)
+
+    def _refusal(self, key):
+        """The message verify_local_commit dies with, for a given signing key."""
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=1), \
+             mock.patch.object(module, "signing_key", return_value=key), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             redirect_stderr(captured):
+            with self.assertRaises(SystemExit):
+                module.verify_local_commit(".", "a" * 40, "step 1")
+        return captured.getvalue()
+
+    def test_a_github_signed_commit_is_refused_and_the_cause_is_named(self):
+        message = self._refusal("b5690eeebb952194")
+        self.assertIn("signed by GitHub", message)
+        self.assertIn("B5690EEEBB952194", message)
+        self.assertIn("stacked", message, "the rewrite that causes this must be named")
+        self.assertIn(
+            "Do not import GitHub's public key",
+            message,
+            "the wrong repair is the obvious one and has to be ruled out in the message",
+        )
+
+    def test_an_unknown_key_is_reported_without_blaming_github(self):
+        message = self._refusal("DEADBEEFDEADBEEF")
+        self.assertIn("DEADBEEFDEADBEEF", message)
+        self.assertIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_an_unsigned_commit_keeps_the_plain_message(self):
+        message = self._refusal("")
+        self.assertIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_a_verifying_commit_is_not_refused_by_the_signature_check(self):
+        """The diagnosis must not turn a passing verification into a refusal.
+
+        Checks which refusal, not whether one happened. A commit that verifies
+        still goes on to the author and trailer checks, and those refuse this
+        synthetic sha for reasons that have nothing to do with signing. What must
+        not appear is a signature complaint.
+        """
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=0), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             redirect_stderr(captured):
+            try:
+                module.verify_local_commit(".", "a" * 40, "step 1")
+            except BaseException:
+                pass
+        message = captured.getvalue()
+        self.assertNotIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_the_signature_check_runs_before_anything_else(self):
+        """A later check must not mask an unverifiable signature."""
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=1), \
+             mock.patch.object(module, "signing_key", return_value=""), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             mock.patch.object(module, "commit_author",
+                               side_effect=AssertionError("author read before signature check")), \
+             redirect_stderr(captured):
+            with self.assertRaises(SystemExit):
+                module.verify_local_commit(".", "a" * 40, "step 1")
+        self.assertIn("no valid local signature", captured.getvalue())

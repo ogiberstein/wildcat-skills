@@ -54,14 +54,100 @@ def write(root, relpath, content):
     return path
 
 
+# Git exports these into any process it spawns. A hook, `git bisect run`, a
+# rebase `exec` line: all of them set GIT_DIR and GIT_INDEX_FILE to the outer
+# repository. Inheriting them makes `git -C <tempdir> add .` operate on the
+# outer index instead, which stages a deletion for every tracked file the
+# temporary tree does not contain. Measured once at 1487 phantom deletions with
+# every file still on disk, which reads exactly like catastrophic data loss.
+GIT_ENV_TO_DROP = (
+    "GIT_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_WORK_TREE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_NAMESPACE",
+    "GIT_PREFIX",
+    "GIT_INTERNAL_SUPER_PREFIX",
+)
+
+
+def git_env(base=None):
+    """The environment for a git call against a throwaway tree.
+
+    Every variable that could point git at a different repository is removed
+    rather than overridden, so an unset one cannot fall through to the outer
+    checkout.
+    """
+    env = dict(os.environ if base is None else base)
+    for name in GIT_ENV_TO_DROP:
+        env.pop(name, None)
+    env.update(
+        GIT_AUTHOR_NAME="t",
+        GIT_AUTHOR_EMAIL="t@t",
+        GIT_COMMITTER_NAME="t",
+        GIT_COMMITTER_EMAIL="t@t",
+    )
+    return env
+
+
 def git(root, *args):
     subprocess.run(  # phylax: allow subprocess: fixed argv git in a test tempdir, no shell
         ["git", "-C", root, *args],
         capture_output=True,
         check=True,
-        env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-             "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"},
+        env=git_env(),
     )
+
+
+class GitEnvironmentIsolation(unittest.TestCase):
+    """A git call against a throwaway tree must not reach the outer repository.
+
+    This is the guard for a defect that presented as data loss. The helper below
+    used to inherit `os.environ` wholesale, so when the suite ran anywhere git
+    had exported `GIT_INDEX_FILE` -- a pre-commit hook, `git bisect run`, a
+    rebase `exec` -- its `git add .` in a temporary directory staged a deletion
+    for every tracked file the temporary tree lacked.
+    """
+
+    def test_no_variable_that_could_repoint_git_survives(self):
+        polluted = {name: "/somewhere/else" for name in GIT_ENV_TO_DROP}
+        env = git_env({**polluted, "PATH": os.environ.get("PATH", "")})
+        for name in GIT_ENV_TO_DROP:
+            self.assertNotIn(name, env, f"{name} would repoint git at another repository")
+
+    def test_the_identity_variables_are_still_set(self):
+        env = git_env({"PATH": os.environ.get("PATH", "")})
+        for name in ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL",
+                     "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"):
+            self.assertIn(name, env)
+
+    def test_the_helper_leaves_the_outer_index_alone(self):
+        """The end-to-end form: pollute the environment and check nothing moved."""
+        outer = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--absolute-git-dir"],
+            capture_output=True, text=True,
+        )
+        if outer.returncode != 0:
+            self.skipTest("not inside a git work tree")
+        index = Path(outer.stdout.strip()) / "index"
+        before = index.stat().st_mtime_ns if index.exists() else None
+
+        with tempfile.TemporaryDirectory() as work:
+            os.environ["GIT_INDEX_FILE"] = str(index)
+            try:
+                git(work, "init", "-q")
+                write(work, "throwaway.txt", "x\n")
+                git(work, "add", ".")
+            finally:
+                os.environ.pop("GIT_INDEX_FILE", None)
+
+        after = index.stat().st_mtime_ns if index.exists() else None
+        self.assertEqual(
+            before, after,
+            "the outer index was written by a git call meant for a temporary tree",
+        )
 
 
 class BoundaryCurrencyTests(unittest.TestCase):

@@ -382,8 +382,8 @@ first amendment's reasoning was also incomplete: it named pull request 521 as
 having claimed 017, which was true of that branch but not of the default branch,
 where 017 had already been taken by 524. Filenames differing is not protection
 here, because git merges two records with different names without conflict and
-the repository then carries two of the same number; it already carries two
-ADR-012s that way.
+the repository then carries two of the same number; it carried two ADR-012s
+that way from 2026-08-22 until the licence record moved to 020 on 2026-08-24.
 **Steps touched.** Step 5's files and exit, and every pointer at the record's
 path.
 **Still holding.** Step 5: entry holds; exit holds. No unbuilt steps remain.

@@ -1,8 +1,14 @@
-# ADR-012: Licence first-party skills under Apache-2.0
+# ADR-020: Licence first-party skills under Apache-2.0
 
 ## Status
 
-Accepted, 2026-08-22.
+Accepted, 2026-08-22. Renumbered from 012 on 2026-08-24. Two records were
+accepted the same day and both took 012, because git merges files with
+different names and no conflict and nothing compared the numbers inside them.
+This record moved rather than
+[ADR-012](ADR-012-run-fiat-in-a-dedicated-worktree.md), which landed second,
+because an append-only audit record cites 012 meaning that one and correcting
+a past record is not permitted here. This record had no inbound references.
 
 ## Context
 

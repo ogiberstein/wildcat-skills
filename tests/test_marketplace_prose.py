@@ -81,6 +81,36 @@ def marketplace_frontiers(path):
     return frontiers
 
 
+# Directories that hold a checkout of this same repository rather than shipped
+# content. A sweep that descends into one finds every landing README twice and
+# reports the copies as strays.
+#
+# `.claude` was the only entry for a while, which missed the location Fiat
+# actually uses: its documented worktree home is `tmp/fiat/<run>`, gitignored as
+# `/tmp/`, so the suite failed for anybody with a delivery in flight in the same
+# clone. Listing names is what let that happen, so nested checkouts are now
+# detected rather than enumerated, and the names below are only the fast path.
+NESTED_CHECKOUT_NAMES = {".git", ".hexaemeron", ".claude", "tmp"}
+
+
+def _inside_nested_checkout(relative, root):
+    if relative.parts and relative.parts[0] in NESTED_CHECKOUT_NAMES:
+        return True
+    current = root
+    for part in relative.parts[:-1]:
+        current = current / part
+        if (current / ".git").exists():
+            return True
+    return False
+
+
+def repository_markdown(root):
+    """Every shipped Markdown file, skipping checkouts of this repository."""
+    for path in sorted(root.rglob("*.md")):
+        if not _inside_nested_checkout(path.relative_to(root), root):
+            yield path
+
+
 class MarketplaceProseTests(unittest.TestCase):
     def test_wildcat_labs_identity_contains_the_promise_machine_architecture(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -279,14 +309,7 @@ class MarketplaceProseTests(unittest.TestCase):
     def test_rolling_fiat_jobs_exist_only_in_plugin_landing_readmes(self):
         allowed = set(plugin_landing_readmes().values())
         found = set()
-        for path in ROOT.rglob("*.md"):
-            relative = path.relative_to(ROOT)
-            # `.claude` holds git worktrees of this same repository, so a
-            # sweep that descends into it finds every landing README twice and
-            # reports the copies as strays. Nothing shipped lives under a dot
-            # directory here.
-            if relative.parts[0] in {".git", ".hexaemeron", ".claude"}:
-                continue
+        for path in repository_markdown(ROOT):
             if "**Next Fiat job.**" in path.read_text(encoding="utf-8"):
                 found.add(path)
         self.assertEqual(found, allowed)
@@ -339,10 +362,8 @@ class MarketplaceProseTests(unittest.TestCase):
 
     def test_no_shipped_document_carries_a_sibling_handoff_label(self):
         strays = []
-        for path in ROOT.rglob("*.md"):
+        for path in repository_markdown(ROOT):
             relative = path.relative_to(ROOT)
-            if relative.parts[0] in {".git", ".hexaemeron", ".claude"}:
-                continue
             text = path.read_text(encoding="utf-8")
             for label in ("**Use another tool when.**", "**Try something else when.**"):
                 if label in text:
