@@ -12515,3 +12515,79 @@ Leads not pursued: none. A filename's host-specific Unicode spelling is not a
 portable artefact claim here; the declared boundary is lexical confinement,
 no-follow regular-file access and no rejected-path echo, all of which were
 exercised.
+
+## Issue 436 run-observation receipt binding, step 1, round 2 -- 2026-08-24
+
+### State
+
+Audit of round 1's signed fixed tree at
+`71f1471722c4de5e14f9ed7e7efd2435da97f7fa`. One high finding was reproduced
+twice on both affected command paths and repaired in signed commit
+`49b8652db3d19c1501e074582454d08fab54b8e6`.
+
+### Finding
+
+`I436-S1-R2-01` -- high -- `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`.
+Binding and verification each captured stable named bytes and validated that
+immutable snapshot, but neither re-established the named file after validation
+finished. A deterministic replacement during the validator call therefore let
+`observe` record a receipt, or let `verify --observations` return clean, while
+the named path already held different bytes. The repair adds one shared final
+no-follow double reread after all validation and summary work. It compares the
+entire named snapshot, including any unbound tail, before state mutation or a
+clean verification result. Separate bind and verify guards fail on the signed
+parent and pass on the repair.
+
+### Risk dispositions
+
+- `companion-path` -- exercised and repaired: final named-byte identity now
+  follows validation on both commands.
+- `prefix-drift` -- exercised: before, during, and after-validation replacement
+  mechanisms refuse without weakening an earlier digest.
+- `unbound-tail` -- exercised: the final reread compares the complete current
+  file while the claim remains limited to the selected prefix.
+- `run-association` -- exercised: the derived controller identity and event run
+  id still match after final reread.
+- `receipt-association` -- exercised: exact selected entry, observation record,
+  record data, count, and order remain joined.
+- `contract-identity` -- exercised: both contract identifiers and structural
+  rules are checked against the captured bytes.
+- `count-agreement` -- exercised: byte count, event count, interval, prefix
+  digest, and final named bytes agree.
+- `gate-status` -- exercised: capture, validation and redaction must pass; the
+  validation result is no longer separated from the final named subject.
+- `controller-independence` -- exercised: ordinary verification remains green
+  when the dependent observation check refuses.
+- `legacy-state` -- exercised: no-binding runs remain valid outside the explicit
+  dependent claim.
+- `partial-write` -- exercised and repaired: deterministic post-validation swaps
+  now return bounded `FOB002` refusals in bind and verify.
+- `diagnostic-echo` -- exercised: the new refusal names no path or rejected byte.
+- `binding-growth` -- exercised: the count cap, exact record join and strict
+  extension checks remain green with the final reread.
+- `coverage-drift` -- exercised: both new selectors and the repaired controller
+  digest are bound in Promise coverage.
+
+### Evidence
+
+- Focused observation and Promise surface: 159 of 159 tests passed.
+- Root suite: 349 tests run; 344 passed and five explicit detached-receipt tests
+  skipped.
+- Hexaemeron suite and Elenchus fixed-tree report: 957 of 957 tests passed.
+- Inoculation matrix: 1,258 cases, zero crashes and zero unexpected clean.
+- Promise Machine: 14 exact copies and 70 of 70 coverage rows.
+- Elenchus verdict for `49b8652`: `guarded`; its parent report records assertion
+  failures rather than errors or missing tests.
+- All three discipline lints, both Protasis modes, Horos, syntax, JSON, receipt
+  byte identity, diff check, and eight per-document prose gates exited zero.
+
+### Boundary and next
+
+The exact round-2 section is Imprimatur- and Brevitas-clean. Whole-file Brevitas
+still names historical diagnostics before the issue #436 records; this round
+does not rewrite unrelated audit history or claim that whole-file result.
+ADR-024 remains the allocated decision and ADR-023 remains untouched. No push,
+pull request, issue mutation, integration or controller receipt was performed
+by Warden. One finding requires an independent round 3.
+
+Leads not pursued: none.
