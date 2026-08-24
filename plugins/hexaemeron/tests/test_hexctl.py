@@ -33,6 +33,9 @@ test about a Solidity round.
 LINTS_CLEAN = ("--phylax-exit", "0", "--ephoros-exit", "0", "--hypomnema-exit", "0")
 """What a non-Solidity round records when all three lints came back clean."""
 
+AUDIT_FILTER = ("--audit-filter", "sapheneia:sapheneia")
+"""The exact checked operator declaration every new audit round owes."""
+
 
 def make_origin_checkout(path):
     """A real repository on `main` at `path`.
@@ -122,7 +125,14 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
                 process.wait(timeout=5)
         self.tmp.cleanup()
 
-    def run_ctl(self, *args, expect=0):
+    def run_ctl(self, *args, expect=0, audit_filter=True):
+        if (
+            args
+            and args[0] == "audit-round"
+            and audit_filter
+            and "--audit-filter" not in args
+        ):
+            args = (*args, *AUDIT_FILTER)
         pending_refs = dict(self.fake_refs)
         pending_prs = json.loads(json.dumps(self.fake_prs))
         pending_parents = json.loads(json.dumps(self.fake_parents))
@@ -695,7 +705,8 @@ class TestDelegationPackets(HexctlCase):
             warden,
             "warden",
             ("step_branch", "stacked_branch", "security_suite", "plugin_root",
-             "audit_log_path", "round", "risk_register", "runbook_step"),
+             "audit_log_path", "round", "audit_filter", "risk_register",
+             "runbook_step"),
         )
         risk = warden["brief"]["risk_register"]
         self.assertEqual(set(risk), {"markdown", "path", "sha256"})
@@ -2157,6 +2168,7 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         with open(state_path, encoding="utf-8") as handle:
             state = json.load(handle)
         state["steps"][0]["audit"]["rounds"][-1].pop("elenchus_verdict")
+        state["steps"][0]["audit"]["rounds"][-1].pop("audit_filter")
         canonical_state = json.dumps(state, sort_keys=True, separators=(",", ":"))
         with open(state_path, "w", encoding="utf-8") as handle:
             json.dump(state, handle, indent=2)
@@ -2166,6 +2178,7 @@ class ElenchusVerdictReceiptTests(HexctlCase):
             entries = [json.loads(line) for line in handle if line.strip()]
         self.assertEqual(entries[-1]["event"], "audit-round")
         entries[-1]["data"].pop("elenchus_verdict")
+        entries[-1]["data"].pop("audit_filter")
         entries[-1]["state"] = hashlib.sha256(canonical_state.encode()).hexdigest()
         unsigned = {key: value for key, value in entries[-1].items() if key != "hash"}
         entries[-1]["hash"] = hashlib.sha256(
@@ -2289,7 +2302,8 @@ class ElenchusVerdictReceiptTests(HexctlCase):
             set(warden_first["brief"]),
             {
                 "step_branch", "stacked_branch", "security_suite", "plugin_root",
-                "audit_log_path", "round", "risk_register", "runbook_step",
+                "audit_log_path", "round", "audit_filter", "risk_register",
+                "runbook_step",
             },
         )
 
@@ -2311,7 +2325,9 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.run_ctl("verify")
         rounds = self.state()["steps"][0]["audit"]["rounds"]
         self.assertNotIn("elenchus_verdict", rounds[0])
+        self.assertNotIn("audit_filter", rounds[0])
         self.assertEqual(rounds[1]["elenchus_verdict"], "passed")
+        self.assertEqual(rounds[1]["audit_filter"], "sapheneia:sapheneia")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
 
@@ -3055,6 +3071,93 @@ class StateContainerValidationTests(HexctlCase):
 
         self.assertEqual(loaded, state)
         self.assertEqual(loaded["version"], 1)
+
+
+class AuditFilterReceiptTests(HexctlCase):
+    """The exact Sapheneia declaration is visible, checked, and retained."""
+
+    def to_receiptable_audit(self, *, solidity=True):
+        self.to_audit()
+        receipt = SUITE if solidity else '"waived: prose-only repo"'
+        self.run_ctl("record", "security_suite", receipt)
+
+    def state_ledger_digests(self):
+        paths = (
+            os.path.join(self.target, ".hexaemeron", "state.json"),
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
+        )
+        digests = []
+        for path in paths:
+            with open(path, "rb") as handle:
+                digests.append(hashlib.sha256(handle.read()).hexdigest())
+        return tuple(digests)
+
+    def audit_events(self):
+        path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        entries = []
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                if entry["event"] == "audit-round":
+                    entries.append(entry)
+        return entries
+
+    def test_missing_declaration_is_refused_without_state_or_ledger_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "0", expect=2, audit_filter=False
+        )
+        self.assertIn("--audit-filter sapheneia:sapheneia", result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_different_declaration_is_refused_without_state_or_ledger_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "0",
+            "--audit-filter", "something:else", expect=2,
+        )
+        self.assertIn("must equal sapheneia:sapheneia", result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_exact_declaration_reaches_round_state_ledger_and_stdout(self):
+        self.to_receiptable_audit()
+        result = self.run_ctl("audit-round", "--findings", "0", *AUDIT_FILTER)
+        self.assertIn("audit filter sapheneia:sapheneia", result.stdout)
+        round_entry = self.state()["steps"][0]["audit"]["rounds"][0]
+        self.assertEqual(round_entry["audit_filter"], "sapheneia:sapheneia")
+        self.assertEqual(
+            self.audit_events()[0]["data"]["audit_filter"],
+            "sapheneia:sapheneia",
+        )
+
+    def test_next_and_warden_brief_name_the_exact_obligation_every_round(self):
+        self.to_receiptable_audit()
+        expected = {
+            "flag": "--audit-filter",
+            "value": "sapheneia:sapheneia",
+        }
+        first = self.next_json()
+        self.assertEqual(first["audit_filter"], expected)
+        self.assertEqual(first["brief"]["audit_filter"], expected)
+        self.run_ctl("audit-round", "--findings", "1", *AUDIT_FILTER)
+        second = self.next_json()
+        self.assertEqual(second["round"], 2)
+        self.assertEqual(second["audit_filter"], expected)
+        self.assertEqual(second["brief"]["audit_filter"], expected)
+
+    def test_non_solidity_round_needs_the_same_exact_declaration(self):
+        self.to_receiptable_audit(solidity=False)
+        self.run_ctl(
+            "audit-round", "--findings", "0", *AUDIT_FILTER, *LINTS_CLEAN
+        )
+        self.assertEqual(
+            self.state()["steps"][0]["audit"]["rounds"][0]["audit_filter"],
+            "sapheneia:sapheneia",
+        )
 
 
 class LintReceiptTests(HexctlCase):
