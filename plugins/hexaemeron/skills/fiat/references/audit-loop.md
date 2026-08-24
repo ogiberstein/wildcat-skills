@@ -20,8 +20,8 @@ another pass.
    The Warden packet also carries the exact source-bound `runbook_step`.
    For a fix, take the test command, report format, and report file from that
    step, run Elenchus against the fixes commit, and return its exact verdict.
-2. Append every finding to the audit file (`config audit.log_path`,
-   default `audit/AUDIT.md`), even when the count is zero:
+2. Prepare every finding for the audit file (`config audit.log_path`, default
+   `audit/AUDIT.md`), even when the count is zero:
 
    ```markdown
    ## Step <n>, round <r> -- <date>
@@ -33,6 +33,13 @@ another pass.
    Leads not pursued: <what and why, or "none">
    ```
 
+   Before appending, freeze the table shape and protected evidence inventory,
+   then apply Sapheneia's bounded audit-record operation; compact connective
+   and process prose only. Compare the candidate item by item and refuse the
+   append if it drops or changes a finding, qualification, unknown, negative
+   result, identifier, number, link, severity, verdict, status, or unpursued
+   lead. Existing audit history is append-only and stays untouched.
+
 3. Apply fixes on the stacked branch: `<step-branch><suffix>` (suffix from
    `config audit.stacked_suffix`, default `--audit`), with a PR targeting
    the step branch. Fixes accumulate there across rounds; the audit file
@@ -41,8 +48,15 @@ another pass.
 
    ```text
    hexctl audit-round --findings <n> --log audit/AUDIT.md \
+     --audit-filter sapheneia:sapheneia \
      --fixes-commit <sha> --elenchus-verdict <value>
    ```
+
+   `--audit-filter sapheneia:sapheneia` is required on every round, whether it
+   found anything or produced a fix. The controller checks and records this
+   exact checked operator declaration before mutating state or the ledger. It is
+   not semantic proof that the Sapheneia pass preserved the candidate; the Warden's
+   item-by-item comparison remains the evidence for that claim.
 
    `<value>` is exactly `guarded`, `unguarded`, `passed`, or `inconclusive`.
    The two flags are conditional as a pair: a fixes commit without a verdict,
@@ -106,13 +120,15 @@ them:
 
 ```text
 hexctl audit-round --findings <n> --log audit/AUDIT.md \
+  --audit-filter sapheneia:sapheneia \
   --phylax-exit <n> --ephoros-exit <n> --hypomnema-exit <n>
 ```
 
-`next` names the three flags when the round owes them, so the requirement
-arrives before the refusal does. A round reporting zero findings beside a
-non-zero exit is refused as well: the log would otherwise say a lint failed
-while the ledger said the round was clean.
+`next` names the exact audit-filter obligation on every round and the three
+lint flags when the round owes them, so each requirement arrives before the
+refusal does. A round reporting zero findings beside a non-zero exit is refused
+as well: the log would otherwise say a lint failed while the ledger said the
+round was clean.
 
 Which rounds owe them comes from the `security_suite` receipt. A waiver means
 these three are the mechanical part. A recorded list of suite ids means the

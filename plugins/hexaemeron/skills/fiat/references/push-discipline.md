@@ -221,8 +221,21 @@ the run branch and every step branch where policy permits:
 this is the one place branch cleanup happens, and by now nothing is stacked on
 any of them, so deleting cannot close a pull request that still has work to do.
 If a `task_issue` receipt exists, close that exact issue now with a short
-comment linking the merged pull request. This is the only merge into the base in
-the whole run.
+comment linking the merged pull request. Complete the draft created during the
+prose phase, with the exact issue URL, pull request URL, identifiers, status,
+and unresolved work in its protected inventory. Run the exact publication
+sequence `Sapheneia -> Imprimatur -> Vulgate -> Imprimatur`, compare the
+protected inventory after both semantic passes, and require the final lint to
+exit clean on the exact candidate file. Then post those exact checked bytes
+verbatim and read the remote comment back to compare its body before closing
+the issue; after closing, read back the issue URL and closed state as well. A failed
+comparison or readback stops the closure.
+
+The later `done integrate --closed-issue-url <url>` receipt records the issue
+URL supplied after that remote check. It does not make the comment
+controller-attested, prove the Sapheneia or Vulgate semantics, or attest the
+posted bytes. Report the remote comment and issue readback as their own
+evidence. This is the only merge into the base in the whole run.
 
 ```text
 hexctl done integrate --pr-url <url> --merge-commit <sha> \

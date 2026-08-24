@@ -302,3 +302,10 @@ The study and runbook ship under `docs/durable-agent-prose-gates/`. The ADR
 records why a repository policy plus one controller declaration was chosen over
 a GitHub wrapper. Open issues #421, #501, #427, #372, and #373 remain the homes
 for the work this design refuses.
+
+### Amendment -- 2026-08-24
+
+**What changed.** Step 2's runbook entry says Fiat's frontier revision is `receipted-lint-rounds`; the pinned base records `state-shape-validation`, which is the revision the implementation must retain. The former token is a documentary error and is superseded by this amendment.
+**Why.** A direct read of `plugins/hexaemeron/skills/fiat/EVOLUTION.md` at `dd23413ef6e9021bd80b930ad57e1766bf166f0b` disproved the runbook token during the pre-commit Step 2 review.
+**Steps touched.** Step 2.
+**Still holding.** Step 2: entry holds; exit holds.

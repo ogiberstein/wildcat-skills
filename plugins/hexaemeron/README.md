@@ -31,7 +31,7 @@ Let there be light. A deterministic controller (`hexctl`) decides what comes nex
 1. Study the topic and write a linted study file.
 2. Derive a runbook of discrete, self-contained steps.
 3. Implement the least complicated construction that satisfies each runbook step.
-4. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, fixes on a stacked branch.
+4. Run the vendored Pashov suite (`x-ray`, `solidity-auditor`, `fizz`) in rounds until a round comes back clean or the remaining leads are judged not worth another pass, shape each audit record through Sapheneia, and put fixes on a stacked branch.
 5. Rewrite every shipped document and the PR text through the bundled `imprimatur` lint and `vulgate` voice mask.
 6. Push the step branch, open its pull request against the step below it, and move to the next step.
 7. Once every step is pushed, merge the stack into the run branch in order, receipt one signed base sync if concurrent work created an integration conflict, then merge the run branch into the base once.
@@ -70,8 +70,8 @@ exactly one merge per run.
 | 1 | `study` | Study the topic; write `.hexaemeron/study.md` to `protasis`'s contract, linted |
 | 2 | `runbook` | Divide the work into steps that meet `protasis`'s schema: discrete, self-contained, provable exits |
 | 3-4 | `implement` | Build the step, least mental load that satisfies the runbook |
-| 5 | `audit` | The vendored Pashov suite in rounds until clean or reasoned out; non-Solidity rounds run the `phylax`, `ephoros` and `hypomnema` lints; fixes on a stacked branch |
-| 6 | `prose` | `hypomnema` decides what gets recorded, then the `imprimatur` lint and the `vulgate` mask, on every document and the PR text |
+| 5 | `audit` | The vendored Pashov suite in rounds until clean or reasoned out; every round requires `--audit-filter sapheneia:sapheneia`; non-Solidity rounds run the `phylax`, `ephoros` and `hypomnema` lints; fixes on a stacked branch |
+| 6 | `prose` | `hypomnema` decides what gets recorded, then the `imprimatur` lint and the `vulgate` mask, on every document and the PR text; a bound task issue also gets its closing-comment draft |
 | rest | `push` | Stage and commit the final diff, push the step branch, and open its stacked pull request |
 | -- | `integrate` | Merge the stack into the run branch in step order, then the run branch into the base once, and close the task issue |
 
@@ -118,7 +118,7 @@ hexctl init --topic <topic> [--task-issue <url>]  # start; bind a known issue be
 hexctl next                 # the single next action, as JSON
 hexctl status [--json]      # where the run is
 hexctl done <phase> ...     # receipt a phase; validation lives here
-hexctl audit-round ...      # record one security round
+hexctl audit-round --audit-filter sapheneia:sapheneia ... # record one shaped security round
 hexctl record <key> <val>   # named receipts (resolved suite, run context)
 hexctl halt / resume        # put a stop itself on the ledger
 hexctl reset                # archive a completed run and clear active state
@@ -153,13 +153,16 @@ lock if the holder crashes, so a stale metadata file never needs manual cleanup.
 The receipts are opinionated where the process is: the audit phase will not
 open without a resolved (or explicitly waived) security suite; it will not
 close with findings open unless a reasoned no-further-leads verdict is
-recorded; a prose receipt missing either configured skill is rejected; and a
-push receipt requires the final head and a pull request aimed at the step below
-it in the stack, and refuses a merge commit outright. Merges are the integrate
-phase's business: the controller hands them out one step at a time, in order,
-and the run is not done until the run branch has landed on the base and any
-recorded task issue is closed. Fiat creates no GitHub issue unless the user or
-target repository requires one.
+recorded; every round records the exact checked operator declaration
+`--audit-filter sapheneia:sapheneia`, which is not semantic proof of the pass;
+a prose receipt missing either configured skill is rejected; and a push receipt
+requires the final head and a pull request aimed at the step below it in the
+stack, and refuses a merge commit outright. Merges are the integrate phase's
+business: the controller hands them out one step at a time, in order, and the
+run is not done until the run branch has landed on the base and any recorded
+task issue is closed. Its closing comment follows Sapheneia, Imprimatur,
+Vulgate, and an Imprimatur re-lint, then is posted verbatim and read back. Fiat
+creates no GitHub issue unless the user or target repository requires one.
 
 ## Skill versions and the stopping rule
 
@@ -226,7 +229,8 @@ the treatment. Edit the lexicon in place when a term needs adding.
 Upstream attribution for the absorbed lint material sits in
 `skills/imprimatur/NOTICE.md`. Fiat never bypasses a gate, but once the gates
 pass it merges its own PR and closes its own task issue rather than leaving
-routine publication work behind.
+routine publication work behind. It reads the task-issue comment and closed
+state back from GitHub; the closure receipt does not attest the prose passes.
 
 ## Agents
 
@@ -244,7 +248,8 @@ python3 tests/run_tests.py
 ```
 
 The tests cover the controller and Fiat contract: phase ordering, ordered
-state-container validation, completed run archival and reset, audit gating and
-round caps, fixes evidence, prose skill enforcement, halt/resume, ledger
+state-container validation, completed run archival and reset, audit-filter
+gating and round caps, fixes evidence, task-issue comment publication, prose
+skill enforcement, halt/resume, ledger
 tamper detection, concurrent writer exclusion, crash recovery, and the
 Wildcat marketplace boundary.

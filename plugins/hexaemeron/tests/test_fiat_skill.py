@@ -13,6 +13,7 @@ FIAT = ROOT / "skills" / "fiat" / "SKILL.md"
 MARKETPLACE = ROOT / "skills" / "fiat" / "references" / "wildcat-marketplace.md"
 CONTRIBUTOR_CHECK = ROOT / "skills" / "fiat" / "scripts" / "check_wildcat_contributor.py"
 PUSH_DISCIPLINE = ROOT / "skills" / "fiat" / "references" / "push-discipline.md"
+PROSE_PASS = ROOT / "skills" / "fiat" / "references" / "prose-pass.md"
 PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
 AUDIT_LOOP = ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
 KRONOS = ROOT / "skills" / "kronos" / "SKILL.md"
@@ -36,6 +37,7 @@ class FiatSkillContractTests(unittest.TestCase):
         cls.fiat = FIAT.read_text(encoding="utf-8")
         cls.marketplace = MARKETPLACE.read_text(encoding="utf-8")
         cls.push_discipline = PUSH_DISCIPLINE.read_text(encoding="utf-8")
+        cls.prose_pass = PROSE_PASS.read_text(encoding="utf-8")
         cls.audit_loop = AUDIT_LOOP.read_text(encoding="utf-8")
 
     def test_marketplace_reference_is_linked(self):
@@ -106,7 +108,8 @@ class FiatSkillContractTests(unittest.TestCase):
             "mason": "`runbook_step`, `branch`, and `branch_from`",
             "warden": (
                 "`step_branch`, `stacked_branch`, `security_suite`, `plugin_root`, "
-                "`audit_log_path`, `round`, `risk_register`, and `runbook_step`"
+                "`audit_log_path`, `round`, `audit_filter`, `risk_register`, and "
+                "`runbook_step`"
             ),
             "scribe": "`files`, `pr_base`, `pr_draft_path`, and `plugin_root`",
         }
@@ -132,6 +135,35 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("exact source-bound `runbook_step`", contract)
         self.assertIn("test command, report format, and report file", contract)
         self.assertIn("return its exact Elenchus verdict", contract)
+
+    def test_audit_rounds_require_the_exact_sapheneia_declaration(self):
+        fiat = " ".join(self.fiat.split())
+        audit = " ".join(self.audit_loop.split())
+        warden = " ".join(AGENTS["warden"].split())
+        for text in (fiat, audit, warden):
+            self.assertIn("--audit-filter sapheneia:sapheneia", text)
+        self.assertIn("compact", audit.lower())
+        self.assertIn("before appending", audit.lower())
+        self.assertIn("checked operator declaration", audit)
+        self.assertIn("not semantic proof", audit)
+
+    def test_task_issue_comment_uses_the_ordered_publication_rule(self):
+        prose = " ".join(self.prose_pass.split())
+        push = " ".join(self.push_discipline.split())
+        sequence = "Sapheneia -> Imprimatur -> Vulgate -> Imprimatur"
+        for text in (prose, push):
+            self.assertIn(sequence, text)
+            for protected in (
+                "issue URL",
+                "pull request URL",
+                "identifiers",
+                "status",
+                "unresolved work",
+            ):
+                self.assertIn(protected, text)
+        self.assertIn("post those exact checked bytes verbatim", push)
+        self.assertIn("read the remote comment back", push)
+        self.assertIn("does not make the comment controller-attested", push)
 
     def test_provenance_is_verified_without_reclassifying_human_work(self):
         # Flattened: these assert what the instruction says, and a reflow of the

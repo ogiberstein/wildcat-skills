@@ -39,6 +39,24 @@ bundled in this plugin, so no external install is involved.
 4. **Re-lint.** The mask can reintroduce a marker; run the lint once more
    and settle any new hits.
 
+## Task-issue closing comment
+
+When `init --task-issue` bound an issue, draft its closing comment during this
+phase at `.hexaemeron/task-issue-comment.md`. Keep the exact issue URL, pull
+request URL, identifiers, status, and unresolved work in its protected
+inventory. The integration pull request URL and final status may not exist yet;
+leave explicit labelled fields for them rather than guessing either value.
+
+The publishable comment follows the root issue rule in this exact order:
+`Sapheneia -> Imprimatur -> Vulgate -> Imprimatur`. Sapheneia shapes the whole
+comment, the first Imprimatur pass clears defects, Vulgate changes register
+without changing content, and the second Imprimatur pass checks the exact final
+bytes. Compare the protected inventory after every semantic pass. At
+integration, fill the labelled fields with the exact pull request URL and
+status, carry forward every unresolved item, then rerun the complete sequence.
+The prose receipt records that the draft work happened; it does not claim that
+the later final bytes were posted or remotely read back.
+
 ## PR text
 
 Title: plain statement of what the PR does, in-voice, no ticket-speak.
