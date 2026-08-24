@@ -11761,3 +11761,35 @@ Imprimatur score, the two carried-verbatim artefacts with the exact base
 commit, the implementation commit with its signature and trailer attribution,
 and both unpursued leads all survive unchanged. Only connective and process
 prose was compacted.
+
+## Fiat merged attribution, step 4, round 2 -- 2026-08-24
+
+Against the tree with round 1's fix applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0. The replay document's restore now runs in a
+`finally` block and was proved against a simulated interruption, leaving the
+controller byte-identical to `HEAD`. Both `git show` reads assert non-empty
+output, so an unreadable commit fails loudly instead of writing an empty file
+over the controller.
+
+The committed study and runbook still match the receipted artefacts byte for
+byte, including the 2026-08-24 amendment.
+
+Risk register disposition. All eight ids read clean on the fixed tree.
+`attribution-overclaim` stays closed on the published sentences reviewed in
+round 1.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `76e50de022d037c2b70edb84c27654d7c28bf239` has a good local signature
+and exactly one copy of each required trailer.
+
+Leads not pursued: the accepted S4-R1-02, the installed-controller split and
+the frontier gate arithmetic, all carried forward in the run body.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item:
+verdict, status, the three lint exits, both suite counts, the Promise Machine
+counts, the byte-for-byte artefact claim, the eight risk ids, the fixes commit
+with its signature and trailer attribution, and all three unpursued leads
+survive unchanged. Only connective and process prose was compacted.
