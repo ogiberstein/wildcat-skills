@@ -84,15 +84,22 @@ targets = {
 }
 path = "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
 kept = subprocess.run(["git", "show", f"HEAD:{path}"], capture_output=True).stdout
-for commit, tests in targets.items():
-    old = subprocess.run(["git", "show", f"{commit}:{path}"], capture_output=True).stdout
-    open(path, "wb").write(old)
-    red = subprocess.run(["python3", "-m", "unittest", *tests], capture_output=True)
+assert kept, "could not read the controller from HEAD"
+try:
+    for commit, tests in targets.items():
+        old = subprocess.run(["git", "show", f"{commit}:{path}"], capture_output=True).stdout
+        assert old, f"could not read the controller from {commit}"
+        open(path, "wb").write(old)
+        red = subprocess.run(["python3", "-m", "unittest", *tests], capture_output=True)
+        open(path, "wb").write(kept)
+        green = subprocess.run(["python3", "-m", "unittest", *tests], capture_output=True)
+        assert red.returncode != 0, f"{commit} guards did not fail on the unfixed tree"
+        assert green.returncode == 0, f"{commit} guards do not pass on the fixed tree"
+        print(commit[:12], "red then green over", len(tests), "guard(s)")
+finally:
+    # A failed assertion, a killed process or a broken `git show` must not
+    # leave the reader's checkout holding an older controller.
     open(path, "wb").write(kept)
-    green = subprocess.run(["python3", "-m", "unittest", *tests], capture_output=True)
-    assert red.returncode != 0, f"{commit} guards did not fail on the unfixed tree"
-    assert green.returncode == 0, f"{commit} guards do not pass on the fixed tree"
-    print(commit[:12], "red then green over", len(tests), "guard(s)")
 PY
 git diff --quiet plugins/hexaemeron/skills/fiat/scripts/hexctl.py
 ```

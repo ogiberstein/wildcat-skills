@@ -11690,3 +11690,74 @@ and process prose was compacted.
 
 Leads not pursued: the installed-controller split stays as round 1 recorded it.
 Step 4 owns the disposable replay that exercises both gates end to end.
+
+## Fiat merged attribution, step 4, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records: this step ships
+prose, metadata and a replay document. The three bundled lints exited 0. The
+review compared every published sentence against what the controller does, and
+read the replay document as a script a stranger runs in their own checkout.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/hexaemeron/docs/fiat-merged-attribution/proof.md` | The red-to-green replay overwrites the controller in the reader's working tree and restores it on the next statement. A failed assertion, an unreadable `git show`, or a killed process left the checkout holding an older controller with no warning. A document that tells a stranger to run it owns that outcome. | fixed in this round: the loop restores from `HEAD` in a `finally` block, both `git show` reads are asserted non-empty, and the restore was proved against a simulated interruption |
+| S4-R1-02 | low | `plugins/hexaemeron/docs/fiat-merged-attribution/study.md` | The 2026-08-24 amendment states that step 4 regenerates `docs/pdf/how-to-help-shoggoth.pdf` with `scripts/build_contributor_guide.py`. Step 4 does not. That generator exists only on `main`, which this branch was cut before, and `reportlab` is absent locally while adding a dependency is an ask-first boundary in this study. The amendment put the work in the wrong place. | accepted, not fixed |
+
+S4-R1-02 is accepted rather than fixed. The amendment is receipted and this
+step's exit requires the committed study to match the receipted bytes, and a
+Protasis amendment appends rather than edits, so a second amendment could
+correct the placement but not the sentence. The guide gains a section and the
+generated PDF is that section behind until the generator next runs. Recorded
+here and carried forward in the run body.
+
+`attribution-overclaim` review, sentence by sentence. The README says Fiat
+stores the matched account and a digest for every commit it pushes, refuses to
+record a run as integrated unless the base still carries each identity, and
+records plainly when an address matches no account: all three hold. It names
+the two GitHub-side conditions and claims nothing about the list appearing. The
+contributor guide adds that a merge commit keeps the commits while a squash or
+rebase merge does not, and that the merge itself then has to carry the name:
+that matches the two mechanisms and the carrier order. Neither document claims
+the run's own receipts carry attribution, which they do not, and the
+`fiat-final-integration` promise boundary states that the result does not
+establish that GitHub will resolve an identity or list a contributor.
+
+Risk register disposition. `attribution-overclaim` is closed by the review
+above and by the promise boundary. `attribution-private-email` is clean: no
+address appears in the README, the guide, the ADR, the ledger row or the proof.
+`attribution-null-login`, `attribution-unbounded-field`,
+`attribution-coauthor-parse`, `attribution-ancestor-check`,
+`attribution-rewritten-merge` and `attribution-state-shape` are unchanged by
+this step and remain closed as steps 2 and 3 recorded them.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893. Promise Machine reports 14 plugins and 14 copies clean. Imprimatur
+scores 100.0 with zero defects on `README.md`,
+`docs/how-to-help-shoggoth.md`, the ADR and the proof; Brevitas exits 0 on each.
+The Horos scan leaves `.horos/boundary.json` at the one line this step's new
+documents earned. The implementation commit
+`7910706f4b7fc25309a974c46ea63ab324a54d27` has a good local signature and
+exactly one copy of each required trailer.
+
+Two facts about this step that are not findings. The `fiat-v5.14.1` row and
+`docs/decisions/ADR-017-gate-durable-agent-prose.md` are carried onto this
+branch verbatim from `origin/main` at `6c98a728a9f8ee25f4eed70b7032dc10f836eb17`,
+because this branch was cut before that run landed and its published row links
+to that file; without both, this branch's own ledger skips a generation and
+H001 fails. And `tests/test_evolution_contract.py` pins the newest row's
+evidence to one ADR, so every future generation row has to move that assertion.
+That brittleness predates this run and is left as it was found.
+
+Leads not pursued: the installed-controller split, recorded under step 2 round
+1 and step 3 rounds 1 and 2, and the frontier gate arithmetic that refuses two
+concurrent frontier runs on one skill. Both are carried forward in the run body.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item: both
+findings with their ids, severities, files and statuses, the accepted
+disposition and its reason, every sentence-by-sentence verdict, the eight risk
+ids, the three lint exits, both suite counts, the Promise Machine counts, the
+Imprimatur score, the two carried-verbatim artefacts with the exact base
+commit, the implementation commit with its signature and trailer attribution,
+and both unpursued leads all survive unchanged. Only connective and process
+prose was compacted.
