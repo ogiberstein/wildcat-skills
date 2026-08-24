@@ -13669,3 +13669,151 @@ the unguarded `registry-pin-malformed` branch, the 64-hex pin acceptance,
 the crafted `installPath` prefix inside the registry's existing authority,
 `bounded_probe` stdin inheritance, and the unguarded `clone-head-unreadable`
 branch. No new lead was found this round.
+
+## Step 3, round 1 -- 2026-08-24
+
+One finding, fixed on the stacked branch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | low | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | a plugin key or version carrying control bytes forged extra `hexctl currency` text lines -- a demonstrated fabricated row reading as another plugin's all-clear verdict -- while the exit code and `--json` stayed honest | fixed |
+
+The audited range is
+`79a1df75719c44882847ef130f79b43b2bdf95d0..014b1c5f83801058a71bc4ced1cd95aea75630fa`
+on `fiat/controller-currency-guarantee-step-3-expose-the-currency-observation`,
+two commits: `75107d7cf3a162011caccd8675e7fe5febf81406` adds the read-only
+`hexctl currency [--json]` subcommand, the `currency_report` core, three
+extractions of the step 2 reads, the per-report remote memo and seven guard
+tests, with the six digest pins refreshed;
+`014b1c5f83801058a71bc4ced1cd95aea75630fa` names the re-pin boundary in the
+Kronos loop text. Both commits have a good local Shoggoth signature and
+exactly one `Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer
+and one `Wildcat-Origin: shoggoth` trailer. The range touches only files the
+amended Step 3 Files boundary names; the fix and this append stay inside it.
+
+Six-pin note: the refresh replaces only sha256 values on the same six
+`hexctl.py` rows as step 2 -- five `runtime.*` rows plus
+`run_observation_binding.controller.sha256` -- 12 changed lines, from
+`43ee3e565d20a41fab4df1c8b417ec562828e73c008199ff416fe2538e1c50f5` to
+`b00e525ef023dd2bf516197bcdd905e5bb4bbe653da41d4669af300eebe7ecc4`, and the
+new value equals the file's digest at both range commits. The fixes commit
+refreshes the same six to
+`ccc703a00792f0447a1a4d8ab7d04ac2853229ae8897fc7b5392a184f9aa4495`.
+
+Extraction compatibility: `currency_registry_load`, `currency_record_pin`
+and `currency_pin_observation` re-host the step 2 logic line-faithfully --
+the bounded registry read with its four named failure kinds, the per-record
+pin answer including `registry-pin-malformed`, and the
+managed/git-backed/`clone-missing` tail carrying the S2-R1-02 semantics and
+comment. All twenty step 2 guards run green through the refactor, first-match
+multi-record resolution is unchanged in `currency_registry_pin`, and a direct
+probe of defective records through the new report path reads `unknown` rows
+with fixed warnings (`registry-wrong-kind` for a non-list value, an empty
+list and a non-dict record; `install-path-unrecognised` for a path outside
+the derived root) while the plugin never vanishes from the report.
+
+Read-only honesty: `cmd_currency` is absent from `MUTATING`, so the
+dispatcher runs it without `held_lock`, whose directory creation is
+init-only besides; the refusal paths go through `die`, which writes nothing;
+and the mixed-verdict guard asserts no `.hexaemeron` exists after a report.
+No lock, state, or breadcrumb is possible on any path.
+
+The dedup memo is per-report, keyed on (clone directory, branch): fourteen
+plugins over two marketplaces cost exactly two reads by test, asserted on
+realpath'd clone directories, so no cross-marketplace head can label another
+marketplace's row. A memoized failure is (null, warning), so poisoning can
+only mark same-origin rows `unknown` with the named warning, never mint a
+`current` or `behind`; each row compares its own registry pin against the
+shared head.
+
+Exit-code honesty: a registry that cannot answer at all refuses at exit 1
+with empty stdout (missing and malformed both tested), a controller outside
+an install cache refuses at exit 1 (tested), one hostile record is a
+row-level `unknown` (tested via the malformed pin), exit 3 while anything is
+behind and 0 when nothing is (both tested). The refusal/row boundary is
+principled and stated in the docstring: an empty success would read as a
+fleet with nothing behind.
+
+The superset call is recorded in the docstring and matches behaviour: every
+install record gets a row because filtering by a hard-coded marketplace name
+would blind the report on a private-mirror host; the wildcat-labs
+requirement is satisfied as a subset, and each row's marketplace is derived
+from its own realpath'd `installPath` under the controller's derived plugins
+root or the row reads `install-path-unrecognised`. The warning field is a
+closed vocabulary with no URL or registry byte; row identity fields (plugin,
+version) are the report's spec-required subject, and S3-R1-01 closed the one
+channel where their bytes could forge report structure.
+
+Kronos: the re-pin text sits at the rescan boundary of loop step 8, before
+"Then rescan the entire scope from disk", runs `hexctl currency`, loops
+while exit 3 reinstalling through the host's own installer, refreshes and
+re-resolves paths, and cites `../fiat/references/plugin-currency.md`, which
+resolves; it contradicts neither the `pull`/`push` state rules, which govern
+`kronos.py` subcommands, nor phase-only mode, which runs the same loop over
+a narrower scope. Imprimatur on the changed `SKILL.md` exits 0 at 100.0/100
+with zero defects, listing only known-false-positive and cadence signals.
+
+Mechanical results: Phylax, Ephoros and Hypomnema print `clean` and exit 0
+at the step tip and again on the fixed tree. The Hexaemeron suite passes
+1046/1046 at the tip and 1047/1047 with the fix; the root suite passes
+349/349 at both points. Horos reports `boundary matches the tree` and
+`git diff --check` exits 0 over the range and on the fixed tree. The
+security suite stays waived: no Solidity in scope; the range changes the
+Python controller, its tests, one JSON fixture and one skill's loop prose.
+
+Fix: one commit, `61ddcfe32c05fc81c9be509db8c25a39e7fdb85d` on
+`fiat/controller-currency-guarantee-step-3-expose-the-currency-observation--audit`,
+signed with a good Shoggoth signature and the two trailers: text mode renders
+every row field through one helper that maps control bytes to `?`, leaving
+`--json` and the exit contract as the machine surfaces, with a guard test.
+The source-bound Elenchus runner was invoked exactly as Step 3 declares it --
+test command `python3 plugins/hexaemeron/tests/run_tests.py
+--elenchus-report {report}`, format `unittest-json-v1`, report file
+`.elenchus/fiat-controller-currency-step-3.json`, fresh inside the runner's
+detached parent worktree -- against the fixes commit. Its verdict is
+`guarded`: the parent report is complete, 1047 tests executed, exactly the
+one new guard fails as an assertion, zero errors, zero skips.
+
+Risk-id dispositions for this range: `repin-partiality`, the step's
+headline, holds at its report half -- every install record is a row across
+the fourteen-plugin fleet by test, one bounded read per distinct origin by
+test, exit 3 gates the loop, and the Kronos text reinstalls everything
+behind -- while the operational half, the next init receipt evidencing the
+new pin, is stated in prose and owed to operation, with no claim here.
+`verdict-honesty` holds: rows reuse the init observation's verdict logic,
+a hostile pin is a row-level `unknown`, and a refusal replaces the empty
+all-clear. `secret-echo` holds with the S3-R1-01 repair; the refusal
+interpolates only the fixed warning token. `upstream-read-surface` holds:
+the memo wraps the same bounded `currency_remote_head` with no new argv
+shape. `url-source-confusion` holds: no target-repository or environment
+value reaches routing; the marketplace comes from the record's install path
+confined under the derived root. `registry-hostile-input` holds: the
+load/record split keeps the named-warning contract at both granularities.
+`route-misdetection` and `state-compat` are unchanged by this range and
+their step 2 evidence stands; `waiver-visibility` and `bootstrap-limit` are
+not reachable here; `ledger-arithmetic` and `version-propagation` sit in
+step 4, no claim.
+
+Qualification: this round establishes the subcommand's behaviour, the
+refactor's fidelity and the loop text's placement, not the reinstall
+operation itself, step 4 behaviour, remote signature verification, push,
+pull request, or integration state. The Elenchus line records the runner's
+declared result; it does not attest the report bytes.
+
+The Sapheneia durable-record comparison preserved the heading, the finding
+with its id, severity, file and status, the range, branch and three commit
+SHAs, all three digests, the six-pin and 12-line measurements, every exit
+code, all four suite counts, the two-read memo evidence, the guard tallies,
+the Elenchus contract tokens and `guarded` verdict with its counters, all
+twelve register dispositions, the qualification, and every lead below, item
+by item. It changes no existing audit byte.
+
+Leads seen and not pursued: a well-formed registry whose plugins map is
+empty yields zero rows at exit 0, an all-clear a lying-but-valid registry
+could stage, inside the registry's existing authority (the unreadable case
+refuses); a space inside a plugin name shifts text columns without forging
+lines, and `--json` is the parse surface; the defective-record row shapes
+and the empty-plugins case above were probed by hand but carry no dedicated
+suite guard; a fleet with unknowns and nothing behind exits 0 by
+construction without a dedicated guard; and the step 2 leads stand as
+recorded. None of these changes a verdict or crosses a boundary.
