@@ -1,4 +1,4 @@
-"""Currency, retention, and hostile-input checks for Fiat audit synopses."""
+"""Currency, retention, and invalid-input checks for Fiat audit synopses."""
 
 from collections import Counter
 from contextlib import redirect_stdout
