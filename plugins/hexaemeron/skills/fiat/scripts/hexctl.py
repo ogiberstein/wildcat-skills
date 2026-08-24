@@ -1804,6 +1804,62 @@ def _integrate_directive(state: dict) -> dict:
     }
 
 
+def refuse_rewritten_stack(base_dir: str, state: dict, current_step: int) -> None:
+    """Refuse when a step branch that is still waiting has moved since its push.
+
+    GitHub's native stacked-pull-request flow rebases every downstream branch on
+    each merge and re-signs the rewritten commits with its own key. Author and
+    the provenance trailers survive; the local signature does not.
+
+    Without this check the first symptom is an invalid local signature at a later
+    merge-step, which reads as a broken signing setup rather than as a branch
+    rewrite, and by then several steps have already merged. Comparing each
+    waiting step's remote tip against the head its push receipt names finds the
+    rewrite at the first merge-step after it happened, and says what happened.
+
+    A step whose branch cannot be read is reported rather than skipped: an absent
+    downstream branch during integration is not a normal state.
+    """
+    merged = as_dict(state.get("integrate")).get("merged") or []
+    moved, unreadable = [], []
+    for step in state["steps"]:
+        number = step["n"]
+        if number == current_step or number in merged:
+            continue
+        push_receipt = as_dict(step["receipts"].get("push"))
+        recorded = push_receipt.get("head_commit")
+        if not recorded:
+            continue
+        branch = step_branch_name(state, step)
+        try:
+            tip = remote_branch_tip(base_dir, branch)
+        except SystemExit:
+            unreadable.append(f"step {number} ('{branch}')")
+            continue
+        if tip != recorded:
+            moved.append(
+                f"step {number} ('{branch}') is at {tip} and its push receipt "
+                f"names {recorded}"
+            )
+    if unreadable:
+        die(
+            "a step branch still waiting to merge could not be read: "
+            + "; ".join(unreadable)
+            + ". Integration cannot proceed while a downstream branch is missing."
+        )
+    if moved:
+        die(
+            "a step branch still waiting to merge has been rewritten since it was "
+            "pushed: " + "; ".join(moved) + ". GitHub's stacked-pull-request flow "
+            "rebases downstream branches on each merge and re-signs them with its "
+            "own key, which keeps the author and the provenance trailers and "
+            "discards the local signature. The range these receipts describe is no "
+            "longer the range on the remote. Land the run from a branch holding the "
+            "original commits rather than merging the rewritten stack, and do not "
+            "import GitHub's public key to make the signature check pass."
+        )
+
+
 def done_merge_step(args, state: dict) -> None:
     if state["phase"] != "integrate":
         die(
@@ -1824,6 +1880,7 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    refuse_rewritten_stack(args.dir, state, args.step)
     step = state["steps"][args.step - 1]
     push_receipt = as_dict(step["receipts"].get("push"))
     pr_record = inspect_pull_request(

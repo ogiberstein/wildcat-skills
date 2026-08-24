@@ -140,7 +140,45 @@ The receipt refuses a `--merge-commit` here. Merges belong to `integrate`.
 ## Bringing the stack down
 
 `next` returns `merge-step` once per step, in step order, starting at the
-bottom. For each one:
+bottom. Before anything merges, know which of two regimes GitHub has put the
+stack in, because they need opposite handling.
+
+**GitHub may claim the chain as a native stack.** When step branches target one
+another, GitHub can manage them as a stacked pull request set. In that regime
+`gh pr edit --base` is refused with "Cannot change the base branch because the
+pull request is part of a stack", the ordinary merge paths (`gh pr merge` and
+`PUT /pulls/{n}/merge`) are refused, and only the asynchronous endpoint works:
+
+```text
+PUT /repos/{owner}/{repo}/pulls/{n}/merge-async
+GET /repos/{owner}/{repo}/pulls/{n}/merge-async/{uuid}   # uuid is under details
+```
+
+GitHub also retargets the next pull request onto the run branch itself after
+each merge. That sounds like help. It is not: **each stack merge rebases every
+downstream branch and re-signs the rewritten commits with GitHub's web-flow
+key.** The author and both provenance trailers survive; the local Shoggoth
+signature does not, and GitHub reports the rewritten commits `verified: true`
+under its own key, so the pull request view looks healthy while the guarantee is
+gone. The range a later `merge-step` would receipt is no longer the range that
+was pushed, and the controller refuses it.
+
+So: **do not bring a natively stacked chain down through GitHub's stack merges.**
+[ADR-021](../../../../../docs/decisions/ADR-021-land-a-rewritten-stack-from-the-original-commits.md)
+records the decision. Land the run from a branch holding the original unrebased
+commits instead, and open one pull request from it into the base; the final
+step's pushed head already carries the whole stack as one linear Shoggoth-signed
+chain. The stacked pull requests stay open as the review record and are closed as
+superseded, with a comment saying where the same commits landed. Never import
+GitHub's public key to make the signature check pass; that removes the guarantee
+the check exists for.
+
+The controller enforces this before damage rather than after: `done merge-step`
+compares every waiting step's remote tip against the head its push receipt
+names, and refuses the moment any downstream branch has been rewritten.
+
+**When GitHub has not claimed the chain**, the original order stands. For each
+step:
 
 1. Retarget the next step's pull request onto the run branch first, before this
    one merges or its branch goes:
