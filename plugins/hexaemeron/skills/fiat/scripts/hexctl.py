@@ -166,6 +166,8 @@ INTEGRATION_REVALIDATION_FILE = os.path.join(
 INTEGRATION_CHECKS_MAX = 64
 INTEGRATION_COMMAND_BYTES_MAX = 2048
 INTEGRATION_CHECK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+INTEGRATION_SYNC_SUPERSESSIONS_MAX = 8
+INTEGRATION_SYNC_REASON_BYTES_MAX = 1024
 
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
@@ -1826,6 +1828,22 @@ def _integrate_directive(state: dict) -> dict:
         as_dict(merge_records.get(str(final_step))).get("merge_commit"),
         "final recorded product head",
     )
+    sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+    sync_then = (
+        "hexctl done sync-run --commit <signed-merge-sha> "
+        "--base-commit <remote-base-sha> "
+        f"--revalidation {INTEGRATION_REVALIDATION_FILE}"
+    )
+    sync_recovery = "sync-run-and-revalidate"
+    if sync:
+        active_sync = require_full_sha(
+            sync.get("commit"), "active recorded sync commit"
+        )
+        sync_then += (
+            f" --supersede-sync {active_sync} "
+            "--reason <bounded-repair-reason>"
+        )
+        sync_recovery = "supersede-sync-and-revalidate"
     return {
         "do": "integrate",
         "run_branch": run_branch,
@@ -1834,13 +1852,9 @@ def _integrate_directive(state: dict) -> dict:
         "steps": len(state["steps"]),
         "product_evidence": product_evidence_record(state, final_head),
         "base_advance": {
-            "recovery": "sync-run-and-revalidate",
+            "recovery": sync_recovery,
             "artifact": INTEGRATION_REVALIDATION_FILE,
-            "then": (
-                "hexctl done sync-run --commit <signed-merge-sha> "
-                "--base-commit <remote-base-sha> "
-                f"--revalidation {INTEGRATION_REVALIDATION_FILE}"
-            ),
+            "then": sync_then,
             "boundary": (
                 "base advancement alone does not authorise a carryover or "
                 "invalidate the exact-tree product evidence"
@@ -2263,7 +2277,8 @@ def done_merge_step(args, state: dict) -> None:
 
 
 def done_sync_run(args, state: dict) -> None:
-    """Receipt one signed merge of the current base into a completed run stack."""
+    """Receipt or supersede a signed composition of a completed run stack."""
+    verify_run(args.dir)
     if state["phase"] != "integrate":
         die(
             "sync-run is an integrate-phase receipt; the run is in phase "
@@ -2278,8 +2293,48 @@ def done_sync_run(args, state: dict) -> None:
             f"'{run_branch_of(state)}' before the run can sync"
         )
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
-    if integrate.get("sync") is not None:
-        die("the run branch already has a recorded integration sync")
+    current_sync = as_dict(integrate.get("sync"))
+    superseded_sync = None
+    supersession_reason = None
+    if current_sync:
+        if args.supersede_sync is None:
+            die(
+                "the run branch already has a recorded integration sync; "
+                "use --supersede-sync with its exact commit after repairing "
+                "and revalidating the composition"
+            )
+        active = require_full_sha(
+            current_sync.get("commit"), "active recorded sync commit"
+        )
+        supplied = require_full_sha(
+            args.supersede_sync, "sync commit to supersede"
+        )
+        if supplied != active:
+            die("--supersede-sync must name the active recorded sync commit")
+        if not isinstance(args.reason, str) or not args.reason:
+            die("--reason is required when superseding an integration sync")
+        try:
+            reason_bytes = args.reason.encode("utf-8")
+        except UnicodeEncodeError:
+            reason_bytes = b""
+        if (
+            not reason_bytes
+            or not args.reason.strip()
+            or len(reason_bytes) > INTEGRATION_SYNC_REASON_BYTES_MAX
+            or any(ord(character) < 32 or ord(character) == 127
+                   for character in args.reason)
+        ):
+            die("integration sync supersession reason is invalid")
+        supersession_reason = args.reason
+        history = integrate.get("superseded_syncs") or []
+        if not isinstance(history, list):
+            die("recorded superseded integration syncs are malformed")
+        if len(history) >= INTEGRATION_SYNC_SUPERSESSIONS_MAX:
+            die("the integration sync supersession limit has been reached")
+    elif args.supersede_sync is not None:
+        die("--supersede-sync requires an active recorded sync")
+    elif args.reason is not None:
+        die("--reason requires --supersede-sync")
     if not args.commit:
         die("--commit is required for sync-run")
     if not args.base_commit:
@@ -2288,6 +2343,8 @@ def done_sync_run(args, state: dict) -> None:
         die("--revalidation is required for sync-run")
     sync_tip = require_full_sha(args.commit, "run sync commit")
     base_tip = require_full_sha(args.base_commit, "run sync base commit")
+    if current_sync and sync_tip == current_sync.get("commit"):
+        die("replacement integration sync must use a new signed commit")
     integration_base = integration_base_of(state)
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
     if remote_tip != sync_tip:
@@ -2309,12 +2366,17 @@ def done_sync_run(args, state: dict) -> None:
             "and the exact remote base tip"
         )
     product_evidence = product_evidence_record(state, recorded_tip)
+    if (
+        current_sync
+        and current_sync.get("product_evidence") != product_evidence
+    ):
+        die("recorded product evidence changed before sync supersession")
     revalidation = integration_revalidation_record(
         args.dir, args.revalidation, recorded_tip, base_tip, sync_tip
     )
     verify_local_commit(args.dir, sync_tip, "run branch integration sync")
     github_verified = verify_github_commits(args.dir, [sync_tip])
-    integrate["sync"] = {
+    new_sync = {
         "commit": sync_tip,
         "base": integration_base,
         "starting_base": state["base"],
@@ -2324,15 +2386,43 @@ def done_sync_run(args, state: dict) -> None:
         "product_evidence": product_evidence,
         "revalidation": revalidation,
     }
-    commit(args.dir, state, "done:sync-run", integrate["sync"])
-    print(
-        f"{run_branch_of(state)} synced with {integration_base} at {base_tip}; "
-        f"product evidence preserved; {len(revalidation['checks'])} integration "
-        "revalidation check(s) recorded; integration may continue"
-    )
+    if current_sync:
+        superseded_sync = {
+            "sync": current_sync,
+            "superseded_by": sync_tip,
+            "reason": supersession_reason,
+            "ts": now(),
+        }
+        history = list(integrate.get("superseded_syncs") or [])
+        history.append(superseded_sync)
+        integrate["superseded_syncs"] = history
+    integrate["sync"] = new_sync
+    if superseded_sync:
+        commit(
+            args.dir,
+            state,
+            "done:sync-run-supersede",
+            {"sync": new_sync, "superseded": superseded_sync},
+        )
+        print(
+            f"{run_branch_of(state)} superseded integration sync "
+            f"{superseded_sync['sync']['commit']} with {sync_tip}; "
+            f"product evidence preserved; {len(revalidation['checks'])} "
+            "integration revalidation check(s) recorded; integration may "
+            "continue"
+        )
+    else:
+        commit(args.dir, state, "done:sync-run", new_sync)
+        print(
+            f"{run_branch_of(state)} synced with {integration_base} at "
+            f"{base_tip}; product evidence preserved; "
+            f"{len(revalidation['checks'])} integration revalidation check(s) "
+            "recorded; integration may continue"
+        )
 
 
 def done_integrate(args, state: dict) -> None:
+    verify_run(args.dir)
     if state["phase"] != "integrate":
         die(
             "integrate is the terminal phase; the run is in phase "
@@ -2430,6 +2520,9 @@ def done_integrate(args, state: dict) -> None:
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
+        state["receipts"]["integrate"]["superseded_syncs"] = list(
+            integrate.get("superseded_syncs") or []
+        )
     worktree = state.get("worktree")
     if worktree and os.path.isdir(worktree):
         state["receipts"]["integrate"]["worktree_clean"] = worktree_is_clean(worktree)
@@ -4274,6 +4367,11 @@ def cmd_status(args) -> None:
                 f"{len(revalidation.get('checks') or [])} integration "
                 "revalidation check(s) recorded"
             )
+            superseded = as_dict(state.get("integrate")).get(
+                "superseded_syncs"
+            ) or []
+            if superseded:
+                print(f"evidence: {len(superseded)} superseded sync(s) retained")
     elif phase == "done":
         print(f"phase: done ({len(state['steps'])} steps shipped)")
     else:
@@ -4494,6 +4592,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--commit")
     sp.add_argument("--base-commit", dest="base_commit")
     sp.add_argument("--revalidation")
+    sp.add_argument("--supersede-sync", dest="supersede_sync")
     sp.add_argument("--tests")
     sp.add_argument("--no-further-leads", dest="no_further_leads", action="store_true")
     sp.add_argument("--reason")

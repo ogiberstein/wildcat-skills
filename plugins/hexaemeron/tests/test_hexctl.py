@@ -1870,6 +1870,26 @@ class TestMergedState(HexctlCase):
         state["steps"][0]["receipts"]["push"].pop("attribution", None)
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(state, handle)
+        ledger_path = os.path.join(
+            self.target, ".hexaemeron", "ledger.jsonl"
+        )
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        entries[-1]["state"] = hexctl_module().state_fingerprint(state)
+        entries[-1]["hash"] = hashlib.sha256(
+            hexctl_module().canonical(
+                {
+                    "ts": entries[-1]["ts"],
+                    "event": entries[-1]["event"],
+                    "data": entries[-1]["data"],
+                    "prev": entries[-1]["prev"],
+                    "state": entries[-1]["state"],
+                }
+            ).encode()
+        ).hexdigest()
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
         self.integrate()
         recorded = self.recorded()
         self.assertEqual(recorded["identities"], [])
@@ -2358,6 +2378,35 @@ class TestPublicationBindings(HexctlCase):
             ),
         )
 
+    def configure_sync_replacement(self, sync_sha, base_sha):
+        state = self.state()
+        final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        base_before = "4" * 40
+        self.fake_refs[state["run_branch"]] = sync_sha
+        self.fake_refs[self.integration_base(state)] = base_sha
+        self.fake_parents[sync_sha] = [final_merge, base_sha]
+        self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
+            {
+                f"{base_before}..{final_merge}": [
+                    "product.py",
+                    "shared.json",
+                ],
+                f"{base_before}..{base_sha}": [
+                    "controller.py",
+                    "shared.json",
+                    "upstream.py",
+                ],
+                f"{final_merge}..{sync_sha}": [
+                    "controller.py",
+                    "shared.json",
+                    "upstream.py",
+                ],
+            }
+        )
+        return self.write_integration_revalidation(
+            affected_paths=["controller.py", "shared.json", "upstream.py"]
+        )
+
     def test_sync_run_receipts_exact_merge_and_allows_integration(self):
         state, sync_sha, base_sha = self.prepare_run_sync()
         before = self.state()
@@ -2397,6 +2446,209 @@ class TestPublicationBindings(HexctlCase):
         self.assertEqual(receipt["run_head"], sync_sha)
         self.assertEqual(receipt["sync"]["base_head"], base_sha)
         self.assertEqual(receipt["sync"]["parents"], ["e" * 40, base_sha])
+
+    def test_sync_run_supersedes_one_failed_composition_without_reopening_product(self):
+        _, first_sync, first_base = self.prepare_run_sync()
+        first_revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", first_sync,
+            "--base-commit", first_base,
+            "--revalidation", first_revalidation,
+        )
+        product = self.state()["integrate"]["sync"]["product_evidence"]
+
+        replacement_sync = "8" * 40
+        replacement_base = "9" * 40
+        replacement_revalidation = self.configure_sync_replacement(
+            replacement_sync, replacement_base
+        )
+        proc = self.run_ctl(
+            "done", "sync-run",
+            "--commit", replacement_sync,
+            "--base-commit", replacement_base,
+            "--revalidation", replacement_revalidation,
+            "--supersede-sync", first_sync,
+            "--reason", "the required integration check failed in a shallow clone",
+        )
+        self.assertIn("superseded", proc.stdout)
+
+        integrate = self.state()["integrate"]
+        self.assertEqual(integrate["sync"]["commit"], replacement_sync)
+        self.assertEqual(integrate["sync"]["base_head"], replacement_base)
+        self.assertEqual(integrate["sync"]["product_evidence"], product)
+        self.assertEqual(len(integrate["superseded_syncs"]), 1)
+        prior = integrate["superseded_syncs"][0]
+        self.assertEqual(prior["sync"]["commit"], first_sync)
+        self.assertEqual(prior["superseded_by"], replacement_sync)
+        self.assertEqual(
+            prior["reason"],
+            "the required integration check failed in a shallow clone",
+        )
+        status = self.run_ctl("status").stdout
+        self.assertIn("1 superseded sync(s) retained", status)
+        directive = self.next_json()
+        self.assertEqual(
+            directive["base_advance"]["recovery"],
+            "supersede-sync-and-revalidate",
+        )
+        self.assertIn(
+            f"--supersede-sync {replacement_sync}",
+            directive["base_advance"]["then"],
+        )
+
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["sync"]["commit"], replacement_sync)
+        self.assertEqual(
+            receipt["superseded_syncs"][0]["sync"]["commit"], first_sync
+        )
+
+    def test_sync_supersession_requires_a_receipt_and_reason(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
+        )
+        self.assertIn("use --supersede-sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", sync_sha, expect=2,
+        )
+        self.assertIn("--reason is required", proc.stderr)
+
+    def test_sync_supersession_refuses_stale_or_malformed_subject_evidence(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", "5" * 40,
+            "--reason", "a failed check", expect=2,
+        )
+        self.assertIn("active recorded sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", sync_sha, "--reason", "a failed check",
+            expect=2,
+        )
+        self.assertIn("must use a new signed commit", proc.stderr)
+
+        for reason in ("   ", "line one\nline two", "bad\x7fvalue", "é" * 513):
+            with self.subTest(reason=repr(reason)):
+                proc = self.run_ctl(
+                    "done", "sync-run", "--commit", "8" * 40,
+                    "--base-commit", base_sha, "--revalidation", revalidation,
+                    "--supersede-sync", sync_sha, "--reason", reason,
+                    expect=2,
+                )
+                self.assertIn("reason is invalid", proc.stderr)
+
+    def test_sync_supersession_is_bounded_and_requires_an_existing_receipt(self):
+        _, active_sync, active_base = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+            "--supersede-sync", "5" * 40, "--reason", "nothing active yet",
+            expect=2,
+        )
+        self.assertIn("requires an active recorded sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+            "--reason", "not attached to a receipt", expect=2,
+        )
+        self.assertIn("--reason requires --supersede-sync", proc.stderr)
+        self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+        )
+
+        for number in range(8):
+            replacement_sync = hashlib.sha1(
+                f"replacement-sync-{number}".encode()
+            ).hexdigest()
+            replacement_base = hashlib.sha1(
+                f"replacement-base-{number}".encode()
+            ).hexdigest()
+            replacement_revalidation = self.configure_sync_replacement(
+                replacement_sync, replacement_base
+            )
+            self.run_ctl(
+                "done", "sync-run", "--commit", replacement_sync,
+                "--base-commit", replacement_base,
+                "--revalidation", replacement_revalidation,
+                "--supersede-sync", active_sync,
+                "--reason", f"bounded replacement {number + 1}",
+            )
+            active_sync = replacement_sync
+
+        self.assertEqual(len(self.state()["integrate"]["superseded_syncs"]), 8)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "a" * 40,
+            "--base-commit", "b" * 40,
+            "--revalidation", revalidation,
+            "--supersede-sync", active_sync,
+            "--reason", "one replacement too many", expect=2,
+        )
+        self.assertIn("supersession limit", proc.stderr)
+
+    def test_sync_and_integration_refuse_edited_state_before_receipt_laundering(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, "rb") as handle:
+            valid_state = handle.read()
+        with open(ledger_path, "rb") as handle:
+            valid_ledger = handle.read()
+
+        for command in ("sync", "integrate"):
+            with self.subTest(command=command):
+                state = json.loads(valid_state)
+                state["integrate"]["sync"]["commit"] = "8" * 40
+                with open(state_path, "w", encoding="utf-8") as handle:
+                    json.dump(state, handle)
+                if command == "sync":
+                    proc = self.run_ctl(
+                        "done", "sync-run", "--commit", "9" * 40,
+                        "--base-commit", base_sha,
+                        "--revalidation", revalidation,
+                        "--supersede-sync", "8" * 40,
+                        "--reason", "try to absorb edited state", expect=1,
+                    )
+                else:
+                    proc = self.run_ctl(
+                        "done", "integrate",
+                        "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                        "--merge-commit", "f" * 40, expect=1,
+                    )
+                self.assertIn("edited outside hexctl", proc.stderr)
+                with open(ledger_path, "rb") as handle:
+                    self.assertEqual(handle.read(), valid_ledger)
+                with open(state_path, "wb") as handle:
+                    handle.write(valid_state)
 
     def test_sync_run_requires_bounded_green_revalidation(self):
         _, sync_sha, base_sha = self.prepare_run_sync()

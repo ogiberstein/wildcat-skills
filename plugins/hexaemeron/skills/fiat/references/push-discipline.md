@@ -252,9 +252,40 @@ hexctl done sync-run --commit <signed merge sha> \
 ```
 
 The controller compares both remote tips, reads the two parents, verifies the
-local signature and trailers, and checks GitHub's result. It accepts at most
-one sync and makes that commit the only permitted integration PR head. A base
-that moved again or any extra run-branch commit stops the receipt.
+local signature and trailers, and checks GitHub's result. One active sync is
+the only permitted integration PR head. A base that moved again or any extra
+run-branch commit stops integration until it receives fresh composition
+evidence.
+
+If a required check fails only after that sync is pushed and receipted, do not
+bypass the check and do not restart the product run. Repair the affected
+composition surface, reconstruct the signed merge with the same recorded
+product head as first parent and the current exact base as second parent, then
+rerun the bounded checks. The replacement merge is a sibling of the failed
+sync, so publish it with one exact lease instead of a bare force:
+
+```text
+git push \
+  --force-with-lease=refs/heads/<run-branch>:<active-sync-sha> \
+  origin <replacement-sha>:refs/heads/<run-branch>
+```
+
+The lease refuses if anything except the recorded active sync is at the remote
+tip. It does not rewrite the signed product stack, and no other forced update
+is authorised. Replace the active receipt explicitly after that guarded push:
+
+```text
+hexctl done sync-run --commit <replacement signed merge sha> \
+  --base-commit <current remote base sha> \
+  --revalidation .hexaemeron/integration-revalidation.json \
+  --supersede-sync <active sync sha> \
+  --reason "<failed composition check and repair>"
+```
+
+Fiat requires the exact active SHA, a bounded reason, fresh topology,
+signatures, GitHub verification and revalidation. It retains every superseded
+receipt in the ledger and terminal receipt, allows at most eight replacements,
+and permits only the newest active sync to integrate.
 
 The revalidation file uses `fiat-integration-revalidation/v1`. It lists the
 repository paths whose evidence dependencies the merge affected and one or
