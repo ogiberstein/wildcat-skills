@@ -23,7 +23,7 @@
     "promise_id": "promise-machine-contributor-ranking",
     "runtime": {
       "path": "scripts/contributors.py",
-      "sha256": "bdd679c72e1ce360fde684125d34fb7504103529905e9e12cc9f067aea17b805"
+      "sha256": "598393c13401a67dbc34201caf6962de75a411a8ab96cf78c6bc3e7bce4fc2cc"
     },
     "tests": {
       "path": "tests/test_contributors.py",
@@ -31,6 +31,8 @@
         "test_a_rerun_that_changed_nothing_produces_no_diff",
         "test_an_interrupted_write_leaves_the_original_intact",
         "test_check_names_the_file_that_is_out_of_date",
+        "test_closed_issue_coverage_reads_every_page",
+        "test_coverage_past_the_search_cap_is_a_caveat_not_a_stop",
         "test_equal_counts_order_deterministically",
         "test_names_a_reason_for_every_exclusion",
         "test_no_api_field_other_than_login_reaches_the_payload",
@@ -54,7 +56,7 @@
         "test_the_digest_covers_the_ranking_and_nothing_else",
         "test_the_real_reader_stops_on_an_unroutable_host"
       ],
-      "sha256": "a52b5edfaf58e96c992e680a2e390a44a756d67a4393b546ada71002a3bf7ff7"
+      "sha256": "7ca643203c21cd298b95b39bfaba00cd7702dc85cf0c1b82a28aa8a6918b9be2"
     },
     "transition": "place every contributor row in exactly one of ranked, excluded with a named reason, or refused, and render both artefacts from that one computation without strengthening what the counts mean"
   },

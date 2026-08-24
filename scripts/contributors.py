@@ -92,6 +92,9 @@ API_ROOT = f"https://{API_HOST}"
 REPO_RE = re.compile(r"\A[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}\Z")
 PAGE_SIZE = 100
 MAX_PAGES = 50
+# GitHub's search API refuses to serve past the first thousand results of any
+# query, whatever the pagination asks for.
+SEARCH_RESULT_CAP = 1000
 RESPONSE_LIMIT = 4 * 1024 * 1024
 TIMEOUT_SECONDS = 30
 
@@ -410,20 +413,37 @@ def issue_coverage(read, repo, ranked_logins, excluded_logins):
     only. Reporting it separately is what keeps a person who worked an issue
     without landing a commit from disappearing without trace.
     """
-    payload = read(f"/search/issues?q=repo:{repo}+type:issue+state:closed&per_page={PAGE_SIZE}")
-    if not isinstance(payload, dict):
-        raise Stop(f"closed-issue search returned {type(payload).__name__}, not an object")
-    items = payload.get("items")
-    if not isinstance(items, list):
-        raise Stop("closed-issue search returned no items list")
-    total = payload.get("total_count")
-    if isinstance(total, int) and total > len(items):
-        # Coverage that stops short has to say so. Reported rather than raised:
-        # this list informs, it does not rank, so a partial read is a caveat and
-        # not a reason to fail the whole refresh.
-        raise Stop(
-            f"closed-issue coverage read {len(items)} of {total} issues; "
-            "paginate this read before relying on the coverage list"
+    # The search API serves at most SEARCH_RESULT_CAP results however it is
+    # paged, so coverage past that point is impossible through this endpoint.
+    # That limit is a caveat carried in the result, not a stop: this list
+    # informs, it does not rank, so a partial read must be visible without
+    # failing the whole refresh. The first live run failed exactly here, on a
+    # repository that had grown from 55 closed issues to 391 while the code
+    # both read one page and stopped on the shortfall its own comment said it
+    # would only report.
+    items, total = [], None
+    for page in range(1, SEARCH_RESULT_CAP // PAGE_SIZE + 1):
+        payload = read(
+            f"/search/issues?q=repo:{repo}+type:issue+state:closed"
+            f"&per_page={PAGE_SIZE}&page={page}"
+        )
+        if not isinstance(payload, dict):
+            raise Stop(f"closed-issue search returned {type(payload).__name__}, not an object")
+        batch = payload.get("items")
+        if not isinstance(batch, list):
+            raise Stop("closed-issue search returned no items list")
+        reported = payload.get("total_count")
+        if isinstance(reported, int):
+            total = reported
+        items.extend(batch)
+        if len(batch) < PAGE_SIZE or (total is not None and len(items) >= total):
+            break
+    caveat = None
+    if total is not None and total > len(items):
+        caveat = (
+            f"closed-issue coverage reads {len(items)} of {total} issues; the "
+            f"search endpoint serves at most {SEARCH_RESULT_CAP}, so activity "
+            "past that point is invisible to this list"
         )
     seen, uncounted = set(), []
     for item in items:
@@ -434,7 +454,7 @@ def issue_coverage(read, repo, ranked_logins, excluded_logins):
         if login in ranked_logins or login in excluded_logins or is_host_login(login):
             continue
         uncounted.append(login)
-    return sorted(uncounted)
+    return sorted(uncounted), caveat
 
 
 def read_all_pages(read, path_template, label):
@@ -485,6 +505,7 @@ def compute(read, repo=REPOSITORY, hexctl_path=None, excluded=EXCLUDED_MAINTAINE
     for login in sorted(EXCLUDED_MAINTAINERS | AGENT_LOGINS | set(excluded)):
         if login in ranked_logins:
             raise Stop(f"{login} is excluded but reached the ranked list")
+    issue_notes, issue_caveat = issue_coverage(read, repo, ranked_logins, excluded_logins)
     payload = {
         "schema": "wildcat-contributors/v1",
         "repository": repo,
@@ -501,9 +522,8 @@ def compute(read, repo=REPOSITORY, hexctl_path=None, excluded=EXCLUDED_MAINTAINE
             for index, entry in enumerate(ranked, start=1)
         ],
         "excluded": sorted(exclusions, key=lambda item: item["login"]),
-        "issue_activity_without_ranked_commits": issue_coverage(
-            read, repo, ranked_logins, excluded_logins
-        ),
+        "issue_activity_without_ranked_commits": issue_notes,
+        "issue_coverage_caveat": issue_caveat,
     }
     return payload
 
@@ -535,6 +555,8 @@ def classification_lines(payload):
         lines.append(f"excluded {entry['login']}: {entry['reason']}")
     for login in payload["issue_activity_without_ranked_commits"]:
         lines.append(f"noted    {login}: closed-issue activity, no ranked commits")
+    if payload.get("issue_coverage_caveat"):
+        lines.append(f"caveat   {payload['issue_coverage_caveat']}")
     return lines
 
 
