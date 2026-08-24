@@ -11452,3 +11452,40 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record does
 not claim capture completeness, external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
+
+## Fiat merged attribution, step 1, round 1 -- 2026-08-24
+
+The Pashov pair did not run. The `security_suite` receipt records a waiver:
+this step commits three Markdown documents and changes no Solidity. The three
+bundled lints are the mechanical part and all exited 0 against the changed
+paths. The diff was then read against every id in the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | `plugins/hexaemeron/docs/fiat-merged-attribution/study.md` | The prior-art paragraph quotes a contributor's work address where a description would carry the same point. A document whose subject is not publishing addresses reads better without one. | accepted, not fixed |
+| S1-R1-02 | low | `docs/decisions/ADR-017-bind-merged-authorship-to-the-integration-receipt.md` | The Decision section describes the receipt and the integration check in the present tense, one step before either exists. A reader landing on the record at this step would read it as a description of the shipped controller. | fixed in this round: Status now names the steps that implement it and states that v5.13.1 records no attribution |
+
+S1-R1-01 is accepted rather than fixed. This step's exit requires the committed
+study to be byte-identical to the receipted artefact, and a Protasis amendment
+appends rather than edits, so the prefix cannot be corrected without abandoning
+a receipted artefact. The address is a company-domain work address already
+published by the organisation in issue 515 and in the public default-branch
+commit history, and the study's own "Never" entry governs the attribution
+record the controller persists, which stores a digest and never an address. The
+wording is carried forward for the next study over this target.
+
+Risk register disposition. `attribution-private-email` is the id S1-R1-01 sits
+under, dispositioned above; nothing in this step writes state.
+`attribution-overclaim` is the id S1-R1-02 sits under and is closed by the
+Status fix. `attribution-null-login`, `attribution-unbounded-field`,
+`attribution-coauthor-parse`, `attribution-ancestor-check`,
+`attribution-rewritten-merge` and `attribution-state-shape` are not applicable
+to a step that ships no code.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+874/874. Protasis both modes, Imprimatur, Brevitas and the Horos scan exit 0 on
+the changed paths. The implementation commit
+`8ed925488c888cce3633226356e6cd1e0d24d741` has a good local signature and
+exactly one copy of each required trailer.
+
+Leads not pursued: none beyond the accepted S1-R1-01.
