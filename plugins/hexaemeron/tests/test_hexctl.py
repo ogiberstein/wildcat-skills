@@ -246,6 +246,11 @@ elif args and args[0] == "ls-remote":
     else:
         print(f"{{tip}}\\t{{ref}}")
 elif args and args[0] == "merge-base":
+    if "--is-ancestor" in args:
+        if mode == "not-ancestor":
+            raise SystemExit(1)
+        if mode == "ancestry-error":
+            raise SystemExit(128)
     raise SystemExit(0)
 elif args and args[0] == "rev-list":
     pair = next(value for value in args if ".." in value)
@@ -375,6 +380,17 @@ elif mode == "attribution-many-coauthors":
         "Co-authored-by: Person%d <person%d@example.invalid>" % (i, i)
         for i in range(40)
     )
+elif mode == "attribution-merge-coauthor":
+    account = {"login": "maintainer"}
+    identity = {"name": "Maintainer", "email": "maintainer@example.invalid"}
+    message = (
+        "Merge pull request #1\\n\\n"
+        "Co-authored-by: Kethcode <kethcode@example.invalid>"
+    )
+elif mode == "attribution-merge-stranger":
+    account = {"login": "maintainer"}
+    identity = {"name": "Maintainer", "email": "maintainer@example.invalid"}
+    message = "Merge pull request #1"
 elif mode == "attribution-second-coauthor":
     message = (
         "subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\n"
@@ -1697,6 +1713,174 @@ class TestMergedAttribution(HexctlCase):
         self.assertIsNone(recorded["commits"][0]["login"])
         self.assertNotIn("@", json.dumps(recorded))
         self.run_ctl("verify")
+
+
+class TestMergedState(HexctlCase):
+    """Whether the base still carries the identities a run published under."""
+
+    URL = "https://github.com/wildcat-finance/example/pull/1"
+    RUN_URL = "https://github.com/wildcat-finance/example/pull/9"
+
+    def to_integrate(self, push_mode="external-author"):
+        self.to_steps(("Ship",))
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+        self.env["FAKE_GH_MODE"] = push_mode
+        self.run_ctl(
+            "done", "push", "--pr-url", self.URL,
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.env.pop("FAKE_GH_MODE", None)
+        self.run_ctl(
+            "done", "merge-step", "--step", "1", "--merge-commit", "e" * 40
+        )
+        self.write_run_pr()
+
+    def integrate(self, *, expect=0, git_mode=None, gh_mode=None):
+        if expect != 0:
+            # `run_ctl` only seeds the integration pull request for a call it
+            # expects to succeed, so a refusal case has to stand it up itself
+            # or it fails on the topology read instead of the check under test.
+            state = self.state()
+            self.fake_refs[state["run_branch"]] = "e" * 40
+            self.fake_prs[self.RUN_URL] = self.fake_pr(
+                self.RUN_URL, state["run_branch"], state["base"],
+                "e" * 40, "f" * 40,
+            )
+        if git_mode:
+            self.env["FAKE_GIT_MODE"] = git_mode
+        if gh_mode:
+            self.env["FAKE_GH_MODE"] = gh_mode
+        try:
+            return self.run_ctl(
+                "done", "integrate", "--pr-url", self.RUN_URL,
+                "--merge-commit", "f" * 40, expect=expect,
+            )
+        finally:
+            self.env.pop("FAKE_GIT_MODE", None)
+            self.env.pop("FAKE_GH_MODE", None)
+
+    def recorded(self):
+        return self.state()["receipts"]["integrate"]["attribution"]
+
+    def test_a_preserved_merge_records_the_ancestor_mechanism(self):
+        self.to_integrate()
+        self.integrate()
+        recorded = self.recorded()
+        self.assertEqual(recorded["mechanisms"], ["ancestor"])
+        self.assertEqual(
+            [entry["login"] for entry in recorded["identities"]], ["kethcode"]
+        )
+        self.assertIsNone(recorded["merge_login"])
+        self.run_ctl("verify")
+
+    def test_a_rewritten_merge_may_be_carried_by_the_merge_author(self):
+        self.to_integrate()
+        self.integrate(git_mode="not-ancestor", gh_mode="external-author")
+        recorded = self.recorded()
+        self.assertEqual(recorded["mechanisms"], ["merge-author"])
+        self.assertEqual(recorded["merge_login"], "kethcode")
+
+    def test_a_rewritten_merge_may_be_carried_by_a_coauthor_trailer(self):
+        self.to_integrate()
+        self.integrate(git_mode="not-ancestor", gh_mode="attribution-merge-coauthor")
+        recorded = self.recorded()
+        self.assertEqual(recorded["mechanisms"], ["merge-coauthor"])
+        self.assertEqual(recorded["merge_login"], "maintainer")
+
+    def test_a_rewritten_merge_that_dropped_the_identity_refuses(self):
+        self.to_integrate()
+        proc = self.integrate(
+            expect=2, git_mode="not-ancestor", gh_mode="attribution-merge-stranger"
+        )
+        self.assertIn("carries neither that commit nor that identity", proc.stderr)
+        self.assertIn("kethcode", proc.stderr)
+        self.assertNotIn("@", proc.stderr)
+        self.assertEqual(self.state()["phase"], "integrate")
+
+    def test_an_unanswerable_ancestry_call_refuses_rather_than_reporting_no(self):
+        self.to_integrate()
+        proc = self.integrate(expect=2, git_mode="ancestry-error")
+        self.assertIn("ancestry", proc.stderr)
+        self.assertIn("could not be determined", proc.stderr)
+
+    def test_a_legacy_receipt_without_attribution_still_integrates(self):
+        self.to_integrate()
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["steps"][0]["receipts"]["push"].pop("attribution", None)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+        self.integrate()
+        recorded = self.recorded()
+        self.assertEqual(recorded["identities"], [])
+        self.assertEqual(recorded["mechanisms"], [])
+
+    def test_the_integrate_directive_names_the_preserving_merge_method(self):
+        self.to_integrate()
+        directive = self.next_json()
+        self.assertEqual(directive["do"], "integrate")
+        self.assertEqual(directive["attribution"]["recorded_identities"], 1)
+        self.assertIn("merge commit", directive["attribution"]["preserved_by"])
+        self.assertIn("squash", directive["attribution"]["preserved_by"])
+
+    def test_a_merge_time_repair_refreshes_the_attribution(self):
+        """A repaired head must not be described by the old head's identities.
+
+        The lead step 2's round 1 carried forward: the repair path recomputes
+        the verified range and GitHub's result, so the attribution beside them
+        has to be recomputed too or it describes commits that are gone.
+        """
+        self.to_steps(("Ship",))
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+        self.env["FAKE_GH_MODE"] = "external-author"
+        self.run_ctl(
+            "done", "push", "--pr-url", self.URL,
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.env.pop("FAKE_GH_MODE", None)
+        branch = self.step_branch(1)
+        self.fake_refs[branch] = "c" * 40
+        self.fake_prs[self.URL]["headRefOid"] = "c" * 40
+        self.env["FAKE_GH_MODE"] = "unlinked-author"
+        self.run_ctl(
+            "done", "merge-step", "--step", "1", "--merge-commit", "e" * 40
+        )
+        self.env.pop("FAKE_GH_MODE", None)
+        effective = self.state()["integrate"]["merges"]["1"]["effective_push"]
+        self.assertTrue(effective["repaired"])
+        self.assertEqual(effective["head"], "c" * 40)
+        refreshed = effective["attribution"]["commits"]
+        self.assertEqual([entry["login"] for entry in refreshed], [None])
+        self.assertEqual([entry["commit"] for entry in refreshed], ["c" * 40])
+        self.assertNotIn("@", json.dumps(effective["attribution"]))
+
+        # The integration check reads the refreshed container, not the stale one.
+        self.write_run_pr()
+        self.integrate()
+        self.assertEqual(
+            [entry["commit"] for entry in self.recorded()["identities"]], ["c" * 40]
+        )
 
 
 class TestPublicationBindings(HexctlCase):

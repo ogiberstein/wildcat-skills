@@ -1696,6 +1696,15 @@ def _integrate_directive(state: dict) -> dict:
         "run_branch": run_branch,
         "base": state["base"],
         "steps": len(state["steps"]),
+        "attribution": {
+            "recorded_identities": len(recorded_run_attribution(state)),
+            "preserved_by": (
+                "a merge commit, which leaves every recorded commit reachable "
+                "from the base; a squash or rebase merge rewrites them, and "
+                "then the merge commit itself has to carry each identity as "
+                "author or in a Co-authored-by trailer"
+            ),
+        },
         "then": then,
     }
 
@@ -1762,13 +1771,18 @@ def done_merge_step(args, state: dict) -> None:
             remote_head,
             f"step {step['n']} merge-time push repair",
         )
-        repaired_github = verify_github_commits(args.dir, repaired_local)
+        # The recorded push attribution describes the head this repair replaced,
+        # so it is re-derived here rather than carried forward stale.
+        repaired_github, repaired_attribution = verified_github_attribution(
+            args.dir, repaired_local
+        )
         effective_push = {
             "repaired": True,
             "pr_base": pr_base,
             "head": remote_head,
             "verified_commits": repaired_local,
             "github_verified": repaired_github,
+            "attribution": {"commits": repaired_attribution},
         }
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
@@ -1924,6 +1938,7 @@ def done_integrate(args, state: dict) -> None:
         expected_head_label="remote run branch tip",
     )
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
+    attribution = merged_attribution(args.dir, state, args.merge_commit)
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
         "base": state["base"],
@@ -1935,6 +1950,7 @@ def done_integrate(args, state: dict) -> None:
         "pull_request": pr_record,
         "run_head": remote_tip,
         "final_step_merge": recorded_tip,
+        "attribution": attribution,
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
@@ -3051,6 +3067,27 @@ def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) 
     return commits
 
 
+def commit_is_ancestor(
+    base_dir: str, candidate: str, descendant: str, label: str
+) -> bool:
+    """Whether one exact commit is still reachable from another.
+
+    `merge-base --is-ancestor` answers 0 for yes and 1 for no. Anything else
+    means the question was not answered at all: a bad object, an unreadable
+    repository, a killed process. Reading an unexpected status as "no" would
+    turn a broken call into a finding about a person, so only the two
+    documented statuses count as an answer.
+    """
+    candidate = require_full_sha(candidate, f"{label} commit")
+    descendant = require_full_sha(descendant, f"{label} descendant")
+    status = bounded_tool_status(
+        base_dir, "git", ["merge-base", "--is-ancestor", candidate, descendant]
+    )
+    if status not in (0, 1):
+        die(f"{label} ancestry for {candidate} could not be determined")
+    return status == 0
+
+
 def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
     """Verify one exact locally created commit and its required trailers."""
     commit_sha = require_full_sha(commit_sha, label)
@@ -3290,6 +3327,115 @@ def commit_attribution(payload: dict, commit_sha: str) -> dict:
         "name": name,
         "email_sha256": identity_digest(email),
         "coauthors": message_coauthors(commit.get("message"), label),
+    }
+
+
+def identity_matches(recorded: object, candidate: object) -> bool:
+    """Whether two recorded identities name the same contributor.
+
+    The account wins when both sides have one, because one person may hold
+    several addresses and one account. The digest decides otherwise, and it is
+    the only comparison available for a co-author trailer or an unlinked
+    commit.
+    """
+    if not isinstance(recorded, dict) or not isinstance(candidate, dict):
+        return False
+    left, right = recorded.get("login"), candidate.get("login")
+    if isinstance(left, str) and isinstance(right, str):
+        return left.casefold() == right.casefold()
+    digest = recorded.get("email_sha256")
+    return isinstance(digest, str) and digest == candidate.get("email_sha256")
+
+
+def identity_label(identity: dict) -> str:
+    """Name one identity in a refusal without printing an address."""
+    login = identity.get("login")
+    if isinstance(login, str):
+        return login
+    digest = identity.get("email_sha256")
+    return f"digest {digest[:12]}" if isinstance(digest, str) else "an unnamed identity"
+
+
+def recorded_run_attribution(state: dict) -> list[dict]:
+    """Every identity this run's receipts recorded, in step order.
+
+    A step whose push evidence was repaired at merge time carries a fresher
+    container on the merge record, because the recorded push attribution
+    describes commits that are no longer the branch tip. The fresher one wins.
+    A legacy receipt carries none, and contributes nothing rather than
+    refusing.
+    """
+    identities = []
+    merges = as_dict(as_dict(state.get("integrate")).get("merges"))
+    for step in state["steps"]:
+        push = as_dict(step["receipts"].get("push"))
+        effective = as_dict(as_dict(merges.get(str(step["n"]))).get("effective_push"))
+        source = as_dict(effective.get("attribution")) or as_dict(
+            push.get("attribution")
+        )
+        commits = source.get("commits")
+        if commits is None:
+            continue
+        if not isinstance(commits, list):
+            die(f"step {step['n']} recorded a malformed attribution container")
+        for record in commits:
+            if not isinstance(record, dict) or not isinstance(
+                record.get("commit"), str
+            ):
+                die(f"step {step['n']} recorded a malformed attribution entry")
+            identities.append({"step": step["n"], **record})
+    return identities
+
+
+def merged_attribution(base_dir: str, state: dict, merge_sha: str) -> dict:
+    """Whether the base still carries every identity the run published under.
+
+    Two mechanisms count. A merge commit leaves every recorded commit
+    reachable from the base, which is the ordinary case and needs no further
+    read. A squash or rebase merge does not, and then the merge commit itself
+    has to carry the identity as its author or in a co-author trailer.
+
+    The merge commit's own identity is read only once an ancestry check has
+    failed. On the ordinary path no extra request happens, and an unexpected
+    identity shape on a merge commit cannot refuse a run whose commits all
+    reached the base intact.
+    """
+    identities = recorded_run_attribution(state)
+    resolved = []
+    unresolved = []
+    for identity in identities:
+        if commit_is_ancestor(
+            base_dir, identity["commit"], merge_sha, "merged attribution"
+        ):
+            resolved.append({**identity, "mechanism": "ancestor"})
+        else:
+            unresolved.append(identity)
+    merge_identity = None
+    if unresolved:
+        merge_identity = commit_attribution(
+            github_commit_payload(base_dir, github_repository(base_dir), merge_sha),
+            merge_sha,
+        )
+        for identity in unresolved:
+            if identity_matches(identity, merge_identity):
+                resolved.append({**identity, "mechanism": "merge-author"})
+                continue
+            if any(
+                identity_matches(identity, coauthor)
+                for coauthor in merge_identity["coauthors"]
+            ):
+                resolved.append({**identity, "mechanism": "merge-coauthor"})
+                continue
+            die(
+                f"step {identity['step']} published commit {identity['commit']} "
+                f"under {identity_label(identity)}, and merge {merge_sha} "
+                "carries neither that commit nor that identity; the merge "
+                "discarded the authorship this run recorded"
+            )
+    return {
+        "identities": resolved,
+        "merge_login": merge_identity["login"] if merge_identity else None,
+        "mechanisms": sorted({entry["mechanism"] for entry in resolved}),
     }
 
 
