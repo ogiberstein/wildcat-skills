@@ -13166,3 +13166,95 @@ unknowns, negative results, and lead disposition; it changes no earlier audit
 byte and does not claim audit-host enforcement.
 
 Leads not pursued: none.
+
+## Step 2, round 2 -- 2026-08-24
+
+Finding count: 0. Audit filter declaration:
+`--audit-filter sapheneia:sapheneia`. The Solidity security suite remains
+waived because the audited range contains Python, Markdown, and JSON only.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+Brevitas report mode exits 1 only with B011 because the required table has zero
+finding rows; evidence precedence and Fiat's one-row-per-finding format forbid
+fabricating a row, so no Brevitas-clean claim is made.
+
+### Evidence
+
+This round re-audited the complete fixed tree at signed tip
+`2acea79bb16225ffe9028e776dbfbed7b375ff1c`. The implementation
+`a36768abf65d4afbcb310f1c231e98866798fbe7`, mechanism fix
+`3d8ef99537ab0ccbf39a9f81d42159b061ba613b`, and round-1 audit commit all
+have good local Shoggoth signatures and exactly one required co-author and one
+origin trailer. Round 1's receipt records two findings, fixes tip
+`2acea79bb16225ffe9028e776dbfbed7b375ff1c`, Elenchus `guarded`, all three
+lint exits 0, and the two verified local commits. Its append remains unchanged.
+
+All four round-1 guards pass directly: Fiat refuses both the commandless
+replacement Exit and the four-space-hidden step heading without mutation or
+carriage, and Protasis independently refuses both forms. The parent red report
+`.elenchus/fiat-runbook-amendments-step-2-round-1-red.json` retains SHA-256
+`3ec86c5b210c7f37ae078ed17e92bf8c3adbb3df763b0a17a76e8840f87e8c8d`,
+schema `elenchus.unittest.v1`, 1,019 tests, four failures, zero errors, and zero
+skips. The fixed report `.elenchus/fiat-runbook-amendments-step-2.json` retains
+SHA-256
+`6deeed2b4b0b58b1c83d57bb03f31362f8c1a86a0826669390a5e59408ceba9a`
+and 1,019/1,019 green. The runner contract still labels
+`unittest-json-v1` as the CLI report format and `elenchus.unittest.v1` as the
+expected JSON schema. This round changed no product or guard, created no new
+report, and therefore carries no fixes commit and `elenchus_verdict: null`.
+
+The focused Fiat, Protasis, and controller suite passes 473/473; evolution
+passes 9/9; root passes 349/349 with five skips; and Hexaemeron passes
+1,019/1,019. Promise Machine sync and contract checks are clean across 14
+plugins and 14 copies; coverage is 71/71. The six Fiat controller bindings
+still carry digest
+`b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b`
+with unchanged field maps. The receipted study and runbook still match tracked
+SHA-256 values
+`1258efb979883681cc97e850dc9b641dd63f37a0f7beaf5bd5029d705ef76806`
+and `21fa5133526f29a57bc7ada26b911c9d41e5d484eaf076a918023f75a53e6fcd`.
+Protasis accepts both. Phylax, Ephoros, and Hypomnema exit 0; all six specified
+Imprimatur runs score 100/100 with zero defects; Horos, `py_compile`, both
+receipt comparisons, and `git diff --check` exit 0.
+
+Fiat remains `fiat-v5.21.1`, frontier `state-shape-validation`, digest
+`e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa`,
+status `open`, with issue 363 as its next job. Protasis remains
+`protasis-v4.7.0`, frontier `amendment-block-check`, digest
+`1014071026a149d38e7d79c222dfcfc25dd061d825fac9e7813a3a46b184cd29`,
+status `open`, with its held amendment-block check as the next job. The two
+generation rows preserve those held fields.
+
+### Risk dispositions
+
+- `subject-confusion`: clean. Subject-labelled diagnostics, markers, receipts, and events remain distinct; legacy and two-subject recovery guards pass.
+- `prefix-forgery`: clean. Exact-prefix mismatch still refuses before mutation.
+- `amendment-selection`: clean after S2-R1-01. Only CommonMark fences with at most three leading spaces affect selection; decoys, duplicate blocks, and trailing sections refuse.
+- `field-ambiguity`: clean after S2-R1-02. Protasis owns the four fields, full replacement clauses, and replacement Exit command-presence rule before Fiat mutates.
+- `step-verdict-coverage`: clean. Every unbuilt step has one complete verdict; unknown, completed, missing, duplicate, and broken cases remain guarded.
+- `duplicate-step-source`: clean after S2-R1-01. Packets retain one numbered and titled baseline; visible appended or indented-code step headings refuse.
+- `effective-step-source`: clean. Mason and Warden receive the same exact baseline and applicable digest-matched amendment bytes in receipt order.
+- `repair-precedence`: clean. Current study digest and step remain required, and later study receipts invalidate older repairs.
+- `partial-write`: clean. Every interruption window finishes or rolls back once without mixed state or duplicate ledger events.
+- `pending-collision`: clean. One marker blocks other commands and two subject markers refuse without deletion.
+- `checker-binding`: clean. Captured bytes reach Protasis through fixed argv and bounded I/O; checker failure, unsafe path, and oversize refuse before mutation.
+- `post-amend-drift`: clean. Status, next, verify, packets, and receipt-history checks refuse unreceipted byte drift.
+- `legacy-recovery`: clean. Version-1 state and subjectless study markers remain readable and recover once.
+- `evidence-overclaim`: clean. The Promise remains limited to continuity, structure, receipt history, and source carriage, not truth or future command success.
+- `generation-collision`: clean on the recorded base. Both generation labels and all held frontier fields remain internally consistent and unchanged by the audit fixes.
+- `elenchus-identifier-swap`: clean by cold review. Format and schema retain their separate labelled roles in the source-bound Step 2 contract.
+- `audit-record-scope`: clean by cold review. Both round records use only the append-only `audit/AUDIT.md` exception; Mason's product scope is not widened.
+
+### Qualifications
+
+The round establishes no semantic correctness for free-form replacement prose,
+future command success, remote signature, push, pull request, integration
+result, GitHub state, or audit-host enforcement. The Sapheneia comparison
+preserves the zero finding count, required empty table, date, identifiers,
+paths, hashes, roles, counts, prior verdict, current null verdict, all 17 risk
+dispositions, qualifications, unknowns, negative results, and lead disposition;
+it changes no earlier audit byte.
+
+Leads not pursued: none.
