@@ -117,3 +117,8 @@ receipts require locally verified signatures and exact provenance trailers;
 pushed ranges and GitHub merge SHAs also require GitHub `verified: true` with
 `reason: valid`. Never copy raw signature material into state, ledgers, or
 reports.
+Every Fiat audit round declares `--audit-filter sapheneia:sapheneia`; this is a
+checked operator declaration, not proof of the semantic pass. A bound task
+issue's closing comment follows the repository's Sapheneia, Imprimatur,
+Vulgate, Imprimatur order, is posted verbatim, and is read back before closure
+is reported.

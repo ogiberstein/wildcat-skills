@@ -569,6 +569,7 @@ class PromiseStructureTests(unittest.TestCase):
             "plugins/sapheneia/skills/sapheneia/SKILL.md": {
                 "sapheneia-session-shape",
                 "sapheneia-deactivation",
+                "sapheneia-durable-record-shape",
             },
             "plugins/tabularium/skills/tabularium/SKILL.md": {
                 "tabularium-release-build",
@@ -595,7 +596,7 @@ class PromiseStructureTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 63)
+        self.assertEqual(report["counts"]["promises"], 64)
 
     def test_hexaemeron_contract_population_is_complete(self):
         expected = {
@@ -661,7 +662,7 @@ class PromiseOverlayTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["promises"], 68)
+        self.assertEqual(report["counts"]["promises"], 69)
         self.assertEqual(report["counts"]["overlays"], 1)
 
     def test_one_byte_vendored_mutation_is_refused(self):
@@ -1037,7 +1038,7 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 68)
+        self.assertEqual(report["counts"]["coverage_rows"], 69)
         self.assertEqual(report["counts"]["coverage_selected"], 52)
 
     def test_berean_and_janus_boundaries_are_explicit(self):
@@ -1265,8 +1266,8 @@ class PromiseCoverageTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["counts"]["coverage_rows"], 68)
-        self.assertEqual(report["counts"]["coverage_selected"], 16)
+        self.assertEqual(report["counts"]["coverage_rows"], 69)
+        self.assertEqual(report["counts"]["coverage_selected"], 17)
 
     def test_prompt_and_vendored_evaluations_never_claim_proof(self):
         coverage = json.loads(
@@ -1277,7 +1278,7 @@ class PromiseCoverageTests(unittest.TestCase):
         selected = [
             row for row in coverage["rows"] if row["group"] in {"prompt", "vendored"}
         ]
-        self.assertEqual(len(selected), 16)
+        self.assertEqual(len(selected), 17)
         self.assertTrue(all("pending" not in row for row in selected))
         self.assertTrue(
             all(row["evaluation"]["status"] in {"recorded", "unknown"} for row in selected)

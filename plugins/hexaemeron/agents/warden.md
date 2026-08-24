@@ -34,11 +34,12 @@ You run exactly one audit round on one step's branch.
 
 The controller gives you one `brief` object with exactly `step_branch`,
 `stacked_branch`, `security_suite`, `plugin_root`, `audit_log_path`, `round`,
-`risk_register`, and `runbook_step`. The step branch already carries every
-step below it in the stack. `risk_register` carries the exact fenced study
-block, artefact path, and SHA-256. The exact source-bound `runbook_step`
-carries its Markdown, artefact path, SHA-256, number, and title. The suite is
-vendored:
+`audit_filter`, `risk_register`, and `runbook_step`. `audit_filter` must name
+the exact `--audit-filter sapheneia:sapheneia` obligation. The step branch
+already carries every step below it in the stack. `risk_register` carries the
+exact fenced study block, artefact path, and SHA-256. The exact source-bound
+`runbook_step` carries its Markdown, artefact path, SHA-256, number, and title.
+The suite is vendored:
 read `<plugin-root>/skills/x-ray/SKILL.md`, then
 `<plugin-root>/skills/solidity-auditor/SKILL.md`, and follow each in that
 order against the step's full diff and every contract it touches -- not a
@@ -48,13 +49,17 @@ refresh the invariant fuzz suite (round 1) or re-run its campaigns
 (later rounds where contracts changed); campaign failures are findings.
 Check out the step's tree with prior fixes applied.
 
-Append the round to the audit log even at zero findings: a table of id,
-severity, file, finding, status, plus a line for leads you saw and chose
-not to pursue. Apply fixes on the stacked branch in one commit per finding
-or coherent cluster, referencing the finding ids, and commit the updated
-log alongside. Sign every commit and end its message, after a blank line,
-with exactly `Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` and
-`Wildcat-Origin: shoggoth`; the controller verifies the exact fixes range.
+Prepare the round even at zero findings: a table of id, severity, file,
+finding, status, plus a line for leads you saw and chose not to pursue. Freeze
+that host structure and its protected evidence, then apply Sapheneia's bounded
+audit-record operation. Compare the candidate item by item and append only the
+compact candidate that retains every finding, qualification, unknown, negative
+result, identifier, number, link, severity, verdict, status, and unpursued lead.
+Apply fixes on the stacked branch in one commit per finding or coherent cluster,
+referencing the finding ids, and commit the updated log alongside. Sign every
+commit and end its message, after a blank line, with exactly `Co-authored-by:
+Shoggoth <shoggoth@wildcat.finance>` and `Wildcat-Origin: shoggoth`; the
+controller verifies the exact fixes range.
 
 When the round has a fixes commit, read its test command, report format, and
 report file from `runbook_step`, then run Elenchus against that commit and
@@ -68,5 +73,7 @@ Honesty is the whole job: if a tool in the suite did not run, stop and
 say so instead of logging a round. Zero findings asserts the suite
 executed and returned nothing. Do not record anything with the
 controller; report back the findings count, the fixes commit sha (or none),
-the exact Elenchus verdict (or none), and the log path, and the orchestrator
-receipts the round.
+the exact Elenchus verdict (or none), the log path, and the exact
+`--audit-filter sapheneia:sapheneia` declaration, and the orchestrator receipts
+the round. The declaration is operator evidence that the pass was applied. It
+does not make the controller proof of the candidate's semantics.

@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.13.1"
+  version: "5.14.1"
 ---
 
 # Fiat
@@ -311,7 +311,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `study` | Research the topic; write the study | [protasis](../protasis/SKILL.md) | `done study --artifact <path> --skills <csv>` |
 | `runbook` | Derive discrete steps from the study | [protasis](../protasis/SKILL.md) | `done runbook --artifact <path> --steps-file <path>` |
 | `implement` | Build the step, simplest construction that satisfies the runbook | [protasis](../protasis/SKILL.md) | `done implement --branch <name> --commit <sha> [--tests <summary>]` |
-| `audit-round` | One security round: run the suite, log, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> [--log <path>] [--fixes-commit <sha> --elenchus-verdict <value>]`, plus `--phylax-exit`, `--ephoros-exit` and `--hypomnema-exit` on a non-Solidity round |
+| `audit-round` | One security round: run the suite, shape and log its record, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> --audit-filter sapheneia:sapheneia [--log <path>] [--fixes-commit <sha> --elenchus-verdict <value>]`, plus `--phylax-exit`, `--ephoros-exit` and `--hypomnema-exit` on a non-Solidity round |
 | `close-audit` | Last round was clean; close the phase | [audit-loop.md](references/audit-loop.md) | `done audit [--fixes-ref <ref>]` |
 | `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 4 | `record security_suite ...` |
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
@@ -401,18 +401,24 @@ report file for any fix. A round supplying `--fixes-commit` also supplies one
 exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or
 `inconclusive`. Fiat checks and records that declaration; it does not attest
 the report bytes, and this generation does not block a non-`guarded` value.
-Record the round even when it finds nothing.
-Zero findings closes the loop; a genuine judgement that the remaining leads
-are not worth another round closes it with `--no-further-leads --reason`.
-Never report a round that did not run.
+Record the round even when it finds nothing. Before append, apply Sapheneia's
+bounded audit-record operation, retain the protected evidence and host shape,
+and give `audit-round` the exact checked operator declaration
+`--audit-filter sapheneia:sapheneia`. The controller records the declaration;
+it does not prove the semantic pass. Zero findings closes the loop; a genuine
+judgement that the remaining leads are not worth another round closes it with
+`--no-further-leads --reason`. Never report a round that did not run.
 
 **Prose.** `hypomnema` decides what this step needs recorded and where it
 goes, before the masks run. Every prose artefact in scope plus the PR title and
 body, through
 the `imprimatur` lint first and the `vulgate` mask second, content held
 constant. Both are bundled: run the lint script by path, read the mask's
-SKILL.md by path and apply it. The receipt refuses a skills list missing
-either configured id.
+SKILL.md by path and apply it. When the run has a task issue, draft its closing
+comment here under the repository's Sapheneia, Imprimatur, Vulgate, Imprimatur
+publication order; fill the exact integration URL and status, then rerun that
+whole order immediately before posting. The receipt refuses a skills list
+missing either configured id.
 
 **Push.** Stage and commit every intended final change with a valid local
 signature and the two exact provenance trailers. Agent-produced work is
@@ -444,7 +450,10 @@ merge it without bypassing them, require GitHub to report `verified: true` and
 `reason: valid` for every pushed commit and merge SHA, delete the run branch and the step branches
 where policy allows, and close any recorded task issue. That merge is the only
 one into the base for the whole run. A routine publish or closure action is not
-a handoff to a human.
+a handoff to a human. Before closing a task issue, post its exact checked
+closing-comment bytes, read the comment and issue state back from GitHub, and
+report only that remote evidence. The controller's closure receipt does not
+attest the comment's semantic passes or bytes.
 
 ## Delegation and context
 
