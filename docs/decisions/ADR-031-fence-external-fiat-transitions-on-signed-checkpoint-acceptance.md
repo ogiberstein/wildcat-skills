@@ -1,14 +1,18 @@
-# ADR-026: Fence external Fiat transitions on signed checkpoint acceptance
+# ADR-031: Fence external Fiat transitions on signed checkpoint acceptance
 
 ## Status
 
 Proposed, 2026-08-24. Recorded for
 [skills#558](https://github.com/wildcat-finance/skills/issues/558) and
 [skills#565](https://github.com/wildcat-finance/skills/issues/565). Depends on
-[ADR-023](ADR-023-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md),
-[ADR-024](ADR-024-separate-the-checkpoint-protocol-from-its-authority-service.md),
+[ADR-028](ADR-028-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md),
+[ADR-029](ADR-029-separate-the-checkpoint-protocol-from-its-authority-service.md),
 and
-[ADR-025](ADR-025-use-s3-object-lock-behind-replaceable-digitalocean-compute.md).
+[ADR-030](ADR-030-use-s3-object-lock-behind-replaceable-digitalocean-compute.md).
+
+PR #569 published this record as ADR-026. It moved to ADR-031 so the five
+Wave Delta records stay contiguous and in reading order once the collisions on
+ADR-023 and ADR-024 were resolved. The decision is unchanged.
 
 ## Context
 
@@ -68,7 +72,7 @@ not complete. There is no offline bypass for an external run.
 A rejection preserves a bounded refusal and archive identity, leaves the
 transition unadvanced, and requires a new checked state after the cause is
 fixed. Revocation after acceptance blocks resume and descendants until the
-lineage/salvage rules in ADR-027 are satisfied.
+lineage/salvage rules in ADR-032 are satisfied.
 
 ## Alternatives
 

@@ -37,10 +37,10 @@ decisions on a signed review branch while binding every component issue.
 and merged PR #539; accepted ADR-022 on `main`; milestone
 [Wave Delta](https://github.com/wildcat-finance/skills/milestone/64); epic
 [#558](https://github.com/wildcat-finance/skills/issues/558); component issues
-#559, #560, #561, and #563 through #568; ADR-023 through ADR-027
+#559, #560, #561, and #563 through #568; ADR-028 through ADR-032
 collision-free.
 
-**Exit.** The study and this runbook pass Protasis; ADR-023 through ADR-027
+**Exit.** The study and this runbook pass Protasis; ADR-028 through ADR-032
 each pass Hypomnema with `Status: Proposed`; Imprimatur and Brevitas pass every
 changed prose file; root and Hexaemeron suites pass; the commit has a valid
 local Shoggoth signature and GitHub verification; one PR against `main` links
@@ -55,11 +55,11 @@ python3 plugins/hexaemeron/skills/protasis/scripts/protasis.py \
 python3 plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py \
   docs/hexaemeron-checkpoint-programme-study.md \
   docs/hexaemeron-checkpoint-programme-runbook.md \
-  docs/decisions/ADR-023-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md \
-  docs/decisions/ADR-024-separate-the-checkpoint-protocol-from-its-authority-service.md \
-  docs/decisions/ADR-025-use-s3-object-lock-behind-replaceable-digitalocean-compute.md \
-  docs/decisions/ADR-026-fence-external-fiat-transitions-on-signed-checkpoint-acceptance.md \
-  docs/decisions/ADR-027-model-checkpoint-lineage-as-an-explicitly-resolved-dag.md
+  docs/decisions/ADR-028-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md \
+  docs/decisions/ADR-029-separate-the-checkpoint-protocol-from-its-authority-service.md \
+  docs/decisions/ADR-030-use-s3-object-lock-behind-replaceable-digitalocean-compute.md \
+  docs/decisions/ADR-031-fence-external-fiat-transitions-on-signed-checkpoint-acceptance.md \
+  docs/decisions/ADR-032-model-checkpoint-lineage-as-an-explicitly-resolved-dag.md
 ```
 
 **Files.** Create `docs/hexaemeron-checkpoint-programme-study.md`,
@@ -83,7 +83,7 @@ proposed records and no issue body masquerades as accepted policy.
 **Goal.** Deliver issue [#560](https://github.com/wildcat-finance/skills/issues/560)
 so two clean machines derive the same checkpoint identity while `main` moves.
 
-**Entry.** Step 1's PR is merged or its proposed ADR-023 and ADR-027 outcomes
+**Entry.** Step 1's PR is merged or its proposed ADR-028 and ADR-032 outcomes
 are otherwise explicitly approved; issue #559 is closed with links to the
 accepted decision result; the implementation run starts from fresh `main` and
 records its exact base.
@@ -117,7 +117,7 @@ and require closed schemas and bounded parsers; ephoros: status must print base,
 working commit, execution class, parent and gate identities without secrets;
 metron: none, hashing a bounded fixture makes no speed claim; elenchus: every
 identity refusal gets a red-before-green guard; hypomnema: implements the
-accepted results of ADR-023 and ADR-027 without changing their scope silently.
+accepted results of ADR-028 and ADR-032 without changing their scope silently.
 
 ## Step 3: Export, inspect, and restore one cumulative archive
 
@@ -161,7 +161,7 @@ findings are structured and bounded, while the offline library adds no page;
 metron: record size, expanded size, export/inspect/restore time, and peak memory
 before any optimisation; elenchus: deterministic-byte and hostile specimens are
 seen fail before their controls; hypomnema: none, the format decision already
-lives in ADR-023 and this step must implement it rather than broaden it.
+lives in ADR-028 and this step must implement it rather than broaden it.
 
 ## Step 4: Build quarantine, validation, and immutable publication
 
@@ -199,7 +199,7 @@ credential, and model/tool-output boundary is hostile; ephoros: API and workers
 run unattended and need state progress, staleness, rate/error/duration, and
 runbook-linked alerts; metron: establish route/dependency p95/p99, queue age,
 validation time, and resource baselines on a fixed corpus; elenchus: kill/retry
-and malicious specimens require causal guards; hypomnema: implements ADR-024
+and malicious specimens require causal guards; hypomnema: implements ADR-029
 and hands the attestation predicate/signature profile to Ariadne's boundary.
 
 ## Step 5: Deploy and prove the locked authority
@@ -239,7 +239,7 @@ backups, scratch, and deployment tools widen trust boundaries; ephoros: every
 publication dependency and recovery state needs bounded events and symptom
 alerts; metron: size the Droplet/scratch/database from Step 3/4 baselines and
 re-measure the authority demo; elenchus: policy or recovery failures stop the
-promotion and receive guards; hypomnema: this step makes ADR-025 real and must
+promotion and receive guards; hypomnema: this step makes ADR-030 real and must
 not change its authority split through an operator shortcut.
 
 ## Step 6: Enforce the external-run publication fence
@@ -283,7 +283,7 @@ statements, local state, and retry persistence cross boundaries; ephoros: status
 must answer which side owns the next retry and how old the fence is; metron:
 record publication latency and outage retry load without weakening a gate;
 elenchus: every interruption and forged receipt is a red-before-green guard;
-hypomnema: implements ADR-026 and may not widen mandatory publication beyond
+hypomnema: implements ADR-031 and may not widen mandatory publication beyond
 the accepted execution classes without a new decision.
 
 ## Step 7: Preserve siblings and require signed resolution
@@ -292,7 +292,7 @@ the accepted execution classes without a new decision.
 so concurrent useful checkpoints remain visible and preference is explicit.
 
 **Entry.** Step 6 publishes valid siblings; the service target and resolver
-identity/signature mechanism are explicitly approved; ADR-027 is accepted in
+identity/signature mechanism are explicitly approved; ADR-032 is accepted in
 the form implemented by the component study.
 
 **Exit.** Immutable parent edges, derived stage, advisory claims, frontier
@@ -318,7 +318,7 @@ and index rebuild.
 untrusted; ephoros: frontier, claim, poison, and resolution state need bounded
 queryable events; metron: measure ancestry/frontier/rebuild work against a
 fixed graph before optimising; elenchus: cycles, contradictory decisions, and
-revoked ancestry get causal guards; hypomnema: implements ADR-027 and keeps a
+revoked ancestry get causal guards; hypomnema: implements ADR-032 and keeps a
 policy decision separate from a service index update.
 
 ## Step 8: Break and recover the complete authority path
@@ -393,7 +393,7 @@ browser storage are boundaries; ephoros: source freshness and handoff failures
 need bounded signals and symptom alerts; metron: measure route/render/download
 handoff budgets before any optimisation; elenchus: stale healthy-page and
 selection-race failures receive guards; hypomnema: Atlas remains a redacted
-client under ADR-024 and cannot absorb checkpoint authority through convenience.
+client under ADR-029 and cannot absorb checkpoint authority through convenience.
 
 ## Step 10: Demonstrate the programme and close the epic last
 

@@ -1,11 +1,15 @@
-# ADR-025: Use S3 Object Lock behind replaceable DigitalOcean compute
+# ADR-030: Use S3 Object Lock behind replaceable DigitalOcean compute
 
 ## Status
 
 Proposed, 2026-08-24. Recorded for
 [skills#558](https://github.com/wildcat-finance/skills/issues/558) and
 [skills#564](https://github.com/wildcat-finance/skills/issues/564). Depends on
-[ADR-024](ADR-024-separate-the-checkpoint-protocol-from-its-authority-service.md).
+[ADR-029](ADR-029-separate-the-checkpoint-protocol-from-its-authority-service.md).
+
+PR #569 published this record as ADR-025. It moved to ADR-030 so the five
+Wave Delta records stay contiguous and in reading order once the collisions on
+ADR-023 and ADR-024 were resolved. The decision is unchanged.
 
 ## Context
 

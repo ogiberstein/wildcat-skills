@@ -1,13 +1,17 @@
-# ADR-027: Model checkpoint lineage as an explicitly resolved DAG
+# ADR-032: Model checkpoint lineage as an explicitly resolved DAG
 
 ## Status
 
 Proposed, 2026-08-24. Recorded for
 [skills#558](https://github.com/wildcat-finance/skills/issues/558) and
 [skills#566](https://github.com/wildcat-finance/skills/issues/566). Depends on
-[ADR-023](ADR-023-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md)
+[ADR-028](ADR-028-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md)
 and
-[ADR-026](ADR-026-fence-external-fiat-transitions-on-signed-checkpoint-acceptance.md).
+[ADR-031](ADR-031-fence-external-fiat-transitions-on-signed-checkpoint-acceptance.md).
+
+PR #569 published this record as ADR-027. It moved to ADR-032 so the five
+Wave Delta records stay contiguous and in reading order once the collisions on
+ADR-023 and ADR-024 were resolved. The decision is unchanged.
 
 ## Context
 

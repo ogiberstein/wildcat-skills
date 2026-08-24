@@ -1,11 +1,15 @@
-# ADR-024: Separate the checkpoint protocol from its authority service
+# ADR-029: Separate the checkpoint protocol from its authority service
 
 ## Status
 
 Proposed, 2026-08-24. Recorded for
 [skills#558](https://github.com/wildcat-finance/skills/issues/558) and
 [skills#563](https://github.com/wildcat-finance/skills/issues/563). Depends on
-[ADR-023](ADR-023-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md).
+[ADR-028](ADR-028-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md).
+
+PR #569 published this record as ADR-024. That number already held the accepted
+run-observation binding decision on `main` when the PR merged. This record moved
+to ADR-029. The decision is unchanged.
 
 ## Context
 
