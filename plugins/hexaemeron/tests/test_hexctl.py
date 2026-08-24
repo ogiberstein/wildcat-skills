@@ -623,6 +623,32 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         )
         return original
 
+    def to_runbook_amendable_steps(self, titles=("Core", "Finish")):
+        """A source-bound run whose baseline also passes Protasis runbook mode."""
+        self.init()
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            study_text = handle.read()
+        study = self.write("study.md", study_text)
+        self.run_ctl("done", "study", "--artifact", study)
+        blocks = []
+        for number, title in enumerate(titles, 1):
+            blocks.append(
+                f"## Step {number}: {title}\n\n"
+                f"**Goal.** Ship {title}.\n"
+                f"**Entry.** Step {number} is ready.\n"
+                "**Exit.** Run `fiat-v1.0.0`.\n"
+                f"**Files.** `step-{number}.md`.\n"
+                "**Tests.** Run `python3 -m unittest`.\n"
+                "**Disciplines.** none, fixture only.\n"
+            )
+        runbook_text = "# Runbook\n\n" + "\n".join(blocks)
+        runbook = self.write("runbook.md", runbook_text)
+        steps = self.write("steps.json", json.dumps(list(titles)))
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+        return study_text, runbook_text
+
     @staticmethod
     def amendment(
         verdicts=(
@@ -633,6 +659,26 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         date="2026-08-22",
         what="The fixture assumption was corrected.",
         why="The receipted baseline disproved it.",
+        touched="Steps 1 and 2.",
+    ):
+        return (
+            f"\n### Amendment -- {date}\n\n"
+            f"**What changed.** {what}\n"
+            f"**Why.** {why}\n"
+            f"**Steps touched.** {touched}\n"
+            f"**Still holding.** {verdicts}\n"
+        )
+
+    @staticmethod
+    def runbook_amendment(
+        verdicts=(
+            "Step 1: entry holds; exit holds. "
+            "Step 2: entry holds; exit holds."
+        ),
+        *,
+        date="2026-08-24",
+        what="Complete replacement Exit: Run `fiat-v2.0.0`.",
+        why="The target version changed.",
         touched="Steps 1 and 2.",
     ):
         return (
@@ -786,7 +832,16 @@ class TestDelegationPackets(HexctlCase):
         mason = self.next_json()
         self.assert_packet(mason, "mason", ("runbook_step", "branch", "branch_from"))
         source = mason["brief"]["runbook_step"]
-        self.assertEqual(set(source), {"markdown", "path", "sha256", "number", "title"})
+        self.assertEqual(
+            set(source),
+            {
+                "markdown", "baseline_markdown", "baseline_sha256",
+                "amendments", "effective_sha256", "path", "sha256",
+                "number", "title",
+            },
+        )
+        self.assertEqual(source["baseline_markdown"], source["markdown"])
+        self.assertEqual(source["amendments"], [])
         self.assertEqual(source["number"], 1)
         self.assertEqual(source["title"], "Core")
         self.assertTrue(source["markdown"].startswith("## Step 1: Core\n"))
@@ -3219,6 +3274,10 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         expected_markdown = "## Step 1: Core\n\n**Goal.** Ship Core.\n"
         expected_source = {
             "markdown": expected_markdown,
+            "baseline_markdown": expected_markdown,
+            "baseline_sha256": hashlib.sha256(expected_markdown.encode()).hexdigest(),
+            "amendments": [],
+            "effective_sha256": hashlib.sha256(expected_markdown.encode()).hexdigest(),
             "path": os.path.realpath(os.path.join(self.target, "runbook.md")),
             "sha256": hashlib.sha256(
                 ("# Runbook\n\n" + expected_markdown).encode()
