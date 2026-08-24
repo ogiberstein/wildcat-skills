@@ -13071,3 +13071,98 @@ existing audit bytes and does not claim audit-host enforcement.
 
 Leads not pursued: the fifteen product risks above require Step 2's absent
 implementation and remain assigned to that step. No other lead was found.
+
+## Step 2, round 1 -- 2026-08-24
+
+Finding count: 2. Audit filter declaration:
+`--audit-filter sapheneia:sapheneia`. The Solidity security suite is waived
+because the signed implementation and this repair contain Python, Markdown,
+and JSON only.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py:3435`; `plugins/hexaemeron/skills/protasis/scripts/protasis.py:74` | Both fence scanners accepted arbitrary leading whitespace. Four spaces make an indented CommonMark code block, not a fence, so a candidate could put `## Step 3` between four-space-indented backtick lines, hide that real heading from topology checks, then carry it in delegated step source. | fixed and guarded in `3d8ef99537ab0ccbf39a9f81d42159b061ba613b`; both scanners now permit at most three leading spaces, and controller plus Protasis guards cover the four-space rejection |
+| S2-R1-02 | medium | `plugins/hexaemeron/skills/protasis/scripts/protasis.py:301` | `Complete replacement Exit: Reviewed and working.` passed because replacement parsing checked only that the value was non-empty. That let Fiat receipt and carry a replacement exit with no command even though Protasis's existing Exit contract requires one. | fixed and guarded in `3d8ef99537ab0ccbf39a9f81d42159b061ba613b`; Protasis applies its existing command-presence rule to a replacement Exit, while Fiat remains bound to Protasis and adds no separate semantic parser |
+
+Brevitas report mode exits 1 only with B011 because the required table has two
+finding rows; evidence precedence and Fiat's one-row-per-finding format forbid
+fabricating a third row, so no Brevitas-clean claim is made.
+
+### Evidence
+
+The audited implementation is signed commit
+`a36768abf65d4afbcb310f1c231e98866798fbe7`, parent
+`68cd65757ada8756a72d4596cb8aaa58f7adec66`; its local Shoggoth signature and
+single co-author and origin trailers are good. The tracked study SHA-256 is
+`1258efb979883681cc97e850dc9b641dd63f37a0f7beaf5bd5029d705ef76806`
+and the tracked runbook SHA-256 is
+`21fa5133526f29a57bc7ada26b911c9d41e5d484eaf076a918023f75a53e6fcd`;
+both remain byte-identical to their receipted `.hexaemeron` sources.
+Repair commit `3d8ef99537ab0ccbf39a9f81d42159b061ba613b` also has a good
+local Shoggoth signature and exactly one co-author and one origin trailer.
+
+The exact source runner used CLI report format `unittest-json-v1`. Its red
+parent report,
+`.elenchus/fiat-runbook-amendments-step-2-round-1-red.json`, has SHA-256
+`3ec86c5b210c7f37ae078ed17e92bf8c3adbb3df763b0a17a76e8840f87e8c8d`,
+schema `elenchus.unittest.v1`, `complete: true`, 1,019 tests, four assertion
+failures, zero errors, and zero skips. The canonical repaired-tree report,
+`.elenchus/fiat-runbook-amendments-step-2.json`, has SHA-256
+`6deeed2b4b0b58b1c83d57bb03f31362f8c1a86a0826669390a5e59408ceba9a`,
+the same schema, `complete: true`, and 1,019/1,019 green with zero errors and
+zero skips. Verdict: `guarded`.
+
+Mason's source-runner layout repair is also closed. The preserved early report
+`.elenchus/fiat-runbook-amendments-step-2-red.json` has SHA-256
+`ad5953059354e3d5b41946caeb8f382e1f41f711df8bcb1187bf45ff4f8de0b2`,
+schema `elenchus.unittest.v1`, 931 tests, and one import-context error. The
+preserved signed-tree report
+`.elenchus/fiat-runbook-amendments-step-2-mason-green.json` has SHA-256
+`cd494b76389778edda0015b96069ea84c741bfa00e92f51c816fb6037d85179c`,
+the same schema, and 1,015/1,015 green. The bounded fallback import now works
+in package and source-runner layouts; the fresh repaired-tree run above remains
+green.
+
+The focused Fiat, Protasis, and controller suite passes 473/473; evolution
+passes 9/9; root passes 349/349 with five skips; and Hexaemeron passes
+1,019/1,019. Promise Machine sync and contract checks are clean across 14
+plugins and 14 copies; coverage is 71/71. The six changed controller-digest
+bindings in `tests/promise_machine_coverage.json` now equal
+`b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b`;
+their field maps are unchanged and no write-mode sync ran. Protasis accepts
+both tracked specifications. Phylax, Ephoros, and Hypomnema exit 0;
+Imprimatur gives all six specified prose files 100/100 with zero defects;
+Horos, `py_compile`, both receipt comparisons, and `git diff --check` exit 0.
+
+### Risk dispositions
+
+- `subject-confusion`: clean. Diagnostics, pending markers, receipts, and ledger events retain one exact subject; legacy study recovery and two-subject refusal stay guarded.
+- `prefix-forgery`: clean. A forged byte prefix refuses before durable mutation.
+- `amendment-selection`: fixed by S2-R1-01. Fenced decoys, short or mismatched fences, duplicate final blocks, trailing sections, and four-space indented code cannot select or hide a block.
+- `field-ambiguity`: fixed by S2-R1-02. The four ordered amendment fields, full replacement clauses, and replacement Exit command presence are checked by Protasis before Fiat mutates.
+- `step-verdict-coverage`: clean. Every unbuilt step has one entry-and-exit verdict; unknown and completed steps, omissions, duplicates, and broken current-step verdicts refuse or block as specified.
+- `duplicate-step-source`: fixed by S2-R1-01. A packet retains one numbered and titled baseline block; appended, fenced-decoy, and four-space-hidden step headings refuse.
+- `effective-step-source`: clean. Mason and Warden receive byte-identical baseline and applicable amendment bytes with matching digests in receipt order, including exact Unicode and whitespace.
+- `repair-precedence`: clean. A repair binds the current study digest and step; a later study receipt makes the older repair inapplicable.
+- `partial-write`: clean. Each interrupted write window finishes or rolls back once, without duplicate ledger events or mixed receipt state.
+- `pending-collision`: clean. One labelled pending marker blocks other commands; two subjects refuse without deleting either marker.
+- `checker-binding`: clean. Protasis receives the captured candidate bytes through fixed argv with bounded input and output; non-zero, unsafe-path, and oversized cases refuse before mutation.
+- `post-amend-drift`: clean. `next`, `status`, `verify`, source packets, and receipt-history checks recompute digests and refuse unreceipted drift.
+- `legacy-recovery`: clean. Version-1 state and subjectless study markers remain readable and recover exactly once.
+- `evidence-overclaim`: clean. The `fiat-runbook-amendment` Promise is limited to checked continuity, structure, receipt history, and source carriage; it does not claim replacement truth, command success, or plan correctness.
+- `generation-collision`: clean on the recorded base. Fiat is `fiat-v5.21.1` and Protasis is `protasis-v4.7.0`; each adds one generation row while retaining its frontier revision, digest, status, current-frontier text, and next job. No frontier counter moved.
+- `elenchus-identifier-swap`: clean by cold review. The role-swapped specimen was refused; the accepted contract names `unittest-json-v1` only as CLI report format and `elenchus.unittest.v1` only as expected JSON schema.
+- `audit-record-scope`: clean by cold review. Step 2's Files field names `audit/AUDIT.md` as the append-only Warden exception without widening Mason's product files.
+
+### Qualifications
+
+The fixed parser establishes the accepted structure, not that free-form
+replacement prose is a sound criterion or that a named future command will
+succeed. No remote signature, push, pull request, integration result, or
+GitHub state was checked. The Sapheneia comparison preserves the required
+heading and table, both findings, severities, exact locations, commits,
+hashes, report roles, counts, verdict, risk dispositions, qualifications,
+unknowns, negative results, and lead disposition; it changes no earlier audit
+byte and does not claim audit-host enforcement.
+
+Leads not pursued: none.
