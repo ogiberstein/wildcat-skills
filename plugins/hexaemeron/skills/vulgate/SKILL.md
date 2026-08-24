@@ -1,6 +1,6 @@
 ---
 name: vulgate
-description: Rewrite AI-assisted or generic text into a plain human register -- a mask that produces prose easier to grasp than the usual AI slop. Use whenever drafting or rewriting messages, docs, or announcements that should read as though a person wrote them, without touching what they say.
+description: Rewrite AI-assisted or generic text into a plain human register while keeping every fact, number, commitment, caveat, link, and intended meaning fixed. Use for messages, documents, announcements, and public repository prose after diagnostic wording checks.
 metadata:
   version: "1.1.0"
 ---
@@ -13,6 +13,17 @@ Vulgate owns the content-preserving voice mask, not Hexaemeron's delivery or
 Solidity frontier. Its version, held parity target, next job, and maturity
 state live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run another
 frontier pass after that ledger becomes mature.
+
+## Where this sits
+
+Imprimatur diagnoses banned vocabulary and unsupported terms before Vulgate
+rewrites the surface, then runs again afterwards. Brevitas may constrain the
+structure of engineering prose, and Sapheneia may shape the interaction or one
+bounded durable record. Hypomnema decides what must be written and where it
+belongs. Vulgate changes none of those siblings' facts, format obligations, or
+evidence.
+
+**Current state.** Vulgate defines a strict content-preserving voice mask, but its parity check is still a model judgement rather than a repeatable evaluation over facts, commitments, caveats, and registers.
 
 A voice mask: it renders machine-register text into the common tongue. The
 output should read as though a busy, competent person wrote it -- someone who

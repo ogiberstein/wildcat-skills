@@ -3,12 +3,21 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Horos classifies a repository's token sinks with evidence and emits the reading boundary agents respect.
+Horos records which repository paths an agent may usually leave unread, with the evidence for every exclusion and deterministic maps for what remains.
 
-**Current frontier.** The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains.
+**Current frontier.** A census roll-up of the skills repository refuted the closure: the marker rule files horos.py and test_classify.py as generated from their own rule list, 42,673 of the boundary's 114,151 bytes, and content-addressed object stores stand unclassified at 7,844,877 bytes more. The held job is the marker self-exclusion fix; the content-addressed object rule and the Markdown outline extractor follow it, with maturity expected after all three.
 
-**Next Fiat job.** Use /hexaemeron:fiat to reopen this mature frontier only after new external evidence is recorded as an epoch entry on the ledger; the controller refuses a mature run otherwise. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to stop the marker rule excluding the classifier's own source: a marker must not bind a file that is itself defining markers, held to zero self-exclusions over this repository with near-miss tests pinning that a genuinely generated file still binds. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Horos runs before broad repository reading and reduces the files every later
+specialist has to inspect. Its boundary is advisory outside the exact evidence
+it records and is disabled for security review, so Warden, the Pashov suite,
+Phylax, and Elenchus do not inherit an exclusion while investigating risk or a
+failure. Horos changes reading scope, not the meaning or authority of another
+skill.
 
 ## Why it exists
 

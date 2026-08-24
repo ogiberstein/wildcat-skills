@@ -17,13 +17,15 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks, keeping quotation text separate from model and embedding text.
+Lemma turns Solidity compiler input or Markdown trees into validated, source-linked JSONL chunks with quotation, model, and embedding text kept separate.
 
 **Current frontier.** Callable-surface ABI validation does not independently check return types or state mutability.
 <!-- marketplace-context:end -->
 
 Use Lemma to create chunks. Stop at the JSONL output unless the user separately
-asks for another system to consume it.
+asks for another system to consume it. Berean may use a pinned corpus prepared
+from the output, and Ariadne may later bind a release to evidence; Lemma itself
+does not embed, index, retrieve, answer, evaluate, or attest.
 
 `$SKILL_DIR` is the directory containing this file. Resolve `$PLUGIN_ROOT` as
 `$SKILL_DIR/../..` and run the bundled commands from there.

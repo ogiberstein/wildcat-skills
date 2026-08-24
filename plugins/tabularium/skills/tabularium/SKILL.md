@@ -25,13 +25,19 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning.
+Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events while keeping the source, mapping, coverage, and gaps beside them.
 
 **Current frontier.** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 <!-- marketplace-context:end -->
 
 Tabularium turns preserved venue records into a common event ledger without
 discarding what the venue said or the rule used to interpret it.
+
+Alexandria is the upstream archive and narrow-view provider. Probitas may use a
+verified Tabularium release in a counterparty dossier, and Ariadne may bind its
+digest to evidence. Those downstream uses do not authorise Tabularium to
+collect live data, flatten venue meaning, rate a borrower, or hide unsupported
+coverage.
 
 `$SKILL_DIR` is the directory holding this file. The tool lives at
 `$SKILL_DIR/../../scripts/tabularium.py`; resolve it from where you loaded this

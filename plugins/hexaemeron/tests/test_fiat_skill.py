@@ -564,8 +564,8 @@ class PhaseSkillInventoryTests(unittest.TestCase):
         ]
         readme = (root / "README.md").read_text(encoding="utf-8")
         expected = (
-            f"six more skills holding each phase to a standard, "
-            f"{self.WORDS[len(with_script)]} of them with an executable check:"
+            f"six phase disciplines; all "
+            f"{self.WORDS[len(with_script)]} ship an executable check:"
         )
         self.assertIn(expected, readme,
                       f"{len(with_script)} phase skills ship a check: {with_script}")

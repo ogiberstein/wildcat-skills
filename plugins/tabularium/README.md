@@ -3,12 +3,21 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events without discarding the source or flattening its meaning.
+Tabularium maps preserved venue-native records into reproducible, venue-qualified credit events while keeping the source, mapping, coverage, and gaps beside them.
 
 **Current frontier.** Compound v3 Phase 0 now rebuilds ordered calls and signed-principal transitions from one verified Alexandria witness; the Phase 1 canonical adapter and Ethereum USDC specimen remain unimplemented.
 
 **Next Fiat job.** Use /hexaemeron:fiat to ship Compound v3 Phase 1 from Alexandria raw evidence with a new canonical and coverage schema version, supply, withdraw, base-transfer and absorb mappings, a mined borrower-to-borrower transfer witness, hostile fixtures and a byte-identical offline Ethereum USDC specimen. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Alexandria is the upstream archive and narrow-view provider. Tabularium owns the
+next transition: interpreting supported venue records into a canonical or
+explicitly non-canonical credit-event release. Probitas may use that release in
+a counterparty dossier, and Ariadne may bind its digest to evidence. Neither
+downstream use permits Tabularium to flatten venue meaning or hide unsupported
+coverage.
 
 A public record of on-chain credit events that keeps the venue's source record
 beside every common row.

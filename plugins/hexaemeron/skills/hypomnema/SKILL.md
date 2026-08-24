@@ -22,11 +22,16 @@ it. Code records what was built. This records why, and what was turned down.
 
 Hypomnema owns what gets recorded and where it goes.
 
-Serves the `prose` phase. Fiat's prose pass owns the mask order, the PR text
-and the receipt, and none of that moves here.
+Protasis decides what a study must answer before the build. Hypomnema takes the
+later question: which expensive-to-reverse decision, interface reason, runbook,
+README, or alert pointer must survive and which existing home owns it. During
+Fiat's prose phase it runs before Scribe applies Imprimatur and Vulgate. Fiat
+keeps the mask order, pull-request text, and receipt.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
+
+**Current state.** The point-or-write bridge requires a shipped study's chosen design and rejected alternatives to reach one standing record, but the pre-receipt review remains judgement: no mechanical check binds that design to exactly one ADR or governed-skill ledger row.
 
 ## Match what is already there
 

@@ -1,13 +1,11 @@
 ---
 name: imprimatur
 description: >-
-  Organisation-wide banned lexicon for AI writing tells. Blocks a hard list
-  of banned words and phrases, gates technical terms of art on evidence, and
-  catches the structural formulae that survive any wordlist. A mask over
-  drafting: it strips the tells so shipped prose reads plainly, and is easier
-  to grasp than the usual AI slop. Use when drafting, editing, or reviewing
-  any prose that ships, when checking whether a draft reads as
-  machine-written, or when the user names a term to ban.
+  Check prose that ships for banned AI writing tells, technical terms used
+  without evidence, and repeated structural formulae that survive a wordlist.
+  Use while drafting, editing, or reviewing public prose, or when the user
+  names a term to ban. This is the diagnostic gate; Vulgate performs a
+  content-preserving rewrite.
 metadata:
   version: "2.2.0"
 ---
@@ -21,7 +19,19 @@ frontier. Its version, held calibration target, next job, and maturity state
 live in [EVOLUTION.md](EVOLUTION.md). Do not recommend or run another frontier
 pass after that ledger becomes mature.
 
-A banned lexicon with three enforcement tiers and a rule about why wordlists fail on their own.
+## Where this sits
+
+Imprimatur diagnoses the vocabulary and formulae that make shipped prose read
+as machine-produced. Vulgate then rewrites the surface while holding content
+fixed, and Imprimatur runs again. Brevitas may impose engineering-prose
+structure after the wording passes; Sapheneia may shape the surrounding
+interaction or one bounded durable record. Fiat and Scribe own the phase order
+and receipt, not this lint.
+
+**Current state.** Imprimatur has a provenance-bound 64-sample evaluation, but labelled-prose-v1 failed the pre-registered annotation-agreement and structural-holdout coverage gates; its holdout is spent and its provisional scores cannot support tuning.
+
+A banned lexicon with three enforcement tiers and a rule about why wordlists
+fail on their own.
 
 Ban a token and the model reaches for its neighbour. Ban "load-bearing" and the next draft says "does the heavy lifting", then "the crux", then "the operative word". The list here is organised by family for that reason, and the instruction is to reject the move, not the string.
 

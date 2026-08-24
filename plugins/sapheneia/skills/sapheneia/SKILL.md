@@ -17,7 +17,7 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Sapheneia shapes the agent's own interaction with an AuDHD reader and one bounded audit record, GitHub issue, or issue comment without dropping evidence.
+Sapheneia keeps actions, boundaries, state, evidence, unknowns, and next steps visible for an AuDHD reader, or reshapes one bounded durable record without dropping protected evidence.
 
 **Current frontier.** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
 <!-- marketplace-context:end -->
@@ -26,6 +26,11 @@ The name comes from *sapheneia*, the classical rhetorical virtue of making
 meaning plain and unambiguous. Shape output so an AuDHD engineer can start,
 inspect and act on it without recovering hidden state or decoding a social
 hint.
+
+Warden uses the bounded durable-record operation for Fiat audit records.
+Imprimatur and Vulgate govern wording, and Brevitas governs engineering-prose
+structure. Sapheneia changes none of their facts or gates. Shaping one durable
+record does not activate the session contract.
 
 ## Activation contract
 

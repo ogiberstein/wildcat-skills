@@ -3,12 +3,20 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Janus tests a contract hook at the threshold it controls: what it can observe and change before a host action, what it can change after, and what it must never touch.
+Janus checks a contract hook at the host threshold it crosses: the observations and changes the host permits before and after the action, plus the state it must never touch.
 
 **Current frontier.** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 
-**Next Fiat job.** Use /hexaemeron:fiat to add a second host adapter once the Wildcat boundary survives its own suite, so the manifest format is shown to describe more than one callback model, starting with the ERC-7579 pre- and post-execution hooks. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to ship a second host adapter for a different callback model, added only after the Wildcat adapter's suite passes, so the manifest format is shown host-neutral rather than asserted; accept it when the second adapter's honest hook passes, its hostile hooks are each caught, and the shared harness runs both adapters green. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Janus owns the hook-to-host effect boundary. Pandects can supply economic laws
+that the host transition must preserve; Hermes can measure a gas change inside
+the implementation; and the Pashov suite can audit the contracts. Those
+siblings do not decide which hook effects the host permits, and a passing Janus
+manifest is not a whole-protocol security verdict.
 
 A conformance suite for what a contract hook may observe and change around a
 host action.

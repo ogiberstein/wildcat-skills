@@ -26,11 +26,15 @@ and the agent skills. A TypeScript application: Next.js routes, Prisma against
 Postgres, rendered markdown, sessions and wallet connection. A long-running
 service that holds a signer and submits transactions.
 
-Serves the `implement` phase. Fiat has no counterpart for this work today, so
-nothing is superseded.
+Fiat and Mason apply it during implementation. Warden reruns its mechanical
+gate in non-Solidity audit rounds. The Pashov suite owns Solidity review;
+Elenchus owns an observed failure; Ephoros owns retained telemetry. Phylax may
+constrain those siblings' off-chain tooling but never claim their result.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
+
+**Current state.** Phylax mechanically checks its established Python boundaries and source-local TypeScript controls for raw HTML ordering, persisted session credentials and runtime-selected absolute fetch hosts. This frontier is mature.
 
 ## Name the boundaries before choosing controls
 
