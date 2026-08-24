@@ -159,6 +159,13 @@ SOURCE_BYTES_MAX = 2 * 1024 * 1024
 GIT_OUTPUT_MAX = 2 * 1024 * 1024
 GIT_PATHS_MAX = 500
 GIT_TIMEOUT = 30
+INTEGRATION_REVALIDATION_SCHEMA = "fiat-integration-revalidation/v1"
+INTEGRATION_REVALIDATION_FILE = os.path.join(
+    STATE_DIR_NAME, "integration-revalidation.json"
+)
+INTEGRATION_CHECKS_MAX = 64
+INTEGRATION_COMMAND_BYTES_MAX = 2048
+INTEGRATION_CHECK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
@@ -1786,11 +1793,31 @@ def _integrate_directive(state: dict) -> dict:
     then = "hexctl done integrate --pr-url <url> --merge-commit <sha>"
     if expected_task_issue(state):
         then += " --closed-issue-url <url>"
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    final_head = require_full_sha(
+        as_dict(merge_records.get(str(final_step))).get("merge_commit"),
+        "final recorded product head",
+    )
     return {
         "do": "integrate",
         "run_branch": run_branch,
         "base": state["base"],
         "steps": len(state["steps"]),
+        "product_evidence": product_evidence_record(state, final_head),
+        "base_advance": {
+            "recovery": "sync-run-and-revalidate",
+            "artifact": INTEGRATION_REVALIDATION_FILE,
+            "then": (
+                "hexctl done sync-run --commit <signed-merge-sha> "
+                "--base-commit <remote-base-sha> "
+                f"--revalidation {INTEGRATION_REVALIDATION_FILE}"
+            ),
+            "boundary": (
+                "base advancement alone does not authorise a carryover or "
+                "invalidate the exact-tree product evidence"
+            ),
+        },
         "attribution": {
             "recorded_identities": len(recorded_run_attribution(state)),
             "preserved_by": (
@@ -1801,6 +1828,247 @@ def _integrate_directive(state: dict) -> dict:
             ),
         },
         "then": then,
+    }
+
+
+def product_evidence_record(state: dict, product_head: str) -> dict:
+    """Digest the completed product receipts without reclassifying them.
+
+    These digests establish only that the same implementation and audit records
+    remain attached to the exact product head. A later sync adds composition
+    evidence; it does not make the earlier audit apply to changed bytes.
+    """
+    records = []
+    for step in state["steps"]:
+        payload = {
+            "implement": as_dict(step["receipts"].get("implement")),
+            "audit": as_dict(step.get("audit")),
+            "audit_receipt": as_dict(step["receipts"].get("audit")),
+        }
+        records.append(
+            {
+                "step": step["n"],
+                "sha256": hashlib.sha256(
+                    canonical(payload).encode("utf-8")
+                ).hexdigest(),
+            }
+        )
+    receipts = as_dict(state.get("receipts"))
+    return {
+        "status": "preserved-exact-tree",
+        "head": require_full_sha(product_head, "final recorded product head"),
+        "study_sha256": as_dict(receipts.get("study")).get("sha256"),
+        "runbook_sha256": as_dict(receipts.get("runbook")).get("sha256"),
+        "steps": records,
+    }
+
+
+def merge_base_commit(base_dir: str, product_head: str, base_head: str) -> str:
+    raw = bounded_git(
+        base_dir,
+        ["merge-base", product_head, base_head],
+        "could not resolve the product/base merge base",
+    )
+    try:
+        lines = raw.decode("ascii", "strict").splitlines()
+    except UnicodeDecodeError:
+        die("product/base merge base is not ASCII")
+    if len(lines) != 1:
+        die("product/base merge base did not return one commit")
+    return require_full_sha(lines[0], "product/base merge base")
+
+
+def git_diff_paths(base_dir: str, before: str, after: str) -> list[str]:
+    raw = bounded_git(
+        base_dir,
+        ["diff", "--name-only", "-z", f"{before}..{after}", "--"],
+        "could not read the integration path delta",
+    )
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        die("integration path delta is not UTF-8")
+    paths = [path for path in decoded.split("\0") if path]
+    unique = sorted(set(paths))
+    if len(unique) > GIT_PATHS_MAX:
+        die(f"integration path delta exceeds {GIT_PATHS_MAX} paths")
+    if len(unique) != len(paths):
+        die("integration path delta contains duplicate paths")
+    root = os.path.realpath(base_dir)
+    for index, path in enumerate(unique):
+        if (
+            not isinstance(path, str)
+            or not path
+            or os.path.isabs(path)
+            or path in (".", "..")
+            or ".." in path.split("/")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+        ):
+            die(f"integration path delta contains an unsafe path at index {index}")
+        candidate = os.path.realpath(os.path.join(root, path))
+        try:
+            inside = os.path.commonpath((root, candidate)) == root
+        except ValueError:
+            inside = False
+        if not inside:
+            die(f"integration path delta escapes the repository at index {index}")
+    return unique
+
+
+def _strict_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate object key")
+        result[key] = value
+    return result
+
+
+def _manifest_paths(value, label: str, allowed: set[str] | None = None) -> list[str]:
+    if not isinstance(value, list) or len(value) > GIT_PATHS_MAX:
+        die(f"{label} must be an array of at most {GIT_PATHS_MAX} paths")
+    if any(not isinstance(path, str) for path in value):
+        die(f"{label} must contain only path strings")
+    if value != sorted(set(value)):
+        die(f"{label} must be sorted and unique")
+    for index, path in enumerate(value):
+        try:
+            encoded = path.encode("utf-8")
+        except UnicodeEncodeError:
+            die(f"{label} contains a non-Unicode-scalar path at index {index}")
+        if (
+            not path
+            or len(encoded) > 4096
+            or os.path.isabs(path)
+            or path in (".", "..")
+            or ".." in path.split("/")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+        ):
+            die(f"{label} contains an unsafe path at index {index}")
+        if allowed is not None and path not in allowed:
+            die(f"{label} names a path outside the computed integration delta")
+    return value
+
+
+def integration_revalidation_record(
+    base_dir: str,
+    supplied: str,
+    product_head: str,
+    base_head: str,
+    sync_head: str,
+) -> dict:
+    """Bind green composition checks to the exact product/base path delta."""
+    artifact, data = read_bounded_source(
+        base_dir, supplied, "integration revalidation artefact"
+    )
+    try:
+        raw = json.loads(
+            decoded_source(data, "integration revalidation artefact"),
+            object_pairs_hook=_strict_json_object,
+        )
+    except ValueError as exc:
+        die(f"integration revalidation artefact is not valid JSON: {exc}")
+    if not isinstance(raw, dict) or set(raw) != {
+        "schema", "affected_paths", "checks"
+    }:
+        die(
+            "integration revalidation artefact must contain exactly "
+            "schema, affected_paths and checks"
+        )
+    if raw["schema"] != INTEGRATION_REVALIDATION_SCHEMA:
+        die(
+            "integration revalidation artefact has the wrong schema "
+            f"(expected {INTEGRATION_REVALIDATION_SCHEMA})"
+        )
+
+    base_before = merge_base_commit(base_dir, product_head, base_head)
+    product_paths = git_diff_paths(base_dir, base_before, product_head)
+    upstream_paths = git_diff_paths(base_dir, base_before, base_head)
+    overlap_paths = sorted(set(product_paths) & set(upstream_paths))
+    composition_paths = git_diff_paths(base_dir, product_head, sync_head)
+    required_paths = sorted(set(composition_paths) | set(overlap_paths))
+    affected_paths = _manifest_paths(
+        raw["affected_paths"], "affected_paths", set(required_paths)
+    )
+    missing_paths = sorted(set(required_paths) - set(affected_paths))
+    if missing_paths:
+        die(
+            "affected_paths omits the computed integration surface: "
+            + ", ".join(missing_paths)
+        )
+
+    checks = raw["checks"]
+    if (
+        not isinstance(checks, list)
+        or not checks
+        or len(checks) > INTEGRATION_CHECKS_MAX
+    ):
+        die(
+            "integration revalidation checks must be a non-empty array of at "
+            f"most {INTEGRATION_CHECKS_MAX} entries"
+        )
+    normalized = []
+    seen_ids = set()
+    covered = set()
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict) or set(check) != {
+            "id", "command", "paths", "exit"
+        }:
+            die(
+                f"integration revalidation check {index} must contain exactly "
+                "id, command, paths and exit"
+            )
+        check_id = check["id"]
+        if (
+            not isinstance(check_id, str)
+            or not INTEGRATION_CHECK_ID_RE.fullmatch(check_id)
+            or check_id in seen_ids
+        ):
+            die(f"integration revalidation check {index} has an invalid id")
+        seen_ids.add(check_id)
+        command = check["command"]
+        try:
+            command_bytes = (
+                command.encode("utf-8") if isinstance(command, str) else b""
+            )
+        except UnicodeEncodeError:
+            command_bytes = b""
+        if (
+            not isinstance(command, str)
+            or not command
+            or not command_bytes
+            or len(command_bytes) > INTEGRATION_COMMAND_BYTES_MAX
+            or any(
+                ord(character) < 32 or ord(character) == 127
+                for character in command
+            )
+        ):
+            die(f"integration revalidation check {index} has an invalid command")
+        if isinstance(check["exit"], bool) or check["exit"] != 0:
+            die(f"integration revalidation check {check_id} must record exit 0")
+        paths = _manifest_paths(
+            check["paths"], f"integration revalidation check {check_id} paths",
+            set(affected_paths),
+        )
+        covered.update(paths)
+        normalized.append(
+            {"id": check_id, "command": command, "paths": paths, "exit": 0}
+        )
+    if covered != set(affected_paths):
+        die("integration revalidation checks do not cover every affected path")
+
+    return {
+        "schema": INTEGRATION_REVALIDATION_SCHEMA,
+        "artifact": os.path.relpath(artifact, os.path.realpath(base_dir)),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "base_before": base_before,
+        "base_after": base_head,
+        "product_paths": product_paths,
+        "upstream_paths": upstream_paths,
+        "overlap_paths": overlap_paths,
+        "composition_paths": composition_paths,
+        "affected_paths": affected_paths,
+        "checks": normalized,
     }
 
 
@@ -1988,6 +2256,8 @@ def done_sync_run(args, state: dict) -> None:
         die("--commit is required for sync-run")
     if not args.base_commit:
         die("--base-commit is required for sync-run")
+    if not args.revalidation:
+        die("--revalidation is required for sync-run")
     sync_tip = require_full_sha(args.commit, "run sync commit")
     base_tip = require_full_sha(args.base_commit, "run sync base commit")
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
@@ -2009,6 +2279,10 @@ def done_sync_run(args, state: dict) -> None:
             "run sync merge parents do not match the final recorded step merge "
             "and the exact remote base tip"
         )
+    product_evidence = product_evidence_record(state, recorded_tip)
+    revalidation = integration_revalidation_record(
+        args.dir, args.revalidation, recorded_tip, base_tip, sync_tip
+    )
     verify_local_commit(args.dir, sync_tip, "run branch integration sync")
     github_verified = verify_github_commits(args.dir, [sync_tip])
     integrate["sync"] = {
@@ -2016,11 +2290,14 @@ def done_sync_run(args, state: dict) -> None:
         "base_head": base_tip,
         "parents": parents,
         "github_verified": github_verified,
+        "product_evidence": product_evidence,
+        "revalidation": revalidation,
     }
     commit(args.dir, state, "done:sync-run", integrate["sync"])
     print(
         f"{run_branch_of(state)} synced with {state['base']} at {base_tip}; "
-        "integration may continue"
+        f"product evidence preserved; {len(revalidation['checks'])} integration "
+        "revalidation check(s) recorded; integration may continue"
     )
 
 
@@ -2081,6 +2358,11 @@ def done_integrate(args, state: dict) -> None:
     sync = as_dict(integrate.get("sync"))
     expected_tip = recorded_tip
     if sync:
+        recorded_product = sync.get("product_evidence")
+        if recorded_product is not None and recorded_product != product_evidence_record(
+            state, recorded_tip
+        ):
+            die("recorded product evidence changed after the integration sync")
         expected_tip = require_full_sha(sync.get("commit"), "recorded run sync commit")
     if remote_tip != expected_tip:
         if sync:
@@ -3949,6 +4231,16 @@ def cmd_status(args) -> None:
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
         )
+        sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+        product = as_dict(sync.get("product_evidence"))
+        revalidation = as_dict(sync.get("revalidation"))
+        if product:
+            print(
+                "evidence: product "
+                f"{str(product.get('head', ''))[:12]} preserved; "
+                f"{len(revalidation.get('checks') or [])} integration "
+                "revalidation check(s) recorded"
+            )
     elif phase == "done":
         print(f"phase: done ({len(state['steps'])} steps shipped)")
     else:
@@ -4168,6 +4460,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--branch")
     sp.add_argument("--commit")
     sp.add_argument("--base-commit", dest="base_commit")
+    sp.add_argument("--revalidation")
     sp.add_argument("--tests")
     sp.add_argument("--no-further-leads", dest="no_further_leads", action="store_true")
     sp.add_argument("--reason")

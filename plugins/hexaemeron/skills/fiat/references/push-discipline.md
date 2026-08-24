@@ -236,16 +236,38 @@ into the run branch once with `--no-ff`, resolve only the reported conflicts,
 and sign that merge with the two exact provenance trailers. Its first parent
 must be the final recorded step merge and its second parent the supplied base
 tip. Push it, require GitHub `verified: true` with `reason: valid`, then record
-the exact topology before the integration pull request merges:
+the exact topology and bounded composition checks before the integration pull
+request merges:
 
 ```text
-hexctl done sync-run --commit <signed merge sha> --base-commit <remote base sha>
+hexctl done sync-run --commit <signed merge sha> \
+  --base-commit <remote base sha> \
+  --revalidation .hexaemeron/integration-revalidation.json
 ```
 
 The controller compares both remote tips, reads the two parents, verifies the
 local signature and trailers, and checks GitHub's result. It accepts at most
 one sync and makes that commit the only permitted integration PR head. A base
 that moved again or any extra run-branch commit stops the receipt.
+
+The revalidation file uses `fiat-integration-revalidation/v1`. It lists the
+repository paths whose evidence dependencies the merge affected and one or
+more bounded checks, each with a stable id, exact command, covered paths and
+exit `0`. The controller computes the common pre-drift base, the product paths,
+the newer-base paths, their overlap, and the actual difference between the
+signed product head and synced tree. The affected paths must equal that last
+composition set plus every overlap path. Every affected path must be covered by
+a check, and every check must be green. The receipt keeps the artefact digest
+and all those computed sets. It records operator check evidence; it does not
+infer that an arbitrary command was sufficient.
+
+The completed implementation and audit remain evidence for their exact signed
+product tree. The sync adds evidence about composition with the newer base.
+Base advancement alone never authorises a carryover, a reconstructed product
+tree, another study or another audit. Reopen only a dependency the merge
+changed or a surface whose bounded revalidation failed. Carryover remains the
+recovery for an exhausted audit or a substantive product change, not for the
+passage of unrelated commits on the base branch.
 
 **Carry the unfinished forward.** The run-level body lives at
 `.hexaemeron/run-pr.md`, written in the prose phase, and the integration pull
