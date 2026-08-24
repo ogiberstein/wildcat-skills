@@ -13817,3 +13817,77 @@ and the empty-plugins case above were probed by hand but carry no dedicated
 suite guard; a fleet with unknowns and nothing behind exits 0 by
 construction without a dedicated guard; and the step 2 leads stand as
 recorded. None of these changes a verdict or crosses a boundary.
+
+## Step 3, round 2 -- 2026-08-24
+
+One finding, fixed on the stacked branch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | the round 1 sanitizer mapped only C0 controls and DEL, so a Unicode line or paragraph separator in a plugin key still forged a text row for any `splitlines` consumer, and a lone surrogate in a registry value crashed `hexctl currency` text mode mid-report with a raw `UnicodeEncodeError` traceback at exit 1 -- the hostile-registry traceback the study contract names -- both demonstrated end to end | fixed |
+
+This round re-audits round 1's fix commit
+`61ddcfe32c05fc81c9be509db8c25a39e7fdb85d` on
+`fiat/controller-currency-guarantee-step-3-expose-the-currency-observation--audit`,
+entered at `63adaf8c1d2416e4b900cb489d76f35965f42fd3` with both suites green
+(1047/1047 and 349/349) and all three lints at exit 0.
+
+The regression audit of `currency_text_field` found the finding above and
+otherwise holds. Byte-for-byte preservation was probed directly: plugin
+slugs, semver strings, 40-hex SHAs, every verdict and route token, and the
+`null` rendering pass unchanged through the old and new predicate alike.
+`--json` stays byte-honest and crash-free: `json.dumps` under its default
+ASCII escaping carries raw registry values, a lone surrogate included, which
+the new guard asserts by reading the hostile value back from the JSON rows.
+No other text-rendering path in the step 3 code prints registry bytes: the
+two refusal messages and every warning token are fixed vocabulary.
+`secret-echo` and `verdict-honesty` hold on the fixed rendering because the
+sanitizer is display-only -- verdicts, rows and the exit code are computed
+before any rendering, and the JSON surface is untouched.
+
+The repair replaces the byte-class predicate with printability: every
+non-printable character renders as `?`, which a direct probe shows inert for
+NEL, the line and paragraph separators, the bidi override, the zero-width
+space, the no-break space and a lone surrogate, while every legitimate value
+above passes byte for byte. The bidi-override display residue is thereby
+closed along with the reported classes.
+
+Fix: one commit, `f4cc25c1bfff65940b12c49fa34d043f0bbc0e9f`, signed with a
+good Shoggoth signature and the two trailers, carrying the predicate change,
+the guard test (a `\u2028`-forged key plus a `\ud800` version: no traceback,
+line count equals row count, one `hexaemeron` row, raw value present in
+`--json`), and the six digest pins refreshed from
+`ccc703a00792f0447a1a4d8ab7d04ac2853229ae8897fc7b5392a184f9aa4495` to
+`782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e`, values
+only, same six rows. The source-bound Elenchus runner was invoked with the
+step's declared test command and format at this round's fresh report path
+`.elenchus/fiat-controller-currency-step-3-r2.json` against the fixes
+commit. Its verdict is `guarded`: the parent report is complete, 1048 tests
+executed, exactly the one new guard fails as an assertion, zero errors,
+zero skips.
+
+Mechanical results on the fixed tree: Phylax, Ephoros and Hypomnema print
+`clean` and exit 0; the Hexaemeron suite passes 1048/1048 and the root suite
+349/349; Horos reports `boundary matches the tree`; `git diff --check`
+exits 0. The security suite stays waived: no Solidity in scope, unchanged.
+
+Qualification: this round establishes the round 1 repair's completion and
+the fixed rendering's behaviour, not the reinstall operation, step 4
+behaviour, remote signature verification, push, pull request, or
+integration state. The Elenchus line records the runner's declared result;
+it does not attest the report bytes.
+
+The Sapheneia durable-record comparison preserved the heading, the finding
+with its id, severity, file and status, both commit SHAs and the entry SHA,
+both digests, every suite count and exit code, the probe inventories, the
+Elenchus contract tokens and `guarded` verdict with its counters, the
+qualification, and the leads below, item by item. It changes no existing
+audit byte.
+
+Leads not pursued: the round 1 leads stand as recorded -- a well-formed
+registry with an empty plugins map still reads zero rows at exit 0, a space
+inside a plugin name still shifts text columns without forging lines, and
+the defective-record row shapes and the unknowns-only fleet still carry no
+dedicated suite guard. One new lead: lookalike printable names (homoglyphs)
+remain renderable, as any name display leaves them. The step 2 leads stand
+as recorded.
