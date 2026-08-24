@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import math
 import os
@@ -995,6 +996,116 @@ class Validator:
                 "restore a readable regular file and retry",
             )
 
+    def read_captured(self, data: bytes) -> None:
+        """Parse one already-confined immutable byte snapshot."""
+        if not isinstance(data, bytes):
+            self.add(
+                "RO001",
+                "input",
+                "captured input is not a byte snapshot",
+                "capture one stable bounded byte sequence and retry",
+            )
+            return
+        if len(data) > MAX_TOTAL_BYTES:
+            self.add(
+                "RO002",
+                "limit",
+                f"input exceeds the {MAX_TOTAL_BYTES}-byte limit",
+                "split or reduce the record without omitting required lifecycle events",
+            )
+            return
+
+        handle = io.BytesIO(data)
+        number = 0
+        while True:
+            raw = handle.readline(MAX_LINE_BYTES + 2)
+            if not raw:
+                break
+            number += 1
+            if number > MAX_EVENTS:
+                self.add(
+                    "RO002",
+                    "limit",
+                    f"record exceeds the {MAX_EVENTS}-event limit",
+                    "split the record at a run boundary",
+                    line=number,
+                )
+                break
+            if len(raw) > MAX_LINE_BYTES or not raw.endswith(b"\n"):
+                code = "RO003" if len(raw) > MAX_LINE_BYTES else "RO004"
+                message = (
+                    f"line exceeds the {MAX_LINE_BYTES}-byte limit"
+                    if code == "RO003"
+                    else "record is truncated or lacks a final newline"
+                )
+                self.add(
+                    code,
+                    "limit" if code == "RO003" else "syntax",
+                    message,
+                    "write one complete bounded JSON object followed by a newline",
+                    line=number,
+                )
+                if len(raw) > MAX_LINE_BYTES:
+                    while raw and not raw.endswith(b"\n"):
+                        raw = handle.readline(MAX_LINE_BYTES + 2)
+                continue
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                self.add(
+                    "RO004",
+                    "syntax",
+                    "line is not valid UTF-8",
+                    "encode the complete JSON object as UTF-8",
+                    line=number,
+                )
+                continue
+            try:
+                value = json.loads(
+                    text,
+                    object_pairs_hook=_pairs_object,
+                    parse_constant=_reject_constant,
+                    parse_float=_parse_decimal,
+                    parse_int=_parse_decimal,
+                )
+            except DuplicateKey:
+                self.add(
+                    "RO005",
+                    "syntax",
+                    "line contains a duplicate object key",
+                    "retain one value for every object key at every depth",
+                    line=number,
+                )
+                continue
+            except (json.JSONDecodeError, ValueError):
+                self.add(
+                    "RO004",
+                    "syntax",
+                    "line is not one complete JSON object",
+                    "write one complete JSON object on the line",
+                    line=number,
+                )
+                continue
+            except RecursionError:
+                self.add(
+                    "RO006",
+                    "limit",
+                    "line exceeds the safe parser nesting boundary",
+                    f"reduce nesting to at most {MAX_DEPTH} levels",
+                    line=number,
+                )
+                continue
+            if not isinstance(value, dict):
+                self.add(
+                    "RO007",
+                    "shape",
+                    "event is not an object",
+                    "write a closed event object",
+                    line=number,
+                )
+                continue
+            self.events.append((number, value))
+
     def finalise_input(self, path: Path, root: Path) -> None:
         """Bind a clean result to one bounded final reread of the named path."""
         if self.snapshot is None:
@@ -1679,7 +1790,7 @@ class Validator:
                     event=event,
                 )
 
-    def relations(self) -> None:
+    def relations(self, *, allow_prefix: bool = False) -> None:
         seen_events: dict[str, tuple[int, dict[str, Any]]] = {}
         evidence: dict[str, tuple[int, dict[str, Any]]] = {}
         capabilities: dict[str, tuple[int, dict[str, Any]]] = {}
@@ -2116,7 +2227,7 @@ class Validator:
                 "record has no run.started event",
                 "place exactly one run.started event first",
             )
-        if finished is None:
+        if finished is None and not allow_prefix:
             self.add(
                 "RO009",
                 "lifecycle",
@@ -2255,13 +2366,18 @@ def display_path(path: Path, root: Path) -> str:
     return escaped[: MAX_DISPLAY_PATH - len(suffix)] + suffix
 
 
-def validate_path(path: Path, *, root: Path | None = None) -> list[Finding]:
+def validate_path(
+    path: Path,
+    *,
+    root: Path | None = None,
+    allow_prefix: bool = False,
+) -> list[Finding]:
     root = repository_root() if root is None else root
     display = display_path(path, root)
     validator = Validator(display)
     validator.read(path, root)
     if validator.events:
-        validator.relations()
+        validator.relations(allow_prefix=allow_prefix)
     elif not validator.findings:
         validator.add(
             "RO009",
@@ -2271,6 +2387,27 @@ def validate_path(path: Path, *, root: Path | None = None) -> list[Finding]:
         )
     if not validator.findings:
         validator.finalise_input(path, root)
+    return validator.result()
+
+
+def validate_bytes(
+    data: bytes,
+    *,
+    display_path: str = "captured-observation.jsonl",
+    allow_prefix: bool = False,
+) -> list[Finding]:
+    """Validate the exact immutable bytes already admitted by a caller."""
+    validator = Validator(display_path)
+    validator.read_captured(data)
+    if validator.events:
+        validator.relations(allow_prefix=allow_prefix)
+    elif not validator.findings:
+        validator.add(
+            "RO009",
+            "lifecycle",
+            "record contains no events",
+            "write one run.started and one run.finished event",
+        )
     return validator.result()
 
 
@@ -2301,19 +2438,25 @@ def text_lines(findings: list[Finding]) -> list[str]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Check one bounded promise-machine-run-observation/v1 JSONL record."
+        description="Check one bounded promise-machine-run-observation/v1 JSONL record or prefix."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     check = subparsers.add_parser("check", help="validate one confined JSONL record")
     check.add_argument("path")
     check.add_argument("--json", action="store_true", help="emit canonical JSON")
+    prefix = subparsers.add_parser(
+        "check-prefix",
+        help="validate one confined JSONL prefix without requiring run.finished",
+    )
+    prefix.add_argument("path")
+    prefix.add_argument("--json", action="store_true", help="emit canonical JSON")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     path = Path(args.path)
-    findings = validate_path(path)
+    findings = validate_path(path, allow_prefix=args.command == "check-prefix")
     if args.json:
         report = {
             "contract": CONTRACT_ID,
