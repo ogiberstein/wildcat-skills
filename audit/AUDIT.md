@@ -12674,3 +12674,46 @@ recording as a lead each time they met it.
 
 Leads not pursued: the three named in round 1 stand unchanged, and no new lead
 was found.
+
+## Capture receipt binding, step 1, round 1 -- 2026-08-24
+
+Non-Solidity round over the two Markdown documents step 1 commits, at
+`3dbabca3f87a5dd542fc0f49d04cbede60de1742`. Zero findings.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over both new documents and over the required tree
+`README.md AGENTS.md .agents plugins docs`. Protasis accepts the study in
+`--study` mode and the runbook in runbook mode. Imprimatur reports no defect on
+either, both scoring 100.0. Horos reports the boundary matches the tree, so
+`.horos/boundary.json` stands unchanged. The Hexaemeron suite passes 962/962.
+The commit's local signature is good and it carries exactly one co-author and
+one origin trailer.
+
+The root suite needs stating precisely, because this step's exit criterion was
+written before the receipts it describes existed. In a clean worktree of
+`3dbabca` it reports 345 tests, `OK (skipped=5)`, which is the criterion as
+written. In this run's own worktree the same command reports 5 failures, every
+one of them `tests/test_run_observation_capture.py` reading this delivery's
+`.hexaemeron/study.md` and `.hexaemeron/runbook.md` instead of issue 435's. That
+is issue 574 itself, the defect step 2 removes, and it shows up at step 1
+because writing a study and a runbook is what creates it. The tracked tree meets
+the exit and the run worktree cannot. No amendment was made: the criterion is
+right about the artefact the step delivers, and the run worktree figure is the
+reproduction step 2 starts from.
+
+Two register concerns are reachable at this step and both were checked.
+`digest-transcription`: both digests the study quotes,
+`6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404` and
+`56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5`, appear
+byte-identical in `tests/test_run_observation_capture.py`, and the base SHA the
+study states matches the run's recorded base `7f4264ecc26ac2149ddb99834433bee3b5dd9fdc`.
+`untracked-path-read`: the step changes no code, so every read in the module is
+byte-identical to the entry state. The other four concerns, `weakened-claim`,
+`guard-map-drift`, `dormant-skip` and `subprocess-argv`, sit in step 2's diff
+and are not yet reachable.
+
+Brevitas is recorded rather than gated: clean on the study, B010 and B001 on the
+runbook, which a two-step specification cannot satisfy. The shipped
+`docs/hypomnema-quoted-specimen-runbook.md` carries the same two codes on `main`.
+
+Leads not pursued: none.
