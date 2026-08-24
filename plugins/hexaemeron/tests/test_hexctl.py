@@ -4421,6 +4421,120 @@ if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
+class AuditLogPathTests(HexctlCase):
+    """A run's rounds go to a file no other run writes.
+
+    The shared literal put every run's log on both sides of `sync-run`'s
+    product/upstream intersection, so a run that only appended to that file
+    still owed a green check over it before it could integrate. `init` derives
+    the path from the run branch instead. An override may move the directory,
+    because three plugins here keep their rounds under their own tree, but it
+    may not take the name, because the name is what keeps two runs apart.
+    """
+
+    def log_path(self):
+        return json.loads(self.run_ctl("config", "get", "audit.log_path").stdout)
+
+    def derived_name(self):
+        return self.run_branch().replace("/", "-") + ".md"
+
+    def state_bytes(self):
+        with open(os.path.join(self.target, ".hexaemeron", "state.json"), "rb") as fh:
+            return fh.read()
+
+    def test_a_fresh_run_derives_its_own_log_path(self):
+        self.init(topic="give each run its own log")
+        self.assertEqual(self.log_path(), "audit/rounds/" + self.derived_name())
+
+    def test_no_literal_log_path_survives_in_the_config_template(self):
+        """A literal here is what a run copies, so there is no literal here."""
+        self.assertNotIn("log_path", hexctl_module().DEFAULT_CONFIG["audit"])
+
+    def test_two_run_branches_derive_two_paths(self):
+        derive = hexctl_module().run_audit_log_path
+        self.assertEqual(derive("fiat/576-one"), "audit/rounds/fiat-576-one.md")
+        self.assertEqual(derive("fiat/577-two"), "audit/rounds/fiat-577-two.md")
+
+    def test_an_override_may_move_the_directory(self):
+        self.init()
+        moved = "plugins/hexaemeron/audit/rounds/" + self.derived_name()
+        self.run_ctl("config", "set", "audit.log_path", json.dumps(moved))
+        self.assertEqual(self.log_path(), moved)
+
+    def test_an_override_may_not_take_another_records_name(self):
+        self.init()
+        for value in (
+            "audit/AUDIT.md",
+            "audit/rounds/fiat-999-somebody-elses-run.md",
+            "audit/rounds/" + self.derived_name().removesuffix(".md"),
+        ):
+            with self.subTest(value=value):
+                proc = self.run_ctl(
+                    "config", "set", "audit.log_path", json.dumps(value), expect=2
+                )
+                self.assertIn("must end in", proc.stderr)
+                self.assertIn(self.derived_name(), proc.stderr)
+
+    def test_an_absolute_override_is_refused(self):
+        self.init()
+        proc = self.run_ctl(
+            "config", "set", "audit.log_path",
+            json.dumps("/tmp/" + self.derived_name()), expect=2,
+        )
+        self.assertIn("absolute path", proc.stderr)
+
+    def test_an_override_climbing_out_with_dotdot_is_refused(self):
+        self.init()
+        proc = self.run_ctl(
+            "config", "set", "audit.log_path",
+            json.dumps("../" + self.derived_name()), expect=2,
+        )
+        self.assertIn("'..' component", proc.stderr)
+
+    def test_a_control_character_in_the_directory_is_refused(self):
+        """In the directory, so the basename check cannot be what refuses it."""
+        self.init()
+        proc = self.run_ctl(
+            "config", "set", "audit.log_path",
+            json.dumps("aud\u0001it/rounds/" + self.derived_name()), expect=2,
+        )
+        self.assertIn("control character", proc.stderr)
+
+    def test_an_override_reaching_outside_through_a_symlink_is_refused(self):
+        """Every textual check passes; only resolving the path catches this."""
+        self.init()
+        outside = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, outside, True)
+        os.symlink(outside, os.path.join(self.target, "elsewhere"))
+        proc = self.run_ctl(
+            "config", "set", "audit.log_path",
+            json.dumps("elsewhere/" + self.derived_name()), expect=2,
+        )
+        self.assertIn("escapes target directory", proc.stderr)
+
+    def test_a_value_that_is_not_a_non_empty_string_is_refused(self):
+        self.init()
+        for value in ("null", "3", "[]", '""'):
+            with self.subTest(value=value):
+                proc = self.run_ctl(
+                    "config", "set", "audit.log_path", value, expect=2
+                )
+                self.assertIn("non-empty string", proc.stderr)
+
+    def test_a_refused_override_leaves_the_state_file_byte_identical(self):
+        self.init()
+        before = self.state_bytes()
+        self.run_ctl("config", "set", "audit.log_path", '"audit/AUDIT.md"', expect=2)
+        self.assertEqual(self.state_bytes(), before)
+
+    def test_a_run_with_no_recorded_branch_keeps_the_older_freedom(self):
+        """Nothing to derive from, so the constraint has nothing to say."""
+        self.init()
+        self.strip_run_branch()
+        self.run_ctl("config", "set", "audit.log_path", '"audit/AUDIT.md"')
+        self.assertEqual(self.log_path(), "audit/AUDIT.md")
+
+
 class StaleControllerTests(OriginCheckoutMixin, unittest.TestCase):
     """A run driven by an installed plugin older than the repository it edits.
 
