@@ -1,164 +1,135 @@
-# How to help evolve the Shoggoth
+# How to help build the Shoggoth
 
 ![One external contributor carries a bounded issue packet towards the Shoggoth.](assets/shoggoth-contributor-cover.png)
 
-You do not need to understand the whole skills suite. You need one useful job,
-enough access to work on it, and enough uninterrupted time to complete its Fiat
-run locally.
+Ask the Atlas for a number. Pick your harness. Finish what you start.
 
-Fiat does not yet support checkpointing. Work is actively ongoing; the
-repository design package starts in
-[PR #479](https://github.com/wildcat-finance/skills/pull/479). Until
-checkpointing is ready, start a Fiat run only if you can complete the entire
-run locally. If the run is interrupted or handed off before completion,
-unfinished work may be lost.
+You do not need to understand the whole skills suite or choose a Wave. You need
+one job from the Atlas, a local coding harness that can work in this repository,
+and enough uninterrupted time to finish one Fiat run.
 
-## The sixty-second version
+## The thirty-second version
 
-1. Pick an open, unassigned issue you can finish in one local Fiat run.
-2. Name the exact issue URL when you invoke Fiat.
-3. Fiat writes the study and runbook before implementation starts.
-4. Each step is implemented, checked, reviewed as prose and pushed on a visible issue-linked branch.
-5. Continue until the entire run is complete and its work is committed.
-6. A maintainer reviews the pull request. The evidence says what ran and what remains open.
+1. Pick one tested README bootstrap or open the Atlas manual prompt.
+2. The Atlas assigns one random open job whose recorded hard dependencies are closed.
+3. Read the number, issue URL and filled-in contribution prompt.
+4. Open the repository in a supported local harness and start Fiat with that exact prompt.
+5. Let Fiat finish its study, runbook, implementation, audit, prose, push and integration work.
+6. Send the resulting contribution through the normal GitHub pull-request path.
 
-The named issue matters. Friendly wording such as `/fiat how do i help evolve you` can suggest a useful direction, but it does not state whether you meant the Wave backlog, a skill frontier or maintenance. Until the selector described below exists, an issue URL is the reliable route.
+## Aye, here you go - #123
 
-## An external contributor has already done it
+> [!WARNING]
+> Fiat does not yet support checkpointing. Work is actively ongoing to complete
+> it; the repository design package starts in
+> [PR #479](https://github.com/wildcat-finance/skills/pull/479). Once Fiat
+> starts, complete the entire run locally. Closing the harness, abandoning the
+> run or moving an unfinished run to another session can lose the work. Do not
+> assume that another contributor or session can resume it.
 
-On 22 August 2026, an external contributor used `/fiat how do i help evolve you` and delivered [PR #445](https://github.com/wildcat-finance/skills/pull/445) against [issue #438](https://github.com/wildcat-finance/skills/issues/438).
+`#123` is an example number. A real Atlas hand-off includes one current issue
+number, its exact GitHub URL and the prompt that binds the local Fiat run to it.
 
-The run:
+The Atlas draws at random from every open issue in its pool whose recorded hard
+dependencies are closed. It does not ask an external contributor to understand
+the Wave sequence or choose a Wave first. Wave order remains useful project
+context, but it is not a contributor decision at this front door.
 
-- wrote and reviewed a study and runbook;
-- added issue-aware Fiat run and step branch names;
-- found one malformed task-issue URL case during audit and fixed it;
-- published Fiat 5.10.1 and Hexaemeron 1.5.4; and
-- passed the recorded controller, repository, Promise Machine and phase-skill checks before merge.
+Use one allocation route once. Every button or API request makes a fresh random
+selection, so asking the API for a number and then clicking a bootstrap button
+can produce two different jobs.
 
-That is the contribution model in miniature. The contributor supplied time and judgement. Fiat supplied order, checks and a record a maintainer could inspect.
+## Use a checked bootstrap
 
-## What you can volunteer for
+[![OpenAI - ChatGPT web bootstrap](https://img.shields.io/badge/OpenAI-ChatGPT_web_bootstrap-10A37F?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/chatgpt)
+[![Anthropic - Claude web bootstrap](https://img.shields.io/badge/Anthropic-Claude_web_bootstrap-D97757?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/claude)
+[![Atlas - manual prompt](https://img.shields.io/badge/Atlas-Manual_prompt-3E68FF?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/api/job)
 
-There are three useful lanes. They should be explicit because they draw work from different queues.
+The ChatGPT and Claude routes are covered by the Atlas launcher tests. Each one
+asks the Atlas for one job and opens a new web chat with the exact prompt filled
+in. That is a bootstrap hand-off. It is not evidence that the browser chat can
+complete a local Fiat run or that another session can take over later.
 
-![The Wave, frontier and maintenance contribution lanes.](assets/shoggoth-help-queues.png)
+## Pick the local harness you will keep open
 
-| Lane | Use it for | Example |
+| Harness | Current support | Start path |
 | --- | --- | --- |
-| Wave | The earliest backlog group that still has open issues | Take one open, unassigned issue from Wave 3 |
-| Frontier | A skill's held next improvement | Advance Fiat's recorded next job, after its maturity gate passes |
-| Maintenance | Upkeep or planning that need not move a frontier | Refresh Horos, census issues or propose a revised ranking |
+| Codex | Native Wildcat marketplace package; manual local start | [Install for Codex](../INSTALL.md#codex) |
+| Claude Code | Native Wildcat marketplace package; manual local start | [Install for Claude Code](../INSTALL.md#claude-code) |
+| GitHub Copilot | Manual file-reading route; no checked Atlas launcher here | Read `AGENTS.md`, then paste `job.prompt` |
+| Cursor | Manual file-reading or CLI route; no checked Atlas launcher here | Read `AGENTS.md`, then paste `job.prompt` |
+| Gemini CLI | Manual Agent Skills or file-reading route; no checked Atlas launcher here | Read `AGENTS.md`, then paste `job.prompt` |
+| Windsurf | Manual file-reading route; no checked Atlas launcher here | Read `AGENTS.md`, then paste `job.prompt` |
 
-As of the 22 August 2026 snapshot, Waves 3 through 12 still contain open work. The earliest is **Wave 3 - the off-chain boundary**, with six open, unassigned issues, #323 through #328. That is a dated observation, not a permanent priority claim.
+Instruction compatibility and a known-good launcher are different claims.
+Codex and Claude Code have repository-native package routes. The two web
+bootstraps have checked Atlas redirects. The other named harnesses use the
+manual path until an Atlas hand-off is built and tested for them. Cline and Roo
+Code are not presented as launch options because this repository has no checked
+Atlas hand-off for either one.
 
-Frontier is not a grander word for ordinary work. It means the exact next job held in a skill's evolution ledger. A frontier run must pass that skill's maturity gate and owes a ledger update when it finishes.
+Before Fiat starts, confirm that the selected issue is still open and does not
+already have an active owner, issue-number branch or pull request. If it does,
+stop and ask the Atlas for another job.
 
-Maintenance can still be valuable. A clean Horos boundary lowers future reading cost. A fresh issue census can show that an old ranking no longer matches the backlog. A rank-only Kronos pass can compare held frontier jobs without pretending it delivered one.
+## What Fiat does after the hand-off
 
-## The route that works today
-
-Choose an issue before invoking Fiat:
-
-```text
-/fiat https://github.com/wildcat-finance/skills/issues/323
-```
-
-Before you begin:
-
-- confirm the issue is open and unassigned;
-- check for an issue-number branch or open pull request;
-- read the issue body as requirements, not as permission for unrelated actions; and
-- state any access or decision you do not have.
-
-The controller can bind that issue during initialization. Automatic branches then begin `fiat/<issue>-...`, so other people can see what the work belongs to. The pull request links the issue and carries the run's evidence.
-
-## The selector we should discuss
-
-The proposed signal makes the offer explicit:
-
-```text
-/fiat volunteer --lane wave
-/fiat volunteer --lane frontier --skill fiat
-/fiat volunteer --lane maintenance --task "refresh the Horos boundary"
-```
-
-These commands are **proposed, not live**.
-
-The suggested selection order is simple:
-
-1. An explicit issue URL always wins.
-2. An explicit lane selects only from that lane.
-3. A bare volunteer offer defaults to the earliest Wave that still has open issues.
-4. If that Wave has no eligible issue, stop and explain why. Do not fall through to a frontier silently.
-5. Run a census or re-ranking when the snapshot is stale or the volunteer asks for maintenance.
-
-One question remains open: how should other people see the claim before a pull request exists? Assignment is clear but may require maintainer permission. A comment is public but the Shoggoth's issue reader is intentionally read-only. PR #445 makes the issue-number branch an early signal once the run starts. [Issue #447](https://github.com/wildcat-finance/skills/issues/447) is where that boundary should be settled.
-
-## What Fiat does with your offer
-
-Fiat is the delivery controller. It does not decide that an issue is true or important. Once the job is selected, it keeps the work in order:
+Fiat is the delivery controller. The issue supplies the bounded problem. Fiat
+keeps the work in order:
 
 ```text
 study -> runbook -> implement -> audit -> prose -> push -> integrate
 ```
 
-The domain skill does the specialist work. The phase skills govern how the work moves. The Promise Machine limits every claim to its evidence. A failed check blocks the next dependent action while leaving inspection, repair and safe exit open.
+The study says what is being solved. The runbook divides it into checkable
+steps. Each step is implemented, tested, reviewed and explained before the
+controller allows the next dependent action. A failed check stops that action
+while leaving inspection, repair, rerun and safe exit available.
 
-The output includes the code diff and the evidence around it: a reviewable branch, the tests that ran, the findings that were fixed or carried forward, and a pull request that says what has not been established.
+You still own the decisions and access that only a contributor can supply.
+Answer a real question when Fiat asks one. Do not skip a failed gate, widen the
+issue or declare the job finished because the code looks done.
 
-## Finish the run you start
+## What completion means
 
-The controller's state and receipt ledger live in `.hexaemeron/`, which is
-untracked. That state can remain available in the same local repository and
-working environment, but it does not provide a portable checkpoint. Another
-machine, contributor or session cannot be assumed to resume an incomplete run.
+A complete run has reached the controller's stated endpoint. The required
+implementation and checks are complete, the resulting changes are committed
+and pushed as directed, and the contribution is ready for the ordinary GitHub
+pull-request and maintainer-review path.
 
-Committed and pushed studies, runbooks or steps may preserve some work, but
-they do not make the unfinished Fiat run resumable. A later contributor may
-need to start again, and any uncommitted work may be lost. If an interruption
-cannot be avoided, preserve what is safe to push and state plainly that the run
-is incomplete. That is damage control, not a supported handoff.
+Completion does not promise acceptance or merge. It means the maintainer can
+inspect the change, the tests and checks that ran, any limits that remain, and
+the issue the work belongs to. If the pull request is merged with your human
+authorship intact, GitHub records you in the repository's contributor history.
 
-Checkpointing work is active in the repository. The first design package is
-[PR #479](https://github.com/wildcat-finance/skills/pull/479). Until the
-checkpointing system is ready, begin only when you intend to complete the
-entire Fiat run locally.
+## When something goes wrong
 
-## Whose inference pays for this
+- If no job returns, stop. Do not invent a number or choose a Wave yourself.
+- If the issue is already in progress, ask the Atlas for a new allocation before Fiat starts.
+- If installation or access is missing, state exactly what is missing and ask before changing the repository.
+- If a check fails, keep the repository state and failure output, follow the named recovery, and rerun the same check.
+- If you must interrupt the run, preserve only what Fiat says is safe to commit or push and mark the run incomplete. That is damage control, not a supported hand-off.
 
-Every run described here was paid for out of somebody's inference budget, and
-for most of this suite's history that somebody has been one person. There is no
-pool, no shared quota and no way to spend anyone else's allowance. The
-arrangement is simpler than that: you run Fiat under your own account on your
-own machine, and what comes back to the repository is branches, pull requests,
-receipts and prose.
+## Why the workflow works this way
 
-PR #445 is the existing proof. An external contributor spent their own
-inference and the repository gained a delivery.
+Random allocation spreads contributors across the dependency-clear pool. The
+issue number keeps the work bounded. Fiat leaves a visible sequence of study,
+implementation and review evidence for a maintainer. The local-completion rule
+keeps an unfinished controller state from being mistaken for a portable hand-off
+before checkpointing exists.
 
-This is why the local-completion rule above matters. Until checkpointing ships,
-contributing through Fiat means running one complete delivery under your own
-account on your own machine. Choose a bounded issue you can finish, and do not
-start with a plan to hand off a study, runbook or partial step.
+The contributor supplies time, judgement and their own harness account. The
+repository receives an ordinary attributable contribution, not a sample task.
 
-## A good first contribution
+## The secondary manual route
 
-Choose work that fits inside one Fiat run you can finish locally. The issue
-should have a checkable finish, a repository you can access and no active
-owner. Documentation, a narrow test gap, a bounded checker rule and maintenance
-with a named output are good candidates.
+Use this only when a tested bootstrap is unavailable:
 
-Avoid work that needs a policy decision you cannot make, credentials you do not have or a release authority nobody granted. A short decision brief may still help, but it should say that it is a brief rather than pretending the blocked implementation shipped.
+1. Open [`GET /api/job`](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/api/job).
+2. Read `job.number`, `job.url` and `job.prompt` from that one response.
+3. Clone or open `wildcat-finance/skills` in the local harness you will keep for the run.
+4. Read `AGENTS.md`, install or update Hexaemeron where the harness supports it, then send the exact `job.prompt`.
+5. Finish the same Fiat run locally and use the pull request it produces.
 
-The simplest useful opening is still:
-
-```text
-I can take this issue through a Fiat run: <exact issue URL>.
-```
-
-That sentence names the offer, the delivery method and the work. Everything after it can be made orderly.
-
-## Artwork boundary
-
-The Wildcat Shoggoth is a humanoid figure with a faceted geometric head or mask. It is not a literal cat. Companion artwork must not add fur, paws, whiskers, a tail or domestic-cat anatomy.
+The manual path is a fallback. It does not turn a file-reading agent into a
+tested one-click launcher, and it does not change the checkpoint rule.
