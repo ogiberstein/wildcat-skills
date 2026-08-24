@@ -96,3 +96,19 @@ can still change or merge a pull request after a clear `next` result and before
 the receipt check. The controller repeats the same check at `done merge-step`,
 which narrows that race and refuses a receipt, but it cannot prevent or undo an
 external click.
+
+### Audit follow-up: require native complete history
+
+The first audit round reproduced one true ancestor that `git merge-base
+--is-ancestor` reported as absent after exact tips were fetched into a shallow
+clone. It also reproduced ancestry changed by a local replacement ref and by a
+legacy graft. A clear result now requires a non-shallow repository, refuses a
+graft surface, and runs ancestry with replacement refs disabled. Fetching exact
+tips is object availability evidence; it is not proof that their history is
+complete.
+
+The same round tightened the inputs joined to that graph. The controller now
+requires an ordered merged-step prefix, exact integer step numbers and string
+titles. Pull-request evidence requires full head and base OIDs, native branch
+names, and a merge OID only for `MERGED`. A historical base OID remains
+diagnostic: it cannot replace the live named base in the landing decision.

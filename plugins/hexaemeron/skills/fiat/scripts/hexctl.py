@@ -671,7 +671,7 @@ def task_issue_number(value: str) -> str:
 
 
 def check_branch_name(name: str) -> None:
-    if not BRANCH_RE.match(name) or ".." in name or "//" in name:
+    if not BRANCH_RE.fullmatch(name) or ".." in name or "//" in name:
         die(f"'{name}' is not a usable branch name")
     if name.endswith(".lock"):
         die(f"'{name}' is not a usable branch name")
@@ -5210,6 +5210,10 @@ STACK_GUARD_MESSAGES = {
         "the exact snapshot objects could not be obtained without moving refs",
         "retry-live-evidence",
     ),
+    "git-history-incomplete": (
+        "the local Git history cannot supply native exact ancestry",
+        "restore-complete-native-history",
+    ),
     "git-ancestry-failed": (
         "the fetched exact objects did not yield a complete ancestry answer",
         "retry-live-evidence",
@@ -5333,21 +5337,28 @@ def stack_landing_plan(state: dict) -> dict | None:
             ) from None
 
     steps = state.get("steps")
-    merged = as_dict(state.get("integrate")).get("merged") or []
+    integrate = state.get("integrate")
+    merged = integrate.get("merged") if isinstance(integrate, dict) else None
     if (
         not isinstance(steps, list)
         or not steps
         or len(steps) > GIT_PATHS_MAX
         or not isinstance(merged, list)
-        or any(isinstance(number, bool) or not isinstance(number, int)
-               for number in merged)
+        or any(type(number) is not int for number in merged)
+        or len(merged) > len(steps)
+        or merged != list(range(1, len(merged) + 1))
     ):
         raise StackGuardUnavailable("local-state", "invalid-stack-plan")
 
     branches: dict[int, str] = {}
     numbered: dict[int, dict] = {}
     for expected, step in enumerate(steps, 1):
-        if not isinstance(step, dict) or step.get("n") != expected:
+        if (
+            not isinstance(step, dict)
+            or type(step.get("n")) is not int
+            or step.get("n") != expected
+            or not isinstance(step.get("title"), str)
+        ):
             raise StackGuardUnavailable("local-state", "invalid-stack-plan")
         branch = step_branch_name(state, step)
         try:
@@ -5467,6 +5478,38 @@ def _stack_fetch_objects(base_dir: str, tips: list[str]) -> None:
     )
 
 
+def _stack_require_complete_history(base_dir: str) -> None:
+    """Refuse shallow or legacy-rewritten history before native ancestry."""
+    shallow = tool_text(
+        bounded_git(base_dir, ["rev-parse", "--is-shallow-repository"]),
+        "local Git history check",
+    )
+    if shallow not in ("false\n", "false\r\n") or "GIT_GRAFT_FILE" in os.environ:
+        die("local Git history is incomplete or rewritten")
+    graft_output = tool_text(
+        bounded_git(
+            base_dir,
+            ["rev-parse", "--path-format=absolute", "--git-path", "info/grafts"],
+        ),
+        "local Git graft check",
+    )
+    graft_lines = graft_output.splitlines()
+    if (
+        len(graft_lines) != 1
+        or not os.path.isabs(graft_lines[0])
+        or len(graft_lines[0].encode("utf-8")) > 4096
+    ):
+        die("local Git graft path is malformed")
+    try:
+        graft_stat = os.lstat(graft_lines[0])
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError):
+        die("local Git graft state could not be read")
+    if not stat.S_ISREG(graft_stat.st_mode) or graft_stat.st_size:
+        die("local Git history is rewritten by a graft file")
+
+
 def _stack_pr_snapshot(base_dir: str, pr_url: str) -> dict:
     """Read only the current PR already named by its immutable push receipt."""
     repository = github_repository(base_dir)
@@ -5486,6 +5529,10 @@ def _stack_pr_snapshot(base_dir: str, pr_url: str) -> dict:
     if not isinstance(payload, dict):
         die("current recorded pull request returned invalid topology")
     merge = payload.get("mergeCommit")
+    if merge is not None and (
+        not isinstance(merge, dict) or not isinstance(merge.get("oid"), str)
+    ):
+        die("current recorded pull request returned invalid merge topology")
     return {
         "url": payload.get("url"),
         "state": payload.get("state"),
@@ -5495,7 +5542,7 @@ def _stack_pr_snapshot(base_dir: str, pr_url: str) -> dict:
         # This historical value is retained for diagnostics only. The named
         # live base, not its merge-time OID, answers the target question.
         "base_sha": payload.get("baseRefOid"),
-        "merge_sha": merge.get("oid") if isinstance(merge, dict) else None,
+        "merge_sha": merge.get("oid") if merge is not None else None,
     }
 
 
@@ -5508,7 +5555,7 @@ def stack_commit_is_ancestor(base_dir: str, candidate: str, descendant: str,
         base_dir,
         "git",
         [
-            "merge-base", "--is-ancestor", "--end-of-options",
+            "--no-replace-objects", "merge-base", "--is-ancestor", "--end-of-options",
             candidate, descendant,
         ],
     )
@@ -5543,18 +5590,28 @@ def _validated_stack_refs(snapshot, branches: list[str]) -> dict[str, str]:
 
 
 def _validated_stack_pr(snapshot, recorded_url: str) -> dict:
-    required = {"url", "state", "head", "head_sha", "base", "merge_sha"}
+    required = {
+        "url", "state", "head", "head_sha", "base", "base_sha", "merge_sha",
+    }
     if not isinstance(snapshot, dict) or not required.issubset(snapshot):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    if not isinstance(snapshot["url"], str):
         raise StackGuardUnavailable("pull-request", "pull-request-malformed")
     if snapshot["url"] != recorded_url:
         raise StackGuardUnavailable("pull-request", "pull-request-wrong-url")
-    if not isinstance(snapshot["head_sha"], str) or not COMMIT_RE.fullmatch(
-        snapshot["head_sha"]
-    ):
-        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    for key in ("head_sha", "base_sha"):
+        if not isinstance(snapshot[key], str) or not COMMIT_RE.fullmatch(snapshot[key]):
+            raise StackGuardUnavailable("pull-request", "pull-request-malformed")
     if not all(isinstance(snapshot[key], str) for key in ("state", "head", "base")):
         raise StackGuardUnavailable("pull-request", "pull-request-malformed")
     if snapshot["state"] not in ("OPEN", "CLOSED", "MERGED"):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    merge_sha = snapshot["merge_sha"]
+    if (
+        snapshot["state"] == "MERGED"
+        and merge_sha is not None
+        and (not isinstance(merge_sha, str) or not COMMIT_RE.fullmatch(merge_sha))
+    ) or (snapshot["state"] != "MERGED" and merge_sha is not None):
         raise StackGuardUnavailable("pull-request", "pull-request-malformed")
     for key in ("head", "base"):
         try:
@@ -5609,6 +5666,10 @@ def stack_landing_guard(base_dir: str, state: dict) -> dict:
         _stack_guard_read(
             "git-refs", "git-object-fetch-failed",
             _stack_fetch_objects, base_dir, list(first.values()),
+        )
+        _stack_guard_read(
+            "git-graph", "git-history-incomplete",
+            _stack_require_complete_history, base_dir,
         )
         pr = _validated_stack_pr(
             _stack_guard_read(

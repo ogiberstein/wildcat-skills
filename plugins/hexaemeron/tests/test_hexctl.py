@@ -214,6 +214,7 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             "headRefName": head,
             "headRefOid": head_sha,
             "baseRefName": base,
+            "baseRefOid": "a" * 40,
             "mergeCommit": {"oid": merge_sha} if merge_sha else None,
         }
 
@@ -233,7 +234,13 @@ import time
 
 args = sys.argv[1:]
 mode = os.environ.get("FAKE_GIT_MODE", "valid")
-if args and args[0] == "rev-parse" and "--show-toplevel" not in args:
+if args[:1] == ["--no-replace-objects"]:
+    args = args[1:]
+if args == ["rev-parse", "--is-shallow-repository"]:
+    print("false")
+elif args == ["rev-parse", "--path-format=absolute", "--git-path", "info/grafts"]:
+    print(os.environ.get("FAKE_GIT_GRAFTS", "/nonexistent/fiat-grafts"))
+elif args and args[0] == "rev-parse" and "--show-toplevel" not in args:
     if mode == "missing-commit":
         raise SystemExit(2)
     ref = args[-1].removesuffix("^{{commit}}")
@@ -5633,7 +5640,8 @@ class StackLandingGuardTests(unittest.TestCase):
         return value
 
     def _guard(self, state=None, *, first=None, second=None, pr=None,
-               ancestors=(), ref_effect=None, pr_effect=None):
+               ancestors=(), ref_effect=None, pr_effect=None,
+               history_effect=None):
         state = state or self._state()
         first = self._tips(state) if first is None else first
         if ref_effect is None:
@@ -5641,6 +5649,8 @@ class StackLandingGuardTests(unittest.TestCase):
         pr = self._pr(state) if pr is None else pr
         pr_kwargs = ({"side_effect": pr_effect} if pr_effect is not None
                      else {"return_value": pr})
+        history_kwargs = ({"side_effect": history_effect}
+                          if history_effect is not None else {})
         pairs = set(ancestors)
         ancestry_calls = [0]
 
@@ -5651,6 +5661,8 @@ class StackLandingGuardTests(unittest.TestCase):
         patch = mock.patch.object
         with patch(self.hexctl, "_stack_ref_snapshot", side_effect=ref_effect) as refs, \
              patch(self.hexctl, "_stack_fetch_objects") as fetch, \
+             patch(self.hexctl, "_stack_require_complete_history", create=True,
+                   **history_kwargs), \
              patch(self.hexctl, "_stack_pr_snapshot", **pr_kwargs) as prs, \
              patch(self.hexctl, "stack_commit_is_ancestor", new=ancestry):
             result = self.hexctl.stack_landing_guard(".", state)
@@ -5711,7 +5723,8 @@ class StackLandingGuardTests(unittest.TestCase):
         tips = {branch: self.one for branch in branches.values()}
         tips[branches[limit]] = commits[-1]
         pr = {"url": self.URL, "state": "OPEN", "head": branches[limit],
-              "head_sha": commits[-1], "base": self.RUN, "merge_sha": None}
+              "head_sha": commits[-1], "base": self.RUN,
+              "base_sha": "a" * 40, "merge_sha": None}
         guard = self._guard(state, first=tips, pr=pr)
         self.assertEqual((guard["result"], self.calls),
                          ("clear", (2, 1, 1, limit * (limit - 1))))
@@ -5745,17 +5758,41 @@ class StackLandingGuardTests(unittest.TestCase):
                 guard = self._guard(state, first=snapshot)
                 self.assertEqual((guard["result"], guard["evidence_class"]),
                                  ("unavailable", "git-refs"))
+        guard = self._guard(state, history_effect=SystemExit(2))
+        self.assertEqual(
+            (guard["result"], guard["evidence_class"], guard["reason_code"]),
+            ("unavailable", "git-graph", "git-history-incomplete"),
+        )
+        history_check = getattr(self.hexctl, "_stack_require_complete_history", None)
+        self.assertIsNotNone(history_check)
+        with mock.patch.object(self.hexctl, "bounded_git", return_value=b"true\n"), \
+             self.assertRaises(SystemExit):
+            history_check(".")
+        with mock.patch.object(self.hexctl, "bounded_tool_status", return_value=1) as status:
+            self.assertFalse(self.hexctl.stack_commit_is_ancestor(
+                ".", self.one, self.two_a, "fixture"
+            ))
+        self.assertEqual(status.call_args.args[2][0], "--no-replace-objects")
 
     def test_09_github_failures_and_wrong_url_are_unavailable(self):
         state = self._state()
         values = (TimeoutError(), SystemExit(2), {"bad": "shape"},
-                  self._pr(state, url=self.URL.replace("/1", "/99")))
-        for value in values:
-            with self.subTest(value=type(value).__name__):
+                  self._pr(state, url=self.URL.replace("/1", "/99")),
+                  self._pr(state, merge_sha="b" * 40),
+                  self._pr(state, base_sha=7),
+                  self._pr(state, head=self._branches(state)[1] + "\n"))
+        for index, value in enumerate(values):
+            with self.subTest(case=index):
                 kwargs = {"pr_effect": value} if isinstance(value, BaseException) else {"pr": value}
                 guard = self._guard(state, **kwargs)
                 self.assertEqual((guard["result"], guard["evidence_class"]),
                                  ("unavailable", "pull-request"))
+        payload = json.dumps({"mergeCommit": []}).encode()
+        with mock.patch.object(self.hexctl, "github_repository", return_value="x/y"), \
+             mock.patch.object(self.hexctl, "pull_request_repository", return_value=self.URL), \
+             mock.patch.object(self.hexctl, "bounded_gh", return_value=payload), \
+             self.assertRaises(SystemExit):
+            self.hexctl._stack_pr_snapshot(".", self.URL)
 
     def test_10_first_second_ref_race_is_unavailable(self):
         state, second = self._state(), self._tips(self._state())
@@ -5786,6 +5823,22 @@ class StackLandingGuardTests(unittest.TestCase):
         guard = self.hexctl.stack_landing_guard(".", state)
         self.assertEqual((guard["result"], guard["reason_code"]),
                          ("unavailable", "invalid-stack-plan"))
+        for merged in ([2], [1, 1], 0, ""):
+            with self.subTest(merged=merged):
+                state = self._state()
+                state["integrate"]["merged"] = merged
+                with self.assertRaises(self.hexctl.StackGuardUnavailable):
+                    self.hexctl.stack_landing_plan(state)
+        for key, value in (("n", True), ("title", None)):
+            with self.subTest(key=key):
+                state = self._state()
+                state["steps"][0][key] = value
+                try:
+                    self.hexctl.stack_landing_plan(state)
+                except Exception as exc:
+                    self.assertIsInstance(exc, self.hexctl.StackGuardUnavailable)
+                else:
+                    self.fail("invalid step shape was accepted")
 
     def test_13_non_integrate_phases_make_no_remote_call(self):
         for phase in ("study", "runbook", "steps", "done"):

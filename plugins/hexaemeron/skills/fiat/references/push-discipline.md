@@ -153,15 +153,17 @@ The directive now begins with a live stack-landing check. The controller reads
 all recorded step refs, obtains those exact tip objects without updating a
 branch or `FETCH_HEAD`, reads only the current pull request URL from its push
 receipt, and reads the refs again. Equal ref snapshots, a coherent current PR,
-and local ancestry checks over every exact `verified_commits` entry are all
-required for `clear`.
+complete native local history, and ancestry checks over every exact
+`verified_commits` entry with replacement refs disabled are all required for
+`clear`.
 
 - If an open current PR still names the wrong base and no later commit has
   travelled downward, retarget it to the run branch and rerun `next`. Do not
   merge on the strength of the edit command's exit alone.
-- If Git, GitHub, an exact branch, an object or either snapshot is unavailable,
-  leave every ref, state file and ledger byte alone, restore the read path, and
-  retry. Unavailable evidence is not a clean stack.
+- If Git, GitHub, an exact branch, an object, complete native history or either
+  snapshot is unavailable, leave every ref, state file and ledger byte alone,
+  restore the read path, and retry. Shallow or grafted history is unavailable,
+  not a clean stack.
 - If an unmerged step's exact commit is already reachable from a lower step
   branch, halt the ordinary merge-step route. Retargeting a PR cannot repair
   that graph. Preserve the original signed commits and follow ADR-021's landing

@@ -2489,7 +2489,7 @@
     "contract": "fiat-run-observation-binding/v1",
     "controller": {
       "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be"
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77"
     },
     "validator": {
       "path": "scripts/run_observation.py",
@@ -2815,13 +2815,13 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-stack-landing-check": {
       "bindings": {
         "evidence_classes": "closed live result joined to the canonical Evidence classes field",
-        "evidence_references": "exact receipt commits, two equal multi-ref snapshots, fetched tip objects, current recorded PR metadata and local ancestry results",
+        "evidence_references": "exact receipt commits, ordered merged prefix, two equal multi-ref snapshots, fetched tip objects, complete native history, strict current PR metadata and replacement-free local ancestry results",
         "exception": "canonical Exceptions field",
         "promise_id": "coverage key joined to the canonical promise heading and stack_guard result",
         "scope": "recorded step branches, exact unmerged-step commits and the current recorded pull request at one coherent snapshot",
@@ -2829,7 +2829,7 @@
         "transition": "clear next or merge-step admission joined to the canonical Authorises field",
         "unknowns": "post-check GitHub changes, equivalent replacement SHAs, arbitrary branches and future availability"
       },
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2843,7 +2843,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2857,7 +2857,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-runbook-amendment": {
@@ -2871,7 +2871,7 @@
         "transition": "canonical runbook replacement, receipt re-pin, exact source carriage and causally bound holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "semantic completeness, replacement correctness, future command success and truth of operator verdicts"
       },
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-run-observation-binding": {
@@ -2885,7 +2885,7 @@
         "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
         "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
       },
-      "sha256": "965f3a69040b4d8795466ae64670d690e4f7803a1f807fa6c2438272dd6e46be",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {

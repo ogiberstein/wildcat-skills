@@ -652,13 +652,13 @@ the study and runbook live.
 ### fiat-stack-landing-check
 
 - Promise: A `clear` stack-landing result establishes that one bounded snapshot joined the named exact step refs, every unmerged step's recorded exact commits, and the current recorded pull request's live head, base and state without finding a downward carry or current-PR topology mismatch.
-- Evidence: A validated immutable plan from controller state and push receipts, one bounded multi-ref read, one no-ref-update fetch of the named tip objects, one bounded read of the current recorded pull request, the repeated equal multi-ref read, local exact-SHA ancestry results, the closed result and reason code, and the focused issue-555 specimens.
+- Evidence: A validated immutable plan from controller state and push receipts, one bounded multi-ref read, one no-ref-update fetch of the named tip objects, a complete native-history check, one bounded read of the current recorded pull request, the repeated equal multi-ref read, local exact-SHA ancestry with replacement refs disabled, the closed result and reason code, and the focused issue-555 specimens.
 - Evidence classes: checked
 - Boundary: `clear` covers only the recorded step branches, exact commits and current pull request at that coherent snapshot. It does not lock GitHub, make a later merge atomic, prove semantic equivalence for another SHA, inspect arbitrary branches, guarantee later availability, or repair a damaged graph.
 - Authorises: Emitting the current `merge-step` directive or admitting its receipt while that exact snapshot is clear; the operator still follows retarget-first order and reruns the receipt check after the click.
 - Consequence: 2
-- Refuses: A concrete downward ancestor, a rewritten unmerged branch, wrong current head or base, closed-unmerged current pull request, legacy receipt without exact commits, missing or malformed refs or objects, changed snapshots, PR/ref disagreement, wrong response URL, or a failed Git or GitHub read.
-- Recovery: Retarget a clean current pull request and retry, retry unavailable evidence without changing state, restore exact push evidence, land from the original signed commits, or halt a graph already carrying a later commit downward.
+- Refuses: A concrete downward ancestor, a rewritten unmerged branch, wrong current head or base, closed-unmerged current pull request, invalid merged-step prefix, legacy receipt without exact commits, shallow or grafted local history, missing or malformed refs, objects or pull-request fields, changed snapshots, PR/ref disagreement, wrong response URL, or a failed Git or GitHub read.
+- Recovery: Retarget a clean current pull request and retry, retry unavailable evidence without changing state, restore complete native Git history and exact push evidence, land from the original signed commits, or halt a graph already carrying a later commit downward.
 - Exceptions: none
 
 ### fiat-receipted-delivery
