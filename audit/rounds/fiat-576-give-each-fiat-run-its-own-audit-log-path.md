@@ -273,3 +273,28 @@ fuzz-audit log, a different artefact from the root record this change moves, so
 the sentence is accurate and was left alone.
 
 Leads not pursued: none.
+
+## Step 4, round 2 -- 2026-08-24
+
+Non-Solidity round over the re-flowed tree at
+`19d26e93c93d9ae134057aaf832d0d5bf7d5be01`. Zero findings.
+
+The three bundled lints exit 0, Imprimatur scores every changed document 100.0,
+the Protasis checker passes 69 tests, `tests/test_decision_records.py` passes 5,
+the root suite reports 349 OK with no skips, the Hexaemeron suite reports
+1,012/1,012, and Horos reports that the boundary matches the tree.
+
+The re-flow was read for what re-wrapping can do to a document: it changes no
+word, the paragraph still reads as one item under heading 2, the widest line is
+74 characters against a paragraph that already used 71 to 79, and the Protasis
+checker still parses items 1 through 12, which is what would break if the item
+had lost its shape. `git diff origin/main` over that file shows the paragraph
+and the frontmatter version, the latter only because this run branched before
+issue 554 published `4.7.0`; the merge takes main's version and this run's
+paragraph, and issue 554 changed nothing inside it.
+
+`history-mutation` and `boundary-currency` were re-checked and hold. The step 5
+obligation recorded in round 1, to re-read `main` for the ADR number and the
+ledger version before writing either, stands unchanged.
+
+Leads not pursued: none.
