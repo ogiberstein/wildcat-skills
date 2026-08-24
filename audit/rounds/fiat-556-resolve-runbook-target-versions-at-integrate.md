@@ -77,3 +77,58 @@ reviewed here: `anchor-substitution`, `generation-arithmetic`, `frontier-drift`,
 `interrupted-resolution` belong to later steps.
 
 Leads not pursued: none.
+
+## Step 1, round 2 -- 2026-08-25
+
+Zero findings over signed audit-tip commit
+`4278196365a8d288e1224be3e864cd505a4f7697`. Its parent is Mason commit
+`77458260d3fb0386a2d60b062a91e6c2c636ece4`; both local signatures verify.
+Round 1 remains the unchanged 79-line prefix of this record.
+
+### Evidence
+
+Independent hostile probes refused all 33 C0 controls, 32 C1 controls, 12
+bidi controls, 170 Unicode format controls, 19 other sampled nonprinting code
+points, and 13 unsafe path forms. Five concrete-token positives refused; five
+near tokens and the legacy no-block case stayed accepted. Six controlled-value
+cases produced seven value-free P006 messages, at most 80 characters. A
+maximum-size 2 MiB row produced one 75-character P006 message without echoing
+its contents.
+
+The fixed tree passes 89 focused Protasis tests, 350 root tests, and the full
+1,057-test Hexaemeron report with zero failures, errors, or skips. The report
+is `tmp/elenchus/fiat-556-step-1.json`, SHA-256
+`2a6d37d37d479e94097a3a283db04b0c59881cfce198755572b78846ee5f3405`.
+The identical Round 1 green report remains preserved at
+`.elenchus/fiat-556-step-1-warden-round1-green.json`; every earlier red report
+also remains present.
+
+Promise Machine reports 14 clean plugin copies and 71 of 71 covered promises.
+The Protasis Promise still limits P006 to lexical structure and disclaims
+relation suitability, version selection, and integration-base knowledge.
+Phylax, Ephoros, and Hypomnema exit 0 over their complete repository paths and
+this record. Horos reports that the boundary matches the tree.
+
+The tracked study remains byte-identical to its receipt at SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+all five relative skill links resolve. The tracked runbook remains
+byte-identical to its amended receipt at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+The misplaced plugin-local study path is absent. All six product paths remain
+inside the amended Step 1 Files field, and `audit/AUDIT.md` remains unchanged.
+
+The bounded Sapheneia pass preserves the full Round 1 prefix and every Round 2
+hash, count, qualification, path, and status. Imprimatur scores this record
+100.0 with zero defects. Brevitas reports B011 only, from the required two-row
+Round 1 findings table; this zero-finding round adds no finding row.
+
+### Risk register
+
+The four Step 1 concerns are green. `relation-block-shape` covers malformed,
+duplicate, decoy, nonprinting, and unsafe path inputs. `literal-compatibility`
+covers near tokens, partial declarations, and no-block runbooks.
+`diagnostic-leak` covers the maximum-size and controlled-value probes.
+`promise-overclaim` remains bounded by the Promise text. The other 19 study
+concerns belong to later steps and receive no claim in this round.
+
+Leads not pursued: none.
