@@ -2501,7 +2501,7 @@
           "test_writer_refuses_bypass_and_never_writes_a_gap",
           "test_schema_and_runtime_document_the_same_closed_vocabulary"
         ],
-        "sha256": "e5ebb367e03aea24a311414253497c98d191c705f43226e6af1e7bc278ae3c8d"
+        "sha256": "cb2eb238380a216033f115a23398c18072ad1f227113aae97b57a4bb74c05b74"
       },
       {
         "path": "tests/test_run_observation_capture_inoculation.py",
