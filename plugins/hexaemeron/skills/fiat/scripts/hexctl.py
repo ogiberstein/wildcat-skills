@@ -3370,8 +3370,10 @@ def recorded_run_attribution(state: dict) -> list[dict]:
     for step in state["steps"]:
         push = as_dict(step["receipts"].get("push"))
         effective = as_dict(as_dict(merges.get(str(step["n"]))).get("effective_push"))
-        source = as_dict(effective.get("attribution")) or as_dict(
-            push.get("attribution")
+        source = as_dict(
+            effective["attribution"]
+            if "attribution" in effective
+            else push.get("attribution")
         )
         commits = source.get("commits")
         if commits is None:
@@ -3385,6 +3387,28 @@ def recorded_run_attribution(state: dict) -> list[dict]:
                 die(f"step {step['n']} recorded a malformed attribution entry")
             identities.append({"step": step["n"], **record})
     return identities
+
+
+def attribution_carriers(state: dict, identity: dict, merge_sha: str) -> list[str]:
+    """The merges that could have carried one identity onto the base.
+
+    A step squashed into the run branch leaves its commits unreachable while
+    its identity survives on that step's own merge commit, which is itself an
+    ancestor of the base merge. Looking only at the base merge would refuse an
+    identity that did reach the base, so the step's recorded merge is tried
+    first and the base merge second.
+    """
+    merges = as_dict(as_dict(state.get("integrate")).get("merges"))
+    step_merge = as_dict(merges.get(str(identity.get("step")))).get("merge_commit")
+    carriers = []
+    for candidate in (step_merge, merge_sha):
+        if (
+            isinstance(candidate, str)
+            and COMMIT_RE.fullmatch(candidate)
+            and candidate not in carriers
+        ):
+            carriers.append(candidate)
+    return carriers
 
 
 def merged_attribution(base_dir: str, state: dict, merge_sha: str) -> dict:
@@ -3407,34 +3431,48 @@ def merged_attribution(base_dir: str, state: dict, merge_sha: str) -> dict:
         if commit_is_ancestor(
             base_dir, identity["commit"], merge_sha, "merged attribution"
         ):
-            resolved.append({**identity, "mechanism": "ancestor"})
+            resolved.append({**identity, "mechanism": "ancestor", "carrier": None})
         else:
             unresolved.append(identity)
-    merge_identity = None
+    read: dict[str, dict] = {}
     if unresolved:
-        merge_identity = commit_attribution(
-            github_commit_payload(base_dir, github_repository(base_dir), merge_sha),
-            merge_sha,
-        )
+        repository = github_repository(base_dir)
         for identity in unresolved:
-            if identity_matches(identity, merge_identity):
-                resolved.append({**identity, "mechanism": "merge-author"})
-                continue
-            if any(
-                identity_matches(identity, coauthor)
-                for coauthor in merge_identity["coauthors"]
-            ):
-                resolved.append({**identity, "mechanism": "merge-coauthor"})
-                continue
-            die(
-                f"step {identity['step']} published commit {identity['commit']} "
-                f"under {identity_label(identity)}, and merge {merge_sha} "
-                "carries neither that commit nor that identity; the merge "
-                "discarded the authorship this run recorded"
+            carried = None
+            for candidate in attribution_carriers(state, identity, merge_sha):
+                if candidate != merge_sha and not commit_is_ancestor(
+                    base_dir, candidate, merge_sha, "merged attribution carrier"
+                ):
+                    continue
+                if candidate not in read:
+                    read[candidate] = commit_attribution(
+                        github_commit_payload(base_dir, repository, candidate),
+                        candidate,
+                    )
+                record = read[candidate]
+                if identity_matches(identity, record):
+                    carried = (candidate, "merge-author")
+                    break
+                if any(
+                    identity_matches(identity, coauthor)
+                    for coauthor in record["coauthors"]
+                ):
+                    carried = (candidate, "merge-coauthor")
+                    break
+            if carried is None:
+                die(
+                    f"step {identity['step']} published commit "
+                    f"{identity['commit']} under {identity_label(identity)}, "
+                    f"and no merge this run recorded carries that commit or "
+                    "that identity; the merge discarded the authorship this "
+                    "run recorded"
+                )
+            resolved.append(
+                {**identity, "mechanism": carried[1], "carrier": carried[0]}
             )
     return {
         "identities": resolved,
-        "merge_login": merge_identity["login"] if merge_identity else None,
+        "carriers": {sha: record["login"] for sha, record in read.items()},
         "mechanisms": sorted({entry["mechanism"] for entry in resolved}),
     }
 
