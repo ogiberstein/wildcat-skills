@@ -384,6 +384,28 @@ def read_observation_bytes(
     return relative, second
 
 
+def recheck_observation_bytes(
+    base_dir: str,
+    relative: str,
+    expected: bytes,
+    *,
+    exit_code: int = 2,
+) -> None:
+    """Re-establish the named subject after validation has completed."""
+    final_relative, final = read_observation_bytes(
+        base_dir,
+        relative,
+        exit_code=exit_code,
+    )
+    if final_relative != relative or final != expected:
+        observation_error(
+            "FOB002",
+            "the companion bytes changed before the claim completed",
+            "stop the writer, publish one stable prefix, and retry",
+            exit_code,
+        )
+
+
 def _strict_observation_object(pairs):
     value = {}
     for key, item in pairs:
@@ -499,6 +521,7 @@ def validated_observation_prefix(base_dir: str, supplied: str, state: dict):
             "the selected prefix names the wrong contract or controller run",
             "emit the current contract and observation_run_id, then retry",
         )
+    recheck_observation_bytes(base_dir, relative, data)
     return relative, data, summary
 
 
@@ -1978,6 +2001,12 @@ def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
                 "restore the exact binding metadata and selected prefix",
                 1,
             )
+        recheck_observation_bytes(
+            base_dir,
+            artifact,
+            current,
+            exit_code=1,
+        )
         if previous is not None and (
             record.get("_line") <= previous["record_line"]
             or artifact != previous["artifact"]

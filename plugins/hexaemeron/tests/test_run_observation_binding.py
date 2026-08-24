@@ -44,6 +44,30 @@ class ObservationBindingTests(HexctlCase):
                     controller.load_state(self.target),
                 )
 
+    def test_binding_finally_rechecks_the_named_bytes_after_validation(self):
+        self.to_steps(("Bind",))
+        relative, target, _ = self.write_prefix()
+        controller = hexctl_module()
+        validator = mock.Mock()
+
+        def replace_after_validation(*_args, **_kwargs):
+            with open(target, "wb") as handle:
+                handle.write(b"{}\n")
+            return []
+
+        validator.validate_bytes.side_effect = replace_after_validation
+        with mock.patch.object(
+            controller,
+            "observation_validator_module",
+            return_value=validator,
+        ):
+            with self.assertRaises(SystemExit):
+                controller.validated_observation_prefix(
+                    self.target,
+                    relative,
+                    controller.load_state(self.target),
+                )
+
     def test_status_exposes_a_stable_run_id_without_persisting_it(self):
         self.init("Bind observation identity")
         first = json.loads(self.run_ctl("status", "--json").stdout)
@@ -355,6 +379,30 @@ class ObservationBindingTests(HexctlCase):
         self.run_ctl("verify")
         refused = self.run_ctl("verify", "--observations", expect=1)
         self.assertIn("FOB003", refused.stderr)
+
+    def test_verification_finally_rechecks_named_bytes_after_validation(self):
+        self.to_steps(("Bind",))
+        relative, target, _ = self.write_prefix()
+        self.bind(relative)
+        controller = hexctl_module()
+        validator = mock.Mock()
+
+        def replace_after_validation(*_args, **_kwargs):
+            with open(target, "wb") as handle:
+                handle.write(b"{}\n")
+            return []
+
+        validator.validate_bytes.side_effect = replace_after_validation
+        with mock.patch.object(
+            controller,
+            "observation_validator_module",
+            return_value=validator,
+        ):
+            with self.assertRaises(SystemExit):
+                controller.verify_observation_bindings(
+                    self.target,
+                    controller.load_state(self.target),
+                )
 
     def test_verification_joins_each_binding_to_one_exact_ledger_record(self):
         self.to_steps(("Bind",))
