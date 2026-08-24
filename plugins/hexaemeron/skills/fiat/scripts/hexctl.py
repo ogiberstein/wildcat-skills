@@ -2716,13 +2716,15 @@ def _integrate_directive(state: dict) -> dict:
     for step in state["steps"]:
         if step["n"] in merged:
             continue
+        pr_url = as_dict(step["receipts"].get("push")).get("pr_url")
         return {
             "do": "merge-step",
             "step": step["n"],
             "title": step["title"],
             "branch": step_branch_name(state, step),
-            "pr_url": as_dict(step["receipts"].get("push")).get("pr_url"),
+            "pr_url": pr_url,
             "into": run_branch,
+            "merge": step_merge_command(pr_url),
             "then": (
                 f"hexctl done merge-step --step {step['n']} "
                 "--merge-commit <sha>"
@@ -3023,6 +3025,122 @@ def integration_revalidation_record(
     }
 
 
+def step_merge_command(pr_url: object) -> str:
+    """The exact invocation that merges the pull request the directive names.
+
+    The directive already carried the URL and the receipt command, and left the
+    merge itself to whatever the operator typed from reading them. A number
+    retyped from a URL is where issue 594 went wrong, and `gh pr merge` with a
+    missing argument does not fail: it falls through to the current branch's pull
+    request, which on a chained stack is the one holding every commit in the run.
+
+    Built from the URL rather than a number and a repository flag, so nothing has
+    to be transcribed. Printed, never executed.
+    """
+    if not isinstance(pr_url, str) or GITHUB_PR_RE.fullmatch(pr_url) is None:
+        die(
+            "this step's push receipt holds no usable pull request URL, so the "
+            "merge command cannot be built from it; repair the receipt rather "
+            "than merging a pull request the directive did not name"
+        )
+    return f"gh pr merge {pr_url.rstrip('/')} --merge"
+
+
+def expected_run_branch_tip(state: dict):
+    """What the run branch's tip should be, from this run's own receipts.
+
+    An active sync is the most recent thing the controller put there; before
+    that, the last merge it receipted. Before the first merge it has recorded no
+    expectation at all, and `None` says the question cannot be asked yet rather
+    than that any tip will do.
+    """
+    integrate = as_dict(state.get("integrate"))
+    sync = as_dict(integrate.get("sync"))
+    candidate = sync.get("commit")
+    if isinstance(candidate, str) and COMMIT_RE.fullmatch(candidate):
+        return candidate
+    merges = as_dict(integrate.get("merges"))
+    for number in reversed(integrate.get("merged") or []):
+        candidate = as_dict(merges.get(str(number))).get("merge_commit")
+        if isinstance(candidate, str) and COMMIT_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+
+def unreceipted_run_branch_movement(base_dir: str, state: dict, landing=None):
+    """Whether the run branch moved without a receipt naming the move.
+
+    Every legitimate change to the run branch during integration is one this run
+    recorded: a merge-step receipt, or a sync. A tip that is neither means
+    something merged into it that the controller was never asked for.
+
+    A chained stack makes that unrecoverable rather than untidy. The topmost step
+    branch holds every commit in the run, so merging the wrong one lands all of
+    them, and the skipped pull requests can then be neither retargeted onto the
+    run branch, because GitHub reports no commits between them and a branch their
+    heads already sit in, nor merged into a base they are an ancestor of. The
+    issue 576 run lost three merge receipts that way. Reporting it at the first
+    directive after it happens is the only point where anything can still be done.
+    """
+    expected = expected_run_branch_tip(state)
+    branch = run_branch_of(state)
+    if expected is None or not isinstance(branch, str) or not branch:
+        return None
+    # A receipt runs after its own merge has landed, so the merge it is about to
+    # record is a legitimate tip as well as the one before it. `next` passes no
+    # landing commit, which is what makes the branch have to be where the loop
+    # left it.
+    accepted = {expected}
+    if isinstance(landing, str) and COMMIT_RE.fullmatch(landing):
+        accepted.add(landing)
+    try:
+        tip = remote_branch_tip(base_dir, branch)
+    except SystemExit:
+        return {"fault": "unreadable", "branch": branch, "expected": expected}
+    if tip in accepted:
+        return None
+    return {"fault": "moved", "branch": branch, "expected": expected, "tip": tip}
+
+
+def describe_run_branch_movement(fault: dict) -> str:
+    """One line saying what the run branch did, for a refusal or a report."""
+    if fault["fault"] == "unreadable":
+        return (
+            f"the run branch '{fault['branch']}' could not be read, so whether it "
+            f"still matches the receipted tip {fault['expected']} is unknown"
+        )
+    return (
+        f"the run branch '{fault['branch']}' is at {fault['tip']} and this run's "
+        f"last receipt names {fault['expected']}"
+    )
+
+
+def refuse_unreceipted_run_branch_movement(
+    base_dir: str, state: dict, landing=None
+) -> None:
+    """Stop the integrate phase when the run branch moved outside the loop."""
+    fault = unreceipted_run_branch_movement(base_dir, state, landing)
+    if fault is None:
+        return
+    if fault["fault"] == "unreadable":
+        die(
+            describe_run_branch_movement(fault)
+            + ". Integration cannot proceed without reading the branch it merges "
+            "into."
+        )
+    die(
+        describe_run_branch_movement(fault)
+        + ". Something merged into the run branch that this run did not receipt. "
+        "A stack chains, so the topmost step branch holds every commit in the run "
+        "and merging the wrong pull request lands all of them at once. There is no "
+        "repair from here: a skipped step's pull request cannot be retargeted onto "
+        "a branch its head already sits in, and cannot merge into a base it is an "
+        "ancestor of. Merge each step's pull request by the number the directive "
+        "names, one at a time. If this has already happened, halt the run with the "
+        "reason and finish by hand; do not receipt a merge the loop did not make."
+    )
+
+
 def refuse_rewritten_stack(base_dir: str, state: dict, current_step: int) -> None:
     """Refuse when a step branch that is still waiting has moved since its push.
 
@@ -3099,6 +3217,7 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    refuse_unreceipted_run_branch_movement(args.dir, state, args.merge_commit)
     refuse_rewritten_stack(args.dir, state, args.step)
     step = state["steps"][args.step - 1]
     push_receipt = as_dict(step["receipts"].get("push"))
@@ -5656,7 +5775,16 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
 
 def cmd_next(args) -> None:
     state = load_state(args.dir)
-    out = delegation_packet(args.dir, state, _next_directive(state))
+    directive = _next_directive(state)
+    if directive["do"] == "merge-step":
+        # While the stack is still coming down the run branch has to be where the
+        # loop left it, and this is the only point where a wrong merge can still
+        # be worked around. Once every step has merged the branch may legitimately
+        # carry a sync the controller has not receipted yet, and `done sync-run`
+        # owns that topology, so the check stops when the stack does.
+        refuse_unreceipted_run_branch_movement(args.dir, state)
+        refuse_rewritten_stack(args.dir, state, directive.get("step") or 0)
+    out = delegation_packet(args.dir, state, directive)
     print(json.dumps(out))
 
 
@@ -5784,6 +5912,12 @@ def cmd_status(args) -> None:
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
         )
+        # Reported rather than refused. `status` is what somebody runs to find
+        # out what is wrong, so an unreadable remote answers "unknown" here and
+        # refuses at the receipt, where a wrong answer would be acted on.
+        movement = unreceipted_run_branch_movement(args.dir, state)
+        if movement is not None:
+            print(f"STACK: {describe_run_branch_movement(movement)}")
         sync = as_dict(as_dict(state.get("integrate")).get("sync"))
         product = as_dict(sync.get("product_evidence"))
         revalidation = as_dict(sync.get("revalidation"))
