@@ -61,6 +61,30 @@ no later command reparses the issue or renames a branch.
   co-author. A missing intermediate commit, malformed range, timeout, tool
   error, or oversized output blocks the receipt.
 
+## Merging the stack
+
+Take the merge from the directive, not from a number you read out of it. The
+`merge-step` directive carries the exact invocation for the pull request it
+names, beside the receipt command:
+
+```text
+"merge": "gh pr merge https://github.com/<owner>/<repo>/pull/<n> --merge",
+"then":  "hexctl done merge-step --step <n> --merge-commit <sha>"
+```
+
+One at a time, in the order the directive gives them. `gh pr merge` with a
+missing argument does not fail: it falls through to the current branch's pull
+request, and on a chained stack that is the one holding every commit in the run.
+
+Two things refuse if the branch stops being where the loop left it. A waiting
+step whose branch has moved since its push refuses at the next merge-step, and so
+does a run branch carrying a merge this run did not receipt; `hexctl status`
+reports the second rather than refusing. Neither is repairable once the stack has
+landed out of order: a skipped step's pull request cannot be retargeted onto a
+branch its head already sits in, and cannot merge into a base it is an ancestor
+of. If it happens, halt with the reason and finish by hand rather than receipting
+a merge the loop did not make.
+
 ## The stacked pull request
 
 Push the step branch, then open its pull request using the title and body
