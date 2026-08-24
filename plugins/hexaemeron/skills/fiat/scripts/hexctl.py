@@ -281,13 +281,15 @@ def _read_observation_once(
 ) -> tuple[bytes, tuple]:
     """Read through no-follow directory descriptors and retain one identity."""
     root_fd = None
-    directory_fd = None
+    directory_fds = []
     file_fd = None
     try:
+        root_path = os.path.realpath(base_dir)
         root_fd = os.open(
-            os.path.realpath(base_dir),
+            root_path,
             os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0),
         )
+        directory_fds = [root_fd]
         directory_fd = root_fd
         parts = relative.split(os.sep)
         for part in parts[:-1]:
@@ -299,9 +301,8 @@ def _read_observation_once(
                 | getattr(os, "O_CLOEXEC", 0),
                 dir_fd=directory_fd,
             )
-            if directory_fd != root_fd:
-                os.close(directory_fd)
             directory_fd = next_fd
+            directory_fds.append(next_fd)
         file_fd = os.open(
             parts[-1],
             os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0),
@@ -346,6 +347,25 @@ def _read_observation_once(
         )
         if identity != final_identity or identity != named_identity or len(data) != after.st_size:
             raise OSError("changed during read")
+        root_named = os.stat(root_path, follow_symlinks=False)
+        root_identity = os.fstat(root_fd)
+        if (root_named.st_dev, root_named.st_ino) != (
+            root_identity.st_dev,
+            root_identity.st_ino,
+        ):
+            raise OSError("root changed during read")
+        for index, part in enumerate(parts[:-1]):
+            named_directory = os.stat(
+                part,
+                dir_fd=directory_fds[index],
+                follow_symlinks=False,
+            )
+            opened_directory = os.fstat(directory_fds[index + 1])
+            if (named_directory.st_dev, named_directory.st_ino) != (
+                opened_directory.st_dev,
+                opened_directory.st_ino,
+            ):
+                raise OSError("directory changed during read")
         return data, identity
     except OSError:
         observation_error(
@@ -357,10 +377,8 @@ def _read_observation_once(
     finally:
         if file_fd is not None:
             os.close(file_fd)
-        if directory_fd is not None and directory_fd != root_fd:
-            os.close(directory_fd)
-        if root_fd is not None:
-            os.close(root_fd)
+        for descriptor in reversed(directory_fds):
+            os.close(descriptor)
 
 
 def read_observation_bytes(

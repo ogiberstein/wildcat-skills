@@ -530,6 +530,31 @@ class ObservationBindingTests(HexctlCase):
                 self.tearDown()
                 self.setUp()
 
+    def test_final_read_refuses_parent_escape_during_second_snapshot(self):
+        self.to_steps(("Bind",))
+        target_dir = self.target
+        relative, target, _ = self.write_prefix()
+        observations = os.path.dirname(target)
+        escaped = os.path.join(self.dir, "escaped-observations")
+        controller = hexctl_module()
+        original_stat = controller.os.stat
+        named_reads = [0]
+
+        def escape_on_final_named_stat(*args, **kwargs):
+            result = original_stat(*args, **kwargs)
+            if args == ("run.jsonl",) and kwargs.get("dir_fd") is not None:
+                named_reads[0] += 1
+            if named_reads[0] == 2:
+                os.rename(observations, escaped)
+            return result
+
+        with mock.patch.object(controller.os, "stat", side_effect=escape_on_final_named_stat):
+            with self.assertRaises(SystemExit) as refused:
+                controller.read_observation_bytes(target_dir, relative)
+        self.assertEqual(named_reads[0], 2)
+        self.assertEqual(refused.exception.code, 2)
+        self.assertFalse(os.path.exists(target))
+
     def test_consecutive_binding_cannot_select_an_observation_receipt(self):
         self.to_steps(("Bind",))
         relative, _, _ = self.write_prefix()
