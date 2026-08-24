@@ -8,7 +8,7 @@ description: >-
   Fiat frontier loop, or for the ranking on its own without running anything.
   Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # Kronos
@@ -66,10 +66,10 @@ no ledger is touched. Rank-only reports the field; it does not work it.
 
 Recording is the one part of step 6 that still happens, because a ranking worth
 handing over is worth comparing against the next one. Record it here rather than
-there, with no run to name. Read the standing parks with `parked` as well: its
-exit of 3 means a park stands, which is what the report is for, and not that
-anything went wrong. Nothing in this mode is waiting on that exit, because
-nothing here declares a loop complete.
+there, with no run to name. Then `push` the working copy. Read the standing parks
+with `parked` as well: its exit of 3 means a park stands, which is what the
+report is for, and not that anything went wrong. Nothing in this mode is waiting
+on that exit, because nothing here declares a loop complete.
 
 The scope rules are unchanged, so this composes with phase-only mode: a
 rank-only pass over the six phase skills records `mode` as `phase-only` and
@@ -80,7 +80,10 @@ rank-only pass over the six phase skills records `mode` as `phase-only` and
 1. Resolve the scope from the user's named directories or repositories. If no
    narrower scope was named, use the current marketplace checkout, rooted at
    the checkout itself rather than at any one plugin. Scope spans every plugin
-   in that checkout, not only the plugin Kronos was invoked from.
+   in that checkout, not only the plugin Kronos was invoked from. Then `pull`
+   the working copy from `refs/heads/kronos/state`. A missing ref is an empty
+   start. If the ref exists and pull fails, stop: do not rank, and do not treat
+   that failure as an empty parked lane.
 2. Walk the whole scope and find every `EVOLUTION.md` beneath it, descending
    into each plugin's own skills directory. A governed skill is named by its
    own directory and not by its plugin, so one plugin may hold several and a
@@ -113,7 +116,8 @@ rank-only pass over the six phase skills records `mode` as `phase-only` and
    with `run` naming it. Record it here rather than at selection, because the
    link to the run this pass launched is half the record and does not exist
    until Fiat is invoked. The cost is that a pass which never reaches `init`
-   leaves no line.
+   leaves no line. Then `push` the working copy so the next runner sees this
+   pass. Ranking still completes if push refuses; the local files remain.
 7. Let Fiat finish its complete terminal path: implement, validate, stage,
    commit, push each step's stacked pull request, then the integrate phase --
    the stack merged into the run branch in order, the run branch merged into
@@ -139,9 +143,10 @@ rank-only pass over the six phase skills records `mode` as `phase-only` and
 
 Stop successfully when no eligible ledger remains and no park stands. If Fiat
 halts on a genuine external blocker, park the job: record the blocker verbatim
-against it, then continue with the next-ranked candidate. Never skip to a
-lower-scoring job without parking the one above it. A skip nobody recorded is
-how the loop comes to look busy while the thing that mattered goes missing.
+against it, `push` the working copy, then continue with the next-ranked
+candidate. Never skip to a lower-scoring job without parking the one above it.
+A skip nobody recorded is how the loop comes to look busy while the thing that
+mattered goes missing.
 
 A park is a claim the loop records, not one it judges. It never expires, and
 nothing releases it but a person. While one stands the loop is not complete,
@@ -155,6 +160,8 @@ see that happen. Each pass goes to `.kronos/scoreboard.jsonl` at the scope
 root, one JSON line, beside a `.gitignore` the writer creates. The file stays
 out of git deliberately: Fiat refuses to start against a dirty tree, so a
 scoreboard git can see would stop the loop's next iteration before it began.
+Those gitignored files live across runners on `refs/heads/kronos/state`, not
+on the Fiat run branch.
 
 The writer is `scripts/kronos.py` beside this skill:
 
@@ -201,6 +208,8 @@ python3 "<this skill dir>/scripts/kronos.py" unpark \
   --scoreboard-dir <scope root>/.kronos --skill <name> --reason "<why>"
 python3 "<this skill dir>/scripts/kronos.py" parked \
   --scoreboard-dir <scope root>/.kronos
+python3 "<this skill dir>/scripts/kronos.py" pull --root <scope root>
+python3 "<this skill dir>/scripts/kronos.py" push --root <scope root>
 ```
 
 `park` stores the reason byte for byte beside the skill's held-job hash at that
@@ -223,6 +232,28 @@ history, where each line is what was true at that pass; the parked lane is
 current state that changes. Reading one as the other is how a line stops meaning
 what it says.
 
+After `park` or `unpark`, `push` the working copy. A park recorded on one
+runner still stands on a fresh runner until a person runs `unpark`.
+
+## Durable home
+
+`pull` and `push` copy the two JSONL files through a throwaway clone. Default
+ref `refs/heads/kronos/state`. Default remote: `KRONOS_STATE_REMOTE` if that
+name is already a configured remote, else `upstream` if that remote exists,
+else `origin`. A missing ref on `pull` is an empty start. An existing ref that
+cannot be read refuses with `K018`; stop, and do not treat that refusal as an
+empty lane. A non-fast-forward `push` refuses with `K019` and leaves local
+files. A URL or unknown remote name refuses with `K020`. Git that cannot start,
+times out, or exceeds the output cap refuses with `K021`. `record`, `park`,
+`unpark`, `show` and `parked` still start no subprocess.
+
+`pull` prints the ref tip and whether the working copy was empty or replaced.
+`push` prints the new tip, or names the refusal. Git stderr is not copied into
+Kronos diagnostics.
+
+The store decision is
+[ADR-023](../../../../docs/decisions/ADR-023-store-kronos-working-state-on-a-dedicated-git-ref.md).
+
 ## Hard rules
 
 - Never edit, implement, audit, or rewrite a target itself. Fiat owns the work.
@@ -238,6 +269,9 @@ what it says.
 - Never summarise, shorten or reword a halt reason on the way into a park.
 - Never release a park on the loop's own judgement, and never call the loop
   complete while one stands.
+- Never treat a failed pull of an existing state ref as an empty lane.
+- Never commit `.kronos/` into a Fiat run branch or into `main`.
+- Never rewrite history on `kronos/state`.
 
 ## Promise Machine contract
 

@@ -7,6 +7,7 @@ reads as though the reason exists and was checked.
 import importlib.util
 import io
 import tempfile
+import time
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -30,6 +31,19 @@ def codes(source, *, siblings=(), adrs=None):
         path = base / "record.md"
         path.write_text(source, encoding="utf-8")
         return sorted(f.code for f in hypomnema.check(path, adrs))
+
+
+def hypomnema_findings(source, *, siblings=()):
+    """Every finding for one Markdown document, so a line number can be read."""
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        for name in siblings:
+            target = base / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("present", encoding="utf-8")
+        path = base / "record.md"
+        path.write_text(source, encoding="utf-8")
+        return hypomnema.check(path)
 
 
 def yaml_codes(source, *, siblings=(), name="rules.yaml"):
@@ -107,6 +121,69 @@ class Runbooks(unittest.TestCase):
         source = "Alert: pending age. runbook: docs/runbooks/pending.md"
         self.assertEqual(["H003"], codes(source))
         self.assertEqual([], codes(source, siblings=("docs/runbooks/pending.md",)))
+
+
+    # A quoted specimen tells nobody a file exists. These guards fix the
+    # boundary between the two readings, one per concern the study registered.
+
+    def test_a_wholly_quoted_pointer_is_a_specimen(self):
+        self.assertEqual([], codes(
+            "The round reproduced it with `runbook: runbooks/missing.md`."))
+
+    def test_a_backticked_path_after_a_bare_keyword_stays_live(self):
+        self.assertEqual(["H003"], codes(
+            "Alert: pending age. runbook: `docs/runbooks/pending.md`"))
+        self.assertEqual([], codes(
+            "Alert: pending age. runbook: `docs/runbooks/pending.md`",
+            siblings=("docs/runbooks/pending.md",)))
+
+    def test_an_unmatched_backtick_run_opens_no_span(self):
+        self.assertEqual(["H003"], codes(
+            "`the round said runbook: runbooks/missing.md"))
+
+    def test_an_escaped_backtick_pair_opens_no_span(self):
+        self.assertEqual(["H003"], codes(
+            "\\`runbook: runbooks/missing.md\\`"))
+
+    def test_an_escaped_backslash_still_opens_a_span(self):
+        self.assertEqual([], codes(
+            "\\\\`runbook: runbooks/missing.md`"))
+
+    def test_a_span_does_not_carry_to_the_next_line(self):
+        findings = [f.code for f in hypomnema_findings(
+            "an opening `tick\nrunbook: runbooks/missing.md`\n")]
+        self.assertEqual(["H003"], findings)
+
+    def test_both_recorded_ledger_specimens_go_clean(self):
+        self.assertEqual([], codes(
+            "An alert pointer such as `runbook: runbooks/missing#book.md` is "
+            "accepted by Ephoros as a relative Markdown annotation."))
+        self.assertEqual([], codes(
+            "reproduced it with `runbook: runbooks/present.md` followed by a "
+            "more-indented `extra`."))
+
+    def test_a_span_hides_no_other_code(self):
+        self.assertEqual(["H001"], codes("`[the ledger](EVOLUTION.md)`"))
+        self.assertEqual(["H002"], codes(
+            "## Status\n`Superseded by ADR-009`\n", adrs={"ADR-001"}))
+
+    def test_a_reasoned_pragma_still_suppresses_a_live_pointer(self):
+        self.assertEqual([], codes(
+            "runbook: runbooks/missing.md "
+            "<!-- hypomnema: allow the target lands in the next step -->"))
+
+    def test_backticks_carry_no_span_meaning_in_yaml(self):
+        source = "note: `quoted`\nrunbook: runbooks/missing.md\n"
+        self.assertEqual(["H003"], yaml_codes(source))
+
+    def test_the_span_scan_stays_linear_on_an_adversarial_line(self):
+        # 60k characters and 30k runs, the shape of this plugin's own round-1
+        # adversarial sweep. A pair search over runs that never match is
+        # quadratic and would not return inside this bound.
+        line = ("` " * 30000) + " runbook: runbooks/missing.md"
+        started = time.perf_counter()
+        self.assertEqual(["H003"], codes(line))
+        self.assertLess(time.perf_counter() - started, 2.0)
 
 
 class YamlRunbooks(unittest.TestCase):

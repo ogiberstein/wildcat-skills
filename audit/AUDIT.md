@@ -12763,3 +12763,239 @@ transition.
 
 Leads not pursued: no new mechanism after the receipt, path, reporter, and
 coverage review.
+# Run: give the Kronos scoreboard and parked lane a durable home across ephemeral runners
+
+## Step 1, round 1 -- 2026-08-24
+
+Two Markdown documents, no code. The Solidity suite is waived for this run.
+phylax exit 0, ephoros exit 0, hypomnema exit 0 over `docs/kronos-durable-home`.
+
+<!-- brevitas: archival-table rendered as a record because this historical table is below the 3x3 presentation threshold -->
+- id: --; severity: --; file: --; finding: none; status: --
+
+The risk register describes the git subprocess and the working-copy write that
+step 2 has not built, so none of those concerns can be exercised by two
+documents. The look went at the claims the documents rest on. The frontier
+digest
+`ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1`
+matches `plugins/hexaemeron/skills/kronos/EVOLUTION.md` byte for byte. The
+starting ref `2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` is this run's HEAD
+parent. The five discipline citations in the committed study resolve from
+`docs/kronos-durable-home/` to files that exist. Protasis and Imprimatur both
+exit 0 over both documents. The committed copies are the receipted artefacts
+with those five links rewritten for the new depth.
+
+Root suite 310/310. Plugin suite 928/930: the two failures are
+`test_elenchus_checker.ForgeReports.test_fixture_exercised_the_declared_forge_version`
+(`1.7.1` vs local `1.4.0`) and
+`test_elenchus_checker.NodeReports.test_fixture_exercised_the_declared_node_version`
+(`v26.6.0` vs local `v22.14.0`). Both fail on the unfixed starting commit
+`2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` as well. This step does not touch
+those fixtures.
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-24
+
+Non-Solidity round on `pull` and `push`. The Solidity suite is waived for this run.
+phylax exit 0, ephoros exit 0, hypomnema exit 0 over `plugins/hexaemeron/skills/kronos` and the tests.
+
+<!-- brevitas: archival-table rendered as a record because this historical table is below the 3x3 presentation threshold -->
+- id: --; severity: --; file: --; finding: none; status: --
+
+The risk register was exercised by the new cases, all of which fail on the unfixed tree.
+
+- symlink-escape: K010 still fires on `pull` and `push` when `.kronos` or a JSONL path is a symlink; nothing is written through the link.
+- dirty-tree: after `pull`, `record`, `park` and `push`, `git status --short` in the scope is empty. `.kronos/.gitignore` still holds `*`.
+- partial-write: a failed `os.replace` leaves the previous complete scoreboard; a missing final newline still refuses with K008.
+- subprocess-git: git is a fixed argv list, no shell, 30s timeout, 2 MiB cap. A URL argument is refused with K020 before git starts. Git stderr is not copied into Kronos diagnostics; the K018 and K019 messages contain no `fatal` text.
+- empty-as-cleared: a configured remote whose URL cannot be read refuses with K018 and leaves a standing park on disk.
+- concurrent-push: a second tree's push updates the ref; a first tree that did not pull then refuses with K019 and its JSONL bytes are unchanged.
+- remote-url-fetch: `https://example.invalid/skills.git` is K020 with `subprocess.Popen` patched to raise, so no fetch runs.
+- state-commit-identity: throwaway commits use `git config` `user.name` / `user.email` from the scope and `commit.gpgsign=false`. No Shoggoth trailers.
+
+A local `.kronos/tip` file, gitignored by `*`, records the last pulled or pushed SHA so a runner that has not pulled cannot fast-forward over a newer ref. It is not copied onto `refs/heads/kronos/state`. The two JSONL files remain the only blobs the ref holds.
+
+Root suite 310/310. Plugin suite 944/946: the two failures are
+`test_elenchus_checker.ForgeReports.test_fixture_exercised_the_declared_forge_version`
+(`1.7.1` vs local `1.4.0`) and
+`test_elenchus_checker.NodeReports.test_fixture_exercised_the_declared_node_version`
+(`v26.6.0` vs local `v22.14.0`). Both fail on the unfixed starting commit
+`2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` as well. This step does not touch
+those fixtures. Promise Machine coverage digests for `kronos-fiat-dispatch` and
+`kronos-parked-lane` were updated to the new `kronos.py` bytes after reviewing
+those field maps as unchanged; `pull` / `push` are not those promises' result
+surface.
+
+Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-24
+
+Non-Solidity round on the skill text, the generation row and ADR-022. The
+Solidity suite is waived for this run. phylax exit 0, ephoros exit 0,
+hypomnema exit 0 over `plugins/hexaemeron/skills/kronos`, `docs/decisions`
+and `docs/kronos-durable-home`.
+
+<!-- brevitas: archival-table rendered as a record because this historical table is below the 3x3 presentation threshold -->
+- id: --; severity: --; file: --; finding: none; status: --
+
+This step adds no boundary and no new subprocess. The look went at the
+records. `SKILL.md` frontmatter is `0.6.0` and matches the ledger. The new
+history row is generation `kronos-v0.6.0` with frontier revision
+`terminal-goal-loop` and digest
+`ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1`, matching
+the prior row byte for byte. Status remains `mature` and the next job remains
+`None -- mature`. ADR-022 has the dated status and the five template sections.
+The five discipline links in the committed study still resolve. The field-drift
+guard still finds every `record` field named in the skill. The demo path on a
+local bare remote: `parked` on the second tree exits 3 with the same held-job
+hash and the same reason bytes; `show` prints the pass; `git status --short`
+is empty.
+
+Root suite 310/310. Plugin suite 944/946: the two failures are
+`test_elenchus_checker.ForgeReports.test_fixture_exercised_the_declared_forge_version`
+(`1.7.1` vs local `1.4.0`) and
+`test_elenchus_checker.NodeReports.test_fixture_exercised_the_declared_node_version`
+(`v26.6.0` vs local `v22.14.0`). Both fail on the unfixed starting commit
+`2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` as well. This step does not touch
+those fixtures.
+
+Leads not pursued: none.
+## H003 quoted specimen, step 1, round 1 -- 2026-08-24
+
+Non-Solidity round over the two Markdown documents step 1 commits. Zero
+findings.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over both changed documents and over the required tree
+`README.md AGENTS.md .agents plugins docs`. Protasis accepts the study and the
+runbook. Imprimatur reports no defect on either. The Hexaemeron suite passes
+935/935 and the boundary-currency guard 7/7 at commit
+`85933daa48353759b177c4a1a66588501b53d962`, whose local signature is good and
+which carries exactly one co-author and one origin trailer. The committed
+boundary still describes the tree, so `.horos/boundary.json` stands unchanged.
+
+Two register concerns are reachable at this step and both were checked.
+`code-scope-creep`: the step changes no script, so every H000 to H007 case is
+byte-identical to the entry state. `span-hides-live-pointer`: neither new
+document produces a pointer match at all, under the current rule or the one
+step 2 introduces, and the study carries exactly one Markdown link, which is
+absolute. The other five concerns sit in step 2's diff and are not yet
+reachable.
+
+Brevitas is recorded rather than gated, as the step states: B010 and B001 on
+the runbook, which a two-step specification cannot satisfy, and two B022
+line-start matches on the study where a wrapped line begins with the word
+`reading`. The shipped `docs/hypomnema-runbook-shape-check-runbook.md` carries
+the same two structure codes on `main`, and the study's bytes are frozen by its
+receipt.
+
+Leads not pursued: the root suite reports 5 failures in this worktree and none
+of them belong to this run. `tests/test_run_observation_capture.py` asserts
+that `.hexaemeron/study.md` and `.hexaemeron/runbook.md` under the repository
+root are byte-identical to the tracked issue 435 capture-profile copies,
+against the hard-coded digests
+`6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404` and
+`56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5`, and it
+skips only when those two files are absent. Every live Fiat run worktree holds
+them and they always belong to that run, so the five tests fail for every run
+except issue 435's. The same suite reports `OK (skipped=5)` on a clean checkout
+of `main` at `5d6fc67bb6c861f2be631eef2d7bef3c01c73e84`, which places the cause
+on `main` rather than in this step. Repairing it means editing another
+delivery's receipted evidence binding, which is outside issue 500 and outside
+this step's files, so it is named here rather than touched.
+
+## H003 quoted specimen, step 2, round 1 -- 2026-08-24
+
+Non-Solidity round over the checker change at
+`af576c1bc9be26ed3884a1296a0f9ad06ceb592d`. Zero findings.
+
+All three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over the required tree `README.md AGENTS.md .agents plugins docs`.
+The demo path from the study's problem statement,
+`hypomnema.py audit/AUDIT.md`, exits 0 where it reported two findings at the
+step's entry. The Hexaemeron suite passes 946/946, the evolution and version
+propagation suites 16/16, boundary currency 7/7, and Promise Machine reports
+14 plugins and 14 copies clean after the `hypomnema-record-placement` runtime
+binding digest was moved to `dff041c5b5a4db5ff9556bdae566b25bdd6d3b5229b139282d151a263f72c5be`
+to match the edited `SKILL.md`. That file, `tests/promise_machine_coverage.json`,
+is the one path this step changed that its runbook Files field did not name; the
+gate the same step's exit runs is what required it. Imprimatur and per-file
+Brevitas accept `SKILL.md` and `EVOLUTION.md`. The commit has a good local
+signature and exactly one co-author and one origin trailer.
+
+The whole-tree finding sets were compared between the parent checker at
+`008364c78a47972dc033382e5b66d7983dd39a76` and this one, vendored trees
+included. The parent reports four findings, this one reports two, and the
+difference is exactly the two intended ledger specimens at `audit/AUDIT.md`
+lines 6041 and 6186. Nothing anywhere in the repository is newly reported. The
+two surviving findings are H001 link targets in
+`plugins/hexaemeron/skills/x-ray/SKILL.md` line 344, inside the vendored Pashov
+suite the default walk excludes, and they are unchanged by this step.
+
+Every register concern was exercised. `backtick-run-blowup`: pairing is one
+pass keyed by run length and the escape count walks backwards from each run
+rather than over a prefix slice, which was the first draft and quadratic; a
+line of 30,000 runs resolves its pointer in 0.008s, one of 20,000 mixed-length
+runs in 0.006s, and 30,000 preceding backslashes in 0.002s. `span-hides-live-pointer`:
+21 hand-built probes covering bare and quoted keywords, a backticked path after
+a bare keyword, two spans with the keyword between them, a span closing
+immediately before the keyword, double and triple backtick runs, an unbalanced
+double-open, case variants, table cells, and a hash-bearing path all classify as
+specified. `unmatched-run-drift`: an unpaired run opens no span, so a single
+stray backtick cannot swallow a later pointer. `multiline-span-boundary`: a span
+opened on one line and closed on the next is not read as a span and the pointer
+stays reported. `code-scope-creep`: H001 and H002 still fire inside a span, and
+the whole-tree comparison above is the wider proof. `yaml-pass-isolation`: the
+YAML pass shares no helper with the span scan and its cases are byte-identical.
+`pragma-interaction`: suppression runs after span state is computed and still
+suppresses a live pointer.
+
+One property of the demo path was checked rather than assumed. The fence state
+machine over `audit/AUDIT.md` is balanced: 2 fence markers, 5 lines inside a
+fence, the file ends outside one, and no pointer anywhere in it is hidden by
+fence state. The clean exit is therefore a real clean and not a fence artefact.
+
+Eleven guards ship with the change. Three are red against the parent: a wholly
+quoted pointer earns no finding, an escaped backslash still opens a span, and
+both recorded ledger specimens go clean. Eight are invariance pins, green on
+both sides by construction, and the study's dated amendment of 2026-08-24
+records why demanding red from those inverts their purpose.
+
+Leads not pursued: three, each named rather than fixed.
+
+The `RUNBOOK` pattern carries no leading word boundary, so `myrunbook: a/b`
+matches and reports. That is a false positive rather than a false clean, it
+predates this step, and closing it means narrowing what H003 reads in the same
+run that narrows where it reads, which is the scope creep the study rules out
+as a non-goal.
+
+A backtick run of three or more on its own line is a fence opener under
+CommonMark and the existing scan treats it as one, so a pointer on that line is
+never reached. This is the fence rule rather than the span rule and it predates
+the step; the parity check above establishes that it hides nothing in the
+document this step unblocks.
+
+The root suite still reports the same five capture-profile failures step 1
+recorded, from the issue 435 receipt binding on `main`. Nothing in this step
+touches them.
+
+## H003 quoted specimen, step 2, round 2 -- 2026-08-24
+
+Against the tree with round 1's record appended. Zero findings.
+
+All three lints exit 0 again, the demo path over `audit/AUDIT.md` exits 0, and
+the focused Hypomnema suite passes 91/91.
+
+Round 1's own record turned out to be the clearest evidence the change was
+needed. That block quotes a pattern specimen inside a code span, and the parent
+checker at `008364c78a47972dc033382e5b66d7983dd39a76` reports H003 on it at
+line 12544 for the target `a/b`, alongside the two older specimens at 6041 and
+6186. The fixed checker reports none of the three. So the defect was not a
+historical residue of two frozen lines: an ordinary round writing an ordinary
+record added a third instance, permanently, on a file whose append-only
+contract forbids the repair. That is what the three earlier rounds were
+recording as a lead each time they met it.
+
+Leads not pursued: the three named in round 1 stand unchanged, and no new lead
+was found.

@@ -9,6 +9,8 @@ changed. This appends each pass to a file so that movement is visible.
   record  read a pass on stdin, validate it, append exactly one JSON line
   show    print the recorded passes and mark every axis score that moved for a
           candidate whose held job did not
+  pull    copy the working copy from refs/heads/kronos/state
+  push    fast-forward that ref from the working copy
 
   K000  a path that cannot be read
   K001  stdin that is not a JSON object
@@ -28,6 +30,10 @@ changed. This appends each pass to a file so that movement is visible.
   K015  a pass in which every candidate is parked
   K016  a rank-only pass that names a Fiat run
   K017  an ungoverned list that is too long or holds something that is not a name
+  K018  an existing state ref that cannot be read
+  K019  a state-ref push that is not a fast-forward
+  K020  a remote that is a URL or not a configured name
+  K021  git could not start, timed out, or exceeded the output cap
 
 Exit 0 clean, 1 a refusal, 2 bad invocation, and 3 from `parked` alone while a
 park stands. That last is not an error in the tool. It is the loop's reason not
@@ -46,14 +52,22 @@ score is a number the ranking agent supplies, and a basis is prose nobody
 parses. It also cannot tell that a pass went unrecorded, because a loop that
 skips this writer leaves a shorter file and nothing else.
 
-The trust boundary is stdin and the argument list. The pass document arrives
-from a caller and is read with a byte cap, an unknown field is refused rather
-than stored, and the candidate count is capped. Each candidate names a ledger
-path the caller chose, so that path is resolved, required to be a regular file
-under the scoreboard's root, and read under a cap. An existing scoreboard is
-validated line by line before anything is appended, so a run interrupted
-mid-append is refused rather than written past. Nothing here starts a
-subprocess or opens a socket.
+The trust boundary is stdin, the argument list, and, for pull and push only, a
+git subprocess. Ranking verbs start no subprocess and open no socket. The pass
+document arrives from a caller and is read with a byte cap, an unknown field is
+refused rather than stored, and the candidate count is capped. Each candidate
+names a ledger path the caller chose, so that path is resolved, required to be a
+regular file under the scoreboard's root, and read under a cap. An existing
+scoreboard is validated line by line before anything is appended, so a run
+interrupted mid-append is refused rather than written past.
+
+pull and push copy the two JSONL files through a throwaway clone under the
+system temp directory. Git is invoked with a fixed argv list, no shell, a
+30-second timeout and a 2 MiB output cap. The remote is a configured remote
+name, or KRONOS_STATE_REMOTE when that name is already configured; a URL
+argument is refused. Git stderr is not copied into Kronos diagnostics. A
+missing state ref is an empty start. An existing ref that cannot be read
+refuses rather than clearing parks.
 """
 
 from __future__ import annotations
@@ -61,8 +75,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import selectors
+import shutil
+import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 # Kronos SKILL.md step 3. The caps sum to 100, which is what "out of 100" means.
@@ -86,11 +106,18 @@ MAX_CANDIDATES = 200
 MAX_REASON_BYTES = 4096
 MAX_UNGOVERNED = 200
 STANDS = 3
+GIT_TIMEOUT_SECONDS = 30
+GIT_OUTPUT_CAP = 2 * 1024 * 1024
 
 LEDGER_FIELDS = ("Frontier status", "Frontier revision", "Current frontier", "Next Fiat job")
 
 PARK_EVENTS = ("park", "unpark")
 PARKED_NAME = "parked.jsonl"
+SCOREBOARD_NAME = "scoreboard.jsonl"
+STATE_BLOBS = (SCOREBOARD_NAME, PARKED_NAME)
+STATE_REF = "refs/heads/kronos/state"
+REMOTE_ENV = "KRONOS_STATE_REMOTE"
+TIP_NAME = "tip"
 
 
 class Refusal(Exception):
@@ -259,6 +286,316 @@ def checked_reason(reason) -> str:
 def existing_passes(scoreboard: Path) -> list:
     """Every pass already recorded, refusing a tail that cannot be read."""
     return json_lines(scoreboard, "pass")
+
+
+def git_env() -> dict:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
+
+
+def run_git(argv: list[str], *, cwd: Path | None = None) -> tuple[int, bytes, bytes]:
+    """Fixed argv, no shell, timeout and output cap. Stderr is not for diagnostics."""
+    try:
+        process = subprocess.Popen(
+            ["git", *argv],
+            cwd=os.fspath(cwd) if cwd is not None else None,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            env=git_env(),
+        )
+    except OSError as exc:
+        raise Refusal("K021", "git could not start") from exc
+    assert process.stdout is not None and process.stderr is not None
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ)
+    selector.register(process.stderr, selectors.EVENT_READ)
+    streams = {process.stdout: bytearray(), process.stderr: bytearray()}
+    deadline = time.monotonic() + GIT_TIMEOUT_SECONDS
+    try:
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                process.kill()
+                process.wait()
+                raise Refusal("K021", f"git timed out after {GIT_TIMEOUT_SECONDS} seconds")
+            events = selector.select(min(remaining, 0.1))
+            if not events and process.poll() is not None:
+                events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
+            for key, _ in events:
+                chunk = os.read(key.fd, 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                streams[key.fileobj].extend(chunk)
+                if len(streams[process.stdout]) + len(streams[process.stderr]) > GIT_OUTPUT_CAP:
+                    process.kill()
+                    process.wait()
+                    raise Refusal("K021", f"git exceeded the {GIT_OUTPUT_CAP}-byte output cap")
+        process.wait(timeout=max(0.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        raise Refusal("K021", f"git timed out after {GIT_TIMEOUT_SECONDS} seconds")
+    finally:
+        selector.close()
+        process.stdout.close()
+        process.stderr.close()
+    return process.returncode, bytes(streams[process.stdout]), bytes(streams[process.stderr])
+
+
+def looks_like_fetch_url(value: str) -> bool:
+    if not value or value.startswith("-") or "\n" in value or "\0" in value:
+        return True
+    if "://" in value or value.startswith("git@"):
+        return True
+    if value.startswith("/") or value.startswith("."):
+        return True
+    if "\\" in value or ":" in value:
+        return True
+    return False
+
+
+def listed_remotes(scope: Path) -> list[str]:
+    code, out, _err = run_git(["remote"], cwd=scope)
+    if code != 0:
+        raise Refusal("K020", "the scope has no usable git remotes")
+    return [line.strip() for line in out.decode("utf-8", "replace").splitlines() if line.strip()]
+
+
+def resolved_remote(scope: Path, requested: str | None) -> str:
+    if requested is not None and looks_like_fetch_url(requested):
+        raise Refusal("K020", "the remote must be a configured remote name, not a URL")
+    env = os.environ.get(REMOTE_ENV)
+    name = requested
+    if name is None and env:
+        if looks_like_fetch_url(env):
+            raise Refusal("K020", f"{REMOTE_ENV} must be a configured remote name, not a URL")
+        name = env
+    remotes = listed_remotes(scope)
+    if name is not None:
+        if name not in remotes:
+            raise Refusal("K020", f"{name} is not a configured remote")
+        return name
+    if "upstream" in remotes:
+        return "upstream"
+    if "origin" in remotes:
+        return "origin"
+    raise Refusal("K020", "no configured remote named upstream or origin")
+
+
+def remote_url(scope: Path, name: str) -> str:
+    code, out, _err = run_git(["remote", "get-url", name], cwd=scope)
+    if code != 0:
+        raise Refusal("K020", f"{name} is not a configured remote")
+    url = out.decode("utf-8", "replace").strip()
+    if not url or "\n" in url:
+        raise Refusal("K020", f"{name} is not a configured remote")
+    return url
+
+
+def ls_state_ref(scope: Path, remote: str) -> str | None:
+    """SHA of the state ref on the remote, or None if the ref is missing."""
+    code, out, _err = run_git(["ls-remote", "--heads", "--", remote, STATE_REF], cwd=scope)
+    if code != 0:
+        raise Refusal("K018", "the state ref exists but could not be read")
+    text = out.decode("utf-8", "replace").strip()
+    if not text:
+        return None
+    sha = text.split()[0]
+    if not re.fullmatch(r"[0-9a-f]{40,64}", sha):
+        raise Refusal("K018", "the state ref exists but could not be read")
+    return sha
+
+
+def working_copy(root: Path) -> dict[str, Path]:
+    holder = Path(root) / ".kronos"
+    files = {name: holder / name for name in STATE_BLOBS}
+    for path in files.values():
+        checked_path(path)
+    return files
+
+
+def install_blob(dest: Path, data: str | None) -> None:
+    """Write data to dest via a sibling temporary, or remove dest if data is None."""
+    checked_path(dest)
+    if data is None:
+        if dest.is_file() and not dest.is_symlink():
+            dest.unlink()
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    gitignore = dest.parent / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text("*\n", encoding="utf-8")
+    tmp = dest.with_name(dest.name + ".tmp")
+    tmp.write_text(data, encoding="utf-8")
+    os.replace(tmp, dest)
+
+
+def blob_at(git_dir: Path, name: str) -> str | None:
+    # No `--` before the treeish:path: git show would then treat it as a path
+    # on HEAD, which in a fresh bare repo is an unborn branch.
+    code, out, _err = run_git(["--git-dir", str(git_dir), "show", f"{STATE_REF}:{name}"])
+    if code != 0:
+        return None
+    try:
+        return out.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise Refusal("K018", f"{name} in the state ref could not be read") from exc
+
+
+def tip_file(root: Path) -> Path:
+    return Path(root) / ".kronos" / TIP_NAME
+
+
+def read_tip(root: Path) -> str | None:
+    path = tip_file(root)
+    checked_path(path)
+    if not path.exists():
+        return None
+    text = path.read_text(encoding="utf-8").strip()
+    if not re.fullmatch(r"[0-9a-f]{40,64}", text):
+        raise Refusal("K008", f"{path} is not a state-ref tip")
+    return text
+
+
+def write_tip(root: Path, sha: str | None) -> None:
+    install_blob(tip_file(root), None if sha is None else sha + "\n")
+
+
+def git_identity(scope: Path) -> tuple[str, str]:
+    def one(key: str) -> str:
+        code, out, _err = run_git(["config", "--get", key], cwd=scope)
+        return out.decode("utf-8", "replace").strip() if code == 0 else ""
+
+    name, email = one("user.name"), one("user.email")
+    if not name or not email or "\n" in name or "\n" in email:
+        raise Refusal("K021", "git could not complete the state push")
+    return name, email
+
+
+def require_scope(root_arg: str) -> Path:
+    root = Path(root_arg).resolve()
+    if not root.is_dir():
+        raise Refusal("K000", f"{root} is not a directory")
+    return root
+
+
+def cmd_pull(args: argparse.Namespace) -> int:
+    root = require_scope(args.root)
+    files = working_copy(root)
+    remote = resolved_remote(root, args.remote)
+    sha = ls_state_ref(root, remote)
+    if sha is None:
+        for path in files.values():
+            install_blob(path, None)
+        write_tip(root, None)
+        print(f"pull empty start  {STATE_REF} is absent")
+        return 0
+    url = remote_url(root, remote)
+    git_dir = Path(tempfile.mkdtemp(prefix="kronos-state-"))
+    try:
+        code, _out, _err = run_git(["init", "--bare", "--", str(git_dir)])
+        if code != 0:
+            raise Refusal("K021", "git could not complete the state pull")
+        code, _out, _err = run_git(
+            ["--git-dir", str(git_dir), "fetch", "--", url, f"{STATE_REF}:{STATE_REF}"]
+        )
+        if code != 0:
+            raise Refusal("K018", "the state ref exists but could not be read")
+        existed = any(path.exists() for path in files.values())
+        for name, path in files.items():
+            install_blob(path, blob_at(git_dir, name))
+        write_tip(root, sha)
+        kind = "replaced" if existed else "empty"
+        print(f"pull {sha}  {kind} working copy")
+        return 0
+    finally:
+        shutil.rmtree(git_dir, ignore_errors=True)
+
+
+def cmd_push(args: argparse.Namespace) -> int:
+    root = require_scope(args.root)
+    files = working_copy(root)
+    for name, path in files.items():
+        if path.exists():
+            json_lines(path, "pass" if name == SCOREBOARD_NAME else "event")
+    remote = resolved_remote(root, args.remote)
+    url = remote_url(root, remote)
+    author, email = git_identity(root)
+    expected = read_tip(root)
+    remote_sha = ls_state_ref(root, remote)
+    if remote_sha is not None and remote_sha != expected:
+        raise Refusal(
+            "K019",
+            "the state ref is not a fast-forward from this working copy",
+        )
+    work = Path(tempfile.mkdtemp(prefix="kronos-state-"))
+    try:
+        code, _out, _err = run_git(["init", "--", str(work)])
+        if code != 0:
+            raise Refusal("K021", "git could not complete the state push")
+        sha = remote_sha
+        if sha is not None:
+            code, _out, _err = run_git(
+                ["fetch", "--", url, f"{STATE_REF}:{STATE_REF}"], cwd=work
+            )
+            if code != 0:
+                raise Refusal("K018", "the state ref exists but could not be read")
+            code, _out, _err = run_git(["checkout", "-B", "state", STATE_REF], cwd=work)
+            if code != 0:
+                raise Refusal("K018", "the state ref exists but could not be read")
+        else:
+            code, _out, _err = run_git(["checkout", "--orphan", "state"], cwd=work)
+            if code != 0:
+                raise Refusal("K021", "git could not complete the state push")
+        for blob in STATE_BLOBS:
+            dest = work / blob
+            src = files[blob]
+            if src.exists():
+                dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            elif dest.exists() or dest.is_symlink():
+                dest.unlink()
+        for child in work.iterdir():
+            if child.name in {".git", *STATE_BLOBS}:
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        code, _out, _err = run_git(["add", "-A"], cwd=work)
+        if code != 0:
+            raise Refusal("K021", "git could not complete the state push")
+        code, _out, _err = run_git(
+            [
+                "-c", f"user.name={author}",
+                "-c", f"user.email={email}",
+                "-c", "commit.gpgsign=false",
+                "commit", "--allow-empty", "-m", "kronos state",
+            ],
+            cwd=work,
+        )
+        if code != 0:
+            raise Refusal("K021", "git could not complete the state push")
+        code, _out, err = run_git(["push", "--", url, f"HEAD:{STATE_REF}"], cwd=work)
+        if code != 0:
+            err_text = err.decode("utf-8", "replace").casefold()
+            if "non-fast-forward" in err_text:
+                raise Refusal(
+                    "K019",
+                    "the state ref is not a fast-forward from this working copy",
+                )
+            raise Refusal("K021", "git could not complete the state push")
+        code, out, _err = run_git(["rev-parse", "HEAD"], cwd=work)
+        if code != 0:
+            raise Refusal("K021", "git could not complete the state push")
+        new_sha = out.decode("utf-8", "replace").strip()
+        write_tip(root, new_sha)
+        print(f"push {new_sha}")
+        return 0
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def record(args: argparse.Namespace) -> int:
@@ -503,6 +840,16 @@ def main(argv=None) -> int:
     lister.add_argument("--scoreboard-dir", required=True, help="the .kronos directory")
     lister.add_argument("--root", help="checkout root the ledgers sit under")
     lister.set_defaults(handler=parked)
+
+    puller = sub.add_parser("pull", help="replace the working copy from the state ref")
+    puller.add_argument("--root", required=True, help="scope root holding .kronos")
+    puller.add_argument("--remote", help="configured git remote name")
+    puller.set_defaults(handler=cmd_pull)
+
+    pusher = sub.add_parser("push", help="fast-forward the state ref from the working copy")
+    pusher.add_argument("--root", required=True, help="scope root holding .kronos")
+    pusher.add_argument("--remote", help="configured git remote name")
+    pusher.set_defaults(handler=cmd_push)
 
     args = parser.parse_args(argv)
     try:
