@@ -2921,6 +2921,20 @@ def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> by
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 COAUTHOR_TRAILER = "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>"
 ORIGIN_TRAILER = "Wildcat-Origin: shoggoth"
+# Long key ids GitHub signs with when it creates a commit itself: the web-flow
+# key, used by the merge button, the Contents API, and the rebase performed by
+# the native stacked-pull-request flow. A commit carrying one of these was
+# rewritten by GitHub, not created locally, so `git verify-commit` cannot
+# validate it against a local keyring and the range is not the one that was
+# pushed. This set exists to explain a refusal, never to permit one.
+GITHUB_SIGNING_KEYS = frozenset(
+    {
+        "4AEE18F83AFDEB23",
+        "B5690EEEBB952194",
+    }
+)
+
+
 HOST_IDENTITY_NAMES = frozenset(
     {
         "aider",
@@ -3192,14 +3206,46 @@ def commit_is_ancestor(
     return status == 0
 
 
+def signing_key(base_dir: str, commit_sha: str) -> str:
+    """The long key id a commit was signed with, or the empty string.
+
+    Used only to explain a failed verification. A missing or unreadable value
+    is reported as unknown rather than treated as an answer.
+    """
+    try:
+        data = bounded_git(
+            base_dir,
+            ["log", "-n1", "--pretty=%GK", commit_sha],
+            f"signing key for {commit_sha} could not be read",
+        )
+    except SystemExit:
+        return ""
+    return tool_text(data, "signing key").strip()
+
+
 def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
     """Verify one exact locally created commit and its required trailers."""
     commit_sha = require_full_sha(commit_sha, label)
-    bounded_git(
-        base_dir,
-        ["verify-commit", commit_sha],
-        f"{label} commit {commit_sha} has no valid local signature",
-    )
+    if bounded_tool_status(base_dir, "git", ["verify-commit", commit_sha]) != 0:
+        key = signing_key(base_dir, commit_sha).upper()
+        if key in GITHUB_SIGNING_KEYS:
+            die(
+                f"{label} commit {commit_sha} is signed by GitHub "
+                f"(key {key}), not locally. GitHub rewrote this commit: its merge "
+                "button, its Contents API and the rebase its native stacked "
+                "pull-request flow performs all re-sign with that key, and the "
+                "author and provenance trailers survive while the local signature "
+                "does not. The range being receipted is therefore not the range "
+                "that was pushed. Land the run from a branch holding the original "
+                "unrebased commits. Do not import GitHub's public key to make this "
+                "check pass; that removes the guarantee the check exists for."
+            )
+        if key:
+            die(
+                f"{label} commit {commit_sha} has no valid local signature "
+                f"(signed with key {key}, which this keyring cannot validate)"
+            )
+        die(f"{label} commit {commit_sha} has no valid local signature")
     author_name, author_email = commit_author(base_dir, commit_sha, label)
     if is_host_identity(author_name, author_email):
         die(
