@@ -386,3 +386,42 @@ signature, trailer, GitHub-verification, review or test gates to let an
 attribution check pass. Rewrite a historical commit or an existing pull
 request. Claim the contributor list will update. Delete a failing test to make
 a suite pass. Claim a command ran when it did not.
+
+### Amendment -- 2026-08-24
+
+**What changed.** Six corrections to step 4, all forced by work that landed on
+`main` after this run's steps began. The ledger row is `fiat-v5.15.1`, not
+`fiat-v5.14.1`, because the Sapheneia audit-record run took `fiat-v5.14.1` on
+`main` at `8e2a9cd`. The decision record is
+`docs/decisions/ADR-018-bind-merged-authorship-to-the-integration-receipt.md`,
+not ADR-017, because the same run took `ADR-017-gate-durable-agent-prose.md`;
+step 4 renames the file this run already committed and updates every reference
+to it. Hexaemeron moves to `1.5.8` in all three manifests, not `1.5.7`, which
+is now the version on `main`; `tests/test_version_propagation.py` moves with
+it, and `tests/test_evolution_contract.py` moves from `fiat-v5.14.1` and
+`ADR-017` to `fiat-v5.15.1` and `ADR-018`. Every audit round from step 3 round
+2 onward declares `--audit-filter sapheneia:sapheneia` and has its record
+shaped by the bounded Sapheneia durable-record pass before append, because the
+controller governing this run now refuses a round without that declaration.
+Item 3's non-goal about the printable PDF is withdrawn: `main` at `6c98a72`
+added `scripts/build_contributor_guide.py`, which generates
+`docs/pdf/how-to-help-shoggoth.pdf`, so step 4 regenerates it with that script
+rather than recording an absence. And the prose baseline moved: the claim to
+correct now reads that if the result is merged with your human authorship
+intact, GitHub includes you in the repository's contributor history, at
+`README.md` lines 73 to 75.
+
+**Why.** Three runs merged into `main` between this run's step 1 and step 4.
+Two of them took the version number and the ADR number this run had reserved,
+one changed the audit-round receipt contract under a live run, and one rewrote
+both prose files step 4 has to edit. None of it changes the design in item 4 or
+the decision in item 12; all of it changes names, numbers and one non-goal.
+Step 4 is authored on this run's older prose baseline, because a step branch
+cannot merge `main`: the signed-range gate would refuse `main`'s commits, which
+do not carry this run's provenance trailers. The correction therefore reaches
+the current text in the one permitted `sync-run` merge at integrate, and that
+resolution is part of the integration rather than of step 4.
+
+**Steps touched.** Step 4, in its exit, its files and its tests.
+
+**Still holding.** Step 4: entry holds; exit holds.

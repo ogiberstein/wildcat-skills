@@ -1,4 +1,4 @@
-# ADR-017: Bind merged authorship to the integration receipt
+# ADR-018: Bind merged authorship to the integration receipt
 
 ## Status
 
@@ -10,7 +10,12 @@ who reached the default branch.
 The decision is recorded before the code that carries it. Steps 2 and 3 of the
 issue 466 runbook implement it, so the present tense below describes what was
 decided rather than what the controller already does. Fiat v5.13.1 records no
-attribution and checks nothing at the merge.
+attribution and checks nothing at the merge; `fiat-v5.15.1` is the generation
+that carries this record.
+
+Numbered 018 rather than 017. This run committed it as ADR-017 in step 1, and
+the Sapheneia audit-record run took that number on `main` before this run
+reached step 4.
 
 ## Context
 
