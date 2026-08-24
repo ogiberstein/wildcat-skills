@@ -101,9 +101,11 @@ are happy.
    is written down. Carry each item forward as content here, as a stated
    non-goal, or as a named reason it stays open. Read the audit records of
    every in-scope skill the same way, before design options are drawn: the
-   audit file at the target's `config audit.log_path`, default
-   `audit/AUDIT.md`, holds what each round found, what was fixed, and the
-   leads accepted with the reason nobody pursued them. A study that cannot
+   run's audit file, at its `config audit.log_path`, holds what each round
+   found, what was fixed, and the leads accepted with the reason nobody
+   pursued them. Fiat derives one such file per run under `audit/rounds/`, so
+   the records of several runs are several files; a target that kept a shared
+   log before that change has the rest of its history in `audit/AUDIT.md`. A study that cannot
    find the real reason for a decision supplies a plausible one, and the
    plausible one then governs the build: a rejected option gets rejected for
    the wrong cause, an accepted risk gets quietly reopened, and the round

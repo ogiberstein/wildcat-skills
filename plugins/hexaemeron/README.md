@@ -192,7 +192,7 @@ Per-run, via `hexctl config set <path> <value>`:
 | `audit.max_rounds` | `8` | Rounds before the controller forces a verdict |
 | `audit.stacked_suffix` | `--audit` | Fix branch: `<step-branch>--audit` |
 | `audit.fold` | `false` | Merge the stacked branch into the step branch on close |
-| `audit.log_path` | `audit/AUDIT.md` | Where rounds append |
+| `audit.log_path` | `audit/rounds/<flattened run branch>.md` | Where this run's rounds append; `init` derives it, and an override may move the directory but must keep the file name, so no two runs share a record |
 | `git.base` | `main` | Starting ref, and the only branch a run merges into |
 | `git.run_branch_prefix` | `fiat/` | Run branch is this plus the topic slug, or `<issue>-<topic slug>` when `init --task-issue` binds a known issue; an exact override must keep that issue prefix |
 
