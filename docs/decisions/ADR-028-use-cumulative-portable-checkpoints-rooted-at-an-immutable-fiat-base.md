@@ -1,4 +1,4 @@
-# ADR-023: Use cumulative portable checkpoints rooted at an immutable Fiat base
+# ADR-028: Use cumulative portable checkpoints rooted at an immutable Fiat base
 
 ## Status
 
@@ -8,6 +8,11 @@ Proposed, 2026-08-24. Recorded for
 implementation is split between
 [skills#560](https://github.com/wildcat-finance/skills/issues/560) and
 [skills#561](https://github.com/wildcat-finance/skills/issues/561).
+
+PR #569 published this record as ADR-023. That collision check ran against an
+earlier `main`, and by the time the PR merged, ADR-023 held the accepted Kronos
+working-state decision. This record moved to ADR-028. The decision is
+unchanged.
 
 ## Context
 
@@ -118,5 +123,5 @@ verify the publication chain without a self-reference.
 
 This record chooses the portable state and identity boundary. It does not
 choose service ownership, infrastructure, enforcement class, or fork policy;
-ADR-024 through ADR-027 cover those decisions. It remains Proposed until review
+ADR-029 through ADR-032 cover those decisions. It remains Proposed until review
 accepts it and the component issues prove the named refusal cases.

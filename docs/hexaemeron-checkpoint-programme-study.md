@@ -37,8 +37,8 @@ Assuming, unless corrected:
 10. This package was first drafted against `origin/main`
     `2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` and rebased before publication
     to `5d6fc67bb6c861f2be631eef2d7bef3c01c73e84`, after reading merged PR #562
-    and merged PR #539. ADR-022 is now accepted on `main`; ADR-023 through
-    ADR-027 remained free at the final check.
+    and merged PR #539. ADR-022 is now accepted on `main`; ADR-028 through
+    ADR-032 remained free at the final check.
 11. The held Fiat frontier remains issue
     [#363](https://github.com/wildcat-finance/skills/issues/363). Filing Wave
     Delta does not move, close, or replace it.
@@ -491,18 +491,18 @@ choices earn durable records and where readers find them.
 
 - Cumulative green-boundary checkpoints, immutable starting commit, semantic
   versus transport identity, and the acceptance sidecar:
-  `docs/decisions/ADR-023-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md`.
+  `docs/decisions/ADR-028-use-cumulative-portable-checkpoints-rooted-at-an-immutable-fiat-base.md`.
 - Protocol ownership in Skills, service ownership in a separate repository,
   and Atlas as a redacted client:
-  `docs/decisions/ADR-024-separate-the-checkpoint-protocol-from-its-authority-service.md`.
+  `docs/decisions/ADR-029-separate-the-checkpoint-protocol-from-its-authority-service.md`.
 - Replaceable DigitalOcean compute/index behind locked S3 primary/replica
   versions, Roles Anywhere, and KMS signing:
-  `docs/decisions/ADR-025-use-s3-object-lock-behind-replaceable-digitalocean-compute.md`.
+  `docs/decisions/ADR-030-use-s3-object-lock-behind-replaceable-digitalocean-compute.md`.
 - Explicit external execution class and the signed publication fence:
-  `docs/decisions/ADR-026-fence-external-fiat-transitions-on-signed-checkpoint-acceptance.md`.
+  `docs/decisions/ADR-031-fence-external-fiat-transitions-on-signed-checkpoint-acceptance.md`.
 - DAG lineage, advisory claims, signed resolution, revocation, reconciliation,
   and salvage:
-  `docs/decisions/ADR-027-model-checkpoint-lineage-as-an-explicitly-resolved-dag.md`.
+  `docs/decisions/ADR-032-model-checkpoint-lineage-as-an-explicitly-resolved-dag.md`.
 
 All five begin `Proposed, 2026-08-24`. The component issues carry operational
 detail and their own runbooks; those details do not silently strengthen a
