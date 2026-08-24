@@ -41,3 +41,68 @@ action. That is not a claim about this run's subject; it is the previous run's
 change being exercised.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-24
+
+Non-Solidity round over the run-branch movement guard, at
+`c72ed15a85e6843c59abfcbb2330677f234c670f`. Zero findings.
+
+The three bundled lints exit 0. `scripts/promise_machine.py check` and
+`coverage --check` are clean after the recorded `hexctl.py` digest moved to
+`315cf29ff9d7`-prefixed bytes; no promise or field map changed, because the diff
+adds no result field. Horos reports that the boundary matches the tree. The root
+suite reports 349 tests OK with no skips and the Hexaemeron suite 1,057/1,057
+with the twelve new cases in `test_stack_topology.py`. Seven of those assertions
+fail against the step 1 tip. The commit's local signature is good and it carries
+exactly one co-author trailer and one origin trailer.
+
+Three things went wrong while building this and all three were fixed before the
+commit. They are recorded because each one is a way the guard could have shipped
+wrong, not because any of them survived.
+
+The first draft refused every healthy merge. A receipt runs *after* its own merge
+has landed, so at `done merge-step` the run branch legitimately already holds the
+commit being receipted, and comparing it against the previous receipt makes every
+correct run fail. The fix accepts the landing commit as well as the last
+receipted one, and `test_a_healthy_stack_merges_unchanged` is the case that would
+have caught it.
+
+The second draft guarded `sync-run` and `integrate` as well as `merge-step`, and
+broke `test_pinned_starting_commit_syncs_and_integrates_into_the_named_base`.
+`_integrate_directive` returns `integrate` whether or not a sync has been
+receipted, so after the stack lands the run branch may legitimately carry a merge
+the controller has not recorded: that is what `done sync-run` exists to receipt.
+The guard now stops when the stack does, which is also the honest scope, because
+merge-step is where both issues' damage happens.
+
+The third was in the test helper rather than the controller.
+`self.fake_refs[self.state()["run_branch"]] = sha` binds the dictionary before
+`state()` runs, and `state()` replaces it, so the write landed in a copy nothing
+read afterwards and six cases passed against a guard that had not been given
+anything to find. Named in the helper's docstring so the next reader does not
+repeat it.
+
+Four register concerns are reachable at this step and each was checked.
+`premature-merge-undetected`: the movement check compares the remote tip against
+this run's own receipts, and `test_it_refuses_at_next_rather_than_at_the_merge_after`
+asserts it arrives at the directive rather than at the receipt after it.
+`false-refusal`: `test_a_healthy_stack_merges_unchanged` merges three steps with
+the guard live, `test_nothing_fires_before_the_first_merge` covers the state
+where the controller has recorded no expectation, and the full suite passing at
+1,057 is the wider evidence. `ancestry-unanswered`: not reachable as written,
+because the final design compares recorded SHAs and asks git no ancestry question
+at all, which is why it needs no local objects and works against an unfetched
+remote. `network-dependence`: one `ls-remote` per merge-step directive, in a
+phase that already makes several GitHub calls per receipt, and `status` reports
+an unreadable remote as unknown rather than refusing. `retarget-drift` and
+`printed-command` sit in step 3's diff.
+
+One deliberate limit. The `ancestry-unanswered` concern was written against a
+design that asked `git merge-base --is-ancestor` whether a waiting step's head
+was reachable from the run branch. That design needs both objects present
+locally, which an unfetched clone does not guarantee, and would have turned a
+stale checkout into a refusal about a person. Comparing recorded SHAs answers the
+same question with no objects and no fetch. The concern stays in the register
+because the study is receipted; this is the record of why it is not reachable.
+
+Leads not pursued: none.
