@@ -102,6 +102,9 @@ list. `references/audit-loop.md` is the contract they satisfy.
 ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive")
 """The complete Elenchus result vocabulary accepted on an audit fix receipt."""
 
+AUDIT_FILTER = "sapheneia:sapheneia"
+"""The exact bounded audit-record pass every new round declares."""
+
 
 def elenchus_verdict_obligation() -> dict:
     """Describe the conditional audit-round input without claiming it was run."""
@@ -109,6 +112,14 @@ def elenchus_verdict_obligation() -> dict:
         "flag": "--elenchus-verdict",
         "required_with": "--fixes-commit",
         "choices": list(ELENCHUS_VERDICTS),
+    }
+
+
+def audit_filter_obligation() -> dict:
+    """Describe the exact checked declaration without claiming semantic proof."""
+    return {
+        "flag": "--audit-filter",
+        "value": AUDIT_FILTER,
     }
 
 
@@ -1391,6 +1402,13 @@ def done_implement(args, state: dict) -> None:
 def cmd_audit_round(args) -> None:
     state = load_state(args.dir)
     step = require_step_phase(state, "audit")
+    if args.audit_filter is None:
+        die(
+            "audit-round requires --audit-filter sapheneia:sapheneia; "
+            "the declaration must precede every new round receipt"
+        )
+    if args.audit_filter != AUDIT_FILTER:
+        die("--audit-filter must equal sapheneia:sapheneia")
     if "security_suite" not in state["receipts"]:
         die(
             "no security_suite receipt; resolve the installed suite first "
@@ -1454,6 +1472,7 @@ def cmd_audit_round(args) -> None:
         "round": len(rounds) + 1,
         "findings": args.findings,
         "log": args.log,
+        "audit_filter": args.audit_filter,
         "fixes_commit": args.fixes_commit,
         "elenchus_verdict": args.elenchus_verdict,
         "verified_commits": verified_commits,
@@ -1467,6 +1486,7 @@ def cmd_audit_round(args) -> None:
         tail = "; lints " + ", ".join(
             f"{lint} {recorded[lint]}" for lint in LINTS if lint in recorded
         )
+    tail += f"; audit filter {entry['audit_filter']}"
     tail += f"; Elenchus {entry['elenchus_verdict'] or 'null'}"
     print(
         f"step {step['n']} audit round {entry['round']} recorded "
@@ -3604,6 +3624,7 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
             "plugin_root": root_plugin,
             "audit_log_path": scoped_path(root, log, "audit log path"),
             "round": directive["round"],
+            "audit_filter": directive["audit_filter"],
             "risk_register": source_risk_register(study),
             "runbook_step": source_runbook_step(runbook, step),
         }
@@ -3676,7 +3697,10 @@ def _next_directive(state: dict) -> dict:
         rounds = step["audit"]["rounds"]
         max_rounds = max_rounds_of(state)
         lints_owed = not solidity_round(state)
-        owed = {"elenchus_verdict": elenchus_verdict_obligation()}
+        owed = {
+            "audit_filter": audit_filter_obligation(),
+            "elenchus_verdict": elenchus_verdict_obligation(),
+        }
         if lints_owed:
             owed["lints"] = [f"--{lint}-exit" for lint in LINTS]
         if not rounds:
@@ -3974,6 +3998,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("audit-round", help="record one security round")
     sp.add_argument("--findings", type=int, required=True)
     sp.add_argument("--log")
+    sp.add_argument("--audit-filter", dest="audit_filter")
     sp.add_argument("--fixes-commit", dest="fixes_commit")
     sp.add_argument(
         "--elenchus-verdict",
