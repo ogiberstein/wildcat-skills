@@ -96,8 +96,12 @@ class FiatSkillContractTests(unittest.TestCase):
 
     def test_runtime_hosts_are_not_governed_authors(self):
         flat = " ".join(self.push_discipline.split())
-        self.assertIn("Attribute agent-produced run work to `Shoggoth", flat)
-        self.assertIn("Preserve a human contributor as author", flat)
+        self.assertIn("Authorship follows the contributing actor", flat)
+        self.assertIn("Attribute Shoggoth's own agent-produced run work to `Shoggoth", flat)
+        self.assertIn("Preserve a human contributor as Git author and signer", flat)
+        self.assertIn("publish through their own GitHub account", flat)
+        self.assertIn("Never ask for, copy, upload, configure or use the Shoggoth private signing key", flat)
+        self.assertIn("Only a run contributed by Shoggoth needs the Shoggoth publication identity", flat)
         self.assertIn("is neither author nor co-author", flat)
         self.assertIn("stops before publication", flat)
         self.assertIn("known host account as pull-request author", flat)
@@ -285,6 +289,16 @@ class StackBringDownTests(unittest.TestCase):
         integration = self.push_discipline.split("## The integration pull request")[1]
         self.assertIn("delete the run branch and every step branch", " ".join(integration.split()))
         self.assertIn("one place branch cleanup happens", " ".join(integration.split()))
+
+    def test_base_drift_preserves_product_evidence(self):
+        integration = self.push_discipline.split("## The integration pull request")[1]
+        flat = " ".join(integration.split())
+        self.assertIn("fiat-integration-revalidation/v1", integration)
+        self.assertIn("--revalidation .hexaemeron/integration-revalidation.json", flat)
+        self.assertIn("implementation and audit remain evidence", flat)
+        self.assertIn("Base advancement alone never authorises a carryover", flat)
+        self.assertIn("config.git.base", integration)
+        self.assertIn("starting commit", flat)
 
 
 class OriginLabelTests(unittest.TestCase):

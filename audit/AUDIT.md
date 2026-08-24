@@ -11452,7 +11452,6 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record does
 not claim capture completeness, external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
-
 ## Step 1, round 1 -- 2026-08-24
 
 Covered: `evidence-loss`, `false-semantic-proof`, `final-byte-drift`,
@@ -12019,7 +12018,6 @@ verdict, status, the three lint exits, both suite counts, the Promise Machine
 counts, the six risk ids, the fixes commit with its signature and trailer
 attribution, and both unpursued leads survive unchanged. Only connective and
 process prose was compacted.
-
 ## Issue 435 CARRYOVER-12, step 1, round 1 -- 2026-08-24
 
 ### Verdict
@@ -12059,3 +12057,383 @@ This record was shaped by the bounded `sapheneia:sapheneia` durable-record
 operation before append. The frozen inventory retained the zero-finding verdict,
 all twelve risk dispositions, signed implementation identity, check counts,
 known limits, and non-actions.
+## Step 1, round 1 -- 2026-08-24
+
+Non-Solidity round. The security suite is waived for this run: the step ships
+Python, Markdown and JSON only, with no Solidity and no Foundry or Hardhat
+project. Phylax, Ephoros and Hypomnema each returned clean over
+`scripts/contributors.py`, `tests/test_contributors.py`,
+`tests/emit_contributors_report.py` and `docs/contributors`. The three findings
+below came from reading the diff, not from a lint.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | tests/emit_contributors_report.py | The emitter had no test at all. The step's exit requires it to write one `elenchus.unittest.v1` report to the supplied path and only that path, and nothing regressed it. It also imports `report_target`, `result_payload` and `write_report` from `tests/emit_run_observation_report.py`, so a signature change there breaks this module at import time, and the first symptom would be a broken audit round in a later step rather than a failing test here. The emitter cannot be executed from inside the module it loads without recursing, so the wiring is tested instead: the reused helpers import and are callable, every declared required file exists, the declared module list loads, an empty root produces a failing substitute suite, a present surface produces none, and the payload carries the `elenchus.unittest.v1` schema. | fixed in this round |
+| S1-R1-02 | low | tests/test_contributors.py | `frozensets_from_source` raised a clear `AssertionError` when an assignment was not a `frozenset(...)` call, but passed the call's argument straight to `ast.literal_eval`. A frozenset built from a comprehension or a name rather than a set literal therefore surfaced as a bare `ValueError`, so the parity test reported an error where it had a diagnosis available. The guard was one branch short of the message it intended. | fixed in this round |
+| S1-R1-03 | medium | scripts/contributors.py | Guard-order hazard reaching into step 2. `claude[bot]` and `app/claude` are both declared host identities and both fail `valid_login`, because neither is a legal GitHub login. The study's fail-closed posture stops the run on a login-grammar failure. So a ranking pipeline that validated grammar before excluding hosts would fail the whole weekly refresh on an identity the host set already knows how to drop, and nothing in the step recorded the required order. Fixed by stating the order in `valid_login`'s docstring next to the predicate it constrains, and by a test asserting that every host login failing the grammar check is still recognised by `is_host_login`. That test also fails loudly if the hazard ever disappears, so it cannot rot into a tautology. | fixed in this round |
+
+Leads not pursued: `LOGIN_RE` accepts consecutive hyphens, which GitHub itself
+rejects in a login. Left alone deliberately: the pattern exists to keep Markdown
+syntax out of a generated artefact, a hyphen carries none, and tightening it
+would trade a real guarantee for a cosmetic one. `.elenchus/` is not in the
+repository's `.gitignore`, which predates this run and belongs to whoever owns
+the run-observation emitter rather than to this step.
+
+## Step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Phylax, Ephoros and Hypomnema
+each returned clean again. Both findings are in round 1's own fixes, which is
+what this round exists to catch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R2-01 | medium | tests/test_contributors.py | The parity check compared only the three host sets it already knew by name. A fourth `HOST_*` frozenset added to `hexctl.py` would therefore pass every test here while `scripts/contributors.py` missed a whole class of runtime identity, and the contributor ranking would treat that class as people. Round 1 closed a drift gap in the sets it knew and left the discovery gap open. Fixed by discovering `HOST_*` frozensets by prefix and asserting the discovered names equal `SET_NAMES` exactly, so a new set fails by name until the generator accounts for it. Verified in both directions: discovery over the real `hexctl.py` finds exactly the three, and a synthetic fourth set breaks parity. The first attempt at this fix was itself wrong, matching `HOST_BYLINE_RE`, a compiled pattern rather than a set; the predicate now skips a `HOST_*` name that is not a `frozenset(...)` call and says why, and a missing known set is still caught by the name comparison rather than by asserting shape at the wrong place. | fixed in this round |
+| S1-R2-02 | low | tests/test_contributors.py | Round 1's guard around `ast.literal_eval` caught `ValueError` only. That is the exception every non-literal argument raises on the interpreter in hand, 3.14, but the repository's declared floor is 3.9 and the round-1 change pinned an exception type to behaviour observed on one version. Broadened to `(ValueError, TypeError)`. The `tempfile` import was also moved to module level, so no test body reaches for an import mid-run. | fixed in this round |
+
+Leads not pursued: none.
+
+## Step 1, round 3 -- 2026-08-24
+
+Against the tree with rounds 1 and 2 applied. Phylax, Ephoros and Hypomnema
+clean again. One finding, in the committed spec rather than the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | docs/contributors/study.md | Five dead relative links in a shipped document. The study is authored in the run's `.hexaemeron` directory, where `../ephoros/SKILL.md` correctly names the sibling skill. Copied to `docs/contributors/`, that same text resolves to `docs/ephoros/SKILL.md`, which does not exist, so every one of the study's five discipline citations was broken in the published copy. Copying a document changes what its relative links mean, and nothing in this repository checked a link in a shipped document. Fixed by rewriting the five to `../../plugins/hexaemeron/skills/<name>/SKILL.md`, each verified present, and by a test that resolves every relative link in both published spec files. The canonical `.hexaemeron/study.md` keeps its plugin-relative form and is deliberately not edited: it is receipted and digest-pinned, and its links are correct where it lives. The published copy diverging from it in link paths alone is the intended outcome, not drift. | fixed in this round |
+
+Leads not pursued: the parity test reads the repository's vendored
+`hexctl.py` rather than the installed controller running the loop. That is the
+correct authority for a test that has to pass in CI, where no plugin cache
+exists, but the test does not say so. Left as is; a comment would restate what
+the path already shows.
+
+## Step 1, round 4 -- 2026-08-24
+
+Against the tree with rounds 1 to 3 applied. Phylax, Ephoros and Hypomnema
+clean. One finding, again in the published spec rather than the code.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | medium | docs/contributors/runbook.md | The published runbook's header sent readers to `` `.hexaemeron/study.md` `` for its study. `.hexaemeron/` carries its own `.gitignore` matching everything and has zero tracked files, so that path exists only on the machine that ran the delivery and never in a clone. Round 3 fixed the study's dead Markdown links and missed this because the reference is backticked prose rather than a link, so the round-3 guard could not see it. Fixed by pointing the published runbook at its sibling published study, and by a guard asserting no published spec file mentions `.hexaemeron` at all, which is the general form of the defect rather than the one instance. The `re` import was also moved to module level, matching the correction made to `tempfile` in round 2 and undoing an inconsistency round 3 introduced. | fixed in this round |
+
+Leads not pursued: the link-resolution regex truncates a URL containing a
+closing parenthesis and would read `](` inside a fenced code block as a link.
+Neither occurs in the two files it checks, and a stricter parser would be more
+machinery than the defect justifies.
+
+## Step 1, round 5 -- 2026-08-24
+
+Against the tree with rounds 1 to 4 applied. Zero findings.
+
+Phylax, Ephoros and Hypomnema clean. Root suite 211 tests, all passing. The
+four guards installed across rounds 1 to 4 were each confirmed to fail without
+their fix, three of them by Elenchus returning `guarded` on a recorded parent
+assertion failure.
+
+The remaining question this round examined was whether `docs/contributors/`
+needed registering anywhere. It does not: nothing in the repository enumerates
+`docs/` subdirectories, and `docs/protasis-discipline-cores/study.md` is
+existing precedent for a nested study and runbook pair alongside the flat
+`docs/<topic>-study.md` form. No index to update and no convention broken.
+
+Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-24
+
+Non-Solidity round on the step that opens the network boundary. Phylax and
+Ephoros clean. Hypomnema clean once invoked correctly; see S2-R1-05.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | scripts/contributors.py | The reader checked the landing host with `response.geturl()` after `urlopen` returned. `urllib`'s `HTTPRedirectHandler.redirect_request` copies every request header onto the redirected request except `content-length` and `content-type`, confirmed by reading its source: `Authorization` is not excluded. So a 301 or 302 off `api.github.com` sent the bearer token to the redirect target, and the check fired only after that request had already completed. A token leak to an arbitrary host, detected one step too late to matter. Fixed with a `RefuseOffHostRedirect` handler that stops before the redirected request is issued, kept at module level so it is testable rather than sealed inside the reader factory. The landing-host check is retained as a second line. Three tests: the off-host stop, an on-host redirect still allowed, and one pinning `urllib`'s header-copying behaviour so nobody removes the guard as belt and braces. The stop's message is asserted not to echo the token. | fixed in this round |
+| S2-R1-02 | medium | scripts/contributors.py | `--repo` reached the API path unvalidated. A login is checked against the GitHub login grammar before it is interpolated, so a login cannot inject query syntax, but the repository came straight from the command line into `/repos/{repo}/contributors?...` and `q=repo:{repo}+...`. `--repo 'x/y&per_page=1'` rewrites the query. Operator-supplied rather than attacker-supplied, but the study names this read as a boundary with controls and an unvalidated path component is not one. Fixed with an `owner/name` grammar check, tested against seven malformed forms. | fixed in this round |
+| S2-R1-03 | low | scripts/contributors.py | The git-authorship corroboration counted how many sampled commits carried a non-host author, stored both counts on the working entry, and then dropped them: the rendered payload took only rank, login, commits and merged pull requests. Evidence gathered and discarded is evidence nobody can check. Both counts are now reported per contributor. | fixed in this round |
+| S2-R1-04 | medium | scripts/contributors.py | Two silent caps. The contributors read took `per_page=100` and used page one only, so a repository with more than a hundred contributors would lose everyone past the first page with no sign in the output. The closed-issue read did the same and additionally ignored `total_count`, so partial coverage read as full coverage. Both are the failure mode where a truncated list looks complete. Fixed with a paginating read that stops rather than truncating when pages outlast `MAX_PAGES`, and a closed-issue check that stops naming how many of how many it read. Three tests, including one asserting page two is actually fetched. | fixed in this round |
+| S2-R1-05 | low | audit procedure | Hypomnema was first run over `scripts tests` only and reported two H006 findings claiming `ADR-016` does not exist. It does. The lint resolves a comment's record citation against an index it builds from the record files it walked, so omitting `docs` from the invocation empties the index and turns every valid citation into a finding. The trap is worse than a wasted round: acting on the finding would mean deleting a correct citation to satisfy a lint that was never shown the record. Recorded here so later rounds on this run invoke it as `hypomnema.py docs scripts tests`. No code change. | recorded, no fix needed |
+
+Leads not pursued: the corroboration read samples at most twenty commits per
+contributor, which is a bound rather than a proof. It is now reported in the
+payload as `commits_sampled` alongside `human_authored_sampled`, so the bound is
+visible rather than implied, and widening it would cost an API call per
+contributor to strengthen a check that already fails closed.
+
+Elenchus verdict for this round: `inconclusive`, not `guarded`. Against the
+parent it recorded 45 executed, three assertion failures and four errors. The
+three failures are the guards working: the repository-grammar stop, the
+closed-issue coverage stop, and the corroboration-evidence report each failed on
+the unfixed tree. The four errors are `AttributeError` from two tests naming
+`RefuseOffHostRedirect` and `read_all_pages`, symbols the parent does not carry.
+Elenchus cannot tell a proved guard from a broken harness once errors appear, so
+it declines to call the round guarded, and that is the correct reading of the
+evidence rather than a tooling complaint. Round 2 reshapes those two tests to
+assert the symbol's presence instead of dereferencing it.
+
+## Step 2, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Phylax and Ephoros clean.
+Hypomnema clean, invoked as `hypomnema.py docs scripts tests` per S2-R1-05.
+One finding, in round 1's own guards.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | medium | tests/test_contributors.py | Round 1's guards for the redirect and pagination fixes dereferenced `contributors.RefuseOffHostRedirect` and `contributors.read_all_pages` directly. On a tree without those symbols that raises `AttributeError`, which unittest records as an error rather than a failure, and Elenchus refuses to call a round guarded once errors appear because it cannot tell a proved guard from a broken harness. Round 1 therefore recorded `inconclusive` on five findings whose guards were mostly sound: three failed cleanly, four crashed. A guard that errors on the unfixed tree proves nothing it could not have proved by failing. Fixed by asserting each symbol's presence and returning it, through one helper per class carrying the reason. Verified directly rather than inferred: the reshaped guards run against the pre-fix `scripts/contributors.py` from `5f424e5` produce 7 assertion failures and 0 errors, where round 1's shape produced 3 failures and 4 errors. | fixed in this round |
+
+Leads not pursued: this round's Elenchus verdict is `passed` rather than
+`guarded`, and that is the honest reading. The change is a test reshape with no
+behaviour change, so against its own parent, which already carries round 1's
+fixes, nothing fails. The reshape cannot retroactively re-prove round 1; it makes
+the guards well-shaped from here on, and the proof of that is the direct
+comparison recorded above rather than a verdict this round could produce.
+
+## Step 2, round 3 -- 2026-08-24
+
+Against the tree with rounds 1 and 2 applied. All three lints clean. One
+finding, in a promise the study made that the code had not kept.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R3-01 | medium | scripts/contributors.py | The study's item 10 states the generator "must complete inside the unauthenticated rate limit when run without a token, or say plainly that it needs one." Nothing implemented that. Worse, `urllib.error.HTTPError` subclasses `URLError`, confirmed directly, so catching only `URLError` reported every HTTP status as a generic "api read failed" and discarded the one field that says what to do. A rate-limited run therefore looked like a network fault. The numbers make it reachable rather than theoretical: the search endpoints allow 30 requests a minute with a token and 10 without, and this generator issues two search calls per ranked contributor plus two more, so an unauthenticated run stops being viable at about four contributors. Fixed by catching `HTTPError` ahead of `URLError`, naming the status when it is not rate limiting, and on a 403 or 429 carrying an exhausted `X-RateLimit-Remaining` or a `Retry-After` saying which limit was hit, when it resets, and whether the answer is to set a token. Four tests, one of which pins the subclass relationship so a future reordering of the handlers cannot silently lose the status again. | fixed in this round |
+
+Leads not pursued: the generator does not pre-flight `/rate_limit` before
+starting, so it discovers exhaustion by hitting it. Adding a pre-flight would
+spend a request to predict a condition the run now diagnoses correctly when it
+happens, and the diagnosis is what was missing.
+
+### Correction to the step 2 round 3 record
+
+The controller ledger stores `elenchus_verdict: guarded` for step 2 round 3.
+That receipt is wrong. Elenchus returned `inconclusive` on that commit, with 49
+executed, 0 assertion failures and 3 errors. The wrong value was submitted to
+`hexctl audit-round` and the ledger is hash-chained and append-only, so the
+false entry cannot be rewritten; `hexctl amend` covers a study amendment and not
+an audit round. This paragraph is the correction, and round 4 below carries the
+verdict the round should have recorded.
+
+The cause is the defect S2-R2-01 named one round earlier, repeated. The three
+new rate-limit tests dereferenced `contributors.rate_limit_aware_message`, a
+symbol the parent does not carry, so they raised `AttributeError` and Elenchus
+saw errors rather than assertion failures. The round-2 fix established the shape
+that avoids this and round 3 did not apply it to its own new tests. Round 4
+applies it and re-derives the verdict.
+
+Anyone reading the ledger for step 2 round 3 should read `inconclusive`.
+
+## Step 2, round 4 -- 2026-08-24
+
+Against the tree with rounds 1 to 3 applied, plus the correction above. All
+three lints clean. One finding, and it is the same omission as S2-R2-01 made a
+third time.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R4-01 | medium | tests/test_contributors.py | Round 3's three rate-limit guards dereferenced `contributors.rate_limit_aware_message` directly and so errored rather than failed on the unfixed tree, which is exactly the defect S2-R2-01 named. Round 2 had fixed the same shape by adding a per-class accessor, and that fix was not generalised, so the next new test reintroduced it. The first attempt at this round's fix then put the accessor on `NetworkBoundary` while the three tests live in `Coverage`, breaking the suite outright and making the same class-scoping mistake visible a second time within one round. Fixed properly with a shared `RequiresSymbol` mixin carrying one `require(name, why)` method, used by both classes, so the next new guard inherits the right shape instead of depending on whoever writes it remembering. Verified directly: against the pre-round-3 `scripts/contributors.py` the reshaped guards give 3 assertion failures and 0 errors, where round 3's shape gave 0 failures and 3 errors. | fixed in this round |
+
+Leads not pursued: none. The pattern that produced S2-R2-01, S2-R4-01 and the
+false receipt corrected above is one pattern, and the mixin is the structural
+answer to it rather than a third instance of remembering.
+
+## Step 2, round 5 -- 2026-08-24
+
+Against the tree with rounds 1 to 4 applied. Zero findings.
+
+Phylax, Ephoros and Hypomnema clean. Root suite 241 tests, all passing. The
+live `--json` path runs clean against the real API and ranks `kethcode` then
+`radup1337`, excluding `claude`, `claude[bot]`, `laurenceday` and
+`shoggoth-wildcat` with a distinct reason for each.
+
+This round examined the one thing the local machine cannot check. The repository
+CI matrix pins Python 3.9 and this machine has only 3.14, so 3.9 behaviour is
+asserted by reading rather than running: both files carry
+`from __future__ import annotations`, so every annotation is a string and never
+evaluated, and an AST walk finds no `match` statement and no runtime `X | Y`
+union, the two 3.10 features that a future import does not cover. That is
+evidence about the syntax, not a passing 3.9 run. The 3.9 job on this step's
+pull request is the actual check, and step 1's equivalent job passed.
+
+Leads not pursued: `http_reader` imports `urllib.error` inside the factory while
+`urllib.parse` and `urllib.request` are imported at module scope, because the
+module-level pair is needed by `RefuseOffHostRedirect` at class-definition time
+and the third is not. Consistent enough to leave; moving it would change nothing
+a reader relies on.
+
+## Step 3, round 1 -- 2026-08-24
+
+Non-Solidity round on the step that writes tracked files. Phylax, Ephoros and
+Hypomnema clean. Four findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | scripts/contributors.py | `atomic_write` built its replacement with `tempfile.NamedTemporaryFile`, which creates at 0600, and `os.replace` carries the temporary file's mode onto the target. Both artefacts landed as `-rw-------` where every other file in the repository is `-rw-r--r--`, confirmed by `stat`. The serious half is `README.md`: a tracked file that existed before this run was silently narrowed from 0644, and git records only the executable bit, so the change appears in no diff and no review would catch it. Fixed by preserving an existing file's mode and giving a new file 0644. The two artefacts already on disk were repaired and regenerated. Three tests: a tracked file keeps 0644, a new artefact is world-readable, and an unusual existing mode is preserved rather than normalised. | fixed in this round |
+| S3-R1-02 | medium | scripts/contributors.py | `rendered` read `README.md` with a bare `read_text`, so an absent or non-UTF-8 README came out of `--check` as `FileNotFoundError` or `UnicodeDecodeError` rather than a named stop. The study's fail-closed posture requires a stop to name what went wrong; a traceback from the middle of a weekly job names the line and not the cause. Both are now stops that name the file. | fixed in this round |
+| S3-R1-03 | medium | .horos/boundary.json | Adding `CONTRIBUTORS.md` at the repository root invalidated the committed Horos reading boundary, and the step did not refresh it. The repository's own `test_boundary_currency` caught this, which is the system working, but it also corrects a judgement made earlier in this run: during the post-spec marketplace reassessment Horos was dismissed as having no concrete job in the remaining steps. It had one, and the evidence was a failing test rather than an argument. Refreshed with `horos.py scan . --write`. | fixed in this round |
+| S3-R1-04 | low | tests/test_contributors.py | Two of this round's own guards used `assertRaises(Stop)` against code whose defect is that it raises the wrong exception type. `assertRaises` records a wrong type as an error, and the wrong type was the finding, so those guards could never prove their own fix. This is the third distinct shape of the same underlying mistake in this run, after a missing symbol and a mis-scoped helper. Fixed with an `assert_stops` helper on the shared mixin that catches everything and fails on any exception that is not a `Stop`. Verified: against the parent the round's guards now give 5 assertion failures and 0 errors, where before they gave 3 failures and 2 errors. | fixed in this round |
+
+Leads not pursued: `atomic_write` does not fsync the containing directory after
+`os.replace`, so the rename is not guaranteed durable across a host crash. The
+artefacts are regenerated weekly from a source of truth that is not this file, so
+the recovery for a lost rename is the next scheduled run.
+
+## Step 3, round 2 -- 2026-08-24
+
+Against the tree with round 1 applied. All three lints clean. One finding, in
+the atomic-write path round 1 touched but did not follow through.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R2-01 | medium | scripts/contributors.py, .gitignore | Round 1 established that `atomic_write` cleans up its temporary file when `os.replace` raises. It does not, and cannot, clean up after a hard kill. Confirmed by leaving one deliberately: `.CONTRIBUTORS.md.5le1z97x` appeared in the repository root, `git status` listed it as an untracked change, and `git check-ignore` confirmed nothing ignored it. Two consequences, and the second is the one that matters. A broad `git add` could commit the litter. More importantly step 4's workflow decides whether to open a pull request from whether anything changed, so an orphan from a killed run would make an unchanged ranking look changed and open an empty pull request every week. Fixed by ignoring `.CONTRIBUTORS.md.*` and `.README.md.*`, and by sweeping the script's own orphans at the start of a write. The sweep is anchored to the exact artefact names it writes and touches regular files only, so nothing outside its own litter is in scope; a test asserts a bystander file survives it. | fixed in this round |
+
+Leads not pursued: the sweep runs at the start of a write and not on a
+`--check`, so a check on a littered tree still reports the ranking correctly
+while leaving the orphan in place. That is deliberate: `--check` is the read-only
+mode and should not mutate the tree it is inspecting.
+
+Also in this round, and worth naming as a pattern rather than an incident: one of
+the round's own tests called `contributors.sweep_orphans` directly instead of
+going through the `require` helper, so Elenchus first returned `inconclusive` on
+one error. That is the fourth occurrence of the same mistake in this run, in a
+round whose predecessor added the very mixin that prevents it. The instance was
+fixed and the verdict re-derived as `guarded` with three assertion failures and
+zero errors.
+
+The lesson taken is that a helper only prevents the mistake for whoever
+remembers to call it. So the check is now mechanical: compare the symbols the
+test file dereferences against the symbols the parent commit defines, and treat
+any name present in the former and absent from the latter as a guard that will
+error rather than fail. Run against this round it reports none. That comparison
+is cheap enough to run before every audit round in the remaining steps.
+
+## Step 3, round 3 -- 2026-08-24
+
+Against the tree with rounds 1 and 2 applied. Zero findings.
+
+Phylax, Ephoros and Hypomnema clean. Root suite 260 tests, all passing.
+`--check` exits 0. Both artefacts are `-rw-r--r--` after a regeneration, no
+orphan temporaries remain, and the working tree is clean.
+
+The check this round added is the one step 5's demonstration depends on:
+`--write` followed by `git diff --exit-code` over both artefacts comes back
+clean, so what is committed is exactly what the generator produces. Without that,
+step 5 could pass its own demo against artefacts a human had edited by hand.
+
+Leads not pursued: `.gitignore` now also hides a file a person might genuinely
+name `.CONTRIBUTORS.md.bak`. Accepted: the pattern has to cover a random suffix,
+and losing a hand-made backup of a generated file from `git status` costs nothing
+that matters.
+
+## Step 4, round 1 -- 2026-08-24
+
+Non-Solidity round on the unattended trigger. All three lints clean. Two
+findings, one of them the inverse of the signal the study asked this step for.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | high | .github/workflows/contributors.yml | The summary step ran under `if: always()` and its first branch tested `steps.decide.outputs.changed != 'true'`. A `decide` step that failed, which is what a rate-limited or unreachable API produces, sets no output at all, so the empty value satisfied that branch and the summary announced "No change. The committed list already matches the repository's history." A failed weekly run would therefore have reported a clean no-op, in the one place somebody looks to find out whether the refresh is still working. The study's item 8 asked for the opposite property in as many words: a no-op distinguishable from a failure. This inverted it. Fixed by testing `job.status` first and saying plainly that the run failed and established nothing, with a test asserting the status check precedes the changed check rather than merely existing. | fixed in this round |
+| S4-R1-02 | low | .github/workflows/contributors.yml | The two generated commits carried the message "chore(contributors): refresh the ranked list" and nothing about their origin, so a reader of `git log` could not tell they were machine-written or how to reproduce them. Each now names the workflow, the generator, and the command that reproduces the result. Deliberately no provenance trailers: a scheduled job is not the Shoggoth performing governed work under ADR-016, and `Co-authored-by: Shoggoth` on a cron commit would claim an authorship that did not happen. A test asserts both trailers stay absent from the workflow's executable lines. | fixed in this round |
+
+Leads not pursued: the workflow is not executed by this run and cannot be. Its
+shape is asserted by twelve tests and its behaviour is established by its first
+scheduled or dispatched run. Two things it depends on could not be verified from
+here. Whether organisation policy permits the Actions token to open a pull
+request returned HTTP 403 on the permissions endpoint for the account running
+this delivery, so it is unknown rather than confirmed. And whether a Contents API
+write satisfies the signed-commit ruleset is inferred from an existing merge
+commit in this repository reporting `verified: true` with committer `GitHub`,
+which is strong evidence about GitHub's signing but not a test of this workflow.
+Both are named in the pull request as first-run risks rather than left implicit.
+
+## Step 4, round 2 -- 2026-08-24
+
+Against the tree with round 1 applied. All three lints clean. One finding.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R2-01 | low | .github/workflows/contributors.yml | The job set no `timeout-minutes`, so a hung API call would hold a runner until GitHub's six-hour job ceiling, once a week, with nobody watching. No other workflow in this repository sets one either, but that is not the same precedent: the others are pull-request CI, bounded by the change that triggered them and observed by whoever opened it. This one is a scheduled writer making network calls unattended. Bounded at ten minutes, which is generous for a handful of API reads and two writes. The reason for departing from the surrounding style is recorded in the workflow itself, so the next reader does not normalise it away. A test asserts exactly one timeout exists and that it is not so large as to be no bound at all. | fixed in this round |
+
+Leads not pursued: `actions/checkout@v4` and `actions/setup-python@v5` are
+pinned by tag rather than commit digest. Every other workflow here does the same,
+so changing only this one would be inconsistent without being safer; pinning is a
+repository-wide decision rather than this step's.
+
+## Step 4, round 3 -- 2026-08-24
+
+Against the tree with rounds 1 and 2 applied. All three lints clean. One
+finding, and it is the most serious of the step.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R3-01 | high | .github/workflows/contributors.yml | The workflow was not valid YAML and would never have run. Round 1's own fix for S4-R1-02 introduced a multi-line shell string inside a `run: |` block whose continuation lines began at column 1. A block scalar ends at the first line indented less than the block, so YAML terminated the script there and tried to read `Generated by ...` as a new mapping key. Confirmed with a parser rather than by eye: Ruby's YAML reports `could not find expected ':' while scanning a simple key at line 112`, and the repository's other four workflows parse cleanly, so the fault was this file's alone. GitHub would have reported a workflow syntax error and the weekly refresh would simply never have happened, silently, from the moment it merged. Fixed by building the message with `printf` and properly indented continuations. | fixed in this round |
+
+The failure this round exposes is not only the broken file. Fifteen shape tests
+passed against an unparseable workflow. Every one of them read strings or
+indentation, so all of them were satisfied while the artefact they described
+could not load at all. Structural assertions about a file say nothing about
+whether the file is valid, and a suite of them can be entirely green over
+rubble. Two guards were added. A parser check is not one of them, because
+PyYAML is absent from this repository's root suite and adding a dependency to
+validate one file is the wrong trade. Instead the specific defect class is
+guarded directly: no line may sit at column 1 unless it is one of the five
+known top-level keys, which is exactly what a terminated block scalar produces.
+That guard was verified by reintroducing the original defect and confirming it
+flags the line.
+
+Leads not pursued: the guard catches an unindented line, not every possible way
+to invalidate YAML. A malformed nested mapping would still pass it. Accepted:
+the check is aimed at the one failure this file actually suffered, and GitHub's
+own workflow parser is the backstop for the rest.
+
+## Step 4, round 4 -- 2026-08-24
+
+Against the tree with rounds 1 to 3 applied. Zero findings.
+
+All three lints clean. Root suite 281 tests, all passing. `--check` exits 0 and
+the working tree is clean.
+
+This round re-read the workflow through an actual parser rather than through the
+string assertions that had already been fooled once. It loads, and the values it
+loads are the ones the runbook asked for: the job guard is
+`github.repository == 'wildcat-finance/skills'`, `timeout-minutes` is 10,
+`permissions` is exactly `contents: write` and `pull-requests: write` with
+nothing else, `concurrency` is grouped as `refresh-contributor-list` with
+`cancel-in-progress` false, and the triggers are one weekly cron at `17 4 * * 0`
+plus `workflow_dispatch`. Six steps.
+
+Leads not pursued: two properties of this workflow cannot be established from
+here and are named in the pull request rather than left implicit. Whether
+organisation policy permits the Actions token to open a pull request could not be
+read: the permissions endpoint returns HTTP 403 to the account running this
+delivery. And whether a Contents API write satisfies the signed-commit ruleset is
+inferred from an existing merge commit in this repository reporting
+`verified: true` with committer `GitHub`, which is good evidence about how GitHub
+signs but is not a test of this job. Both resolve on the first dispatched run,
+which is the correct place for them to resolve.
+
+## Step 5, round 1 -- 2026-08-24
+
+Non-Solidity round on the records this work leaves behind. All three lints
+clean. Three findings, the first of them external in origin.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S5-R1-01 | medium | docs/decisions/ | Decision-record number collision. This run planned `ADR-017-rank-contributors-by-resolved-identity.md`, and the concurrent delivery for issue #466 had already opened pull request 521 carrying `ADR-017-bind-merged-authorship-to-the-integration-receipt.md`. Two records cannot share a number, and #521 claimed it first. Renumbered to ADR-018. The renumbering is recorded three ways rather than performed silently: inside the record's own Status section, in a dated Protasis amendment to the receipted study through `hexctl amend study`, which returned `step 5 holds`, and in the published spec copies. The study's item 12 still reads ADR-017 above the amendment, which is the point: the amendment appends so the run's earlier belief stays readable. | fixed in this round |
+| S5-R1-02 | low | tests/test_contributors.py | The dead-link guard added in step 1 round 3 listed only the two published spec files. Step 1 found that same defect twice, and a guard scoped to the files that had already failed could not cover the records added later, which is most of this step's output. Widened to every document this work ships, including the two new records and `CONTRIBUTORS.md`. The companion run-state guard was also over-broad: it flagged any line mentioning `.hexaemeron`, which would fail on a document that legitimately discusses the directory, so it now matches a citation rather than a mention. | fixed in this round |
+| S5-R1-03 | low | docs/decisions/ADR-018-rank-contributors-by-resolved-identity.md | The widened guard immediately earned itself. ADR-018 linked to #521's ADR-017 by relative path, and that file does not exist on this branch and will not until #466 lands, so the record shipped with a link that resolved to nothing. Changed to a named reference carrying the pull-request number, with the reason it is not a link stated in the record. | fixed in this round |
+
+Leads not pursued: this run and the #466 delivery both append to
+`audit/AUDIT.md`, so whichever merges second will conflict there. The conflict is
+textual and the resolution is to keep both blocks, since the file is an
+append-only log of rounds that genuinely both happened. Left for the merge rather
+than pre-empted, because reordering this run's own log to anticipate another
+branch's would make the record less true, not more.
+
+## Step 5, round 2 -- 2026-08-24
+
+Against the tree with round 1 applied. Zero findings.
+
+All three lints clean. Root suite 287 tests, all passing. The demonstration path
+from the study's problem statement runs clean end to end, including
+`git diff --exit-code` over both artefacts, which is what establishes that the
+committed files are exactly what the generator produces rather than something a
+hand edited afterwards. The working tree is clean and the guard-shape comparison
+against the parent commit reports nothing that would error rather than fail.
+
+Leads not pursued: none.

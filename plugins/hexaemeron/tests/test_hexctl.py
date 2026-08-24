@@ -176,7 +176,7 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             merge = args[args.index("--merge-commit") + 1]
             head = pending_refs.get(state["run_branch"], self.fake_sha(state["run_branch"]))
             pending_prs[url] = self.fake_pr(
-                url, state["run_branch"], state["base"], head, merge
+                url, state["run_branch"], self.integration_base(state), head, merge
             )
         env = dict(self.env)
         env["FAKE_GIT_REFS"] = json.dumps(pending_refs)
@@ -263,7 +263,19 @@ elif args and args[0] == "merge-base":
             detached = os.environ.get("FAKE_GIT_NOT_ANCESTOR", "d" * 40).split(",")
             if args[-2] in detached:
                 raise SystemExit(1)
-    raise SystemExit(0)
+        raise SystemExit(0)
+    print(os.environ.get("FAKE_GIT_MERGE_BASE", "4" * 40))
+elif (
+    args
+    and args[0] == "diff"
+    and "--name-only" in args
+    and any(".." in value for value in args)
+    and "FAKE_GIT_DIFF_PATHS" in os.environ
+):
+    pair = next(value for value in args if ".." in value)
+    paths = json.loads(os.environ.get("FAKE_GIT_DIFF_PATHS", "{{}}")).get(pair, [])
+    if paths:
+        sys.stdout.write("\\0".join(paths) + "\\0")
 elif args and args[0] == "rev-list":
     pair = next(value for value in args if ".." in value)
     base, head = pair.split("..", 1)
@@ -444,11 +456,20 @@ print(json.dumps(payload))
             body += "\n## Carried forward\n\n" + carried
         return self.write(os.path.join(".hexaemeron", "run-pr.md"), body)
 
-    def init(self, topic="test topic", task_issue=None):
+    def init(self, topic="test topic", task_issue=None, base=None):
         args = ["init", "--topic", topic]
         if task_issue is not None:
             args += ["--task-issue", task_issue]
+        if base is not None:
+            args += ["--base", base]
         self.run_ctl(*args)
+
+    @staticmethod
+    def integration_base(state):
+        starting_base = state["base"]
+        if re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", starting_base):
+            return state["config"]["git"]["base"]
+        return starting_base
 
     def state(self):
         return json.loads(self.run_ctl("status", "--json").stdout)
@@ -552,8 +573,8 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         stdout, stderr = process.communicate(timeout=5)
         self.assertEqual(process.returncode, 0, (stdout, stderr))
 
-    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None):
-        self.init(task_issue=task_issue)
+    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None, base=None):
+        self.init(task_issue=task_issue, base=base)
         study = self.write(
             "study.md",
             "# Study\n\n```risk-register\n"
@@ -644,10 +665,17 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        # A real push receipt always records the branch's actual head, because
+        # `done push` takes the sha the agent pushed. A placeholder like
+        # "head2" broke that invariant: the fake remote stores fake_sha(head)
+        # as the branch tip, so the receipt and the tip disagreed and the
+        # rewritten-stack refusal fired on a stack nothing had rewritten.
+        # Passing a 40-hex head makes fake_sha the identity, which is exactly
+        # the receipt-equals-tip state a genuine run is in.
         self.run_ctl(
             "done", "push",
             "--pr-url", f"https://github.com/wildcat-finance/example/pull/{step_no}",
-            "--head-commit", f"head{step_no}",
+            "--head-commit", self.fake_sha(f"head{step_no}"),
             "--pr-base", self.step_base(step_no),
         )
 
@@ -1734,8 +1762,8 @@ class TestMergedState(HexctlCase):
     URL = "https://github.com/wildcat-finance/example/pull/1"
     RUN_URL = "https://github.com/wildcat-finance/example/pull/9"
 
-    def to_integrate(self, push_mode="external-author"):
-        self.to_steps(("Ship",))
+    def to_integrate(self, push_mode="external-author", base=None):
+        self.to_steps(("Ship",), base=base)
         self.run_ctl(
             "done", "implement", "--branch", self.step_branch(1),
             "--commit", "abc123",
@@ -1766,7 +1794,7 @@ class TestMergedState(HexctlCase):
             state = self.state()
             self.fake_refs[state["run_branch"]] = "e" * 40
             self.fake_prs[self.RUN_URL] = self.fake_pr(
-                self.RUN_URL, state["run_branch"], state["base"],
+                self.RUN_URL, state["run_branch"], self.integration_base(state),
                 "e" * 40, "f" * 40,
             )
         if git_mode:
@@ -1842,6 +1870,26 @@ class TestMergedState(HexctlCase):
         state["steps"][0]["receipts"]["push"].pop("attribution", None)
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(state, handle)
+        ledger_path = os.path.join(
+            self.target, ".hexaemeron", "ledger.jsonl"
+        )
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        entries[-1]["state"] = hexctl_module().state_fingerprint(state)
+        entries[-1]["hash"] = hashlib.sha256(
+            hexctl_module().canonical(
+                {
+                    "ts": entries[-1]["ts"],
+                    "event": entries[-1]["event"],
+                    "data": entries[-1]["data"],
+                    "prev": entries[-1]["prev"],
+                    "state": entries[-1]["state"],
+                }
+            ).encode()
+        ).hexdigest()
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
         self.integrate()
         recorded = self.recorded()
         self.assertEqual(recorded["identities"], [])
@@ -1949,8 +1997,8 @@ class TestMergedState(HexctlCase):
 
 
 class TestPublicationBindings(HexctlCase):
-    def to_push(self):
-        self.to_steps(("Ship",))
+    def to_push(self, base=None):
+        self.to_steps(("Ship",), base=base)
         self.run_ctl(
             "done", "implement", "--branch", self.step_branch(1),
             "--commit", "abc123",
@@ -1963,16 +2011,16 @@ class TestPublicationBindings(HexctlCase):
             "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
 
-    def to_merge_step(self):
-        self.to_push()
+    def to_merge_step(self, base=None):
+        self.to_push(base=base)
         self.run_ctl(
             "done", "push",
             "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
         )
 
-    def to_integrate(self):
-        self.to_merge_step()
+    def to_integrate(self, base=None):
+        self.to_merge_step(base=base)
         self.run_ctl(
             "done", "merge-step", "--step", "1",
             "--merge-commit", "e" * 40,
@@ -2217,21 +2265,177 @@ class TestPublicationBindings(HexctlCase):
         )
         self.assertIn("final recorded step merge", proc.stderr)
 
-    def prepare_run_sync(self, sync_sha="7" * 40, base_sha="6" * 40):
-        self.to_integrate()
+    def prepare_run_sync(
+        self, sync_sha="7" * 40, base_sha="6" * 40, starting_base=None
+    ):
+        self.to_integrate(base=starting_base)
         state = self.state()
         final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        base_before = "4" * 40
         self.fake_refs[state["run_branch"]] = sync_sha
-        self.fake_refs[state["base"]] = base_sha
+        self.fake_refs[self.integration_base(state)] = base_sha
         self.fake_parents[sync_sha] = [final_merge, base_sha]
+        self.env["FAKE_GIT_MERGE_BASE"] = base_before
+        self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
+            {
+                f"{base_before}..{final_merge}": [
+                    "product.py",
+                    "shared.json",
+                ],
+                f"{base_before}..{base_sha}": [
+                    "shared.json",
+                    "upstream.py",
+                ],
+                f"{final_merge}..{sync_sha}": [
+                    "shared.json",
+                    "upstream.py",
+                ],
+            }
+        )
         return state, sync_sha, base_sha
+
+    def test_pinned_starting_commit_syncs_and_integrates_into_the_named_base(self):
+        starting_base = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        _, sync_sha, base_sha = self.prepare_run_sync(
+            starting_base=starting_base
+        )
+        directive = self.next_json()
+        self.assertEqual(directive["base"], "main")
+        self.assertEqual(directive["starting_base"], starting_base)
+
+        revalidation = self.write_integration_revalidation()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        self.assertIn("synced with main", proc.stdout)
+        sync = self.state()["integrate"]["sync"]
+        self.assertEqual(sync["base"], "main")
+        self.assertEqual(sync["starting_base"], starting_base)
+
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["base"], "main")
+        self.assertEqual(receipt["starting_base"], starting_base)
+
+    def test_integration_base_distinguishes_a_branch_from_a_pinned_commit(self):
+        module = hexctl_module()
+        self.assertEqual(
+            module.integration_base_of(
+                {"base": "release/one", "config": {"git": {"base": "main"}}}
+            ),
+            "release/one",
+        )
+        for configured, message in (
+            (None, "needs config.git.base"),
+            ("6" * 40, "must name an integration branch"),
+            ("../main", "not a usable branch name"),
+        ):
+            with self.subTest(configured=configured):
+                error = StringIO()
+                state = {
+                    "base": "5" * 40,
+                    "config": {"git": {"base": configured}},
+                }
+                with redirect_stderr(error), self.assertRaises(SystemExit):
+                    module.integration_base_of(state)
+                self.assertIn(message, error.getvalue())
+
+    def write_integration_revalidation(
+        self, *, affected_paths=None, checks=None
+    ):
+        affected_paths = (
+            ["shared.json", "upstream.py"]
+            if affected_paths is None else affected_paths
+        )
+        checks = checks or [
+            {
+                "id": "root-suite",
+                "command": "python3 -m unittest discover -s tests",
+                "paths": affected_paths,
+                "exit": 0,
+            }
+        ]
+        return self.write(
+            ".hexaemeron/integration-revalidation.json",
+            json.dumps(
+                {
+                    "schema": "fiat-integration-revalidation/v1",
+                    "affected_paths": affected_paths,
+                    "checks": checks,
+                }
+            ),
+        )
+
+    def configure_sync_replacement(self, sync_sha, base_sha):
+        state = self.state()
+        final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        base_before = "4" * 40
+        self.fake_refs[state["run_branch"]] = sync_sha
+        self.fake_refs[self.integration_base(state)] = base_sha
+        self.fake_parents[sync_sha] = [final_merge, base_sha]
+        self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
+            {
+                f"{base_before}..{final_merge}": [
+                    "product.py",
+                    "shared.json",
+                ],
+                f"{base_before}..{base_sha}": [
+                    "controller.py",
+                    "shared.json",
+                    "upstream.py",
+                ],
+                f"{final_merge}..{sync_sha}": [
+                    "controller.py",
+                    "shared.json",
+                    "upstream.py",
+                ],
+            }
+        )
+        return self.write_integration_revalidation(
+            affected_paths=["controller.py", "shared.json", "upstream.py"]
+        )
 
     def test_sync_run_receipts_exact_merge_and_allows_integration(self):
         state, sync_sha, base_sha = self.prepare_run_sync()
+        before = self.state()
+        revalidation = self.write_integration_revalidation()
         self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
         )
+        after_sync = self.state()
+        self.assertEqual(before["steps"], after_sync["steps"])
+        sync = after_sync["integrate"]["sync"]
+        self.assertEqual(sync["product_evidence"]["head"], "e" * 40)
+        self.assertEqual(sync["revalidation"]["base_before"], "4" * 40)
+        self.assertEqual(sync["revalidation"]["product_paths"], [
+            "product.py", "shared.json",
+        ])
+        self.assertEqual(sync["revalidation"]["upstream_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        self.assertEqual(sync["revalidation"]["overlap_paths"], ["shared.json"])
+        self.assertEqual(sync["revalidation"]["composition_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        self.assertEqual(sync["revalidation"]["affected_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        status = self.run_ctl("status").stdout
+        self.assertIn("product eeeeeeeeeeee preserved", status)
+        self.assertIn("1 integration revalidation check(s) recorded", status)
         self.write_run_pr()
         self.run_ctl(
             "done", "integrate",
@@ -2243,38 +2447,337 @@ class TestPublicationBindings(HexctlCase):
         self.assertEqual(receipt["sync"]["base_head"], base_sha)
         self.assertEqual(receipt["sync"]["parents"], ["e" * 40, base_sha])
 
-    def test_sync_run_refuses_wrong_merge_parents(self):
+    def test_sync_run_supersedes_one_failed_composition_without_reopening_product(self):
+        _, first_sync, first_base = self.prepare_run_sync()
+        first_revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", first_sync,
+            "--base-commit", first_base,
+            "--revalidation", first_revalidation,
+        )
+        product = self.state()["integrate"]["sync"]["product_evidence"]
+
+        replacement_sync = "8" * 40
+        replacement_base = "9" * 40
+        replacement_revalidation = self.configure_sync_replacement(
+            replacement_sync, replacement_base
+        )
+        proc = self.run_ctl(
+            "done", "sync-run",
+            "--commit", replacement_sync,
+            "--base-commit", replacement_base,
+            "--revalidation", replacement_revalidation,
+            "--supersede-sync", first_sync,
+            "--reason", "the required integration check failed in a shallow clone",
+        )
+        self.assertIn("superseded", proc.stdout)
+
+        integrate = self.state()["integrate"]
+        self.assertEqual(integrate["sync"]["commit"], replacement_sync)
+        self.assertEqual(integrate["sync"]["base_head"], replacement_base)
+        self.assertEqual(integrate["sync"]["product_evidence"], product)
+        self.assertEqual(len(integrate["superseded_syncs"]), 1)
+        prior = integrate["superseded_syncs"][0]
+        self.assertEqual(prior["sync"]["commit"], first_sync)
+        self.assertEqual(prior["superseded_by"], replacement_sync)
+        self.assertEqual(
+            prior["reason"],
+            "the required integration check failed in a shallow clone",
+        )
+        status = self.run_ctl("status").stdout
+        self.assertIn("1 superseded sync(s) retained", status)
+        directive = self.next_json()
+        self.assertEqual(
+            directive["base_advance"]["recovery"],
+            "supersede-sync-and-revalidate",
+        )
+        self.assertIn(
+            f"--supersede-sync {replacement_sync}",
+            directive["base_advance"]["then"],
+        )
+
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["sync"]["commit"], replacement_sync)
+        self.assertEqual(
+            receipt["superseded_syncs"][0]["sync"]["commit"], first_sync
+        )
+
+    def test_sync_supersession_requires_a_receipt_and_reason(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
-        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
+        )
+        self.assertIn("use --supersede-sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", sync_sha, expect=2,
+        )
+        self.assertIn("--reason is required", proc.stderr)
+
+    def test_sync_supersession_refuses_stale_or_malformed_subject_evidence(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", "5" * 40,
+            "--reason", "a failed check", expect=2,
+        )
+        self.assertIn("active recorded sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", sync_sha, "--reason", "a failed check",
+            expect=2,
+        )
+        self.assertIn("must use a new signed commit", proc.stderr)
+
+        for reason in ("   ", "line one\nline two", "bad\x7fvalue", "é" * 513):
+            with self.subTest(reason=repr(reason)):
+                proc = self.run_ctl(
+                    "done", "sync-run", "--commit", "8" * 40,
+                    "--base-commit", base_sha, "--revalidation", revalidation,
+                    "--supersede-sync", sync_sha, "--reason", reason,
+                    expect=2,
+                )
+                self.assertIn("reason is invalid", proc.stderr)
+
+    def test_sync_supersession_is_bounded_and_requires_an_existing_receipt(self):
+        _, active_sync, active_base = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+            "--supersede-sync", "5" * 40, "--reason", "nothing active yet",
+            expect=2,
+        )
+        self.assertIn("requires an active recorded sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+            "--reason", "not attached to a receipt", expect=2,
+        )
+        self.assertIn("--reason requires --supersede-sync", proc.stderr)
+        self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+        )
+
+        for number in range(8):
+            replacement_sync = hashlib.sha1(
+                f"replacement-sync-{number}".encode()
+            ).hexdigest()
+            replacement_base = hashlib.sha1(
+                f"replacement-base-{number}".encode()
+            ).hexdigest()
+            replacement_revalidation = self.configure_sync_replacement(
+                replacement_sync, replacement_base
+            )
+            self.run_ctl(
+                "done", "sync-run", "--commit", replacement_sync,
+                "--base-commit", replacement_base,
+                "--revalidation", replacement_revalidation,
+                "--supersede-sync", active_sync,
+                "--reason", f"bounded replacement {number + 1}",
+            )
+            active_sync = replacement_sync
+
+        self.assertEqual(len(self.state()["integrate"]["superseded_syncs"]), 8)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "a" * 40,
+            "--base-commit", "b" * 40,
+            "--revalidation", revalidation,
+            "--supersede-sync", active_sync,
+            "--reason", "one replacement too many", expect=2,
+        )
+        self.assertIn("supersession limit", proc.stderr)
+
+    def test_sync_and_integration_refuse_edited_state_before_receipt_laundering(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, "rb") as handle:
+            valid_state = handle.read()
+        with open(ledger_path, "rb") as handle:
+            valid_ledger = handle.read()
+
+        for command in ("sync", "integrate"):
+            with self.subTest(command=command):
+                state = json.loads(valid_state)
+                state["integrate"]["sync"]["commit"] = "8" * 40
+                with open(state_path, "w", encoding="utf-8") as handle:
+                    json.dump(state, handle)
+                if command == "sync":
+                    proc = self.run_ctl(
+                        "done", "sync-run", "--commit", "9" * 40,
+                        "--base-commit", base_sha,
+                        "--revalidation", revalidation,
+                        "--supersede-sync", "8" * 40,
+                        "--reason", "try to absorb edited state", expect=1,
+                    )
+                else:
+                    proc = self.run_ctl(
+                        "done", "integrate",
+                        "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                        "--merge-commit", "f" * 40, expect=1,
+                    )
+                self.assertIn("edited outside hexctl", proc.stderr)
+                with open(ledger_path, "rb") as handle:
+                    self.assertEqual(handle.read(), valid_ledger)
+                with open(state_path, "wb") as handle:
+                    handle.write(valid_state)
+
+    def test_sync_run_requires_bounded_green_revalidation(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
             "--base-commit", base_sha, expect=2,
+        )
+        self.assertIn("--revalidation is required", proc.stderr)
+
+        failed = self.write_integration_revalidation(
+            checks=[
+                {
+                    "id": "root-suite",
+                    "command": "python3 -m unittest discover -s tests",
+                    "paths": ["shared.json", "upstream.py"],
+                    "exit": 1,
+                }
+            ]
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", failed, expect=2,
+        )
+        self.assertIn("must record exit 0", proc.stderr)
+
+    def test_sync_run_revalidation_covers_the_computed_composition_surface(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        outside = self.write_integration_revalidation(
+            affected_paths=["not-in-delta.py"]
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", outside, expect=2,
+        )
+        self.assertIn("outside the computed integration delta", proc.stderr)
+
+        omitted = self.write_integration_revalidation(
+            affected_paths=["upstream.py"],
+            checks=[
+                {
+                    "id": "upstream-suite",
+                    "command": "python3 -m unittest upstream_tests",
+                    "paths": ["upstream.py"],
+                    "exit": 0,
+                }
+            ],
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", omitted, expect=2,
+        )
+        self.assertIn("omits the computed integration surface", proc.stderr)
+
+        uncovered = self.write_integration_revalidation(
+            affected_paths=["shared.json", "upstream.py"],
+            checks=[
+                {
+                    "id": "shared-suite",
+                    "command": "python3 -m unittest shared_tests",
+                    "paths": ["shared.json"],
+                    "exit": 0,
+                }
+            ],
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", uncovered, expect=2,
+        )
+        self.assertIn("do not cover every affected path", proc.stderr)
+
+    def test_integrate_directive_preserves_product_evidence_on_base_drift(self):
+        self.to_integrate()
+        directive = self.next_json()
+        self.assertEqual(
+            directive["product_evidence"]["status"], "preserved-exact-tree"
+        )
+        self.assertEqual(directive["product_evidence"]["head"], "e" * 40)
+        self.assertEqual(
+            directive["base_advance"]["recovery"], "sync-run-and-revalidate"
+        )
+        self.assertIn(
+            "--revalidation .hexaemeron/integration-revalidation.json",
+            directive["base_advance"]["then"],
+        )
+        self.assertIn(
+            "does not authorise a carryover",
+            directive["base_advance"]["boundary"],
+        )
+
+    def test_sync_run_refuses_wrong_merge_parents(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("merge parents", proc.stderr)
 
     def test_sync_run_refuses_unsigned_commit(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         self.env["FAKE_GIT_MODE"] = "unsigned"
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha, expect=2,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("valid local signature", proc.stderr)
 
     def test_sync_run_refuses_stale_remote_base(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", "5" * 40, expect=2,
+            "--base-commit", "5" * 40, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("remote base branch tip", proc.stderr)
 
     def test_sync_run_refuses_invalid_github_verification(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         self.env["FAKE_GH_MODE"] = "verified-false"
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha, expect=2,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("not verified:true", proc.stderr)
 
@@ -4996,3 +5499,200 @@ class FrontierRowAttributionTests(OriginCheckoutMixin, unittest.TestCase):
             module.base_ledger_versions(self.dir, head, "nowhere/EVOLUTION.md"),
             frozenset(),
         )
+
+
+class GitHubSignerDiagnosis(unittest.TestCase):
+    """A refusal must name GitHub's key as the cause, not just fail.
+
+    A commit GitHub rewrote carries GitHub's web-flow signature. `verify-commit`
+    then fails against a local keyring, and the bare message sends whoever reads
+    it looking for a broken signing setup rather than at the branch rewrite that
+    actually happened. The wrong repair for that message is importing GitHub's
+    public key, which makes the check pass and removes the guarantee it exists
+    for, so the message says so explicitly.
+    """
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+
+    def test_the_known_github_keys_are_declared(self):
+        self.assertIn("B5690EEEBB952194", self.hexctl.GITHUB_SIGNING_KEYS)
+        self.assertIn("4AEE18F83AFDEB23", self.hexctl.GITHUB_SIGNING_KEYS)
+
+    def _refusal(self, key):
+        """The message verify_local_commit dies with, for a given signing key."""
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=1), \
+             mock.patch.object(module, "signing_key", return_value=key), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             redirect_stderr(captured):
+            with self.assertRaises(SystemExit):
+                module.verify_local_commit(".", "a" * 40, "step 1")
+        return captured.getvalue()
+
+    def test_a_github_signed_commit_is_refused_and_the_cause_is_named(self):
+        message = self._refusal("b5690eeebb952194")
+        self.assertIn("signed by GitHub", message)
+        self.assertIn("B5690EEEBB952194", message)
+        self.assertIn("stacked", message, "the rewrite that causes this must be named")
+        self.assertIn(
+            "Do not import GitHub's public key",
+            message,
+            "the wrong repair is the obvious one and has to be ruled out in the message",
+        )
+
+    def test_an_unknown_key_is_reported_without_blaming_github(self):
+        message = self._refusal("DEADBEEFDEADBEEF")
+        self.assertIn("DEADBEEFDEADBEEF", message)
+        self.assertIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_an_unsigned_commit_keeps_the_plain_message(self):
+        message = self._refusal("")
+        self.assertIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_a_verifying_commit_is_not_refused_by_the_signature_check(self):
+        """The diagnosis must not turn a passing verification into a refusal.
+
+        Checks which refusal, not whether one happened. A commit that verifies
+        still goes on to the author and trailer checks, and those refuse this
+        synthetic sha for reasons that have nothing to do with signing. What must
+        not appear is a signature complaint.
+        """
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=0), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             redirect_stderr(captured):
+            try:
+                module.verify_local_commit(".", "a" * 40, "step 1")
+            except BaseException:
+                pass
+        message = captured.getvalue()
+        self.assertNotIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_the_signature_check_runs_before_anything_else(self):
+        """A later check must not mask an unverifiable signature."""
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=1), \
+             mock.patch.object(module, "signing_key", return_value=""), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             mock.patch.object(module, "commit_author",
+                               side_effect=AssertionError("author read before signature check")), \
+             redirect_stderr(captured):
+            with self.assertRaises(SystemExit):
+                module.verify_local_commit(".", "a" * 40, "step 1")
+        self.assertIn("no valid local signature", captured.getvalue())
+
+
+class RewrittenStackRefusal(unittest.TestCase):
+    """The stack rewrite is caught at the first merge-step after it happens.
+
+    GitHub's native stacked-pull-request flow rebases every downstream branch on
+    each merge and re-signs the rewritten commits with its own key. Before this
+    check, the first symptom was an invalid local signature at a later
+    merge-step, which reads as a broken signing setup, and by then several steps
+    had already merged. The check compares each waiting step's remote tip with
+    the head its push receipt names, so the rewrite is named before any further
+    merge is receipted.
+    """
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+
+    def _state(self):
+        return {
+            "integrate": {"merged": [1]},
+            "steps": [
+                {"n": 1, "title": "one",
+                 "receipts": {"push": {"head_commit": "a" * 40}}},
+                {"n": 2, "title": "two",
+                 "receipts": {"push": {"head_commit": "b" * 40}}},
+                {"n": 3, "title": "three",
+                 "receipts": {"push": {"head_commit": "c" * 40}}},
+            ],
+        }
+
+    def _refusal(self, state, current_step, tips):
+        """The stderr the check dies with, or None when it returns."""
+        module = self.hexctl
+
+        def tip(_dir, branch, label="remote run branch tip"):
+            value = tips[branch]
+            if value is SystemExit:
+                module.die(f"{label} could not be read")
+            return value
+
+        captured = StringIO()
+        with mock.patch.object(module, "step_branch_name",
+                               side_effect=lambda _s, step: f"branch-{step['n']}"), \
+             mock.patch.object(module, "remote_branch_tip", side_effect=tip), \
+             redirect_stderr(captured):
+            try:
+                module.refuse_rewritten_stack(".", state, current_step)
+            except SystemExit:
+                return captured.getvalue()
+        return None
+
+    def test_an_untouched_stack_passes(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": "c" * 40}
+        )
+        self.assertIsNone(message)
+
+    def test_a_rewritten_waiting_branch_is_refused_and_the_rewrite_named(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": "d" * 40}
+        )
+        self.assertIsNotNone(message, "a rewritten waiting branch was not refused")
+        self.assertIn("has been rewritten since it was pushed", message)
+        self.assertIn("branch-3", message)
+        self.assertIn("stacked-pull-request", message)
+        self.assertIn(
+            "do not import GitHub's public key",
+            message,
+            "the wrong repair is the obvious one and must be ruled out in the message",
+        )
+
+    def test_the_step_being_merged_is_never_queried(self):
+        """The current step's branch may legitimately differ from its receipt
+        after audit-branch fast-forwards; only the WAITING steps are the rewrite
+        signal. Step order is enforced before this check runs, so the current
+        step is always the lowest unmerged one and everything below it is in
+        `merged`."""
+        module = self.hexctl
+        queried = []
+
+        def tip(_dir, branch, label="remote run branch tip"):
+            queried.append(branch)
+            return "c" * 40
+
+        with mock.patch.object(module, "step_branch_name",
+                               side_effect=lambda _s, step: f"branch-{step['n']}"), \
+             mock.patch.object(module, "remote_branch_tip", side_effect=tip):
+            module.refuse_rewritten_stack(".", self._state(), 2)
+        self.assertEqual(queried, ["branch-3"], "only the waiting steps are compared")
+
+    def test_merged_steps_are_not_compared(self):
+        state = self._state()
+        state["integrate"]["merged"] = [1, 2]
+        message = self._refusal(state, 3, {})
+        self.assertIsNone(message)
+
+    def test_an_unreadable_waiting_branch_is_reported_not_skipped(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": SystemExit}
+        )
+        self.assertIsNotNone(message)
+        self.assertIn("could not be read", message)
+        self.assertIn("step 3", message)
+
+    def test_a_step_without_a_push_receipt_is_left_alone(self):
+        state = self._state()
+        state["steps"][2]["receipts"] = {}
+        message = self._refusal(state, 2, {})
+        self.assertIsNone(message)

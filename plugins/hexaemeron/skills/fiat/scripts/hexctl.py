@@ -159,6 +159,15 @@ SOURCE_BYTES_MAX = 2 * 1024 * 1024
 GIT_OUTPUT_MAX = 2 * 1024 * 1024
 GIT_PATHS_MAX = 500
 GIT_TIMEOUT = 30
+INTEGRATION_REVALIDATION_SCHEMA = "fiat-integration-revalidation/v1"
+INTEGRATION_REVALIDATION_FILE = os.path.join(
+    STATE_DIR_NAME, "integration-revalidation.json"
+)
+INTEGRATION_CHECKS_MAX = 64
+INTEGRATION_COMMAND_BYTES_MAX = 2048
+INTEGRATION_CHECK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+INTEGRATION_SYNC_SUPERSESSIONS_MAX = 8
+INTEGRATION_SYNC_REASON_BYTES_MAX = 1024
 
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
@@ -320,6 +329,32 @@ def check_branch_name(name: str) -> None:
 def run_branch_of(state: dict):
     """The run's integration branch, or None for a run started before 3.4."""
     return state.get("run_branch")
+
+
+def integration_base_of(state: dict) -> str:
+    """The named branch a completed run integrates into.
+
+    Older runs may record the exact starting commit in ``state.base`` while
+    retaining the named delivery branch in ``config.git.base``.  The commit is
+    immutable starting-point evidence; it is not a remote branch name.
+    """
+    starting_base = state.get("base")
+    if not isinstance(starting_base, str) or not starting_base:
+        die("the recorded starting base must be a non-empty string")
+    if not COMMIT_RE.fullmatch(starting_base):
+        check_branch_name(starting_base)
+        return starting_base
+
+    configured = as_dict(as_dict(state.get("config")).get("git")).get("base")
+    if not isinstance(configured, str) or not configured:
+        die(
+            "a run started from a commit needs config.git.base to name its "
+            "integration branch"
+        )
+    if COMMIT_RE.fullmatch(configured):
+        die("config.git.base must name an integration branch, not a commit")
+    check_branch_name(configured)
+    return configured
 
 
 def step_branch_name(state: dict, step: dict) -> str:
@@ -1767,6 +1802,7 @@ def done_push(args, state: dict) -> None:
 def _integrate_directive(state: dict) -> dict:
     """Merge the stack bottom up, then the run branch into the base once."""
     run_branch = run_branch_of(state)
+    integration_base = integration_base_of(state)
     merged = as_dict(state.get("integrate")).get("merged") or []
     for step in state["steps"]:
         if step["n"] in merged:
@@ -1786,11 +1822,44 @@ def _integrate_directive(state: dict) -> dict:
     then = "hexctl done integrate --pr-url <url> --merge-commit <sha>"
     if expected_task_issue(state):
         then += " --closed-issue-url <url>"
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    final_head = require_full_sha(
+        as_dict(merge_records.get(str(final_step))).get("merge_commit"),
+        "final recorded product head",
+    )
+    sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+    sync_then = (
+        "hexctl done sync-run --commit <signed-merge-sha> "
+        "--base-commit <remote-base-sha> "
+        f"--revalidation {INTEGRATION_REVALIDATION_FILE}"
+    )
+    sync_recovery = "sync-run-and-revalidate"
+    if sync:
+        active_sync = require_full_sha(
+            sync.get("commit"), "active recorded sync commit"
+        )
+        sync_then += (
+            f" --supersede-sync {active_sync} "
+            "--reason <bounded-repair-reason>"
+        )
+        sync_recovery = "supersede-sync-and-revalidate"
     return {
         "do": "integrate",
         "run_branch": run_branch,
-        "base": state["base"],
+        "base": integration_base,
+        "starting_base": state["base"],
         "steps": len(state["steps"]),
+        "product_evidence": product_evidence_record(state, final_head),
+        "base_advance": {
+            "recovery": sync_recovery,
+            "artifact": INTEGRATION_REVALIDATION_FILE,
+            "then": sync_then,
+            "boundary": (
+                "base advancement alone does not authorise a carryover or "
+                "invalidate the exact-tree product evidence"
+            ),
+        },
         "attribution": {
             "recorded_identities": len(recorded_run_attribution(state)),
             "preserved_by": (
@@ -1802,6 +1871,303 @@ def _integrate_directive(state: dict) -> dict:
         },
         "then": then,
     }
+
+
+def product_evidence_record(state: dict, product_head: str) -> dict:
+    """Digest the completed product receipts without reclassifying them.
+
+    These digests establish only that the same implementation and audit records
+    remain attached to the exact product head. A later sync adds composition
+    evidence; it does not make the earlier audit apply to changed bytes.
+    """
+    records = []
+    for step in state["steps"]:
+        payload = {
+            "implement": as_dict(step["receipts"].get("implement")),
+            "audit": as_dict(step.get("audit")),
+            "audit_receipt": as_dict(step["receipts"].get("audit")),
+        }
+        records.append(
+            {
+                "step": step["n"],
+                "sha256": hashlib.sha256(
+                    canonical(payload).encode("utf-8")
+                ).hexdigest(),
+            }
+        )
+    receipts = as_dict(state.get("receipts"))
+    return {
+        "status": "preserved-exact-tree",
+        "head": require_full_sha(product_head, "final recorded product head"),
+        "study_sha256": as_dict(receipts.get("study")).get("sha256"),
+        "runbook_sha256": as_dict(receipts.get("runbook")).get("sha256"),
+        "steps": records,
+    }
+
+
+def merge_base_commit(base_dir: str, product_head: str, base_head: str) -> str:
+    raw = bounded_git(
+        base_dir,
+        ["merge-base", product_head, base_head],
+        "could not resolve the product/base merge base",
+    )
+    try:
+        lines = raw.decode("ascii", "strict").splitlines()
+    except UnicodeDecodeError:
+        die("product/base merge base is not ASCII")
+    if len(lines) != 1:
+        die("product/base merge base did not return one commit")
+    return require_full_sha(lines[0], "product/base merge base")
+
+
+def git_diff_paths(base_dir: str, before: str, after: str) -> list[str]:
+    raw = bounded_git(
+        base_dir,
+        ["diff", "--name-only", "-z", f"{before}..{after}", "--"],
+        "could not read the integration path delta",
+    )
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        die("integration path delta is not UTF-8")
+    paths = [path for path in decoded.split("\0") if path]
+    unique = sorted(set(paths))
+    if len(unique) > GIT_PATHS_MAX:
+        die(f"integration path delta exceeds {GIT_PATHS_MAX} paths")
+    if len(unique) != len(paths):
+        die("integration path delta contains duplicate paths")
+    root = os.path.realpath(base_dir)
+    for index, path in enumerate(unique):
+        if (
+            not isinstance(path, str)
+            or not path
+            or os.path.isabs(path)
+            or path in (".", "..")
+            or ".." in path.split("/")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+        ):
+            die(f"integration path delta contains an unsafe path at index {index}")
+        candidate = os.path.realpath(os.path.join(root, path))
+        try:
+            inside = os.path.commonpath((root, candidate)) == root
+        except ValueError:
+            inside = False
+        if not inside:
+            die(f"integration path delta escapes the repository at index {index}")
+    return unique
+
+
+def _strict_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate object key")
+        result[key] = value
+    return result
+
+
+def _manifest_paths(value, label: str, allowed: set[str] | None = None) -> list[str]:
+    if not isinstance(value, list) or len(value) > GIT_PATHS_MAX:
+        die(f"{label} must be an array of at most {GIT_PATHS_MAX} paths")
+    if any(not isinstance(path, str) for path in value):
+        die(f"{label} must contain only path strings")
+    if value != sorted(set(value)):
+        die(f"{label} must be sorted and unique")
+    for index, path in enumerate(value):
+        try:
+            encoded = path.encode("utf-8")
+        except UnicodeEncodeError:
+            die(f"{label} contains a non-Unicode-scalar path at index {index}")
+        if (
+            not path
+            or len(encoded) > 4096
+            or os.path.isabs(path)
+            or path in (".", "..")
+            or ".." in path.split("/")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+        ):
+            die(f"{label} contains an unsafe path at index {index}")
+        if allowed is not None and path not in allowed:
+            die(f"{label} names a path outside the computed integration delta")
+    return value
+
+
+def integration_revalidation_record(
+    base_dir: str,
+    supplied: str,
+    product_head: str,
+    base_head: str,
+    sync_head: str,
+) -> dict:
+    """Bind green composition checks to the exact product/base path delta."""
+    artifact, data = read_bounded_source(
+        base_dir, supplied, "integration revalidation artefact"
+    )
+    try:
+        raw = json.loads(
+            decoded_source(data, "integration revalidation artefact"),
+            object_pairs_hook=_strict_json_object,
+        )
+    except ValueError as exc:
+        die(f"integration revalidation artefact is not valid JSON: {exc}")
+    if not isinstance(raw, dict) or set(raw) != {
+        "schema", "affected_paths", "checks"
+    }:
+        die(
+            "integration revalidation artefact must contain exactly "
+            "schema, affected_paths and checks"
+        )
+    if raw["schema"] != INTEGRATION_REVALIDATION_SCHEMA:
+        die(
+            "integration revalidation artefact has the wrong schema "
+            f"(expected {INTEGRATION_REVALIDATION_SCHEMA})"
+        )
+
+    base_before = merge_base_commit(base_dir, product_head, base_head)
+    product_paths = git_diff_paths(base_dir, base_before, product_head)
+    upstream_paths = git_diff_paths(base_dir, base_before, base_head)
+    overlap_paths = sorted(set(product_paths) & set(upstream_paths))
+    composition_paths = git_diff_paths(base_dir, product_head, sync_head)
+    required_paths = sorted(set(composition_paths) | set(overlap_paths))
+    affected_paths = _manifest_paths(
+        raw["affected_paths"], "affected_paths", set(required_paths)
+    )
+    missing_paths = sorted(set(required_paths) - set(affected_paths))
+    if missing_paths:
+        die(
+            "affected_paths omits the computed integration surface: "
+            + ", ".join(missing_paths)
+        )
+
+    checks = raw["checks"]
+    if (
+        not isinstance(checks, list)
+        or not checks
+        or len(checks) > INTEGRATION_CHECKS_MAX
+    ):
+        die(
+            "integration revalidation checks must be a non-empty array of at "
+            f"most {INTEGRATION_CHECKS_MAX} entries"
+        )
+    normalized = []
+    seen_ids = set()
+    covered = set()
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict) or set(check) != {
+            "id", "command", "paths", "exit"
+        }:
+            die(
+                f"integration revalidation check {index} must contain exactly "
+                "id, command, paths and exit"
+            )
+        check_id = check["id"]
+        if (
+            not isinstance(check_id, str)
+            or not INTEGRATION_CHECK_ID_RE.fullmatch(check_id)
+            or check_id in seen_ids
+        ):
+            die(f"integration revalidation check {index} has an invalid id")
+        seen_ids.add(check_id)
+        command = check["command"]
+        try:
+            command_bytes = (
+                command.encode("utf-8") if isinstance(command, str) else b""
+            )
+        except UnicodeEncodeError:
+            command_bytes = b""
+        if (
+            not isinstance(command, str)
+            or not command
+            or not command_bytes
+            or len(command_bytes) > INTEGRATION_COMMAND_BYTES_MAX
+            or any(
+                ord(character) < 32 or ord(character) == 127
+                for character in command
+            )
+        ):
+            die(f"integration revalidation check {index} has an invalid command")
+        if isinstance(check["exit"], bool) or check["exit"] != 0:
+            die(f"integration revalidation check {check_id} must record exit 0")
+        paths = _manifest_paths(
+            check["paths"], f"integration revalidation check {check_id} paths",
+            set(affected_paths),
+        )
+        covered.update(paths)
+        normalized.append(
+            {"id": check_id, "command": command, "paths": paths, "exit": 0}
+        )
+    if covered != set(affected_paths):
+        die("integration revalidation checks do not cover every affected path")
+
+    return {
+        "schema": INTEGRATION_REVALIDATION_SCHEMA,
+        "artifact": os.path.relpath(artifact, os.path.realpath(base_dir)),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "base_before": base_before,
+        "base_after": base_head,
+        "product_paths": product_paths,
+        "upstream_paths": upstream_paths,
+        "overlap_paths": overlap_paths,
+        "composition_paths": composition_paths,
+        "affected_paths": affected_paths,
+        "checks": normalized,
+    }
+
+
+def refuse_rewritten_stack(base_dir: str, state: dict, current_step: int) -> None:
+    """Refuse when a step branch that is still waiting has moved since its push.
+
+    GitHub's native stacked-pull-request flow rebases every downstream branch on
+    each merge and re-signs the rewritten commits with its own key. Author and
+    the provenance trailers survive; the local signature does not.
+
+    Without this check the first symptom is an invalid local signature at a later
+    merge-step, which reads as a broken signing setup rather than as a branch
+    rewrite, and by then several steps have already merged. Comparing each
+    waiting step's remote tip against the head its push receipt names finds the
+    rewrite at the first merge-step after it happened, and says what happened.
+
+    A step whose branch cannot be read is reported rather than skipped: an absent
+    downstream branch during integration is not a normal state.
+    """
+    merged = as_dict(state.get("integrate")).get("merged") or []
+    moved, unreadable = [], []
+    for step in state["steps"]:
+        number = step["n"]
+        if number == current_step or number in merged:
+            continue
+        push_receipt = as_dict(step["receipts"].get("push"))
+        recorded = push_receipt.get("head_commit")
+        if not recorded:
+            continue
+        branch = step_branch_name(state, step)
+        try:
+            tip = remote_branch_tip(base_dir, branch)
+        except SystemExit:
+            unreadable.append(f"step {number} ('{branch}')")
+            continue
+        if tip != recorded:
+            moved.append(
+                f"step {number} ('{branch}') is at {tip} and its push receipt "
+                f"names {recorded}"
+            )
+    if unreadable:
+        die(
+            "a step branch still waiting to merge could not be read: "
+            + "; ".join(unreadable)
+            + ". Integration cannot proceed while a downstream branch is missing."
+        )
+    if moved:
+        die(
+            "a step branch still waiting to merge has been rewritten since it was "
+            "pushed: " + "; ".join(moved) + ". GitHub's stacked-pull-request flow "
+            "rebases downstream branches on each merge and re-signs them with its "
+            "own key, which keeps the author and the provenance trailers and "
+            "discards the local signature. The range these receipts describe is no "
+            "longer the range on the remote. Land the run from a branch holding the "
+            "original commits rather than merging the rewritten stack, and do not "
+            "import GitHub's public key to make the signature check pass."
+        )
 
 
 def done_merge_step(args, state: dict) -> None:
@@ -1824,6 +2190,7 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    refuse_rewritten_stack(args.dir, state, args.step)
     step = state["steps"][args.step - 1]
     push_receipt = as_dict(step["receipts"].get("push"))
     pr_record = inspect_pull_request(
@@ -1910,7 +2277,8 @@ def done_merge_step(args, state: dict) -> None:
 
 
 def done_sync_run(args, state: dict) -> None:
-    """Receipt one signed merge of the current base into a completed run stack."""
+    """Receipt or supersede a signed composition of a completed run stack."""
+    verify_run(args.dir)
     if state["phase"] != "integrate":
         die(
             "sync-run is an integrate-phase receipt; the run is in phase "
@@ -1925,19 +2293,64 @@ def done_sync_run(args, state: dict) -> None:
             f"'{run_branch_of(state)}' before the run can sync"
         )
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
-    if integrate.get("sync") is not None:
-        die("the run branch already has a recorded integration sync")
+    current_sync = as_dict(integrate.get("sync"))
+    superseded_sync = None
+    supersession_reason = None
+    if current_sync:
+        if args.supersede_sync is None:
+            die(
+                "the run branch already has a recorded integration sync; "
+                "use --supersede-sync with its exact commit after repairing "
+                "and revalidating the composition"
+            )
+        active = require_full_sha(
+            current_sync.get("commit"), "active recorded sync commit"
+        )
+        supplied = require_full_sha(
+            args.supersede_sync, "sync commit to supersede"
+        )
+        if supplied != active:
+            die("--supersede-sync must name the active recorded sync commit")
+        if not isinstance(args.reason, str) or not args.reason:
+            die("--reason is required when superseding an integration sync")
+        try:
+            reason_bytes = args.reason.encode("utf-8")
+        except UnicodeEncodeError:
+            reason_bytes = b""
+        if (
+            not reason_bytes
+            or not args.reason.strip()
+            or len(reason_bytes) > INTEGRATION_SYNC_REASON_BYTES_MAX
+            or any(ord(character) < 32 or ord(character) == 127
+                   for character in args.reason)
+        ):
+            die("integration sync supersession reason is invalid")
+        supersession_reason = args.reason
+        history = integrate.get("superseded_syncs") or []
+        if not isinstance(history, list):
+            die("recorded superseded integration syncs are malformed")
+        if len(history) >= INTEGRATION_SYNC_SUPERSESSIONS_MAX:
+            die("the integration sync supersession limit has been reached")
+    elif args.supersede_sync is not None:
+        die("--supersede-sync requires an active recorded sync")
+    elif args.reason is not None:
+        die("--reason requires --supersede-sync")
     if not args.commit:
         die("--commit is required for sync-run")
     if not args.base_commit:
         die("--base-commit is required for sync-run")
+    if not args.revalidation:
+        die("--revalidation is required for sync-run")
     sync_tip = require_full_sha(args.commit, "run sync commit")
     base_tip = require_full_sha(args.base_commit, "run sync base commit")
+    if current_sync and sync_tip == current_sync.get("commit"):
+        die("replacement integration sync must use a new signed commit")
+    integration_base = integration_base_of(state)
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
     if remote_tip != sync_tip:
         die("run sync commit does not match the remote run branch tip")
     remote_base = remote_branch_tip(
-        args.dir, state["base"], "remote base branch tip"
+        args.dir, integration_base, "remote base branch tip"
     )
     if remote_base != base_tip:
         die("run sync base commit does not match the remote base branch tip")
@@ -1952,22 +2365,64 @@ def done_sync_run(args, state: dict) -> None:
             "run sync merge parents do not match the final recorded step merge "
             "and the exact remote base tip"
         )
+    product_evidence = product_evidence_record(state, recorded_tip)
+    if (
+        current_sync
+        and current_sync.get("product_evidence") != product_evidence
+    ):
+        die("recorded product evidence changed before sync supersession")
+    revalidation = integration_revalidation_record(
+        args.dir, args.revalidation, recorded_tip, base_tip, sync_tip
+    )
     verify_local_commit(args.dir, sync_tip, "run branch integration sync")
     github_verified = verify_github_commits(args.dir, [sync_tip])
-    integrate["sync"] = {
+    new_sync = {
         "commit": sync_tip,
+        "base": integration_base,
+        "starting_base": state["base"],
         "base_head": base_tip,
         "parents": parents,
         "github_verified": github_verified,
+        "product_evidence": product_evidence,
+        "revalidation": revalidation,
     }
-    commit(args.dir, state, "done:sync-run", integrate["sync"])
-    print(
-        f"{run_branch_of(state)} synced with {state['base']} at {base_tip}; "
-        "integration may continue"
-    )
+    if current_sync:
+        superseded_sync = {
+            "sync": current_sync,
+            "superseded_by": sync_tip,
+            "reason": supersession_reason,
+            "ts": now(),
+        }
+        history = list(integrate.get("superseded_syncs") or [])
+        history.append(superseded_sync)
+        integrate["superseded_syncs"] = history
+    integrate["sync"] = new_sync
+    if superseded_sync:
+        commit(
+            args.dir,
+            state,
+            "done:sync-run-supersede",
+            {"sync": new_sync, "superseded": superseded_sync},
+        )
+        print(
+            f"{run_branch_of(state)} superseded integration sync "
+            f"{superseded_sync['sync']['commit']} with {sync_tip}; "
+            f"product evidence preserved; {len(revalidation['checks'])} "
+            "integration revalidation check(s) recorded; integration may "
+            "continue"
+        )
+    else:
+        commit(args.dir, state, "done:sync-run", new_sync)
+        print(
+            f"{run_branch_of(state)} synced with {integration_base} at "
+            f"{base_tip}; product evidence preserved; "
+            f"{len(revalidation['checks'])} integration revalidation check(s) "
+            "recorded; integration may continue"
+        )
 
 
 def done_integrate(args, state: dict) -> None:
+    verify_run(args.dir)
     if state["phase"] != "integrate":
         die(
             "integrate is the terminal phase; the run is in phase "
@@ -1976,6 +2431,7 @@ def done_integrate(args, state: dict) -> None:
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     pending = _integrate_directive(state)
+    integration_base = integration_base_of(state)
     if pending["do"] != "integrate":
         die(
             f"step {pending['step']} still has to merge into "
@@ -1986,7 +2442,7 @@ def done_integrate(args, state: dict) -> None:
     if not args.merge_commit:
         die(
             "--merge-commit is required; the run is not complete until the run "
-            f"branch is merged into '{state['base']}'"
+            f"branch is merged into '{integration_base}'"
         )
     frontier = as_dict(state.get("frontier"))
     published = frozenset()
@@ -2024,6 +2480,11 @@ def done_integrate(args, state: dict) -> None:
     sync = as_dict(integrate.get("sync"))
     expected_tip = recorded_tip
     if sync:
+        recorded_product = sync.get("product_evidence")
+        if recorded_product is not None and recorded_product != product_evidence_record(
+            state, recorded_tip
+        ):
+            die("recorded product evidence changed after the integration sync")
         expected_tip = require_full_sha(sync.get("commit"), "recorded run sync commit")
     if remote_tip != expected_tip:
         if sync:
@@ -2033,7 +2494,7 @@ def done_integrate(args, state: dict) -> None:
         args.dir,
         args.pr_url,
         expected_head=run_branch_of(state),
-        expected_base=state["base"],
+        expected_base=integration_base,
         expected_head_sha=remote_tip,
         expected_merge_sha=args.merge_commit,
         expected_head_label="remote run branch tip",
@@ -2042,7 +2503,8 @@ def done_integrate(args, state: dict) -> None:
     attribution = merged_attribution(args.dir, state, args.merge_commit)
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
-        "base": state["base"],
+        "base": integration_base,
+        "starting_base": state["base"],
         "pr_url": args.pr_url,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
@@ -2058,6 +2520,9 @@ def done_integrate(args, state: dict) -> None:
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
+        state["receipts"]["integrate"]["superseded_syncs"] = list(
+            integrate.get("superseded_syncs") or []
+        )
     worktree = state.get("worktree")
     if worktree and os.path.isdir(worktree):
         state["receipts"]["integrate"]["worktree_clean"] = worktree_is_clean(worktree)
@@ -2073,7 +2538,7 @@ def done_integrate(args, state: dict) -> None:
                "keep the tree. Nothing is ever forced")
         )
     print(
-        f"{run_branch_of(state)} merged into {state['base']} "
+        f"{run_branch_of(state)} merged into {integration_base} "
         f"({args.merge_commit}); run complete"
     )
 
@@ -2921,6 +3386,20 @@ def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> by
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 COAUTHOR_TRAILER = "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>"
 ORIGIN_TRAILER = "Wildcat-Origin: shoggoth"
+# Long key ids GitHub signs with when it creates a commit itself: the web-flow
+# key, used by the merge button, the Contents API, and the rebase performed by
+# the native stacked-pull-request flow. A commit carrying one of these was
+# rewritten by GitHub, not created locally, so `git verify-commit` cannot
+# validate it against a local keyring and the range is not the one that was
+# pushed. This set exists to explain a refusal, never to permit one.
+GITHUB_SIGNING_KEYS = frozenset(
+    {
+        "4AEE18F83AFDEB23",
+        "B5690EEEBB952194",
+    }
+)
+
+
 HOST_IDENTITY_NAMES = frozenset(
     {
         "aider",
@@ -3192,14 +3671,46 @@ def commit_is_ancestor(
     return status == 0
 
 
+def signing_key(base_dir: str, commit_sha: str) -> str:
+    """The long key id a commit was signed with, or the empty string.
+
+    Used only to explain a failed verification. A missing or unreadable value
+    is reported as unknown rather than treated as an answer.
+    """
+    try:
+        data = bounded_git(
+            base_dir,
+            ["log", "-n1", "--pretty=%GK", commit_sha],
+            f"signing key for {commit_sha} could not be read",
+        )
+    except SystemExit:
+        return ""
+    return tool_text(data, "signing key").strip()
+
+
 def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
     """Verify one exact locally created commit and its required trailers."""
     commit_sha = require_full_sha(commit_sha, label)
-    bounded_git(
-        base_dir,
-        ["verify-commit", commit_sha],
-        f"{label} commit {commit_sha} has no valid local signature",
-    )
+    if bounded_tool_status(base_dir, "git", ["verify-commit", commit_sha]) != 0:
+        key = signing_key(base_dir, commit_sha).upper()
+        if key in GITHUB_SIGNING_KEYS:
+            die(
+                f"{label} commit {commit_sha} is signed by GitHub "
+                f"(key {key}), not locally. GitHub rewrote this commit: its merge "
+                "button, its Contents API and the rebase its native stacked "
+                "pull-request flow performs all re-sign with that key, and the "
+                "author and provenance trailers survive while the local signature "
+                "does not. The range being receipted is therefore not the range "
+                "that was pushed. Land the run from a branch holding the original "
+                "unrebased commits. Do not import GitHub's public key to make this "
+                "check pass; that removes the guarantee the check exists for."
+            )
+        if key:
+            die(
+                f"{label} commit {commit_sha} has no valid local signature "
+                f"(signed with key {key}, which this keyring cannot validate)"
+            )
+        die(f"{label} commit {commit_sha} has no valid local signature")
     author_name, author_email = commit_author(base_dir, commit_sha, label)
     if is_host_identity(author_name, author_email):
         die(
@@ -3846,6 +4357,21 @@ def cmd_status(args) -> None:
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
         )
+        sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+        product = as_dict(sync.get("product_evidence"))
+        revalidation = as_dict(sync.get("revalidation"))
+        if product:
+            print(
+                "evidence: product "
+                f"{str(product.get('head', ''))[:12]} preserved; "
+                f"{len(revalidation.get('checks') or [])} integration "
+                "revalidation check(s) recorded"
+            )
+            superseded = as_dict(state.get("integrate")).get(
+                "superseded_syncs"
+            ) or []
+            if superseded:
+                print(f"evidence: {len(superseded)} superseded sync(s) retained")
     elif phase == "done":
         print(f"phase: done ({len(state['steps'])} steps shipped)")
     else:
@@ -4065,6 +4591,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--branch")
     sp.add_argument("--commit")
     sp.add_argument("--base-commit", dest="base_commit")
+    sp.add_argument("--revalidation")
+    sp.add_argument("--supersede-sync", dest="supersede_sync")
     sp.add_argument("--tests")
     sp.add_argument("--no-further-leads", dest="no_further_leads", action="store_true")
     sp.add_argument("--reason")

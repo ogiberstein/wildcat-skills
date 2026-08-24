@@ -18,6 +18,8 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+STARTING_BASE = "411d5131ecc8f4e50f3db57deee881a56605cd38"
+PRODUCT_HEAD = "1979372032828f4ed82fdc258187910163a67cb7"
 SCRIPT = ROOT / "scripts" / "run_observation_capture.py"
 FIXTURES = ROOT / "tests" / "fixtures" / "run-observation-capture"
 REPORTER_SCRIPT = ROOT / "tests" / "emit_run_observation_capture_report.py"
@@ -30,7 +32,7 @@ PROMISE_COPIES = tuple(Path("plugins") / name / "PROMISE_MACHINE.md" for name in
 CARRYOVER_GUARDS = {
     "C1-01": "test_coverage_command_is_supported_and_obsolete_spelling_is_rejected",
     "C1-02": "test_reporter_has_exact_modules_and_nonzero_error_exit",
-    "C1-03": "test_adr_017_has_the_repository_form",
+    "C1-03": "test_capture_adr_has_the_repository_form",
     "C1-04": "test_receipted_copies_are_byte_identical_and_relocatable",
     "R1-01": "test_negative_counter_descriptor_is_refused",
     "R1-02": "test_redaction_object_order_is_not_part_of_its_contract",
@@ -44,7 +46,7 @@ CARRYOVER_GUARDS = {
     "R3-01": "test_receipted_copies_have_exactly_one_terminal_newline",
     "R4-01": "test_receipted_sources_and_copies_are_digest_equal",
     "R5-01": "test_receipted_copies_have_no_literal_newline_escape",
-    "R6-01": "test_adr_allocation_preserves_017_and_uses_018",
+    "R6-01": "test_adr_allocation_preserves_017_and_uses_022",
     "R7-01": "test_current_promise_coverage_rows_are_present",
     "R8-01": "test_literal_escape_detector_targets_5c6e",
     "R9-01": "test_detached_receipt_test_skips_only_absent_receipts",
@@ -56,7 +58,7 @@ PRODUCT_PATHS = (
     Path("PROMISE_MACHINE.md"), *PROMISE_COPIES,
     Path("schemas/promise-machine-run-observation-capture-v1.schema.json"),
     Path("scripts/run_observation_capture.py"),
-    Path("docs/decisions/ADR-018-define-the-run-observation-capture-profile.md"),
+    Path("docs/decisions/ADR-022-define-the-run-observation-capture-profile.md"),
     Path("docs/promise-machine/run-observation-capture-v1.md"), STUDY.relative_to(ROOT), RUNBOOK.relative_to(ROOT),
     Path("tests/fixtures/run-observation-capture/valid/accepted.json"),
     Path("tests/fixtures/run-observation-capture/valid/gap.json"),
@@ -306,8 +308,8 @@ class CaptureProfileTests(unittest.TestCase):
                 reporter.write_new(target, b"{}\n")
             self.assertFalse((Path(outside) / "report.json").exists())
 
-    def test_adr_017_has_the_repository_form(self):
-        document = (ROOT / "docs" / "decisions" / "ADR-018-define-the-run-observation-capture-profile.md").read_text(encoding="utf-8")
+    def test_capture_adr_has_the_repository_form(self):
+        document = (ROOT / "docs" / "decisions" / "ADR-022-define-the-run-observation-capture-profile.md").read_text(encoding="utf-8")
         self.assertRegex(document, r"Accepted, 2026-08-24\.")
         for section in ("## Context", "## Decision", "## Alternatives", "## Consequences"):
             self.assertIn(section, document)
@@ -390,24 +392,57 @@ class CaptureProfileTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), digest)
 
     def test_base_identity_is_bound_across_receipts_and_branch(self):
-        base = "411d5131ecc8f4e50f3db57deee881a56605cd38"
-        self.assertIn(base, STUDY.read_text(encoding="utf-8"))
-        self.assertIn(base, RUNBOOK.read_text(encoding="utf-8"))
-        parent = subprocess.run(["git", "rev-parse", "fiat/435-redact-and-bound-run-observation-data-carryover-12"], cwd=ROOT, capture_output=True, text=True, check=True)
-        self.assertEqual(parent.stdout.strip(), base)
+        self.assertIn(STARTING_BASE, STUDY.read_text(encoding="utf-8"))
+        self.assertIn(STARTING_BASE, RUNBOOK.read_text(encoding="utf-8"))
+        adr = (
+            ROOT
+            / "docs"
+            / "decisions"
+            / "ADR-022-define-the-run-observation-capture-profile.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn(STARTING_BASE, adr)
+        self.assertIn(PRODUCT_HEAD, adr)
+        available = subprocess.run(
+            ["git", "cat-file", "-e", f"{PRODUCT_HEAD}^{{commit}}"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if available.returncode != 0:
+            return
+        product_parent = subprocess.run(
+            ["git", "rev-parse", f"{PRODUCT_HEAD}^1"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(product_parent.stdout.strip(), STARTING_BASE)
+        composed = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", PRODUCT_HEAD, "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(composed.returncode, 0, composed.stderr)
 
     def test_c12_runbook_names_the_aggregate(self):
         self.assertTrue(RUNBOOK.read_text(encoding="utf-8").startswith("# Fiat #435 CARRYOVER-12 runbook:"))
 
-    def test_adr_allocation_preserves_017_and_uses_018(self):
+    def test_adr_allocation_preserves_017_and_uses_022(self):
         preserved = ROOT / "docs" / "decisions" / "ADR-017-gate-durable-agent-prose.md"
         base = subprocess.run(["git", "show", "HEAD:docs/decisions/ADR-017-gate-durable-agent-prose.md"], cwd=ROOT, capture_output=True, check=True).stdout
         self.assertEqual(preserved.read_bytes(), base)
-        self.assertTrue((ROOT / "docs" / "decisions" / "ADR-018-define-the-run-observation-capture-profile.md").is_file())
+        self.assertTrue((ROOT / "docs" / "decisions" / "ADR-018-bind-merged-authorship-to-the-integration-receipt.md").is_file())
+        capture_adr = ROOT / "docs" / "decisions" / "ADR-022-define-the-run-observation-capture-profile.md"
+        self.assertTrue(capture_adr.is_file())
+        self.assertTrue(capture_adr.read_text(encoding="utf-8").startswith("# ADR-022:"))
 
     def test_current_promise_coverage_rows_are_present(self):
         coverage = json.loads((ROOT / "tests" / "promise_machine_coverage.json").read_text(encoding="utf-8"))
         self.assertIn("sapheneia-durable-record-shape", {row["promise_id"] for row in coverage["rows"]})
-        expected = "1a01933ac3e5522e6c402235d670b07e551d45c0eb8eaf3029d16c6ba16f8970"
+        expected = "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d"
         for key in ("fiat-final-integration", "fiat-receipted-delivery", "fiat-study-amendment"):
             self.assertEqual(coverage["runtime"][key]["sha256"], expected)

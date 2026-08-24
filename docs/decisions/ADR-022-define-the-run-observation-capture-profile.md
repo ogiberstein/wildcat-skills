@@ -1,8 +1,20 @@
-# ADR-018: Define the run-observation capture profile
+# ADR-022: Define the run-observation capture profile
 
 ## Status
 
 Accepted, 2026-08-24. Recorded for [skills#435](https://github.com/wildcat-finance/skills/issues/435).
+
+The C12 product tree receipted this decision as ADR-018. Composition with
+current `main` found that number already assigned to the authorship receipt,
+so integration moved this record to ADR-022 without changing the decision.
+The receipted study and runbook remain unchanged as evidence of the C12 tree.
+
+The signed C12 product head is
+`1979372032828f4ed82fdc258187910163a67cb7`; its recorded starting commit is
+`411d5131ecc8f4e50f3db57deee881a56605cd38`. These identities remain tracked
+evidence when a CI checkout is too shallow to contain either historical Git
+object. A full checkout additionally verifies their parent and ancestry
+relationship.
 
 ## Context
 
