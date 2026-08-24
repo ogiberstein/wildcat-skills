@@ -337,13 +337,62 @@ if args[:2] == ["pr", "view"]:
     print(json.dumps(payload))
     raise SystemExit(0)
 sha = args[-1].rsplit("/", 1)[-1]
+account = {"login": "shoggoth-wildcat"}
+identity = {"name": "Shoggoth", "email": "shoggoth@wildcat.finance"}
+message = "subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth"
+if mode == "external-author":
+    account = {"login": "kethcode"}
+    identity = {"name": "Kethcode", "email": "Kethcode@Example.Invalid"}
+elif mode == "unlinked-author":
+    account = None
+    identity = {"name": "Kethcode", "email": "kethcode@example.invalid"}
+elif mode == "attribution-null-account-object":
+    account = {"login": None}
+elif mode == "attribution-host-account":
+    account = {"login": "claude[bot]"}
+elif mode == "attribution-account-not-object":
+    account = "kethcode"
+elif mode == "attribution-bad-login":
+    account = {"login": "not a login"}
+elif mode == "attribution-host-author":
+    identity = {"name": "Claude", "email": "noreply@anthropic.com"}
+elif mode == "attribution-missing-identity":
+    identity = None
+elif mode == "attribution-blank-name":
+    identity = {"name": "   ", "email": "kethcode@example.invalid"}
+elif mode == "attribution-long-name":
+    identity = {"name": "n" * (256 + 1), "email": "kethcode@example.invalid"}
+elif mode == "attribution-spaced-email":
+    identity = {"name": "Kethcode", "email": "keth code@example.invalid"}
+elif mode == "attribution-long-email":
+    identity = {"name": "Kethcode", "email": "k" * 310 + "@example.invalid"}
+elif mode == "attribution-missing-message":
+    message = None
+elif mode == "attribution-host-coauthor":
+    message = "subject\\n\\nCo-authored-by: Claude <noreply@anthropic.com>"
+elif mode == "attribution-many-coauthors":
+    message = "subject\\n\\n" + "\\n".join(
+        "Co-authored-by: Person%d <person%d@example.invalid>" % (i, i)
+        for i in range(40)
+    )
+elif mode == "attribution-second-coauthor":
+    message = (
+        "subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\n"
+        "Co-authored-by: Kethcode <kethcode@example.invalid>\\n"
+        "Wildcat-Origin: shoggoth"
+    )
 payload = {
     "sha": None if mode == "missing-sha" else sha,
-    "commit": {"verification": {
-        "verified": mode != "verified-false",
-        "reason": os.environ.get("FAKE_GH_REASON", "expired_key") if mode == "invalid-reason" else "valid",
-        "signature": "RAW FAKE SIGNATURE",
-    }},
+    "author": account,
+    "commit": {
+        "author": identity,
+        "message": message,
+        "verification": {
+            "verified": mode != "verified-false",
+            "reason": os.environ.get("FAKE_GH_REASON", "expired_key") if mode == "invalid-reason" else "valid",
+            "signature": "RAW FAKE SIGNATURE",
+        },
+    },
 }
 print(json.dumps(payload))
 """)
@@ -1498,6 +1547,156 @@ class TestCommitVerification(HexctlCase):
                 ), redirect_stderr(error):
                     with self.assertRaises(SystemExit):
                         module.verify_github_commits(self.dir, ["a" * 40])
+
+
+class TestMergedAttribution(HexctlCase):
+    """Who a run published under, recorded without an address.
+
+    The GitHub commits endpoint is the source: its `author` is the account the
+    commit was matched to, and it is `null` when nothing matched. These drive
+    the reader directly where the shape is the subject, and through the CLI
+    where the recorded receipt is.
+    """
+
+    def to_push(self):
+        self.to_steps(("Ship",))
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+
+    def attribution_of(self, mode, commits=("a" * 40,)):
+        module = hexctl_module()
+        with mock.patch.dict(
+            os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+        ):
+            return module.verified_github_attribution(self.dir, list(commits))[1]
+
+    def test_an_external_author_is_recorded_by_account_and_normalised_digest(self):
+        record = self.attribution_of("external-author")[0]
+        self.assertEqual(record["login"], "kethcode")
+        self.assertEqual(record["name"], "Kethcode")
+        self.assertEqual(record["commit"], "a" * 40)
+        self.assertEqual(
+            record["email_sha256"],
+            hashlib.sha256(b"kethcode@example.invalid").hexdigest(),
+        )
+
+    def test_an_unlinked_author_records_an_explicit_null(self):
+        record = self.attribution_of("unlinked-author")[0]
+        self.assertIsNone(record["login"])
+        self.assertEqual(len(record["email_sha256"]), 64)
+
+    def test_every_coauthor_trailer_becomes_its_own_identity(self):
+        record = self.attribution_of("attribution-second-coauthor")[0]
+        self.assertEqual(
+            [entry["name"] for entry in record["coauthors"]],
+            ["Shoggoth", "Kethcode"],
+        )
+        self.assertEqual(
+            len({entry["email_sha256"] for entry in record["coauthors"]}), 2
+        )
+
+    def test_attribution_negative_matrix_is_fail_closed_and_secret_safe(self):
+        module = hexctl_module()
+        for mode, expected in (
+            ("attribution-host-account", "runtime host account"),
+            ("attribution-account-not-object", "account is not an object"),
+            ("attribution-null-account-object", "account login is not a string"),
+            ("attribution-bad-login", "account login is malformed"),
+            ("attribution-host-author", "runtime host as author"),
+            ("attribution-missing-identity", "identity is not an object"),
+            ("attribution-blank-name", "identity name is malformed"),
+            ("attribution-long-name", "identity name is malformed"),
+            ("attribution-spaced-email", "identity address is malformed"),
+            ("attribution-long-email", "identity address is malformed"),
+            ("attribution-missing-message", "commit message is missing"),
+            ("attribution-host-coauthor", "runtime host as co-author"),
+            ("attribution-many-coauthors", "co-author trailers"),
+        ):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.verified_github_attribution(self.dir, ["a" * 40])
+                self.assertIn(expected, error.getvalue())
+                self.assertNotIn("RAW FAKE SIGNATURE", error.getvalue())
+                self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
+
+    def test_verification_alone_does_not_apply_the_attribution_checks(self):
+        """A merge commit refuses on its signature, never on its identity shape.
+
+        `verify_github_commits` also covers the merge and sync receipts. If it
+        read identities too, an unexpected author shape on a merge commit would
+        refuse a receipt that has nothing to do with attribution.
+        """
+        module = hexctl_module()
+        for mode in ("attribution-long-name", "attribution-missing-message",
+                     "attribution-null-account-object"):
+            with self.subTest(mode=mode):
+                with mock.patch.dict(
+                    os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+                ):
+                    self.assertEqual(
+                        module.verify_github_commits(self.dir, ["a" * 40]),
+                        ["a" * 40],
+                    )
+
+    def test_verification_and_attribution_share_one_request_per_sha(self):
+        module = hexctl_module()
+        log_path = os.path.join(self.dir, "gh.log")
+        with mock.patch.dict(
+            os.environ,
+            {"PATH": self.env["PATH"], "FAKE_GH_LOG": log_path},
+        ):
+            module.verified_github_attribution(self.dir, ["a" * 40, "b" * 40])
+        with open(log_path, encoding="utf-8") as handle:
+            calls = [json.loads(line) for line in handle if line.strip()]
+        self.assertEqual(len([call for call in calls if call[:1] == ["api"]]), 2)
+
+    def test_the_push_receipt_records_the_accounts_and_no_address(self):
+        self.to_push()
+        self.env["FAKE_GH_MODE"] = "external-author"
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        receipt = self.state()["steps"][0]["receipts"]["push"]
+        attribution = receipt["attribution"]
+        self.assertEqual(attribution["pull_request_author"], "shoggoth-wildcat")
+        self.assertEqual(
+            [entry["login"] for entry in attribution["commits"]], ["kethcode"]
+        )
+        self.assertEqual(receipt["pull_request"]["author_login"], "shoggoth-wildcat")
+        self.assertNotIn("@", json.dumps(attribution))
+
+    def test_the_ledger_carries_the_attribution_and_no_address(self):
+        self.to_push()
+        self.env["FAKE_GH_MODE"] = "unlinked-author"
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(path, encoding="utf-8") as handle:
+            events = [json.loads(line) for line in handle if line.strip()]
+        pushed = [event for event in events if event["event"] == "done:push"]
+        self.assertEqual(len(pushed), 1)
+        recorded = pushed[0]["data"]["attribution"]
+        self.assertIsNone(recorded["commits"][0]["login"])
+        self.assertNotIn("@", json.dumps(recorded))
+        self.run_ctl("verify")
 
 
 class TestPublicationBindings(HexctlCase):

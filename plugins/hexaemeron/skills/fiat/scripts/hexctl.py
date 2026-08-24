@@ -1616,7 +1616,9 @@ def done_push(args, state: dict) -> None:
         expected_head_sha=verified_commits[-1],
         expected_merge_sha=args.merge_commit,
     )
-    github_verified = verify_github_commits(args.dir, verified_commits)
+    github_verified, attribution = verified_github_attribution(
+        args.dir, verified_commits
+    )
     merge_verified = []
     if args.merge_commit:
         merge_verified = verify_github_commits(args.dir, [args.merge_commit])
@@ -1630,6 +1632,10 @@ def done_push(args, state: dict) -> None:
         "github_verified": github_verified,
         "github_merge_verified": merge_verified,
         "pull_request": pr_record,
+        "attribution": {
+            "pull_request_author": pr_record.get("author_login"),
+            "commits": attribution,
+        },
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -2832,6 +2838,24 @@ COAUTHOR_RE = re.compile(
     r"^Co-authored-by:\s*(?P<name>.+?)\s*<(?P<email>[^<>]+)>$",
     re.IGNORECASE,
 )
+GITHUB_LOGIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\[bot\])?$")
+"""One GitHub account login as the commits endpoint spells it.
+
+Closed on purpose. The endpoint's `author` is the account GitHub matched the
+commit to, and it is the only field here that later becomes a public claim, so
+an unexpected shape refuses rather than being stored and repeated.
+"""
+
+ATTRIBUTION_NAME_MAX = 256
+ATTRIBUTION_EMAIL_MAX = 320
+ATTRIBUTION_COAUTHOR_MAX = 32
+"""Caps on the identity fields read out of a GitHub commit payload.
+
+The address cap is RFC 5321's maximum path length. The co-author cap exists
+because the trailer count is attacker-influenceable and a receipt is not the
+place to discover that.
+"""
+
 HOST_BYLINE_RE = re.compile(
     r"(?:generated|authored|co-authored)\s+by\s+"
     r"(?:\[(?:claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)\]"
@@ -2853,6 +2877,93 @@ def is_host_identity(name: str, email: str) -> bool:
         name.strip().casefold() in HOST_IDENTITY_NAMES
         or email.strip().casefold() in HOST_IDENTITY_EMAILS
     )
+
+
+def identity_digest(email: str) -> str:
+    """SHA-256 of one normalised author address.
+
+    The receipt has to say whether the identity on the base is the identity
+    that was pushed, and it must not carry an address to do it. A digest
+    answers exactly that question and nothing else, and a reviewer holding the
+    public repository can recompute it.
+    """
+    return hashlib.sha256(email.strip().casefold().encode("utf-8")).hexdigest()
+
+
+def checked_login(value: object, label: str) -> str | None:
+    """The GitHub account a commit is linked to, or None when it is linked to none.
+
+    A literal `null` is the ordinary outcome for a contributor whose commit
+    address is not on their account, so it is recorded as itself. Coercing it
+    to a placeholder would turn "GitHub could not match this" into a name.
+
+    An account object without a usable login is not that outcome. It is a
+    payload nobody predicted, and reading it as "unlinked" would let a shape
+    the reader does not understand become a claim about a person.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        die(f"{label} account is not an object")
+    login = value.get("login")
+    if not isinstance(login, str):
+        die(f"{label} account login is not a string")
+    if login.casefold() in HOST_PR_LOGINS:
+        die(f"{label} links the commit to a runtime host account")
+    if not GITHUB_LOGIN_RE.fullmatch(login):
+        die(f"{label} account login is malformed")
+    return login
+
+
+def checked_identity(value: object, label: str) -> tuple[str, str]:
+    """One author name and address out of a GitHub commit payload."""
+    if not isinstance(value, dict):
+        die(f"{label} identity is not an object")
+    name = value.get("name")
+    email = value.get("email")
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or len(name) > ATTRIBUTION_NAME_MAX
+    ):
+        die(f"{label} identity name is malformed")
+    if (
+        not isinstance(email, str)
+        or not email.strip()
+        or len(email) > ATTRIBUTION_EMAIL_MAX
+        or any(character.isspace() for character in email)
+    ):
+        die(f"{label} identity address is malformed")
+    return name, email
+
+
+def message_coauthors(message: object, label: str) -> list[dict]:
+    """Every exact co-author trailer on one commit message.
+
+    Parsed with the same expression the local range gate uses, so the two
+    cannot disagree about what a trailer is. A host identity in a trailer
+    refuses here as well as locally: the two views are read from different
+    places and either one seeing a host is enough.
+    """
+    if not isinstance(message, str):
+        die(f"{label} commit message is missing")
+    found: list[dict] = []
+    for line in message.splitlines():
+        match = COAUTHOR_RE.fullmatch(line)
+        if match is None:
+            continue
+        name, email = match.group("name"), match.group("email")
+        if is_host_identity(name, email):
+            die(f"{label} names a runtime host as co-author")
+        if len(name) > ATTRIBUTION_NAME_MAX or len(email) > ATTRIBUTION_EMAIL_MAX:
+            die(f"{label} co-author identity is malformed")
+        found.append({"name": name, "email_sha256": identity_digest(email)})
+        if len(found) > ATTRIBUTION_COAUTHOR_MAX:
+            die(
+                f"{label} carries more than {ATTRIBUTION_COAUTHOR_MAX} "
+                "co-author trailers"
+            )
+    return found
 
 
 def commit_author(base_dir: str, commit_sha: str, label: str) -> tuple[str, str]:
@@ -3127,34 +3238,96 @@ def inspect_pull_request(
         "head_sha": returned_head,
         "state": payload.get("state"),
         "merge_sha": returned_merge,
+        "author_login": author_login,
     }
 
 
+def github_commit_payload(base_dir: str, repository: str, commit_sha: str) -> dict:
+    """One bounded GitHub commit payload, checked for the exact SHA."""
+    data = bounded_gh(
+        base_dir,
+        ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
+        f"GitHub verification for {commit_sha} could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
+    except ValueError:
+        die(f"GitHub verification for {commit_sha} returned invalid JSON")
+    if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+        die(f"GitHub verification response did not name exact SHA {commit_sha}")
+    return payload
+
+
+def require_github_verified(payload: dict, commit_sha: str) -> None:
+    """GitHub's own verification result for one commit, or a refusal."""
+    commit = payload.get("commit")
+    verification = commit.get("verification") if isinstance(commit, dict) else None
+    if not isinstance(verification, dict):
+        die(f"GitHub verification for {commit_sha} is missing")
+    if verification.get("verified") is not True:
+        die(f"GitHub verification for {commit_sha} is not verified:true")
+    if verification.get("reason") != "valid":
+        die(f"GitHub verification for {commit_sha} reason is not valid")
+
+
+def commit_attribution(payload: dict, commit_sha: str) -> dict:
+    """Who GitHub says wrote one commit, recorded without an address.
+
+    The linked account is the identity, because one person may hold several
+    addresses and one account. The digest corroborates it, and carries the
+    comparison on its own where the account is null.
+    """
+    label = f"GitHub attribution for {commit_sha}"
+    commit = payload.get("commit")
+    if not isinstance(commit, dict):
+        die(f"{label} is missing its commit object")
+    name, email = checked_identity(commit.get("author"), label)
+    if is_host_identity(name, email):
+        die(f"{label} names a runtime host as author")
+    return {
+        "commit": commit_sha,
+        "login": checked_login(payload.get("author"), label),
+        "name": name,
+        "email_sha256": identity_digest(email),
+        "coauthors": message_coauthors(commit.get("message"), label),
+    }
+
+
+def verified_github_attribution(
+    base_dir: str, commits: list[str]
+) -> tuple[list[str], list[dict]]:
+    """Verify each exact SHA and record who GitHub says wrote it.
+
+    One request per SHA serves both. Splitting them would double the reads and
+    let the verification and the attribution describe different responses.
+    """
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
+    repository = github_repository(base_dir)
+    verified = []
+    attribution = []
+    for commit_sha in commits:
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
+        attribution.append(commit_attribution(payload, commit_sha))
+        verified.append(commit_sha)
+    return verified, attribution
+
+
 def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
-    """Require GitHub's valid verification result for each exact SHA."""
+    """Require GitHub's valid verification result for each exact SHA.
+
+    Deliberately not implemented over `verified_github_attribution`. This gate
+    also covers merge commits and the run sync, and routing it through the
+    attribution reader would make an unexpected identity shape on a merge
+    commit refuse a receipt that has nothing to do with attribution. The two
+    read the same payload for different reasons and fail for different ones.
+    """
     commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
     repository = github_repository(base_dir)
     verified = []
     for commit_sha in commits:
-        data = bounded_gh(
-            base_dir,
-            ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
-            f"GitHub verification for {commit_sha} could not be read",
-        )
-        try:
-            payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
-        except ValueError:
-            die(f"GitHub verification for {commit_sha} returned invalid JSON")
-        if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
-            die(f"GitHub verification response did not name exact SHA {commit_sha}")
-        commit = payload.get("commit")
-        verification = commit.get("verification") if isinstance(commit, dict) else None
-        if not isinstance(verification, dict):
-            die(f"GitHub verification for {commit_sha} is missing")
-        if verification.get("verified") is not True:
-            die(f"GitHub verification for {commit_sha} is not verified:true")
-        if verification.get("reason") != "valid":
-            die(f"GitHub verification for {commit_sha} reason is not valid")
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
         verified.append(commit_sha)
     return verified
 
