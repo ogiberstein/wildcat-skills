@@ -12,7 +12,7 @@ import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from unittest import mock
 
@@ -242,23 +242,32 @@ if args and args[0] == "rev-parse" and "--show-toplevel" not in args:
 elif args[:3] == ["remote", "get-url", "origin"]:
     print(os.environ.get("FAKE_GIT_ORIGIN", "https://github.com/wildcat-finance/example.git"))
 elif args and args[0] == "ls-remote":
-    ref = args[-1]
-    branch = ref.removeprefix("refs/heads/")
     refs = json.loads(os.environ.get("FAKE_GIT_REFS", "{{}}"))
-    tip = refs.get(branch, hashlib.sha1(branch.encode()).hexdigest())
-    if mode == "remote-absent":
-        pass
-    elif mode == "remote-malformed":
-        print(f"not-a-sha\\t{{ref}}")
-    elif mode == "remote-duplicate":
+    requested = [value for value in args[1:] if value.startswith("refs/heads/")]
+    for ref in requested:
+        branch = ref.removeprefix("refs/heads/")
+        tip = refs.get(branch, hashlib.sha1(branch.encode()).hexdigest())
+        if mode == "remote-absent":
+            continue
+        if mode == "remote-malformed":
+            print(f"not-a-sha\\t{{ref}}")
+            continue
         print(f"{{tip}}\\t{{ref}}")
-        print(f"{{tip}}\\t{{ref}}")
-    else:
-        print(f"{{tip}}\\t{{ref}}")
+        if mode == "remote-duplicate":
+            print(f"{{tip}}\\t{{ref}}")
+elif args and args[0] == "fetch":
+    if mode == "missing-commit":
+        raise SystemExit(2)
+    raise SystemExit(0)
 elif args and args[0] == "merge-base":
     if "--is-ancestor" in args:
         if mode == "ancestry-error":
             raise SystemExit(128)
+        if "--end-of-options" in args:
+            pairs = json.loads(os.environ.get("FAKE_GIT_STACK_ANCESTORS", "[]"))
+            if [args[-2], args[-1]] in pairs:
+                raise SystemExit(0)
+            raise SystemExit(1)
         if mode == "not-ancestor":
             detached = os.environ.get("FAKE_GIT_NOT_ANCESTOR", "d" * 40).split(",")
             if args[-2] in detached:
@@ -474,6 +483,7 @@ print(json.dumps(payload))
     def state(self):
         payload = json.loads(self.run_ctl("status", "--json").stdout)
         payload.pop("observation_run_id", None)
+        payload.pop("stack_guard", None)
         return payload
 
     def run_branch(self):
@@ -713,13 +723,7 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
-        # A real push receipt always records the branch's actual head, because
-        # `done push` takes the sha the agent pushed. A placeholder like
-        # "head2" broke that invariant: the fake remote stores fake_sha(head)
-        # as the branch tip, so the receipt and the tip disagreed and the
-        # rewritten-stack refusal fired on a stack nothing had rewritten.
-        # Passing a 40-hex head makes fake_sha the identity, which is exactly
-        # the receipt-equals-tip state a genuine run is in.
+        # Keep the fake pushed head exact so the rewrite guard sees a stable ref.
         self.run_ctl(
             "done", "push",
             "--pr-url", f"https://github.com/wildcat-finance/example/pull/{step_no}",
@@ -1845,9 +1849,7 @@ class TestMergedState(HexctlCase):
 
     def integrate(self, *, expect=0, git_mode=None, gh_mode=None):
         if expect != 0:
-            # `run_ctl` only seeds the integration pull request for a call it
-            # expects to succeed, so a refusal case has to stand it up itself
-            # or it fails on the topology read instead of the check under test.
+            # Refusal cases must seed the PR before the topology read.
             state = self.state()
             self.fake_refs[state["run_branch"]] = "e" * 40
             self.fake_prs[self.RUN_URL] = self.fake_pr(
@@ -1889,8 +1891,7 @@ class TestMergedState(HexctlCase):
         self.integrate(git_mode="not-ancestor", gh_mode="external-author")
         recorded = self.recorded()
         self.assertEqual(recorded["mechanisms"], ["merge-author"])
-        # The step's own merge into the run branch is tried before the base
-        # merge, and under this fixture it carries the identity.
+        # The step merge carries this identity before the base merge does.
         self.assertEqual(
             [entry["carrier"] for entry in recorded["identities"]], ["e" * 40]
         )
@@ -1954,11 +1955,7 @@ class TestMergedState(HexctlCase):
         self.assertEqual(recorded["carriers"], {})
 
     def test_a_step_merge_is_tried_before_the_base_merge(self):
-        """A squashed step keeps its identity on its own merge, not the base one.
-
-        The base merge's message names no contributor, so a fallback that
-        looked only there would refuse an identity that did reach the base.
-        """
+        """A squashed step keeps its identity on its own merge."""
         self.to_integrate()
         state = self.state()
         self.assertEqual(
@@ -1982,12 +1979,7 @@ class TestMergedState(HexctlCase):
         self.assertEqual(self.recorded()["carriers"], {"f" * 40: "kethcode"})
 
     def test_an_empty_repaired_container_is_current_not_absent(self):
-        """A repair that recorded no commits does not fall back to stale data.
-
-        `effective_push` is the fresher record by construction. Reading it by
-        truthiness rather than presence would treat an empty container as
-        absent and quietly use the head the repair replaced.
-        """
+        """An empty repaired list remains authoritative over stale data."""
         module = hexctl_module()
         state = {
             "steps": [{"n": 1, "receipts": {"push": {"attribution": {
@@ -2005,12 +1997,7 @@ class TestMergedState(HexctlCase):
         self.assertIn("squash", directive["attribution"]["preserved_by"])
 
     def test_a_merge_time_repair_refreshes_the_attribution(self):
-        """A repaired head must not be described by the old head's identities.
-
-        The lead step 2's round 1 carried forward: the repair path recomputes
-        the verified range and GitHub's result, so the attribution beside them
-        has to be recomputed too or it describes commits that are gone.
-        """
+        """A repaired head refreshes its attribution."""
         self.to_steps(("Ship",))
         self.run_ctl(
             "done", "implement", "--branch", self.step_branch(1),
@@ -2045,7 +2032,6 @@ class TestMergedState(HexctlCase):
         self.assertEqual([entry["commit"] for entry in refreshed], ["c" * 40])
         self.assertNotIn("@", json.dumps(effective["attribution"]))
 
-        # The integration check reads the refreshed container, not the stale one.
         self.write_run_pr()
         self.integrate()
         self.assertEqual(
@@ -2104,7 +2090,7 @@ class TestPublicationBindings(HexctlCase):
             "headRefOid"
         ] = head
 
-    def test_merge_repairs_legacy_push_receipt_missing_verified_head(self):
+    def test_merge_guard_refuses_legacy_push_receipt_missing_verified_head(self):
         self.to_merge_step()
         self.edit_push_receipt(
             lambda receipt: (
@@ -2112,13 +2098,12 @@ class TestPublicationBindings(HexctlCase):
                 receipt.pop("verified_commits", None),
             )
         )
-        self.run_ctl(
+        proc = self.run_ctl(
             "done", "merge-step", "--step", "1",
-            "--merge-commit", "e" * 40,
+            "--merge-commit", "e" * 40, expect=2,
         )
-        repair = self.state()["integrate"]["merges"]["1"]["effective_push"]
-        self.assertTrue(repair["repaired"])
-        self.assertEqual(repair["head"], "d" * 40)
+        self.assertIn("no bounded exact verified-commit list", proc.stderr)
+        self.assertEqual(self.state()["integrate"]["merged"], [])
 
     def test_merge_repairs_signed_post_push_head(self):
         self.to_merge_step()
@@ -2164,7 +2149,7 @@ class TestPublicationBindings(HexctlCase):
             "done", "merge-step", "--step", "1",
             "--merge-commit", "e" * 40, expect=2,
         )
-        self.assertIn("remote branch tip", proc.stderr)
+        self.assertIn("pull request head disagrees", proc.stderr)
 
     def test_merge_time_repair_refuses_pr_topology_mismatch(self):
         self.to_merge_step()
@@ -2174,7 +2159,7 @@ class TestPublicationBindings(HexctlCase):
             "done", "merge-step", "--step", "1",
             "--merge-commit", "e" * 40, expect=2,
         )
-        self.assertIn("topology", proc.stderr)
+        self.assertIn("pull request does not target the run branch", proc.stderr)
 
     def test_implement_head_must_equal_declared_branch_tip(self):
         self.to_steps(("Ship",))
@@ -4190,8 +4175,7 @@ class LintReceiptTests(HexctlCase):
         self.assertNotIn("--ephoros-exit", proc.stderr)
 
     def test_the_refusal_points_at_the_override(self):
-        """A run whose receipt cannot be read but which really is a Solidity run has a
-        way out, and the refusal says what it is."""
+        """The refusal names the explicit Solidity override."""
         self.to_waived_audit()
         proc = self.run_ctl("audit-round", "--findings", "0", expect=2)
         self.assertIn("config set solidity true", proc.stderr)
@@ -4214,8 +4198,7 @@ class LintReceiptTests(HexctlCase):
         )
 
     def test_zero_findings_beside_a_failing_lint_is_refused(self):
-        """A non-zero lint exit is a finding like any other, so the two halves of the
-        receipt would otherwise contradict each other."""
+        """A non-zero lint exit cannot accompany zero findings."""
         self.to_waived_audit()
         for flag in ("--phylax-exit", "--ephoros-exit", "--hypomnema-exit"):
             with self.subTest(flag=flag):
@@ -4302,10 +4285,7 @@ class LintReceiptTests(HexctlCase):
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
     def test_a_clean_close_now_implies_the_lints_passed(self):
-        """An emergent property worth pinning. `done audit` calls a close clean when the
-        last round found nothing, and the consistency rule forbids a zero findings count
-        beside a non-zero exit, so a clean close cannot sit on a failing lint. Nothing
-        asserted that, and it is the property the whole change buys."""
+        """A clean audit close implies its required lints passed."""
         self.to_waived_audit()
         proc = self.run_ctl("audit-round", "--findings", "0", "--phylax-exit", "1",
                             "--ephoros-exit", "0", "--hypomnema-exit", "0", expect=2)
@@ -4326,8 +4306,7 @@ class LintReceiptTests(HexctlCase):
         self.assertEqual(set(rounds[-1]["lints"].values()), {0})
 
     def test_a_round_recorded_before_this_existed_still_reads(self):
-        """Rounds already on disk carry no lints key. Every reader has to treat it as
-        absent rather than assume it."""
+        """Legacy rounds without a lints key still read."""
         self.to_waived_audit()
         self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
                      *LINTS_CLEAN)
@@ -4366,8 +4345,7 @@ class RoundClassifierTests(unittest.TestCase):
         self.assertTrue(self.classify(["hexaemeron:x-ray", "hexaemeron:solidity-auditor"]))
 
     def test_an_empty_suite_list_is_not_a_suite_that_ran(self):
-        """Recording no ids is not recording a suite. Demanding the lints is the safe
-        direction when the receipt cannot be read as one."""
+        """An empty suite list does not prove a suite ran."""
         self.assertFalse(self.classify([]))
 
     def test_a_receipt_that_is_neither_demands_the_lints(self):
@@ -4376,8 +4354,7 @@ class RoundClassifierTests(unittest.TestCase):
                 self.assertFalse(self.classify(value))
 
     def test_a_missing_receipt_infers_nothing(self):
-        """`cmd_audit_round` refuses a missing receipt before asking this, so the
-        classifier must not invent a requirement out of its absence."""
+        """A missing receipt does not imply a suite kind."""
         self.assertTrue(self.classify())
 
     def test_the_config_key_overrides_the_receipt_in_both_directions(self):
@@ -4394,8 +4371,7 @@ class RoundClassifierTests(unittest.TestCase):
         self.assertEqual(self.ctl.LINTS, ("phylax", "ephoros", "hypomnema"))
 
     def test_a_waiver_is_its_first_word_not_merely_a_prefix(self):
-        """`startswith` alone read `waivedX` and `waived-ish` as waivers, which is not
-        what the rule beside WAIVER_PREFIX says."""
+        """The waiver marker is a word, not an arbitrary prefix."""
         for value in ("waived: x", "waived", "  WAIVED: y  ", "waived x"):
             with self.subTest(receipt=value, expect=True):
                 self.assertTrue(self.ctl.is_waiver(value))
@@ -4404,10 +4380,7 @@ class RoundClassifierTests(unittest.TestCase):
                 self.assertFalse(self.ctl.is_waiver(value))
 
     def test_direct_classifier_calls_with_non_object_containers_do_not_raise(self):
-        """The load boundary rejects these shapes for state-backed commands.
-
-        Keep the classifier itself total for isolated callers and optional leaves.
-        """
+        """The classifier stays total for malformed isolated callers."""
         for config in (None, [], "auto", 7):
             with self.subTest(config=config):
                 self.assertIsInstance(
@@ -4424,18 +4397,14 @@ class RoundClassifierTests(unittest.TestCase):
         self.assertIsInstance(self.ctl.solidity_round({}), bool)
 
     def test_as_dict_defeats_a_stored_null(self):
-        """d.get(key, {}) returns the stored value when the key exists, so a state
-        holding "integrate": null defeated the default and the next .get raised. Four
-        chained reads in the controller had that shape."""
+        """Stored null containers collapse to an empty mapping."""
         for value in (None, [], "x", 7, True):
             with self.subTest(value=value):
                 self.assertEqual(self.ctl.as_dict(value), {})
         self.assertEqual(self.ctl.as_dict({"a": 1}), {"a": 1})
 
     def test_no_chained_read_uses_a_container_default(self):
-        """The pattern this run removed, asserted against the source so it does not
-        come back: `.get(x, {}).` and `.get(x, []).` are both defeated by a stored
-        null."""
+        """Chained container defaults must not return."""
         import re
 
         with open(HEXCTL, encoding="utf-8") as fh:
@@ -4481,16 +4450,7 @@ if __name__ == "__main__":
 
 
 class StaleControllerTests(OriginCheckoutMixin, unittest.TestCase):
-    """A run driven by an installed plugin older than the repository it edits.
-
-    A marketplace plugin is installed from a published copy, so a repository that
-    also holds Fiat's source can be a whole evolution ahead of the controller
-    driving the run. Every rule the newer one enforces then goes unenforced, and
-    the receipt cannot show it: a flag the controller does not accept looks
-    exactly like a rule nobody wrote. This shipped after a run recorded its lint
-    results as prose because the installed `audit-round` was a version behind the
-    flags its own ledger documented.
-    """
+    """An installed controller reports a newer target copy."""
 
     def _repo(self, directory, version):
         path = os.path.join(
@@ -4548,12 +4508,7 @@ class StaleControllerTests(OriginCheckoutMixin, unittest.TestCase):
             self.assertIsNone(module.stale_controller(directory))
 
     def test_the_plugins_own_source_tree_is_not_compared_against_itself(self):
-        """Running Fiat on the repository that holds it must not warn.
-
-        The candidate it would find is the very ledger it just read, so a naive
-        comparison is silent only by luck of the versions matching. It is skipped
-        by identity instead.
-        """
+        """Fiat's own source tree is excluded by identity."""
         module = hexctl_module()
         target = os.path.realpath(os.path.join(HERE, "..", "..", ".."))
         own = os.path.join(target, "plugins", "hexaemeron", "skills", "fiat", "EVOLUTION.md")
@@ -5563,15 +5518,7 @@ class FrontierRowAttributionTests(OriginCheckoutMixin, unittest.TestCase):
 
 
 class GitHubSignerDiagnosis(unittest.TestCase):
-    """A refusal must name GitHub's key as the cause, not just fail.
-
-    A commit GitHub rewrote carries GitHub's web-flow signature. `verify-commit`
-    then fails against a local keyring, and the bare message sends whoever reads
-    it looking for a broken signing setup rather than at the branch rewrite that
-    actually happened. The wrong repair for that message is importing GitHub's
-    public key, which makes the check pass and removes the guarantee it exists
-    for, so the message says so explicitly.
-    """
+    """A refusal names GitHub's rewrite key and rejects importing it."""
 
     def setUp(self):
         self.hexctl = hexctl_module()
@@ -5581,7 +5528,6 @@ class GitHubSignerDiagnosis(unittest.TestCase):
         self.assertIn("4AEE18F83AFDEB23", self.hexctl.GITHUB_SIGNING_KEYS)
 
     def _refusal(self, key):
-        """The message verify_local_commit dies with, for a given signing key."""
         module = self.hexctl
         captured = StringIO()
         with mock.patch.object(module, "bounded_tool_status", return_value=1), \
@@ -5615,13 +5561,7 @@ class GitHubSignerDiagnosis(unittest.TestCase):
         self.assertNotIn("signed by GitHub", message)
 
     def test_a_verifying_commit_is_not_refused_by_the_signature_check(self):
-        """The diagnosis must not turn a passing verification into a refusal.
-
-        Checks which refusal, not whether one happened. A commit that verifies
-        still goes on to the author and trailer checks, and those refuse this
-        synthetic sha for reasons that have nothing to do with signing. What must
-        not appear is a signature complaint.
-        """
+        """A later fixture refusal must not become a signature complaint."""
         module = self.hexctl
         captured = StringIO()
         with mock.patch.object(module, "bounded_tool_status", return_value=0), \
@@ -5650,18 +5590,254 @@ class GitHubSignerDiagnosis(unittest.TestCase):
         self.assertIn("no valid local signature", captured.getvalue())
 
 
+class StackLandingGuardTests(unittest.TestCase):
+    RUN = "fiat/example"
+    URL = "https://github.com/wildcat-finance/example/pull/1"
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+        self.one, self.two_a, self.two_b, self.three = (v * 40 for v in "1234")
+
+    def _state(self, phase="integrate"):
+        heads = ((self.one,), (self.two_a, self.two_b), (self.three,))
+        steps = [
+            {
+                "n": number, "title": str(number), "status": "done",
+                "receipts": {"push": {
+                    "pr_url": self.URL.replace("/1", f"/{number}"),
+                    "verified_commits": list(commits),
+                }},
+            }
+            for number, commits in enumerate(heads, 1)
+        ]
+        return {
+            "topic": "fixture", "base": "main", "run_branch": self.RUN,
+            "phase": phase, "receipts": {}, "steps": steps,
+            "integrate": {"merged": [], "merges": {}},
+        }
+
+    def _branches(self, state):
+        return {s["n"]: self.hexctl.step_branch_name(state, s) for s in state["steps"]}
+
+    def _tips(self, state):
+        return dict(zip(self._branches(state).values(),
+                        (self.one, self.two_b, self.three)))
+
+    def _pr(self, controller_state, **changes):
+        value = {
+            "url": self.URL, "state": "OPEN",
+            "head": self._branches(controller_state)[1], "head_sha": self.one,
+            "base": self.RUN, "base_sha": "a" * 40, "merge_sha": None,
+        }
+        value.update(changes)
+        return value
+
+    def _guard(self, state=None, *, first=None, second=None, pr=None,
+               ancestors=(), ref_effect=None, pr_effect=None):
+        state = state or self._state()
+        first = self._tips(state) if first is None else first
+        if ref_effect is None:
+            ref_effect = [first, first if second is None else second]
+        pr = self._pr(state) if pr is None else pr
+        pr_kwargs = ({"side_effect": pr_effect} if pr_effect is not None
+                     else {"return_value": pr})
+        pairs = set(ancestors)
+        ancestry_calls = [0]
+
+        def ancestry(_directory, candidate, descendant, _label):
+            ancestry_calls[0] += 1
+            return (candidate, descendant) in pairs
+
+        patch = mock.patch.object
+        with patch(self.hexctl, "_stack_ref_snapshot", side_effect=ref_effect) as refs, \
+             patch(self.hexctl, "_stack_fetch_objects") as fetch, \
+             patch(self.hexctl, "_stack_pr_snapshot", **pr_kwargs) as prs, \
+             patch(self.hexctl, "stack_commit_is_ancestor", new=ancestry):
+            result = self.hexctl.stack_landing_guard(".", state)
+        self.calls = (refs.call_count, fetch.call_count, prs.call_count,
+                      ancestry_calls[0])
+        return result
+
+    def _status(self, state, guard, json_mode):
+        output = StringIO()
+        with mock.patch.object(self.hexctl, "load_state", return_value=state), \
+             mock.patch.object(self.hexctl, "stack_landing_guard", return_value=guard), \
+             redirect_stdout(output):
+            self.hexctl.cmd_status(argparse.Namespace(dir=".", json=json_mode))
+        return output.getvalue()
+
+    def test_01_exact_542_downward_reachability_blocks_next(self):
+        state = self._state()
+        guard = self._guard(state, ancestors=((self.two_b, self.one),))
+        self.assertEqual((guard["result"], guard["reason_code"], guard["owner_step"]),
+                         ("blocked", "commit-reachable-downward", 2))
+        self.assertEqual(guard["carrier_branch"], self._branches(state)[1])
+
+    def test_02_open_current_pr_on_wrong_base_is_blocked(self):
+        state = self._state()
+        guard = self._guard(state, pr=self._pr(state, base="wrong-base"))
+        self.assertEqual((guard["result"], guard["reason_code"], guard["recovery"]),
+                         ("blocked", "current-pr-wrong-base",
+                          "retarget-current-pr-and-retry"))
+        self.assertEqual((guard["pr_head"], guard["pr_base"], guard["pr_state"]),
+                         (self._branches(state)[1], "wrong-base", "OPEN"))
+
+    def test_03_partial_non_head_commit_carry_is_blocked(self):
+        state = self._state()
+        guard = self._guard(state, ancestors=((self.two_a, self.one),))
+        self.assertEqual((guard["result"], guard["offending_commit"]),
+                         ("blocked", self.two_a))
+        self.assertEqual(guard["carrier_branch"], self._branches(state)[1])
+
+    def test_04_healthy_upward_reachability_is_clear(self):
+        guard = self._guard(
+            ancestors=((self.one, self.two_b), (self.two_b, self.three))
+        )
+        self.assertEqual((guard["result"], self.calls), ("clear", (2, 1, 1, 4)))
+        self.assertNotIn("offending_commit", guard)
+
+        limit = self.hexctl.GIT_PATHS_MAX
+        commits = [f"{number:040x}" for number in range(limit)]
+        steps = [{"n": n, "title": "x", "receipts": {}}
+                 for n in range(1, limit + 1)]
+        steps[-1]["receipts"]["push"] = {
+            "pr_url": self.URL, "verified_commits": commits,
+        }
+        state = {
+            "run_branch": self.RUN, "phase": "integrate", "steps": steps,
+            "integrate": {"merged": list(range(1, limit)), "merges": {}},
+        }
+        branches = self._branches(state)
+        tips = {branch: self.one for branch in branches.values()}
+        tips[branches[limit]] = commits[-1]
+        pr = {"url": self.URL, "state": "OPEN", "head": branches[limit],
+              "head_sha": commits[-1], "base": self.RUN, "merge_sha": None}
+        guard = self._guard(state, first=tips, pr=pr)
+        self.assertEqual((guard["result"], self.calls),
+                         ("clear", (2, 1, 1, limit * (limit - 1))))
+
+    def test_05_retarget_first_window_checks_only_current_pr(self):
+        state = self._state()
+        state["steps"][1]["receipts"]["push"]["pr_base"] = self.RUN
+        self.assertEqual(self._guard(state)["result"], "clear")
+
+    def test_06_correct_run_branch_merge_awaiting_receipt_is_clear(self):
+        state = self._state()
+        guard = self._guard(
+            state, pr=self._pr(state, state="MERGED", merge_sha="b" * 40)
+        )
+        self.assertEqual((guard["result"], guard["pr_state"]), ("clear", "MERGED"))
+
+    def test_07_rewritten_later_branch_is_blocked(self):
+        state, tips = self._state(), self._tips(self._state())
+        tips[self._branches(state)[3]] = "9" * 40
+        guard = self._guard(state, first=tips)
+        self.assertEqual((guard["result"], guard["reason_code"], guard["owner_step"]),
+                         ("blocked", "unmerged-branch-rewritten", 3))
+
+    def test_08_missing_and_malformed_ref_evidence_is_unavailable(self):
+        state = self._state()
+        branch, tips = self._branches(state), self._tips(state)
+        missing = dict(tips)
+        missing.pop(branch[2])
+        for snapshot in (missing, {**tips, branch[2]: "not-a-sha"}):
+            with self.subTest(snapshot=snapshot):
+                guard = self._guard(state, first=snapshot)
+                self.assertEqual((guard["result"], guard["evidence_class"]),
+                                 ("unavailable", "git-refs"))
+
+    def test_09_github_failures_and_wrong_url_are_unavailable(self):
+        state = self._state()
+        values = (TimeoutError(), SystemExit(2), {"bad": "shape"},
+                  self._pr(state, url=self.URL.replace("/1", "/99")))
+        for value in values:
+            with self.subTest(value=type(value).__name__):
+                kwargs = {"pr_effect": value} if isinstance(value, BaseException) else {"pr": value}
+                guard = self._guard(state, **kwargs)
+                self.assertEqual((guard["result"], guard["evidence_class"]),
+                                 ("unavailable", "pull-request"))
+
+    def test_10_first_second_ref_race_is_unavailable(self):
+        state, second = self._state(), self._tips(self._state())
+        second[self._branches(state)[1]] = "8" * 40
+        guard = self._guard(state, second=second)
+        self.assertEqual((guard["result"], guard["reason_code"]),
+                         ("unavailable", "ref-snapshot-changed"))
+
+    def test_11_historical_base_oid_does_not_replace_live_named_base(self):
+        state = self._state()
+        self.assertEqual(
+            self._guard(state, pr=self._pr(state, base_sha="f" * 40))["result"],
+            "clear",
+        )
+        state["steps"][0]["receipts"]["push"]["pr_url"] += "/"
+        guard = self._guard(state, pr=self._pr(state))
+        self.assertEqual((guard["result"], guard["recorded_pr_url"]),
+                         ("clear", self.URL))
+
+    def test_12_legacy_receipt_without_verified_commits_is_unavailable(self):
+        state = self._state()
+        state["steps"][1]["receipts"]["push"].pop("verified_commits")
+        guard = self.hexctl.stack_landing_guard(".", state)
+        self.assertEqual((guard["result"], guard["reason_code"]),
+                         ("unavailable", "verified-commits-missing"))
+        state = self._state()
+        state["run_branch"] = "\ud800"
+        guard = self.hexctl.stack_landing_guard(".", state)
+        self.assertEqual((guard["result"], guard["reason_code"]),
+                         ("unavailable", "invalid-stack-plan"))
+
+    def test_13_non_integrate_phases_make_no_remote_call(self):
+        for phase in ("study", "runbook", "steps", "done"):
+            with self.subTest(phase=phase), mock.patch.object(
+                self.hexctl, "_stack_ref_snapshot", create=True,
+                side_effect=AssertionError("remote read outside integrate"),
+            ):
+                self.assertEqual(
+                    self.hexctl.stack_landing_guard(".", self._state(phase))["result"],
+                    "not-applicable",
+                )
+
+    def test_14_next_status_and_receipt_refusals_do_not_mutate_state(self):
+        state, branch = self._state(), self._branches(self._state())[1]
+        before = json.loads(json.dumps(state))
+        blocked = self._guard(state, ancestors=((self.two_b, self.one),))
+        unavailable = self._guard(state, pr_effect=SystemExit(2))
+        output = StringIO()
+        with mock.patch.object(self.hexctl, "load_state", return_value=state), \
+             mock.patch.object(self.hexctl, "stack_landing_guard",
+                               return_value=blocked), \
+             mock.patch.object(self.hexctl, "delegation_packet",
+                               side_effect=lambda _d, _s, value: value), \
+             redirect_stdout(output):
+            self.hexctl.cmd_next(argparse.Namespace(dir="."))
+        self.assertNotEqual(json.loads(output.getvalue())["do"], "merge-step")
+
+        payload = json.loads(self._status(state, unavailable, True))
+        self.assertEqual((payload["phase"], payload["stack_guard"]["result"]),
+                         ("integrate", "unavailable"))
+        rendered = self._status(state, blocked, False)
+        self.assertLess(rendered.index("phase: integrate"), rendered.index("stack guard:"))
+        for text in ("evidence=git-refs", f"offending commit={self.two_b}",
+                     f"carrier branch={branch}", f"PR head={branch}",
+                     f"PR base={self.RUN}", "PR state=OPEN"):
+            self.assertIn(text, rendered)
+
+        error = StringIO()
+        with mock.patch.object(self.hexctl, "stack_landing_guard",
+                               return_value=blocked), \
+             mock.patch.object(self.hexctl, "refuse_rewritten_stack"), \
+             mock.patch.object(self.hexctl, "inspect_pull_request",
+                               side_effect=AssertionError("late read")), \
+             redirect_stderr(error), self.assertRaises(SystemExit):
+            self.hexctl.done_merge_step(
+                argparse.Namespace(dir=".", step=1, merge_commit="b" * 40), state
+            )
+        for text in ("evidence=git-refs", "owner step=2",
+                     f"offending commit={self.two_b}", f"carrier tip={self.one}"):
+            self.assertIn(text, error.getvalue())
+        self.assertEqual(state, before)
 class RewrittenStackRefusal(unittest.TestCase):
-    """The stack rewrite is caught at the first merge-step after it happens.
-
-    GitHub's native stacked-pull-request flow rebases every downstream branch on
-    each merge and re-signs the rewritten commits with its own key. Before this
-    check, the first symptom was an invalid local signature at a later
-    merge-step, which reads as a broken signing setup, and by then several steps
-    had already merged. The check compares each waiting step's remote tip with
-    the head its push receipt names, so the rewrite is named before any further
-    merge is receipted.
-    """
-
     def setUp(self):
         self.hexctl = hexctl_module()
 
@@ -5679,7 +5855,6 @@ class RewrittenStackRefusal(unittest.TestCase):
         }
 
     def _refusal(self, state, current_step, tips):
-        """The stderr the check dies with, or None when it returns."""
         module = self.hexctl
 
         def tip(_dir, branch, label="remote run branch tip"):
@@ -5720,11 +5895,6 @@ class RewrittenStackRefusal(unittest.TestCase):
         )
 
     def test_the_step_being_merged_is_never_queried(self):
-        """The current step's branch may legitimately differ from its receipt
-        after audit-branch fast-forwards; only the WAITING steps are the rewrite
-        signal. Step order is enforced before this check runs, so the current
-        step is always the lowest unmerged one and everything below it is in
-        `merged`."""
         module = self.hexctl
         queried = []
 

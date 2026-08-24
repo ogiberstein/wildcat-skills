@@ -149,6 +149,28 @@ The receipt refuses a `--merge-commit` here. Merges belong to `integrate`.
 bottom. Before anything merges, know which of two regimes GitHub has put the
 stack in, because they need opposite handling.
 
+The directive now begins with a live stack-landing check. The controller reads
+all recorded step refs, obtains those exact tip objects without updating a
+branch or `FETCH_HEAD`, reads only the current pull request URL from its push
+receipt, and reads the refs again. Equal ref snapshots, a coherent current PR,
+and local ancestry checks over every exact `verified_commits` entry are all
+required for `clear`.
+
+- If an open current PR still names the wrong base and no later commit has
+  travelled downward, retarget it to the run branch and rerun `next`. Do not
+  merge on the strength of the edit command's exit alone.
+- If Git, GitHub, an exact branch, an object or either snapshot is unavailable,
+  leave every ref, state file and ledger byte alone, restore the read path, and
+  retry. Unavailable evidence is not a clean stack.
+- If an unmerged step's exact commit is already reachable from a lower step
+  branch, halt the ordinary merge-step route. Retargeting a PR cannot repair
+  that graph. Preserve the original signed commits and follow ADR-021's landing
+  route; do not click another step merge.
+
+A clear result names one coherent snapshot, not a lock on GitHub. Keep the
+retarget-first order below, make the merge promptly, and let `done merge-step`
+repeat the same check before it writes a receipt.
+
 **GitHub may claim the chain as a native stack.** When step branches target one
 another, GitHub can manage them as a stacked pull request set. In that regime
 `gh pr edit --base` is refused with "Cannot change the base branch because the
@@ -179,9 +201,11 @@ superseded, with a comment saying where the same commits landed. Never import
 GitHub's public key to make the signature check pass; that removes the guarantee
 the check exists for.
 
-The controller enforces this before damage rather than after: `done merge-step`
-compares every waiting step's remote tip against the head its push receipt
-names, and refuses the moment any downstream branch has been rewritten.
+The controller checks before the click through `next` and again before the
+receipt through `done merge-step`. It compares every exact owned commit in the
+dangerous downward direction as well as comparing unmerged branch tips with
+their push evidence. The second check narrows the race; it cannot lock GitHub
+or undo a click made between the two observations.
 
 **When GitHub has not claimed the chain**, the original order stands. For each
 step:
