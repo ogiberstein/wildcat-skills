@@ -305,3 +305,27 @@ Two decisions expected to be expensive to reverse, and one that is not.
 
 No ADR. `docs/decisions/` holds cross-cutting choices, and a single skill's
 finding boundary is what its ledger exists to record.
+
+### Amendment -- 2026-08-24
+
+**What changed.** Item 11 said every guard must fail against the unfixed tree.
+The guards split into two kinds and only one kind can. Three change-guards are
+red on the parent: a wholly quoted pointer earns no finding, an escaped
+backslash still opens a span, and both recorded ledger specimens go clean.
+Eight invariance pins are green on the parent and on the fixed tree by
+construction, because each one asserts behaviour the change must not move: a
+live pointer with a backticked path still fires, an unmatched run still fires,
+an escaped pair still fires, H001 and H002 keep their scope inside a span, the
+pragma still suppresses, the YAML pass is untouched, and the adversarial line
+still resolves its pointer. A pin that went red on the parent would mean the
+change had broken something, so demanding red from it inverts its purpose.
+
+**Why.** The rule was written before the guard set existed and generalised
+from the change-guards. Leaving it as written would force either a false claim
+in the round or the deletion of the pins that prove nothing else moved.
+
+**Steps touched.** Step 2's Tests field, which repeats the same rule. Its
+guards, exit commands and both budgets are otherwise unchanged; only the
+evidence claim about the guards narrows to the three that can carry it.
+
+**Still holding.** Step 2: entry holds; exit holds.
