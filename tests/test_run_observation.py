@@ -61,6 +61,16 @@ def run_cli(path, *extra):
     )
 
 
+def run_prefix_cli(path, *extra):
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "check-prefix", str(path), *extra],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
 class RunObservationSchemaTests(unittest.TestCase):
     def test_observation_decision_is_adr_015_and_adr_014_remains_distinct(self):
         self.assertEqual(
@@ -339,6 +349,39 @@ class RunObservationSchemaTests(unittest.TestCase):
 
 
 class RunObservationValidFlowTests(unittest.TestCase):
+    def test_captured_byte_and_stable_path_validation_are_equivalent(self):
+        paths = sorted((FIXTURES / "valid").glob("*.jsonl"))
+        paths.extend(sorted((FIXTURES / "invalid").glob("*.jsonl")))
+        for path in paths:
+            display = run_observation.display_path(
+                path, run_observation.repository_root()
+            )
+            with self.subTest(path=path):
+                self.assertEqual(
+                    run_observation.validate_bytes(
+                        path.read_bytes(), display_path=display
+                    ),
+                    run_observation.validate_path(path),
+                )
+
+        prefix = b"".join(
+            (FIXTURES / "valid" / "success.jsonl").read_bytes().splitlines(
+                keepends=True
+            )[:-1]
+        )
+        with tempfile.TemporaryDirectory(dir=FIXTURES) as directory:
+            path = Path(directory) / "captured-prefix.jsonl"
+            path.write_bytes(prefix)
+            display = run_observation.display_path(
+                path, run_observation.repository_root()
+            )
+            self.assertEqual(
+                run_observation.validate_bytes(
+                    prefix, display_path=display, allow_prefix=True
+                ),
+                run_observation.validate_path(path, allow_prefix=True),
+            )
+
     def test_valid_records_are_accepted(self):
         for name in ("success.jsonl", "refusal.jsonl", "retry.jsonl", "handoff.jsonl"):
             with self.subTest(name=name):
@@ -360,6 +403,29 @@ class RunObservationValidFlowTests(unittest.TestCase):
         for path in sorted((FIXTURES / "valid").glob("*.jsonl")):
             observed.update(json.loads(line)["type"] for line in path.read_text().splitlines())
         self.assertEqual(observed, run_observation.EVENT_TYPES)
+
+    def test_safe_unfinished_prefix_is_accepted_without_weakening_full_check(self):
+        events = fixture_events("success.jsonl")[:-1]
+        with tempfile.TemporaryDirectory(dir=FIXTURES) as directory:
+            target = Path(directory) / "unfinished.jsonl"
+            write_events(target, events)
+
+            self.assertEqual(
+                run_observation.validate_path(target, allow_prefix=True), []
+            )
+            self.assertIn("RO009", codes(target))
+            self.assertEqual(run_prefix_cli(target).returncode, 0)
+            self.assertEqual(run_cli(target).returncode, 1)
+
+    def test_prefix_still_refuses_an_unclosed_capability(self):
+        events = fixture_events("success.jsonl")[:2]
+        with tempfile.TemporaryDirectory(dir=FIXTURES) as directory:
+            target = Path(directory) / "unclosed-capability.jsonl"
+            write_events(target, events)
+
+            findings = run_observation.validate_path(target, allow_prefix=True)
+            self.assertIn("RO009", {finding.code for finding in findings})
+            self.assertEqual(run_prefix_cli(target).returncode, 1)
 
 
 class RunObservationRefusalTests(unittest.TestCase):

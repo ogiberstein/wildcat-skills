@@ -80,6 +80,8 @@ PRODUCT_PATHS = (
     Path("tests/emit_run_observation_capture_report.py"), Path("tests/promise_machine_coverage.json"),
     Path("tests/test_promise_machine_contract.py"),
 )
+
+
 LITERAL_NEWLINE_ESCAPE = b"\\n"
 capture = None
 if SCRIPT.is_file():
@@ -435,6 +437,8 @@ class CaptureProfileTests(unittest.TestCase):
     def test_current_promise_coverage_rows_are_present(self):
         coverage = json.loads((ROOT / "tests" / "promise_machine_coverage.json").read_text(encoding="utf-8"))
         self.assertIn("sapheneia-durable-record-shape", {row["promise_id"] for row in coverage["rows"]})
-        expected = "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d"
+        expected = hashlib.sha256(
+            (ROOT / "plugins/hexaemeron/skills/fiat/scripts/hexctl.py").read_bytes()
+        ).hexdigest()
         for key in ("fiat-final-integration", "fiat-receipted-delivery", "fiat-study-amendment"):
             self.assertEqual(coverage["runtime"][key]["sha256"], expected)
