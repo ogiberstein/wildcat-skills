@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import importlib.util
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -26,6 +26,16 @@ FIXTURES = ROOT / "tests" / "fixtures" / "run-observation-capture"
 REPORTER_SCRIPT = ROOT / "tests" / "emit_run_observation_capture_report.py"
 STUDY = ROOT / "docs" / "promise-machine" / "run-observation-capture-study.md"
 RUNBOOK = ROOT / "docs" / "promise-machine" / "run-observation-capture-runbook.md"
+# Recorded from issue 435's receipted Fiat sources at delivery. Those sources
+# lived in the Fiat state directory of a run worktree that no longer exists, so
+# these digests and the tracked copies above are both halves of the byte-identity
+# claim that survive. Bind assertions to them, never to a state path a live run
+# owns: that path belongs to whichever run holds the worktree, so reading it
+# checks somebody else's study and fails every run but 435's. See issue 574.
+RECEIPTED_DIGESTS = {
+    STUDY: "6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404",
+    RUNBOOK: "56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5",
+}
 PROMISE_COPIES = tuple(Path("plugins") / name / "PROMISE_MACHINE.md" for name in (
     "alexandria", "ariadne", "berean", "brevitas", "hermes", "hexaemeron",
     "horos", "janus", "lazarus", "lemma", "pandects", "probitas", "sapheneia", "tabularium",
@@ -50,7 +60,7 @@ CARRYOVER_GUARDS = {
     "R6-01": "test_adr_allocation_preserves_017_and_uses_022",
     "R7-01": "test_current_promise_coverage_rows_are_present",
     "R8-01": "test_literal_escape_detector_targets_5c6e",
-    "R9-01": "test_detached_receipt_test_skips_only_absent_receipts",
+    "R9-01": "test_receipt_assertions_never_read_a_live_run_path",
     "R9-02": "test_literal_escape_detector_targets_5c6e",
     "R9-03": "test_receipted_sources_are_never_modified",
     "R10-01": "test_base_identity_is_bound_across_receipts_and_branch",
@@ -72,21 +82,6 @@ PRODUCT_PATHS = (
 )
 
 
-def capture_receipts_are_current() -> bool:
-    """Return true only when this worktree is the issue-435 Fiat run."""
-    state_path = ROOT / ".hexaemeron" / "state.json"
-    sources = (
-        ROOT / ".hexaemeron" / "study.md",
-        ROOT / ".hexaemeron" / "runbook.md",
-    )
-    if not state_path.is_file() or not all(source.is_file() for source in sources):
-        return False
-    try:
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return False
-    issue = state.get("receipts", {}).get("task_issue")
-    return isinstance(issue, str) and issue.rstrip("/").endswith("/435")
 LITERAL_NEWLINE_ESCAPE = b"\\n"
 capture = None
 if SCRIPT.is_file():
@@ -334,10 +329,9 @@ class CaptureProfileTests(unittest.TestCase):
         self.assertIn("https://github.com/wildcat-finance/skills/issues/435", document)
 
     def test_receipted_copies_are_byte_identical_and_relocatable(self):
-        if not capture_receipts_are_current():
-            self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        self.assertEqual(STUDY.read_bytes(), (ROOT / ".hexaemeron" / "study.md").read_bytes())
-        self.assertEqual(RUNBOOK.read_bytes(), (ROOT / ".hexaemeron" / "runbook.md").read_bytes())
+        for copy in (STUDY, RUNBOOK):
+            with self.subTest(path=copy):
+                self.assertEqual(hashlib.sha256(copy.read_bytes()).hexdigest(), RECEIPTED_DIGESTS[copy])
         for original in (STUDY, RUNBOOK):
             with tempfile.TemporaryDirectory() as directory:
                 moved = Path(directory) / original.name
@@ -347,28 +341,15 @@ class CaptureProfileTests(unittest.TestCase):
                     self.assertTrue(target.startswith("https://"), target)
 
     def test_receipted_copies_have_exactly_one_terminal_newline(self):
-        sources = (ROOT / ".hexaemeron" / "study.md", ROOT / ".hexaemeron" / "runbook.md")
-        if not capture_receipts_are_current():
-            self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        for source, copy in zip(sources, (STUDY, RUNBOOK), strict=True):
-            with self.subTest(path=source):
-                self.assertEqual(source.read_bytes()[-1:], b"\n")
-                self.assertNotEqual(source.read_bytes()[-2:], b"\n\n")
-                self.assertEqual(copy.read_bytes(), source.read_bytes())
+        for copy in (STUDY, RUNBOOK):
+            with self.subTest(path=copy):
+                self.assertEqual(copy.read_bytes()[-1:], b"\n")
+                self.assertNotEqual(copy.read_bytes()[-2:], b"\n\n")
 
     def test_receipted_sources_and_copies_are_digest_equal(self):
-        recorded = subprocess.run(
-            ["git", "show", "HEAD:tests/test_run_observation_capture.py"],
-            cwd=ROOT,
-            capture_output=True,
-            check=False,
-        )
-        if recorded.returncode == 0:
-            self.assertIn(b"Fiat receipts are untracked and unavailable in an Elenchus parent worktree", recorded.stdout)
-        if not capture_receipts_are_current():
-            self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        for source, copy in ((ROOT / ".hexaemeron" / "study.md", STUDY), (ROOT / ".hexaemeron" / "runbook.md", RUNBOOK)):
-            self.assertEqual(hashlib.sha256(source.read_bytes()).digest(), hashlib.sha256(copy.read_bytes()).digest())
+        for copy in (STUDY, RUNBOOK):
+            with self.subTest(path=copy):
+                self.assertEqual(hashlib.sha256(copy.read_bytes()).digest(), bytes.fromhex(RECEIPTED_DIGESTS[copy]))
 
     def test_receipted_copies_have_no_literal_newline_escape(self):
         recorded = subprocess.run(
@@ -382,30 +363,27 @@ class CaptureProfileTests(unittest.TestCase):
             self.assertIn(expected_detector, recorded.stdout)
         self.assertEqual(LITERAL_NEWLINE_ESCAPE, bytes((0x5C, 0x6E)))
         self.assertIn(LITERAL_NEWLINE_ESCAPE, b"first" + LITERAL_NEWLINE_ESCAPE + b"second")
-        if not capture_receipts_are_current():
-            self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        for path in (ROOT / ".hexaemeron" / "study.md", ROOT / ".hexaemeron" / "runbook.md", STUDY, RUNBOOK):
-            self.assertNotIn(LITERAL_NEWLINE_ESCAPE, path.read_bytes())
+        for path in (STUDY, RUNBOOK):
+            with self.subTest(path=path):
+                self.assertNotIn(LITERAL_NEWLINE_ESCAPE, path.read_bytes())
 
     def test_literal_escape_detector_targets_5c6e(self):
         self.assertEqual(LITERAL_NEWLINE_ESCAPE, bytes((0x5C, 0x6E)))
         self.assertNotEqual(LITERAL_NEWLINE_ESCAPE, bytes((0x5C, 0x5C, 0x6E)))
 
-    def test_detached_receipt_test_skips_only_absent_receipts(self):
+    def test_receipt_assertions_never_read_a_live_run_path(self):
+        # Built rather than spelled, so this assertion is not its own counterexample.
+        live_run_state = "." + "hexaemeron"
         source = Path(__file__).read_text(encoding="utf-8")
-        self.assertIn("Fiat receipts are untracked and unavailable in an Elenchus parent worktree", source)
+        self.assertNotIn(live_run_state, source)
         self.assertTrue(STUDY.is_file())
         self.assertTrue(RUNBOOK.is_file())
 
     def test_receipted_sources_are_never_modified(self):
-        expected = {
-            ROOT / ".hexaemeron" / "study.md": "6858aaeadb12f204538b9120e51390b9c940fa995c8edb1471815d89aaa7f404",
-            ROOT / ".hexaemeron" / "runbook.md": "56df27b7faae2af8f7ba16ec89526413038def6a0bbf86ff0274dc566f8bf9c5",
-        }
-        if not capture_receipts_are_current():
-            self.skipTest("Fiat receipts are untracked and unavailable in an Elenchus parent worktree")
-        for source, digest in expected.items():
-            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), digest)
+        self.assertEqual(set(RECEIPTED_DIGESTS), {STUDY, RUNBOOK})
+        for copy, digest in RECEIPTED_DIGESTS.items():
+            with self.subTest(path=copy):
+                self.assertEqual(hashlib.sha256(copy.read_bytes()).hexdigest(), digest)
 
     def test_base_identity_is_bound_across_receipts_and_branch(self):
         self.assertIn(STARTING_BASE, STUDY.read_text(encoding="utf-8"))
