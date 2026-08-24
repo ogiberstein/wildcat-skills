@@ -11649,3 +11649,35 @@ controller, which cannot write or read either new container. Every claim above
 rests on the checked-in controller under test, and step 4 owns the disposable
 replay that exercises both gates end to end. Nothing here claims the installed
 controller enforced a field it cannot parse.
+
+## Fiat merged attribution, step 3, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0 again. The re-read followed the resolution
+order through both fixes and found no regression. Carrier order is the step's
+own merge then the base merge, deduplicated, and a carrier that is not itself
+reachable from the base merge is skipped rather than trusted. The recorded
+`carriers` map is keyed by SHA and filled in step order, so a rerun over the
+same state records the same bytes. `identity_matches` compares accounts when
+both sides have one and digests otherwise, which is the only comparison
+available for a co-author trailer or an unlinked commit, and two addresses on
+one account still resolve to one contributor.
+
+No request is made on the ordinary path: `github_repository` and every
+carrier read sit inside the branch that runs only after an ancestry check has
+failed, so a run whose commits all reached the base intact reads nothing extra
+and cannot be refused by an unexpected identity shape on a merge commit.
+
+Risk register disposition. All eight ids read clean on the fixed tree.
+`attribution-rewritten-merge` and `attribution-ancestor-check` are closed by
+this step. `attribution-overclaim` remains not applicable until step 4 ships
+prose.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `e04e799041b92be3c5f6ecd3f589acdb61973fff` has a good local signature
+and exactly one copy of each required trailer.
+
+Leads not pursued: the installed-controller split stays as round 1 recorded it.
+Step 4 owns the disposable replay that exercises both gates end to end.
