@@ -12717,3 +12717,49 @@ runbook, which a two-step specification cannot satisfy. The shipped
 `docs/hypomnema-quoted-specimen-runbook.md` carries the same two codes on `main`.
 
 Leads not pursued: none.
+
+## Capture receipt binding, step 2, round 1 -- 2026-08-24
+
+Non-Solidity round over the test rebinding at
+`4141b8593e9c568f9e01d04c2dbd70ebd228f599`. Zero findings.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over the required tree `README.md AGENTS.md .agents plugins docs`.
+Horos reports the boundary matches the tree. `promise_machine.py` reports clean
+on `coverage --check`, `check` and `sync --check` after the module's recorded
+digest moved to
+`cb2eb238380a216033f115a23398c18072ad1f227113aae97b57a4bb74c05b74`. The Elenchus
+reporter exits 0 with 0 failures, 0 errors and 0 skipped. The root suite reports
+345 tests OK with no skips, where the same command reported 5 failures at the
+step's entry. The Hexaemeron suite passes 962/962. The commit's local signature
+is good and it carries exactly one co-author and one origin trailer.
+
+All six register concerns are reachable at this step and each was checked.
+`weakened-claim`: appending one byte to
+`docs/promise-machine/run-observation-capture-study.md` fails four of the five,
+and appending the two-byte sequence `5c 6e` to the runbook copy fails the fifth,
+so each assertion still bites on the artefact it now reads.
+`guard-map-drift`: the union-manifest test passes, so all twenty-three carryover
+ids still name a test that exists, R9-01 among them under its new name
+`test_receipt_assertions_never_read_a_live_run_path`.
+`dormant-skip`: the module reports 0 skipped, and the one remaining `skipTest`
+is the class setUp's guard for a detached parent worktree with no capture
+runtime, which is a real absence rather than a path a live run owns.
+`digest-transcription`: both recorded digests are unchanged from the entry state
+and each equals the recomputed hash of its tracked copy, which is what two of
+the five now assert.
+`untracked-path-read`: the module carries no live-run state read at all, down
+from ten lines at the step's entry, and the new guard makes that a standing
+assertion rather than a one-time check.
+`subprocess-argv`: two subprocess calls remain, the `git show` in the
+newline-escape test and the `elenchus.py --help` in R1-08, both argv lists, with
+no `shell=True` anywhere in the module.
+
+One deviation from the runbook's stated method. Its Tests field said the
+mutation proof would run against a copy in a temporary directory. It ran against
+the tracked copies in the worktree instead, restored with `git checkout --` after
+each of the two mutations, with `git status --short docs/` empty afterwards. The
+proof is the same and the tree is where it started, but the method is not the one
+the step named.
+
+Leads not pursued: none.
