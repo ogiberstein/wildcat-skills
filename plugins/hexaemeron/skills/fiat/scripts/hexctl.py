@@ -1182,6 +1182,52 @@ def require_step_phase(state: dict, phase: str) -> dict:
     return step
 
 
+def configured_audit_log(state: dict) -> str:
+    """The one file this run's rounds append to, as its own config records it.
+
+    Read through here rather than off the dict, so the Warden packet, `next` and
+    the two receipts all refuse the same way when a run has no path to write to.
+    """
+    log = as_dict(as_dict(state.get("config")).get("audit")).get("log_path")
+    if not isinstance(log, str) or not log:
+        die(
+            "config audit.log_path is missing or is not a path; a round cannot "
+            "say where it wrote without one"
+        )
+    return log
+
+
+def same_audit_log(declared: str, configured: str) -> bool:
+    """Whether two spellings name one record.
+
+    `audit/rounds/x.md` and `./audit/rounds/x.md` are the same file, and a round
+    turned away over a leading `./` would be turned away for punctuation.
+    """
+    def flatten(value: str) -> str:
+        return os.path.normpath(value.replace("\\", "/"))
+
+    return flatten(declared) == flatten(configured)
+
+
+def check_declared_audit_log(state: dict, declared, label: str) -> str:
+    """Hold a declared log to the one the caller was told to write.
+
+    `--log` was a free string stored verbatim while the Warden packet named
+    `config audit.log_path`, so a receipt could record a file the round never
+    opened and nothing noticed. The declaration is checked here and the
+    configured path is what gets recorded, so the two cannot drift apart by
+    spelling either.
+    """
+    configured = configured_audit_log(state)
+    if declared is not None and not same_audit_log(str(declared), configured):
+        die(
+            f"--log names '{declared}', but {label} writes '{configured}' "
+            "(config audit.log_path); a receipt naming a file nothing opened "
+            "is worse than a receipt naming none"
+        )
+    return configured
+
+
 def max_rounds_of(state: dict) -> int:
     raw = state["config"]["audit"]["max_rounds"]
     try:
@@ -2256,6 +2302,7 @@ def cmd_audit_round(args) -> None:
         )
     if args.elenchus_verdict is not None and not args.fixes_commit:
         die("--elenchus-verdict requires --fixes-commit")
+    recorded_log = check_declared_audit_log(state, args.log, "this round")
 
     exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
     for lint, value in exits.items():
@@ -2297,7 +2344,7 @@ def cmd_audit_round(args) -> None:
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
-        "log": args.log,
+        "log": recorded_log,
         "audit_filter": args.audit_filter,
         "fixes_commit": args.fixes_commit,
         "elenchus_verdict": args.elenchus_verdict,
@@ -2336,6 +2383,11 @@ def done_audit(args, state: dict) -> None:
         )
     if args.no_further_leads and not args.reason:
         die("--no-further-leads requires --reason")
+    closing_log = check_declared_audit_log(state, args.log, "this step's audit")
+    if args.log is None:
+        # A round recorded before this check keeps the value it holds; nothing
+        # rewrites a receipt that is already on the ledger.
+        closing_log = last.get("log") or closing_log
     had_findings = any(r["findings"] > 0 for r in rounds)
     fixes_ref = args.fixes_ref or next(
         (r["fixes_commit"] for r in reversed(rounds) if r.get("fixes_commit")), None
@@ -2363,7 +2415,7 @@ def done_audit(args, state: dict) -> None:
         "no_further_leads": bool(args.no_further_leads),
         "reason": args.reason,
         "fixes_ref": fixes_ref,
-        "log": args.log or last.get("log"),
+        "log": closing_log,
         "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
@@ -4976,10 +5028,8 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
     root_plugin = plugin_root()
     if action == "audit-round":
         audit = as_dict(as_dict(state.get("config")).get("audit"))
-        log = audit.get("log_path")
+        log = configured_audit_log(state)
         suffix = audit.get("stacked_suffix")
-        if not isinstance(log, str) or not log:
-            die("audit config has no log_path for the warden packet")
         if not isinstance(suffix, str) or not suffix:
             die("audit config has no stacked_suffix for the warden packet")
         stacked_branch = plan["branch"] + suffix
@@ -5072,6 +5122,7 @@ def _next_directive(state: dict) -> dict:
         owed = {
             "audit_filter": audit_filter_obligation(),
             "elenchus_verdict": elenchus_verdict_obligation(),
+            "log_path": configured_audit_log(state),
         }
         if lints_owed:
             owed["lints"] = [f"--{lint}-exit" for lint in LINTS]

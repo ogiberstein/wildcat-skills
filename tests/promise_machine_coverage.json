@@ -2407,7 +2407,7 @@
     "contract": "fiat-run-observation-binding/v1",
     "controller": {
       "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "592251a28f328ee049a298d6058ff0987d1720eeee6376ea2f24f943ad682f60"
+      "sha256": "afb5921c31096fd0aa238240a1ac0426fcb128d8085c0b5cf773f5f57a9eceb7"
     },
     "validator": {
       "path": "scripts/run_observation.py",
@@ -2733,7 +2733,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "592251a28f328ee049a298d6058ff0987d1720eeee6376ea2f24f943ad682f60",
+      "sha256": "afb5921c31096fd0aa238240a1ac0426fcb128d8085c0b5cf773f5f57a9eceb7",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2747,7 +2747,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "592251a28f328ee049a298d6058ff0987d1720eeee6376ea2f24f943ad682f60",
+      "sha256": "afb5921c31096fd0aa238240a1ac0426fcb128d8085c0b5cf773f5f57a9eceb7",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2761,7 +2761,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "592251a28f328ee049a298d6058ff0987d1720eeee6376ea2f24f943ad682f60",
+      "sha256": "afb5921c31096fd0aa238240a1ac0426fcb128d8085c0b5cf773f5f57a9eceb7",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-run-observation-binding": {
@@ -2775,7 +2775,7 @@
         "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
         "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
       },
-      "sha256": "592251a28f328ee049a298d6058ff0987d1720eeee6376ea2f24f943ad682f60",
+      "sha256": "afb5921c31096fd0aa238240a1ac0426fcb128d8085c0b5cf773f5f57a9eceb7",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {
