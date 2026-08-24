@@ -31,35 +31,66 @@ lives in the [Shoggoth identity contract](./SHOGGOTH.md).
 
 ## So, You Want To Build God?
 
+Ask the Atlas for a number. Pick your harness. Finish what you start.
+
 The [Shoggoth Wave Atlas](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/)
-offers one open issue at a time: any issue in a wave whose recorded hard
-dependencies are all closed. Choose an assistant below. The button asks the
-Atlas for one issue, then opens a new chat with its number and a
-checkpoint-aware install and Fiat request filled in. Read it, then send it.
+draws one random open issue from the full pool whose recorded hard dependencies
+are closed. You do not choose a Wave. Pick one tested bootstrap below; that
+single click asks the Atlas for a job and opens a new chat with its number,
+issue URL, install request and Fiat request filled in.
 
-[![OpenAI · ChatGPT](https://img.shields.io/badge/OpenAI-ChatGPT-10A37F?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/chatgpt)
-[![Anthropic · Claude](https://img.shields.io/badge/Anthropic-Claude-D97757?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/claude)
+[![OpenAI - ChatGPT web bootstrap](https://img.shields.io/badge/OpenAI-ChatGPT_web_bootstrap-10A37F?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/chatgpt)
+[![Anthropic - Claude web bootstrap](https://img.shields.io/badge/Anthropic-Claude_web_bootstrap-D97757?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/go/claude)
+[![Atlas - manual prompt](https://img.shields.io/badge/Atlas-Manual_prompt-3E68FF?style=for-the-badge)](https://shoggoth-wave-atlas.functi0nzer0.chatgpt.site/api/job)
 
-You do not need to invent the work or choose among the whole backlog. The Atlas
-already holds the list and offers an eligible issue. What the project needs
-from you is the inference and judgement to understand that bounded problem and
-move it forward at one checkpoint. You do not have to carry the whole issue to
-the end. The job may be a missing regression test, an input a checker cannot
-yet handle, a weak handoff, or support for another environment. Each accepted
-piece makes the shared system more reliable, useful, or flexible for the next
-developer.
+The friendly hand-off looks like: **Aye, here you go - #123.**
 
-The intended model lets you stop at a clean checkpoint and lets somebody else
-resume from its receipts. Durable parking of the run's `.hexaemeron` state is
-not finished yet, so reliable handover remains work in progress. The
-[contributor guide](./docs/how-to-help-shoggoth.md) and its
-[printable PDF](./docs/pdf/how-to-help-shoggoth.pdf) describe the route that
-works today. If a completed job is merged with your authorship intact, GitHub
-records you as a contributor, and a weekly job adds you to
-[CONTRIBUTORS.md](./CONTRIBUTORS.md) and to the thanks at the foot of this file.
-One condition sits outside this repository's control: a merge that discards
-commit authorship, or a commit whose author email is linked to no account,
-leaves nothing for either list to find.
+> [!WARNING]
+> Fiat does not yet support checkpointing. Work is actively ongoing to complete
+> it; the repository design package starts in
+> [PR #479](https://github.com/wildcat-finance/skills/pull/479). Once Fiat
+> starts, complete the entire run locally. Closing the harness, abandoning the
+> run or moving an unfinished run to another session can lose the work. Do not
+> assume that another contributor or session can resume it.
+
+The ChatGPT and Claude links are the only Atlas routes covered by the current
+launcher tests. They allocate a job and prefill its prompt; they do not prove
+that a browser chat can complete a local Fiat run. Open the repository in the
+local coding harness you will keep for the whole run. [Codex](./INSTALL.md#codex)
+and [Claude Code](./INSTALL.md#claude-code) have native Wildcat marketplace
+packages. GitHub Copilot, Cursor, Gemini CLI and Windsurf use the
+[manual route](./docs/how-to-help-shoggoth.md#the-secondary-manual-route): open
+the repository, read `AGENTS.md`, then paste the exact Atlas prompt. They are
+not presented as tested one-click Atlas launchers. Cline and Roo Code are not
+listed as launch options because this repository has no checked Atlas hand-off
+for them.
+
+Fiat keeps the bounded run in order: study, runbook, implementation, audit,
+prose, push and integration. Code that looks finished is not the endpoint. The
+run is complete when the controller says its required steps and checks are
+complete and the contribution is ready for the normal GitHub pull-request
+path. The [contributor guide](./docs/how-to-help-shoggoth.md) and
+[printable PDF](./docs/pdf/how-to-help-shoggoth.pdf) show that route. If the
+result is merged with your human authorship intact, GitHub includes you in the
+repository's contributor history.
+
+Fiat now checks the first half of that sentence and records the answer. It
+stores, for every commit it pushes, the GitHub account the commit was matched
+to and a digest of the author address, and it refuses to record a run as
+integrated unless the base still carries each of those identities. Two
+conditions are GitHub's rather than the repository's. The commit author address
+has to be one GitHub can match to your account, and the list itself is GitHub's
+to compute and publish on its own schedule. A run whose author address matches
+no account records that plainly instead of guessing.
+
+That record is what the contributor list is built from.
+[CONTRIBUTORS.md](./CONTRIBUTORS.md) ranks the humans who have finished a job
+here by merged commits, with merged pull requests as the tie-break, and the
+thanks at the foot of this file name the same people by handle. A weekly job
+regenerates both from the repository's own history, so nobody has to remember to
+add anyone and there is nothing to ask for. Runtime host identities, the
+Shoggoth's own account and the repository owner are excluded by name, each with
+its reason shown in the generator's output.
 
 ## What Is It?
 

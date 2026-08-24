@@ -283,9 +283,26 @@ class RecordedDecisions(unittest.TestCase):
         self.assertIn("weekly", head)
 
     def test_the_readme_claim_names_the_condition_it_cannot_control(self):
+        """Asserts the substance, not one wording.
+
+        The sentence this originally checked was replaced wholesale when the
+        default branch rewrote the passage. A test pinned to the earlier phrasing
+        would have failed on a change that kept every claim intact, so it now
+        checks that the caveat is still made rather than that it is made in the
+        words this run happened to use.
+        """
         head = self.README.read_text(encoding="utf-8").split(contributors.THANKS_START)[0]
-        self.assertIn("outside this repository's control", head)
-        self.assertIn("linked to no account", head)
+        flat = re.sub(r"\s+", " ", head)
+        self.assertIn(
+            "conditions are GitHub's rather than the repository's",
+            flat,
+            "the README must say which conditions this repository cannot control",
+        )
+        self.assertIn(
+            "matches no account",
+            flat,
+            "the unmatched author address is the condition that silently costs credit",
+        )
 
     def test_the_adr_records_the_decision_and_the_option_it_rejected(self):
         self.assertTrue(self.ADR.is_file(), f"{self.ADR.name} is absent")

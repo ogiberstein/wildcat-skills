@@ -3,7 +3,7 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Sapheneia shapes the agent's own interaction with an AuDHD reader: the action, meaning, working state and evidence stay visible from turn to turn.
+Sapheneia shapes the agent's own interaction with an AuDHD reader and one bounded audit record, GitHub issue, or issue comment without dropping evidence.
 
 **Current frontier.** Cross-model behaviour has not yet been held against a published AuDHD task corpus.
 
@@ -14,9 +14,15 @@ Sapheneia is the interaction contract for agents working with AuDHD engineers.
 It keeps the next action, task boundary, done condition, current state, evidence
 and unknowns on screen.
 
-The skill applies to the agent itself. Once active, it shapes commentary,
+The session operation applies to the agent itself. Once active, it shapes commentary,
 questions, progress reports, errors and final replies until the reader turns it
 off. It does not diagnose anyone, and a reader's stated preference wins.
+
+The separate durable-record operation shapes one agent-authored audit record,
+one GitHub issue title and body, or one GitHub issue comment. It removes only
+claim-neutral connective prose. Exact evidence, uncertainty, and the record's
+required structure stay in place. This bounded operation does not activate the
+session contract.
 
 The ten ranked rules and the complete activation contract live in
 [`skills/sapheneia/SKILL.md`](skills/sapheneia/SKILL.md).
@@ -32,10 +38,15 @@ untested assumption. Sapheneia labels each one and keeps the risk-bearing
 qualification attached to the decision it changes.
 ## How it works
 
-The contract sits upstream of whatever the agent is producing. It applies to
+The session contract sits upstream of whatever the agent is producing. It applies to
 commentary, progress updates, questions, errors and final replies for the rest
 of the session once selected. It does not diagnose the reader, and it yields
 as soon as the reader states a different preference.
+
+For audit records, issue titles and bodies, and issue comments, the bounded
+operation starts from a protected evidence inventory. It preserves exact
+identifiers, locations, hashes, numbers, links, findings, verdicts, unknowns,
+and host structure before handing the candidate to later prose gates.
 
 The ten rules are ranked. The first line carries the action or finished result;
 asks are literal and labelled; multi-step work has one active step; facts,
@@ -47,5 +58,4 @@ for register.
 
 - one canonical [`SKILL.md`](./skills/sapheneia/SKILL.md) shared by Codex, Claude Code and portable agents;
 - an agent-facing runtime contract that makes the agent itself the subject;
-- contract tests that hold the ranked rule count, persistence language, host descriptions and portable links together.
-
+- contract tests and labelled cases for session shaping, deactivation, and bounded durable records.

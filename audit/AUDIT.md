@@ -11452,7 +11452,572 @@ Leads not pursued: capture, redaction, persistence, Fiat receipt binding, and
 cross-run diagnosis remain assigned to their separate issues. This record does
 not claim capture completeness, external truth, cause, model quality, delivery
 correctness, deployment readiness, security, or mutation authority.
+## Step 1, round 1 -- 2026-08-24
 
+Covered: `evidence-loss`, `false-semantic-proof`, `final-byte-drift`,
+`queue-format-drift`, `github-bypass`, `history-rewrite`, `session-leak`,
+`open-issue-collision`, and `frontier-drift` reviewed; `pr-509-overlap` and
+`task-comment-mismatch` not applicable until Step 2.
+
+Not checked: Solidity security suite (waived); cross-model corpus execution;
+GitHub signature state and publication state.
+
+Evidence: signed commit `96acb17c36601532ee6d3ad45f5fc8f369332e23` verified
+locally with both provenance trailers once; 11 Sapheneia, 105 focused, and 195
+root tests passed; Promise Machine, Protasis, Horos, Imprimatur, Brevitas,
+Phylax, Ephoros, Hypomnema, and diff checks passed.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: Step 2 controller behaviour, PR #509 combined-tree
+reconciliation, and remote task-comment byte readback.
+
+## Step 2, round 1 -- 2026-08-24
+
+Finding count: 1. Audit filter declaration:
+`--audit-filter sapheneia:sapheneia`. Security suite: waived because the
+repository framework change contains no Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `docs/durable-agent-prose-gates/runbook.md:127` | PR #518 advanced `origin/main` from `dd23413ef6e9021bd80b930ad57e1766bf166f0b` to `191f2ce1d60abb8068887095a8c39fb4341f0be6` at 2026-08-24T01:03:30+01:00, before signed Step 2 commit `6dcfb93374ab825817fa2bcd5f832fe9aea22397` at 2026-08-24T01:27:35+01:00. The step remains on the old base although its exit requires reconciliation when main advances first. A combined-tree probe conflicts at `.horos/boundary.json`, so current checks do not prove the post-advance delivery tree. | open; reconcile the base, regenerate Horos, and rerun the gates |
+
+Risk coverage: `evidence-loss`, `false-semantic-proof`, `final-byte-drift`,
+`queue-format-drift`, `github-bypass`, `history-rewrite`, `session-leak`,
+`open-issue-collision`, `frontier-drift`, and `task-comment-mismatch` are clean
+within the signed range. `pr-509-overlap` remains external: merge commit
+`c04718fc700b09bf2d6c089f3ac5a8bf05a5738c` is not on `main`, and its branch
+overlaps 15 Step 2 paths, including the controller, Warden contract, audit-loop
+reference, evolution ledger, manifests, and tests.
+
+Evidence: signed range
+`6b91fcc61feabb8504b46006d65197bc731b0845..6dcfb93374ab825817fa2bcd5f832fe9aea22397`
+contains one locally verified Shoggoth commit with both provenance trailers
+once. The controller packet names round 1, state digest
+`3c667578d6dddb2ee2eb4584d3cea35968d5d8eeb311fb33264e2d9d835656c7`, study
+digest `dd3f12d317e01271fdc5636d1c3eae2b1fe0b276a0ed784617f3655ad21bc4e0`,
+runbook digest `700e59cdca0b67d41b195c1223d15152477213d85bc739aa771bf89d838fe9df`,
+and the exact audit-filter obligation. The dated amendment preserves frontier
+revision `state-shape-validation`, digest
+`e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa`, status
+`open`, and issue #363 as the Next Fiat job while advancing only the generation.
+
+Checks: Phylax exit 0; Ephoros exit 0; Hypomnema exit 0. Fiat focused tests
+passed 327/327; Hexaemeron passed 881/881; focused root passed 106/106; root
+passed 196/196; Sapheneia passed 11/11. Promise Machine, Protasis, Horos,
+Imprimatur, Brevitas, and `git diff --check` passed.
+
+Unknowns: the reconciled PR #518 tree and any future PR #509 combined tree were
+not tested. GitHub signature state, issue-comment publication, remote byte
+readback, and model-level semantic correctness were not established.
+
+Sapheneia comparison: the compact candidate retains the finding, severity,
+status, exact locations, SHAs, dates, counts, digests, lint exits, waiver,
+declaration, qualifications, unknowns, negative results, and unpursued leads.
+No protected item changed or disappeared.
+
+Leads not pursued: reconcile PR #509 only if its integration branch approaches
+`main`; exercise the task-issue comment sequence when a run has a bound issue;
+verify remote signatures only after publication.
+
+## Step 2, round 2 -- 2026-08-24
+
+Finding count: 0. Audit filter declaration:
+`--audit-filter sapheneia:sapheneia`. Security suite: waived because the
+repository framework change contains no Solidity.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Prior finding `S2-R1-01` is fixed at the instruction layer by signed commit
+`2290b6851c67423867f26e72c25fd57ef5776675`. Receipted amendment SHA-256
+`9d347b7cb89e6971e019cae3c6f5e8362e6bdeb39b0e8eea49532b378f85a989`
+supersedes the runbook's rebase wording with Fiat's canonical rule: do not
+rewrite the signed stack; if the integration pull request conflicts, merge the
+exact remote base tip once through a signed `sync-run` after the final step
+merge. PR #518's actual main merge, the `.horos/boundary.json` conflict,
+combined-tree regeneration, and all post-sync checks remain mandatory
+integrate-phase work. They are not claimed complete here.
+
+Elenchus verdict: `unguarded`. The exact fixed commit changed no test files, so
+Elenchus returned `the commit changed no test files`; no process exit or clean
+fixed-tree suite was substituted for that verdict.
+
+Risk coverage: `evidence-loss`, `false-semantic-proof`, `final-byte-drift`,
+`queue-format-drift`, `github-bypass`, `history-rewrite`, `session-leak`,
+`open-issue-collision`, `frontier-drift`, and `task-comment-mismatch` are
+clean for the fixes range. `pr-509-overlap` remains external and unresolved:
+its non-main branch still overlaps the controller, Warden contract, audit-loop
+reference, evolution ledger, manifests, and tests.
+
+Evidence: fixes range
+`6dcfb93374ab825817fa2bcd5f832fe9aea22397..2290b6851c67423867f26e72c25fd57ef5776675`
+contains one locally verified Shoggoth commit with both provenance trailers
+once. The canonical rule is at
+`plugins/hexaemeron/skills/fiat/SKILL.md:443-446` and
+`plugins/hexaemeron/skills/fiat/references/push-discipline.md:180-189`.
+The controller packet names round 2, study digest
+`cdb4c122872db7e291bc4057531e198a7faa32557ae87f3eb2c909a221106f19`,
+state digest `372160e4aa61cb90991bbc4e59e8f05b2f99b1695315b18402da5be98a9fa949`,
+and the exact audit-filter obligation.
+
+Checks: Phylax exit 0; Ephoros exit 0; Hypomnema exit 0. Hexaemeron passed
+881/881; root passed 196/196; Sapheneia passed 11/11. Promise Machine,
+Protasis, Horos, controller verification, and `git diff --check` passed.
+Round-1 Imprimatur and Brevitas evidence covered every changed target required
+by the runbook. This round does not claim that this one-row audit candidate is
+Brevitas-clean: Fiat's required five-column audit table conflicts with that
+structural rule.
+
+Unknowns: no `sync-run`, Horos regeneration on the combined tree, remote
+signature check, task-issue comment publication, remote byte readback, PR #509
+reconciliation, or model-level semantic proof occurred in this round.
+
+Sapheneia comparison: the compact candidate retains the zero finding count,
+prior finding id and fix status, exact SHAs, amendment and state digests,
+locations, verdict and cause, lint exits, test counts, waiver, declaration,
+qualifications, unknowns, negative evidence, and unpursued leads. The table
+shape and every protected token match the source inventory.
+
+Leads not pursued: execute and receipt the signed `sync-run` only at the
+canonical integrate transition if the integration pull request conflicts;
+reconcile PR #509 only if it approaches `main`; exercise the task-issue comment
+sequence only for a bound issue.
+## Fiat merged attribution, step 1, round 1 -- 2026-08-24
+
+The Pashov pair did not run. The `security_suite` receipt records a waiver:
+this step commits three Markdown documents and changes no Solidity. The three
+bundled lints are the mechanical part and all exited 0 against the changed
+paths. The diff was then read against every id in the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | `plugins/hexaemeron/docs/fiat-merged-attribution/study.md` | The prior-art paragraph quotes a contributor's work address where a description would carry the same point. A document whose subject is not publishing addresses reads better without one. | accepted, not fixed |
+| S1-R1-02 | low | `docs/decisions/ADR-017-bind-merged-authorship-to-the-integration-receipt.md` | The Decision section describes the receipt and the integration check in the present tense, one step before either exists. A reader landing on the record at this step would read it as a description of the shipped controller. | fixed in this round: Status now names the steps that implement it and states that v5.13.1 records no attribution |
+
+S1-R1-01 is accepted rather than fixed. This step's exit requires the committed
+study to be byte-identical to the receipted artefact, and a Protasis amendment
+appends rather than edits, so the prefix cannot be corrected without abandoning
+a receipted artefact. The address is a company-domain work address already
+published by the organisation in issue 515 and in the public default-branch
+commit history, and the study's own "Never" entry governs the attribution
+record the controller persists, which stores a digest and never an address. The
+wording is carried forward for the next study over this target.
+
+Risk register disposition. `attribution-private-email` is the id S1-R1-01 sits
+under, dispositioned above; nothing in this step writes state.
+`attribution-overclaim` is the id S1-R1-02 sits under and is closed by the
+Status fix. `attribution-null-login`, `attribution-unbounded-field`,
+`attribution-coauthor-parse`, `attribution-ancestor-check`,
+`attribution-rewritten-merge` and `attribution-state-shape` are not applicable
+to a step that ships no code.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+874/874. Protasis both modes, Imprimatur, Brevitas and the Horos scan exit 0 on
+the changed paths. The implementation commit
+`8ed925488c888cce3633226356e6cd1e0d24d741` has a good local signature and
+exactly one copy of each required trailer.
+
+Leads not pursued: none beyond the accepted S1-R1-01.
+
+## Fiat merged attribution, step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fix applied. Zero findings. Status: clean.
+
+The Pashov pair did not run, for the reason the waiver records. The three
+bundled lints exited 0 again over the same changed paths. The re-read confirmed
+S1-R1-02 closed: ADR-017's Status now states that the decision is recorded
+before the code, names steps 2 and 3 as the ones that carry it, and says
+plainly that v5.13.1 records no attribution and checks nothing at the merge.
+The two committed copies remain byte-identical to the receipted artefacts.
+
+Risk register disposition. `attribution-overclaim` is clean on the fixed tree.
+`attribution-private-email` carries the accepted S1-R1-01 and is otherwise
+clean: no state is written by this step. The remaining six ids stay not
+applicable to a step that ships no code.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+874/874. The fixes commit `64ea0e7e599048eac0988d46f38ecadc2b236bdd` has a good
+local signature and exactly one copy of each required trailer.
+
+Leads not pursued: none beyond the accepted S1-R1-01, which is carried forward.
+
+## Fiat merged attribution, step 2, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records: this step
+changes a Python controller and its tests. The three bundled lints exited 0.
+The review then read the diff against every id in the study's risk register,
+and both findings came out of that read rather than out of a lint.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `checked_login` treated an `author` object carrying no usable login as an unlinked commit and recorded `null`. GitHub spells "matched to no account" as a literal `null`, so an object without a login is a payload nobody predicted, and reading it as unlinked lets a shape the reader does not understand become a claim about a person. | fixed in this round: only a literal `null` records `null`; an object must carry a login string |
+| S2-R1-02 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `verify_github_commits` was implemented over the attribution reader, so the identity checks silently gated the merge-step, integration and run-sync receipts as well. A merge commit whose author name exceeded the cap, or whose message was absent, would have refused a receipt that has nothing to do with attribution. The step widened a gate it did not declare. | fixed in this round: verification keeps its own reader and fails only on GitHub's verification result |
+
+Both fixes are guarded. Against the implementation commit
+`afd1c92a00b289538af5851e74e1307c046ab914` the two guards report
+`FAILED (failures=1, errors=2)`; against the fixed tree they pass. The
+`attribution-null-account-object` case moved out of the "records null" test and
+into the negative matrix, and
+`test_verification_alone_does_not_apply_the_attribution_checks` is new.
+
+Risk register disposition. `attribution-null-login` carried S2-R1-01 and is
+closed by the fix: a literal `null` records `null`, an unlinked author keeps its
+digest, and the refusal names the commit. `attribution-unbounded-field` is
+clean: the account login is matched against a closed expression, the name and
+address are type-checked and capped at 256 and 320 bytes, and the co-author
+count is capped at 32. `attribution-coauthor-parse` is clean: the trailer is
+parsed with the same expression the local range gate uses, so the two cannot
+disagree, and a host identity in a trailer refuses on either view.
+`attribution-private-email` is clean: the recorded container holds a login, a
+display name and a digest, and the receipt and ledger tests both assert that no
+`@` appears in the recorded bytes. `attribution-state-shape` is clean: the new
+container sits inside `steps[i].receipts`, which the version-1 spine already
+validates, so `load_state` needed no change. `attribution-ancestor-check` and
+`attribution-rewritten-merge` belong to step 3. `attribution-overclaim` is not
+applicable: this step ships no prose.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+882/882 with 8 new tests. `python3 scripts/promise_machine.py check` reports 14
+plugins and 14 copies clean after the three `fiat-*` runtime digests were
+refreshed to `64a9d2b7e16235e6503eac3b496bf281b2d9259e90a0272679175e2569b53f4a`.
+The Elenchus report at `tmp/elenchus/step-2.json` records
+`elenchus.unittest.v1`, complete, 882 tests, 0 failures.
+
+Leads not pursued, carried to step 3: `done_merge_step`'s repair path recomputes
+the verified range and the GitHub verification for a moved branch head but does
+not recompute the attribution container, so a repaired push receipt can hold
+attribution for commits that are no longer the branch tip. Step 3 owns the
+merged-state binding and must not read a stale container as current. Logged
+here rather than fixed, because the consumer does not exist yet and a guard
+written against no consumer guards nothing.
+
+## Fiat merged attribution, step 2, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0 again over the controller and its tests. The
+re-read confirmed both fixes and found no regression introduced by either.
+`checked_login` now refuses an account object without a login string and still
+records a literal `null` as `null` with the author's digest intact.
+`verify_github_commits` has its own loop over `github_commit_payload` and
+`require_github_verified`, so an oversized author name or an absent message on
+a merge commit no longer refuses a verification receipt, while the attribution
+reader still refuses both. The duplication is two lines of loop and is
+documented in the docstring as deliberate, because the alternative is one
+reader failing for two unrelated reasons.
+
+Risk register disposition. All eight ids read clean on the fixed tree, with
+`attribution-ancestor-check`, `attribution-rewritten-merge` still belonging to
+step 3 and `attribution-overclaim` still not applicable to a step shipping no
+prose. `attribution-null-login` is closed on the fixed tree.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+882/882. Promise Machine reports 14 plugins and 14 copies clean.
+`hexctl verify` reports 15 ledger entries, chain intact, state consistent. The
+fixes commit `3800bd437524e1ec0db27e601f904932b1d42ce2` has a good local
+signature and exactly one copy of each required trailer.
+
+Leads not pursued: the stale-attribution repair path stays carried to step 3,
+as round 1 recorded.
+
+## Fiat merged attribution, step 3, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records. The three
+bundled lints exited 0. The review read the diff against every id in the
+study's risk register, and both findings came out of that read.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The rewritten-merge fallback inspected only the base merge. A step squash-merged into the run branch leaves its commits unreachable while its identity survives on that step's own merge commit, which is itself an ancestor of the base merge. The check would have refused an identity that did reach the base, and the refusal would have pointed at the wrong merge. | fixed in this round: the step's recorded merge is tried first and the base merge second, and a recorded merge counts only while it is reachable from the base merge |
+| S3-R1-02 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `recorded_run_attribution` chose between the repaired container and the push container by truthiness, so an empty repaired container would have been read as absent and the stale push attribution used in its place. Not reachable today, because a repaired range is never empty. | fixed in this round: presence decides, and a direct guard pins it |
+
+Three guards. `test_a_step_merge_is_tried_before_the_base_merge` and
+`test_a_step_merge_that_never_reached_the_base_is_not_a_carrier` cover
+S3-R1-01, and `test_an_empty_repaired_container_is_current_not_absent` covers
+S3-R1-02. Against the implementation commit
+`353adec7497a4effcff04ea90817b6ce511fd782` the three report
+`FAILED (failures=1, errors=2)`; against the fixed tree they pass. The fake
+git's ancestry answer was narrowed to a named set of commits, because a mode
+that answered "not an ancestor" to every question could not tell a detached
+step commit from a detached step merge, and the first version of the test
+passed for the wrong reason.
+
+Risk register disposition. `attribution-rewritten-merge` carried S3-R1-01 and
+is closed by the fix: a squash or rebase at either merge point now resolves
+through the merge that actually carried the identity, and an identity no
+recorded merge carries refuses the receipt by step, commit and account or
+digest prefix. `attribution-ancestor-check` is clean: `commit_is_ancestor`
+reads only exit 0 and 1 as an answer, refuses any other status, and runs
+argv-only through `bounded_tool_status` with no shell. A regression covers the
+unanswerable call. `attribution-private-email` is clean: the refusal names an
+identity by login or by a twelve-character digest prefix, and a test asserts no
+`@` reaches stderr. `attribution-null-login` is clean: an unlinked identity
+resolves on its digest, which is the only comparison available for it and for a
+co-author trailer. `attribution-unbounded-field` and
+`attribution-coauthor-parse` are unchanged from step 2 and clean; the merge
+commit's identity passes through the same checked reader.
+`attribution-state-shape` is clean: the new receipt containers sit inside
+`receipts` and `integrate`, both already validated by the version-1 spine.
+`attribution-overclaim` is not applicable: this step ships no prose.
+
+The step also closed the lead step 2 carried forward. The merge-time repair
+path recomputes the attribution beside the verified range it already
+recomputed, and a regression proves the integration check reads the refreshed
+container rather than the head it replaced.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893 with 11 new tests across steps 2 and 3. Promise Machine reports 14
+plugins and 14 copies clean after the three `fiat-*` runtime digests were
+refreshed to
+`56d4862f47da60968f19586b042bf4948f12119ca691f42b3460c4672736374f`. The
+Elenchus report at `tmp/elenchus/step-3.json` records `elenchus.unittest.v1`,
+complete, 893 tests, 0 failures, 0 errors.
+
+Leads not pursued: the live run is governed by the installed Fiat v5.13.1
+controller, which cannot write or read either new container. Every claim above
+rests on the checked-in controller under test, and step 4 owns the disposable
+replay that exercises both gates end to end. Nothing here claims the installed
+controller enforced a field it cannot parse.
+
+## Fiat merged attribution, step 3, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0. The re-read followed the resolution order
+through both fixes and found no regression.
+
+Carrier order is the step's own merge then the base merge, deduplicated, and a
+carrier not itself reachable from the base merge is skipped rather than
+trusted. The recorded `carriers` map is keyed by SHA and filled in step order,
+so a rerun over the same state records the same bytes. `identity_matches`
+compares accounts when both sides have one and digests otherwise, which is the
+only comparison available for a co-author trailer or an unlinked commit; two
+addresses on one account still resolve to one contributor.
+
+`github_repository` and every carrier read sit inside the branch that runs only
+after an ancestry check has failed. A run whose commits all reached the base
+intact therefore reads nothing extra and cannot be refused by an unexpected
+identity shape on a merge commit.
+
+Risk register disposition. All eight ids read clean on the fixed tree.
+`attribution-rewritten-merge` and `attribution-ancestor-check` are closed by
+this step. `attribution-overclaim` remains not applicable until step 4 ships
+prose.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `e04e799041b92be3c5f6ecd3f589acdb61973fff` has a good local signature
+and exactly one copy of each required trailer.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item:
+verdict, status, the three lint exits, both suite counts, the Promise Machine
+counts, the fixes commit and its signature and trailer attribution, the four
+risk ids and the eight-id total, the four named identifiers, every
+qualification, and both unpursued leads all survive unchanged. Only connective
+and process prose was compacted.
+
+Leads not pursued: the installed-controller split stays as round 1 recorded it.
+Step 4 owns the disposable replay that exercises both gates end to end.
+
+## Fiat merged attribution, step 4, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records: this step ships
+prose, metadata and a replay document. The three bundled lints exited 0. The
+review compared every published sentence against what the controller does, and
+read the replay document as a script a stranger runs in their own checkout.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S4-R1-01 | medium | `plugins/hexaemeron/docs/fiat-merged-attribution/proof.md` | The red-to-green replay overwrites the controller in the reader's working tree and restores it on the next statement. A failed assertion, an unreadable `git show`, or a killed process left the checkout holding an older controller with no warning. A document that tells a stranger to run it owns that outcome. | fixed in this round: the loop restores from `HEAD` in a `finally` block, both `git show` reads are asserted non-empty, and the restore was proved against a simulated interruption |
+| S4-R1-02 | low | `plugins/hexaemeron/docs/fiat-merged-attribution/study.md` | The 2026-08-24 amendment states that step 4 regenerates `docs/pdf/how-to-help-shoggoth.pdf` with `scripts/build_contributor_guide.py`. Step 4 does not. That generator exists only on `main`, which this branch was cut before, and `reportlab` is absent locally while adding a dependency is an ask-first boundary in this study. The amendment put the work in the wrong place. | accepted, not fixed |
+
+S4-R1-02 is accepted rather than fixed. The amendment is receipted and this
+step's exit requires the committed study to match the receipted bytes, and a
+Protasis amendment appends rather than edits, so a second amendment could
+correct the placement but not the sentence. The guide gains a section and the
+generated PDF is that section behind until the generator next runs. Recorded
+here and carried forward in the run body.
+
+`attribution-overclaim` review, sentence by sentence. The README says Fiat
+stores the matched account and a digest for every commit it pushes, refuses to
+record a run as integrated unless the base still carries each identity, and
+records plainly when an address matches no account: all three hold. It names
+the two GitHub-side conditions and claims nothing about the list appearing. The
+contributor guide adds that a merge commit keeps the commits while a squash or
+rebase merge does not, and that the merge itself then has to carry the name:
+that matches the two mechanisms and the carrier order. Neither document claims
+the run's own receipts carry attribution, which they do not, and the
+`fiat-final-integration` promise boundary states that the result does not
+establish that GitHub will resolve an identity or list a contributor.
+
+Risk register disposition. `attribution-overclaim` is closed by the review
+above and by the promise boundary. `attribution-private-email` is clean: no
+address appears in the README, the guide, the ADR, the ledger row or the proof.
+`attribution-null-login`, `attribution-unbounded-field`,
+`attribution-coauthor-parse`, `attribution-ancestor-check`,
+`attribution-rewritten-merge` and `attribution-state-shape` are unchanged by
+this step and remain closed as steps 2 and 3 recorded them.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893. Promise Machine reports 14 plugins and 14 copies clean. Imprimatur
+scores 100.0 with zero defects on `README.md`,
+`docs/how-to-help-shoggoth.md`, the ADR and the proof; Brevitas exits 0 on each.
+The Horos scan leaves `.horos/boundary.json` at the one line this step's new
+documents earned. The implementation commit
+`7910706f4b7fc25309a974c46ea63ab324a54d27` has a good local signature and
+exactly one copy of each required trailer.
+
+Two facts about this step that are not findings. The `fiat-v5.14.1` row and
+`docs/decisions/ADR-017-gate-durable-agent-prose.md` are carried onto this
+branch verbatim from `origin/main` at `6c98a728a9f8ee25f4eed70b7032dc10f836eb17`,
+because this branch was cut before that run landed and its published row links
+to that file; without both, this branch's own ledger skips a generation and
+H001 fails. And `tests/test_evolution_contract.py` pins the newest row's
+evidence to one ADR, so every future generation row has to move that assertion.
+That brittleness predates this run and is left as it was found.
+
+Leads not pursued: the installed-controller split, recorded under step 2 round
+1 and step 3 rounds 1 and 2, and the frontier gate arithmetic that refuses two
+concurrent frontier runs on one skill. Both are carried forward in the run body.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item: both
+findings with their ids, severities, files and statuses, the accepted
+disposition and its reason, every sentence-by-sentence verdict, the eight risk
+ids, the three lint exits, both suite counts, the Promise Machine counts, the
+Imprimatur score, the two carried-verbatim artefacts with the exact base
+commit, the implementation commit with its signature and trailer attribution,
+and both unpursued leads all survive unchanged. Only connective and process
+prose was compacted.
+
+## Fiat merged attribution, step 4, round 2 -- 2026-08-24
+
+Against the tree with round 1's fix applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0. The replay document's restore now runs in a
+`finally` block and was proved against a simulated interruption, leaving the
+controller byte-identical to `HEAD`. Both `git show` reads assert non-empty
+output, so an unreadable commit fails loudly instead of writing an empty file
+over the controller.
+
+The committed study and runbook still match the receipted artefacts byte for
+byte, including the 2026-08-24 amendment.
+
+Risk register disposition. All eight ids read clean on the fixed tree.
+`attribution-overclaim` stays closed on the published sentences reviewed in
+round 1.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+893/893. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `76e50de022d037c2b70edb84c27654d7c28bf239` has a good local signature
+and exactly one copy of each required trailer.
+
+Leads not pursued: the accepted S4-R1-02, the installed-controller split and
+the frontier gate arithmetic, all carried forward in the run body.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item:
+verdict, status, the three lint exits, both suite counts, the Promise Machine
+counts, the byte-for-byte artefact claim, the eight risk ids, the fixes commit
+with its signature and trailer attribution, and all three unpursued leads
+survive unchanged. Only connective and process prose was compacted.
+
+## Fiat frontier row attribution, step 1, round 1 -- 2026-08-24
+
+The Pashov pair did not run, for the reason the waiver records: this step
+changes a Python controller and its tests. The three bundled lints exited 0.
+The review then read the diff against every id in the study's risk register.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The integration receipt recorded `frontier_published_rows` as the base ledger's entire row set, which for this repository is twenty versions, under a field name that says the gate subtracted them. The runbook's exit says the receipt records the subtracted versions. A reader would have taken a twenty-entry list as twenty discounted rows. | fixed in this round: `frontier_subtracted_rows` records the intersection of the base set with the rows after the anchor, and the field is renamed to match |
+| S1-R1-02 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The row slicing existed twice in effect: the gate sliced rows after the anchor to count them, and the receipt would have had to slice them again to say which were subtracted. Two copies of that rule drift, and a refusal would then count rows the receipt omitted. | fixed in this round: `frontier_rows_after_anchor` is shared by both, with a regression asserting they agree |
+
+Both fixes are guarded. Against the implementation commit
+`332c58e8b407d7bf527c7bb69ad58e6d8cc8c44a` the two new guards report
+`FAILED (errors=2)`; against the fixed tree they pass.
+
+Risk register disposition. `base-read-failure` is clean: the read goes through
+`bounded_run` rather than `bounded_git`, so a blob it cannot fetch returns a
+status this function handles instead of printing a refusal and exiting, and an
+unfetchable, non-UTF-8 or malformed blob subtracts nothing and leaves the older
+count. Three regressions cover an empty base, a non-SHA base and an
+unreachable SHA, and one asserts the fallback still refuses the issue 466
+topology. `foreign-row-overcount` is clean: only exact version labels present
+in the base are subtracted, and a regression shows a duplicated label
+subtracting both of its rows to `gained 0` rather than one of them.
+`own-row-not-newest` is clean and covered by a regression whose topology puts a
+published row after the run's own, which is the only arrangement where the
+count passes and the newest-row rule has to fire. `two-own-rows` is clean: a run
+appending two of its own rows is still refused, with and without an irrelevant
+published set. `no-sync-unchanged` is clean: `done_integrate` consults the base
+only when a sync receipt exists, so a run without one keeps today's arithmetic.
+`bounded-git-read` is clean: argv-only, no shell, the existing output cap, and
+the status distinguished from empty output.
+
+One behaviour change is not a finding and is recorded here. On the legacy path
+with no `version_at_init`, a ledger that has lost rows since `init` previously
+reported a negative `gained` and now reports `0`. Both refuse; only the number
+in the message differs. The append-only anchor check catches the same case
+whenever `version_at_init` is recorded, which every current run records.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 196/196, Hexaemeron suite
+912/912 with 12 new tests. Promise Machine reports 14 plugins and 14 copies
+clean after the three `fiat-*` runtime digests were refreshed. The Elenchus
+report at `tmp/elenchus/step-1.json` records `elenchus.unittest.v1`, complete,
+909 tests, 0 failures, against the implementation commit.
+
+Leads not pursued. This run drives the installed `fiat-v5.14.1` controller
+while the repository holds `fiat-v5.15.1`, recorded in the `controller_version`
+receipt, so its own receipts carry no attribution container and its own
+integration will not exercise the field this step adds. A run under a
+controller carrying `fiat-v5.16.1` is the first that can. Brevitas reports B010
+and B001 against the one-step runbook, because Protasis fixes that artefact's
+shape at one heading per step; Protasis owns the schema, so the runbook was not
+padded to satisfy a budget written for prose answers.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item: both
+findings with their ids, severities, files and statuses, the red-side result
+against the exact implementation commit, all six risk ids with their
+dispositions, the recorded behaviour change, the three lint exits, both suite
+counts, the Promise Machine counts, the Elenchus report fields, and both
+unpursued leads survive unchanged. Only connective and process prose was
+compacted.
+
+## Fiat frontier row attribution, step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fixes applied. Zero findings. Status: clean.
+
+The three bundled lints exited 0. The re-read followed the shared slicing
+through both callers. `frontier_rows_after_anchor` is the only place the anchor
+rule lives, the gate counts what it returns, and `frontier_subtracted_rows`
+intersects the same slice with the base set, so the refusal and the receipt
+cannot name different rows. A regression asserts that agreement directly.
+
+Risk register disposition. All six ids read clean on the fixed tree.
+`base-read-failure` and `bounded-git-read` are unchanged by the fix, which
+touched neither the read nor its fallback.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 196/196, Hexaemeron suite
+912/912. Promise Machine reports 14 plugins and 14 copies clean. The fixes
+commit `37b6f941431452670faede130e32bef46af3fc49` has a good local signature
+and exactly one copy of each required trailer.
+
+Leads not pursued: the installed-controller split and the Brevitas budget on a
+one-step runbook, both as round 1 recorded them.
+
+This record was shaped by the bounded `sapheneia:sapheneia` durable-record
+operation before append. The frozen inventory was compared item by item:
+verdict, status, the three lint exits, both suite counts, the Promise Machine
+counts, the six risk ids, the fixes commit with its signature and trailer
+attribution, and both unpursued leads survive unchanged. Only connective and
+process prose was compacted.
 ## Step 1, round 1 -- 2026-08-24
 
 Non-Solidity round. The security suite is waived for this run: the step ships

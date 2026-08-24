@@ -41,11 +41,12 @@ named skill, while Lemma stops after producing
 source-linked chunks. Horos decides what an agent does not read. Janus checks
 what a contract hook may observe and change around a host action, where
 Pandects supplies the economic laws such a transition must preserve. Sapheneia
-shapes the agent's own replies for AuDHD readers without changing another
-skill's facts or gates. Brevitas controls the volume and structure of
-engineering prose after vocabulary and register passes. If a request crosses one
-of those boundaries, hand it to the named sibling rather than broadening the
-selected skill.
+shapes the agent's replies for AuDHD readers and has one bounded operation for
+durable audit, issue, and comment prose. It does not change another skill's
+facts or gates. Brevitas controls the volume and structure of engineering prose
+after vocabulary and register passes. If a request crosses one of those
+boundaries, hand it to the named sibling rather than broadening the selected
+skill.
 
 ## Issue queues
 
@@ -67,6 +68,27 @@ is `lemma`. The reasoning, the alternatives and the two questions still open are
 in [ADR-009](docs/decisions/ADR-009-four-issue-queues-and-their-titles.md).
 Filing an issue merely to satisfy a workflow remains forbidden; these
 conventions say how to title one that was worth filing.
+
+## Issue and comment publication
+
+Before an agent publishes a GitHub issue title and body or a GitHub issue
+comment for this repository, use this sequence on the complete candidate:
+
+1. freeze the required title prefix, body opening and protected evidence inventory;
+2. apply `sapheneia-durable-record-shape`;
+3. run Imprimatur and clear every reported defect without dropping protected content;
+4. apply Vulgate to the surface only and compare its content with the source; and
+5. re-run Imprimatur on the exact publishable bytes.
+
+The four frozen title forms are `{skill}-next`, `{skill}-N`, `{skill}-wish`, and
+`framework-N`. Keep every queue-specific body rule from the section above.
+The protected inventory includes claims, qualifications, unknowns, negative
+evidence, identifiers, paths, `file:line` locations, hashes, addresses,
+selectors, numbers, dates, links, quotations, severities, verdicts, status, and
+required host structure. Do not publish after a failed check, changed prefix or
+body opening, missing protected item, or content mismatch.
+GitHub does not enforce this repository rule; it governs agents working from
+these instructions.
 
 ## Repository map
 

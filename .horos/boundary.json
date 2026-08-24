@@ -1,12 +1,12 @@
 {
   "counts": {
-    "bytes_binary": 42333809,
+    "bytes_binary": 36963668,
     "bytes_content_addressed": 7844971,
     "bytes_generated": 135798,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1483
+    "files_walked": 1493
   },
   "entries": [
     {
@@ -73,7 +73,7 @@
       "path": "docs/assets/shoggoth-help-queues.png"
     },
     {
-      "bytes": 8072367,
+      "bytes": 2702226,
       "category": "binary",
       "evidence": "file signature pdf",
       "grade": "hard",

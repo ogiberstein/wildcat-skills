@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.13.1"
+  version: "5.16.1"
 ---
 
 # Fiat
@@ -311,7 +311,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `study` | Research the topic; write the study | [protasis](../protasis/SKILL.md) | `done study --artifact <path> --skills <csv>` |
 | `runbook` | Derive discrete steps from the study | [protasis](../protasis/SKILL.md) | `done runbook --artifact <path> --steps-file <path>` |
 | `implement` | Build the step, simplest construction that satisfies the runbook | [protasis](../protasis/SKILL.md) | `done implement --branch <name> --commit <sha> [--tests <summary>]` |
-| `audit-round` | One security round: run the suite, log, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> [--log <path>] [--fixes-commit <sha> --elenchus-verdict <value>]`, plus `--phylax-exit`, `--ephoros-exit` and `--hypomnema-exit` on a non-Solidity round |
+| `audit-round` | One security round: run the suite, shape and log its record, fix on the stacked branch | [audit-loop.md](references/audit-loop.md) | `audit-round --findings <n> --audit-filter sapheneia:sapheneia [--log <path>] [--fixes-commit <sha> --elenchus-verdict <value>]`, plus `--phylax-exit`, `--ephoros-exit` and `--hypomnema-exit` on a non-Solidity round |
 | `close-audit` | Last round was clean; close the phase | [audit-loop.md](references/audit-loop.md) | `done audit [--fixes-ref <ref>]` |
 | `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 4 | `record security_suite ...` |
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
@@ -401,18 +401,24 @@ report file for any fix. A round supplying `--fixes-commit` also supplies one
 exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or
 `inconclusive`. Fiat checks and records that declaration; it does not attest
 the report bytes, and this generation does not block a non-`guarded` value.
-Record the round even when it finds nothing.
-Zero findings closes the loop; a genuine judgement that the remaining leads
-are not worth another round closes it with `--no-further-leads --reason`.
-Never report a round that did not run.
+Record the round even when it finds nothing. Before append, apply Sapheneia's
+bounded audit-record operation, retain the protected evidence and host shape,
+and give `audit-round` the exact checked operator declaration
+`--audit-filter sapheneia:sapheneia`. The controller records the declaration;
+it does not prove the semantic pass. Zero findings closes the loop; a genuine
+judgement that the remaining leads are not worth another round closes it with
+`--no-further-leads --reason`. Never report a round that did not run.
 
 **Prose.** `hypomnema` decides what this step needs recorded and where it
 goes, before the masks run. Every prose artefact in scope plus the PR title and
 body, through
 the `imprimatur` lint first and the `vulgate` mask second, content held
 constant. Both are bundled: run the lint script by path, read the mask's
-SKILL.md by path and apply it. The receipt refuses a skills list missing
-either configured id.
+SKILL.md by path and apply it. When the run has a task issue, draft its closing
+comment here under the repository's Sapheneia, Imprimatur, Vulgate, Imprimatur
+publication order; fill the exact integration URL and status, then rerun that
+whole order immediately before posting. The receipt refuses a skills list
+missing either configured id.
 
 **Push.** Stage and commit every intended final change with a valid local
 signature and the two exact provenance trailers. Agent-produced work is
@@ -428,6 +434,9 @@ independently supplied or required by higher-priority repository policy. Receipt
 the head SHA, PR URL, and PR base.
 
 **Integrate.** Once every step is pushed, the stack comes down in order.
+Before the run is recorded as integrated, every identity its push receipts
+recorded has to remain attributable from the recorded merge, and the receipt
+records which mechanism carried it.
 Retarget the next step's pull request onto the run branch, then merge this
 step's, and delete no branch here; receipt each merge before starting the next.
 Deleting a merged step's branch closes the pull request stacked on it, and a
@@ -444,7 +453,10 @@ merge it without bypassing them, require GitHub to report `verified: true` and
 `reason: valid` for every pushed commit and merge SHA, delete the run branch and the step branches
 where policy allows, and close any recorded task issue. That merge is the only
 one into the base for the whole run. A routine publish or closure action is not
-a handoff to a human.
+a handoff to a human. Before closing a task issue, post its exact checked
+closing-comment bytes, read the comment and issue state back from GitHub, and
+report only that remote evidence. The controller's closure receipt does not
+attest the comment's semantic passes or bytes.
 
 ## Delegation and context
 
@@ -528,12 +540,12 @@ the study and runbook live.
 
 ### fiat-final-integration
 
-- Promise: A successful integration receipt establishes that every stacked step was merged in controller order, the run branch passed its required gates and exactly one recorded merge landed the run on the named base under the user's delivery authority.
-- Evidence: The user's explicit Fiat request, green step and integration checks, stacked PR URLs, exact GitHub-verified pushed ranges, GitHub-verified merge-step and integration SHAs, final controller state and verified ledger.
+- Promise: A successful integration receipt establishes that every stacked step was merged in controller order, the run branch passed its required gates, every identity the push receipts recorded remains attributable from the recorded merge, and exactly one recorded merge landed the run on the named base under the user's delivery authority.
+- Evidence: The user's explicit Fiat request, green step and integration checks, stacked PR URLs, exact GitHub-verified pushed ranges, GitHub-verified merge-step and integration SHAs, the recorded attribution mechanism for each identity, final controller state and verified ledger.
 - Evidence classes: checked, recorded
-- Boundary: Integration establishes the recorded repository transition; it does not prove the software defect-free, make audit judgements independent or authorise a deployment, financial action or another repository.
+- Boundary: Integration establishes the recorded repository transition; it does not prove the software defect-free, make audit judgements independent or authorise a deployment, financial action or another repository. The attribution result establishes that the base carries each recorded identity by ancestry or by a recorded merge's author or trailer; it does not establish that GitHub will resolve that identity to an account or list it as a contributor.
 - Authorises: Publication of the complete run to the named base and a final report limited to the merged artefacts and recorded evidence.
 - Consequence: 3
-- Refuses: Direct step merges to the base, bypassed gates, a second base merge, deletion that closes a stacked PR prematurely or integration without explicit delivery authority.
+- Refuses: Direct step merges to the base, bypassed gates, a second base merge, deletion that closes a stacked PR prematurely, a merge that leaves a recorded identity carried by nothing, or integration without explicit delivery authority.
 - Recovery: Leave the stack open, restore the required branch or check, retarget and merge in controller order, or halt with the exact blocker before any base mutation.
 - Exceptions: none
