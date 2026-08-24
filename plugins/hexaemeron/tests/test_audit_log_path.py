@@ -12,6 +12,13 @@ import shutil
 import tempfile
 import unittest
 
+import sys
+
+# `run_tests.py` discovers from this directory and puts it on the path; a reader
+# running this module on its own does not get that, and the shared harness lives
+# next door rather than in a package.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from test_hexctl import HexctlCase, LINTS_CLEAN, hexctl_module
 
 
