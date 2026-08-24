@@ -63,3 +63,52 @@ a rewritten stack stays honest by never being written; the integration pull
 request carries the evidence instead. `push-discipline.md` describes both
 regimes, and the controller carries the refusal so the rule holds even when the
 document is not read.
+
+## Addendum: check the landing direction before each merge
+
+Accepted, 2026-08-24. Recorded for
+[skills#555](https://github.com/wildcat-finance/skills/issues/555).
+
+Fiat now joins two evidence planes before it offers or receipts a step merge.
+The Git plane reads every recorded step ref twice and checks the exact commits
+owned by each unmerged step. The pull-request plane reads only the current
+step's recorded URL and checks its live head, base and state. Neither plane can
+replace the other: refs carry the durable graph fact, while the pull request
+can expose a wrong target before that graph changes.
+
+The ancestry rule is directional. A later step branch carrying earlier commits
+is the intended review stack. An exact later-step commit reachable from a
+lower-numbered step branch is the damage signal. The run branch is the intended
+destination and is not a forbidden carrier. Only the first unmerged step's
+pull request must target that run branch; a future pull request may still point
+at the step below it or may already have been retargeted during the required
+retarget-first window.
+
+The first and second complete ref snapshots must match. Between them, the
+controller obtains the named objects without moving a ref and reads the current
+pull request. Missing objects, malformed output, authentication or timeout
+failures, PR/ref head disagreement, and a changed second snapshot are
+unavailable rather than clear. A concrete downward ancestor, rewritten
+unmerged branch, or wrong current pull-request topology is blocked.
+
+This closes the evidence gap behind PR #542; it does not lock GitHub. A person
+can still change or merge a pull request after a clear `next` result and before
+the receipt check. The controller repeats the same check at `done merge-step`,
+which narrows that race and refuses a receipt, but it cannot prevent or undo an
+external click.
+
+### Audit follow-up: require native complete history
+
+The first audit round reproduced one true ancestor that `git merge-base
+--is-ancestor` reported as absent after exact tips were fetched into a shallow
+clone. It also reproduced ancestry changed by a local replacement ref and by a
+legacy graft. A clear result now requires a non-shallow repository, refuses a
+graft surface, and runs ancestry with replacement refs disabled. Fetching exact
+tips is object availability evidence; it is not proof that their history is
+complete.
+
+The same round tightened the inputs joined to that graph. The controller now
+requires an ordered merged-step prefix, exact integer step numbers and string
+titles. Pull-request evidence requires full head and base OIDs, native branch
+names, and a merge OID only for `MERGED`. A historical base OID remains
+diagnostic: it cannot replace the live named base in the landing decision.

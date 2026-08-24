@@ -451,6 +451,31 @@
       "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
       "selector": "test_unrelated_and_stale_amendments_are_not_selected_for_a_packet"
     },
+    "fiat-stack-landing-m": {
+      "claim": "A legacy unmerged-step receipt without exact verified commits is unavailable and cannot authorise a merge.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_12_legacy_receipt_without_verified_commits_is_unavailable"
+    },
+    "fiat-stack-landing-o": {
+      "claim": "A historical pull-request base OID is not promoted into evidence about the live named base.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_11_historical_base_oid_does_not_replace_live_named_base"
+    },
+    "fiat-stack-landing-p": {
+      "claim": "A coherent snapshot with healthy upward reachability checks clear through bounded ref, fetch, PR and local ancestry calls.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_04_healthy_upward_reachability_is_clear"
+    },
+    "fiat-stack-landing-r": {
+      "claim": "A wrong current pull-request base is blocked with the exact live topology and retarget-and-retry recovery.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_02_open_current_pr_on_wrong_base_is_blocked"
+    },
+    "fiat-stack-landing-s": {
+      "claim": "A changed second ref snapshot cannot inherit the first snapshot's clear result.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_10_first_second_ref_race_is_unavailable"
+    },
     "fiat-observation-m": {
       "claim": "A requested observation claim without a selected binding refuses while ordinary controller verification remains available.",
       "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
@@ -1472,6 +1497,22 @@
     },
     {
       "cases": {
+        "M": "fiat-stack-landing-m",
+        "O": "fiat-stack-landing-o",
+        "P": "fiat-stack-landing-p",
+        "R": "fiat-stack-landing-r",
+        "S": "fiat-stack-landing-s",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      },
+      "group": "executable",
+      "promise_id": "fiat-stack-landing-check",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md"
+    },
+    {
+      "cases": {
         "M": "fiat-amendment-m",
         "O": "fiat-amendment-o",
         "P": "fiat-amendment-p",
@@ -2448,7 +2489,7 @@
     "contract": "fiat-run-observation-binding/v1",
     "controller": {
       "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b"
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77"
     },
     "validator": {
       "path": "scripts/run_observation.py",
@@ -2774,7 +2815,21 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
+    },
+    "fiat-stack-landing-check": {
+      "bindings": {
+        "evidence_classes": "closed live result joined to the canonical Evidence classes field",
+        "evidence_references": "exact receipt commits, ordered merged prefix, two equal multi-ref snapshots, fetched tip objects, complete native history, strict current PR metadata and replacement-free local ancestry results",
+        "exception": "canonical Exceptions field",
+        "promise_id": "coverage key joined to the canonical promise heading and stack_guard result",
+        "scope": "recorded step branches, exact unmerged-step commits and the current recorded pull request at one coherent snapshot",
+        "subject": "run branch, current step, recorded PR URL, returned head, base and state, exact ref tips and owned commits",
+        "transition": "clear next or merge-step admission joined to the canonical Authorises field",
+        "unknowns": "post-check GitHub changes, equivalent replacement SHAs, arbitrary branches and future availability"
+      },
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2788,7 +2843,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2802,7 +2857,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-runbook-amendment": {
@@ -2816,7 +2871,7 @@
         "transition": "canonical runbook replacement, receipt re-pin, exact source carriage and causally bound holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "semantic completeness, replacement correctness, future command success and truth of operator verdicts"
       },
-      "sha256": "b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-run-observation-binding": {
@@ -2830,7 +2885,7 @@
         "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
         "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
       },
-      "sha256": "b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b",
+      "sha256": "35b3cf0872fd4bf7394a74e0a913c9d2d1135715b3d3c3ec44614065aa5b1d77",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {

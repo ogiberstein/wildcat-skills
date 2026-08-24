@@ -26,6 +26,7 @@ import fcntl
 import glob
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -670,7 +671,7 @@ def task_issue_number(value: str) -> str:
 
 
 def check_branch_name(name: str) -> None:
-    if not BRANCH_RE.match(name) or ".." in name or "//" in name:
+    if not BRANCH_RE.fullmatch(name) or ".." in name or "//" in name:
         die(f"'{name}' is not a usable branch name")
     if name.endswith(".lock"):
         die(f"'{name}' is not a usable branch name")
@@ -3026,6 +3027,9 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    stack_guard = stack_landing_guard(args.dir, state)
+    if stack_guard["result"] != "clear":
+        die("stack landing guard refused: " + stack_guard_diagnostic(stack_guard))
     refuse_rewritten_stack(args.dir, state, args.step)
     step = state["steps"][args.step - 1]
     push_receipt = as_dict(step["receipts"].get("push"))
@@ -5172,6 +5176,614 @@ def inspect_pull_request(
     }
 
 
+class StackGuardUnavailable(Exception):
+    """One evidence plane could not answer the stack-landing question."""
+
+    def __init__(self, evidence_class: str, reason_code: str):
+        super().__init__(reason_code)
+        self.evidence_class = evidence_class
+        self.reason_code = reason_code
+
+
+STACK_GUARD_MESSAGES = {
+    "outside-integrate": (
+        "the stack landing check does not apply in this phase",
+        "continue-with-current-phase",
+    ),
+    "stack-already-merged": (
+        "every step already has a merge receipt",
+        "continue-with-run-integration",
+    ),
+    "verified-commits-missing": (
+        "an unmerged step has no bounded exact verified-commit list",
+        "repair-push-evidence",
+    ),
+    "invalid-stack-plan": (
+        "the recorded stack cannot produce one bounded inspection plan",
+        "repair-controller-state",
+    ),
+    "git-ref-read-failed": (
+        "the recorded step refs could not be read as one exact snapshot",
+        "retry-live-evidence",
+    ),
+    "git-object-fetch-failed": (
+        "the exact snapshot objects could not be obtained without moving refs",
+        "retry-live-evidence",
+    ),
+    "git-history-incomplete": (
+        "the local Git history cannot supply native exact ancestry",
+        "restore-complete-native-history",
+    ),
+    "git-ancestry-failed": (
+        "the fetched exact objects did not yield a complete ancestry answer",
+        "retry-live-evidence",
+    ),
+    "pull-request-read-failed": (
+        "the current recorded pull request could not be read",
+        "retry-live-evidence",
+    ),
+    "pull-request-malformed": (
+        "the current recorded pull request returned incomplete topology",
+        "retry-live-evidence",
+    ),
+    "pull-request-wrong-url": (
+        "the pull request response did not name the recorded URL",
+        "retry-recorded-pull-request",
+    ),
+    "ref-snapshot-changed": (
+        "a recorded step ref changed during the live inspection",
+        "retry-live-evidence",
+    ),
+    "pr-ref-head-disagreement": (
+        "the current pull request head disagrees with its named remote ref",
+        "retry-after-ref-and-pr-converge",
+    ),
+    "unmerged-branch-rewritten": (
+        "an unmerged step branch no longer names its pushed exact head",
+        "land-original-commits",
+    ),
+    "current-pr-wrong-head": (
+        "the current pull request names the wrong step branch",
+        "retarget-or-reopen-current-pr",
+    ),
+    "current-pr-wrong-base": (
+        "the current pull request does not target the run branch",
+        "retarget-current-pr-and-retry",
+    ),
+    "current-pr-closed": (
+        "the current pull request is neither open nor correctly merged",
+        "restore-current-pr-topology",
+    ),
+    "current-pr-merge-missing": (
+        "the merged current pull request has no exact merge commit",
+        "retry-live-evidence",
+    ),
+    "commit-reachable-downward": (
+        "an unmerged step commit is reachable from a lower step branch",
+        "halt-damaged-stack",
+    ),
+    "coherent-snapshot-clear": (
+        "the exact step refs and current pull request form a clear snapshot",
+        "proceed-with-recorded-step",
+    ),
+}
+
+
+def stack_guard_result(result: str, evidence_class: str, reason_code: str,
+                       **details) -> dict:
+    """One bounded diagnostic with fixed prose and optional exact identifiers."""
+    reason, recovery = STACK_GUARD_MESSAGES[reason_code]
+    return {
+        "result": result,
+        "evidence_class": evidence_class,
+        "reason_code": reason_code,
+        "reason": reason,
+        "recovery": recovery,
+        **details,
+    }
+
+
+STACK_GUARD_DETAIL_LABELS = (
+    ("current_step", "current step"),
+    ("owner_step", "owner step"),
+    ("recorded_pr_url", "recorded PR"),
+    ("pr_head", "PR head"),
+    ("pr_base", "PR base"),
+    ("pr_state", "PR state"),
+    ("offending_commit", "offending commit"),
+    ("carrier_branch", "carrier branch"),
+    ("carrier_tip", "carrier tip"),
+    ("current_tip", "current tip"),
+)
+
+
+def stack_guard_diagnostic(guard: dict) -> str:
+    """Render only the guard's bounded identifiers, never child-tool output."""
+    fields = [
+        f"result={guard['result']}",
+        f"evidence={guard['evidence_class']}",
+        f"reason={guard['reason_code']}",
+        f"message={guard['reason']}",
+    ]
+    for key, label in STACK_GUARD_DETAIL_LABELS:
+        value = guard.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            fields.append(f"{label}={value}")
+        elif isinstance(value, str) and len(value) <= 1024:
+            fields.append(f"{label}={value}")
+    fields.append(f"recovery={guard['recovery']}")
+    return "; ".join(fields)
+
+
+def stack_landing_plan(state: dict) -> dict | None:
+    """Derive the whole live query from immutable controller evidence."""
+    run_branch = run_branch_of(state)
+    if not isinstance(run_branch, str):
+        raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+    try:
+        run_branch_bytes = run_branch.encode("utf-8")
+    except UnicodeEncodeError:
+        raise StackGuardUnavailable(
+            "local-state", "invalid-stack-plan"
+        ) from None
+    if len(run_branch_bytes) > 255:
+        raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+    with contextlib.redirect_stderr(io.StringIO()):
+        try:
+            check_branch_name(run_branch)
+        except SystemExit:
+            raise StackGuardUnavailable(
+                "local-state", "invalid-stack-plan"
+            ) from None
+
+    steps = state.get("steps")
+    integrate = state.get("integrate")
+    merged = integrate.get("merged") if isinstance(integrate, dict) else None
+    if (
+        not isinstance(steps, list)
+        or not steps
+        or len(steps) > GIT_PATHS_MAX
+        or not isinstance(merged, list)
+        or any(type(number) is not int for number in merged)
+        or len(merged) > len(steps)
+        or merged != list(range(1, len(merged) + 1))
+    ):
+        raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+
+    branches: dict[int, str] = {}
+    numbered: dict[int, dict] = {}
+    for expected, step in enumerate(steps, 1):
+        if (
+            not isinstance(step, dict)
+            or type(step.get("n")) is not int
+            or step.get("n") != expected
+            or not isinstance(step.get("title"), str)
+        ):
+            raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+        branch = step_branch_name(state, step)
+        try:
+            branch_bytes = branch.encode("utf-8")
+        except UnicodeEncodeError:
+            raise StackGuardUnavailable(
+                "local-state", "invalid-stack-plan"
+            ) from None
+        if len(branch_bytes) > 255:
+            raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+        with contextlib.redirect_stderr(io.StringIO()):
+            try:
+                check_branch_name(branch)
+            except SystemExit:
+                raise StackGuardUnavailable(
+                    "local-state", "invalid-stack-plan"
+                ) from None
+        branches[expected] = branch
+        numbered[expected] = step
+
+    if any(number not in numbered for number in merged):
+        raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+    unmerged = [number for number in numbered if number not in merged]
+    if not unmerged:
+        return None
+
+    total_commits = 0
+    owners = []
+    for number in unmerged:
+        push = as_dict(as_dict(numbered[number].get("receipts")).get("push"))
+        commits = push.get("verified_commits")
+        if (
+            not isinstance(commits, list)
+            or not commits
+            or len(commits) > GIT_PATHS_MAX
+            or any(not isinstance(sha, str) or not COMMIT_RE.fullmatch(sha)
+                   for sha in commits)
+        ):
+            raise StackGuardUnavailable(
+                "local-state", "verified-commits-missing"
+            )
+        total_commits += len(commits)
+        if total_commits > GIT_PATHS_MAX:
+            raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+        # `head_commit` was historically allowed to retain the operator's
+        # abbreviated input. The verified list is the exact, resolved receipt.
+        head = commits[-1]
+        owners.append(
+            {
+                "step": number,
+                "branch": branches[number],
+                "head": head,
+                "verified_commits": list(commits),
+            }
+        )
+
+    current = unmerged[0]
+    current_push = as_dict(
+        as_dict(numbered[current].get("receipts")).get("push")
+    )
+    pr_url = current_push.get("pr_url")
+    if (
+        not isinstance(pr_url, str)
+        or len(pr_url) > 1024
+        or GITHUB_PR_RE.fullmatch(pr_url) is None
+    ):
+        raise StackGuardUnavailable("local-state", "invalid-stack-plan")
+    pr_url = pr_url.rstrip("/")
+    return {
+        "run_branch": run_branch,
+        "branches": branches,
+        "owners": owners,
+        "current_step": current,
+        "current_branch": branches[current],
+        "pr_url": pr_url,
+    }
+
+
+def _stack_ref_snapshot(base_dir: str, branches: list[str]) -> dict[str, str]:
+    """Read every known step ref in one bounded remote call."""
+    refs = [f"refs/heads/{branch}" for branch in branches]
+    data = bounded_git(
+        base_dir,
+        ["ls-remote", "--refs", "origin", *refs],
+        "recorded step refs could not be read",
+    )
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        die("recorded step refs returned non-UTF-8 output")
+    found: dict[str, str] = {}
+    for line in text.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 2 or fields[1] not in refs:
+            die("recorded step refs returned malformed output")
+        branch = fields[1].removeprefix("refs/heads/")
+        if branch in found or not COMMIT_RE.fullmatch(fields[0]):
+            die("recorded step refs returned malformed output")
+        found[branch] = fields[0]
+    if set(found) != set(branches):
+        die("recorded step refs did not return every exact branch")
+    return found
+
+
+def _stack_fetch_objects(base_dir: str, tips: list[str]) -> None:
+    """Obtain one exact tip set without updating FETCH_HEAD or any branch."""
+    unique = list(dict.fromkeys(tips))
+    if not unique or len(unique) > GIT_PATHS_MAX:
+        die("recorded step ref snapshot has an invalid object set")
+    bounded_git(
+        base_dir,
+        [
+            "fetch", "--quiet", "--no-tags", "--no-write-fetch-head",
+            "origin", *unique,
+        ],
+        "recorded step ref objects could not be obtained",
+    )
+
+
+def _stack_require_complete_history(base_dir: str) -> None:
+    """Refuse shallow or legacy-rewritten history before native ancestry."""
+    shallow = tool_text(
+        bounded_git(base_dir, ["rev-parse", "--is-shallow-repository"]),
+        "local Git history check",
+    )
+    if shallow not in ("false\n", "false\r\n") or "GIT_GRAFT_FILE" in os.environ:
+        die("local Git history is incomplete or rewritten")
+    graft_output = tool_text(
+        bounded_git(
+            base_dir,
+            ["rev-parse", "--path-format=absolute", "--git-path", "info/grafts"],
+        ),
+        "local Git graft check",
+    )
+    graft_lines = graft_output.splitlines()
+    if (
+        len(graft_lines) != 1
+        or not os.path.isabs(graft_lines[0])
+        or len(graft_lines[0].encode("utf-8")) > 4096
+    ):
+        die("local Git graft path is malformed")
+    try:
+        graft_stat = os.lstat(graft_lines[0])
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError):
+        die("local Git graft state could not be read")
+    if not stat.S_ISREG(graft_stat.st_mode) or graft_stat.st_size:
+        die("local Git history is rewritten by a graft file")
+
+
+def _stack_pr_snapshot(base_dir: str, pr_url: str) -> dict:
+    """Read only the current PR already named by its immutable push receipt."""
+    repository = github_repository(base_dir)
+    url = pull_request_repository(pr_url, repository)
+    data = bounded_gh(
+        base_dir,
+        [
+            "pr", "view", url, "--repo", repository, "--json",
+            "url,state,headRefName,headRefOid,baseRefName,baseRefOid,mergeCommit",
+        ],
+        "current recorded pull request could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, "current recorded pull request"))
+    except ValueError:
+        die("current recorded pull request returned invalid JSON")
+    if not isinstance(payload, dict):
+        die("current recorded pull request returned invalid topology")
+    merge = payload.get("mergeCommit")
+    if merge is not None and (
+        not isinstance(merge, dict) or not isinstance(merge.get("oid"), str)
+    ):
+        die("current recorded pull request returned invalid merge topology")
+    return {
+        "url": payload.get("url"),
+        "state": payload.get("state"),
+        "head": payload.get("headRefName"),
+        "head_sha": payload.get("headRefOid"),
+        "base": payload.get("baseRefName"),
+        # This historical value is retained for diagnostics only. The named
+        # live base, not its merge-time OID, answers the target question.
+        "base_sha": payload.get("baseRefOid"),
+        "merge_sha": merge.get("oid") if merge is not None else None,
+    }
+
+
+def stack_commit_is_ancestor(base_dir: str, candidate: str, descendant: str,
+                             label: str) -> bool:
+    """Local ancestry over fetched exact objects, with no network in the loop."""
+    candidate = require_full_sha(candidate, f"{label} commit")
+    descendant = require_full_sha(descendant, f"{label} descendant")
+    status = bounded_tool_status(
+        base_dir,
+        "git",
+        [
+            "--no-replace-objects", "merge-base", "--is-ancestor", "--end-of-options",
+            candidate, descendant,
+        ],
+    )
+    if status not in (0, 1):
+        die(f"{label} ancestry could not be determined")
+    return status == 0
+
+
+def _stack_guard_read(evidence_class: str, reason_code: str, function,
+                      *arguments):
+    """Turn any bounded evidence-reader failure into one value-free result."""
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            return function(*arguments)
+    except (SystemExit, Exception):
+        raise StackGuardUnavailable(evidence_class, reason_code) from None
+
+
+def _validated_stack_refs(snapshot, branches: list[str]) -> dict[str, str]:
+    if (
+        not isinstance(snapshot, dict)
+        or set(snapshot) != set(branches)
+        or any(
+            not isinstance(branch, str)
+            or not isinstance(sha, str)
+            or not COMMIT_RE.fullmatch(sha)
+            for branch, sha in snapshot.items()
+        )
+    ):
+        raise StackGuardUnavailable("git-refs", "git-ref-read-failed")
+    return dict(snapshot)
+
+
+def _validated_stack_pr(snapshot, recorded_url: str) -> dict:
+    required = {
+        "url", "state", "head", "head_sha", "base", "base_sha", "merge_sha",
+    }
+    if not isinstance(snapshot, dict) or not required.issubset(snapshot):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    if not isinstance(snapshot["url"], str):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    if snapshot["url"] != recorded_url:
+        raise StackGuardUnavailable("pull-request", "pull-request-wrong-url")
+    for key in ("head_sha", "base_sha"):
+        if not isinstance(snapshot[key], str) or not COMMIT_RE.fullmatch(snapshot[key]):
+            raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    if not all(isinstance(snapshot[key], str) for key in ("state", "head", "base")):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    if snapshot["state"] not in ("OPEN", "CLOSED", "MERGED"):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    merge_sha = snapshot["merge_sha"]
+    if (
+        snapshot["state"] == "MERGED"
+        and merge_sha is not None
+        and (not isinstance(merge_sha, str) or not COMMIT_RE.fullmatch(merge_sha))
+    ) or (snapshot["state"] != "MERGED" and merge_sha is not None):
+        raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+    for key in ("head", "base"):
+        try:
+            branch_bytes = snapshot[key].encode("utf-8")
+        except UnicodeEncodeError:
+            raise StackGuardUnavailable(
+                "pull-request", "pull-request-malformed"
+            ) from None
+        if len(branch_bytes) > 255:
+            raise StackGuardUnavailable("pull-request", "pull-request-malformed")
+        with contextlib.redirect_stderr(io.StringIO()):
+            try:
+                check_branch_name(snapshot[key])
+            except SystemExit:
+                raise StackGuardUnavailable(
+                    "pull-request", "pull-request-malformed"
+                ) from None
+    return dict(snapshot)
+
+
+def stack_landing_guard(base_dir: str, state: dict) -> dict:
+    """Answer the directional stack and current-PR questions once, fail closed."""
+    if state.get("phase") != "integrate":
+        return stack_guard_result(
+            "not-applicable", "local-state", "outside-integrate"
+        )
+    try:
+        plan = stack_landing_plan(state)
+    except StackGuardUnavailable as exc:
+        return stack_guard_result(
+            "unavailable", exc.evidence_class, exc.reason_code
+        )
+    if plan is None:
+        return stack_guard_result(
+            "not-applicable", "local-state", "stack-already-merged"
+        )
+
+    common = {
+        "current_step": plan["current_step"],
+        "current_branch": plan["current_branch"],
+        "recorded_pr_url": plan["pr_url"],
+    }
+    branches = [plan["branches"][number] for number in sorted(plan["branches"])]
+    try:
+        first = _validated_stack_refs(
+            _stack_guard_read(
+                "git-refs", "git-ref-read-failed",
+                _stack_ref_snapshot, base_dir, branches,
+            ),
+            branches,
+        )
+        _stack_guard_read(
+            "git-refs", "git-object-fetch-failed",
+            _stack_fetch_objects, base_dir, list(first.values()),
+        )
+        _stack_guard_read(
+            "git-graph", "git-history-incomplete",
+            _stack_require_complete_history, base_dir,
+        )
+        pr = _validated_stack_pr(
+            _stack_guard_read(
+                "pull-request", "pull-request-read-failed",
+                _stack_pr_snapshot, base_dir, plan["pr_url"],
+            ),
+            plan["pr_url"],
+        )
+        second = _validated_stack_refs(
+            _stack_guard_read(
+                "git-refs", "git-ref-read-failed",
+                _stack_ref_snapshot, base_dir, branches,
+            ),
+            branches,
+        )
+    except StackGuardUnavailable as exc:
+        return stack_guard_result(
+            "unavailable", exc.evidence_class, exc.reason_code, **common
+        )
+
+    if first != second:
+        return stack_guard_result(
+            "unavailable", "git-refs", "ref-snapshot-changed", **common,
+            pr_head=pr["head"], pr_base=pr["base"], pr_state=pr["state"],
+        )
+
+    pr_details = {
+        "pr_head": pr["head"],
+        "pr_base": pr["base"],
+        "pr_state": pr["state"],
+    }
+
+    for owner in plan["owners"]:
+        if owner["step"] == plan["current_step"]:
+            # The current branch may have fresh, signed commits. Its coherent
+            # PR/ref topology is checked below, then merge-time repair verifies
+            # the new exact range. Only waiting branches retain the native-stack
+            # rewrite refusal.
+            continue
+        actual = first[owner["branch"]]
+        if actual != owner["head"]:
+            return stack_guard_result(
+                "blocked", "git-refs", "unmerged-branch-rewritten",
+                **common,
+                **pr_details,
+                owner_step=owner["step"],
+                carrier_branch=owner["branch"],
+                carrier_tip=actual,
+            )
+
+    if pr["head"] != plan["current_branch"]:
+        return stack_guard_result(
+            "blocked", "pull-request", "current-pr-wrong-head", **common,
+            **pr_details,
+        )
+    if pr["base"] != plan["run_branch"]:
+        return stack_guard_result(
+            "blocked", "pull-request", "current-pr-wrong-base", **common,
+            **pr_details,
+        )
+    current_tip = first[plan["current_branch"]]
+    if pr["head_sha"] != current_tip:
+        return stack_guard_result(
+            "unavailable", "pull-request", "pr-ref-head-disagreement",
+            **common, **pr_details, current_tip=current_tip,
+        )
+    if pr["state"] not in ("OPEN", "MERGED"):
+        return stack_guard_result(
+            "blocked", "pull-request", "current-pr-closed", **common,
+            **pr_details, current_tip=current_tip,
+        )
+    if pr["state"] == "MERGED" and (
+        not isinstance(pr.get("merge_sha"), str)
+        or not COMMIT_RE.fullmatch(pr["merge_sha"])
+    ):
+        return stack_guard_result(
+            "unavailable", "pull-request", "current-pr-merge-missing",
+            **common, **pr_details, current_tip=current_tip,
+        )
+
+    try:
+        for owner in plan["owners"]:
+            for lower in range(1, owner["step"]):
+                carrier = plan["branches"][lower]
+                carrier_tip = first[carrier]
+                for commit_sha in owner["verified_commits"]:
+                    if _stack_guard_read(
+                        "git-refs", "git-ancestry-failed",
+                        stack_commit_is_ancestor,
+                        base_dir, commit_sha, carrier_tip,
+                        f"step {owner['step']} against step {lower}",
+                    ):
+                        return stack_guard_result(
+                            "blocked", "git-refs",
+                            "commit-reachable-downward", **common,
+                            **pr_details,
+                            owner_step=owner["step"],
+                            offending_commit=commit_sha,
+                            carrier_branch=carrier,
+                            carrier_tip=carrier_tip,
+                        )
+    except StackGuardUnavailable as exc:
+        return stack_guard_result(
+            "unavailable", exc.evidence_class, exc.reason_code, **common,
+            **pr_details, current_tip=current_tip,
+        )
+
+    return stack_guard_result(
+        "clear", "git-refs+pull-request", "coherent-snapshot-clear",
+        **common, **pr_details, current_tip=current_tip,
+        snapshot_sha256=hashlib.sha256(canonical(first).encode()).hexdigest(),
+    )
+
+
 def github_commit_payload(base_dir: str, repository: str, commit_sha: str) -> dict:
     """One bounded GitHub commit payload, checked for the exact SHA."""
     data = bounded_gh(
@@ -5524,7 +6136,19 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
 
 def cmd_next(args) -> None:
     state = load_state(args.dir)
-    out = delegation_packet(args.dir, state, _next_directive(state))
+    directive = _next_directive(state)
+    if directive.get("do") == "merge-step":
+        stack_guard = stack_landing_guard(args.dir, state)
+        if stack_guard["result"] == "clear":
+            directive = {**directive, "stack_guard": stack_guard}
+        else:
+            directive = {
+                "do": "blocked",
+                "reason": stack_guard["reason"],
+                "recovery": stack_guard["recovery"],
+                "stack_guard": stack_guard,
+            }
+    out = delegation_packet(args.dir, state, directive)
     print(json.dumps(out))
 
 
@@ -5623,9 +6247,16 @@ def cmd_status(args) -> None:
         source = receipted_source(args.dir, state, name)
         if name == "runbook":
             _receipted_runbook_amendments(source)
+    stack_guard = (
+        stack_landing_guard(args.dir, state)
+        if state.get("phase") == "integrate"
+        else None
+    )
     if args.json:
         payload = dict(state)
         payload["observation_run_id"] = controller_run_id(state)
+        if stack_guard is not None:
+            payload["stack_guard"] = stack_guard
         print(json.dumps(payload, indent=2))
         return
     print(f"topic: {clean(state['topic'])}")
@@ -5680,6 +6311,8 @@ def cmd_status(args) -> None:
     for step in state["steps"]:
         mark = {"pending": " ", "open": ">", "done": "x"}[step["status"]]
         print(f"  [{mark}] {step['n']}. {clean(step['title'])}")
+    if stack_guard is not None:
+        print("stack guard: " + stack_guard_diagnostic(stack_guard))
 
 
 def cmd_halt(args) -> None:

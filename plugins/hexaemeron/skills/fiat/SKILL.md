@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.21.1"
+  version: "5.22.1"
 ---
 
 # Fiat
@@ -296,6 +296,14 @@ merges the stack into the run branch in step order and merges the run branch
 into the base exactly once. One merge into `main` per run, at the end, carrying
 the whole delivery.
 
+Before `next` offers a step merge, the controller checks one coherent live
+snapshot. Exact commits owned by an unmerged step must not be reachable from a
+lower-numbered step branch, and the current step's recorded pull request must
+name the run branch as its base. Earlier commits carried upward by later step
+branches are the healthy stack and do not block. `status` keeps the complete
+local state readable when either Git or GitHub is unavailable, but marks the
+live result unavailable and cannot call the stack clear.
+
 ## The loop
 
 Repeat until `next` returns `done`, `halted`, `blocked`, or `audit-verdict`:
@@ -316,7 +324,7 @@ Act on the single directive it prints, then receipt it. The directory:
 | `resolve-security-suite` | Suite receipt missing; resolve or waive | preflight step 4 | `record security_suite ...` |
 | `prose` | Rewrite every prose artefact and draft the PR text | [prose-pass.md](references/prose-pass.md) | `done prose --files <n> --skills <csv>` |
 | `push` | Stage and commit final changes, push the step branch, open its stacked PR against `pr_base`, and leave it open | [push-discipline.md](references/push-discipline.md) | `done push --pr-url <url> --head-commit <sha> --pr-base <ref>` |
-| `merge-step` | Merge the named step's PR into the run branch, bottom of the stack first | [push-discipline.md](references/push-discipline.md) | `done merge-step --step <n> --merge-commit <sha>` |
+| `merge-step` | After the shared live guard is clear, merge the named step's PR into the run branch, bottom of the stack first | [push-discipline.md](references/push-discipline.md) | `done merge-step --step <n> --merge-commit <sha>` |
 | `sync-run` | When the base advanced and the integration PR conflicts, preserve the completed product evidence and receipt a signed two-parent merge plus bounded integration revalidation; supersede a failed composition receipt only with the exact active SHA, a reason and fresh evidence | [push-discipline.md](references/push-discipline.md) | `done sync-run --commit <sha> --base-commit <sha> --revalidation .hexaemeron/integration-revalidation.json [--supersede-sync <sha> --reason <text>]` |
 | `integrate` | Open and merge one PR from the run branch into the base, name what the run leaves unfinished in `.hexaemeron/run-pr.md`, then clean up and close any recorded task issue | [push-discipline.md](references/push-discipline.md) | `done integrate --pr-url <url> --merge-commit <sha> [--closed-issue-url <url>]` |
 | `audit-verdict` | Max rounds hit with findings open | ask the user | `done audit --no-further-leads --reason ...` or `halt --reason ...` |
@@ -483,6 +491,16 @@ the head SHA, PR URL, and PR base.
 Before the run is recorded as integrated, every identity its push receipts
 recorded has to remain attributable from the recorded merge, and the receipt
 records which mechanism carried it.
+Before each click, `next` reads every exact recorded step ref twice around one
+read of the current recorded pull request. It fetches the named tip objects
+without moving a local or remote branch, checks every unmerged step's exact
+`verified_commits` against lower-numbered step branches locally, and requires
+only the current pull request to target the run branch. A concrete downward
+ancestor or wrong current base is blocked. A missing object, moved snapshot,
+PR/ref disagreement, malformed response or failed Git or GitHub read is
+unavailable. Neither result emits `merge-step`; `done merge-step` repeats the
+same check before any state or ledger write. A clear result is a snapshot, not
+a lock: retarget first, retry the check, then merge without delay.
 Retarget the next step's pull request onto the run branch, then merge this
 step's, and delete no branch here; receipt each merge before starting the next.
 Deleting a merged step's branch closes the pull request stacked on it, and a
@@ -629,6 +647,18 @@ the study and runbook live.
 - Consequence: 2
 - Refuses: A missing binding, unsafe or unstable path, wrong contract or controller run, non-contiguous or open prefix, changed earlier bytes, non-increasing selection, mismatched receipt, interval or count, replaced, reordered or truncated bound bytes, or capture, validation or redaction that is not accepted and passed.
 - Recovery: Keep ordinary controller verification available, inspect the stable `FOB` code, restore or append to the exact run-local stream, record one new selected receipt boundary when needed, and rerun `check-prefix`, `observe`, then `verify --observations`.
+- Exceptions: none
+
+### fiat-stack-landing-check
+
+- Promise: A `clear` stack-landing result establishes that one bounded snapshot joined the named exact step refs, every unmerged step's recorded exact commits, and the current recorded pull request's live head, base and state without finding a downward carry or current-PR topology mismatch.
+- Evidence: A validated immutable plan from controller state and push receipts, one bounded multi-ref read, one no-ref-update fetch of the named tip objects, a complete native-history check, one bounded read of the current recorded pull request, the repeated equal multi-ref read, local exact-SHA ancestry with replacement refs disabled, the closed result and reason code, and the focused issue-555 specimens.
+- Evidence classes: checked
+- Boundary: `clear` covers only the recorded step branches, exact commits and current pull request at that coherent snapshot. It does not lock GitHub, make a later merge atomic, prove semantic equivalence for another SHA, inspect arbitrary branches, guarantee later availability, or repair a damaged graph.
+- Authorises: Emitting the current `merge-step` directive or admitting its receipt while that exact snapshot is clear; the operator still follows retarget-first order and reruns the receipt check after the click.
+- Consequence: 2
+- Refuses: A concrete downward ancestor, a rewritten unmerged branch, wrong current head or base, closed-unmerged current pull request, invalid merged-step prefix, legacy receipt without exact commits, shallow or grafted local history, missing or malformed refs, objects or pull-request fields, changed snapshots, PR/ref disagreement, wrong response URL, or a failed Git or GitHub read.
+- Recovery: Retarget a clean current pull request and retry, retry unavailable evidence without changing state, restore complete native Git history and exact push evidence, land from the original signed commits, or halt a graph already carrying a later commit downward.
 - Exceptions: none
 
 ### fiat-receipted-delivery
