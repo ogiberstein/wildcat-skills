@@ -2425,10 +2425,14 @@
       "path": "plugins/hexaemeron/tests/fixtures/run-observation-binding/cases.json",
       "sha256": "12a3eb914926275e8b40fc23c5ae82e5121c0e4c554ef10ce3a8a37aa17d4a67"
     },
+    "reporter": {
+      "path": "plugins/hexaemeron/tests/run_tests.py",
+      "sha256": "2329a9f8e65726419d004e00baa5e0ff8825a68352826446b1973f3bba25456f"
+    },
     "tests": [
       {
         "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
-        "sha256": "f2f0475140679658d53de84f78ab0f37ead745d7860e9466d1efcd6b6ef60863",
+        "sha256": "0d5bc849287e5811a5027575adcbeb66a05532de317d06714547c62cd1e7a6c9",
         "selectors": [
           "test_binding_validates_the_captured_bytes_not_a_later_path_snapshot",
           "test_binding_finally_rechecks_the_named_bytes_after_validation",
@@ -2447,7 +2451,8 @@
           "test_verification_joins_each_binding_to_one_exact_ledger_record",
           "test_verification_refuses_an_orphaned_observation_record",
           "test_symlinked_file_and_parent_are_refused_before_receipt",
-          "test_final_read_refuses_parent_escape_during_second_snapshot"
+          "test_final_read_refuses_parent_escape_during_second_snapshot",
+          "test_receipted_elenchus_reporter_accepts_positional_target"
         ]
       },
       {

@@ -1,6 +1,7 @@
 """Focused guards for Fiat's companion observation-prefix receipt."""
 
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,15 @@ SUCCESS = ROOT / "tests" / "fixtures" / "run-observation" / "valid" / "success.j
 CASES = Path(__file__).resolve().parent / "fixtures" / "run-observation-binding" / "cases.json"
 BINDING_CONTRACT = "fiat-run-observation-binding/v1"
 OBSERVATION_CONTRACT = "promise-machine-run-observation/v1"
+
+
+def source_runner_module():
+    """Load the source-owned Elenchus reporter without invoking its suite."""
+    source = ROOT / "plugins" / "hexaemeron" / "tests" / "run_tests.py"
+    spec = importlib.util.spec_from_file_location("fiat_run_tests_reporter", source)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class ObservationBindingTests(HexctlCase):
@@ -80,6 +90,20 @@ class ObservationBindingTests(HexctlCase):
         self.assertEqual(first["observation_run_id"], self.controller_run_id())
         self.assertNotIn("observation_run_id", stored)
         self.run_ctl("verify")
+
+    def test_receipted_elenchus_reporter_accepts_positional_target(self):
+        self.to_steps(("Bind",))
+        target_dir = Path(self.target).resolve()
+        report = target_dir / ".elenchus" / "binding.json"
+        runner = source_runner_module()
+        current = Path.cwd()
+        try:
+            os.chdir(target_dir)
+            root, _, parts = runner.report_target([str(report)])
+        finally:
+            os.chdir(current)
+        self.assertEqual(root, target_dir)
+        self.assertEqual(parts, (".elenchus", "binding.json"))
 
     def test_fixture_manifest_names_the_normal_and_nine_negative_mechanisms(self):
         manifest = json.loads(CASES.read_text(encoding="utf-8"))

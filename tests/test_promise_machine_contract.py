@@ -1138,6 +1138,7 @@ class PromiseCoverageTests(unittest.TestCase):
             coverage["documentation"],
             coverage["decision"],
             coverage["fixture_manifest"],
+            coverage["reporter"],
         ]
         bound.extend(
             {key: item[key] for key in ("path", "sha256")}

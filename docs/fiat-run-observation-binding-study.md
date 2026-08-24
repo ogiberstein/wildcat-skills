@@ -263,3 +263,10 @@ code.
 **Why.** The required root suite showed that those integration guards treated any later run's `.hexaemeron` study and runbook as #435 evidence, so a valid #436 receipt falsely invalidated the already merged #435 product tree. The same test pinned the prior Fiat runtime digest instead of checking the current covered source.
 **Steps touched.** Step 1.
 **Still holding.** Step 1: entry holds; exit holds.
+
+### Amendment -- 2026-08-24
+
+**What changed.** Step 1 scope also includes `plugins/hexaemeron/tests/run_tests.py`, solely to accept the receipted positional `{report}` argument as a backward-compatible alias for its existing `--elenchus-report PATH` interface; the binding coverage record must digest-bind that source-owned reporter and its guard.
+**Why.** The receipted #436 study and runbook declare `python3 plugins/hexaemeron/tests/run_tests.py {report}` as the exact Elenchus command, while the current reporter refuses its positional argument before emitting a report. The existing command must become executable without rewriting the receipted runbook or weakening report-path confinement.
+**Steps touched.** Step 1.
+**Still holding.** Step 1: entry holds; exit holds.
