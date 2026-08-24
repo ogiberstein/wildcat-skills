@@ -31,6 +31,15 @@ COMPLETE_STEP = """## Step 1: A complete step
 **Disciplines.** none, docs only.
 """
 
+COMPLETE_RUNBOOK_AMENDMENT = """
+### Amendment -- 2026-08-24
+
+**What changed.** Complete replacement Exit: Proved by `fiat-v2.0.0`.
+**Why.** The target changed.
+**Steps touched.** Step 1.
+**Still holding.** Step 1: entry holds; exit holds.
+"""
+
 
 def findings(source):
     with tempfile.TemporaryDirectory() as directory:
@@ -71,6 +80,71 @@ class RequiredFields(unittest.TestCase):
     def test_the_finding_points_at_the_heading_line(self):
         found = findings("\n" + without("Goal"))
         self.assertEqual(found[0].line, 2)
+
+
+class RunbookAmendments(unittest.TestCase):
+    def test_a_complete_final_amendment_is_clean(self):
+        self.assertEqual(codes(COMPLETE_STEP + COMPLETE_RUNBOOK_AMENDMENT), [])
+
+    def test_the_amendment_stops_the_last_step_before_replacement_fields(self):
+        source = without("Exit") + COMPLETE_RUNBOOK_AMENDMENT
+        found = codes(source)
+        self.assertIn("P001", found)
+        self.assertNotIn("P002", found)
+
+    def test_each_amendment_field_occurs_once_in_order_and_is_not_empty(self):
+        for field in protasis.AMENDMENT_FIELDS:
+            with self.subTest(field=field):
+                lines = [
+                    line for line in COMPLETE_RUNBOOK_AMENDMENT.splitlines()
+                    if not line.startswith(f"**{field}.**")
+                ]
+                self.assertIn("P005", codes(COMPLETE_STEP + "\n".join(lines) + "\n"))
+
+        reordered = COMPLETE_RUNBOOK_AMENDMENT.replace(
+            "**What changed.** Complete replacement Exit: Proved by `fiat-v2.0.0`.\n"
+            "**Why.** The target changed.\n",
+            "**Why.** The target changed.\n"
+            "**What changed.** Complete replacement Exit: Proved by `fiat-v2.0.0`.\n",
+        )
+        self.assertIn("P005", codes(COMPLETE_STEP + reordered))
+        empty = COMPLETE_RUNBOOK_AMENDMENT.replace(
+            "**Why.** The target changed.", "**Why.**"
+        )
+        self.assertIn("P005", codes(COMPLETE_STEP + empty))
+
+    def test_unknown_duplicate_and_partial_replacement_clauses_refuse(self):
+        cases = (
+            "Complete replacement Unknown: no.",
+            "Complete replacement Exit: first. Complete replacement Exit: second.",
+            "The Exit should use v2.",
+        )
+        for replacement in cases:
+            with self.subTest(replacement=replacement):
+                source = COMPLETE_STEP + COMPLETE_RUNBOOK_AMENDMENT.replace(
+                    "Complete replacement Exit: Proved by `fiat-v2.0.0`.",
+                    replacement,
+                )
+                self.assertIn("P005", codes(source))
+
+    def test_fenced_amendment_decoy_does_not_end_or_validate_the_step(self):
+        decoy = (
+            "\n````markdown\n```\n### Amendment -- 2026-08-24\n"
+            "**What changed.** vague\n````\n"
+        )
+        self.assertEqual(codes(COMPLETE_STEP + decoy), [])
+
+    def test_invalid_date_and_a_trailing_step_heading_refuse(self):
+        invalid = COMPLETE_RUNBOOK_AMENDMENT.replace("2026-08-24", "2026-02-30")
+        self.assertIn("P005", codes(COMPLETE_STEP + invalid))
+        malformed = COMPLETE_RUNBOOK_AMENDMENT.replace("2026-08-24", "2026/08/24")
+        self.assertIn("P005", codes(COMPLETE_STEP + malformed))
+        trailing = COMPLETE_STEP + COMPLETE_RUNBOOK_AMENDMENT + "\n## Step 2: Smuggled\n"
+        self.assertIn("P005", codes(trailing))
+
+    def test_two_sequential_complete_amendments_are_checked(self):
+        second = COMPLETE_RUNBOOK_AMENDMENT.replace("2026-08-24", "2026-08-25")
+        self.assertEqual(codes(COMPLETE_STEP + COMPLETE_RUNBOOK_AMENDMENT + second), [])
 
 
 class ExitCommands(unittest.TestCase):
