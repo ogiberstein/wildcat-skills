@@ -12398,3 +12398,35 @@ hand edited afterwards. The working tree is clean and the guard-shape comparison
 against the parent commit reports nothing that would error rather than fail.
 
 Leads not pursued: none.
+
+# Run: give the Kronos scoreboard and parked lane a durable home across ephemeral runners
+
+## Step 1, round 1 -- 2026-08-24
+
+Two Markdown documents, no code. The Solidity suite is waived for this run.
+phylax exit 0, ephoros exit 0, hypomnema exit 0 over `docs/kronos-durable-home`.
+
+<!-- brevitas: archival-table rendered as a record because this historical table is below the 3x3 presentation threshold -->
+- id: --; severity: --; file: --; finding: none; status: --
+
+The risk register describes the git subprocess and the working-copy write that
+step 2 has not built, so none of those concerns can be exercised by two
+documents. The look went at the claims the documents rest on. The frontier
+digest
+`ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1`
+matches `plugins/hexaemeron/skills/kronos/EVOLUTION.md` byte for byte. The
+starting ref `2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` is this run's HEAD
+parent. The five discipline citations in the committed study resolve from
+`docs/kronos-durable-home/` to files that exist. Protasis and Imprimatur both
+exit 0 over both documents. The committed copies are the receipted artefacts
+with those five links rewritten for the new depth.
+
+Root suite 310/310. Plugin suite 928/930: the two failures are
+`test_elenchus_checker.ForgeReports.test_fixture_exercised_the_declared_forge_version`
+(`1.7.1` vs local `1.4.0`) and
+`test_elenchus_checker.NodeReports.test_fixture_exercised_the_declared_node_version`
+(`v26.6.0` vs local `v22.14.0`). Both fail on the unfixed starting commit
+`2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` as well. This step does not touch
+those fixtures.
+
+Leads not pursued: none.
