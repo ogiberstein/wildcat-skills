@@ -426,6 +426,31 @@
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
       "selector": "test_post_amendment_drift_refuses_next_and_verify"
     },
+    "fiat-runbook-amendment-m": {
+      "claim": "Missing exact-prefix evidence or changed step topology refuses the runbook amendment before mutation.",
+      "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
+      "selector": "test_prefix_forgery_and_appended_step_topology_refuse_without_mutation"
+    },
+    "fiat-runbook-amendment-o": {
+      "claim": "The receipt claims checked continuity and source carriage without claiming semantic completeness or command success.",
+      "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
+      "selector": "test_runbook_amendment_has_a_narrow_consequence_two_promise"
+    },
+    "fiat-runbook-amendment-p": {
+      "claim": "A valid complete replacement is receipted and reaches Mason and Warden as the same exact digest-bound source.",
+      "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
+      "selector": "test_complete_replacement_exit_reaches_mason_and_warden_exactly"
+    },
+    "fiat-runbook-amendment-r": {
+      "claim": "An interrupted runbook replacement remains labelled and finishes exactly once through the named rerun.",
+      "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
+      "selector": "test_interrupted_runbook_replacement_recovers_once"
+    },
+    "fiat-runbook-amendment-s": {
+      "claim": "Unrelated and stale-study amendment evidence cannot enter the current step packet or clear a later block.",
+      "path": "plugins/hexaemeron/tests/test_fiat_skill.py",
+      "selector": "test_unrelated_and_stale_amendments_are_not_selected_for_a_packet"
+    },
     "fiat-observation-m": {
       "claim": "A requested observation claim without a selected binding refuses while ordinary controller verification remains available.",
       "path": "plugins/hexaemeron/tests/test_run_observation_binding.py",
@@ -1463,6 +1488,22 @@
     },
     {
       "cases": {
+        "M": "fiat-runbook-amendment-m",
+        "O": "fiat-runbook-amendment-o",
+        "P": "fiat-runbook-amendment-p",
+        "R": "fiat-runbook-amendment-r",
+        "S": "fiat-runbook-amendment-s",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      },
+      "group": "executable",
+      "promise_id": "fiat-runbook-amendment",
+      "skill_path": "plugins/hexaemeron/skills/fiat/SKILL.md"
+    },
+    {
+      "cases": {
         "M": "fiat-observation-m",
         "O": "fiat-observation-o",
         "P": "fiat-observation-p",
@@ -2407,7 +2448,7 @@
     "contract": "fiat-run-observation-binding/v1",
     "controller": {
       "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "96b73e96543820d5bc9bb9fac66fbb0cf180a1a8bdbe60657db317356786bba0"
+      "sha256": "9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259"
     },
     "validator": {
       "path": "scripts/run_observation.py",
@@ -2733,7 +2774,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "96b73e96543820d5bc9bb9fac66fbb0cf180a1a8bdbe60657db317356786bba0",
+      "sha256": "9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2747,7 +2788,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "96b73e96543820d5bc9bb9fac66fbb0cf180a1a8bdbe60657db317356786bba0",
+      "sha256": "9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2761,7 +2802,21 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "96b73e96543820d5bc9bb9fac66fbb0cf180a1a8bdbe60657db317356786bba0",
+      "sha256": "9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259",
+      "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
+    },
+    "fiat-runbook-amendment": {
+      "bindings": {
+        "evidence_classes": "checked structure and recorded operator verdicts joined to the canonical Evidence classes field",
+        "evidence_references": "prefix and amendment digests, replacement fields, current study join, Protasis exit, pending subject, receipt history and amend:runbook event",
+        "exception": "canonical Exceptions field",
+        "promise_id": "coverage key joined to the canonical promise heading and amend:runbook event",
+        "scope": "one append-only final runbook amendment, current unbuilt steps and current-study-bound packet carriage",
+        "subject": "current runbook and study receipts, captured candidate bytes and canonical runbook path",
+        "transition": "canonical runbook replacement, receipt re-pin, exact source carriage and causally bound holding-or-blocked result joined to the canonical Authorises field",
+        "unknowns": "semantic completeness, replacement correctness, future command success and truth of operator verdicts"
+      },
+      "sha256": "9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-run-observation-binding": {
@@ -2775,7 +2830,7 @@
         "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
         "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
       },
-      "sha256": "96b73e96543820d5bc9bb9fac66fbb0cf180a1a8bdbe60657db317356786bba0",
+      "sha256": "9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {

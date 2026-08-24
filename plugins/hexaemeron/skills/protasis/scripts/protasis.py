@@ -13,6 +13,8 @@ Runbook mode (the default):
   P002  a step whose exit states no command
   P003  a document in which no step was found
   P004  more steps than the check will track, so the tail went unchecked
+  P005  an appended runbook amendment is not one final dated four-field block
+        carrying at least one complete replacement field
 
 Study mode (`--study`):
 
@@ -56,6 +58,7 @@ subprocess and opens no socket.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import re
 import sys
@@ -68,9 +71,24 @@ FIELD = re.compile(r"^\*\*(?P<name>[A-Za-z]+)\.\*\*")
 HEADING = re.compile(r"^#{1,2}\s+")
 # Backtick or tilde, three or more, per CommonMark. The marker is captured so a
 # fence is closed only by its own kind: ``` inside a ~~~ block is content.
-FENCE = re.compile(r"^\s*(?P<mark>`{3,}|~{3,})")
+FENCE = re.compile(r"^ {0,3}(?P<mark>`{3,}|~{3,})")
 INLINE_CODE = re.compile(r"`[^`\n]+`")
 ALLOW = re.compile(r"<!--\s*protasis:\s*allow\s+(?P<reason>\S[^>]*?)\s*-->")
+AMENDMENT = re.compile(r"^###\s+Amendment\s+--\s+(?P<date>\d{4}-\d{2}-\d{2})\s*$")
+AMENDMENT_LIKE = re.compile(r"^###\s+Amendment(?:\s+--(?:\s+.*)?)?\s*$")
+AMENDMENT_FIELDS = ("What changed", "Why", "Steps touched", "Still holding")
+AMENDMENT_FIELD = re.compile(
+    r"^\*\*(?P<name>What changed|Why|Steps touched|Still holding)\.\*\*"
+    r"(?:\s*(?P<value>.*))?$"
+)
+ANY_AMENDMENT_FIELD = re.compile(r"^\*\*[^*\n]+\.\*\*(?:\s*.*)?$")
+RUNBOOK_FIELD_NAMES = ("Goal", "Entry", "Exit", "Files", "Tests", "Disciplines")
+COMPLETE_REPLACEMENT = re.compile(
+    r"Complete replacement (?P<field>Goal|Entry|Exit|Files|Tests|Disciplines):"
+    r"\s*(?P<value>.*?)"
+    r"(?=(?:\s+Complete replacement "
+    r"(?:Goal|Entry|Exit|Files|Tests|Disciplines):)|\Z)"
+)
 
 REQUIRED = ("Goal", "Entry", "Exit", "Files", "Tests", "Disciplines")
 
@@ -140,16 +158,24 @@ def _scan(lines: list[str]):
     truncated itself.
     """
     open_mark: str | None = None
+    open_length: int | None = None
     for number, line in enumerate(lines, start=1):
         match = FENCE.match(line)
         if match:
-            mark = match.group("mark")[0]
+            sequence = match.group("mark")
+            mark = sequence[0]
             if open_mark is None:
                 open_mark = mark
+                open_length = len(sequence)
                 yield number, line, True
                 continue
-            if mark == open_mark:
+            if (
+                mark == open_mark
+                and len(sequence) >= open_length
+                and not line[match.end():].strip()
+            ):
                 open_mark = None
+                open_length = None
             yield number, line, True
             continue
         yield number, line, open_mark is not None
@@ -189,9 +215,13 @@ def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
     """
     starts: list[tuple[int, str]] = []
     dropped = 0
+    first_amendment = None
     for index, line, in_fence in _scan(lines):
         if in_fence:
             continue
+        if AMENDMENT_LIKE.fullmatch(line):
+            first_amendment = index
+            break
         match = STEP.match(line)
         if match:
             if len(starts) >= MAX_STEPS:
@@ -204,16 +234,16 @@ def _spans(lines: list[str]) -> tuple[list[tuple[int, str, int, int]], int]:
         if position + 1 < len(starts):
             end = starts[position + 1][0] - 1
         else:
-            end = len(lines)
+            end = (first_amendment - 1) if first_amendment else len(lines)
             # Any heading of this level ends the last step, a further step
             # heading included. Excluding step headings here let a step dropped
             # by the cap donate its fields to the last tracked step, which then
             # passed while missing its own. Fenced lines are not headings, or a
             # runbook quoting a step heading would truncate itself.
             for index, line, in_fence in _scan(lines):
-                if index <= line_number or in_fence:
+                if index <= line_number or index > end or in_fence:
                     continue
-                if HEADING.match(line):
+                if HEADING.match(line) or AMENDMENT_LIKE.fullmatch(line):
                     end = index - 1
                     break
         spans.append((line_number, title, line_number + 1, end))
@@ -252,12 +282,106 @@ def _has_command(lines: list[str]) -> bool:
     return False
 
 
+def _replacement_fields(value: str) -> tuple[list[str], str | None]:
+    """Return full replacement field names, or the exact structural fault."""
+    matches = list(COMPLETE_REPLACEMENT.finditer(value))
+    if not matches:
+        return [], (
+            "What changed must restate at least one complete runbook field as "
+            "'Complete replacement Exit: <full value>'"
+        )
+    cursor = 0
+    fields = []
+    for match in matches:
+        if value[cursor:match.start()].strip():
+            return [], "What changed must contain only complete replacement clauses"
+        field = match.group("field")
+        if not match.group("value").strip():
+            return [], f"complete replacement {field} must not be empty"
+        if field == "Exit" and not _has_command(match.group("value").splitlines()):
+            return [], "complete replacement Exit must name a command"
+        fields.append(field)
+        cursor = match.end()
+    if value[cursor:].strip():
+        return [], "What changed must contain only complete replacement clauses"
+    duplicates = sorted({field for field in fields if fields.count(field) > 1})
+    if duplicates:
+        return [], f"complete replacement fields repeat: {duplicates}"
+    return fields, None
+
+
+def _runbook_amendment_findings(path: Path, lines: list[str]) -> list[Finding]:
+    """Check every real appended amendment without reading fenced decoys."""
+    headings = [
+        (number, line)
+        for number, line, in_fence in _scan(lines)
+        if not in_fence and AMENDMENT_LIKE.fullmatch(line)
+    ]
+    findings: list[Finding] = []
+    for position, (line_number, heading_line) in enumerate(headings):
+        heading = AMENDMENT.fullmatch(heading_line)
+        if heading is None:
+            findings.append(Finding(
+                path, line_number, "P005", "runbook amendment heading has an invalid date"
+            ))
+        else:
+            try:
+                datetime.date.fromisoformat(heading.group("date"))
+            except ValueError:
+                findings.append(Finding(
+                    path, line_number, "P005",
+                    "runbook amendment date is not a calendar date",
+                ))
+        end = headings[position + 1][0] - 1 if position + 1 < len(headings) else len(lines)
+        body = lines[line_number:end]
+        fields = []
+        for relative, line, in_fence in _scan(body):
+            offset = line_number + relative
+            if in_fence:
+                continue
+            if re.match(r"^#{1,3}\s+", line):
+                findings.append(Finding(
+                    path, offset, "P005", "runbook amendment must remain a final section"
+                ))
+            match = AMENDMENT_FIELD.fullmatch(line)
+            if match:
+                fields.append((offset, match.group("name"), match.group("value") or ""))
+            elif ANY_AMENDMENT_FIELD.fullmatch(line):
+                findings.append(Finding(
+                    path, offset, "P005", f"unexpected runbook amendment field: {line}"
+                ))
+
+        names = [field[1] for field in fields]
+        if names != list(AMENDMENT_FIELDS):
+            findings.append(Finding(
+                path, line_number, "P005",
+                "runbook amendment fields must occur once in order: "
+                + ", ".join(AMENDMENT_FIELDS),
+            ))
+            continue
+
+        values = {}
+        for index, (field_line, name, first) in enumerate(fields):
+            next_line = fields[index + 1][0] if index + 1 < len(fields) else end + 1
+            continuation = lines[field_line:next_line - 1]
+            value = " ".join((first + "\n" + "\n".join(continuation)).split())
+            if not value:
+                findings.append(Finding(
+                    path, field_line, "P005", f"runbook amendment field {name!r} is empty"
+                ))
+            values[name] = value
+        _, replacement_fault = _replacement_fields(values.get("What changed", ""))
+        if replacement_fault:
+            findings.append(Finding(path, fields[0][0], "P005", replacement_fault))
+    return findings
+
+
 def check(path: Path) -> list[Finding]:
     lines = _read(path)
     if lines is None:
         return [Finding(path, 1, "P000", "cannot be read as a runbook")]
 
-    findings: list[Finding] = []
+    findings: list[Finding] = _runbook_amendment_findings(path, lines)
     spans, dropped = _spans(lines)
     if not spans:
         return [Finding(path, 1, "P003", "no step found; expected a '## Step N: title' heading")]

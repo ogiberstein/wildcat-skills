@@ -349,3 +349,82 @@ open pull request touching `docs/decisions/` is this run's own step 4, and no
 open pull request touches the Fiat ledger.
 
 Leads not pursued: none.
+
+## Integration -- 2026-08-24
+
+Not a step round. What happened bringing the stack down, and what the merge with
+`main` at `08512d4ada7b1d7418e1af213be0d4b8c1494b6d` had to resolve.
+
+### The stack was merged out of order
+
+A malformed shell loop passed an empty argument to `gh pr merge`, which falls
+through to the current branch's pull request. The branch was step 5's, so
+[#591](https://github.com/wildcat-finance/skills/pull/591) merged into the run
+branch ahead of [#589](https://github.com/wildcat-finance/skills/pull/589) and
+[#590](https://github.com/wildcat-finance/skills/pull/590). Step 5's branch was
+cut from step 4's, which was cut from step 3's, so that one merge carried every
+commit in the stack.
+
+The product survived exactly. The run branch's tree is byte-identical to the
+step 5 branch tip, and all thirteen signed commits are reachable from it and
+GitHub-verified. Nothing was rewritten and nothing was dropped.
+
+The bookkeeping did not. `done merge-step` requires each step's pull request to
+be `MERGED` with `baseRefName` equal to the run branch. #589 and #590 cannot be
+retargeted onto it, because GitHub reports no commits between them and a branch
+their heads are already ancestors of, and a pull request cannot merge into a
+base it is an ancestor of. Steps 1 and 2 are receipted; steps 3, 4 and 5 are
+not, and `done integrate` will not run without them.
+
+The run is halted on its ledger with that reason, at the maintainer's direction,
+and the delivery finishes by hand: #589 and #590 closed with the explanation
+above, one integration pull request from the run branch into `main`, and the
+checks `done integrate` would have made carried out explicitly and recorded
+here. What is lost is the terminal receipt. What it would have checked is
+checked: the ledger row's arithmetic by `tests/test_evolution_contract.py` and
+`plugins/hexaemeron/tests/test_evolution.py`, the signatures by GitHub, and the
+carried-forward section by reading it.
+
+### What the merge with the advanced base resolved
+
+`main` moved from `103fa90` to `08512d4` during the run, landing issue 554's
+runbook amendment receipts. One textual conflict, in
+`tests/promise_machine_coverage.json`: both sides record the `hexctl.py` digest
+and neither value describes the merged file. Resolved by taking the incoming
+structure, which carries issue 554's new `fiat-runbook-amendment` promise, and
+recomputing the digest from the merged controller to
+`9da873deacc6a1f8045ecf91a5a66c05f5ea10758ce7b0ce4a0fbc83eba0c259`. This run's
+own change to that file was never anything but the digest, so nothing of its own
+was at stake in the resolution.
+
+One composition failure that neither side could see alone. Issue 554's tests and
+this run's both went into `plugins/hexaemeron/tests/test_hexctl.py`, and together
+they took it to 263,626 bytes against the Promise Machine's 262,144-byte
+bounded-read ceiling. `scripts/promise_machine.py check` refused with fourteen
+`PM003` findings. Fixed by moving this run's two classes to
+`plugins/hexaemeron/tests/test_audit_log_path.py`, unchanged, which leaves
+`test_hexctl.py` at 251,141 bytes. No assertion was weakened or dropped; the
+Hexaemeron suite reports the same count either way.
+
+`tests/test_evolution_contract.py` pinned the current version and newest row to
+`fiat-v5.21.1` with issue 554's evidence, which is what that run wrote for its
+own row. Re-pinned to `fiat-v5.22.1` and this run's evidence. The frontier
+revision, digest, frontier text and held job assertions are untouched, which is
+what makes it a generation rather than an advance.
+
+### The merged tree
+
+Root suite 349 tests OK with no skips. Hexaemeron suite 1,045/1,045.
+`promise_machine.py check` clean over 14 plugins and 14 copies, `coverage
+--check` clean at 71 promises and 71 rows. Phylax, Ephoros and Hypomnema each
+exit 0. Horos reports that the boundary matches the tree.
+`plugins/hexaemeron/skills/fiat/EVOLUTION.md` carries one new row,
+`fiat-v5.22.1`, generation, retaining `state-shape-validation` and its digest
+byte for byte, and `SKILL.md` frontmatter matches it. The held issue 363 job is
+untouched.
+
+Leads not pursued: one, and it is the maintainer's. A Fiat run should not be
+able to merge the wrong pull request from a mistyped command. Nothing in the
+loop binds the merge to the pull request the directive names; the directive
+carries `pr_url` and the operator types the merge by hand. That is filed
+separately.
