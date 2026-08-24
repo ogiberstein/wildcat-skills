@@ -119,6 +119,40 @@ def protasis_module():
 
 
 class AuditSynopsisResourceBoundaryTests(unittest.TestCase):
+    def test_record_framing_preserves_literal_separator_and_escape_tokens(self):
+        renderer = audit_synopsis_module()
+        lead = "Leads not pursued: literal <br>; escapes %, %%, and %b"
+        source = (
+            "\n".join(
+                [
+                    "## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z",
+                    "",
+                    "Audit schema: fiat-audit-round/v1",
+                    "",
+                    "Covered: fixture-risk=reviewed",
+                    "",
+                    "Not checked: none",
+                    "",
+                    "Elenchus verdict: null",
+                    "",
+                    "| id | severity | file | finding | status |",
+                    "| --- | --- | --- | --- | --- |",
+                    "| -- | -- | -- | none | -- |",
+                    "",
+                    lead,
+                ]
+            )
+            + "\n"
+        ).encode()
+        rendered = renderer.render_source("audit/AUDIT.md", source)
+        record = rendered["bytes"].decode().splitlines()[1]
+        decoder = getattr(renderer, "decode_synopsis_record", None)
+        physical = record.split("<br>") if decoder is None else decoder(record)
+
+        self.assertEqual(physical[-1], lead)
+        self.assertEqual(physical.count(lead), 1)
+        self.assertTrue(callable(decoder))
+
     def test_many_short_lines_remain_inside_the_receipted_acceptance_domain(self):
         renderer = audit_synopsis_module()
         source = b"## legacy\nLeads not pursued:\n" + b"x\n" * 200_000

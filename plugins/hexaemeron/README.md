@@ -188,11 +188,14 @@ python3 plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py --write .
 python3 plugins/hexaemeron/skills/fiat/scripts/audit_synopsis.py --check .
 ```
 
-`fiat-audit-synopsis/v1` has one metadata line and one `<br>`-joined physical
-line per raw H2. The metadata binds source path, source SHA-256 and H2 count;
-records retain strict fields, canonical findings, recognised legacy risk
-tables, and every physical `Leads not pursued` occurrence with its remaining
-section. Missing legacy values stay missing. Discovery excludes nested Git
+`fiat-audit-synopsis/v1` has one metadata line and one physical line per raw
+H2. An unescaped `<br>` separates retained source lines; `%b` encodes a literal
+`<br>` and `%%` encodes a literal `%`. The renderer's
+`decode_synopsis_record()` reverses that framing exactly. The metadata binds
+source path, source SHA-256 and H2 count; records retain strict fields,
+canonical findings, recognised legacy risk tables, and every physical
+`Leads not pursued` occurrence with its remaining section. Missing legacy
+values stay missing. Discovery excludes nested Git
 repositories and worktrees, including active Fiat trees below `tmp/fiat/`.
 The CLI refuses symlinks, escape, invalid UTF-8, non-LF line endings, sources
 or rendered views over 16 MiB, more than 10,000 H2s, source lines over 1 MiB,

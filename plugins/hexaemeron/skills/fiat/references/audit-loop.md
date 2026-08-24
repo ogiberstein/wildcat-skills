@@ -61,7 +61,9 @@ another pass.
    ```
 
    The writer emits `fiat-audit-synopsis/v1`: one clock-free metadata line and
-   one physical line per raw H2, joined internally with `<br>`. It binds the
+   one physical line per raw H2. An unescaped `<br>` separates retained source
+   lines, `%b` encodes a literal `<br>`, and `%%` encodes a literal `%`;
+   `decode_synopsis_record()` reverses the framing exactly. The view binds the
    source path, source SHA-256, H2 count, strict fields, canonical findings,
    recognised legacy risk tables, and every physical `Leads not pursued`
    occurrence with its remaining section. Missing legacy fields stay labelled

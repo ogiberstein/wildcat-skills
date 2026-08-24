@@ -18,6 +18,11 @@ SYNOPSIS_SCHEMA = "fiat-audit-synopsis/v1"
 AUDIT_SCHEMA = "fiat-audit-round/v1"
 SOURCE_NAME = "AUDIT.md"
 SYNOPSIS_NAME = "AUDIT_SYNOPSIS.md"
+SYNOPSIS_SEPARATOR = "<br>"
+SYNOPSIS_ESCAPE = "%"
+SYNOPSIS_ESCAPED_SEPARATOR = "%b"
+SYNOPSIS_ESCAPED_ESCAPE = "%%"
+SYNOPSIS_SEPARATOR_BYTES = len(SYNOPSIS_SEPARATOR.encode("utf-8"))
 SOURCE_BYTES_MAX = 16 * 1024 * 1024
 SYNOPSIS_BYTES_MAX = 16 * 1024 * 1024
 H2_RECORDS_MAX = 10_000
@@ -52,6 +57,46 @@ UNLINK_SUPPORTS_DIR_FD = os.unlink in os.supports_dir_fd
 
 class SynopsisError(Exception):
     """A bounded refusal safe to show without source content."""
+
+
+def encode_synopsis_physical_line(line):
+    """Encode one retained physical line for a one-line synopsis record."""
+    if not isinstance(line, str):
+        raise SynopsisError("synopsis physical line must be text")
+    return line.replace(
+        SYNOPSIS_ESCAPE, SYNOPSIS_ESCAPED_ESCAPE
+    ).replace(SYNOPSIS_SEPARATOR, SYNOPSIS_ESCAPED_SEPARATOR)
+
+
+def decode_synopsis_record(record):
+    """Decode one canonical synopsis record into its exact physical lines."""
+    if not isinstance(record, str) or "\n" in record or "\r" in record:
+        raise SynopsisError("synopsis record must be one physical text line")
+    physical = []
+    decoded = []
+    index = 0
+    while index < len(record):
+        if record.startswith(SYNOPSIS_SEPARATOR, index):
+            physical.append("".join(decoded))
+            decoded = []
+            index += len(SYNOPSIS_SEPARATOR)
+            continue
+        character = record[index]
+        if character != SYNOPSIS_ESCAPE:
+            decoded.append(character)
+            index += 1
+            continue
+        if record.startswith(SYNOPSIS_ESCAPED_ESCAPE, index):
+            decoded.append(SYNOPSIS_ESCAPE)
+            index += len(SYNOPSIS_ESCAPED_ESCAPE)
+            continue
+        if record.startswith(SYNOPSIS_ESCAPED_SEPARATOR, index):
+            decoded.append(SYNOPSIS_SEPARATOR)
+            index += len(SYNOPSIS_ESCAPED_SEPARATOR)
+            continue
+        raise SynopsisError("synopsis record has malformed escape framing")
+    physical.append("".join(decoded))
+    return physical
 
 
 def _root_path(supplied):
@@ -570,10 +615,13 @@ class _RecordBuffer:
         self.bytes += addition
 
     def append(self, line):
+        line = encode_synopsis_physical_line(line)
         encoded_size = len(line.encode("utf-8"))
-        self._reserve(encoded_size + (4 if self.lines else 0))
+        self._reserve(
+            encoded_size + (SYNOPSIS_SEPARATOR_BYTES if self.lines else 0)
+        )
         if self.lines:
-            self.buffer.write("<br>")
+            self.buffer.write(SYNOPSIS_SEPARATOR)
         self.buffer.write(line)
         self.lines += 1
 
@@ -581,9 +629,9 @@ class _RecordBuffer:
         if not count:
             return
         separators = count if self.lines else count - 1
-        self._reserve(separators * 4)
+        self._reserve(separators * SYNOPSIS_SEPARATOR_BYTES)
         if separators:
-            self.buffer.write("<br>" * separators)
+            self.buffer.write(SYNOPSIS_SEPARATOR * separators)
         self.lines += count
 
     def value(self):
@@ -672,9 +720,11 @@ def _legacy_record(text, start, stop, source_path):
     if not leads_seen:
         missing.append("[missing legacy field: leads-not-pursued]")
 
-    prefix = "<br>".join([heading, *missing])
+    prefix = SYNOPSIS_SEPARATOR.join(
+        encode_synopsis_physical_line(line) for line in [heading, *missing]
+    )
     tail = selected.value()
-    retained = prefix + ("<br>" + tail if tail else "")
+    retained = prefix + (SYNOPSIS_SEPARATOR + tail if tail else "")
     if len(retained.encode("utf-8")) > SYNOPSIS_BYTES_MAX:
         raise SynopsisError(
             f"{source_path}: synopsis exceeds {SYNOPSIS_BYTES_MAX:,}-byte cap"
@@ -737,8 +787,9 @@ def render_source(source_path, data):
                 "record separator"
             )
         if strict:
-            retained = "<br>".join(
-                _strict_record(
+            retained = SYNOPSIS_SEPARATOR.join(
+                encode_synopsis_physical_line(line)
+                for line in _strict_record(
                     text,
                     start,
                     stop,

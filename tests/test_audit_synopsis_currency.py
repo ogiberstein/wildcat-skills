@@ -44,6 +44,13 @@ def synopsis_module():
     return module
 
 
+def decode_record(module, record):
+    decoder = getattr(module, "decode_synopsis_record", None)
+    if decoder is None:
+        return record.split("<br>")
+    return decoder(record)
+
+
 def strict_record(verdict="null", *, omit=None, finding_row=None):
     lines = [
         "## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z",
@@ -84,14 +91,19 @@ class SynopsisFixtureTests(unittest.TestCase):
 
         self.assertEqual(rendered["h2_count"], len(headings))
         self.assertEqual(len(synopsis_lines), len(headings) + 1)
+        decoded_records = [
+            decode_record(self.module, record) for record in synopsis_lines[1:]
+        ]
         self.assertEqual(
-            [line.split("<br>", 1)[0] for line in synopsis_lines[1:]],
+            [record[0] for record in decoded_records],
             headings,
         )
         lead_lines = [line for line in source_lines if "Leads not pursued" in line]
-        joined = "\n".join(synopsis_lines[1:])
+        retained_lines = [line for record in decoded_records for line in record]
+        retained_counts = Counter(retained_lines)
         for line, count in Counter(lead_lines).items():
-            self.assertEqual(joined.count(line), count, line)
+            self.assertEqual(retained_counts[line], count, line)
+        joined = "\n".join(retained_lines)
         self.assertIn("continues on the next physical line.", joined)
         self.assertIn("| risk id | disposition |", joined)
         self.assertIn(
@@ -103,6 +115,110 @@ class SynopsisFixtureTests(unittest.TestCase):
         self.assertIn("[missing legacy field: audit-schema]", joined)
         self.assertIn("[missing legacy field: elenchus-verdict]", joined)
         self.assertIn("[missing legacy field: leads-not-pursued]", joined)
+
+    def test_record_framing_round_trips_delimiter_and_escape_spellings(self):
+        strict_lines = strict_record(
+            finding_row=(
+                "| S1-R1-01 | low | path%<br> | "
+                "finding with %, %b, and <br> | fixed |"
+            )
+        ).decode().splitlines()
+        strict_lines[0] = (
+            "## Fixture % <br> %b, step 1, round 1 -- 2026-08-23T02:17:46Z"
+        )
+        strict_lines[strict_lines.index("Not checked: none")] = (
+            "Not checked: %, %b, and <br>"
+        )
+        lead = (
+            "Leads not pursued: literal <br>; escape %, %%, %b; "
+            "adjacent %<br> and <br>% spellings"
+        )
+        strict_lines[strict_lines.index("Leads not pursued: none")] = lead
+        source = ("\n".join(strict_lines) + "\n").encode()
+        rendered = self.module.render_source("audit/AUDIT.md", source)
+        record = rendered["bytes"].decode("utf-8").splitlines()[1]
+        decoded = decode_record(self.module, record)
+
+        self.assertEqual(decoded, strict_lines)
+        self.assertEqual(decoded[-1], lead)
+        self.assertEqual(Counter(decoded)[lead], 1)
+
+        legacy_heading = "## Legacy %, %b, and <br>"
+        legacy_fields = [
+            "Covered: legacy %, %b, and <br>",
+            "Not checked: legacy %, %b, and <br>",
+            "Elenchus verdict: legacy %, %b, and <br>",
+        ]
+        legacy_lead = "Leads not pursued: legacy %, %b, and <br>"
+        legacy_tail = "wrapped tail: %, %%b, %<br>, and <br>%"
+        legacy_source = (
+            "\n".join(
+                [
+                    legacy_heading,
+                    *legacy_fields,
+                    *("unretained context" for _index in range(16)),
+                    legacy_lead,
+                    legacy_tail,
+                ]
+            )
+            + "\n"
+        ).encode()
+        legacy_rendered = self.module.render_source(
+            "audit/AUDIT.md", legacy_source
+        )
+        legacy_record = legacy_rendered["bytes"].decode().splitlines()[1]
+        self.assertEqual(
+            decode_record(self.module, legacy_record),
+            [
+                legacy_heading,
+                "[missing legacy field: audit-schema]",
+                *legacy_fields,
+                legacy_lead,
+                legacy_tail,
+            ],
+        )
+
+        encoder = getattr(self.module, "encode_synopsis_physical_line", None)
+        decoder = getattr(self.module, "decode_synopsis_record", None)
+        self.assertTrue(callable(encoder))
+        self.assertTrue(callable(decoder))
+        spellings = ["", "%", "%%", "%b", "<br>", "%<br>", "<br>%", "%%%b"]
+        framed = self.module.SYNOPSIS_SEPARATOR.join(
+            encoder(spelling) for spelling in spellings
+        )
+        for spelling in spellings:
+            self.assertNotIn(self.module.SYNOPSIS_SEPARATOR, encoder(spelling))
+        self.assertEqual(decoder(framed), spellings)
+        for malformed in ("%", "%x", "literal%2", "%%%"):
+            with self.subTest(malformed=malformed):
+                with self.assertRaisesRegex(
+                    self.module.SynopsisError, "malformed escape framing"
+                ):
+                    decoder(malformed)
+
+    def test_escaped_length_reaches_the_existing_output_cap(self):
+        source = strict_record().replace(
+            b"Leads not pursued: none",
+            b"Leads not pursued: " + b"%" * 128,
+        )
+        rendered = self.module.render_source("audit/AUDIT.md", source)
+        rendered_size = len(rendered["bytes"])
+        self.assertEqual(
+            self.module.render_source("audit/AUDIT.md", source)["bytes"],
+            rendered["bytes"],
+        )
+        with mock.patch.object(
+            self.module, "SYNOPSIS_BYTES_MAX", rendered_size
+        ):
+            self.assertEqual(
+                self.module.render_source("audit/AUDIT.md", source)["bytes"],
+                rendered["bytes"],
+            )
+        with mock.patch.object(
+            self.module, "SYNOPSIS_BYTES_MAX", rendered_size - 1
+        ):
+            with self.assertRaisesRegex(self.module.SynopsisError, "synopsis exceeds"):
+                self.module.render_source("audit/AUDIT.md", source)
 
     def test_leads_outside_a_raw_h2_record_refuse_instead_of_disappearing(self):
         source = (
@@ -785,14 +901,18 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                     line for line in source.splitlines() if line.startswith("## ")
                 ]
                 synopsis_records = synopsis.splitlines()[1:]
+                decoded_records = [
+                    decode_record(self.module, record)
+                    for record in synopsis_records
+                ]
                 self.assertEqual(
-                    [line.split("<br>", 1)[0] for line in synopsis_records],
+                    [record[0] for record in decoded_records],
                     headings,
                 )
                 retained_lines = Counter(
                     physical
-                    for record in synopsis_records
-                    for physical in record.split("<br>")
+                    for record in decoded_records
+                    for physical in record
                 )
                 for line, count in Counter(
                     line
