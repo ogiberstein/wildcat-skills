@@ -12999,3 +12999,75 @@ recording as a lead each time they met it.
 
 Leads not pursued: the three named in round 1 stand unchanged, and no new lead
 was found.
+
+## Step 1, round 1 -- 2026-08-24
+
+Zero findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+The audited range is
+`84abae32d6d65b3a3ce27648ca144852a9e22e98..fae33c7e68f82095cf723ce72af858b7cbdc4018`
+on
+`fiat/554-runbook-amendment-receipts-step-1-publish-the-accepted-runbook-ame`.
+It changes only `.horos/boundary.json`,
+`docs/fiat-runbook-amendments-study.md`, and
+`docs/fiat-runbook-amendments-runbook.md`; all three paths remain regular
+non-executable files. The two documents are byte-identical to their receipted
+sources: the study SHA-256 is
+`1258efb979883681cc97e850dc9b641dd63f37a0f7beaf5bd5029d705ef76806`
+and the runbook SHA-256 is
+`21fa5133526f29a57bc7ada26b911c9d41e5d484eaf076a918023f75a53e6fcd`.
+The relative skill links resolve from both sibling publication directories.
+The boundary check reports `boundary matches the tree`.
+
+Both source-bound repair runners use CLI report format
+`unittest-json-v1` and separately name expected report schema
+`elenchus.unittest.v1`, at runbook lines 71-73 and 199-201. Step 1's Files
+field permits `audit/AUDIT.md` solely for append-only Warden round records at
+line 46; this append therefore does not violate the implementation boundary.
+The `audit-record-scope` row is discharged by this cold review only, not by a
+product guard. `elenchus-identifier-swap` is also discharged by the labelled
+role comparison rather than token presence.
+
+Protasis exits 0 for the study and runbook. Imprimatur exits 0 for each, with
+score 100.0/100 and zero defects. Phylax, Ephoros, and Hypomnema each exit 0
+over the exact three-path committed surface and again over the four-path
+candidate including `audit/AUDIT.md`. The root suite passes 349/349 with 5
+skips, the Hexaemeron suite passes 986/986, Horos exits 0, and
+`git diff --check` exits 0. The security suite waiver is unchanged: this
+range contains JSON and Markdown, no Solidity. No Elenchus repair report was
+created and no Elenchus verdict applies to this zero-finding round.
+
+The implementation commit has a good Shoggoth signature, parent
+`84abae32d6d65b3a3ce27648ca144852a9e22e98`, and exactly one
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer and one
+`Wildcat-Origin: shoggoth` trailer. The range adds no executable path,
+dependency, subprocess, service, unattended operation, or trust boundary.
+
+The fifteen product risks `subject-confusion`, `prefix-forgery`,
+`amendment-selection`, `field-ambiguity`, `step-verdict-coverage`,
+`duplicate-step-source`, `effective-step-source`, `repair-precedence`,
+`partial-write`, `pending-collision`, `checker-binding`, `post-amend-drift`,
+`legacy-recovery`, `evidence-overclaim`, and `generation-collision` sit in
+Step 2's controller, checker, tests, Promise, or ledger work and are not
+reachable in this docs-only range. They remain owed there; this round makes no
+claim about their implementation.
+
+Qualification: the tracked study is a run artefact, not Hypomnema's standing
+record. The governed-skill choice and rejected alternatives remain required
+in the Fiat and Protasis `EVOLUTION.md` generation rows before the stack can
+integrate, as Step 2's Files and Exit fields state. This Step 1 tip preserves
+that placement contract; integration without those rows would not. No Step 2
+runtime behaviour, receipt recovery, packet source, generation label, remote
+link content, push, pull request, or integration state was checked in this
+round.
+
+The Sapheneia durable-record comparison preserved the heading, empty finding
+table, zero verdict, date, identifiers, paths, digests, command results,
+qualifications, unknowns, and lead disposition item by item. It changes no
+existing audit bytes and does not claim audit-host enforcement.
+
+Leads not pursued: the fifteen product risks above require Step 2's absent
+implementation and remain assigned to that step. No other lead was found.
