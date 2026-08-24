@@ -2839,9 +2839,18 @@ class AuditRecordSchemaTests(HexctlCase):
                 raise RendererError(cls.message)
 
         before = self.state_ledger_digests()
-        for message, expected in (
-            ("unsafe\nsurrogate: \ud800", b"unsafe\\nsurrogate: \\ud800"),
-            ("x" * 5000, b"audit synopsis renderer validation failed"),
+        for message, expected, exact_size in (
+            (
+                "unsafe\x00\x1b\nsurrogate: \ud800\\",
+                b"unsafe\\x00\\x1b\\nsurrogate: \\ud800\\\\",
+                None,
+            ),
+            ("x" * 4_080, b"x" * 4_080, 4_096),
+            ("x" * 4_081, b"audit synopsis renderer validation failed", None),
+            ("x" * 4_096, b"audit synopsis renderer validation failed", None),
+            ("\\" * 2_040, b"\\\\" * 2_040, 4_096),
+            ("\\" * 2_041, b"audit synopsis renderer validation failed", None),
+            ("x" * 5_000, b"audit synopsis renderer validation failed", None),
         ):
             with self.subTest(message_chars=len(message)):
                 Renderer.message = message
@@ -2853,7 +2862,16 @@ class AuditRecordSchemaTests(HexctlCase):
                     )
                     stderr.flush()
                     self.assertIn(expected, output.getvalue())
-                    self.assertLess(len(output.getvalue()), 4096)
+                    self.assertLessEqual(
+                        len(output.getvalue()),
+                        controller.AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX,
+                    )
+                    if exact_size is not None:
+                        self.assertEqual(len(output.getvalue()), exact_size)
+                    self.assertEqual(output.getvalue()[-1:], b"\n")
+                    self.assertTrue(
+                        all(32 <= byte <= 126 for byte in output.getvalue()[:-1])
+                    )
                 finally:
                     stderr.detach()
         self.assertEqual(self.state_ledger_digests(), before)
@@ -3021,7 +3039,7 @@ class AuditRecordSchemaTests(HexctlCase):
         self.run_ctl("audit-round", "--findings", "1")
         path = Path(self.log_path())
         prefix = bytearray(path.read_bytes())
-        prefix[:8] = b"<script>"
+        prefix[3:11] = b"<script>"
         path.write_bytes(prefix)
         self.write_record(append=True)
         self.env["FAKE_GIT_MODE"] = "missing-commit"

@@ -104,6 +104,17 @@ class SynopsisFixtureTests(unittest.TestCase):
         self.assertIn("[missing legacy field: elenchus-verdict]", joined)
         self.assertIn("[missing legacy field: leads-not-pursued]", joined)
 
+    def test_leads_outside_a_raw_h2_record_refuse_instead_of_disappearing(self):
+        source = (
+            b"# prelude\n"
+            b"Leads not pursued: hidden before the first record\n\n"
+            + strict_record()
+        )
+        with self.assertRaisesRegex(
+            self.module.SynopsisError, "outside a raw H2 record"
+        ):
+            self.module.render_source("audit/AUDIT.md", source)
+
     def test_metadata_binds_schema_source_digest_and_h2_count_without_a_clock(self):
         source = FIXTURE.read_bytes()
         rendered = self.module.render_source("audit/AUDIT.md", source)

@@ -704,6 +704,10 @@ def render_source(source_path, data):
         previous_empty = line == ""
     if not starts:
         raise SynopsisError(f"{source_path}: source has no raw H2 records")
+    if text.find("Leads not pursued", 0, starts[0][0]) >= 0:
+        raise SynopsisError(
+            f"{source_path}: Leads not pursued occurs outside a raw H2 record"
+        )
 
     source_digest = hashlib.sha256(data).hexdigest()
     metadata = (
