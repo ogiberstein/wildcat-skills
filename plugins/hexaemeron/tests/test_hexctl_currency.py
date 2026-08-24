@@ -255,7 +255,13 @@ class TestControllerCurrency(HexctlCase):
     # ------------------------------------------- managed and in-repo routes
 
     def test_init_managed_route_proceeds_without_a_network_read(self):
-        controller = self.install_layout(clone=False)
+        """Managed means the registry records no pin; nothing is read remote.
+
+        The marketplace clone is present in this fixture on purpose: the
+        managed route is decided by the absent pin, and even an available
+        clone is not read.
+        """
+        controller = self.install_layout(pin=None)
         log = os.path.join(self.dir, "ls-remote.log")
         self.run_installed_ctl(controller, "init", "--topic", "t",
                                extra_env={"FAKE_GIT_LS_REMOTE_LOG": log})
@@ -264,7 +270,26 @@ class TestControllerCurrency(HexctlCase):
         receipt = self.provenance()
         self.assertEqual(receipt["route"], "managed")
         self.assertEqual(receipt["verdict"], "managed")
+        self.assertIsNone(receipt["pin"])
         self.assertIsNone(receipt["observed_head"])
+
+    def test_init_pinned_install_with_missing_clone_reads_unknown(self):
+        """Deleting the marketplace clone must not read as `managed` (S2-R1-02).
+
+        A registry pin makes the install git-backed; with the clone gone the
+        head is unobservable, so the verdict is `unknown` with a named warning
+        and the pin still recorded -- never a warning-free `managed` that
+        silences the gate.
+        """
+        controller = self.install_layout(clone=False)
+        log = os.path.join(self.dir, "ls-remote.log")
+        receipt = self.assert_unknown_proceeds(
+            controller, "clone-missing",
+            extra_env={"FAKE_GIT_LS_REMOTE_LOG": log})
+        self.assertFalse(os.path.exists(log),
+                         "a missing clone still made a network read")
+        self.assertEqual(receipt["route"], "git-backed")
+        self.assertEqual(receipt["pin"], self.PIN)
 
     def test_init_in_repo_route_records_nulls_and_no_pin(self):
         log = os.path.join(self.dir, "ls-remote.log")
@@ -369,6 +394,27 @@ class TestControllerCurrency(HexctlCase):
         self.run_ctl("status")
         self.run_ctl("verify")
         self.run_ctl("next")
+
+    # --------------------------------------------------- receipt integrity
+
+    def test_record_refuses_to_rewrite_the_currency_receipt(self):
+        """`hexctl record` cannot replace init's observation (S2-R1-01).
+
+        The receipt is init's own evidence, protected like `task_issue`: a
+        later `record controller_currency` would replace the recorded verdict
+        and waiver with a value nothing observed, while the honest copy
+        survived only in the init transition.
+        """
+        self.init()
+        receipt = self.provenance()
+        proc = self.run_ctl(
+            "record", "controller_currency",
+            json.dumps({"verdict": "current", "route": "git-backed"}),
+            expect=2,
+        )
+        self.assertIn("only `hexctl init` writes it", proc.stderr)
+        self.assertEqual(self.provenance(), receipt,
+                         "a refused record changed the currency receipt")
 
     # ------------------------------------------------- observation units
 

@@ -2023,13 +2023,19 @@ def observe_controller_currency(
         observation["warning"] = value
         return observation
     clone = os.path.join(plugins_root, CURRENCY_MARKETPLACES_DIR, marketplace)
-    if kind == "absent" or not os.path.exists(os.path.join(clone, ".git")):
+    if kind == "absent":
         observation["route"] = "managed"
         observation["verdict"] = "managed"
-        observation["pin"] = value
         return observation
+    # A recorded pin makes the install git-backed even when the marketplace
+    # clone is gone: claiming `managed` there would let one deleted directory
+    # silence the gate without a warning (S2-R1-02). The pin stays recorded,
+    # the head stays an explicit null, and the verdict stays `unknown`.
     observation["route"] = "git-backed"
     observation["pin"] = value
+    if not os.path.exists(os.path.join(clone, ".git")):
+        observation["warning"] = "clone-missing"
+        return observation
     branch = currency_clone_branch(clone)
     if branch is None:
         observation["warning"] = "clone-head-unreadable"
@@ -2050,6 +2056,11 @@ def cmd_record(args) -> None:
     state = load_state(args.dir)
     if args.key in RESERVED_RECEIPTS:
         die(f"'{args.key}' is a phase receipt; only `hexctl done {args.key}` writes it")
+    if args.key == "controller_currency":
+        # Init's own observation, protected like `task_issue`: a later
+        # rewrite would replace the recorded verdict and waiver with a
+        # value nothing observed (S2-R1-01).
+        die("controller_currency is init's observation; only `hexctl init` writes it")
     if state.get("halted") and args.key != "halt_note":
         # Recording context while halted is allowed; progress commands are not.
         pass
