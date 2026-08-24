@@ -4832,3 +4832,134 @@ class ResumeAndRetirementTests(HexctlCase):
     @property
     def retired(self):
         return os.path.join(self.dir, "tmp", "fiat", "fiat-test-topic")
+
+
+class FrontierRowAttributionTests(OriginCheckoutMixin, unittest.TestCase):
+    """A run is charged for its own rows and no others.
+
+    The gate counted every row added since `init`, which cannot tell this run's
+    row from one another run published meanwhile. The issue 466 run added
+    `fiat-v5.15.1`, absorbed `fiat-v5.14.1` in its one permitted sync, and was
+    refused for two rows. It could renumber neither: `done_integrate` freezes
+    the run branch at the sync commit.
+    """
+
+    HELD = ("open", "held-thing", "The widget does not do the thing.",
+            "Make the widget do the thing.")
+    FOREIGN = "widget-v1.2.0"
+    OWN = "widget-v1.3.0"
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        make_origin_checkout(self.dir)
+        self.ledger = os.path.join(
+            self.dir, "plugins", "demo", "skills", "widget", "EVOLUTION.md")
+        self.base_digest = frontier_digest(*self.HELD)
+        self.base_row = row("widget-v1.1.0", "baseline", self.HELD[1],
+                            self.base_digest, "Versioning starts here.")
+        widget_ledger(self.ledger, [self.base_row], version="widget-v1.1.0",
+                      status=self.HELD[0], revision=self.HELD[1],
+                      frontier=self.HELD[2], job=self.HELD[3])
+        with open(self.ledger, "rb") as handle:
+            ledger_sha256 = hashlib.sha256(handle.read()).hexdigest()
+        self.before = {
+            "ledger": os.path.relpath(self.ledger, self.dir),
+            "sha256": ledger_sha256,
+            "rows": 1,
+        }
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def held_row(self, version):
+        """One generation row retaining the held revision and digest."""
+        return row(version, "generation", self.HELD[1], self.base_digest)
+
+    def write_chain(self, versions, header_version=None):
+        widget_ledger(
+            self.ledger,
+            [self.base_row, *(self.held_row(v) for v in versions)],
+            version=header_version or versions[-1],
+            status=self.HELD[0], revision=self.HELD[1],
+            frontier=self.HELD[2], job=self.HELD[3],
+        )
+
+    def fault_with(self, published):
+        return hexctl_module().frontier_close_fault(
+            self.ledger, self.before, frozenset(published)
+        )
+
+    def test_a_row_published_meanwhile_is_not_charged_to_this_run(self):
+        self.write_chain([self.FOREIGN, self.OWN])
+        self.assertIsNone(self.fault_with({self.FOREIGN}))
+
+    def test_without_the_published_set_the_same_ledger_is_refused(self):
+        """The red side of the issue 466 refusal, on the same topology."""
+        self.write_chain([self.FOREIGN, self.OWN])
+        fault = self.fault_with(set())
+        self.assertIn("gained 2 history row(s)", fault)
+        self.assertNotIn("already published", fault)
+
+    def test_the_refusal_says_how_many_it_subtracted(self):
+        self.write_chain([self.FOREIGN, self.OWN, "widget-v1.4.0"])
+        fault = self.fault_with({self.FOREIGN})
+        self.assertIn("gained 2 history row(s)", fault)
+        self.assertIn("after subtracting 1 already published", fault)
+
+    def test_two_rows_of_its_own_are_still_refused(self):
+        self.write_chain([self.FOREIGN, self.OWN])
+        self.assertIn("gained 2", self.fault_with({"widget-v9.9.9"}))
+
+    def test_the_newest_row_may_not_be_a_published_one(self):
+        """One own row, then a row published on top of it during the sync."""
+        self.write_chain([self.FOREIGN, self.OWN], header_version=self.OWN)
+        fault = self.fault_with({self.OWN})
+        self.assertIn("was already published in the recorded base", fault)
+        self.assertIn("has to be the newest", fault)
+
+    def test_a_duplicated_published_label_cannot_subtract_twice(self):
+        self.write_chain([self.FOREIGN, self.FOREIGN], header_version=self.FOREIGN)
+        self.assertIn("gained 0", self.fault_with({self.FOREIGN}))
+
+    def test_the_base_ledger_read_returns_the_versions_it_committed(self):
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN])
+        relative = self.before["ledger"]
+        subprocess.run(["git", "add", relative], cwd=self.dir, check=True,
+                       capture_output=True)
+        subprocess.run(["git", "commit", "-q", "-m", "ledger"], cwd=self.dir,
+                       check=True, capture_output=True)
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.dir,
+                              check=True, capture_output=True,
+                              text=True).stdout.strip()
+        self.assertEqual(
+            module.base_ledger_versions(self.dir, head, relative),
+            frozenset({"widget-v1.1.0", self.FOREIGN}),
+        )
+
+    def test_an_unreadable_base_ledger_subtracts_nothing(self):
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN, self.OWN])
+        relative = self.before["ledger"]
+        for base in ("", "not-a-sha", "0" * 40):
+            with self.subTest(base=base):
+                self.assertEqual(
+                    module.base_ledger_versions(self.dir, base, relative),
+                    frozenset(),
+                )
+        # A read that answers nothing leaves the older, stricter arithmetic.
+        self.assertIn(
+            "gained 2",
+            self.fault_with(module.base_ledger_versions(self.dir, "0" * 40, relative)),
+        )
+
+    def test_a_missing_ledger_path_subtracts_nothing(self):
+        module = hexctl_module()
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.dir,
+                              check=True, capture_output=True,
+                              text=True).stdout.strip()
+        self.assertEqual(
+            module.base_ledger_versions(self.dir, head, "nowhere/EVOLUTION.md"),
+            frozenset(),
+        )

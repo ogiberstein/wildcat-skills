@@ -1091,12 +1091,49 @@ def carried_forward_record(path: str) -> dict:
     }
 
 
-def frontier_close_fault(path: str, before: dict) -> str | None:
+def base_ledger_versions(base_dir: str, base_commit: str, ledger: str) -> frozenset:
+    """Every row version the ledger already carried at one exact base commit.
+
+    A run that syncs absorbs whatever other runs published meanwhile, and those
+    rows are not its own. This is the only evidence that separates them, and it
+    is already recorded: `done sync-run` stores the exact base commit it merged.
+
+    An unreadable or unparsable blob returns the empty set, which leaves the
+    gate on its older and stricter arithmetic. Failing the other way would let a
+    broken read excuse a row nobody published.
+    """
+    if not COMMIT_RE.fullmatch(base_commit or ""):
+        return frozenset()
+    # `bounded_run` rather than `bounded_git`: a blob this reader cannot fetch is
+    # an answer it handles, not a fatal error, so it must not print a refusal or
+    # exit. Reading the status keeps that decision here.
+    status, raw = bounded_run(
+        base_dir, "git", ["show", f"{base_commit}:{ledger}"]
+    )
+    if status != 0:
+        return frozenset()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return frozenset()
+    return frozenset(row["version"] for row in ledger_rows(text))
+
+
+def frontier_close_fault(
+    path: str, before: dict, published: frozenset = frozenset()
+) -> str | None:
     """Why this run has not closed the frontier it declared, or None.
 
     The maturity gate says to update the ledger exactly once, and says it in
     prose. This repository has already had to reconstruct two broken evolutions,
     so the run proves the update instead of asserting it.
+
+    `published` names the rows the base already carried, so a run is charged for
+    its own rows and no others. Without it the second of two concurrent frontier
+    runs on one skill is refused for work it did not do, which is what happened
+    to the issue 466 run: it added `fiat-v5.15.1`, absorbed `fiat-v5.14.1` in
+    its one permitted sync, and could not renumber either, because
+    `done_integrate` freezes the run branch at that sync commit.
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -1117,13 +1154,22 @@ def frontier_close_fault(path: str, before: dict) -> str | None:
     if anchor is not None and not anchor_at:
         return (f"{path} no longer carries the init-time version row "
                 f"{anchor!r}; history is append-only")
-    gained = (len(rows) - (anchor_at[-1] + 1) if anchor_at
-              else len(rows) - before["rows"])
+    after = (rows[anchor_at[-1] + 1:] if anchor_at
+             else rows[len(rows) - max(0, len(rows) - before["rows"]):])
+    foreign = [entry for entry in after if entry["version"] in published]
+    gained = len(after) - len(foreign)
     if gained != 1:
-        return (f"{path} gained {gained} history row(s); the contract allows "
-                f"exactly one per completed frontier job")
+        tail = ""
+        if foreign:
+            tail = (f", after subtracting {len(foreign)} already published in "
+                    f"the recorded base")
+        return (f"{path} gained {gained} history row(s){tail}; the contract "
+                f"allows exactly one per completed frontier job")
 
     row = rows[-1]
+    if row["version"] in published:
+        return (f"the newest row {row['version']} was already published in the "
+                f"recorded base; this run's own row has to be the newest")
     skill = os.path.basename(os.path.dirname(path))
     current = ledger_field(text, "Current version")
     if row["version"] != current:
@@ -1914,9 +1960,15 @@ def done_integrate(args, state: dict) -> None:
             f"branch is merged into '{state['base']}'"
         )
     frontier = as_dict(state.get("frontier"))
+    published = frozenset()
     if frontier:
+        recorded_sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+        if recorded_sync:
+            published = base_ledger_versions(
+                args.dir, recorded_sync.get("base_commit"), frontier["ledger"]
+            )
         fault = frontier_close_fault(
-            os.path.join(args.dir, frontier["ledger"]), frontier)
+            os.path.join(args.dir, frontier["ledger"]), frontier, published)
         if fault:
             die(
                 f"the frontier ledger has not been closed: {fault}. This run "
@@ -1971,6 +2023,7 @@ def done_integrate(args, state: dict) -> None:
         "run_head": remote_tip,
         "final_step_merge": recorded_tip,
         "attribution": attribution,
+        "frontier_published_rows": sorted(published),
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
