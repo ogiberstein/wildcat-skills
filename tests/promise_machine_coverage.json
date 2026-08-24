@@ -2539,7 +2539,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "b50118438c4bdd59914ae616bfc026af49b5d86a72a0eb52aa8855fd6b51761f",
+      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2553,7 +2553,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "b50118438c4bdd59914ae616bfc026af49b5d86a72a0eb52aa8855fd6b51761f",
+      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2567,7 +2567,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "b50118438c4bdd59914ae616bfc026af49b5d86a72a0eb52aa8855fd6b51761f",
+      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {

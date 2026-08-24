@@ -329,6 +329,32 @@ def run_branch_of(state: dict):
     return state.get("run_branch")
 
 
+def integration_base_of(state: dict) -> str:
+    """The named branch a completed run integrates into.
+
+    Older runs may record the exact starting commit in ``state.base`` while
+    retaining the named delivery branch in ``config.git.base``.  The commit is
+    immutable starting-point evidence; it is not a remote branch name.
+    """
+    starting_base = state.get("base")
+    if not isinstance(starting_base, str) or not starting_base:
+        die("the recorded starting base must be a non-empty string")
+    if not COMMIT_RE.fullmatch(starting_base):
+        check_branch_name(starting_base)
+        return starting_base
+
+    configured = as_dict(as_dict(state.get("config")).get("git")).get("base")
+    if not isinstance(configured, str) or not configured:
+        die(
+            "a run started from a commit needs config.git.base to name its "
+            "integration branch"
+        )
+    if COMMIT_RE.fullmatch(configured):
+        die("config.git.base must name an integration branch, not a commit")
+    check_branch_name(configured)
+    return configured
+
+
 def step_branch_name(state: dict, step: dict) -> str:
     """Descriptive chained step branch: run slug, step number, step title.
 
@@ -1774,6 +1800,7 @@ def done_push(args, state: dict) -> None:
 def _integrate_directive(state: dict) -> dict:
     """Merge the stack bottom up, then the run branch into the base once."""
     run_branch = run_branch_of(state)
+    integration_base = integration_base_of(state)
     merged = as_dict(state.get("integrate")).get("merged") or []
     for step in state["steps"]:
         if step["n"] in merged:
@@ -1802,7 +1829,8 @@ def _integrate_directive(state: dict) -> dict:
     return {
         "do": "integrate",
         "run_branch": run_branch,
-        "base": state["base"],
+        "base": integration_base,
+        "starting_base": state["base"],
         "steps": len(state["steps"]),
         "product_evidence": product_evidence_record(state, final_head),
         "base_advance": {
@@ -2260,11 +2288,12 @@ def done_sync_run(args, state: dict) -> None:
         die("--revalidation is required for sync-run")
     sync_tip = require_full_sha(args.commit, "run sync commit")
     base_tip = require_full_sha(args.base_commit, "run sync base commit")
+    integration_base = integration_base_of(state)
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
     if remote_tip != sync_tip:
         die("run sync commit does not match the remote run branch tip")
     remote_base = remote_branch_tip(
-        args.dir, state["base"], "remote base branch tip"
+        args.dir, integration_base, "remote base branch tip"
     )
     if remote_base != base_tip:
         die("run sync base commit does not match the remote base branch tip")
@@ -2287,6 +2316,8 @@ def done_sync_run(args, state: dict) -> None:
     github_verified = verify_github_commits(args.dir, [sync_tip])
     integrate["sync"] = {
         "commit": sync_tip,
+        "base": integration_base,
+        "starting_base": state["base"],
         "base_head": base_tip,
         "parents": parents,
         "github_verified": github_verified,
@@ -2295,7 +2326,7 @@ def done_sync_run(args, state: dict) -> None:
     }
     commit(args.dir, state, "done:sync-run", integrate["sync"])
     print(
-        f"{run_branch_of(state)} synced with {state['base']} at {base_tip}; "
+        f"{run_branch_of(state)} synced with {integration_base} at {base_tip}; "
         f"product evidence preserved; {len(revalidation['checks'])} integration "
         "revalidation check(s) recorded; integration may continue"
     )
@@ -2310,6 +2341,7 @@ def done_integrate(args, state: dict) -> None:
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     pending = _integrate_directive(state)
+    integration_base = integration_base_of(state)
     if pending["do"] != "integrate":
         die(
             f"step {pending['step']} still has to merge into "
@@ -2320,7 +2352,7 @@ def done_integrate(args, state: dict) -> None:
     if not args.merge_commit:
         die(
             "--merge-commit is required; the run is not complete until the run "
-            f"branch is merged into '{state['base']}'"
+            f"branch is merged into '{integration_base}'"
         )
     frontier = as_dict(state.get("frontier"))
     published = frozenset()
@@ -2372,7 +2404,7 @@ def done_integrate(args, state: dict) -> None:
         args.dir,
         args.pr_url,
         expected_head=run_branch_of(state),
-        expected_base=state["base"],
+        expected_base=integration_base,
         expected_head_sha=remote_tip,
         expected_merge_sha=args.merge_commit,
         expected_head_label="remote run branch tip",
@@ -2381,7 +2413,8 @@ def done_integrate(args, state: dict) -> None:
     attribution = merged_attribution(args.dir, state, args.merge_commit)
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
-        "base": state["base"],
+        "base": integration_base,
+        "starting_base": state["base"],
         "pr_url": args.pr_url,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
@@ -2412,7 +2445,7 @@ def done_integrate(args, state: dict) -> None:
                "keep the tree. Nothing is ever forced")
         )
     print(
-        f"{run_branch_of(state)} merged into {state['base']} "
+        f"{run_branch_of(state)} merged into {integration_base} "
         f"({args.merge_commit}); run complete"
     )
 

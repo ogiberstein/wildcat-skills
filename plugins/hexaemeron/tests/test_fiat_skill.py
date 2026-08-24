@@ -297,6 +297,8 @@ class StackBringDownTests(unittest.TestCase):
         self.assertIn("--revalidation .hexaemeron/integration-revalidation.json", flat)
         self.assertIn("implementation and audit remain evidence", flat)
         self.assertIn("Base advancement alone never authorises a carryover", flat)
+        self.assertIn("config.git.base", integration)
+        self.assertIn("starting commit", flat)
 
 
 class OriginLabelTests(unittest.TestCase):
