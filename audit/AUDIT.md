@@ -12,6 +12,7 @@ Pandects Foundry checks pass.
 
 Leads not pursued: none.
 
+
 ## Compound v3 Phase 0, step 1, round 1 -- 2026-08-17
 
 | id | severity | file | finding | status |
@@ -12591,3 +12592,104 @@ pull request, issue mutation, integration or controller receipt was performed
 by Warden. One finding requires an independent round 3.
 
 Leads not pursued: none.
+
+## Issue 436 run-observation receipt binding, step 1, round 3 -- 2026-08-24
+
+### State
+
+Audit of the round-2 fixed tree at
+`811e7d43c3f5e670ffe770bb169fd8eec99f0f2f`. Two high findings were
+reproduced twice. The first is repaired in signed commit
+`08bafba5629692873cce5ecc58feed3009f1ee0a`; the second is repaired in
+signed commit `066e4524023a26aca1dcf2e1938536c0a6826f13`, which has the first
+repair in its ancestry. The third receipted study amendment, SHA-256
+`4fff8fe9b5a62463a6287e1b2f2395125235147c2ec1227b703975d5905a55be`,
+adds only the source-owned reporter and its coverage guard to this step.
+
+### Findings
+
+`I436-S1-R3-01` -- high -- the final stable read checked the named file and
+held its file descriptor, but it released the directory descriptors before
+returning. Renaming `.hexaemeron/observations` outside the worktree at that
+point left the original descriptor readable and made the named path disappear;
+the command could return a clean snapshot that no longer named an in-root
+artefact. The repair keeps the full no-follow descriptor chain and rechecks
+the root and each opened directory identity before returning the snapshot.
+The regression guard is
+`test_final_read_refuses_parent_escape_during_second_snapshot`.
+
+`I436-S1-R3-02` -- high -- the receipted source-bound command
+`python3 plugins/hexaemeron/tests/run_tests.py {report}` was rejected before
+the reporter emitted JSON because the runner accepted only
+`--elenchus-report PATH`. The exact command exited 2 twice on signed
+`08bafba`. The repair accepts one positional path as a compatibility alias,
+keeps the existing confined no-follow report handling, and refuses the
+positional and flagged forms together before creating either target. The guard
+is `test_receipted_elenchus_reporter_accepts_positional_target`.
+
+### Risk dispositions
+
+- `companion-path` -- exercised and repaired. Final reads retain and verify
+  every directory identity back to the confined root.
+- `prefix-drift` -- exercised. Replacement, truncation, reordering, and
+  before, during, and after-validation swaps refuse the dependent claim.
+- `unbound-tail` -- exercised. The complete final reread detects alteration
+  while preserving the prior prefix boundary.
+- `run-association` -- exercised. The stable controller run identity remains
+  required for the recorded prefix.
+- `receipt-association` -- exercised. Each prefix still consumes one exact
+  preceding receipt and record data.
+- `contract-identity` -- exercised. Event and capture contracts are
+  structurally revalidated over immutable bytes.
+- `count-agreement` -- exercised. Byte count, event count, interval, and
+  digest remain recomputed from the final stable snapshot.
+- `gate-status` -- exercised. Capture, validation, and redaction status must
+  pass before a binding can be recorded.
+- `controller-independence` -- exercised. A refused observation never
+  invalidates ordinary Fiat verification.
+- `legacy-state` -- exercised. Version-1 runs remain valid until the
+  explicitly dependent observation claim is requested.
+- `partial-write` -- exercised and repaired. The second-snapshot
+  parent-escape and post-validation replacement guards return bounded
+  refusals rather than a clean result.
+- `diagnostic-echo` -- exercised. The new path and argument refusals retain
+  codes and recovery without echoing hostile bytes or paths.
+- `binding-growth` -- exercised. Exact ordered receipt joins and the
+  64-binding cap remain unchanged.
+- `coverage-drift` -- exercised and repaired. Promise coverage now binds the
+  reporter source, its exact digest, and the positional compatibility guard.
+
+### Evidence
+
+- Focused binding suite: 23 of 23 tests passed.
+- Observation validator suite: 65 of 65 tests passed.
+- Promise-contract suite: 73 of 73 tests passed.
+- Source-owned fixed-tree reporter: 959 of 959 tests passed in 289.684
+  seconds; its `elenchus.unittest.v1` record is complete with zero failures,
+  errors, skips, expected failures, and unexpected successes. Its generated
+  report was checked then removed.
+- Root suite: 349 of 349 tests passed, with five existing explicit
+  detached-receipt skips. The inoculation matrix ran 1,258 cases with zero
+  crashes and zero unexpected clean results.
+- Promise Machine has 14 exact copies and 70 selected coverage rows of 70.
+  Both Protasis modes, Phylax, Ephoros, Hypomnema, Horos, syntax, JSON,
+  receipt-copy parity, and diff check exited zero. Each of the four changed
+  documents passed Imprimatur and Brevitas separately.
+- The exact source-bound Elenchus command against `066e452` returned
+  `passed`, not `guarded`: it overlays changed files in a detached parent
+  worktree, and its current test classifier treats
+  `plugins/hexaemeron/tests/run_tests.py` as a test because it is below a
+  `tests` directory. The fixed reporter therefore also runs in the parent.
+  This is not represented as `guarded`. The direct exact command red result
+  on signed `08bafba` was preserved twice, and `passed` is an accepted
+  controller verdict.
+
+### Boundary and next
+
+The framework classification detail is retained as a bounded lead for the
+existing executable-gate prior art; no framework file is changed inside issue
+#436. No push, pull request, issue mutation, integration, or controller
+receipt was performed by Warden. Two findings require an independent round 4.
+
+Leads not pursued: no new product mechanism after the complete fixed-tree
+matrix.
