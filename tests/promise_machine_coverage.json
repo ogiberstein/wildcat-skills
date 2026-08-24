@@ -451,6 +451,26 @@
       "path": "plugins/hexaemeron/tests/test_hexctl.py",
       "selector": "test_state_edit_detected_by_verify"
     },
+    "fiat-sync-m": {
+      "claim": "A replacement without the exact active sync receipt or a bounded reason is refused before composition evidence changes.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_supersession_requires_a_receipt_and_reason"
+    },
+    "fiat-sync-p": {
+      "claim": "One signed replacement retains the failed receipt and exact product evidence while making only the replacement eligible for integration.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_run_supersedes_one_failed_composition_without_reopening_product"
+    },
+    "fiat-sync-r": {
+      "claim": "Composition repair remains bounded to an existing receipt and stops after eight recorded replacements.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_supersession_is_bounded_and_requires_an_existing_receipt"
+    },
+    "fiat-sync-s": {
+      "claim": "A stale sync identity, same-commit replacement or malformed reason cannot inherit the active receipt's authority.",
+      "path": "plugins/hexaemeron/tests/test_hexctl.py",
+      "selector": "test_sync_supersession_refuses_stale_or_malformed_subject_evidence"
+    },
     "hermes-corpus-m": {
       "claim": "Missing required evidence is refused rather than treated as success.",
       "path": "plugins/hermes/skills/hermes/scripts/test_hermes.py",
@@ -1386,11 +1406,11 @@
     },
     {
       "cases": {
-        "M": "fiat-m",
+        "M": "fiat-sync-m",
         "O": "fiat-o",
-        "P": "fiat-p",
-        "R": "fiat-r",
-        "S": "fiat-s",
+        "P": "fiat-sync-p",
+        "R": "fiat-sync-r",
+        "S": "fiat-sync-s",
         "X": {
           "not_applicable": true,
           "reason": "The canonical declaration supports no exception for this promise."
@@ -2539,7 +2559,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
+      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2553,7 +2573,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
+      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2567,7 +2587,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "2536758b326551b5d4a1d362fb05bce57ab002e274f80996560b74c53eb9f01f",
+      "sha256": "248aca737db755da0dd168273136a7df717ce85bd4833cae2ee82fb4b0adba3d",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {
