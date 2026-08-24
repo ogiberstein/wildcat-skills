@@ -12556,3 +12556,23 @@ document this step unblocks.
 The root suite still reports the same five capture-profile failures step 1
 recorded, from the issue 435 receipt binding on `main`. Nothing in this step
 touches them.
+
+## H003 quoted specimen, step 2, round 2 -- 2026-08-24
+
+Against the tree with round 1's record appended. Zero findings.
+
+All three lints exit 0 again, the demo path over `audit/AUDIT.md` exits 0, and
+the focused Hypomnema suite passes 91/91.
+
+Round 1's own record turned out to be the clearest evidence the change was
+needed. That block quotes a pattern specimen inside a code span, and the parent
+checker at `008364c78a47972dc033382e5b66d7983dd39a76` reports H003 on it at
+line 12544 for the target `a/b`, alongside the two older specimens at 6041 and
+6186. The fixed checker reports none of the three. So the defect was not a
+historical residue of two frozen lines: an ordinary round writing an ordinary
+record added a third instance, permanently, on a file whose append-only
+contract forbids the repair. That is what the three earlier rounds were
+recording as a lead each time they met it.
+
+Leads not pursued: the three named in round 1 stand unchanged, and no new lead
+was found.
