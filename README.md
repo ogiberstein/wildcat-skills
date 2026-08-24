@@ -57,8 +57,17 @@ handed off before completion, unfinished work may be lost. Do not assume that
 another contributor or session can resume it. The
 [contributor guide](./docs/how-to-help-shoggoth.md) and its
 [printable PDF](./docs/pdf/how-to-help-shoggoth.pdf) describe the route that
-works today. If a completed job is merged with your authorship intact, GitHub
-adds you to this repository's contributor list automatically.
+works today. If a completed job is merged with your authorship intact,
+GitHub includes you in this repository's contributor history.
+
+Fiat now checks the first half of that sentence and records the answer. It
+stores, for every commit it pushes, the GitHub account the commit was matched
+to and a digest of the author address, and it refuses to record a run as
+integrated unless the base still carries each of those identities. Two
+conditions are GitHub's rather than the repository's. The commit author address
+has to be one GitHub can match to your account, and the contributor list is
+GitHub's to compute and publish on its own schedule. A run whose author
+address matches no account records that plainly instead of guessing.
 
 ## What Is It?
 

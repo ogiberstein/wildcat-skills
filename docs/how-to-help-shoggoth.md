@@ -159,6 +159,33 @@ I can take this issue through a Fiat run: <exact issue URL>.
 
 That sentence names the offer, the delivery method and the work. Everything after it can be made orderly.
 
+## What the record says about you
+
+The README says that a completed job merged with your authorship intact puts
+you in this repository's contributor history. Fiat checks the first half of
+that and records what it found, so you do not have to take it on trust.
+
+When Fiat pushes your work it records, for each commit, the GitHub account the
+commit was matched to and a digest of the author address. It never stores the
+address itself. When the run reaches the base it refuses to record the run as
+integrated unless the base still carries every one of those identities, either
+because your commits are still there or because the merge that replaced them
+names you as author or in a `Co-authored-by` trailer. A merge commit keeps your
+commits; a squash or rebase merge does not, and then the merge itself has to
+carry your name.
+
+Two conditions belong to GitHub and not to this repository.
+
+The commit author address has to be one GitHub can match to your account.
+Otherwise the account cannot be resolved, and Fiat records that plainly rather
+than guessing. So check the address on your commits before you push, and put it
+on your GitHub account if it is missing.
+
+The list itself is GitHub's. It computes and publishes it on its own schedule,
+nothing here can make an entry appear, and no receipt in the run pretends
+otherwise. What a run can tell you is whether your authorship reached the
+default branch. That is what it records.
+
 ## Artwork boundary
 
 The Wildcat Shoggoth is a humanoid figure with a faceted geometric head or mask. It is not a literal cat. Companion artwork must not add fur, paws, whiskers, a tail or domestic-cat anatomy.
