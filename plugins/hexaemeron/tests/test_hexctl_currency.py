@@ -729,3 +729,44 @@ class TestControllerCurrency(HexctlCase):
         self.assertEqual(
             sum(1 for line in lines if line.startswith("hexaemeron ")), 1,
             "a forged line impersonates another plugin's row")
+
+    def test_currency_text_survives_separator_and_surrogate_bytes(self):
+        """Non-ASCII hostile registry bytes neither forge nor crash (S3-R2-01).
+
+        A Unicode line separator in a key forged a row for any `splitlines`
+        consumer, and a lone surrogate in a version crashed the text encoder
+        mid-report with a traceback; both must render inert while `--json`
+        keeps carrying the raw values.
+        """
+        controller = self.fleet_layout(
+            {plugin: self.HEAD for plugin in self.FLEET})
+        registry = os.path.join(self.dir, "plugins-root",
+                                "installed_plugins.json")
+        with open(registry, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        install = payload["plugins"]["hexaemeron@wildcat-labs"][0][
+            "installPath"]
+        forged = ("zzz\u2028hexaemeron 9.9.9 git-backed "
+                  f"{self.HEAD} {self.HEAD} current")
+        payload["plugins"][forged + "@wildcat-labs"] = [{
+            "installPath": install,
+            "version": "1.0\ud800",
+            "gitCommitSha": self.HEAD,
+        }]
+        with open(registry, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+        proc = self.run_installed_ctl(controller, "currency")
+        self.assertNotIn("Traceback", proc.stderr,
+                         "a hostile registry byte crashed the report")
+        rows = json.loads(self.run_installed_ctl(
+            controller, "currency", "--json").stdout)
+        lines = [line for line in proc.stdout.splitlines() if line]
+        self.assertEqual(len(lines), len(rows),
+                         "separator bytes forged extra report lines")
+        self.assertEqual(
+            sum(1 for line in lines if line.startswith("hexaemeron ")), 1,
+            "a forged line impersonates another plugin's row")
+        hostile = next(row for row in rows
+                       if row["plugin"].startswith("zzz"))
+        self.assertEqual(hostile["version"], "1.0\ud800",
+                         "--json no longer carries the raw registry value")

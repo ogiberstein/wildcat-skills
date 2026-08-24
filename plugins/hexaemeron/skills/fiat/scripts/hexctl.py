@@ -2195,17 +2195,19 @@ def currency_report(
 def currency_text_field(value) -> str:
     """One row value rendered for the line-per-plugin text report.
 
-    Plugin names and versions are registry bytes, and a control byte inside
-    one would forge row boundaries -- a newline in a key prints a fabricated
-    row that the eye reads as another plugin's verdict (S3-R1-01). Controls
-    render as `?`; the exit code and `--json`, which escapes them natively,
-    are the machine surfaces either way.
+    Plugin names and versions are registry bytes, and a byte that breaks or
+    reorders lines would forge row boundaries -- a newline in a key prints a
+    fabricated row that the eye reads as another plugin's verdict (S3-R1-01),
+    a Unicode line or paragraph separator does the same to a `splitlines`
+    consumer, and a lone surrogate crashes the encoder mid-report
+    (S3-R2-01). Anything not printable renders as `?`, which keeps every
+    legitimate slug, semver, hex and verdict byte for byte; the exit code
+    and `--json`, which escapes hostile values natively, are the machine
+    surfaces either way.
     """
     if value is None:
         return "null"
-    return "".join(
-        "?" if ord(ch) < 0x20 or ch == "\x7f" else ch for ch in str(value)
-    )
+    return "".join(ch if ch.isprintable() else "?" for ch in str(value))
 
 
 def cmd_currency(args) -> None:
