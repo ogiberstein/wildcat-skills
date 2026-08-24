@@ -122,6 +122,15 @@ Before the push receipt is accepted, GitHub must report `verified: true` and
 bounded argv-only `git` and `gh` calls and records only the verified SHAs; it
 does not store raw signature material or command output.
 
+The same response says who each commit is attributed to, so the receipt keeps
+that too: the pull request's own account, and per commit the GitHub account the
+commit was matched to or an explicit `null`, the author name, a digest of the
+lowercased author address, and every co-author trailer as its own identity. The
+account is the identity and the digest corroborates it, because one person may
+hold several addresses and one account. No address is stored. A commit GitHub
+could not match records `null` rather than a placeholder, because an address a
+contributor has not put on their account is the ordinary reason for it.
+
 ```text
 hexctl done push --pr-url <url> --head-commit <sha> --pr-base <ref>
 ```
@@ -214,6 +223,17 @@ A later heading ends the section, so later sections cannot stand in for this
 one. What passes is recorded on the receipt as the line count and the digest of
 the body, so the ledger holds what the run published rather than a promise that
 it did.
+
+Every identity the push receipts recorded also has to remain attributable from
+the merge. Either the commit that carried it is still an ancestor of the merge,
+or a merge this run recorded carries the identity as its author or in a
+`Co-authored-by` trailer, with the step's own merge tried before the base merge.
+A merge commit preserves the first; a squash or rebase merge does not, and then
+the merge itself has to carry the name. The `integrate` directive says so before
+the merge, and the receipt refuses afterwards if nothing carries an identity,
+naming the step, the commit and the identity by account or digest prefix. Fiat
+does not read the repository's merge settings and does not require a method: it
+refuses the claim, not the merge.
 
 Wait for required checks, merge without bypassing them, and require GitHub to
 report `verified: true` and `reason: valid` for the merge commit. Then delete

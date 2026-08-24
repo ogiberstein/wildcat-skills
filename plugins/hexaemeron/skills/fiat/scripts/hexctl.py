@@ -1636,7 +1636,9 @@ def done_push(args, state: dict) -> None:
         expected_head_sha=verified_commits[-1],
         expected_merge_sha=args.merge_commit,
     )
-    github_verified = verify_github_commits(args.dir, verified_commits)
+    github_verified, attribution = verified_github_attribution(
+        args.dir, verified_commits
+    )
     merge_verified = []
     if args.merge_commit:
         merge_verified = verify_github_commits(args.dir, [args.merge_commit])
@@ -1650,6 +1652,10 @@ def done_push(args, state: dict) -> None:
         "github_verified": github_verified,
         "github_merge_verified": merge_verified,
         "pull_request": pr_record,
+        "attribution": {
+            "pull_request_author": pr_record.get("author_login"),
+            "commits": attribution,
+        },
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -1710,6 +1716,15 @@ def _integrate_directive(state: dict) -> dict:
         "run_branch": run_branch,
         "base": state["base"],
         "steps": len(state["steps"]),
+        "attribution": {
+            "recorded_identities": len(recorded_run_attribution(state)),
+            "preserved_by": (
+                "a merge commit, which leaves every recorded commit reachable "
+                "from the base; a squash or rebase merge rewrites them, and "
+                "then the merge commit itself has to carry each identity as "
+                "author or in a Co-authored-by trailer"
+            ),
+        },
         "then": then,
     }
 
@@ -1776,13 +1791,18 @@ def done_merge_step(args, state: dict) -> None:
             remote_head,
             f"step {step['n']} merge-time push repair",
         )
-        repaired_github = verify_github_commits(args.dir, repaired_local)
+        # The recorded push attribution describes the head this repair replaced,
+        # so it is re-derived here rather than carried forward stale.
+        repaired_github, repaired_attribution = verified_github_attribution(
+            args.dir, repaired_local
+        )
         effective_push = {
             "repaired": True,
             "pr_base": pr_base,
             "head": remote_head,
             "verified_commits": repaired_local,
             "github_verified": repaired_github,
+            "attribution": {"commits": repaired_attribution},
         }
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
@@ -1938,6 +1958,7 @@ def done_integrate(args, state: dict) -> None:
         expected_head_label="remote run branch tip",
     )
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
+    attribution = merged_attribution(args.dir, state, args.merge_commit)
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
         "base": state["base"],
@@ -1949,6 +1970,7 @@ def done_integrate(args, state: dict) -> None:
         "pull_request": pr_record,
         "run_head": remote_tip,
         "final_step_merge": recorded_tip,
+        "attribution": attribution,
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
@@ -2852,6 +2874,24 @@ COAUTHOR_RE = re.compile(
     r"^Co-authored-by:\s*(?P<name>.+?)\s*<(?P<email>[^<>]+)>$",
     re.IGNORECASE,
 )
+GITHUB_LOGIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\[bot\])?$")
+"""One GitHub account login as the commits endpoint spells it.
+
+Closed on purpose. The endpoint's `author` is the account GitHub matched the
+commit to, and it is the only field here that later becomes a public claim, so
+an unexpected shape refuses rather than being stored and repeated.
+"""
+
+ATTRIBUTION_NAME_MAX = 256
+ATTRIBUTION_EMAIL_MAX = 320
+ATTRIBUTION_COAUTHOR_MAX = 32
+"""Caps on the identity fields read out of a GitHub commit payload.
+
+The address cap is RFC 5321's maximum path length. The co-author cap exists
+because the trailer count is attacker-influenceable and a receipt is not the
+place to discover that.
+"""
+
 HOST_BYLINE_RE = re.compile(
     r"(?:generated|authored|co-authored)\s+by\s+"
     r"(?:\[(?:claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)\]"
@@ -2873,6 +2913,93 @@ def is_host_identity(name: str, email: str) -> bool:
         name.strip().casefold() in HOST_IDENTITY_NAMES
         or email.strip().casefold() in HOST_IDENTITY_EMAILS
     )
+
+
+def identity_digest(email: str) -> str:
+    """SHA-256 of one normalised author address.
+
+    The receipt has to say whether the identity on the base is the identity
+    that was pushed, and it must not carry an address to do it. A digest
+    answers exactly that question and nothing else, and a reviewer holding the
+    public repository can recompute it.
+    """
+    return hashlib.sha256(email.strip().casefold().encode("utf-8")).hexdigest()
+
+
+def checked_login(value: object, label: str) -> str | None:
+    """The GitHub account a commit is linked to, or None when it is linked to none.
+
+    A literal `null` is the ordinary outcome for a contributor whose commit
+    address is not on their account, so it is recorded as itself. Coercing it
+    to a placeholder would turn "GitHub could not match this" into a name.
+
+    An account object without a usable login is not that outcome. It is a
+    payload nobody predicted, and reading it as "unlinked" would let a shape
+    the reader does not understand become a claim about a person.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        die(f"{label} account is not an object")
+    login = value.get("login")
+    if not isinstance(login, str):
+        die(f"{label} account login is not a string")
+    if login.casefold() in HOST_PR_LOGINS:
+        die(f"{label} links the commit to a runtime host account")
+    if not GITHUB_LOGIN_RE.fullmatch(login):
+        die(f"{label} account login is malformed")
+    return login
+
+
+def checked_identity(value: object, label: str) -> tuple[str, str]:
+    """One author name and address out of a GitHub commit payload."""
+    if not isinstance(value, dict):
+        die(f"{label} identity is not an object")
+    name = value.get("name")
+    email = value.get("email")
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or len(name) > ATTRIBUTION_NAME_MAX
+    ):
+        die(f"{label} identity name is malformed")
+    if (
+        not isinstance(email, str)
+        or not email.strip()
+        or len(email) > ATTRIBUTION_EMAIL_MAX
+        or any(character.isspace() for character in email)
+    ):
+        die(f"{label} identity address is malformed")
+    return name, email
+
+
+def message_coauthors(message: object, label: str) -> list[dict]:
+    """Every exact co-author trailer on one commit message.
+
+    Parsed with the same expression the local range gate uses, so the two
+    cannot disagree about what a trailer is. A host identity in a trailer
+    refuses here as well as locally: the two views are read from different
+    places and either one seeing a host is enough.
+    """
+    if not isinstance(message, str):
+        die(f"{label} commit message is missing")
+    found: list[dict] = []
+    for line in message.splitlines():
+        match = COAUTHOR_RE.fullmatch(line)
+        if match is None:
+            continue
+        name, email = match.group("name"), match.group("email")
+        if is_host_identity(name, email):
+            die(f"{label} names a runtime host as co-author")
+        if len(name) > ATTRIBUTION_NAME_MAX or len(email) > ATTRIBUTION_EMAIL_MAX:
+            die(f"{label} co-author identity is malformed")
+        found.append({"name": name, "email_sha256": identity_digest(email)})
+        if len(found) > ATTRIBUTION_COAUTHOR_MAX:
+            die(
+                f"{label} carries more than {ATTRIBUTION_COAUTHOR_MAX} "
+                "co-author trailers"
+            )
+    return found
 
 
 def commit_author(base_dir: str, commit_sha: str, label: str) -> tuple[str, str]:
@@ -2958,6 +3085,27 @@ def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) 
     if base in commits:
         die(f"{label} commit range includes its base")
     return commits
+
+
+def commit_is_ancestor(
+    base_dir: str, candidate: str, descendant: str, label: str
+) -> bool:
+    """Whether one exact commit is still reachable from another.
+
+    `merge-base --is-ancestor` answers 0 for yes and 1 for no. Anything else
+    means the question was not answered at all: a bad object, an unreadable
+    repository, a killed process. Reading an unexpected status as "no" would
+    turn a broken call into a finding about a person, so only the two
+    documented statuses count as an answer.
+    """
+    candidate = require_full_sha(candidate, f"{label} commit")
+    descendant = require_full_sha(descendant, f"{label} descendant")
+    status = bounded_tool_status(
+        base_dir, "git", ["merge-base", "--is-ancestor", candidate, descendant]
+    )
+    if status not in (0, 1):
+        die(f"{label} ancestry for {candidate} could not be determined")
+    return status == 0
 
 
 def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
@@ -3147,34 +3295,243 @@ def inspect_pull_request(
         "head_sha": returned_head,
         "state": payload.get("state"),
         "merge_sha": returned_merge,
+        "author_login": author_login,
     }
 
 
+def github_commit_payload(base_dir: str, repository: str, commit_sha: str) -> dict:
+    """One bounded GitHub commit payload, checked for the exact SHA."""
+    data = bounded_gh(
+        base_dir,
+        ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
+        f"GitHub verification for {commit_sha} could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
+    except ValueError:
+        die(f"GitHub verification for {commit_sha} returned invalid JSON")
+    if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+        die(f"GitHub verification response did not name exact SHA {commit_sha}")
+    return payload
+
+
+def require_github_verified(payload: dict, commit_sha: str) -> None:
+    """GitHub's own verification result for one commit, or a refusal."""
+    commit = payload.get("commit")
+    verification = commit.get("verification") if isinstance(commit, dict) else None
+    if not isinstance(verification, dict):
+        die(f"GitHub verification for {commit_sha} is missing")
+    if verification.get("verified") is not True:
+        die(f"GitHub verification for {commit_sha} is not verified:true")
+    if verification.get("reason") != "valid":
+        die(f"GitHub verification for {commit_sha} reason is not valid")
+
+
+def commit_attribution(payload: dict, commit_sha: str) -> dict:
+    """Who GitHub says wrote one commit, recorded without an address.
+
+    The linked account is the identity, because one person may hold several
+    addresses and one account. The digest corroborates it, and carries the
+    comparison on its own where the account is null.
+    """
+    label = f"GitHub attribution for {commit_sha}"
+    commit = payload.get("commit")
+    if not isinstance(commit, dict):
+        die(f"{label} is missing its commit object")
+    name, email = checked_identity(commit.get("author"), label)
+    if is_host_identity(name, email):
+        die(f"{label} names a runtime host as author")
+    return {
+        "commit": commit_sha,
+        "login": checked_login(payload.get("author"), label),
+        "name": name,
+        "email_sha256": identity_digest(email),
+        "coauthors": message_coauthors(commit.get("message"), label),
+    }
+
+
+def identity_matches(recorded: object, candidate: object) -> bool:
+    """Whether two recorded identities name the same contributor.
+
+    The account wins when both sides have one, because one person may hold
+    several addresses and one account. The digest decides otherwise, and it is
+    the only comparison available for a co-author trailer or an unlinked
+    commit.
+    """
+    if not isinstance(recorded, dict) or not isinstance(candidate, dict):
+        return False
+    left, right = recorded.get("login"), candidate.get("login")
+    if isinstance(left, str) and isinstance(right, str):
+        return left.casefold() == right.casefold()
+    digest = recorded.get("email_sha256")
+    return isinstance(digest, str) and digest == candidate.get("email_sha256")
+
+
+def identity_label(identity: dict) -> str:
+    """Name one identity in a refusal without printing an address."""
+    login = identity.get("login")
+    if isinstance(login, str):
+        return login
+    digest = identity.get("email_sha256")
+    return f"digest {digest[:12]}" if isinstance(digest, str) else "an unnamed identity"
+
+
+def recorded_run_attribution(state: dict) -> list[dict]:
+    """Every identity this run's receipts recorded, in step order.
+
+    A step whose push evidence was repaired at merge time carries a fresher
+    container on the merge record, because the recorded push attribution
+    describes commits that are no longer the branch tip. The fresher one wins.
+    A legacy receipt carries none, and contributes nothing rather than
+    refusing.
+    """
+    identities = []
+    merges = as_dict(as_dict(state.get("integrate")).get("merges"))
+    for step in state["steps"]:
+        push = as_dict(step["receipts"].get("push"))
+        effective = as_dict(as_dict(merges.get(str(step["n"]))).get("effective_push"))
+        source = as_dict(
+            effective["attribution"]
+            if "attribution" in effective
+            else push.get("attribution")
+        )
+        commits = source.get("commits")
+        if commits is None:
+            continue
+        if not isinstance(commits, list):
+            die(f"step {step['n']} recorded a malformed attribution container")
+        for record in commits:
+            if not isinstance(record, dict) or not isinstance(
+                record.get("commit"), str
+            ):
+                die(f"step {step['n']} recorded a malformed attribution entry")
+            identities.append({"step": step["n"], **record})
+    return identities
+
+
+def attribution_carriers(state: dict, identity: dict, merge_sha: str) -> list[str]:
+    """The merges that could have carried one identity onto the base.
+
+    A step squashed into the run branch leaves its commits unreachable while
+    its identity survives on that step's own merge commit, which is itself an
+    ancestor of the base merge. Looking only at the base merge would refuse an
+    identity that did reach the base, so the step's recorded merge is tried
+    first and the base merge second.
+    """
+    merges = as_dict(as_dict(state.get("integrate")).get("merges"))
+    step_merge = as_dict(merges.get(str(identity.get("step")))).get("merge_commit")
+    carriers = []
+    for candidate in (step_merge, merge_sha):
+        if (
+            isinstance(candidate, str)
+            and COMMIT_RE.fullmatch(candidate)
+            and candidate not in carriers
+        ):
+            carriers.append(candidate)
+    return carriers
+
+
+def merged_attribution(base_dir: str, state: dict, merge_sha: str) -> dict:
+    """Whether the base still carries every identity the run published under.
+
+    Two mechanisms count. A merge commit leaves every recorded commit
+    reachable from the base, which is the ordinary case and needs no further
+    read. A squash or rebase merge does not, and then the merge commit itself
+    has to carry the identity as its author or in a co-author trailer.
+
+    The merge commit's own identity is read only once an ancestry check has
+    failed. On the ordinary path no extra request happens, and an unexpected
+    identity shape on a merge commit cannot refuse a run whose commits all
+    reached the base intact.
+    """
+    identities = recorded_run_attribution(state)
+    resolved = []
+    unresolved = []
+    for identity in identities:
+        if commit_is_ancestor(
+            base_dir, identity["commit"], merge_sha, "merged attribution"
+        ):
+            resolved.append({**identity, "mechanism": "ancestor", "carrier": None})
+        else:
+            unresolved.append(identity)
+    read: dict[str, dict] = {}
+    if unresolved:
+        repository = github_repository(base_dir)
+        for identity in unresolved:
+            carried = None
+            for candidate in attribution_carriers(state, identity, merge_sha):
+                if candidate != merge_sha and not commit_is_ancestor(
+                    base_dir, candidate, merge_sha, "merged attribution carrier"
+                ):
+                    continue
+                if candidate not in read:
+                    read[candidate] = commit_attribution(
+                        github_commit_payload(base_dir, repository, candidate),
+                        candidate,
+                    )
+                record = read[candidate]
+                if identity_matches(identity, record):
+                    carried = (candidate, "merge-author")
+                    break
+                if any(
+                    identity_matches(identity, coauthor)
+                    for coauthor in record["coauthors"]
+                ):
+                    carried = (candidate, "merge-coauthor")
+                    break
+            if carried is None:
+                die(
+                    f"step {identity['step']} published commit "
+                    f"{identity['commit']} under {identity_label(identity)}, "
+                    f"and no merge this run recorded carries that commit or "
+                    "that identity; the merge discarded the authorship this "
+                    "run recorded"
+                )
+            resolved.append(
+                {**identity, "mechanism": carried[1], "carrier": carried[0]}
+            )
+    return {
+        "identities": resolved,
+        "carriers": {sha: record["login"] for sha, record in read.items()},
+        "mechanisms": sorted({entry["mechanism"] for entry in resolved}),
+    }
+
+
+def verified_github_attribution(
+    base_dir: str, commits: list[str]
+) -> tuple[list[str], list[dict]]:
+    """Verify each exact SHA and record who GitHub says wrote it.
+
+    One request per SHA serves both. Splitting them would double the reads and
+    let the verification and the attribution describe different responses.
+    """
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
+    repository = github_repository(base_dir)
+    verified = []
+    attribution = []
+    for commit_sha in commits:
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
+        attribution.append(commit_attribution(payload, commit_sha))
+        verified.append(commit_sha)
+    return verified, attribution
+
+
 def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
-    """Require GitHub's valid verification result for each exact SHA."""
+    """Require GitHub's valid verification result for each exact SHA.
+
+    Deliberately not implemented over `verified_github_attribution`. This gate
+    also covers merge commits and the run sync, and routing it through the
+    attribution reader would make an unexpected identity shape on a merge
+    commit refuse a receipt that has nothing to do with attribution. The two
+    read the same payload for different reasons and fail for different ones.
+    """
     commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
     repository = github_repository(base_dir)
     verified = []
     for commit_sha in commits:
-        data = bounded_gh(
-            base_dir,
-            ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
-            f"GitHub verification for {commit_sha} could not be read",
-        )
-        try:
-            payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
-        except ValueError:
-            die(f"GitHub verification for {commit_sha} returned invalid JSON")
-        if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
-            die(f"GitHub verification response did not name exact SHA {commit_sha}")
-        commit = payload.get("commit")
-        verification = commit.get("verification") if isinstance(commit, dict) else None
-        if not isinstance(verification, dict):
-            die(f"GitHub verification for {commit_sha} is missing")
-        if verification.get("verified") is not True:
-            die(f"GitHub verification for {commit_sha} is not verified:true")
-        if verification.get("reason") != "valid":
-            die(f"GitHub verification for {commit_sha} reason is not valid")
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
         verified.append(commit_sha)
     return verified
 
