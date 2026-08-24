@@ -39,3 +39,12 @@ plugins/*/harness/cache/
 # run leaves one; it must never be committed and must never look like a change.
 .CONTRIBUTORS.md.*
 .README.md.*
+
+# Orphaned atomic-write temporaries from scripts/dead_code.py. The sweep in that
+# script removes its own; this makes a survivor of a hard kill invisible to a
+# broad `git add`, the way .CONTRIBUTORS.md.* does above.
+**/.dead-code-tmp-*
+
+# The report the CI lane writes to inspect. The committed artefact is the
+# baseline under .dead-code/, not this transient.
+/.dead-code-report.json

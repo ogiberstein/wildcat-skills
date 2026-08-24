@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wildcat.finance/schemas/dead-code-report-v1.schema.json",
+  "title": "dead-code-report/v1",
+  "description": "One report-only inventory of dead-code candidates at one commit. A finding is a candidate carrying the evidence that produced it and the nearest reason that evidence could be wrong. Nothing in this document establishes that a path or symbol is unused, and nothing in it authorises a deletion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "tool", "commit", "universe", "analysers", "findings"],
+  "properties": {
+    "schema": {
+      "const": "dead-code-report/v1"
+    },
+    "tool": {
+      "const": "dead-code"
+    },
+    "commit": {
+      "description": "The commit whose tracked tree was analysed.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "universe": {
+      "description": "What was analysed, and what was excluded before analysis with the evidence that excluded it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analysed_count",
+        "analysed",
+        "excluded_count",
+        "excluded_by_category",
+        "excluded"
+      ],
+      "properties": {
+        "analysed_count": { "type": "integer", "minimum": 0 },
+        "analysed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "excluded_count": { "type": "integer", "minimum": 0 },
+        "excluded_by_category": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "category", "evidence", "grade"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "category": { "type": "string", "minLength": 1 },
+              "evidence": {
+                "description": "Why the classifier placed this path outside the analysed universe.",
+                "type": "string",
+                "minLength": 1
+              },
+              "grade": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "analysers": {
+      "description": "One entry per registered analyser. An analyser that did not run says so here, and an empty list means the report establishes no reachability result at all.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "state", "version", "detail"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "state": {
+            "description": "ran means the analyser completed over the universe. absent means its toolchain was not available. not-established means it ran and could not settle the signal. failed means it crashed, which stops the command.",
+            "enum": ["ran", "absent", "not-established", "failed"]
+          },
+          "version": { "type": ["string", "null"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "analyser",
+          "path",
+          "symbol",
+          "evidence",
+          "confidence",
+          "false_positive_boundary"
+        ],
+        "properties": {
+          "analyser": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "symbol": {
+            "description": "The symbol or object the finding is about, or null when the finding is about the whole path.",
+            "type": ["string", "null"]
+          },
+          "evidence": {
+            "description": "What the analyser actually observed. Never a conclusion about usefulness.",
+            "type": "string",
+            "minLength": 1
+          },
+          "confidence": {
+            "description": "How far the observation carries, given the reachability-defeating constructs the analyser saw nearby. Never certainty.",
+            "enum": ["high", "medium", "low"]
+          },
+          "false_positive_boundary": {
+            "description": "The nearest reason this finding could be wrong.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

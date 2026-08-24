@@ -1,0 +1,72 @@
+name: dead-code
+on:
+  push:
+    paths:
+      - 'scripts/dead_code.py'
+      - 'schemas/dead-code-report-v1.schema.json'
+      - 'tests/test_dead_code.py'
+      - 'tests/emit_dead_code_report.py'
+      - '.github/workflows/dead-code.yml'
+  pull_request:
+    paths:
+      - 'scripts/dead_code.py'
+      - 'schemas/dead-code-report-v1.schema.json'
+      - 'tests/test_dead_code.py'
+      - 'tests/emit_dead_code_report.py'
+      - '.github/workflows/dead-code.yml'
+
+# The lane reads. It reports candidates and never edits, deletes or opens
+# anything, so nothing here needs a write token.
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run the dead-code suite
+        run: python3 -m unittest tests.test_dead_code -v
+
+      - name: Emit the report
+        id: report
+        run: |
+          python3 scripts/dead_code.py report --json --output .dead-code-report.json
+          python3 scripts/dead_code.py report
+
+      - name: Check the report is well formed and its universe did not collapse
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          document = json.loads(Path(".dead-code-report.json").read_text(encoding="utf-8"))
+          if document.get("schema") != "dead-code-report/v1":
+              sys.exit("report does not declare dead-code-report/v1")
+          analysed = document["universe"]["analysed_count"]
+          if analysed < 1000:
+              sys.exit(f"discovery returned {analysed} paths; this lane expects the whole tree")
+          failed = [item for item in document["analysers"] if item["state"] == "failed"]
+          if failed:
+              sys.exit("an analyser failed: " + ", ".join(item["name"] for item in failed))
+          print(f"{analysed} paths analysed, {len(document['findings'])} candidates reported")
+          PY
+
+      - name: Summarise
+        if: always()
+        run: |
+          if [ "${{ job.status }}" != "success" ]; then
+            echo "This run failed. It established nothing about the dead-code baseline." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo '## Dead-code baseline' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Candidates are reported, not gated. This run did not fail on their count.' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/dead_code.py report >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
