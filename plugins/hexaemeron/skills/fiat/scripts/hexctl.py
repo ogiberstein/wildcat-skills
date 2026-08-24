@@ -1119,6 +1119,36 @@ def base_ledger_versions(base_dir: str, base_commit: str, ledger: str) -> frozen
     return frozenset(row["version"] for row in ledger_rows(text))
 
 
+def frontier_rows_after_anchor(rows: list[dict], before: dict) -> list[dict]:
+    """The history rows a run is answerable for, in order.
+
+    Shared by the gate and the receipt. Two copies of this slicing would drift,
+    and the receipt would then name a different set from the one the refusal
+    counted.
+    """
+    anchor = before.get("version_at_init")
+    anchor_at = [i for i, entry in enumerate(rows) if entry["version"] == anchor]
+    if anchor_at:
+        return rows[anchor_at[-1] + 1:]
+    return rows[len(rows) - max(0, len(rows) - before["rows"]):]
+
+
+def frontier_subtracted_rows(
+    base_dir: str, before: dict, published: frozenset
+) -> list[str]:
+    """Which already-published versions the gate subtracted, for the receipt."""
+    if not published:
+        return []
+    path = os.path.join(base_dir, before["ledger"])
+    try:
+        with open(path, encoding="utf-8") as handle:
+            rows = ledger_rows(handle.read())
+    except OSError:
+        return []
+    after = frontier_rows_after_anchor(rows, before)
+    return sorted({entry["version"] for entry in after} & published)
+
+
 def frontier_close_fault(
     path: str, before: dict, published: frozenset = frozenset()
 ) -> str | None:
@@ -1154,8 +1184,7 @@ def frontier_close_fault(
     if anchor is not None and not anchor_at:
         return (f"{path} no longer carries the init-time version row "
                 f"{anchor!r}; history is append-only")
-    after = (rows[anchor_at[-1] + 1:] if anchor_at
-             else rows[len(rows) - max(0, len(rows) - before["rows"]):])
+    after = frontier_rows_after_anchor(rows, before)
     foreign = [entry for entry in after if entry["version"] in published]
     gained = len(after) - len(foreign)
     if gained != 1:
@@ -2023,7 +2052,9 @@ def done_integrate(args, state: dict) -> None:
         "run_head": remote_tip,
         "final_step_merge": recorded_tip,
         "attribution": attribution,
-        "frontier_published_rows": sorted(published),
+        "frontier_subtracted_rows": frontier_subtracted_rows(
+            args.dir, frontier, published
+        ) if frontier else [],
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
