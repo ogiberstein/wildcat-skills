@@ -309,3 +309,10 @@ for the work this design refuses.
 **Why.** A direct read of `plugins/hexaemeron/skills/fiat/EVOLUTION.md` at `dd23413ef6e9021bd80b930ad57e1766bf166f0b` disproved the runbook token during the pre-commit Step 2 review.
 **Steps touched.** Step 2.
 **Still holding.** Step 2: entry holds; exit holds.
+
+### Amendment -- 2026-08-24
+
+**What changed.** Step 2's runbook says to rebase if `main` advances first. Fiat's canonical push discipline forbids rebasing or rewriting the signed stack and instead requires one signed `sync-run` merge after the final step merge when the integration pull request conflicts. The canonical transition supersedes the runbook's rebase wording; the final combined tree must be regenerated and checked before integration.
+**Why.** PR #518 advanced `origin/main` to `191f2ce1d60abb8068887095a8c39fb4341f0be6`, and a combined-tree probe found a real `.horos/boundary.json` conflict. The live condition now requires Fiat's recorded integration recovery rather than a history rewrite during Step 2.
+**Steps touched.** Step 2.
+**Still holding.** Step 2: entry holds; exit holds.
