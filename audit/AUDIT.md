@@ -11489,3 +11489,25 @@ the changed paths. The implementation commit
 exactly one copy of each required trailer.
 
 Leads not pursued: none beyond the accepted S1-R1-01.
+
+## Fiat merged attribution, step 1, round 2 -- 2026-08-24
+
+Against the tree with round 1's fix applied. Zero findings. Status: clean.
+
+The Pashov pair did not run, for the reason the waiver records. The three
+bundled lints exited 0 again over the same changed paths. The re-read confirmed
+S1-R1-02 closed: ADR-017's Status now states that the decision is recorded
+before the code, names steps 2 and 3 as the ones that carry it, and says
+plainly that v5.13.1 records no attribution and checks nothing at the merge.
+The two committed copies remain byte-identical to the receipted artefacts.
+
+Risk register disposition. `attribution-overclaim` is clean on the fixed tree.
+`attribution-private-email` carries the accepted S1-R1-01 and is otherwise
+clean: no state is written by this step. The remaining six ids stay not
+applicable to a step that ships no code.
+
+Gates: phylax 0, ephoros 0, hypomnema 0. Root suite 192/192, Hexaemeron suite
+874/874. The fixes commit `64ea0e7e599048eac0988d46f38ecadc2b236bdd` has a good
+local signature and exactly one copy of each required trailer.
+
+Leads not pursued: none beyond the accepted S1-R1-01, which is carried forward.
