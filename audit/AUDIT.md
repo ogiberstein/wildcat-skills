@@ -12430,3 +12430,37 @@ Root suite 310/310. Plugin suite 928/930: the two failures are
 those fixtures.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-24
+
+Non-Solidity round on `pull` and `push`. The Solidity suite is waived for this run.
+phylax exit 0, ephoros exit 0, hypomnema exit 0 over `plugins/hexaemeron/skills/kronos` and the tests.
+
+<!-- brevitas: archival-table rendered as a record because this historical table is below the 3x3 presentation threshold -->
+- id: --; severity: --; file: --; finding: none; status: --
+
+The risk register was exercised by the new cases, all of which fail on the unfixed tree.
+
+- symlink-escape: K010 still fires on `pull` and `push` when `.kronos` or a JSONL path is a symlink; nothing is written through the link.
+- dirty-tree: after `pull`, `record`, `park` and `push`, `git status --short` in the scope is empty. `.kronos/.gitignore` still holds `*`.
+- partial-write: a failed `os.replace` leaves the previous complete scoreboard; a missing final newline still refuses with K008.
+- subprocess-git: git is a fixed argv list, no shell, 30s timeout, 2 MiB cap. A URL argument is refused with K020 before git starts. Git stderr is not copied into Kronos diagnostics; the K018 and K019 messages contain no `fatal` text.
+- empty-as-cleared: a configured remote whose URL cannot be read refuses with K018 and leaves a standing park on disk.
+- concurrent-push: a second tree's push updates the ref; a first tree that did not pull then refuses with K019 and its JSONL bytes are unchanged.
+- remote-url-fetch: `https://example.invalid/skills.git` is K020 with `subprocess.Popen` patched to raise, so no fetch runs.
+- state-commit-identity: throwaway commits use `git config` `user.name` / `user.email` from the scope and `commit.gpgsign=false`. No Shoggoth trailers.
+
+A local `.kronos/tip` file, gitignored by `*`, records the last pulled or pushed SHA so a runner that has not pulled cannot fast-forward over a newer ref. It is not copied onto `refs/heads/kronos/state`. The two JSONL files remain the only blobs the ref holds.
+
+Root suite 310/310. Plugin suite 944/946: the two failures are
+`test_elenchus_checker.ForgeReports.test_fixture_exercised_the_declared_forge_version`
+(`1.7.1` vs local `1.4.0`) and
+`test_elenchus_checker.NodeReports.test_fixture_exercised_the_declared_node_version`
+(`v26.6.0` vs local `v22.14.0`). Both fail on the unfixed starting commit
+`2b6848b95e9d90f4bc9995b8cd89106d1807e9a9` as well. This step does not touch
+those fixtures. Promise Machine coverage digests for `kronos-fiat-dispatch` and
+`kronos-parked-lane` were updated to the new `kronos.py` bytes after reviewing
+those field maps as unchanged; `pull` / `push` are not those promises' result
+surface.
+
+Leads not pursued: none.

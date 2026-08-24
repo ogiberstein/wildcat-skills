@@ -2707,7 +2707,7 @@
         "transition": "explicit Fiat dispatch joined to the canonical Authorises field",
         "unknowns": "excluded, mature, parked and unevidenced candidates"
       },
-      "sha256": "8b2a9a3eef62c506c7fecb2ca22268a7e4402d51576e69ee678ab926f47df8d5",
+      "sha256": "5136c11b021208ee3ab0d82033bd6531745c289436dc394089adc31554947b26",
       "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py"
     },
     "kronos-parked-lane": {
@@ -2721,7 +2721,7 @@
         "transition": "park action joined to the canonical Authorises field",
         "unknowns": "unresolved blocker and future eligibility"
       },
-      "sha256": "8b2a9a3eef62c506c7fecb2ca22268a7e4402d51576e69ee678ab926f47df8d5",
+      "sha256": "5136c11b021208ee3ab0d82033bd6531745c289436dc394089adc31554947b26",
       "source": "plugins/hexaemeron/skills/kronos/scripts/kronos.py"
     },
     "lazarus-exact-replay": {
