@@ -24,7 +24,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_hexctl import SUITE, HexctlCase
 
 
-class PrematureStackMergeTests(HexctlCase):
+class StackCase(HexctlCase):
+    """A pushed stack and the helpers both classes below drive it with."""
+
     def to_stack(self, titles=("Scaffold", "Core", "Ship")):
         """A pushed stack of `titles`, parked at the first merge-step."""
         self.to_steps(titles)
@@ -68,6 +70,8 @@ class PrematureStackMergeTests(HexctlCase):
         branch = self.state()["run_branch"]
         self.fake_refs[branch] = sha
 
+
+class PrematureStackMergeTests(StackCase):
     def test_a_healthy_stack_merges_unchanged(self):
         """The guard has to be invisible to a run that does the right thing."""
         self.to_stack()
@@ -170,6 +174,59 @@ class PrematureStackMergeTests(HexctlCase):
         self.assertEqual(expected(state), "a" * 40)
         state["integrate"]["merged"] = []
         self.assertIsNone(expected(state))
+
+
+class MergeCommandDirectiveTests(StackCase):
+    """The directive carries the command, so no number is retyped from a URL."""
+
+    def test_the_directive_carries_the_command_for_its_own_pull_request(self):
+        self.to_stack()
+        directive = self.next_json()
+        self.assertEqual(
+            directive["merge"], f"gh pr merge {directive['pr_url']} --merge"
+        )
+
+    def test_the_command_follows_the_stack_down(self):
+        self.to_stack()
+        self.merge(1)
+        directive = self.next_json()
+        self.assertEqual(directive["step"], 2)
+        self.assertIn("/pull/2", directive["merge"])
+        self.assertNotIn("/pull/1", directive["merge"])
+
+    def test_the_receipt_command_is_unchanged(self):
+        self.to_stack()
+        directive = self.next_json()
+        self.assertEqual(
+            directive["then"],
+            "hexctl done merge-step --step 1 --merge-commit <sha>",
+        )
+
+    def test_a_missing_recorded_url_refuses_rather_than_guessing(self):
+        self.to_stack()
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        del state["steps"][0]["receipts"]["push"]["pr_url"]
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("no usable pull request URL", proc.stderr)
+
+    def test_a_malformed_recorded_url_refuses(self):
+        self.to_stack()
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state["steps"][0]["receipts"]["push"]["pr_url"] = "not a url"
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        proc = self.run_ctl("next", expect=2)
+        self.assertIn("no usable pull request URL", proc.stderr)
+
+    def test_no_other_directive_gains_a_command(self):
+        self.to_steps(("Scaffold",))
+        self.assertNotIn("merge", self.next_json())
 
 
 if __name__ == "__main__":

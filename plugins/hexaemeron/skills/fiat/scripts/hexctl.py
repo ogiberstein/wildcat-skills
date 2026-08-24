@@ -2716,13 +2716,15 @@ def _integrate_directive(state: dict) -> dict:
     for step in state["steps"]:
         if step["n"] in merged:
             continue
+        pr_url = as_dict(step["receipts"].get("push")).get("pr_url")
         return {
             "do": "merge-step",
             "step": step["n"],
             "title": step["title"],
             "branch": step_branch_name(state, step),
-            "pr_url": as_dict(step["receipts"].get("push")).get("pr_url"),
+            "pr_url": pr_url,
             "into": run_branch,
+            "merge": step_merge_command(pr_url),
             "then": (
                 f"hexctl done merge-step --step {step['n']} "
                 "--merge-commit <sha>"
@@ -3021,6 +3023,27 @@ def integration_revalidation_record(
         "affected_paths": affected_paths,
         "checks": normalized,
     }
+
+
+def step_merge_command(pr_url: object) -> str:
+    """The exact invocation that merges the pull request the directive names.
+
+    The directive already carried the URL and the receipt command, and left the
+    merge itself to whatever the operator typed from reading them. A number
+    retyped from a URL is where issue 594 went wrong, and `gh pr merge` with a
+    missing argument does not fail: it falls through to the current branch's pull
+    request, which on a chained stack is the one holding every commit in the run.
+
+    Built from the URL rather than a number and a repository flag, so nothing has
+    to be transcribed. Printed, never executed.
+    """
+    if not isinstance(pr_url, str) or GITHUB_PR_RE.fullmatch(pr_url) is None:
+        die(
+            "this step's push receipt holds no usable pull request URL, so the "
+            "merge command cannot be built from it; repair the receipt rather "
+            "than merging a pull request the directive did not name"
+        )
+    return f"gh pr merge {pr_url.rstrip('/')} --merge"
 
 
 def expected_run_branch_tip(state: dict):
