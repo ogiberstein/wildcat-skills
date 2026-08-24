@@ -233,6 +233,8 @@ class VersionRelations(unittest.TestCase):
             "plugins/hexaemeron/skills/./protasis/EVOLUTION.md",
             "plugins\\hexaemeron\\skills\\protasis\\EVOLUTION.md",
             "plugins/hexaemeron/skills/protasis/EVOLUTION.md\x1f",
+            "plugins/hexa\x80emeron/skills/protasis/EVOLUTION.md",
+            "plugins/hexa\u202eemeron/skills/protasis/EVOLUTION.md",
         )
         for path in paths:
             with self.subTest(path=repr(path)):
@@ -300,6 +302,29 @@ class VersionRelations(unittest.TestCase):
         for position, source in enumerate(candidates):
             with self.subTest(position=position):
                 self.assertIn("P006", codes(source))
+
+    def test_relation_findings_do_not_echo_runbook_controlled_values(self):
+        rows = (
+            "PRIVATE-ID | plugins/example/skills/PRIVATE-ID/EVOLUTION.md | "
+            "next-generation-after-integration-base",
+            "unknown | plugins/example/skills/unknown/EVOLUTION.md | private-relation",
+            "private-target | private-segment/private-target/EVOLUTION.md | "
+            "next-generation-after-integration-base",
+            "other-target | private-segment/private-target/EVOLUTION.md | "
+            "next-generation-after-integration-base",
+        )
+        source = relation_block(*rows) + COMPLETE_STEP.replace(
+            "Do the thing.", "Do the thing at private-target-v1.2.3."
+        )
+        messages = " ".join(finding.message for finding in findings(source))
+        for value in (
+            "PRIVATE-ID",
+            "private-relation",
+            "private-segment",
+            "private-target",
+        ):
+            with self.subTest(value=value):
+                self.assertNotIn(value, messages)
 
 
 class ExitCommands(unittest.TestCase):

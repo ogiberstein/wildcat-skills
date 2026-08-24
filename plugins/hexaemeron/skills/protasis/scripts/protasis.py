@@ -372,6 +372,11 @@ def _version_relation_blocks(
     return blocks
 
 
+def _contains_nonprinting_character(value: str) -> bool:
+    """Cover C0, C1, and Unicode format controls at the text boundary."""
+    return any(not character.isprintable() for character in value)
+
+
 def _safe_relation_path(value: str, skill_id: str) -> str | None:
     """Return a lexical path fault without opening a runbook-controlled path."""
     parts = value.split("/")
@@ -381,7 +386,7 @@ def _safe_relation_path(value: str, skill_id: str) -> str | None:
         or re.match(r"^[A-Za-z]:", value)
         or "\\" in value
         or any(part in ("", ".", "..") for part in parts)
-        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or _contains_nonprinting_character(value)
     ):
         return "relation path is not a safe repository-relative path"
     if len(parts) < 2 or parts[-1] != "EVOLUTION.md":
@@ -450,7 +455,7 @@ def _version_relation_findings(path: Path, lines: list[str]) -> list[Finding]:
                     path, offset, "P006", "version-relations row must not be blank",
                 ))
                 continue
-            if any(ord(character) < 32 or ord(character) == 127 for character in text):
+            if _contains_nonprinting_character(text):
                 findings.append(Finding(
                     path, offset, "P006",
                     "version-relations row contains a control character",
@@ -468,20 +473,20 @@ def _version_relation_findings(path: Path, lines: list[str]) -> list[Finding]:
             if not KEBAB.fullmatch(skill_id):
                 findings.append(Finding(
                     path, offset, "P006",
-                    f"version relation target {skill_id!r} is not kebab-case",
+                    "version relation target id is not kebab-case",
                 ))
                 continue
             if skill_id in seen_ids:
                 findings.append(Finding(
                     path, offset, "P006",
-                    f"version relation target {skill_id!r} appears more than once",
+                    "version relation target id appears more than once",
                 ))
             else:
                 seen_ids.add(skill_id)
             if ledger_path in seen_paths:
                 findings.append(Finding(
                     path, offset, "P006",
-                    f"version relation path {ledger_path!r} appears more than once",
+                    "version relation path appears more than once",
                 ))
             else:
                 seen_paths.add(ledger_path)
@@ -491,7 +496,7 @@ def _version_relation_findings(path: Path, lines: list[str]) -> list[Finding]:
             if relation != VERSION_RELATION:
                 findings.append(Finding(
                     path, offset, "P006",
-                    f"unknown version relation {relation!r}; expected {VERSION_RELATION!r}",
+                    f"unknown version relation; expected {VERSION_RELATION!r}",
                 ))
             if path_fault is None and relation == VERSION_RELATION:
                 declared.add(skill_id)
@@ -505,8 +510,8 @@ def _version_relation_findings(path: Path, lines: list[str]) -> list[Finding]:
             if not inside_relation_block[number] and concrete.search(line):
                 findings.append(Finding(
                     path, number, "P006",
-                    f"declared target {skill_id!r} has a concrete version token "
-                    "outside the version-relations block",
+                    "declared target has a concrete version token outside the "
+                    "version-relations block",
                 ))
                 break
     return findings
