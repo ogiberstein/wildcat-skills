@@ -2081,6 +2081,13 @@ def cmd_config(args) -> None:
         )
     if args.path == "audit.log_path":
         value = check_audit_log_path(args.dir, state, value)
+    elif args.path == "audit" and isinstance(value, dict) and "log_path" in value:
+        # Replacing the whole section reaches the same field. Without this the
+        # constraint is one `config set audit '{...}'` away from not existing,
+        # which is how the shared path would come back.
+        value["log_path"] = check_audit_log_path(
+            args.dir, state, value["log_path"]
+        )
     node[leaf] = value
     commit(args.dir, state, "config-set", {"path": args.path, "value": node[leaf]})
     print(f"set {args.path}")
@@ -3940,13 +3947,16 @@ def check_audit_log_path(base_dir: str, state: dict, value):
     override can aim at another run's record or back at the shared log, which is
     the arrangement this default was changed to end.
 
-    A run whose state records no branch has nothing to derive from, so it keeps
-    the older unconstrained value rather than being refused for its age.
+    A run whose state records no usable branch has nothing to derive from, so it
+    keeps the older unconstrained value rather than being refused for its age.
+    That covers a stored branch of the wrong type as well as an absent one: the
+    flattening runs a regex over it, and a state holding a number there would
+    otherwise raise rather than answer.
     """
     if not isinstance(value, str) or not value:
         die("config audit.log_path takes a non-empty string")
     run_branch = run_branch_of(state)
-    if not run_branch:
+    if not isinstance(run_branch, str) or not run_branch:
         return value
     if any(ord(character) < 32 or ord(character) == 127 for character in value):
         die("config audit.log_path must carry no control character")

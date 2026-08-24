@@ -4527,6 +4527,38 @@ class AuditLogPathTests(HexctlCase):
         self.run_ctl("config", "set", "audit.log_path", '"audit/AUDIT.md"', expect=2)
         self.assertEqual(self.state_bytes(), before)
 
+    def test_replacing_the_whole_audit_section_meets_the_same_check(self):
+        """Round 1 finding. The section write reaches the same field."""
+        self.init()
+        section = json.loads(self.run_ctl("config", "get", "audit").stdout)
+        section["log_path"] = "audit/AUDIT.md"
+        proc = self.run_ctl(
+            "config", "set", "audit", json.dumps(section), expect=2
+        )
+        self.assertIn("must end in", proc.stderr)
+        self.assertEqual(self.log_path(), "audit/rounds/" + self.derived_name())
+
+    def test_replacing_the_section_with_an_allowed_path_still_works(self):
+        self.init()
+        section = json.loads(self.run_ctl("config", "get", "audit").stdout)
+        moved = "plugins/hexaemeron/audit/rounds/" + self.derived_name()
+        section["log_path"] = moved
+        self.run_ctl("config", "set", "audit", json.dumps(section))
+        self.assertEqual(self.log_path(), moved)
+
+    def test_a_branch_stored_as_the_wrong_type_answers_rather_than_raising(self):
+        """Round 1 finding. The flattening runs a regex over the stored value."""
+        self.init()
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state["run_branch"] = 17
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        proc = self.run_ctl("config", "set", "audit.log_path", '"audit/AUDIT.md"')
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertEqual(self.log_path(), "audit/AUDIT.md")
+
     def test_a_run_with_no_recorded_branch_keeps_the_older_freedom(self):
         """Nothing to derive from, so the constraint has nothing to say."""
         self.init()

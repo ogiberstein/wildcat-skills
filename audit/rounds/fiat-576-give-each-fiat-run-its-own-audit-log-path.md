@@ -84,3 +84,58 @@ meant to change. `horos check .` answers the same question without writing, so
 step 5 uses it and regenerates only if an entry drifts.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-24
+
+Non-Solidity round over the derivation and the override constraint, at
+`ff74c6ad45031599563310ce4db8531d31b9a19b`. Two findings, both fixed in this
+round.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `cmd_config` checked the override only on the exact path `audit.log_path`, and `config set audit '{...}'` writes the whole section through the same command. `config set audit '{"max_rounds": 8, "stacked_suffix": "--audit", "fold": false, "log_path": "audit/AUDIT.md"}'` was accepted against a fresh run and `config get audit.log_path` then answered `"audit/AUDIT.md"`, so the constraint was one section write away from not existing. | fixed in this round: a section write carrying `log_path` meets the same check, with `test_replacing_the_whole_audit_section_meets_the_same_check` and `test_replacing_the_section_with_an_allowed_path_still_works` as the guards |
+| S2-R1-02 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `check_audit_log_path` passed the stored `run_branch` to `flattened_run_branch`, which runs a regex over it. A state holding `17` there raised `TypeError: expected string or bytes-like object, got 'int'` and exited 1 with a traceback, where every other refusal in this file exits 2 with a diagnosis. `validate_state_shape` checks the container spine and not this leaf, so nothing upstream ruled it out. | fixed in this round: a stored branch of the wrong type is treated the same as an absent one, which is the case the function already had an answer for, guarded by `test_a_branch_stored_as_the_wrong_type_answers_rather_than_raising` |
+
+Both guards were run against `ff74c6ad`, the unfixed commit, and both fail there.
+The third new test is the companion that keeps the section write working for an
+allowed path, and it passed before and after.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and `tests`,
+Hypomnema over `README.md AGENTS.md .agents plugins docs`.
+`scripts/promise_machine.py check` and `coverage --check` are both clean after
+the recorded `hexctl.py` digest moved to
+`592251a28f328ee049a298d6058ff0987d1720eeee6376ea2f24f943ad682f60`; the four
+Fiat runtime field maps are unchanged, because the change adds no result field
+to any of them. Horos reports that the boundary matches the tree. The root suite
+reports 349 tests OK with no skips and the Hexaemeron suite 1,001/1,001, both
+from inside this run's worktree. The commits carry good local signatures with
+exactly one co-author trailer and one origin trailer each.
+
+Five register concerns are reachable at this step and each was checked.
+`derived-path-injection`: `run_audit_log_path` reaches the filesystem only
+through `flattened_run_branch`, which calls `check_branch_name` first, so a name
+git would not accept never becomes a path. `override-escape`: the four textual
+checks run before `scoped_path`, and the symlink test proves the last one still
+catches something, since every textual check passes on
+`elsewhere/<derived name>` where `elsewhere` points outside the tree.
+`legacy-state-drift`: a run with no usable branch keeps the older unconstrained
+value, and S2-R1-02 widened that from absent to unusable. `history-mutation`:
+`git diff fiat/576-give-each-fiat-run-its-own-audit-log-path -- audit/AUDIT.md`
+is empty. `boundary-currency`: `horos check .` is clean. The remaining two,
+`recorded-log-divergence` and `overclaimed-record`, sit in step 3's diff.
+
+Two observations about the base, which advanced while this step was being built.
+`main` is now `08512d4`, carrying issue 554's runbook amendment receipts. First,
+`fiat-v5.21.1` is taken, so this run's row is `fiat-v5.22.1`, to be re-read
+against `main` at step 5 rather than trusted from here. Second, the paths 554
+changed include `plugins/hexaemeron/skills/fiat/scripts/hexctl.py`,
+`plugins/hexaemeron/tests/test_hexctl.py`,
+`tests/promise_machine_coverage.json`,
+`plugins/hexaemeron/skills/protasis/SKILL.md` and `audit/AUDIT.md`. The first
+four are this run's overlap at sync and were always going to be. The fifth is
+the file this issue exists to remove from that set, and this run only enters it
+because step 4 appends a one-time pointer there. That pointer is written once
+and never again, so it does not reintroduce the churn; this run pays the overlap
+one last time to leave the note.
+
+Leads not pursued: none.
