@@ -83,6 +83,15 @@ has to be one GitHub can match to your account, and the list itself is GitHub's
 to compute and publish on its own schedule. A run whose author address matches
 no account records that plainly instead of guessing.
 
+That record is what the contributor list is built from.
+[CONTRIBUTORS.md](./CONTRIBUTORS.md) ranks the humans who have finished a job
+here by merged commits, with merged pull requests as the tie-break, and the
+thanks at the foot of this file name the same people by handle. A weekly job
+regenerates both from the repository's own history, so nobody has to remember to
+add anyone and there is nothing to ask for. Runtime host identities, the
+Shoggoth's own account and the repository owner are excluded by name, each with
+its reason shown in the generator's output.
+
 ## What Is It?
 
 At the last recorded count, the Shoggoth had 24 members: 15 domain agents and
@@ -315,3 +324,11 @@ dossier into a lending verdict.
 Wildcat Labs first-party work in this repository is licensed under
 [Apache-2.0](./LICENSE). The vendored Pashov skill set is explicitly excluded
 and remains under its upstream MIT licence and notices.
+
+<!-- contributors:start -->
+
+## Thanks
+
+Thanks to @kethcode and @radup1337.
+
+<!-- contributors:end -->
