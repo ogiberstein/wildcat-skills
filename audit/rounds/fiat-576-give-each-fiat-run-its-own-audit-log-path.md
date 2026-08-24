@@ -166,3 +166,41 @@ All five reachable register concerns were re-checked against the fixed tree and
 each holds as recorded in round 1.
 
 Leads not pursued: none.
+
+## Step 3, round 1 -- 2026-08-24
+
+Non-Solidity round over the declared-log binding, at
+`ca72a2d4542d1c882b0deb42fcce76c9e41294be`. Two findings, both fixed in this
+round.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `done_audit` called `check_declared_audit_log` unconditionally and then discarded its answer whenever `--log` was omitted, so closing an audit read `config audit.log_path` even when the recorded round already had the value. A run whose config had lost that key, with a round that recorded one, closed before this change and was refused after it. The refusal was correct for a run with nothing recorded and wrong for a run with something. | fixed in this round: config is consulted only when there is nothing recorded to keep, guarded by `test_a_closure_keeping_a_recorded_log_does_not_need_the_config` and its companion `test_a_closure_with_nothing_recorded_and_no_config_still_refuses` |
+| S3-R1-02 | info | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | `check_declared_audit_log` took `declared` untyped, coerced it with `str()` and tested it against `None`, none of which can happen: argparse hands this function a string or the caller does not call it. The coercion told a reader the contract was looser than it is. | fixed in this round: the parameter is typed `str`, the `None` test moved to the two call sites that already knew the answer, and the coercion is gone |
+
+The first guard fails against `ca72a2d4`, the unfixed commit. The second is a
+clarity fix with no behaviour to guard, and the eleven cases in
+`AuditRoundLogBindingTests` cover the behaviour it did not change.
+
+The three bundled lints exit 0 over the same trees as every round in this run.
+`scripts/promise_machine.py check` and `coverage --check` are clean after the
+recorded `hexctl.py` digest moved to
+`96b73e96543820d5bc9bb9fac66fbb0cf180a1a8bdbe60657db317356786bba0`. Horos
+reports that the boundary matches the tree. The root suite reports 349 tests OK
+with no skips and the Hexaemeron suite 1,012/1,012.
+
+Both remaining register concerns are reachable at this step and each was
+checked. `recorded-log-divergence`: a declared `--log` that names another file
+is refused on both receipts, and `test_a_round_naming_another_file_is_refused`
+asserts the round list is still empty afterwards, so a refusal appends nothing.
+`overclaimed-record`: the field records the path the round was told to write,
+which is the obligation the loop already placed on it, and the controller still
+does not open the file or attest its bytes. Nothing in this diff claims it does.
+
+Two deliberate limits, neither pursued. An absolute `--log` naming the same file
+is refused, because the comparison is textual and reaching the filesystem to
+decide would pull symlink resolution into a receipt check. And
+`os.path.normpath` accepts a trailing slash as the same path, which names the
+same record either way. The five step 2 concerns were re-checked and hold.
+
+Leads not pursued: none.

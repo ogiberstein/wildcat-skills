@@ -1209,7 +1209,7 @@ def same_audit_log(declared: str, configured: str) -> bool:
     return flatten(declared) == flatten(configured)
 
 
-def check_declared_audit_log(state: dict, declared, label: str) -> str:
+def check_declared_audit_log(state: dict, declared: str, label: str) -> str:
     """Hold a declared log to the one the caller was told to write.
 
     `--log` was a free string stored verbatim while the Warden packet named
@@ -1219,7 +1219,7 @@ def check_declared_audit_log(state: dict, declared, label: str) -> str:
     spelling either.
     """
     configured = configured_audit_log(state)
-    if declared is not None and not same_audit_log(str(declared), configured):
+    if not same_audit_log(declared, configured):
         die(
             f"--log names '{declared}', but {label} writes '{configured}' "
             "(config audit.log_path); a receipt naming a file nothing opened "
@@ -2302,7 +2302,11 @@ def cmd_audit_round(args) -> None:
         )
     if args.elenchus_verdict is not None and not args.fixes_commit:
         die("--elenchus-verdict requires --fixes-commit")
-    recorded_log = check_declared_audit_log(state, args.log, "this round")
+    recorded_log = (
+        check_declared_audit_log(state, args.log, "this round")
+        if args.log is not None
+        else configured_audit_log(state)
+    )
 
     exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
     for lint, value in exits.items():
@@ -2383,11 +2387,16 @@ def done_audit(args, state: dict) -> None:
         )
     if args.no_further_leads and not args.reason:
         die("--no-further-leads requires --reason")
-    closing_log = check_declared_audit_log(state, args.log, "this step's audit")
-    if args.log is None:
+    if args.log is not None:
+        closing_log = check_declared_audit_log(
+            state, args.log, "this step's audit"
+        )
+    else:
         # A round recorded before this check keeps the value it holds; nothing
-        # rewrites a receipt that is already on the ledger.
-        closing_log = last.get("log") or closing_log
+        # rewrites a receipt that is already on the ledger. Config is read only
+        # when there is nothing recorded to keep, so a closure that needs
+        # nothing from it is not refused by it.
+        closing_log = last.get("log") or configured_audit_log(state)
     had_findings = any(r["findings"] > 0 for r in rounds)
     fixes_ref = args.fixes_ref or next(
         (r["fixes_commit"] for r in reversed(rounds) if r.get("fixes_commit")), None

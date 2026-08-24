@@ -4506,6 +4506,36 @@ class AuditRoundLogBindingTests(HexctlCase):
             self.state()["steps"][0]["receipts"]["audit"]["log"], "audit/AUDIT.md"
         )
 
+    def test_a_closure_keeping_a_recorded_log_does_not_need_the_config(self):
+        """Round 1 finding. Config was read even when nothing wanted it."""
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state["steps"][0]["audit"]["rounds"][0]["log"] = "audit/AUDIT.md"
+        del state["config"]["audit"]["log_path"]
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        self.run_ctl("done", "audit")
+        self.assertEqual(
+            self.state()["steps"][0]["receipts"]["audit"]["log"], "audit/AUDIT.md"
+        )
+
+    def test_a_closure_with_nothing_recorded_and_no_config_still_refuses(self):
+        """The fix narrows when config is read, not whether absence bites."""
+        self.to_waived_audit()
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state["steps"][0]["audit"]["rounds"][0]["log"] = None
+        del state["config"]["audit"]["log_path"]
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        proc = self.run_ctl("done", "audit", expect=2)
+        self.assertIn("config audit.log_path is missing", proc.stderr)
+
     def test_a_run_with_no_configured_path_refuses_rather_than_recording_none(self):
         """Fail closed: a round with nowhere to write is not a round."""
         self.to_waived_audit()
