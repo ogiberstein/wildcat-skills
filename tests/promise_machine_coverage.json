@@ -1495,31 +1495,31 @@
     "sapheneia-eval-p": {
       "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
       "selector": "test_labelled_positive_cases",
-      "claim": "Sapheneia records bounded positive interaction cases without diagnosing the reader.",
+      "claim": "Sapheneia records bounded positive interaction and durable-record cases without diagnosing the reader or changing protected evidence.",
       "evidence_class": "recorded"
     },
     "sapheneia-eval-m": {
       "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
       "selector": "test_labelled_missing_evidence_cases",
-      "claim": "Sapheneia records refusal when activation, state or an explicit stop instruction is missing.",
+      "claim": "Sapheneia records refusal when activation, state, an explicit stop instruction or a durable-record evidence inventory is missing.",
       "evidence_class": "recorded"
     },
     "sapheneia-eval-s": {
       "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
       "selector": "test_labelled_subject_mismatch_cases",
-      "claim": "Sapheneia records refusal when activation or deactivation evidence belongs to another session.",
+      "claim": "Sapheneia records refusal when interaction or durable-record evidence belongs to another subject.",
       "evidence_class": "recorded"
     },
     "sapheneia-eval-o": {
       "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
       "selector": "test_labelled_overclaim_cases",
-      "claim": "Sapheneia records diagnostic and universal-format overclaims as refusals.",
+      "claim": "Sapheneia records diagnostic, universal-format, factual-proof and GitHub-enforcement overclaims as refusals.",
       "evidence_class": "recorded"
     },
     "sapheneia-eval-r": {
       "path": "plugins/sapheneia/tests/test_promise_machine_cases.py",
       "selector": "test_labelled_recovery_cases",
-      "claim": "Sapheneia records bounded correction and explicit deactivation recovery paths.",
+      "claim": "Sapheneia records bounded correction, explicit deactivation and candidate-only durable-record recovery paths.",
       "evidence_class": "recorded"
     }
   },
@@ -2659,6 +2659,29 @@
         "status": "unknown",
         "model": "not-run",
         "prompt": "Decide whether Sapheneia may deactivate under its canonical stop contract.",
+        "corpus": "plugins/sapheneia/tests/fixtures/promise-machine/cases.json",
+        "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
+      },
+      "cases": {
+        "P": "sapheneia-eval-p",
+        "M": "sapheneia-eval-m",
+        "S": "sapheneia-eval-s",
+        "O": "sapheneia-eval-o",
+        "R": "sapheneia-eval-r",
+        "X": {
+          "not_applicable": true,
+          "reason": "The canonical declaration supports no exception for this promise."
+        }
+      }
+    },
+    {
+      "promise_id": "sapheneia-durable-record-shape",
+      "skill_path": "plugins/sapheneia/skills/sapheneia/SKILL.md",
+      "group": "prompt",
+      "evaluation": {
+        "status": "unknown",
+        "model": "not-run",
+        "prompt": "Shape one named durable record while preserving its evidence inventory and host structure.",
         "corpus": "plugins/sapheneia/tests/fixtures/promise-machine/cases.json",
         "disposition": "Labelled P/M/S/O/R expectations recorded; cross-model behaviour remains unknown."
       },

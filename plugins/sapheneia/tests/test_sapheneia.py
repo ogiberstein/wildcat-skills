@@ -41,8 +41,51 @@ class SapheneiaContractTests(unittest.TestCase):
         text = portable.read_text(encoding="utf-8")
         links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
         self.assertIn("../../../plugins/sapheneia/AGENTS.md", links)
+        self.assertIn("durable agent-authored audit records", text)
+        self.assertIn("GitHub issue titles, bodies and comments", text)
         contract = (PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("`skills/sapheneia/SKILL.md`", contract)
+
+    def test_durable_record_contract_is_bounded_and_preserves_evidence(self):
+        text = SKILL.read_text(encoding="utf-8")
+        promise = text.split("### sapheneia-durable-record-shape", 1)[1]
+        promise = promise.split("\n### ", 1)[0]
+        for surface in (
+            "agent-authored audit record",
+            "GitHub issue title and body",
+            "GitHub issue comment",
+        ):
+            self.assertIn(surface, text)
+        for protected in (
+            "file:line",
+            "hashes",
+            "selectors",
+            "unknowns",
+            "negative evidence",
+            "required host structure",
+        ):
+            self.assertIn(protected, text)
+        self.assertIn("does not activate session-wide Sapheneia", text)
+        self.assertIn("Consequence: 1", promise)
+        self.assertIn("existing durable records", promise)
+
+    def test_root_issue_publication_rule_freezes_structure_and_orders_passes(self):
+        text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        publication = text.split("## Issue and comment publication", 1)[1]
+        publication = publication.split("\n## ", 1)[0]
+        for queue in ("{skill}-next", "{skill}-N", "{skill}-wish", "framework-N"):
+            self.assertIn(queue, publication)
+        ordered = [
+            "freeze the required title prefix, body opening and protected evidence inventory",
+            "apply `sapheneia-durable-record-shape`",
+            "run Imprimatur",
+            "apply Vulgate",
+            "re-run Imprimatur on the exact publishable bytes",
+        ]
+        positions = [publication.index(item) for item in ordered]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("GitHub does not enforce this repository rule", publication)
+        self.assertIn("Do not publish", publication)
 
 
 if __name__ == "__main__":
