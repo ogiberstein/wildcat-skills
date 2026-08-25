@@ -73,6 +73,45 @@ class ScaffoldTests(unittest.TestCase):
             self.assertIn(f"`{command}`", contract)
         self.assertIn("implements format validation", contract)
         self.assertIn("no provider, proxy or fallback", contract)
+        self.assertIn("--anchor-rpc-env", contract)
+        self.assertIn("canonical-chain", contract)
+        self.assertIn("provider independence", contract)
+
+    def test_chain_anchor_guide_and_example_are_discoverable(self):
+        guide = support.PLUGIN_ROOT / "docs" / "chain-anchors.md"
+        self.assertTrue(guide.is_file())
+        text = guide.read_text(encoding="utf-8")
+        for term in (
+            "SOURCE_ID=ENV_VAR",
+            "share",
+            "canonical-chain",
+            "provider independence",
+            "multi-provider-anchor-v0",
+        ):
+            self.assertIn(term, text)
+        example = support.PLUGIN_ROOT / "examples" / "multi-provider-anchor-v0"
+        self.assertEqual(
+            {path.name for path in example.iterdir()},
+            {
+                "anchors.jsonl",
+                "header.json",
+                "manifest.json",
+                "plan.json",
+                "proofs.jsonl",
+                "rpc.jsonl",
+            },
+        )
+
+    def test_generation_1_2_0_remains_one_existing_ledger_row(self):
+        self.assertEqual(support.skill_version(), "1.2.0")
+        ledger = (support.SKILL.parent / "EVOLUTION.md").read_text(encoding="utf-8")
+        self.assertEqual(ledger.count("| `lazarus-v1.2.0` |"), 1)
+        for line in (
+            "- Current version: `lazarus-v1.2.0`",
+            "- Frontier status: `open`",
+            "- Frontier revision: `receipt-inclusion-proofs`",
+        ):
+            self.assertIn(line, ledger)
 
     def test_requirements_are_exact_direct_pins(self):
         requirements = (support.PLUGIN_ROOT / "requirements.txt").read_text().splitlines()

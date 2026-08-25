@@ -64,6 +64,13 @@ def parser() -> argparse.ArgumentParser:
     )
     capture.add_argument("--plan", required=True, type=Path)
     capture.add_argument("--rpc-url", required=True)
+    capture.add_argument(
+        "--anchor-rpc-env",
+        action="append",
+        default=[],
+        metavar="SOURCE_ID=ENV_VAR",
+        help="map one declared anchor source to a runtime RPC URL environment variable",
+    )
     capture.add_argument("--out", required=True, type=Path)
 
     replay = commands.add_parser(
@@ -138,9 +145,16 @@ def run(argv: list[str] | None = None) -> int:
     if args.command == "capture":
         from lazarus_lib.capture import capture_fixture
 
-        report = capture_fixture(args.plan, args.rpc_url, args.out)
+        report = capture_fixture(
+            args.plan,
+            args.rpc_url,
+            args.out,
+            anchor_rpc_env=args.anchor_rpc_env,
+        )
         print(f"fixture: {report['fixture_digest']}")
         print(f"block: {report['block_hash']}")
+        print(f"anchor-sources-declared: {len(args.anchor_rpc_env)}")
+        print(f"chain-anchor-records: {report['chain_anchors']['records']}")
         return 0
     if args.command == "verify-release":
         from lazarus_lib.release import verify_release
