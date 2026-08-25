@@ -49,7 +49,7 @@ def validate(answer):
     jsonio.require(answer, FIELDS, "answer")
     if answer["format"] != FORMAT:
         raise BereanError(f"answer format is {answer['format']!r}, not {FORMAT!r}")
-    jsonio.stated(answer["question"], "question")
+    question = _question_bytes(jsonio.stated(answer["question"], "question"))
     if answer["kind"] not in KINDS:
         raise BereanError(f"unknown answer kind: {answer['kind']!r}")
     for name in ("sentences", "citations", "reads", "discrepancies"):
@@ -81,7 +81,6 @@ def validate(answer):
             "a calculation's evidence must resolve to one artefact"
         )
 
-    question = answer["question"].encode("utf-8")
     used = set()
     for index, sentence in enumerate(answer["sentences"]):
         jsonio.require(sentence, SENTENCE_FIELDS, f"sentence {index}")
@@ -140,6 +139,22 @@ def _collect_ids(items, what, validator):
             raise BereanError(f"{what} id used twice: {identifier!r}")
         ids.add(identifier)
     return ids
+
+
+def _question_bytes(question):
+    """The UTF-8 bytes that span offsets count; a string with no encoding names none.
+
+    json turns a lone-surrogate escape into a str that cannot be encoded, and it
+    passes jsonio on the way in, so the assumption is proved here rather than
+    trusted at the slice. The detail carries the character position only.
+    """
+    try:
+        return question.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise BereanError(
+            f"question is not encodable as UTF-8 at character {error.start}; "
+            "a lone surrogate names no bytes"
+        ) from None
 
 
 def _question_span(reference, where, question, artefact_ids):

@@ -7,7 +7,7 @@ import unittest
 
 from tests.support import SCRIPTS, SCHEMAS  # noqa: F401
 
-from berean_lib import answers, citations, corpus, digests, reads
+from berean_lib import answers, citations, corpus, digests, jsonio, reads
 from tests.test_corpus import make_tree, failures
 from tests.test_reads import record, write_reads
 
@@ -217,6 +217,31 @@ class QuestionSpanTests(AnswerFixture):
         checks = self.check(bad)
         self.assertEqual(failures(checks), ["answer-shape"])
         self.assertIn("reserved prefix", checks[0].detail)
+
+    def test_an_unencodable_question_fails_the_shape_by_name(self):
+        # json turns the escape "\udc80" into a lone surrogate, a str with no UTF-8
+        # encoding. It passes jsonio on the way in, so the checker has to refuse it
+        # by name rather than crash at the slice.
+        question = jsonio.loads('"Is the pause flag set?\\udc80"')
+        self.assertEqual(question, "Is the pause flag set?\udc80")
+        refusal = self.answer(
+            question=question,
+            kind="refusal",
+            refusal={"boundary": "outside the corpus", "detail": "no pinned document covers it"},
+            sentences=[],
+            citations=[],
+            reads=[],
+            discrepancies=[],
+        )
+        for document in (self.supplied(["question:7-21"], question), refusal):
+            with self.subTest(kind=document["kind"]):
+                try:
+                    checks = self.check(document)
+                except UnicodeEncodeError:
+                    self.fail("the checker crashed on an unencodable question instead of refusing it")
+                self.assertEqual(failures(checks), ["answer-shape"])
+                self.assertIn("not encodable as UTF-8 at character 22", checks[0].detail)
+                self.assertNotIn("pause flag", checks[0].detail)
 
 
 class GateTwoTests(AnswerFixture):
