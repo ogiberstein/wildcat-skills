@@ -370,6 +370,26 @@ Run the `imprimatur` lint on each artefact before receipting it, and pass the
 skills that ran to the receipt. Repo copies are committed later, in step 1 of
 the runbook, after the prose pass.
 
+A runbook may carry Protasis's optional closed `version-relations` block. When
+it does, `done runbook` derives the run's exact local starting branch point and
+reads each declared `EVOLUTION.md` and sibling `SKILL.md` as a bounded regular
+Git blob at that commit. It records one all-target
+`fiat-version-relations/v1` anchor: the exact block and runbook digests, commit,
+version counters, frontier tuple digests, ledger blob, and matching skill
+metadata blob. The generation-plus-one value shown in status and delegated
+packets is a projection from that anchor. It is not a reservation and does not
+authorise a product edit. Relation-bearing Mason, Warden, and Scribe packets
+carry the same anchor, exact commit, projection, and an explicit null
+resolution until a later transition has produced one.
+
+An absent block takes the pre-existing literal path: the runbook receipt and
+worker directive shapes stay unchanged, no version target is inferred, and no
+Git version evidence is read. A malformed stored anchor, changed source block,
+missing or non-regular object, metadata mismatch, or reconstructed digest
+fault refuses status, `next`, and verification. Recovery is to restore the
+exact receipted source and anchor objects or halt; editing state or accepting a
+partial target set is not recovery.
+
 **Amending receipted specifications.** After the study and runbook receipts exist,
 and only while build steps are active, append one final dated Protasis
 amendment to the receipted study and run:
