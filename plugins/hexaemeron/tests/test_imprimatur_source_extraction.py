@@ -559,6 +559,76 @@ class SourceExtractionTests(unittest.TestCase):
                         [(hit["line"], hit["col"]) for hit in hits],
                     )
 
+    def test_typescript_completed_statement_composition_keeps_only_prose(self):
+        cases = {
+            ".ts overload then async": (
+                "function read(): void\n"
+                "async function write() {}\n"
+                "/[/*]Leverage[*/]/.test(value); "
+                "// Leverage the actual helper.\n"
+            ),
+            ".ts do while then alias": (
+                "do value; while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]Leverage[*/]/.test(value); "
+                "// Leverage the actual helper.\n"
+            ),
+            ".tsx nested do while then alias": (
+                "do do value; while (inner); while (outer)\n"
+                "type Alias = string\n"
+                "<p>/* Leverage is raw child text */</p>; "
+                "// Leverage the actual helper.\n"
+            ),
+            ".ts controlled do while then alias": (
+                "if (enabled) do value; while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]Leverage[*/]/.test(value); "
+                "// Leverage the actual helper.\n"
+            ),
+            ".ts block-bodied control in do while": (
+                "do if (enabled) { value() } while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]Leverage[*/]/.test(value); "
+                "// Leverage the actual helper.\n"
+            ),
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label):
+                hits = term_hits(source, label.split()[0])
+                expected = imprimatur_module.line_col(
+                    source,
+                    source.rindex("Leverage"),
+                    imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                )
+                self.assertEqual(
+                    [expected],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_tsx_nested_generic_function_type_comments_are_prose(self):
+        cases = (
+            "function read<T extends F<<U /* Leverage the type helper. */>"
+            "(value: U) => U>>() {} // ordinary trailing\n",
+            "const read = make<<T /* Leverage the type helper. */>"
+            "(value: T) => T>(); // ordinary trailing\n",
+            "const read = make<<T /* Leverage the type helper. */>"
+            "(value: T) => T>; // ordinary trailing\n",
+        )
+        for source in cases:
+            with self.subTest(source=source):
+                expected = imprimatur_module.line_col(
+                    source,
+                    source.index("Leverage"),
+                    imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                )
+                self.assertEqual(
+                    [expected],
+                    [
+                        (hit["line"], hit["col"])
+                        for hit in term_hits(source, ".tsx")
+                    ],
+                )
+
     def test_typescript_class_member_names_do_not_hide_comment_prose(self):
         source = (
             "class Outer {\n"
@@ -948,6 +1018,60 @@ class SourceExtractionTests(unittest.TestCase):
                     "source path is not a regular file",
                 ):
                     read_text(str(source), preserve_newlines=True)
+
+    def test_supported_source_rechecks_the_open_descriptor_after_a_path_swap(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            regular = root / "regular.ts"
+            source = root / "raced.ts"
+            regular.write_text("// ordinary prose\n", encoding="utf-8")
+            os.mkfifo(source)
+            with mock.patch.object(
+                Path,
+                "stat",
+                return_value=regular.stat(),
+            ), mock.patch.object(
+                Path,
+                "open",
+                side_effect=AssertionError("raced FIFO reached blocking open"),
+            ):
+                try:
+                    read_text(str(source), preserve_newlines=True)
+                except BaseException as exc:
+                    observed = f"{type(exc).__name__}: {exc}"
+                else:
+                    observed = "accepted"
+            self.assertEqual(
+                "SourceExtractionError: source path is not a regular file",
+                observed,
+            )
+
+    @unittest.skipUnless(hasattr(os, "O_NOFOLLOW"), "O_NOFOLLOW unavailable")
+    def test_supported_source_symlink_is_refused_without_following_it(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            target = root / "target.ts"
+            source = root / "linked.ts"
+            target.write_text("// ordinary prose\n", encoding="utf-8")
+            source.symlink_to(target)
+            with self.assertRaisesRegex(
+                SourceExtractionError,
+                "source path is not a regular file",
+            ):
+                read_text(str(source), preserve_newlines=True)
+
+    def test_supported_source_refuses_when_no_follow_open_is_unavailable(self):
+        with mock.patch.object(os, "O_NOFOLLOW", 0):
+            try:
+                read_text("source.ts", preserve_newlines=True)
+            except BaseException as exc:
+                observed = f"{type(exc).__name__}: {exc}"
+            else:
+                observed = "accepted"
+        self.assertEqual(
+            "SourceExtractionError: source path no-follow open is unavailable",
+            observed,
+        )
 
     def test_cli_rejects_oversized_source_before_parsing(self):
         limit = getattr(imprimatur_module, "MAX_SOURCE_BYTES", None)

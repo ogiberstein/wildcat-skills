@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import argparse
 import ast
+import errno
 import io
 import json
 import math
+import os
 import re
 import stat
 import sys
@@ -66,18 +68,50 @@ def read_text(path: str | None, *, preserve_newlines: bool = False) -> str:
     if not path or path == "-":
         return sys.stdin.read()
     p = Path(path)
-    if not p.exists():
-        sys.stderr.write(f"imprimatur: no such file {path}\n")
-        raise SystemExit(2)
     if preserve_newlines:
+        no_follow = getattr(os, "O_NOFOLLOW", 0)
+        if not no_follow:
+            raise SourceExtractionError(
+                1,
+                1,
+                "source path no-follow open is unavailable",
+            )
+        flags = os.O_RDONLY
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        flags |= getattr(os, "O_NONBLOCK", 0)
+        flags |= no_follow
+        descriptor = -1
         try:
-            if not stat.S_ISREG(p.stat().st_mode):
+            try:
+                descriptor = os.open(p, flags)
+            except FileNotFoundError:
+                sys.stderr.write(f"imprimatur: no such file {path}\n")
+                raise SystemExit(2)
+            except OSError as exc:
+                if exc.errno == errno.ELOOP:
+                    raise SourceExtractionError(
+                        1,
+                        1,
+                        "source path is not a regular file",
+                    ) from exc
+                raise
+
+            opened = os.fstat(descriptor)
+            if not stat.S_ISREG(opened.st_mode):
                 raise SourceExtractionError(
                     1,
                     1,
                     "source path is not a regular file",
                 )
-            with p.open("rb") as source:
+            if opened.st_size > MAX_SOURCE_BYTES:
+                raise SourceExtractionError(
+                    1,
+                    1,
+                    f"source exceeds {MAX_SOURCE_BYTES}-byte analysis cap",
+                )
+            source = os.fdopen(descriptor, "rb")
+            descriptor = -1
+            with source:
                 raw = source.read(MAX_SOURCE_BYTES + 1)
             if len(raw) > MAX_SOURCE_BYTES:
                 raise SourceExtractionError(
@@ -112,6 +146,12 @@ def read_text(path: str | None, *, preserve_newlines: bool = False) -> str:
                 1,
                 f"source path could not be read: {reason}",
             ) from exc
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+    if not p.exists():
+        sys.stderr.write(f"imprimatur: no such file {path}\n")
+        raise SystemExit(2)
     with p.open("r", encoding="utf-8", errors="replace") as source:
         return source.read()
 

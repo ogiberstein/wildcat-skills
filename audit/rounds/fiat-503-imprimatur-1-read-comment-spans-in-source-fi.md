@@ -128,3 +128,30 @@ End-to-end issue specimen exit 1 with original coordinate 2:17; focused shared-l
 ### Leads not pursued
 
 Full parser-level TypeScript and Solidity validity remains outside the source-comment extraction contract. TypeScript 5.9.2 and Solidity 0.8.34 were audit oracles, not repository dependencies. The contextual slash refusal is limited to cases where the two readings move a comment delimiter. No full parser or new runtime dependency was added.
+
+## Step 1, round 7 -- 2026-08-25
+
+Review basis: full fixed Step 1 diff against base `0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841`, with round-7 repairs starting from signed round-6 tip `1a1b50c779567149cc1d72d0b6d80e1782f0a71f`; Step 1 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R7-01 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | A completed bodyless function left a return-type token behind. A following `async function` was then treated as an expression, so a later regex or JSX body could become comment prose. | fixed in this round: a declaration-prefix boundary now survives `export`, `default`, `declare`, `abstract`, and `async` only from a statement start; declaration and function-expression controls guard both goals |
+| S1-R7-02 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | A completed `do ... while` had no distinct statement state. A following type alias could inherit the control-head goal and expose regex or JSX bytes as comments, including nested, labelled, conditional, and block-bodied forms. | fixed in this round: a nested `do` state records body completion, binds the matching `while (...)`, and emits one `do-while)` statement boundary; parser-backed controls cover ordinary `while` and division |
+| S1-R7-03 | medium | `plugins/hexaemeron/lib/typescript_lexer.py` | Valid TSX nested generic function types such as `F<<U>(value: U) => U>` entered JSX traversal because the known type goal stopped at the outer angle. Valid declarations, calls, and instantiation expressions were refused. | fixed in this round: declaration-angle and nested type-argument depth carry the known type goal; comparison, shift, and raw-JSX controls preserve expression parsing |
+| S1-R7-04 | medium | `plugins/hexaemeron/lib/typescript_lexer.py` | Each successful TSX generic-arrow probe rescanned all nested constraints. Character reads grew from 12,664 at depth 24 to 47,932 at depth 48. | fixed in this round: the recognized head end is reused while the forward scanner crosses it; the same specimens now take 2,031 and 4,095 reads, and a structural access-count guard holds the bound |
+| S1-R7-05 | high | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | The regular-file check used `Path.stat()` before `Path.open()`. Replacing the path with a FIFO or device between those calls bypassed the check and could stall the lint. | fixed in this round: default source mode requires a nonblocking no-follow open, checks that same descriptor with `fstat()`, applies the size bound before and during the descriptor read, and refuses hosts without no-follow support; FIFO, symlink, directory, device, oversize, UTF-8, and swap guards are green |
+| S1-R7-06 | low | `plugins/hexaemeron/skills/imprimatur/SKILL.md`, `plugins/hexaemeron/skills/imprimatur/EVOLUTION.md` | The running prose said every malformed supported source was refused even though the Promise boundary disclaims parser-level source validity. | fixed in this round: the public text names the extraction failures that are refused and keeps full source validity outside the Promise |
+
+### Negative review
+
+TypeScript 5.9.2 matched 2,215/2,215 parser-valid generated compositions, 10,595 parser-valid cases from a 13,107-case two-statement model with 2,512 parser-invalid cases excluded, and 1,125/1,125 parser-valid app-corpus files, with zero scanner errors or comment mismatches. The matrices cover declaration prefixes, return types, `do` placement and nesting, regex/division/JSX suffixes, type-depth 1 through 16, shift controls, malformed lexical refusal, coordinates, and sequential state reset.
+
+Python 3.12.3 AST ownership, token coordinates, Unicode byte columns, CR and CRLF, concatenated docstrings, parser resource translation, and linear token walking remained green. Solidity 0.8.34 accepted 44/44 independent ordinary, single-quoted, Unicode, hex, escaped, and continued string specimens paired with line, NatSpec, block, or doc comments; extraction had zero errors or mismatches. Descriptor-first reads refused FIFO, symlink, directory, device, oversize, invalid UTF-8, and the simulated check/open swap without partial output. Markdown, standard input, `--include-code`, same-length masks, original coordinates, recursion refusal, the complete-span `lex()` API, and frontier identities stayed unchanged.
+
+### Mechanical gates
+
+End-to-end issue specimen exit 1 at 2:17; focused shared-lexer and source-extraction tests 100/100; focused Imprimatur 110/110; pinned Node v26.6.0 full Hexaemeron 1,157/1,157; root suite 350/350; root inoculation 1,258 cases with 0 crashes and 0 unexpected clean; evolution and version propagation 16/16; Promise Machine copies 14/14; Phylax 0; Ephoros 0; Hypomnema 0; changed-prose Imprimatur 0; Brevitas report and protected-source comparison 0; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
+
+### Leads not pursued
+
+Full parser-level TypeScript and Solidity validity remains outside the source-comment extraction contract. TypeScript 5.9.2 and Solidity 0.8.34 were audit oracles, not repository dependencies. The finite grammar states and parser-backed closure above support the bounded repair, but do not establish equivalence with a full TypeScript parser; no new token-specific suffix rule or runtime dependency was added.

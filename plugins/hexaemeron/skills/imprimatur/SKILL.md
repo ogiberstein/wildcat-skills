@@ -75,13 +75,15 @@ A 65th such region is a named extraction refusal rather than a clean result or
 an interpreter traceback; iteratively scanned type-argument depth is outside
 that recursion budget.
 
-Malformed supported source, Python parser resource failure, an unterminated
-TypeScript regular expression in an expression goal, and source beyond the
-file-size or nesting boundary are not clean results. A slash after contextual
-`await` or `yield` is refused when its regular-expression and identifier
-readings would move a comment boundary; a complete regular expression followed
-by a comment remains supported. An extraction failure names the path and
-source position and exits 2 before any partial multi-file report is printed.
+Named extraction failures in supported source are not clean results. These
+include an unterminated Solidity block comment, invalid Python syntax or parser
+resource failure, an unterminated TypeScript string, template, JSX element, or
+regular expression in an expression goal, and source beyond the file-size or
+nesting boundary. A slash after contextual `await` or `yield` is refused when
+its regular-expression and identifier readings would move a comment boundary;
+a complete regular expression followed by a comment remains supported. An
+extraction failure names the path and source position and exits 2 before any
+partial multi-file report is printed.
 Markdown, standard input, and other suffixes keep the existing Markdown
 masking rules.
 `--include-code` bypasses source extraction and scans the whole input, as it

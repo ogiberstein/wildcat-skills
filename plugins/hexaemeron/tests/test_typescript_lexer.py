@@ -44,6 +44,20 @@ class SliceCountingSource(str):
         return super().__getitem__(key)
 
 
+class CharacterCountingSource(str):
+    """Count scanner character reads without a wall-clock assertion."""
+
+    def __new__(cls, value):
+        instance = super().__new__(cls, value)
+        instance.character_reads = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            self.character_reads += 1
+        return super().__getitem__(key)
+
+
 class TypeScriptLexerTests(unittest.TestCase):
     def test_spans_reconstruct_the_complete_source(self):
         source = 'const a = "x"; // done\nconst b = /two/g;\n'
@@ -832,6 +846,133 @@ class TypeScriptLexerTests(unittest.TestCase):
             ["/* division comment */", "// trailing"],
             comments(binary_expression),
         )
+
+    def test_completed_statements_do_not_leak_into_later_declarations(self):
+        cases = {
+            "overload then async declaration": (
+                "function read(): void\n"
+                "async function write() {}\n"
+                "/[/*]literal[*/]/.test(value); // trailing\n",
+                False,
+            ),
+            "ambient overload then async generator": (
+                "declare function read(): Promise<void>\n"
+                "async function* write() {}\n"
+                "<p>/* raw child text */</p>; // trailing\n",
+                True,
+            ),
+            "do while then alias": (
+                "do value; while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]literal[*/]/.test(value); // trailing\n",
+                False,
+            ),
+            "nested do while then alias": (
+                "do do value; while (inner); while (outer)\n"
+                "type Alias = string\n"
+                "<p>/* raw child text */</p>; // trailing\n",
+                True,
+            ),
+            "controlled do while then alias": (
+                "if (enabled) do value; while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]literal[*/]/.test(value); // trailing\n",
+                False,
+            ),
+            "labelled do while then alias": (
+                "retry: do value; while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]literal[*/]/.test(value); // trailing\n",
+                False,
+            ),
+            "block-bodied control in do while": (
+                "do if (enabled) { value() } while (ready)\n"
+                "type Alias = string\n"
+                "/[/*]literal[*/]/.test(value); // trailing\n",
+                False,
+            ),
+        }
+        for label, (source, tsx) in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(["// trailing"], comments(source, tsx=tsx))
+
+        controls = {
+            "async function expression": (
+                "const read = async function() {}; "
+                "read / /* division comment */ 2; // trailing\n",
+                False,
+            ),
+            "while body named type": (
+                "while (ready)\n"
+                "  type / /* division comment */ 2; // trailing\n",
+                False,
+            ),
+        }
+        for label, (source, tsx) in controls.items():
+            with self.subTest(label=label):
+                self.assertEqual(
+                    ["/* division comment */", "// trailing"],
+                    comments(source, tsx=tsx),
+                )
+
+    def test_tsx_nested_generic_function_types_keep_the_type_goal(self):
+        cases = {
+            "declaration constraint": (
+                "function read<T extends F<<U /* type comment */>"
+                "(value: U) => U>>() {} // trailing\n"
+            ),
+            "interface constraint": (
+                "interface Reader<T extends F<<U /* type comment */>"
+                "(value: U) => U>> {} // trailing\n"
+            ),
+            "generic call": (
+                "const read = make<<T /* type comment */>"
+                "(value: T) => T>(); // trailing\n"
+            ),
+            "instantiation expression": (
+                "const read = make<<T /* type comment */>"
+                "(value: T) => T>; // trailing\n"
+            ),
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(
+                    ["/* type comment */", "// trailing"],
+                    comments(source, tsx=True),
+                )
+
+        jsx_controls = (
+            "const value = left < <T>(/* raw child text */)</T>; ",
+            "const value = left << <T>(/* raw child text */)</T>; ",
+            "const value = left<<<T>(/* raw child text */)</T>; ",
+        )
+        for source in jsx_controls:
+            with self.subTest(source=source):
+                self.assertEqual(
+                    ["// trailing"],
+                    comments(source + "// trailing\n", tsx=True),
+                )
+
+    def test_nested_generic_type_goals_keep_one_forward_scan(self):
+        def nested_function_type(depth):
+            value = "string"
+            for index in reversed(range(depth)):
+                value = (
+                    f"<T{index} extends F<{value}>>"
+                    f"(value: T{index}) => T{index}"
+                )
+            return value
+
+        source = CharacterCountingSource(
+            "type Deep = " + nested_function_type(48) + "; // trailing\n"
+        )
+        spans, errors = ts.comment_spans(source, tsx=True)
+        self.assertEqual([], errors)
+        self.assertEqual(
+            ["// trailing"],
+            [str.__getitem__(source, slice(start, end)) for _, start, end in spans],
+        )
+        self.assertLess(source.character_reads, len(source) * 8)
 
     def test_line_comments_end_at_every_ecmascript_line_terminator(self):
         for terminator in ("\r\n", "\r", "\u2028", "\u2029"):

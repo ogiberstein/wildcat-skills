@@ -81,6 +81,7 @@ COMMENT_REGEX_ALLOWED_AFTER = REGEX_ALLOWED_AFTER | {
     "control)",
     "declaration",
     "default",
+    "do-while)",
     "prefix",
 }
 CONTEXTUAL_SLASH_GOALS = frozenset(
@@ -687,38 +688,38 @@ class _CommentScanner:
         )
 
     def _generic_arrow_start(self, start, *, allow_single_parameter=False):
-        """Recognize the TSX forms that disambiguate a generic arrow."""
+        """Return the recognized TSX generic-arrow head end, if any."""
         try:
             end = self._angle_end(start, record=False)
         except _CommentScanError:
-            return False
+            return None
         after = self._trivia_end(end, len(self.source))
         if after >= len(self.source) or self.source[after] != "(":
-            return False
+            return None
 
         limit = end - 1
         cursor = self._trivia_end(start + 1, limit)
         match = TYPESCRIPT_IDENTIFIER.match(self.source, cursor, limit)
         if match is None:
-            return False
+            return None
         token = match.group(0)
         cursor = match.end()
         while token == "const":
             cursor = self._trivia_end(cursor, limit)
             match = TYPESCRIPT_IDENTIFIER.match(self.source, cursor, limit)
             if match is None:
-                return False
+                return None
             token = match.group(0)
             cursor = match.end()
         cursor = self._trivia_end(cursor, limit)
         if cursor >= limit:
-            return allow_single_parameter
+            return end if allow_single_parameter else None
         if self.source[cursor] == ",":
-            return True
+            return end
         if self.source[cursor] == "=" and not self.source.startswith("=>", cursor):
-            return True
+            return end
         keyword_end = cursor + len("extends")
-        return (
+        recognized = (
             self.source.startswith("extends", cursor)
             and keyword_end <= limit
             and (
@@ -726,6 +727,7 @@ class _CommentScanner:
                 or self.source[keyword_end] not in WORD_CHARS
             )
         )
+        return end if recognized else None
 
     def _jsx_open(self, start, record):
         cursor = start + 1
@@ -858,8 +860,12 @@ class _CommentScanner:
         variable_declaration = None
         variable_in_type = False
         variable_type_angle_depth = 0
+        tsx_type_argument_depth = 0
+        generic_arrow_head_end = 0
         bracket_depth = 0
         restricted_statement = None
+        declaration_prefix_boundary = False
+        do_statement_states = []
         line_break_since_token = False
         while cursor < len(self.source):
             self._mark(cursor)
@@ -891,6 +897,12 @@ class _CommentScanner:
                 cursor = end + 2
                 continue
             char = self.source[cursor]
+            if (
+                declaration_prefix_boundary
+                and char not in WORD_CHARS
+                and not _is_typescript_space(char)
+            ):
+                declaration_prefix_boundary = False
             restricted_goal = (
                 restricted_statement is not None and line_break_since_token
             )
@@ -995,7 +1007,9 @@ class _CommentScanner:
             known_type_goal = (
                 type_alias_state == 3
                 or variable_in_type
+                or pending_body_angle_depth > 0
                 or pending_function_return_type
+                or tsx_type_argument_depth > 0
                 or (
                     previous == ":"
                     and not colon_starts_expression
@@ -1007,31 +1021,34 @@ class _CommentScanner:
                 and char == "<"
                 and jsx_expression_goal
                 and self._jsx_prefix(cursor)
-                and not self._generic_arrow_start(
-                    cursor,
-                    allow_single_parameter=known_type_goal,
-                )
             ):
-                cursor = self._descend(
-                    cursor,
-                    self._jsx_end,
-                    cursor,
-                    record,
-                )
-                before_previous = previous
-                previous = "jsx"
-                type_alias_state = 0
-                module_declaration = None
-                variable_declaration = None
-                variable_in_type = False
-                variable_type_angle_depth = 0
-                if declaration_line_goal:
-                    pending_declaration_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
-                colon_starts_expression = False
-                line_break_since_token = False
-                continue
+                if cursor >= generic_arrow_head_end:
+                    generic_arrow_end = self._generic_arrow_start(
+                        cursor,
+                        allow_single_parameter=known_type_goal,
+                    )
+                    if generic_arrow_end is None:
+                        cursor = self._descend(
+                            cursor,
+                            self._jsx_end,
+                            cursor,
+                            record,
+                        )
+                        before_previous = previous
+                        previous = "jsx"
+                        type_alias_state = 0
+                        module_declaration = None
+                        variable_declaration = None
+                        variable_in_type = False
+                        variable_type_angle_depth = 0
+                        if declaration_line_goal:
+                            pending_declaration_body = None
+                            pending_body_angle_depth = 0
+                            pending_function_return_type = False
+                        colon_starts_expression = False
+                        line_break_since_token = False
+                        continue
+                    generic_arrow_head_end = generic_arrow_end
             if char == "{":
                 if (
                     module_declaration == "export"
@@ -1051,6 +1068,11 @@ class _CommentScanner:
                 )
                 declaration_body = (
                     construct_body and pending_declaration_body is not None
+                )
+                do_body = (
+                    bool(do_statement_states)
+                    and do_statement_states[-1] == "body"
+                    and previous == "do"
                 )
                 closes_expression = construct_body or (
                     previous in EXPRESSION_BRACE_AFTER
@@ -1095,6 +1117,8 @@ class _CommentScanner:
                     module_declaration = None
                     variable_declaration = None
                     type_alias_state = 0
+                if do_body:
+                    do_statement_states[-1] = "complete"
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
@@ -1181,6 +1205,19 @@ class _CommentScanner:
                     pending_body_angle_depth = 0
                     pending_function_return_type = False
                     declaration_boundary = True
+                if token == "while" and do_statement_states:
+                    if (
+                        do_statement_states[-1] == "body"
+                        and previous != "do"
+                        and (
+                            line_break_since_token
+                            or previous
+                            in {"}", "declaration", "do-while)"}
+                        )
+                    ):
+                        do_statement_states[-1] = "complete"
+                    if do_statement_states[-1] == "complete":
+                        do_statement_states[-1] = "while"
                 type_alias_start = (
                     token == "type"
                     and not object_context
@@ -1206,6 +1243,7 @@ class _CommentScanner:
                                     "template",
                                     "contextual:await",
                                     "contextual:yield",
+                                    "do-while)",
                                 }
                                 or (
                                     previous
@@ -1234,7 +1272,18 @@ class _CommentScanner:
                     type_alias_state = 1
                 statement_start = (
                     declaration_boundary
-                    or previous in {"", ";", "}", "declaration"}
+                    or previous
+                    in {
+                        "",
+                        ";",
+                        ":",
+                        "}",
+                        "control)",
+                        "declaration",
+                        "do",
+                        "do-while)",
+                        "else",
+                    }
                     or previous in DECLARATION_PREFIX_TOKENS
                     or (
                         line_break_since_token
@@ -1244,6 +1293,7 @@ class _CommentScanner:
                 expression_construct = (
                     token in {"class", "function"}
                     and not declaration_boundary
+                    and not declaration_prefix_boundary
                     and (
                         (
                             previous in EXPRESSION_BRACE_AFTER
@@ -1335,6 +1385,13 @@ class _CommentScanner:
                     and previous != "."
                 ):
                     restricted_statement = "complete"
+                if (
+                    token == "do"
+                    and statement_start
+                    and not object_context
+                    and not member_context
+                ):
+                    do_statement_states.append("body")
                 significant_token = token
                 if token == "of":
                     in_for_head = bool(paren_contexts) and paren_contexts[-1] == "for"
@@ -1360,6 +1417,17 @@ class _CommentScanner:
                     significant_token = "class-extends"
                 before_previous = previous
                 previous = significant_token
+                if token in DECLARATION_PREFIX_TOKENS:
+                    declaration_prefix_boundary = (
+                        declaration_prefix_boundary
+                        or (
+                            statement_start
+                            and not object_context
+                            and not member_context
+                        )
+                    )
+                else:
+                    declaration_prefix_boundary = False
                 colon_starts_expression = False
                 line_break_since_token = False
                 cursor = end
@@ -1378,6 +1446,13 @@ class _CommentScanner:
                     pending_body_angle_depth = 0
                     pending_function_return_type = False
                     restricted_statement = None
+                    tsx_type_argument_depth = 0
+                    if (
+                        do_statement_states
+                        and do_statement_states[-1] == "body"
+                        and not paren_contexts
+                    ):
+                        do_statement_states[-1] = "complete"
                 elif char == "=" and not self.source.startswith(
                     ("=>", "=="), cursor
                 ):
@@ -1470,7 +1545,13 @@ class _CommentScanner:
                         pending_function_return_type = False
                     if module_declaration == "import_complete":
                         module_declaration = "import_equals"
-                    if previous == "for" or (
+                    if (
+                        previous == "while"
+                        and do_statement_states
+                        and do_statement_states[-1] == "while"
+                    ):
+                        paren_contexts.append("do-while")
+                    elif previous == "for" or (
                         previous == "await" and before_previous == "for"
                     ):
                         paren_contexts.append("for")
@@ -1488,9 +1569,16 @@ class _CommentScanner:
                     cursor += 1
                     continue
                 if char == ")":
-                    control_head = paren_contexts.pop() if paren_contexts else False
+                    control_head = (
+                        paren_contexts.pop() if paren_contexts else False
+                    )
                     before_previous = previous
-                    previous = "control)" if control_head else ")"
+                    if control_head == "do-while":
+                        previous = "do-while)"
+                        if do_statement_states:
+                            do_statement_states.pop()
+                    else:
+                        previous = "control)" if control_head else ")"
                     if module_declaration == "import_equals":
                         module_declaration = "import_complete"
                     colon_starts_expression = False
@@ -1527,6 +1615,52 @@ class _CommentScanner:
                     and self.source[cursor - 1] != "="
                 ):
                     variable_type_angle_depth -= 1
+                if self.tsx and char == "<":
+                    type_argument_target = (
+                        previous
+                        in {
+                            ")",
+                            "]",
+                            "expression",
+                            "identifier",
+                            "jsx",
+                            "postfix",
+                            "string",
+                            "template",
+                        }
+                        or (
+                            previous
+                            and all(part in WORD_CHARS for part in previous)
+                            and previous not in COMMENT_REGEX_ALLOWED_AFTER
+                            and previous not in DECLARATION_PREFIX_TOKENS
+                        )
+                    )
+                    if tsx_type_argument_depth:
+                        if (
+                            tsx_type_argument_depth == 1
+                            and previous == "<"
+                            and TYPESCRIPT_IDENTIFIER.match(
+                                self.source,
+                                cursor + 1,
+                            )
+                            is None
+                        ):
+                            tsx_type_argument_depth = 0
+                        else:
+                            tsx_type_argument_depth += 1
+                    elif (
+                        type_argument_target
+                        and self.source.startswith("<<", cursor)
+                        and not self.source.startswith("<<<", cursor)
+                    ):
+                        tsx_type_argument_depth = 1
+                elif (
+                    self.tsx
+                    and char == ">"
+                    and tsx_type_argument_depth
+                    and self.source[cursor - 1] != "="
+                ):
+                    tsx_type_argument_depth -= 1
                 if (
                     char == ","
                     and variable_declaration is not None

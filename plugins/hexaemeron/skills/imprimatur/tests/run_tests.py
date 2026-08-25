@@ -767,6 +767,67 @@ check(
     "; ".join(declaration_sequence_detail),
 )
 
+completed_statement_sources = [
+    (
+        ".ts",
+        "function prior(): void\n"
+        "async function read() {}\n"
+        "/[/*]Leverage[*/]/.test(value); "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".ts",
+        "if (enabled) do value; while (ready)\n"
+        "type Alias = string\n"
+        "/[/*]Leverage[*/]/.test(value); "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".tsx",
+        "do do value; while (inner); while (outer)\n"
+        "type Alias = string\n"
+        "<p>/* Leverage is raw child text */</p>; "
+        "// Leverage the actual helper.\n",
+    ),
+]
+completed_statement_ok = True
+completed_statement_detail = []
+for suffix, source in completed_statement_sources:
+    hits = [
+        hit
+        for hit in build(source, source_suffix=suffix)["hits"]
+        if hit["term"] == "leverage"
+    ]
+    expected_offset = source.rindex("Leverage")
+    expected = (
+        source.count("\n", 0, expected_offset) + 1,
+        expected_offset - source.rfind("\n", 0, expected_offset),
+    )
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    completed_statement_ok = completed_statement_ok and positions == [expected]
+    completed_statement_detail.append(f"{suffix}:{positions}")
+check(
+    "source/typescript completed statements reset declaration state",
+    completed_statement_ok,
+    "; ".join(completed_statement_detail),
+)
+
+nested_generic_source = (
+    "function read<T extends F<<U /* Leverage the type helper. */>"
+    "(value: U) => U>>() {} // ordinary trailing\n"
+)
+nested_generic_hits = [
+    hit
+    for hit in build(nested_generic_source, source_suffix=".tsx")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/tsx nested generic function type stays prose",
+    [(hit["line"], hit["col"]) for hit in nested_generic_hits]
+    == [(1, nested_generic_source.index("Leverage") + 1)],
+    str([(hit["line"], hit["col"]) for hit in nested_generic_hits]),
+)
+
 bodyless_function_sequence = (
     "declare function f(): void\n"
     "/[a]/.test(value);\n"
