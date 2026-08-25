@@ -82,7 +82,7 @@ Stated plainly, because the receipt is honest only if its reader knows them:
 
 - The contract is currency at init, recorded -- not currency for the run's
   duration. Upstream can advance mid-run and the receipt does not chase it.
-- The gate ships inside the artifact it gates, so it cannot govern the run
+- The gate ships inside the artefact it gates, so it cannot govern the run
   that writes it; it governs every run after the next re-pin. A Fiat change
   that lands in this repository cannot take effect for the very run that made
   it, so say that plainly in the final report rather than implying the run
