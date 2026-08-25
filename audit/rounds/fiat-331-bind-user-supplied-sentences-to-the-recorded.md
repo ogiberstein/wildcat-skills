@@ -170,3 +170,51 @@ them honestly stays with gate 6 and the evaluation corpus, as the study says.
 Fifth, `release.verify` still walks every answer after `release-answers`
 finds a fault, so a large release reports every faulty answer rather than the
 first; that is the existing design and no register line asks for otherwise.
+
+## Step 1, round 2 -- 2026-08-25
+
+Non-Solidity re-check of the tree with round 1's fix applied, at
+`a612861848f4a383d8a03afb4863595c48e2f805` on the stacked branch. The diff
+since the step head is `115231a397a93479813cf7cb79f24988c8518cea`, two files,
+43 insertions and 3 deletions in `plugins/berean/scripts/berean_lib/answers.py`
+and `plugins/berean/tests/test_answers.py`, plus the round 1 record. The
+Pashov pair and fizz stay waived; the diff carries no Solidity. Zero findings.
+
+### Gates and suites
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and
+`tests`, Hypomnema over `README.md AGENTS.md .agents plugins docs`. The
+Berean suite reports `Ran 162 tests`, `OK (skipped=1)` on Python 3.9.6 and
+3.12.13. The root suite reports 350 tests OK, `tests.test_evolution_contract`
+9 tests OK, `scripts/promise_machine.py check` prints `clean: 14 plugin(s),
+14 copy/copies` and `coverage --check` prints `promises=71 coverage_rows=71
+coverage_selected=71`. `run-evals` grades 7 of 7 on the conformance fixture,
+`verify-release` exits 0 on the fixture and on the reference release, Horos
+reports `boundary matches the tree`, `git diff --check` is clean, and
+Imprimatur scores the five changed Markdown files and this record 100.0 with
+no defects.
+
+### Register
+
+Four register ids are reachable by the fix and each was re-checked against
+it. `untrusted-answer-json`: the encode now happens at `jsonio.stated`, before
+the kind branch, so both document kinds are held to it; a lone surrogate at
+character 22 and one at character 0 are refused as `answer-shape` by name, a
+valid surrogate pair (`😀`, U+1F600) decodes to four bytes whose
+whole span passes and whose cut span fails as split UTF-8. `diagnostic-output`:
+the new detail carries the character position only; probes of the
+lone-surrogate, grammar and out-of-range refusals contained neither the
+question text nor the reference string. `other-classes-unchanged`: every
+existing verdict holds at 162 tests; the one behaviour the fix adds beyond the
+span rule is that a refusal-kind document whose question cannot be encoded
+moves from accepted to refused, which is the fail-closed posture at the
+boundary the register's first line names, changes no field, vocabulary or
+named check, and affects no committed record. `partial-run`: every command
+above exited 0. The remaining twelve ids sit in files the fix does not touch;
+round 1's evidence for them stands on an unchanged tree.
+
+Both commits on the stacked branch carry good local signatures, one co-author
+trailer and one origin trailer each; the step branch is unchanged at
+`df7ca171d2c8cf1bab091523d4caa13c4ef7c8c4`.
+
+Leads not pursued: none new. Round 1's five stand as recorded.
