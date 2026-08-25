@@ -2,7 +2,7 @@
 
 Policy: [../VERSIONING.md](../VERSIONING.md)
 
-- Current version: `imprimatur-v2.2.0`
+- Current version: `imprimatur-v2.3.0`
 - Frontier status: `open`
 - Frontier revision: `labelled-prose-v2`
 - Current frontier: Imprimatur has a provenance-bound 64-sample evaluation, but labelled-prose-v1 failed the pre-registered annotation-agreement and structural-holdout coverage gates; its holdout is spent and its provisional scores cannot support tuning.
@@ -15,3 +15,4 @@ Policy: [../VERSIONING.md](../VERSIONING.md)
 | `imprimatur-v1.1.0` | baseline | `labelled-corpus-calibration` | `ed610953c08d982f939838315687b6672e19c2a20bdc0db6139fd4349e551535` | [skills#74](https://github.com/wildcat-finance/skills/issues/74) | Versioning starts here. Imprimatur has governed maturity handling and its own held frontier. |
 | `imprimatur-v2.1.0` | evolution | `labelled-prose-v2` | `092addc4bcae8cd93d34df41146b3a3bbd3fd24a529cd84b1d16e0399d7affb4` | [labelled-prose-v1](evals/labelled-prose-v1/README.md) | Published the provenance-bound corpus, independent raw labels, adjudication, deterministic evaluator, untouched baseline and single provisional holdout result. Agreement and structural holdout coverage failed, so the lint stayed unchanged and the frontier remains open. |
 | `imprimatur-v2.2.0` | generation | `labelled-prose-v2` | `092addc4bcae8cd93d34df41146b3a3bbd3fd24a529cd84b1d16e0399d7affb4` | [Promise Machine root identity](../../../../README.md) and [regression cases](tests/run_tests.py) | Permit the two fixed suite product-name headings without weakening the generic title-case-heading defect. |
+| `imprimatur-v2.3.0` | generation | `labelled-prose-v2` | `092addc4bcae8cd93d34df41146b3a3bbd3fd24a529cd84b1d16e0399d7affb4` | [skills#503](https://github.com/wildcat-finance/skills/issues/503) and [source-extraction guards](../../tests/test_imprimatur_source_extraction.py) | Read prose from `.sol`, `.py`, `.ts`, and `.tsx` with language-specific adapters and a same-length mask, and refuse malformed supported inputs. Regular-expression-only and external-parser designs were rejected; the held frontier is unchanged. |

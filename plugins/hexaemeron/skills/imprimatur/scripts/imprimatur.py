@@ -16,16 +16,25 @@ Absorbs the lexicons of slopbeth deslop_lint.py and slopgent comms_lint.py
 from __future__ import annotations
 
 import argparse
+import ast
+import io
 import json
 import math
 import re
 import sys
+import tokenize as py_tokenize
 from pathlib import Path
 
 LEXICON_DIR = Path(__file__).resolve().parent.parent / "lexicon"
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+if str(PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_ROOT))
+
+from lib.typescript_lexer import lex as lex_typescript  # noqa: E402
 
 SEVERITY_WEIGHT = {"critical": 5, "high": 3, "medium": 2, "low": 1}
 DEFAULT_SEVERITY = {"hard": "high", "gated": "medium", "structural": "medium"}
+SOURCE_SUFFIXES = frozenset({".sol", ".py", ".ts", ".tsx"})
 
 # Evidence that licenses a gated term.
 RE_BACKTICK = re.compile(r"`[^`\n]+`")
@@ -94,6 +103,216 @@ def strip_code_blocks(text: str) -> str:
     out = re.sub(r"```.*?```", lambda m: " " * len(m.group(0)), text, flags=re.S)
     out = re.sub(r"^(?: {4}|\t).*$", lambda m: " " * len(m.group(0)), out, flags=re.M)
     return out
+
+
+class SourceExtractionError(ValueError):
+    """A supported source file could not be classified without guessing."""
+
+    def __init__(self, line: int, col: int, reason: str) -> None:
+        super().__init__(reason)
+        self.line = line
+        self.col = col
+        self.reason = reason
+
+
+def _line_starts(text: str) -> list[int]:
+    starts = [0]
+    starts.extend(match.end() for match in re.finditer("\n", text))
+    return starts
+
+
+def _position_offset(text: str, starts: list[int], line: int, col: int) -> int:
+    if line < 1 or line > len(starts):
+        raise SourceExtractionError(max(line, 1), col + 1, "source position is outside the file")
+    offset = starts[line - 1] + col
+    line_limit = starts[line] if line < len(starts) else len(text)
+    if offset < starts[line - 1] or offset > line_limit:
+        raise SourceExtractionError(line, col + 1, "source column is outside the line")
+    return offset
+
+
+def _ast_position_offset(
+    text: str, starts: list[int], line: int, byte_col: int
+) -> int:
+    if line < 1 or line > len(starts):
+        raise SourceExtractionError(max(line, 1), byte_col + 1, "AST position is outside the file")
+    start = starts[line - 1]
+    end = text.find("\n", start)
+    if end == -1:
+        end = len(text)
+    raw = text[start:end].encode("utf-8")
+    try:
+        prefix = raw[:byte_col].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SourceExtractionError(line, byte_col + 1, "AST column splits a UTF-8 character") from exc
+    if byte_col > len(raw):
+        raise SourceExtractionError(line, byte_col + 1, "AST column is outside the line")
+    return start + len(prefix)
+
+
+def _masked_spans(text: str, spans: list[tuple[int, int]]) -> str:
+    """Retain selected bytes in place so every source coordinate stays valid."""
+    out = [char if char in "\r\n" else " " for char in text]
+    previous_end = 0
+    for start, end in sorted(spans):
+        if start < previous_end or end < start or end > len(text):
+            line, col = line_col(text, max(0, min(start, len(text))))
+            raise SourceExtractionError(line, col, "source spans overlap or escape the file")
+        out[start:end] = text[start:end]
+        previous_end = end
+    return "".join(out)
+
+
+def _comment_contents(spans: list[tuple[str, int, int]]) -> list[tuple[int, int]]:
+    contents: list[tuple[int, int]] = []
+    for kind, start, end in spans:
+        if kind == "line_comment":
+            contents.append((start + 2, end))
+        elif kind == "block_comment":
+            contents.append((start + 2, end - 2))
+    return contents
+
+
+def _typescript_prose(text: str) -> list[tuple[int, int]]:
+    spans, errors = lex_typescript(text)
+    if errors:
+        offset, reason = errors[0]
+        line, col = line_col(text, offset)
+        raise SourceExtractionError(line, col, reason)
+    return _comment_contents(spans)
+
+
+def _solidity_prose(text: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    i = 0
+    while i < len(text):
+        if text.startswith("//", i):
+            end = text.find("\n", i + 2)
+            end = len(text) if end == -1 else end
+            spans.append((i + 2, end))
+            i = end
+            continue
+        if text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            if end == -1:
+                line, col = line_col(text, i)
+                raise SourceExtractionError(line, col, "unterminated block comment")
+            spans.append((i + 2, end))
+            i = end + 2
+            continue
+        if text[i] in "'\"":
+            quote = text[i]
+            start = i
+            i += 1
+            while i < len(text):
+                if text[i] == "\\":
+                    i += 2
+                    continue
+                if text[i] == quote:
+                    i += 1
+                    break
+                if text[i] in "\r\n":
+                    line, col = line_col(text, start)
+                    raise SourceExtractionError(line, col, "unterminated string")
+                i += 1
+            else:
+                line, col = line_col(text, start)
+                raise SourceExtractionError(line, col, "unterminated string")
+            continue
+        i += 1
+    return spans
+
+
+PY_STRING_OPEN = re.compile(r"(?i)^[rubf]*(?P<quote>'''|\"\"\"|'|\")")
+
+
+def _python_docstring_nodes(tree: ast.AST) -> list[ast.Constant]:
+    owners = [tree]
+    owners.extend(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+    )
+    found: list[ast.Constant] = []
+    for owner in owners:
+        body = getattr(owner, "body", [])
+        if not body or not isinstance(body[0], ast.Expr):
+            continue
+        value = body[0].value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            found.append(value)
+    return found
+
+
+def _python_prose(text: str) -> list[tuple[int, int]]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as exc:
+        raise SourceExtractionError(
+            exc.lineno or 1,
+            exc.offset or 1,
+            f"invalid Python syntax: {exc.msg}",
+        ) from exc
+
+    try:
+        tokens = list(py_tokenize.generate_tokens(io.StringIO(text).readline))
+    except (py_tokenize.TokenError, IndentationError, SyntaxError) as exc:
+        position = getattr(exc, "args", (None, (1, 0)))
+        raw = position[1] if len(position) > 1 and isinstance(position[1], tuple) else (1, 0)
+        line, col = raw[:2]
+        raise SourceExtractionError(line, col + 1, f"Python tokenization failed: {position[0]}") from exc
+
+    starts = _line_starts(text)
+    token_spans: list[tuple[py_tokenize.TokenInfo, int, int]] = []
+    prose: list[tuple[int, int]] = []
+    for token in tokens:
+        start = _position_offset(text, starts, token.start[0], token.start[1])
+        end = _position_offset(text, starts, token.end[0], token.end[1])
+        token_spans.append((token, start, end))
+        if token.type == py_tokenize.COMMENT:
+            prose.append((start + 1, end))
+
+    for node in _python_docstring_nodes(tree):
+        if node.end_lineno is None or node.end_col_offset is None:
+            raise SourceExtractionError(node.lineno, node.col_offset + 1, "docstring has no end position")
+        node_start = _ast_position_offset(text, starts, node.lineno, node.col_offset)
+        node_end = _ast_position_offset(text, starts, node.end_lineno, node.end_col_offset)
+        strings = [
+            (token, start, end)
+            for token, start, end in token_spans
+            if token.type == py_tokenize.STRING and node_start <= start and end <= node_end
+        ]
+        if not strings:
+            line, col = line_col(text, node_start)
+            raise SourceExtractionError(line, col, "docstring source token was not found")
+        for token, start, end in strings:
+            opening = PY_STRING_OPEN.match(token.string)
+            if opening is None:
+                line, col = line_col(text, start)
+                raise SourceExtractionError(line, col, "docstring delimiter was not recognized")
+            quote = opening.group("quote")
+            if not token.string.endswith(quote):
+                line, col = line_col(text, start)
+                raise SourceExtractionError(line, col, "docstring delimiter was not closed")
+            if text[start:end] != token.string:
+                line, col = line_col(text, start)
+                raise SourceExtractionError(line, col, "docstring token does not match source bytes")
+            prose.append((start + opening.end(), end - len(quote)))
+    return prose
+
+
+def extract_source_prose(text: str, suffix: str) -> str:
+    """Return an offset-preserving prose view for one supported source suffix."""
+    suffix = suffix.lower()
+    if suffix == ".sol":
+        spans = _solidity_prose(text)
+    elif suffix == ".py":
+        spans = _python_prose(text)
+    elif suffix in {".ts", ".tsx"}:
+        spans = _typescript_prose(text)
+    else:
+        raise ValueError(f"unsupported source suffix {suffix}")
+    return _masked_spans(text, spans)
 
 
 # --------------------------------------------------------------------------- hard
@@ -317,15 +536,21 @@ def cadence_signals(text: str, lex: dict) -> dict:
 
 
 def build(text: str, *, hard_only: bool = False, skip_code: bool = True,
-          strict: bool = False) -> dict:
+          strict: bool = False, source_suffix: str | None = None) -> dict:
     hard_lex, gated_lex, struct_lex = load_lexicons()
-    prose = strip_code_blocks(text) if skip_code else text
+    suffix = source_suffix.lower() if source_suffix else None
+    if skip_code and suffix in SOURCE_SUFFIXES:
+        prose = extract_source_prose(text, suffix)
+        evidence_text = prose
+    else:
+        prose = strip_code_blocks(text) if skip_code else text
+        evidence_text = text
     if not strict:
         prose = mask_quoted(prose)
 
     hits = scan_hard(prose, hard_lex)
     if not hard_only:
-        hits += scan_gated(prose, gated_lex, evidence_text=text)
+        hits += scan_gated(prose, gated_lex, evidence_text=evidence_text)
         hits += scan_structural(prose, struct_lex)
     hits.sort(key=lambda h: (h["line"], h["col"]))
 
@@ -415,7 +640,11 @@ def main() -> int:
     ap.add_argument("--fail-under", type=float, default=None, help="exit 1 when score below this")
     ap.add_argument("--max-defects", type=int, default=None, help="exit 1 when defect count above this")
     ap.add_argument("--hard-only", action="store_true", help="hard pass only; fast path for hooks")
-    ap.add_argument("--include-code", action="store_true", help="do not blank fenced code blocks")
+    ap.add_argument(
+        "--include-code",
+        action="store_true",
+        help="scan all input instead of extracting source prose or blanking fenced code",
+    )
     ap.add_argument("--strict", action="store_true",
                     help="count quoted mentions as uses (default: mentions are exempt)")
     ap.add_argument("-v", "--verbose", action="store_true", help="show excerpt and rationale")
@@ -426,9 +655,22 @@ def main() -> int:
 
     for t in targets:
         text = read_text(t)
-        r = build(text, hard_only=args.hard_only, skip_code=not args.include_code,
-                  strict=args.strict)
         label = t or "<stdin>"
+        suffix = Path(t).suffix.lower() if t else None
+        try:
+            r = build(
+                text,
+                hard_only=args.hard_only,
+                skip_code=not args.include_code,
+                strict=args.strict,
+                source_suffix=suffix,
+            )
+        except SourceExtractionError as exc:
+            sys.stderr.write(
+                f"imprimatur: {label}:{exc.line}:{exc.col}: "
+                f"source extraction failed: {exc.reason}\n"
+            )
+            return 2
         reports[label] = r
         if args.fail_under is not None and r["score"] < args.fail_under:
             failed = True

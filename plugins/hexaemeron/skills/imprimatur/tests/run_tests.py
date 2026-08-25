@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from imprimatur import build  # noqa: E402
+from imprimatur import SourceExtractionError, build, extract_source_prose  # noqa: E402
 
 PASS, FAIL = "ok", "FAIL"
 results: list[tuple[str, str, str]] = []
@@ -209,6 +209,69 @@ check("mask/strict counts it", build('He said "load-bearing" again.', strict=Tru
 
 # Fenced code is not prose.
 check("mask/code fence", build("```\nload-bearing = True\n```")["defects"] == 0)
+
+# Source files retain comments and Python docstrings at their original offsets.
+solidity = "contract C {\n    /// @notice Leverage the underlying primitive.\n}\n"
+solidity_report = build(solidity, source_suffix=".sol")
+solidity_hit = next((h for h in solidity_report["hits"] if h["term"] == "leverage"), None)
+check(
+    "source/solidity indented NatSpec",
+    solidity_hit is not None and (solidity_hit["line"], solidity_hit["col"]) == (2, 17),
+    f"got {solidity_hit}",
+)
+
+python_source = (
+    '"""Leverage the module primitive."""\n'
+    'ordinary = "Leverage is only data"\n'
+    'def run():\n'
+    '    """Leverage the function primitive."""\n'
+    '    # Leverage the comment primitive.\n'
+    '    return ordinary\n'
+)
+python_report = build(python_source, source_suffix=".py")
+check(
+    "source/python comments and docstrings",
+    [h["line"] for h in python_report["hits"] if h["term"] == "leverage"] == [1, 4, 5],
+    str([(h["line"], h["col"]) for h in python_report["hits"]]),
+)
+
+for suffix, source, wanted_line in [
+    (".ts", 'const text = "// Leverage only data";\n// Leverage the helper.\n', 2),
+    (".tsx", 'const view = <p>{"/* Leverage only data */"}</p>;\n/** Leverage the view. */\n', 2),
+]:
+    report = build(source, source_suffix=suffix)
+    hits = [h for h in report["hits"] if h["term"] == "leverage"]
+    check(
+        f"source/{suffix[1:]} comments exclude literals",
+        len(hits) == 1 and hits[0]["line"] == wanted_line,
+        str([(h["line"], h["col"]) for h in hits]),
+    )
+
+masked = extract_source_prose(solidity, ".sol")
+check(
+    "source/mask preserves offsets",
+    len(masked) == len(solidity)
+    and [i for i, c in enumerate(masked) if c == "\n"]
+    == [i for i, c in enumerate(solidity) if c == "\n"],
+)
+
+for suffix, source in [
+    (".sol", "contract C { /* never closes"),
+    (".py", "def broken(:\n    pass\n"),
+    (".ts", "const value = `never closes;"),
+]:
+    try:
+        build(source, source_suffix=suffix)
+    except SourceExtractionError:
+        refused = True
+    else:
+        refused = False
+    check(f"source/{suffix[1:]} malformed refuses clean", refused)
+
+check(
+    "source/markdown masking unchanged",
+    build("    Leverage hidden in indented Markdown.\n")["defects"] == 0,
+)
 
 # Signal-only patterns do not score.
 sig = build("Preserve scope, risk, and uncertainty.")
