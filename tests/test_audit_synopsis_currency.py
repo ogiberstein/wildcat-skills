@@ -28,6 +28,7 @@ FIXTURE = ROOT / "tests" / "fixtures" / "audit-synopsis" / "heterogeneous.md"
 LIVE_SOURCES = (
     "audit/AUDIT.md",
     "audit/rounds/fiat-429-audit-record-schema-timestamp-synopsis.md",
+    "audit/rounds/fiat-429-recover-issue-429-from-pull-request-552.md",
     "audit/rounds/fiat-576-give-each-fiat-run-its-own-audit-log-path.md",
     "audit/rounds/fiat-594-bind-a-step-merge-to-the-pull-request-the-di.md",
     "plugins/ariadne/audit/AUDIT.md",
@@ -846,6 +847,68 @@ class SynopsisRepositoryTests(unittest.TestCase):
         self.module.process_repository(str(self.root), write=True)
         self.module.process_repository(str(self.root), write=False)
         self.assertLess(destination.stat().st_size, self.module.SYNOPSIS_BYTES_MAX)
+
+    def test_write_refuses_a_source_change_after_planning(self):
+        source = self.source()
+        destination = source.with_name("AUDIT_SYNOPSIS.md")
+        destination.write_bytes(b"old complete\n")
+        original = source.read_bytes()
+        changed = original.replace(b"Not checked: none", b"Not checked: nope")
+        self.assertEqual(len(original), len(changed))
+        real_replace = self.module.atomic_replace
+        mutated = False
+        replacement_observed = False
+
+        def mutate_source_then_replace(root, relative, data):
+            nonlocal mutated, replacement_observed
+            if not mutated:
+                source.write_bytes(changed)
+                mutated = True
+            result = real_replace(root, relative, data)
+            replacement_observed = destination.read_bytes() == data
+            return result
+
+        with mock.patch.object(
+            self.module,
+            "atomic_replace",
+            side_effect=mutate_source_then_replace,
+        ):
+            with self.assertRaisesRegex(
+                self.module.SynopsisError, "source changed after planning"
+            ):
+                self.module.process_repository(str(self.root), write=True)
+        self.assertTrue(mutated)
+        self.assertTrue(replacement_observed)
+        self.assertEqual(destination.read_bytes(), b"old complete\n")
+
+    def test_later_write_refusal_restores_every_attempted_destination(self):
+        first = self.source()
+        second = self.source("plugins/example/audit/AUDIT.md", "guarded")
+        destinations = [
+            first.with_name("AUDIT_SYNOPSIS.md"),
+            second.with_name("AUDIT_SYNOPSIS.md"),
+        ]
+        old = [b"old first\n", b"old second\n"]
+        for destination, data in zip(destinations, old):
+            destination.write_bytes(data)
+        real_replace = self.module.atomic_replace
+        calls = 0
+
+        def refuse_second(root, relative, data):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise self.module.SynopsisError("injected second write refusal")
+            return real_replace(root, relative, data)
+
+        with mock.patch.object(
+            self.module, "atomic_replace", side_effect=refuse_second
+        ):
+            with self.assertRaisesRegex(
+                self.module.SynopsisError, "second write refusal"
+            ):
+                self.module.process_repository(str(self.root), write=True)
+        self.assertEqual([path.read_bytes() for path in destinations], old)
 
     def test_check_diagnostic_has_counts_ratio_and_all_digests(self):
         self.source()

@@ -165,6 +165,35 @@ class AuditSynopsisResourceBoundaryTests(unittest.TestCase):
         self.assertEqual(rendered["h2_count"], 1)
         self.assertLess(len(rendered["bytes"]), renderer.SYNOPSIS_BYTES_MAX)
 
+    def test_write_refuses_a_source_change_after_planning(self):
+        renderer = audit_synopsis_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            source = Path(raw_root, "audit", "AUDIT.md")
+            source.parent.mkdir()
+            source.write_bytes(
+                b"## legacy\nLeads not pursued: none\n" + b"x\n" * 20
+            )
+            destination = source.with_name("AUDIT_SYNOPSIS.md")
+            real_replace = renderer.atomic_replace
+            replacement_observed = False
+
+            def mutate_then_replace(root, relative, data):
+                nonlocal replacement_observed
+                source.write_bytes(source.read_bytes().replace(b"none", b"nope"))
+                result = real_replace(root, relative, data)
+                replacement_observed = destination.is_file()
+                return result
+
+            with mock.patch.object(
+                renderer, "atomic_replace", side_effect=mutate_then_replace
+            ):
+                with self.assertRaisesRegex(
+                    renderer.SynopsisError, "source changed after planning"
+                ):
+                    renderer.process_repository(raw_root, write=True)
+            self.assertTrue(replacement_observed)
+            self.assertFalse(destination.exists())
+
     def test_table_cell_scanner_scales_with_the_accepted_line_length(self):
         renderer = audit_synopsis_module()
 

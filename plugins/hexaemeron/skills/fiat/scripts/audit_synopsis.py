@@ -30,6 +30,7 @@ SYNOPSIS_ESCAPED_ESCAPE = "%%"
 SYNOPSIS_SEPARATOR_BYTES = len(SYNOPSIS_SEPARATOR.encode("utf-8"))
 SOURCE_BYTES_MAX = 16 * 1024 * 1024
 SYNOPSIS_BYTES_MAX = 16 * 1024 * 1024
+ROLLBACK_BYTES_MAX = 2 * SYNOPSIS_BYTES_MAX
 H2_RECORDS_MAX = 10_000
 PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
 FINDINGS_HEADER = "| id | severity | file | finding | status |"
@@ -269,7 +270,9 @@ def _file_still_at_path(root, components, parent, expected):
                 os.close(current_parent)
 
 
-def read_regular_bytes(root, relative, label, *, missing_ok=False):
+def read_regular_bytes(
+    root, relative, label, *, missing_ok=False, bytes_max=SOURCE_BYTES_MAX
+):
     """Read one contained regular file once through a no-follow descriptor walk."""
     root = _root_path(root)
     relative = _relative_path(relative)
@@ -308,7 +311,7 @@ def read_regular_bytes(root, relative, label, *, missing_ok=False):
         if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
             raise SynopsisError(f"{label} changed during access: {relative}")
         chunks = []
-        remaining = SOURCE_BYTES_MAX + 1
+        remaining = bytes_max + 1
         while remaining:
             chunk = os.read(descriptor, min(remaining, 1024 * 1024))
             if not chunk:
@@ -319,7 +322,7 @@ def read_regular_bytes(root, relative, label, *, missing_ok=False):
         finished = os.fstat(descriptor)
         if (
             _file_identity(opened) != _file_identity(finished)
-            or (len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size)
+            or (len(data) <= bytes_max and len(data) != finished.st_size)
             or not _file_still_at_path(root, components, parent, finished)
         ):
             raise SynopsisError(f"{label} changed during read: {relative}")
@@ -331,9 +334,9 @@ def read_regular_bytes(root, relative, label, *, missing_ok=False):
                 os.close(descriptor)
         with contextlib.suppress(OSError):
             os.close(parent)
-    if len(data) > SOURCE_BYTES_MAX:
+    if len(data) > bytes_max:
         raise SynopsisError(
-            f"{label} exceeds {SOURCE_BYTES_MAX:,}-byte cap: {relative}"
+            f"{label} exceeds {bytes_max:,}-byte cap: {relative}"
         )
     return data
 
@@ -972,7 +975,7 @@ def _write_all(descriptor, data):
         view = view[written:]
 
 
-def atomic_replace(root, relative, data):
+def _atomic_replace(root, relative, data):
     """Flush and replace one sibling through its directory descriptor."""
     root = _root_path(root)
     relative = _relative_path(relative)
@@ -1054,12 +1057,94 @@ def atomic_replace(root, relative, data):
         with contextlib.suppress(OSError):
             os.close(parent)
 
-    committed = read_regular_bytes(root, relative, "synopsis output")
+    committed = read_regular_bytes(
+        root,
+        relative,
+        "synopsis output",
+        bytes_max=max(SOURCE_BYTES_MAX, len(data)),
+    )
     if committed != data:
         raise SynopsisError(
             f"synopsis post-write bytes differ: {relative}; "
             f"expected_sha256={hashlib.sha256(data).hexdigest()}; "
             f"actual_sha256={hashlib.sha256(committed).hexdigest()}"
+        )
+
+
+def atomic_replace(root, relative, data):
+    """Replace one sibling; kept separate so refusal races remain injectable."""
+    _atomic_replace(root, relative, data)
+
+
+def _remove_replaced_output(root, relative, expected):
+    """Remove a newly-created output only while it still has our exact bytes."""
+    root = _root_path(root)
+    relative = _relative_path(relative)
+    if not _is_output_path(relative):
+        raise SynopsisError(f"output is not a supported synopsis sibling: {relative}")
+    current = read_regular_bytes(
+        root,
+        relative,
+        "synopsis rollback output",
+        missing_ok=True,
+        bytes_max=ROLLBACK_BYTES_MAX,
+    )
+    if current is None:
+        return
+    if current != expected:
+        raise SynopsisError(f"synopsis changed before rollback: {relative}")
+    components = relative.split("/")
+    parent = _directory_descriptor(root, components[:-1], "synopsis directory")
+    try:
+        if not _directory_still_at_path(root, components[:-1], parent):
+            raise SynopsisError(
+                f"synopsis directory changed before rollback: {relative}"
+            )
+        os.unlink(components[-1], dir_fd=parent)
+        os.fsync(parent)
+    except OSError:
+        raise SynopsisError(f"synopsis rollback removal failed: {relative}") from None
+    finally:
+        with contextlib.suppress(OSError):
+            os.close(parent)
+    if read_regular_bytes(
+        root,
+        relative,
+        "synopsis rollback output",
+        missing_ok=True,
+        bytes_max=ROLLBACK_BYTES_MAX,
+    ) is not None:
+        raise SynopsisError(f"synopsis rollback removal failed: {relative}")
+
+
+def _rollback_outputs(root, attempted):
+    """Restore the exact destination set captured before a refused write."""
+    failures = []
+    for item in reversed(attempted):
+        try:
+            current = read_regular_bytes(
+                root,
+                item["output"],
+                "synopsis rollback output",
+                missing_ok=True,
+                bytes_max=ROLLBACK_BYTES_MAX,
+            )
+            previous = item["committed_bytes"]
+            if current == previous:
+                continue
+            if current != item["bytes"]:
+                raise SynopsisError(
+                    f"synopsis changed before rollback: {item['output']}"
+                )
+            if previous is None:
+                _remove_replaced_output(root, item["output"], item["bytes"])
+            else:
+                _atomic_replace(root, item["output"], previous)
+        except SynopsisError:
+            failures.append(item["output"])
+    if failures:
+        raise SynopsisError(
+            "synopsis rollback failed: " + ", ".join(sorted(failures))
         )
 
 
@@ -1096,11 +1181,13 @@ def process_repository(root, *, write):
         source_bytes = read_regular_bytes(root, source, "audit source")
         item = render_source(source, source_bytes)
         item["output"] = output
-        committed = None
-        if not write:
-            committed = read_regular_bytes(
-                root, item["output"], "audit synopsis", missing_ok=True
-            )
+        committed = read_regular_bytes(
+            root,
+            item["output"],
+            "audit synopsis",
+            missing_ok=True,
+            bytes_max=ROLLBACK_BYTES_MAX if write else SOURCE_BYTES_MAX,
+        )
         item["committed_bytes"] = committed
         item["committed_sha256"] = (
             hashlib.sha256(committed).hexdigest() if committed is not None else "missing"
@@ -1109,9 +1196,44 @@ def process_repository(root, *, write):
 
     if write:
         for item in rendered:
-            atomic_replace(root, item["output"], item["bytes"])
-            item["committed"] = "written"
-            item["committed_sha256"] = item["synopsis_sha256"]
+            current_source = read_regular_bytes(root, item["source"], "audit source")
+            if hashlib.sha256(current_source).hexdigest() != item["source_sha256"]:
+                raise SynopsisError(
+                    f"audit source changed after planning: {item['source']}"
+                )
+        attempted = []
+        try:
+            for item in rendered:
+                attempted.append(item)
+                atomic_replace(root, item["output"], item["bytes"])
+                item["committed"] = "written"
+                item["committed_sha256"] = item["synopsis_sha256"]
+            if discover_sources(root) != sources:
+                raise SynopsisError("audit source set changed after planning")
+            for item in rendered:
+                current_source = read_regular_bytes(
+                    root, item["source"], "audit source"
+                )
+                if (
+                    hashlib.sha256(current_source).hexdigest()
+                    != item["source_sha256"]
+                ):
+                    raise SynopsisError(
+                        f"audit source changed after planning: {item['source']}"
+                    )
+                committed = read_regular_bytes(
+                    root, item["output"], "audit synopsis"
+                )
+                if committed != item["bytes"]:
+                    raise SynopsisError(
+                        f"synopsis changed after replacement: {item['output']}"
+                    )
+        except Exception as error:
+            try:
+                _rollback_outputs(root, attempted)
+            except SynopsisError as rollback_error:
+                raise SynopsisError(f"{error}; {rollback_error}") from error
+            raise
     else:
         for item in rendered:
             if item["committed_bytes"] is None:
