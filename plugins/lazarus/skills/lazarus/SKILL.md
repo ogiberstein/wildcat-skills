@@ -7,7 +7,7 @@ description: >
   proof-checked fixture with a fail-closed local replay boundary. Never use it
   to describe receipts, logs, calls or traces as state-proof-backed evidence.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Lazarus

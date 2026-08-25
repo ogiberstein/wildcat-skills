@@ -322,6 +322,8 @@ def _normalise_slot(value: Any) -> str:
 
 
 def _validate_capture_plan(plan: dict[str, Any]) -> None:
+    if plan["schema_version"] != 1:
+        raise FormatError("capture does not support plan-v2")
     if "max_elapsed_seconds" not in plan["limits"]:
         raise FormatError("capture plan must declare max_elapsed_seconds")
     for item in plan["requests"]:

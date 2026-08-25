@@ -80,6 +80,23 @@ class CaptureTests(unittest.TestCase):
                 {path.relative_to(second): path.read_bytes() for path in second.rglob("*") if path.is_file()},
             )
 
+    def test_capture_refuses_plan_v2_until_anchor_capture_is_implemented(self):
+        material = self.material()
+        material["plan"]["schema_version"] = 2
+        material["plan"]["anchor_sources"] = [{"source_id": "archive-a"}]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.write_plan(root, material["plan"])
+            output = root / "fixture"
+            with self.assertRaisesRegex(
+                FormatError, "^capture does not support plan-v2$"
+            ):
+                capture_fixture(plan, "http://127.0.0.1:1", output)
+            self.assertFalse(output.exists())
+            self.assertEqual(
+                [path.name for path in root.iterdir()], ["capture-plan.json"]
+            )
+
     def test_runtime_bearer_and_cookie_headers_never_enter_fixture(self):
         material = self.material()
         headers = {
