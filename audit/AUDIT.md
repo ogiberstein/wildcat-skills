@@ -13944,3 +13944,123 @@ item. It changes no existing audit byte.
 
 Leads not pursued: the standing step 2 and step 3 leads as recorded at
 rounds 1 and 2, unchanged. No new lead was found this round.
+
+## Step 4, round 1 -- 2026-08-24
+
+Zero findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+The audited range is
+`74b46b5c01d7769980913dd7b179980016f716df..69b8b4205e221bb56ad81e1b6e2f91fdf962bd92`
+on
+`fiat/controller-currency-guarantee-step-4-align-the-documentation-and-vers`,
+two commits: `3dec30e33f545d9596d84c9e1985a3ae9db87865` rewrites
+`plugin-currency.md`; `69b8b4205e221bb56ad81e1b6e2f91fdf962bd92` carries both
+ledgers, both frontmatters, preflight step 3, the four manifests, the two
+pinned test surfaces and the seven base-verbatim evidence imports. Both
+commits have a good local Shoggoth signature and exactly one
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer and one
+`Wildcat-Origin: shoggoth` trailer. The 18 touched files are exactly the
+third amendment's Files list; nothing else rode in.
+
+Ledger arithmetic, the headline risk, was checked byte by byte and by the
+controller's own gate. The absorbed `fiat-v5.22.1` and `fiat-v5.23.1` rows
+are byte-identical to `origin/main`'s at
+`0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841`, whose ledger head is
+`fiat-v5.23.1`, so `fiat-v5.24.1` is the next free version and appears
+exactly once; all three appended rows retain frontier revision
+`state-shape-validation` and digest `e413d6041edb34b3807a54019489605814a591f60547755f8f66f01830f643aa` byte for byte, the
+header matches the newest row, and the held issue 363 job text is untouched
+-- the contract test's unchanged `FIAT_NEXT_JOB` literal enforces that
+mechanically. `frontier_close_fault` run against the tree ledger with the
+run's init snapshot (`fiat-v5.21.1`, 26 rows, sha256 `a4e5a531a53eafc779dae3f7aedc282292a9b01d4a0a55eb73a792032ec396a7`) and the
+28 base-published versions returns `None`: exactly one row this run owns.
+Kronos: one new `kronos-v0.7.0` generation row, absent from the base,
+retaining revision `terminal-goal-loop` and digest `ac28d95d80724aa001a92740f76416164e65d7b7b9cb5da43674d1ea73a214d1` byte
+for byte, the trailing evolution counter still 0, status still `mature`, and
+the header matching the newest row.
+
+Version propagation: all five compared surfaces read 1.6.0 -- both plugin
+manifests, both marketplace manifests, and the pinned
+`DELIVERY_PACKAGE_VERSIONS` map -- and the propagation suite passes. A
+tree-wide `1.5.9` sweep finds no sixth live surface: the remaining hits are
+fixture literals in the currency test's fabricated install layout, one
+receipted historical delivery doc describing the move to 1.5.9, and the
+receipted study's own host measurement.
+
+The seven base-verbatim imports hash-compare byte-identical to
+`origin/main`: `ADR-025-give-each-fiat-run-its-own-audit-record.md` and the
+six files under `plugins/hexaemeron/docs/fiat-per-run-audit-log/` and
+`plugins/hexaemeron/docs/fiat-bound-step-merge/`. The two pinned test
+surfaces change literals only: the propagation map's one version line, and
+the evolution contract's head-row literals (current version, latest version,
+three evidence substrings) with every assertion, the digest literal, and the
+frontier and next-job constants unchanged.
+
+`plugin-currency.md` describes the landed behaviour accurately, audit fixes
+included: the closed verdict vocabulary with `managed` defined as a pinless
+record and a missing clone reading `unknown` (S2-R1-02's semantics), the
+init refusal at exit 1 before any state with the two exits and the verbatim
+`--controller-currency-waiver '<reason>'` flag, the empty-reason refusal,
+the seven receipt fields as named in code, the `hexctl record` refusal of
+the receipt key (S2-R1-01), the read-only fleet report with the 0/3/1 exit
+contract and both refusal causes, one read per distinct origin, and the
+printability sanitizer (S3-R1-01/S3-R2-01). Every documented flag, key,
+route, verdict and field token greps verbatim in `hexctl.py`. Both honesty
+limits are stated in their own section -- currency at init rather than for
+the run's duration, and the gate governing runs after the next re-pin, never
+the run that wrote it -- and the bootstrap property also appears in
+ADR-033, the `fiat-v5.24.1` row, and the re-pin boundary's between-runs
+placement in the kronos row. The still-true sections are retained: per-host
+refresh, the mirror chain, the route check, the version gate, the
+`controller_version` receipt with its two-gaps distinction, and the in-repo
+identity case now stated in the observation's vocabulary. Preflight step 3
+reflects the enforced gate, names the waiver flag verbatim, keeps the
+stale-controller warning path, and cites the reference rather than
+restating it.
+
+Mechanical results: Phylax, Ephoros and Hypomnema print `clean` and exit 0
+-- the imported evidence targets satisfy the pointer walk. The Hexaemeron
+suite passes 1048/1048, the root suite 349/349, and
+`scripts/promise_machine.py check` reports `clean: 14 plugin(s), 14
+copy/copies` at exit 0. Imprimatur exits 0 at 100.0/100 with zero defects on
+`plugin-currency.md` and on the fiat `SKILL.md`. Horos reports `boundary
+matches the tree` and `git diff --check` exits 0 over the range. The
+security suite stays waived: no Solidity in scope; the range is Markdown,
+JSON manifests and two test-literal surfaces. No repair was made, so no
+Elenchus report was created and no Elenchus verdict applies.
+
+Risk-id dispositions for this range: `ledger-arithmetic` holds as measured
+above. `version-propagation` holds as measured above. `bootstrap-limit`
+holds: every surface describing the gate states it governs runs after the
+next re-pin. `repin-partiality`'s report half stands on step 3's evidence,
+its prose now restated in the reference and the kronos row; the operational
+half stays owed to operation. `verdict-honesty`, `waiver-visibility`,
+`secret-echo`, `upstream-read-surface`, `url-source-confusion`,
+`registry-hostile-input`, `route-misdetection` and `state-compat` are
+untouched by this range and their step 2 and 3 evidence stands; the
+demonstration suite (behind refusal, waiver receipt, in-repo nulls,
+currency exit contract) runs green inside the 1048.
+
+Qualification: this round establishes the range's fidelity to the amended
+step and the accuracy of its prose against the landed code, not remote
+signature verification, push, pull request, integration state, or the
+reinstall operation. The absorbed-row and import comparisons are against
+the locally recorded `origin/main` ref named above, not a fresh network
+fetch.
+
+The Sapheneia durable-record comparison preserved the heading, the zero
+count, the empty finding table, the date, the range, branch and three
+commit or ref SHAs, both ledger digests and both frontier revisions, the
+init-snapshot values, the 28-row published set size, the gate's `None`,
+the five surfaces and the version 1.6.0, the seven import identities, every
+exit code and suite count, the promise-machine line, all twelve register
+dispositions, the qualification, and the lead line below, item by item. It
+changes no existing audit byte.
+
+Leads not pursued: the package version moved minor (1.5.9 to 1.6.0), a
+choice the propagation suite accepts without policy input, taken as the
+mason's call and not re-litigated; the standing step 2 and step 3 leads as
+recorded. No new lead was found this round.
