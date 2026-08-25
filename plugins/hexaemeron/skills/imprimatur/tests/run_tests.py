@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from imprimatur import (  # noqa: E402
+    MAX_SOURCE_BYTES,
     SourceExtractionError,
     build,
     extract_source_prose,
@@ -242,6 +243,20 @@ check(
     str([(h["line"], h["col"]) for h in python_report["hits"]]),
 )
 
+try:
+    extract_source_prose("value = " + "+" * 10_000 + "1\n", ".py")
+except SourceExtractionError as exc:
+    parser_limit = str(exc)
+except BaseException as exc:
+    parser_limit = f"untranslated {type(exc).__name__}: {exc}"
+else:
+    parser_limit = "accepted"
+check(
+    "source/python parser resource limit refuses by name",
+    parser_limit == "Python parser resource limit exceeded",
+    parser_limit,
+)
+
 for suffix, source, wanted_line in [
     (".ts", 'const text = "// Leverage only data";\n// Leverage the helper.\n', 2),
     (".tsx", 'const view = <p>{"/* Leverage only data */"}</p>;\n/** Leverage the view. */\n', 2),
@@ -253,6 +268,33 @@ for suffix, source, wanted_line in [
         len(hits) == 1 and hits[0]["line"] == wanted_line,
         str([(h["line"], h["col"]) for h in hits]),
     )
+
+hashbang_source = "#!/usr/bin/env node Leverage the loader.\nconst value = 1;\n"
+hashbang_hits = [
+    hit
+    for hit in build(hashbang_source, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript hashbang trivia is prose",
+    [(hit["line"], hit["col"]) for hit in hashbang_hits]
+    == [(1, hashbang_source.index("Leverage") + 1)],
+    repr([(hit["line"], hit["col"]) for hit in hashbang_hits]),
+)
+
+bom_source = "\ufeff/[/*]Leverage[*/]/; // Leverage the actual helper.\n"
+bom_hits = [
+    hit
+    for hit in build(bom_source, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript byte order mark is expression trivia",
+    len(bom_hits) == 1
+    and (bom_hits[0]["line"], bom_hits[0]["col"])
+    == (1, bom_source.rindex("Leverage") + 1),
+    repr([(hit["line"], hit["col"]) for hit in bom_hits]),
+)
 
 for suffix in (".ts", ".tsx"):
     source = "const ratio = {} / 2; // Leverage the real comment.\n"
@@ -303,6 +345,44 @@ check(
     "source/tsx generic arrow comments",
     len(generic_arrow_hits) == 2,
     generic_arrow_detail,
+)
+
+generic_type = (
+    "type Read = <T /* Leverage the type helper. */>(value: T) => T; "
+    "// Leverage the trailing helper.\n"
+)
+try:
+    generic_type_hits = [
+        hit
+        for hit in build(generic_type, source_suffix=".tsx")["hits"]
+        if hit["term"] == "leverage"
+    ]
+except SourceExtractionError as exc:
+    generic_type_hits = []
+    generic_type_detail = str(exc)
+else:
+    generic_type_detail = str(
+        [(hit["line"], hit["col"]) for hit in generic_type_hits]
+    )
+check(
+    "source/tsx single-parameter generic type comments",
+    len(generic_type_hits) == 2,
+    generic_type_detail,
+)
+
+object_jsx = (
+    "const view = {item: <p>/* Leverage is raw child text. */</p>}; "
+    "// Leverage the trailing helper.\n"
+)
+object_jsx_hits = [
+    hit
+    for hit in build(object_jsx, source_suffix=".tsx")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/tsx object-value JSX stays out of prose",
+    len(object_jsx_hits) == 1,
+    str([(hit["line"], hit["col"]) for hit in object_jsx_hits]),
 )
 
 slash_sources = [
@@ -406,6 +486,170 @@ check(
     "source/typescript declaration boundaries restore regex goal",
     declaration_goal_ok,
     "; ".join(declaration_goal_detail),
+)
+
+jsx_declarations = [
+    "type Alias = string",
+    "declare function read(): Value",
+    "let first: Value, second: Other",
+    'import "pkg"',
+    'import value from "pkg"',
+    'export * from "pkg"',
+]
+jsx_declaration_ok = True
+jsx_declaration_detail = []
+for declaration in jsx_declarations:
+    source = (
+        declaration
+        + "\n<div>/* Leverage is raw child text */</div>; "
+        "// Leverage the actual helper.\n"
+    )
+    try:
+        hits = [
+            hit
+            for hit in build(source, source_suffix=".tsx")["hits"]
+            if hit["term"] == "leverage"
+        ]
+    except SourceExtractionError as exc:
+        jsx_declaration_ok = False
+        jsx_declaration_detail.append(str(exc))
+        continue
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    expected_offset = source.rindex("Leverage")
+    expected = (
+        source.count("\n", 0, expected_offset) + 1,
+        expected_offset - source.rfind("\n", 0, expected_offset),
+    )
+    jsx_declaration_ok = jsx_declaration_ok and positions == [expected]
+    jsx_declaration_detail.append(str(positions))
+check(
+    "source/tsx declaration boundaries restore JSX goal",
+    jsx_declaration_ok,
+    "; ".join(jsx_declaration_detail),
+)
+
+keyword_slash_ok = True
+keyword_slash_detail = []
+for accessor in (".", "?."):
+    for name in ("await", "case", "default", "of", "return", "yield"):
+        source = (
+            f"const ratio = value{accessor}{name} "
+            "/ /* Leverage the division helper. */ 2;\n"
+        )
+        hits = [
+            hit
+            for hit in build(source, source_suffix=".ts")["hits"]
+            if hit["term"] == "leverage"
+        ]
+        keyword_slash_ok = keyword_slash_ok and len(hits) == 1
+        keyword_slash_detail.append(f"{accessor}{name}={len(hits)}")
+source = (
+    "const of = 2; const ratio = of "
+    "/ /* Leverage the division helper. */ 2;\n"
+)
+identifier_hits = [
+    hit
+    for hit in build(source, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+keyword_slash_ok = keyword_slash_ok and len(identifier_hits) == 1
+keyword_slash_detail.append(f"identifier-of={len(identifier_hits)}")
+for name in ("await", "yield"):
+    source = (
+        f"const ratio = {name} "
+        "/ /* Leverage the division helper. */ 2;\n"
+    )
+    try:
+        build(source, source_suffix=".ts")
+    except SourceExtractionError as exc:
+        observed = str(exc)
+    else:
+        observed = "accepted"
+    keyword_slash_ok = keyword_slash_ok and (
+        observed == "ambiguous slash after contextual identifier"
+    )
+    keyword_slash_detail.append(f"{name}={observed}")
+for binding in ("const await", "const yield", "const {value}", "const [value]"):
+    source = (
+        f"for ({binding} of /[/*]Leverage[*/]/) {{}} "
+        "// Leverage the actual helper.\n"
+    )
+    hits = [
+        hit
+        for hit in build(source, source_suffix=".ts")["hits"]
+        if hit["term"] == "leverage"
+    ]
+    keyword_slash_ok = keyword_slash_ok and len(hits) == 1
+    keyword_slash_detail.append(f"for-{binding}={len(hits)}")
+for keyword, wrapper in (
+    ("await", "async function read() {{ {body} }}"),
+    ("yield", "function* read() {{ {body} }}"),
+):
+    source = wrapper.format(
+        body=f"{keyword} /literal/// Leverage the actual helper.\n"
+    )
+    hits = [
+        hit
+        for hit in build(source, source_suffix=".ts")["hits"]
+        if hit["term"] == "leverage"
+    ]
+    keyword_slash_ok = keyword_slash_ok and len(hits) == 1
+    keyword_slash_detail.append(f"{keyword}-regex-comment={len(hits)}")
+    for operand in ("{}", "function() {}", "class {}"):
+        source = wrapper.format(
+            body=(
+                f"const ratio = {keyword} {operand} "
+                "/ /* Leverage the division helper. */ 2;"
+            )
+        )
+        hits = [
+            hit
+            for hit in build(source, source_suffix=".ts")["hits"]
+            if hit["term"] == "leverage"
+        ]
+        keyword_slash_ok = keyword_slash_ok and len(hits) == 1
+        keyword_slash_detail.append(f"{keyword}-{operand}={len(hits)}")
+check(
+    "source/typescript keyword slash goals",
+    keyword_slash_ok,
+    "; ".join(keyword_slash_detail),
+)
+
+expression_prefixes = [
+    (".ts", "const value = ++/[/*]Leverage[*/]/;"),
+    (".ts", "let value = 1; value\n--/[/*]Leverage[*/]/;"),
+    (".ts", "let value = 1; value\n!/[/*]Leverage[*/]/;"),
+    (".ts", "const value = [.../[/*]Leverage[*/]/];"),
+    (".ts", "class Example extends /[/*]Leverage[*/]/ {}"),
+    (".ts", "@/[/*]Leverage[*/]/ class Example {}"),
+    (".tsx", "const value = [...<p>/* Leverage is raw text */</p>];"),
+]
+expression_prefix_ok = True
+expression_prefix_detail = []
+for suffix, prefix in expression_prefixes:
+    source = prefix + " // Leverage the actual helper.\n"
+    try:
+        hits = [
+            hit
+            for hit in build(source, source_suffix=suffix)["hits"]
+            if hit["term"] == "leverage"
+        ]
+    except SourceExtractionError as exc:
+        expression_prefix_ok = False
+        expression_prefix_detail.append(f"{suffix}:{exc}")
+        continue
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    expected_offset = source.rindex("Leverage")
+    expected = (
+        source.count("\n", 0, expected_offset) + 1,
+        expected_offset - source.rfind("\n", 0, expected_offset),
+    )
+    expression_prefix_ok = expression_prefix_ok and positions == [expected]
+    expression_prefix_detail.append(f"{suffix}:{positions}")
+check(
+    "source/typescript expression-prefix goals",
+    expression_prefix_ok,
+    "; ".join(expression_prefix_detail),
 )
 
 false_comment_regex = (
@@ -638,6 +882,22 @@ check(
     "; ".join(solidity_line_breaks_detail),
 )
 
+solidity_crlf_continuation = (
+    'contract C { string x = "first\\\r\n'
+    '/* Leverage is string data. */"; }\r\n'
+    "/// Leverage the real helper.\r\n"
+)
+solidity_crlf_hits = [
+    hit
+    for hit in build(solidity_crlf_continuation, source_suffix=".sol")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/solidity CRLF string continuation stays inside string",
+    [(hit["line"], hit["col"]) for hit in solidity_crlf_hits] == [(3, 5)],
+    str([(hit["line"], hit["col"]) for hit in solidity_crlf_hits]),
+)
+
 solidity_invalid_breaks_ok = True
 solidity_invalid_breaks_detail = []
 for terminator in ("\x85", "\u2028", "\u2029"):
@@ -678,10 +938,16 @@ check(
 with tempfile.TemporaryDirectory() as raw:
     terminator_path = Path(raw) / "terminators.ts"
     markdown_path = Path(raw) / "ordinary.md"
+    invalid_path = Path(raw) / "invalid.ts"
+    unreadable_path = Path(raw) / "directory.ts"
+    oversized_path = Path(raw) / "oversized.ts"
     terminator_payload = b"// first\r\n// second\r// third\n"
     markdown_payload = b"first\r\nsecond\rthird\n"
     terminator_path.write_bytes(terminator_payload)
     markdown_path.write_bytes(markdown_payload)
+    invalid_path.write_bytes(b"// valid first line\r\n// invalid byte: \xff\n")
+    unreadable_path.mkdir()
+    oversized_path.write_bytes(b" " * (MAX_SOURCE_BYTES + 1))
     read_options = (
         {"preserve_newlines": True}
         if "preserve_newlines" in inspect.signature(read_text).parameters
@@ -690,6 +956,30 @@ with tempfile.TemporaryDirectory() as raw:
     preserved_terminators = read_text(str(terminator_path), **read_options)
     include_code_newlines = read_text(str(terminator_path))
     markdown_newlines = read_text(str(markdown_path))
+    try:
+        read_text(str(invalid_path), preserve_newlines=True)
+    except SourceExtractionError as exc:
+        invalid_utf8 = (exc.line, exc.col, str(exc))
+    except BaseException as exc:
+        invalid_utf8 = (0, 0, f"untranslated {type(exc).__name__}: {exc}")
+    else:
+        invalid_utf8 = (0, 0, "accepted")
+    try:
+        read_text(str(unreadable_path), preserve_newlines=True)
+    except SourceExtractionError as exc:
+        unreadable_source = str(exc)
+    except BaseException as exc:
+        unreadable_source = f"untranslated {type(exc).__name__}: {exc}"
+    else:
+        unreadable_source = "accepted"
+    try:
+        read_text(str(oversized_path), preserve_newlines=True)
+    except SourceExtractionError as exc:
+        oversized_source = str(exc)
+    except BaseException as exc:
+        oversized_source = f"untranslated {type(exc).__name__}: {exc}"
+    else:
+        oversized_source = "accepted"
 check(
     "source/CLI path preserves CRLF and CR",
     preserved_terminators == terminator_payload.decode("utf-8"),
@@ -705,6 +995,22 @@ check(
     include_code_newlines == "// first\n// second\n// third\n",
     repr(include_code_newlines),
 )
+check(
+    "source/CLI default source rejects invalid UTF-8",
+    invalid_utf8 == (2, 18, "source is not valid UTF-8"),
+    repr(invalid_utf8),
+)
+check(
+    "source/CLI default source normalizes read errors",
+    unreadable_source == "source path is not a regular file",
+    unreadable_source,
+)
+check(
+    "source/CLI default source caps bytes before parsing",
+    oversized_source
+    == f"source exceeds {MAX_SOURCE_BYTES}-byte analysis cap",
+    oversized_source,
+)
 
 masked = extract_source_prose(solidity, ".sol")
 check(
@@ -718,6 +1024,7 @@ for suffix, source in [
     (".sol", "contract C { /* never closes"),
     (".py", "def broken(:\n    pass\n"),
     (".ts", "const value = `never closes;"),
+    (".ts", "const pattern = /never closes"),
 ]:
     try:
         build(source, source_suffix=suffix)

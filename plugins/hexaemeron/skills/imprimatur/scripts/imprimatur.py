@@ -21,6 +21,7 @@ import io
 import json
 import math
 import re
+import stat
 import sys
 import tokenize as py_tokenize
 from pathlib import Path
@@ -35,6 +36,7 @@ from lib.typescript_lexer import comment_spans as typescript_comment_spans  # no
 SEVERITY_WEIGHT = {"critical": 5, "high": 3, "medium": 2, "low": 1}
 DEFAULT_SEVERITY = {"hard": "high", "gated": "medium", "structural": "medium"}
 SOURCE_SUFFIXES = frozenset({".sol", ".py", ".ts", ".tsx"})
+MAX_SOURCE_BYTES = 1 << 20
 TYPESCRIPT_LINE_TERMINATORS = frozenset("\r\n\u2028\u2029")
 SOLIDITY_LINE_BREAKS = frozenset("\n\v\f\r\x85\u2028\u2029")
 SOLIDITY_INVALID_LINE_BREAKS = frozenset("\x85\u2028\u2029")
@@ -67,8 +69,50 @@ def read_text(path: str | None, *, preserve_newlines: bool = False) -> str:
     if not p.exists():
         sys.stderr.write(f"imprimatur: no such file {path}\n")
         raise SystemExit(2)
-    newline = "" if preserve_newlines else None
-    with p.open("r", encoding="utf-8", errors="replace", newline=newline) as source:
+    if preserve_newlines:
+        try:
+            if not stat.S_ISREG(p.stat().st_mode):
+                raise SourceExtractionError(
+                    1,
+                    1,
+                    "source path is not a regular file",
+                )
+            with p.open("rb") as source:
+                raw = source.read(MAX_SOURCE_BYTES + 1)
+            if len(raw) > MAX_SOURCE_BYTES:
+                raise SourceExtractionError(
+                    1,
+                    1,
+                    f"source exceeds {MAX_SOURCE_BYTES}-byte analysis cap",
+                )
+            return raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            prefix = exc.object[: exc.start].decode("utf-8")
+            suffix = p.suffix.lower()
+            line_terminators = {
+                ".py": PYTHON_LINE_TERMINATORS,
+                ".sol": SOLIDITY_LINE_BREAKS,
+                ".ts": TYPESCRIPT_LINE_TERMINATORS,
+                ".tsx": TYPESCRIPT_LINE_TERMINATORS,
+            }.get(suffix, frozenset("\n"))
+            line, col = line_col(
+                prefix,
+                len(prefix),
+                line_terminators,
+            )
+            raise SourceExtractionError(
+                line,
+                col,
+                "source is not valid UTF-8",
+            ) from exc
+        except OSError as exc:
+            reason = exc.strerror or type(exc).__name__
+            raise SourceExtractionError(
+                1,
+                1,
+                f"source path could not be read: {reason}",
+            ) from exc
+    with p.open("r", encoding="utf-8", errors="replace") as source:
         return source.read()
 
 
@@ -268,7 +312,7 @@ def _solidity_prose(text: str) -> list[tuple[int, int]]:
             i += 1
             while i < len(text):
                 if text[i] == "\\":
-                    i += 2
+                    i += 3 if text.startswith("\\\r\n", i) else 2
                     continue
                 if text[i] == quote:
                     i += 1
@@ -315,11 +359,25 @@ def _python_prose(text: str) -> list[tuple[int, int]]:
             exc.offset or 1,
             f"invalid Python syntax: {exc.msg}",
         ) from exc
+    except (MemoryError, RecursionError) as exc:
+        raise SourceExtractionError(
+            1,
+            1,
+            "Python parser resource limit exceeded",
+        ) from exc
+    except UnicodeError as exc:
+        raise SourceExtractionError(1, 1, "Python source is not valid Unicode") from exc
 
     try:
         tokens = list(
             py_tokenize.generate_tokens(io.StringIO(text, newline="").readline)
         )
+    except (MemoryError, RecursionError) as exc:
+        raise SourceExtractionError(
+            1,
+            1,
+            "Python parser resource limit exceeded",
+        ) from exc
     except (py_tokenize.TokenError, IndentationError, SyntaxError) as exc:
         position = getattr(exc, "args", (None, (1, 0)))
         raw = position[1] if len(position) > 1 and isinstance(position[1], tuple) else (1, 0)
@@ -388,7 +446,14 @@ def extract_source_prose(text: str, suffix: str) -> str:
         spans = _solidity_prose(text)
         line_terminators = SOLIDITY_LINE_BREAKS
     elif suffix == ".py":
-        spans = _python_prose(text)
+        try:
+            spans = _python_prose(text)
+        except (MemoryError, RecursionError) as exc:
+            raise SourceExtractionError(
+                1,
+                1,
+                "Python parser resource limit exceeded",
+            ) from exc
         line_terminators = PYTHON_LINE_TERMINATORS
     elif suffix in {".ts", ".tsx"}:
         spans = _typescript_prose(text, tsx=suffix == ".tsx")
@@ -772,13 +837,13 @@ def main() -> int:
     for t in targets:
         label = t or "<stdin>"
         suffix = Path(t).suffix.lower() if t else None
-        text = read_text(
-            t,
-            preserve_newlines=(
-                not args.include_code and suffix in SOURCE_SUFFIXES
-            ),
-        )
         try:
+            text = read_text(
+                t,
+                preserve_newlines=(
+                    not args.include_code and suffix in SOURCE_SUFFIXES
+                ),
+            )
             r = build(
                 text,
                 hard_only=args.hard_only,

@@ -96,6 +96,41 @@ class TypeScriptLexerTests(unittest.TestCase):
             comments(source),
         )
 
+    def test_comment_spans_include_the_initial_hashbang_trivia(self):
+        for terminator in ("\n", "\r", "\r\n", "\u2028", "\u2029"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    "#!/usr/bin/env node Leverage"
+                    + terminator
+                    + "const value = 1; // trailing"
+                )
+                self.assertEqual(
+                    ["#!/usr/bin/env node Leverage", "// trailing"],
+                    comments(source),
+                )
+
+    def test_ecmascript_byte_order_mark_is_trivia_for_expression_goals(self):
+        cases = {
+            "file regex": ("\ufeff/[/*]raw[*/]/; // trailing\n", False),
+            "return regex": (
+                "function read() { return\ufeff/[/*]raw[*/]/; } "
+                "// trailing\n",
+                False,
+            ),
+            "file JSX": (
+                "\ufeff<p>/* raw */</p>; // trailing\n",
+                True,
+            ),
+            "JSX attribute": (
+                "const view = <p\ufeffvalue={1}>/* raw */</p>; "
+                "// trailing\n",
+                True,
+            ),
+        }
+        for label, (source, tsx) in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(["// trailing"], comments(source, tsx=tsx))
+
     def test_tsx_comment_spans_exclude_child_text_and_keep_code_comments(self):
         source = (
             "const view = (\n"
@@ -161,6 +196,53 @@ class TypeScriptLexerTests(unittest.TestCase):
         for label, (source, expected) in cases.items():
             with self.subTest(label=label):
                 self.assertEqual(expected, comments(source, tsx=True))
+
+    def test_tsx_single_parameter_generics_follow_known_type_goals(self):
+        type_positions = {
+            "variable annotation": (
+                "let read: <T /* type prose */>(value: T) => T; "
+                "// trailing\n"
+            ),
+            "ambient variable annotation": (
+                "declare const read: <T /* type prose */>(value: T) => T; "
+                "// trailing\n"
+            ),
+            "parameter annotation": (
+                "function use(read: <T /* type prose */>(value: T) => T) {} "
+                "// trailing\n"
+            ),
+            "return annotation": (
+                "function make(): <T /* type prose */>(value: T) => T {} "
+                "// trailing\n"
+            ),
+            "type alias": (
+                "type Read = <T /* type prose */>(value: T) => T; "
+                "// trailing\n"
+            ),
+            "class member": (
+                "class Reader { read: <T /* type prose */>(value: T) => T; } "
+                "// trailing\n"
+            ),
+        }
+        for label, source in type_positions.items():
+            with self.subTest(label=label):
+                self.assertEqual(
+                    ["/* type prose */", "// trailing"],
+                    comments(source, tsx=True),
+                )
+
+        jsx_positions = {
+            "object value": (
+                "const view = {read: <p>/* raw child text */</p>}; "
+                "// trailing\n"
+            ),
+            "labelled statement": (
+                "render: <p>/* raw child text */</p>; // trailing\n"
+            ),
+        }
+        for label, source in jsx_positions.items():
+            with self.subTest(label=label):
+                self.assertEqual(["// trailing"], comments(source, tsx=True))
 
     def test_tsx_arrow_probe_does_not_consume_jsx_attributes_or_child_text(self):
         source = (
@@ -413,6 +495,249 @@ class TypeScriptLexerTests(unittest.TestCase):
                 self.assertEqual(
                     ["// genuine trailing"],
                     comments(source, tsx=tsx),
+                )
+
+    def test_declaration_boundaries_restore_the_jsx_goal(self):
+        declarations = {
+            "type alias": "type Alias = string",
+            "bodyless function": "declare function read(): Value",
+            "uninitialised variable": "let first: Value, second: Other",
+            "side-effect import": 'import "pkg"',
+            "default import": 'import value from "pkg"',
+            "type import": 'import type { Value } from "pkg"',
+            "re-export": 'export { value } from "pkg"',
+            "export star": 'export * from "pkg"',
+        }
+        for label, declaration in declarations.items():
+            with self.subTest(label=label):
+                source = (
+                    declaration
+                    + "\n<div>/* raw JSX child */</div>; // trailing\n"
+                )
+                self.assertEqual(["// trailing"], comments(source, tsx=True))
+
+        sequential = (
+            "type Alias = string\n"
+            "<div /> / /* division comment */ 2; // trailing\n"
+        )
+        self.assertEqual(
+            ["/* division comment */", "// trailing"],
+            comments(sequential, tsx=True),
+        )
+
+    def test_keyword_properties_and_contextual_identifiers_keep_slash_boundaries(self):
+        property_names = {
+            "await",
+            "case",
+            "default",
+            "delete",
+            "do",
+            "else",
+            "in",
+            "instanceof",
+            "new",
+            "of",
+            "return",
+            "throw",
+            "typeof",
+            "void",
+            "yield",
+        }
+        for accessor in (".", "?."):
+            for name in sorted(property_names):
+                with self.subTest(accessor=accessor, name=name):
+                    source = (
+                        f"const ratio = value{accessor}{name} "
+                        "/ /* division comment */ 2; // trailing\n"
+                    )
+                    self.assertEqual(
+                        ["/* division comment */", "// trailing"],
+                        comments(source),
+                    )
+
+        identifier = (
+            "const of = 2; const ratio = of / /* division comment */ 2; "
+            "// trailing\n"
+        )
+        self.assertEqual(
+            ["/* division comment */", "// trailing"],
+            comments(identifier),
+        )
+
+        for name in ("await", "yield"):
+            with self.subTest(contextual=name):
+                source = f"const ratio = {name} / /* division comment */ 2;\n"
+                _, errors = ts.comment_spans(source)
+                self.assertEqual(
+                    [(source.index("/"), "ambiguous slash after contextual identifier")],
+                    errors,
+                )
+
+                failed_regex = (
+                    f"const value = {name} /[unterminated "
+                    "/* comment-shaped bytes */\n"
+                )
+                _, errors = ts.comment_spans(failed_regex)
+                self.assertEqual(
+                    [
+                        (
+                            failed_regex.index("/"),
+                            "ambiguous slash after contextual identifier",
+                        )
+                    ],
+                    errors,
+                )
+
+        contextual_comments = {
+            "await line": (
+                "async function read() { await /literal/// genuine line\n }",
+                ["// genuine line"],
+            ),
+            "await block": (
+                "async function read() { await /literal//* genuine block */ }",
+                ["/* genuine block */"],
+            ),
+            "yield line": (
+                "function* read() { yield /literal/// genuine line\n }",
+                ["// genuine line"],
+            ),
+            "yield block": (
+                "function* read() { yield /literal//* genuine block */ }",
+                ["/* genuine block */"],
+            ),
+        }
+        for label, (source, expected) in contextual_comments.items():
+            with self.subTest(label=label):
+                self.assertEqual(expected, comments(source))
+
+        for keyword, wrapper in (
+            ("await", "async function read() {{ const value = {body}; }}"),
+            ("yield", "function* read() {{ const value = {body}; }}"),
+        ):
+            for operand in ("{}", "function() {}", "class {}"):
+                with self.subTest(contextual=keyword, operand=operand):
+                    source = wrapper.format(
+                        body=(
+                            f"{keyword} {operand} "
+                            "/ /* division comment */ 2"
+                        )
+                    )
+                    self.assertEqual(["/* division comment */"], comments(source))
+
+        for_of = (
+            "for (const value of /[/*]literal[*/]/) {} // trailing\n"
+        )
+        self.assertEqual(["// trailing"], comments(for_of))
+
+        for binding in (
+            "const await",
+            "const yield",
+            "const {value}",
+            "const [value]",
+        ):
+            with self.subTest(for_of_binding=binding):
+                source = (
+                    f"for ({binding} of /[/*]literal[*/]/) {{}} "
+                    "// trailing\n"
+                )
+                self.assertEqual(["// trailing"], comments(source))
+
+    def test_expression_goal_unterminated_regex_is_a_named_error(self):
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx):
+                source = "const pattern = /unterminated"
+                _, errors = ts.comment_spans(source, tsx=tsx)
+                self.assertEqual(
+                    [(source.index("/"), "unterminated regular expression literal")],
+                    errors,
+                )
+
+    def test_expression_prefixes_keep_regex_and_jsx_bytes_out_of_comments(self):
+        regex_cases = {
+            "prefix increment": "const value = ++/[/*]literal[*/]/;",
+            "prefix decrement": "const value = --/[/*]literal[*/]/;",
+            "line-break prefix increment": (
+                "let value = 1; value\n++/[/*]literal[*/]/;"
+            ),
+            "line-break prefix not": (
+                "let value = 1; value\n!/[/*]literal[*/]/;"
+            ),
+            "array spread": "const value = [.../[/*]literal[*/]/];",
+            "call spread": "read(.../[/*]literal[*/]/);",
+            "object spread": "const value = {.../[/*]literal[*/]/};",
+            "class declaration heritage": (
+                "class Example extends /[/*]literal[*/]/ {}"
+            ),
+            "class expression heritage": (
+                "const Example = class extends /[/*]literal[*/]/ {};"
+            ),
+            "class generic call heritage": (
+                "class Example extends create<{value: string}>("
+                "/[/*]literal[*/]/) {}"
+            ),
+            "decorator": "@/[/*]literal[*/]/ class Example {}",
+        }
+        for label, prefix in regex_cases.items():
+            with self.subTest(label=label):
+                source = prefix + " // trailing\n"
+                self.assertEqual(["// trailing"], comments(source))
+
+        postfix = (
+            "let value = 1; const ratio = value++ "
+            "/ /* division comment */ 2; // trailing\n"
+        )
+        self.assertEqual(
+            ["/* division comment */", "// trailing"],
+            comments(postfix),
+        )
+
+        for keyword in ("await", "yield"):
+            with self.subTest(contextual_prefix=keyword):
+                for operator in ("++", "--", "!"):
+                    source = (
+                        f"const ratio = {keyword}{operator} "
+                        "/ /* division-shaped comment */ 2;\n"
+                    )
+                    _, errors = ts.comment_spans(source)
+                    self.assertEqual(
+                        [
+                            (
+                                source.index("/"),
+                                "ambiguous slash after contextual identifier",
+                            )
+                        ],
+                        errors,
+                    )
+
+        jsx_cases = {
+            "array spread": "const value = [...<p>/* raw */</p>];",
+            "call spread": "read(...<p>/* raw */</p>);",
+            "class heritage": "class Example extends (<p>/* raw */</p>) {}",
+        }
+        for label, prefix in jsx_cases.items():
+            with self.subTest(label=label):
+                source = prefix + " // trailing\n"
+                self.assertEqual(["// trailing"], comments(source, tsx=True))
+
+        heritage_state = {
+            "regex": (
+                "class Example extends /literal/ {\n"
+                "  interface = Value\n"
+                "  ratio = {} / /* member division */ 2\n"
+                "}\n// trailing\n"
+            ),
+            "JSX": (
+                "class Example extends (<Base />) {\n"
+                "  interface = Value\n"
+                "  ratio = {} / /* member division */ 2\n"
+                "}\n// trailing\n"
+            ),
+        }
+        for label, source in heritage_state.items():
+            with self.subTest(heritage_state=label):
+                self.assertEqual(
+                    ["/* member division */", "// trailing"],
+                    comments(source, tsx=label == "JSX"),
                 )
 
     def test_restricted_statement_asi_restores_regex_and_jsx_goals(self):

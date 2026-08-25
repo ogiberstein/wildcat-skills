@@ -72,12 +72,20 @@ WORD_CHARS = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$"
 )
 ECMASCRIPT_LINE_TERMINATORS = frozenset("\r\n\u2028\u2029")
+ECMASCRIPT_EXTRA_WHITESPACE = frozenset("\ufeff")
 CONTROL_HEAD_KEYWORDS = frozenset({"catch", "for", "if", "switch", "while", "with"})
 COMMENT_REGEX_ALLOWED_AFTER = REGEX_ALLOWED_AFTER | {
+    "...",
+    "@",
+    "class-extends",
     "control)",
     "declaration",
     "default",
+    "prefix",
 }
+CONTEXTUAL_SLASH_GOALS = frozenset(
+    {"contextual:await", "contextual:prefix", "contextual:yield"}
+)
 DECLARATION_PREFIX_TOKENS = frozenset(
     {"abstract", "async", "declare", "default", "export"}
 )
@@ -139,6 +147,9 @@ EXPRESSION_BRACE_AFTER = frozenset(
         "^",
         "return",
         "case",
+        "contextual:await",
+        "contextual:prefix",
+        "contextual:yield",
         "typeof",
         "instanceof",
         "in",
@@ -157,6 +168,10 @@ EXPRESSION_BRACE_AFTER = frozenset(
 TYPE_LITERAL_BRACE_AFTER = frozenset(
     {"(", "[", ",", ":", "=", "=>", "&", "|", "?", "<", "extends"}
 )
+
+
+def _is_typescript_space(char):
+    return char.isspace() or char in ECMASCRIPT_EXTRA_WHITESPACE
 
 
 def _line_comment_end(source, start):
@@ -264,7 +279,7 @@ def lex(source):
             i = j
             continue
 
-        if not c.isspace():
+        if not _is_typescript_space(c):
             # Fold repeated operator characters so `=>` and `===` count as
             # one significant token for the regex decision.
             if prev and prev[-1] == c and (prev + c) in REGEX_ALLOWED_AFTER:
@@ -300,14 +315,14 @@ def _scan_string(source, start):
 def _is_jsx_attribute_string(source, start):
     """Whether a quote follows an attribute assignment inside an open tag."""
     cursor = start - 1
-    while cursor >= 0 and source[cursor].isspace():
+    while cursor >= 0 and _is_typescript_space(source[cursor]):
         cursor -= 1
     if cursor < 0 or source[cursor] != "=":
         return False
     cursor -= 1
     while cursor >= 0 and (source[cursor].isalnum() or source[cursor] in "_:$-"):
         cursor -= 1
-    if cursor >= 0 and not source[cursor].isspace():
+    if cursor >= 0 and not _is_typescript_space(source[cursor]):
         return False
 
     opening = source.rfind("<", 0, start)
@@ -317,7 +332,7 @@ def _is_jsx_attribute_string(source, start):
     tag = opening + 1
     if tag < len(source) and source[tag] == "/":
         tag += 1
-    while tag < len(source) and source[tag].isspace():
+    while tag < len(source) and _is_typescript_space(source[tag]):
         tag += 1
     return tag < len(source) and (source[tag].isalpha() or source[tag] in "_$")
 
@@ -460,6 +475,42 @@ def _scan_comment_safe_regex(source, start):
     return None
 
 
+def _contextual_slash_hides_comment(source, start, regex_end):
+    """Whether an await/yield slash could change a comment boundary.
+
+    Outside an async, generator, or module grammar, ``await`` and ``yield``
+    can be identifiers followed by division. A forward lexical pass cannot
+    settle that surrounding grammar. Refuse only when the two readings move a
+    comment delimiter; a complete regex followed by its own comment remains
+    safe because both delimiters start after the regex token.
+    """
+    if regex_end is None:
+        limit = start + 1
+        while (
+            limit < len(source)
+            and source[limit] not in ECMASCRIPT_LINE_TERMINATORS
+        ):
+            limit += 1
+        close = limit
+    else:
+        close = regex_end - 1
+        while close > start and source[close] in "dgimsuvy":
+            close -= 1
+
+    cursor = start + 1
+    while cursor <= close and cursor + 1 < len(source):
+        if source.startswith(("/*", "//"), cursor):
+            if (
+                regex_end is not None
+                and cursor == close
+                and source.startswith(("/*", "//"), cursor + 1)
+            ):
+                return False
+            return True
+        cursor += 1
+    return False
+
+
 JSX_NAME = re.compile(r"(?:[^\W\d]|[$])[\w.$:-]*")
 TYPESCRIPT_IDENTIFIER = re.compile(r"(?:[^\W\d]|[$])[\w$]*")
 MAX_COMMENT_NESTING = 64
@@ -523,7 +574,7 @@ class _CommentScanner:
         """Skip whitespace and comments without consuming beyond ``limit``."""
         cursor = start
         while cursor < limit:
-            if self.source[cursor].isspace():
+            if _is_typescript_space(self.source[cursor]):
                 cursor += 1
                 continue
             if self.source.startswith("//", cursor):
@@ -631,10 +682,11 @@ class _CommentScanner:
             return False
         cursor = match.end()
         return cursor == len(self.source) or (
-            self.source[cursor].isspace() or self.source[cursor] in "/> <"
+            _is_typescript_space(self.source[cursor])
+            or self.source[cursor] in "/> <"
         )
 
-    def _generic_arrow_start(self, start):
+    def _generic_arrow_start(self, start, *, allow_single_parameter=False):
         """Recognize the TSX forms that disambiguate a generic arrow."""
         try:
             end = self._angle_end(start, record=False)
@@ -660,7 +712,7 @@ class _CommentScanner:
             cursor = match.end()
         cursor = self._trivia_end(cursor, limit)
         if cursor >= limit:
-            return False
+            return allow_single_parameter
         if self.source[cursor] == ",":
             return True
         if self.source[cursor] == "=" and not self.source.startswith("=>", cursor):
@@ -692,7 +744,8 @@ class _CommentScanner:
                 record,
             )
         if cursor < len(self.source) and not (
-            self.source[cursor].isspace() or self.source[cursor] in "/>"
+            _is_typescript_space(self.source[cursor])
+            or self.source[cursor] in "/>"
         ):
             raise self._error(start, "invalid JSX tag name")
         while cursor < len(self.source):
@@ -739,7 +792,10 @@ class _CommentScanner:
         if not self.source.startswith(name, cursor):
             return None
         cursor += len(name)
-        while cursor < len(self.source) and self.source[cursor].isspace():
+        while (
+            cursor < len(self.source)
+            and _is_typescript_space(self.source[cursor])
+        ):
             cursor += 1
         return cursor + 1 if self.source.startswith(">", cursor) else None
 
@@ -809,6 +865,12 @@ class _CommentScanner:
             self._mark(cursor)
             if stop_on_brace and self.source[cursor] == "}":
                 return cursor + 1
+            if cursor == 0 and self.source.startswith("#!"):
+                end = _line_comment_end(self.source, cursor + 2)
+                if record:
+                    self.comments.append(("line_comment", cursor, end))
+                cursor = end
+                continue
             if self.source.startswith("//", cursor):
                 end = _line_comment_end(self.source, cursor + 2)
                 if record:
@@ -832,7 +894,7 @@ class _CommentScanner:
             restricted_goal = (
                 restricted_statement is not None and line_break_since_token
             )
-            if restricted_goal and not char.isspace():
+            if restricted_goal and not _is_typescript_space(char):
                 restricted_statement = None
             pending_construct = pending_expression_body or pending_declaration_body
             if pending_construct is not None:
@@ -840,7 +902,13 @@ class _CommentScanner:
                     pending_body_angle_depth
                     or previous == pending_construct
                     or before_previous
-                    in {pending_construct, ":", "extends", "implements"}
+                    in {
+                        pending_construct,
+                        ":",
+                        "class-extends",
+                        "extends",
+                        "implements",
+                    }
                     or (
                         pending_construct == "function"
                         and pending_function_return_type
@@ -896,15 +964,53 @@ class _CommentScanner:
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
+            declaration_line_goal = (
+                type_alias_state == 3 and line_break_since_token
+            ) or (
+                line_break_since_token
+                and not paren_contexts
+                and (
+                    module_declaration
+                    in {"import_complete", "export_complete"}
+                    or variable_declaration == "uninitialized"
+                    or pending_declaration_body == "function"
+                )
+            )
+            expression_goal = (
+                (
+                    previous in COMMENT_REGEX_ALLOWED_AFTER
+                    and before_previous != "."
+                )
+                or (
+                    previous in CONTEXTUAL_SLASH_GOALS
+                    and before_previous != "."
+                )
+                or restricted_goal
+                or declaration_line_goal
+            )
+            jsx_expression_goal = expression_goal and previous not in {
+                "@",
+                "class-extends",
+            }
+            known_type_goal = (
+                type_alias_state == 3
+                or variable_in_type
+                or pending_function_return_type
+                or (
+                    previous == ":"
+                    and not colon_starts_expression
+                    and (bool(paren_contexts) or member_context)
+                )
+            )
             if (
                 self.tsx
                 and char == "<"
-                and (
-                    previous in COMMENT_REGEX_ALLOWED_AFTER
-                    or restricted_goal
-                )
+                and jsx_expression_goal
                 and self._jsx_prefix(cursor)
-                and not self._generic_arrow_start(cursor)
+                and not self._generic_arrow_start(
+                    cursor,
+                    allow_single_parameter=known_type_goal,
+                )
             ):
                 cursor = self._descend(
                     cursor,
@@ -914,6 +1020,15 @@ class _CommentScanner:
                 )
                 before_previous = previous
                 previous = "jsx"
+                type_alias_state = 0
+                module_declaration = None
+                variable_declaration = None
+                variable_in_type = False
+                variable_type_angle_depth = 0
+                if declaration_line_goal:
+                    pending_declaration_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
@@ -983,23 +1098,20 @@ class _CommentScanner:
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
-            regex_goal = (
-                previous in COMMENT_REGEX_ALLOWED_AFTER
-                or restricted_goal
-                or (type_alias_state == 3 and line_break_since_token)
-                or (
-                    line_break_since_token
-                    and not paren_contexts
-                    and (
-                        module_declaration
-                        in {"import_complete", "export_complete"}
-                        or variable_declaration == "uninitialized"
-                        or pending_declaration_body == "function"
-                    )
-                )
-            )
-            if char == "/" and regex_goal:
+            if char == "/" and expression_goal:
                 regex_end = _scan_comment_safe_regex(self.source, cursor)
+                if (
+                    previous in CONTEXTUAL_SLASH_GOALS
+                    and _contextual_slash_hides_comment(
+                        self.source,
+                        cursor,
+                        regex_end,
+                    )
+                ):
+                    raise self._error(
+                        cursor,
+                        "ambiguous slash after contextual identifier",
+                    )
                 if regex_end is not None:
                     cursor = regex_end
                     before_previous = previous
@@ -1008,11 +1120,17 @@ class _CommentScanner:
                     type_alias_state = 0
                     module_declaration = None
                     variable_declaration = None
-                    pending_declaration_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
+                    if declaration_line_goal:
+                        pending_declaration_body = None
+                        pending_body_angle_depth = 0
+                        pending_function_return_type = False
                     line_break_since_token = False
                     continue
+                if previous not in CONTEXTUAL_SLASH_GOALS:
+                    raise self._error(
+                        cursor,
+                        "unterminated regular expression literal",
+                    )
             if char in WORD_CHARS:
                 end = cursor + 1
                 while end < len(self.source) and self.source[end] in WORD_CHARS:
@@ -1079,12 +1197,15 @@ class _CommentScanner:
                                     ")",
                                     "]",
                                     "expression",
+                                    "identifier",
                                     "jsx",
                                     "postfix",
                                     "regex",
                                     "return",
                                     "string",
                                     "template",
+                                    "contextual:await",
+                                    "contextual:yield",
                                 }
                                 or (
                                     previous
@@ -1214,13 +1335,36 @@ class _CommentScanner:
                     and previous != "."
                 ):
                     restricted_statement = "complete"
+                significant_token = token
+                if token == "of":
+                    in_for_head = bool(paren_contexts) and paren_contexts[-1] == "for"
+                    binding_position = (
+                        (
+                            previous in COMMENT_REGEX_ALLOWED_AFTER
+                            and previous != "}"
+                        )
+                        or previous in {"const", "let", "var"}
+                    )
+                    significant_token = (
+                        "of" if in_for_head and not binding_position else "identifier"
+                    )
+                elif token == "await" and previous != "for":
+                    significant_token = "contextual:await"
+                elif token == "yield":
+                    significant_token = "contextual:yield"
+                elif (
+                    token == "extends"
+                    and pending_construct == "class"
+                    and pending_body_angle_depth == 0
+                ):
+                    significant_token = "class-extends"
                 before_previous = previous
-                previous = token
+                previous = significant_token
                 colon_starts_expression = False
                 line_break_since_token = False
                 cursor = end
                 continue
-            if char.isspace():
+            if _is_typescript_space(char):
                 if char in ECMASCRIPT_LINE_TERMINATORS:
                     line_break_since_token = True
             else:
@@ -1261,9 +1405,25 @@ class _CommentScanner:
                         variable_type_angle_depth = 0
                 elif type_alias_state == 1:
                     type_alias_state = 0
-                if self.source.startswith(("++", "--"), cursor):
+                if self.source.startswith("...", cursor):
                     before_previous = previous
-                    previous = "postfix"
+                    previous = "..."
+                    colon_starts_expression = False
+                    line_break_since_token = False
+                    cursor += 3
+                    continue
+                if self.source.startswith(("++", "--"), cursor):
+                    contextual_prefix = (
+                        previous in CONTEXTUAL_SLASH_GOALS
+                        and before_previous != "."
+                    )
+                    prefix = expression_goal or line_break_since_token
+                    before_previous = previous
+                    previous = (
+                        "contextual:prefix"
+                        if contextual_prefix
+                        else "prefix" if prefix else "postfix"
+                    )
                     colon_starts_expression = False
                     line_break_since_token = False
                     cursor += 2
@@ -1271,11 +1431,18 @@ class _CommentScanner:
                 if (
                     char == "!"
                     and not self.source.startswith("!=", cursor)
-                    and previous
-                    and previous not in COMMENT_REGEX_ALLOWED_AFTER
                 ):
+                    contextual_prefix = (
+                        previous in CONTEXTUAL_SLASH_GOALS
+                        and before_previous != "."
+                    )
+                    prefix = expression_goal or line_break_since_token
                     before_previous = previous
-                    previous = "postfix"
+                    previous = (
+                        "contextual:prefix"
+                        if contextual_prefix
+                        else "!" if prefix or not previous else "postfix"
+                    )
                     colon_starts_expression = False
                     line_break_since_token = False
                     cursor += 1
@@ -1303,13 +1470,17 @@ class _CommentScanner:
                         pending_function_return_type = False
                     if module_declaration == "import_complete":
                         module_declaration = "import_equals"
-                    paren_contexts.append(
-                        (
-                            previous in CONTROL_HEAD_KEYWORDS
-                            and before_previous != "."
-                        )
-                        or (previous == "await" and before_previous == "for")
-                    )
+                    if previous == "for" or (
+                        previous == "await" and before_previous == "for"
+                    ):
+                        paren_contexts.append("for")
+                    elif (
+                        previous in CONTROL_HEAD_KEYWORDS
+                        and before_previous != "."
+                    ):
+                        paren_contexts.append("control")
+                    else:
+                        paren_contexts.append("")
                     before_previous = previous
                     previous = "("
                     colon_starts_expression = False
@@ -1330,7 +1501,7 @@ class _CommentScanner:
                     pending_ternaries += 1
                 if char == ":":
                     if (
-                        pending_expression_body == "function"
+                        pending_construct == "function"
                         and previous == ")"
                         and not paren_contexts
                         and pending_body_angle_depth == 0

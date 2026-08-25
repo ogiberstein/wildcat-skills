@@ -100,3 +100,31 @@ Mechanical gates: focused shared-lexer and source-extraction suites 73/73; focus
 ### Leads not pursued
 
 Full parser-level TypeScript and Solidity validity remains outside the declared comment-extraction contract. TypeScript 5.9.2 was an audit oracle and is not a repository dependency. No full parser was added.
+
+## Step 1, round 6 -- 2026-08-25
+
+Review basis: full fixed Step 1 diff against base `0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841`, with round-6 repairs starting from signed round-5 tip `ea04d5fffc0fa86c073f6e3179b54133539ac8b9`; Step 1 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R6-01 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | The expression-goal table omitted declaration-to-JSX, keyword-property, for-of, spread, decorator, class-heritage, prefix-operator, line-break `!`, and byte-order-mark transitions. Valid TypeScript or TSX could expose comment-shaped regex or JSX bytes as prose, or hide a genuine division comment. | fixed in this round: one expression-goal transition table and declaration-boundary reset now cover the parser-backed matrix; sequential state, binding, prefix/postfix, raw-JSX and real-comment guards preserve both sides |
+| S1-R6-02 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | Treating contextual `await` and `yield` as unconditional regex goals could hide division comments; the first repair also refused safe complete regexes followed by their own comments. | fixed in this round: `ambiguous slash after contextual identifier` is returned only when the two readings move a comment delimiter; safe post-regex line and block comments remain supported |
+| S1-R6-03 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | An unterminated regex in an established expression goal fell through as code and could return clean. | fixed in this round: `unterminated regular expression literal` is a named extraction failure and the CLI exits 2 |
+| S1-R6-04 | medium | `plugins/hexaemeron/lib/typescript_lexer.py` | Valid TSX single-parameter generic function types such as `<T>(value: T) => T` entered JSX traversal and were refused, while identical prefixes in object values and labelled statements had to remain JSX. | fixed in this round: an explicit known-type goal feeds the existing generic-arrow probe for variable, ambient, parameter, return, alias and class-member types; expression-position JSX remains outside prose |
+| S1-R6-05 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | A 10,000-operator Python expression made `ast.parse()` raise `MemoryError` and leak a traceback. | fixed in this round: parser and tokenizer `MemoryError` or `RecursionError` becomes `Python parser resource limit exceeded` at 1:1 |
+| S1-R6-06 | high | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | Supported source paths decoded with replacement, had no byte ceiling, admitted FIFO or device paths, and leaked read exceptions. Invalid UTF-8 carried a false-clean risk; large or non-regular input carried exhaustion or stall risk. | fixed in this round: default source mode requires a regular file, reads at most 1,048,577 bytes to enforce a cap of 1,048,576 bytes, decodes strict UTF-8, reports invalid bytes with suffix-owned line rules and translates path errors before output |
+| S1-R6-07 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | Solidity 0.8.34 accepts backslash string continuation across LF, CR and CRLF, but the scanner consumed only the backslash and CR and refused the LF half of CRLF. | fixed in this round: CRLF is consumed as one three-character string transition; comment-shaped string bytes remain excluded and following NatSpec retains 3:5 |
+
+### Negative review
+
+TypeScript 5.9.2 matched 343/343 parser-valid operator, trivia and state specimens plus 8/8 known-type and JSX controls. All 324/324 ordered declaration pairs and the 200-cluster sequential state-reset specimen stayed green. Solidity 0.8.34 accepted LF, CR and CRLF string continuations. Python 3.12.3 resource, Unicode-coordinate and docstring-ownership guards passed.
+
+Solidity ordinary, Unicode and hex strings, comments and NatSpec; Python docstrings and token coordinates; TypeScript templates, regexes, JSX, declarations, contextual identifiers and all four line terminators; same-length masks; Markdown and `--include-code`; multi-file no-partial-output behavior; the stable `lex()` API; recursion and complexity boundaries; and Promise and frontier identities received negative review with no other finding.
+
+### Mechanical gates
+
+End-to-end issue specimen exit 1 with original coordinate 2:17; focused shared-lexer and source-extraction 92/92; focused Imprimatur 108/108; pinned Node v26.6.0 full Hexaemeron 1,149/1,149; evolution and version propagation 16/16; Promise Machine copies 14/14; root suite 350/350; root inoculation 1,258 cases, 0 crashes, 0 unexpected clean; Phylax 0; Ephoros 0; Hypomnema 0; changed-prose Imprimatur 0; Brevitas report and protected-source comparison 0; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
+
+### Leads not pursued
+
+Full parser-level TypeScript and Solidity validity remains outside the source-comment extraction contract. TypeScript 5.9.2 and Solidity 0.8.34 were audit oracles, not repository dependencies. The contextual slash refusal is limited to cases where the two readings move a comment delimiter. No full parser or new runtime dependency was added.

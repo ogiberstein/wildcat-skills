@@ -3,6 +3,7 @@
 from pathlib import Path
 import io
 import inspect
+import os
 import subprocess
 import sys
 import tempfile
@@ -31,9 +32,15 @@ SOURCE_MODE = (
 def term_hits(source: str, suffix: str, term: str = "leverage") -> list[dict]:
     if not SOURCE_MODE:
         raise AssertionError("Imprimatur has no source-prose mode")
+    try:
+        report = build(source, source_suffix=suffix)
+    except SourceExtractionError as exc:
+        raise AssertionError(
+            f"valid {suffix} source was refused: {exc}"
+        ) from exc
     return [
         hit
-        for hit in build(source, source_suffix=suffix)["hits"]
+        for hit in report["hits"]
         if hit["term"] == term
     ]
 
@@ -107,6 +114,18 @@ class SourceExtractionTests(unittest.TestCase):
                     [(hit["line"], hit["col"]) for hit in hits],
                 )
 
+    def test_solidity_crlf_string_continuation_stays_inside_the_string(self):
+        source = (
+            'contract C { string x = "first\\\r\n'
+            '/* Leverage is string data. */"; }\r\n'
+            "/// Leverage the real helper.\r\n"
+        )
+        hits = term_hits(source, ".sol")
+        self.assertEqual(
+            [(3, 5)],
+            [(hit["line"], hit["col"]) for hit in hits],
+        )
+
     def test_python_comments_and_owned_docstrings_are_prose(self):
         source = (
             '"""Leverage the module primitive."""\n'
@@ -173,6 +192,18 @@ class SourceExtractionTests(unittest.TestCase):
         large = traced_line_events(80)
         self.assertLess(large, small * 3)
 
+    def test_python_parser_resource_limit_is_a_named_refusal(self):
+        source = "value = " + "+" * 10_000 + "1\n"
+        try:
+            extract_source_prose(source, ".py")
+        except SourceExtractionError as exc:
+            observed = str(exc)
+        except BaseException as exc:
+            observed = f"untranslated {type(exc).__name__}: {exc}"
+        else:
+            observed = "accepted"
+        self.assertEqual("Python parser resource limit exceeded", observed)
+
     def test_typescript_literals_urls_templates_and_regexes_are_not_comments(self):
         source = (
             'const url = "https://example.test/Leverage";\n'
@@ -184,6 +215,22 @@ class SourceExtractionTests(unittest.TestCase):
             with self.subTest(suffix=suffix):
                 hits = term_hits(source, suffix)
                 self.assertEqual([4], [hit["line"] for hit in hits])
+
+    def test_typescript_hashbang_trivia_is_source_prose(self):
+        source = "#!/usr/bin/env node Leverage the loader.\nconst value = 1;\n"
+        self.assertEqual(
+            [(1, source.index("Leverage") + 1)],
+            [(hit["line"], hit["col"]) for hit in term_hits(source, ".ts")],
+        )
+
+    def test_typescript_byte_order_mark_keeps_the_expression_goal(self):
+        for suffix, prefix in (
+            (".ts", "\ufeff/[/*]Leverage[*/]/;"),
+            (".tsx", "\ufeff<p>/* Leverage is raw text */</p>;"),
+        ):
+            with self.subTest(suffix=suffix):
+                source = prefix + " // Leverage the actual helper.\n"
+                self.assertEqual(1, len(term_hits(source, suffix)))
 
     def test_typescript_template_expression_comments_are_prose(self):
         source = (
@@ -293,6 +340,39 @@ class SourceExtractionTests(unittest.TestCase):
                     self.fail(f"valid TSX generic arrow was refused: {exc}")
                 self.assertEqual(expected_count, len(hits))
 
+    def test_tsx_single_parameter_generic_type_comments_are_prose(self):
+        cases = {
+            "variable annotation": (
+                "let read: <T /* Leverage the type helper. */>"
+                "(value: T) => T; // Leverage the trailing helper.\n"
+            ),
+            "parameter annotation": (
+                "function use(read: <T /* Leverage the type helper. */>"
+                "(value: T) => T) {} // Leverage the trailing helper.\n"
+            ),
+            "type alias": (
+                "type Read = <T /* Leverage the type helper. */>"
+                "(value: T) => T; // Leverage the trailing helper.\n"
+            ),
+            "class member": (
+                "class Reader { read: <T /* Leverage the type helper. */>"
+                "(value: T) => T; } // Leverage the trailing helper.\n"
+            ),
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label):
+                try:
+                    hits = term_hits(source, ".tsx")
+                except SourceExtractionError as exc:
+                    self.fail(f"valid TSX type annotation was refused: {exc}")
+                self.assertEqual(2, len(hits))
+
+        jsx_source = (
+            "const view = {item: <p>/* Leverage is raw child text. */</p>}; "
+            "// Leverage the trailing helper.\n"
+        )
+        self.assertEqual(1, len(term_hits(jsx_source, ".tsx")))
+
     def test_typescript_slash_goal_keeps_only_real_comment_prose(self):
         cases = {
             "object division": 'const ratio = {} / "a/b".length;',
@@ -342,6 +422,35 @@ class SourceExtractionTests(unittest.TestCase):
                 self.assertEqual(
                     [(2, source.rindex("Leverage") - source.index("\n"))],
                     [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_tsx_declaration_boundaries_exclude_raw_child_text(self):
+        declarations = [
+            "type Alias = string",
+            "declare function read(): Value",
+            "let first: Value, second: Other",
+            'import "pkg"',
+            'import value from "pkg"',
+            'export * from "pkg"',
+        ]
+        for declaration in declarations:
+            with self.subTest(declaration=declaration):
+                source = (
+                    declaration
+                    + "\n<div>/* Leverage is raw child text */</div>; "
+                    "// Leverage the actual helper.\n"
+                )
+                expected = imprimatur_module.line_col(
+                    source,
+                    source.rindex("Leverage"),
+                    imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                )
+                self.assertEqual(
+                    [expected],
+                    [
+                        (hit["line"], hit["col"])
+                        for hit in term_hits(source, ".tsx")
+                    ],
                 )
 
     def test_typescript_restricted_statement_asi_hides_regex_and_jsx_text(self):
@@ -497,6 +606,108 @@ class SourceExtractionTests(unittest.TestCase):
                     ],
                 )
 
+    def test_typescript_keyword_slash_goals_do_not_return_false_clean(self):
+        for accessor in (".", "?."):
+            for name in ("await", "case", "default", "of", "return", "yield"):
+                with self.subTest(accessor=accessor, name=name):
+                    source = (
+                        f"const ratio = value{accessor}{name} "
+                        "/ /* Leverage the division helper. */ 2;\n"
+                    )
+                    self.assertEqual(1, len(term_hits(source, ".ts")))
+
+        source = (
+            "const of = 2; const ratio = of "
+            "/ /* Leverage the division helper. */ 2;\n"
+        )
+        self.assertEqual(1, len(term_hits(source, ".ts")))
+
+        for name in ("await", "yield"):
+            with self.subTest(contextual=name):
+                source = (
+                    f"const ratio = {name} "
+                    "/ /* Leverage the division helper. */ 2;\n"
+                )
+                try:
+                    build(source, source_suffix=".ts")
+                except SourceExtractionError as exc:
+                    observed = str(exc)
+                else:
+                    observed = "accepted"
+                self.assertEqual(
+                    "ambiguous slash after contextual identifier",
+                    observed,
+                )
+
+        for binding in (
+            "const await",
+            "const yield",
+            "const {value}",
+            "const [value]",
+        ):
+            with self.subTest(for_of_binding=binding):
+                source = (
+                    f"for ({binding} of /[/*]Leverage[*/]/) {{}} "
+                    "// Leverage the actual helper.\n"
+                )
+                self.assertEqual(1, len(term_hits(source, ".ts")))
+
+        for keyword, wrapper in (
+            ("await", "async function read() {{ {body} }}"),
+            ("yield", "function* read() {{ {body} }}"),
+        ):
+            with self.subTest(contextual_regex_comment=keyword):
+                source = wrapper.format(
+                    body=(
+                        f"{keyword} /literal/// "
+                        "Leverage the actual helper.\n"
+                    )
+                )
+                self.assertEqual(1, len(term_hits(source, ".ts")))
+
+            for operand in ("{}", "function() {}", "class {}"):
+                with self.subTest(contextual_operand=keyword, operand=operand):
+                    source = wrapper.format(
+                        body=(
+                            f"const ratio = {keyword} {operand} "
+                            "/ /* Leverage the division helper. */ 2;"
+                        )
+                    )
+                    self.assertEqual(1, len(term_hits(source, ".ts")))
+
+    def test_typescript_expression_prefixes_hide_regex_and_jsx_text(self):
+        cases = {
+            ".ts prefix increment": "const value = ++/[/*]Leverage[*/]/;",
+            ".ts line-break prefix decrement": (
+                "let value = 1; value\n--/[/*]Leverage[*/]/;"
+            ),
+            ".ts line-break prefix not": (
+                "let value = 1; value\n!/[/*]Leverage[*/]/;"
+            ),
+            ".ts array spread": "const value = [.../[/*]Leverage[*/]/];",
+            ".ts class heritage": (
+                "class Example extends /[/*]Leverage[*/]/ {}"
+            ),
+            ".ts decorator": "@/[/*]Leverage[*/]/ class Example {}",
+            ".tsx JSX spread": (
+                "const value = [...<p>/* Leverage is raw text */</p>];"
+            ),
+        }
+        for label, prefix in cases.items():
+            suffix = label.split()[0]
+            with self.subTest(label=label):
+                source = prefix + " // Leverage the actual helper.\n"
+                hits = term_hits(source, suffix)
+                expected = imprimatur_module.line_col(
+                    source,
+                    source.rindex("Leverage"),
+                    imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                )
+                self.assertEqual(
+                    [expected],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
     def test_type_alias_newline_restores_regex_without_exposing_its_text(self):
         aliases = {
             "primitive": "type Alias = string",
@@ -585,11 +796,13 @@ class SourceExtractionTests(unittest.TestCase):
             ".py": "def broken(:\n    pass\n",
             ".ts": "const value = `never closes;",
             ".tsx": "const view = <p title=\"never closes;",
+            ".ts regex": "const pattern = /never closes",
         }
         for suffix, source in cases.items():
-            with self.subTest(suffix=suffix):
+            language_suffix = suffix.split()[0]
+            with self.subTest(suffix=language_suffix, case=suffix):
                 with self.assertRaises(SourceExtractionError):
-                    build(source, source_suffix=suffix)
+                    build(source, source_suffix=language_suffix)
 
     def test_unterminated_tsx_element_refuses_a_clean_result(self):
         with self.assertRaisesRegex(SourceExtractionError, "unterminated JSX element"):
@@ -675,6 +888,86 @@ class SourceExtractionTests(unittest.TestCase):
             )
             observed = read_text(str(source), **options)
         self.assertEqual(payload.decode("utf-8"), observed)
+
+    def test_cli_rejects_invalid_utf8_without_partial_output(self):
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "invalid.ts"
+            source.write_bytes(b"// valid first line\r\n// invalid byte: \xff\n")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), str(source)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(2, result.returncode)
+        self.assertEqual("", result.stdout)
+        self.assertIn(f"imprimatur: {source}:2:18:", result.stderr)
+        self.assertIn("source is not valid UTF-8", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "typescript-line-rules.ts"
+            source.write_bytes(b"// first\v// invalid: \xff")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), str(source)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(2, result.returncode)
+        self.assertIn(f"imprimatur: {source}:1:22:", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_normalizes_supported_source_path_read_errors(self):
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "directory.ts"
+            source.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), str(source)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(2, result.returncode)
+        self.assertEqual("", result.stdout)
+        self.assertIn(f"imprimatur: {source}:1:1:", result.stderr)
+        self.assertIn("source path is not a regular file", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_supported_source_fifo_is_refused_before_open(self):
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "blocked.ts"
+            os.mkfifo(source)
+            with mock.patch.object(
+                Path,
+                "open",
+                side_effect=AssertionError("non-regular source was opened"),
+            ):
+                with self.assertRaisesRegex(
+                    SourceExtractionError,
+                    "source path is not a regular file",
+                ):
+                    read_text(str(source), preserve_newlines=True)
+
+    def test_cli_rejects_oversized_source_before_parsing(self):
+        limit = getattr(imprimatur_module, "MAX_SOURCE_BYTES", None)
+        self.assertIsNotNone(limit, "Imprimatur has no source byte ceiling")
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "oversized.ts"
+            source.write_bytes(b" " * (limit + 1))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), str(source)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(2, result.returncode)
+        self.assertEqual("", result.stdout)
+        self.assertIn(
+            f"source exceeds {limit}-byte analysis cap",
+            result.stderr,
+        )
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_cli_markdown_path_keeps_universal_newline_behavior(self):
         payload = b"first\r\nsecond\rthird\n"
