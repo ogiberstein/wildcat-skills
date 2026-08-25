@@ -73,7 +73,41 @@ WORD_CHARS = frozenset(
 )
 ECMASCRIPT_LINE_TERMINATORS = frozenset("\r\n\u2028\u2029")
 CONTROL_HEAD_KEYWORDS = frozenset({"catch", "for", "if", "switch", "while", "with"})
-COMMENT_REGEX_ALLOWED_AFTER = REGEX_ALLOWED_AFTER | {"control)", "default"}
+COMMENT_REGEX_ALLOWED_AFTER = REGEX_ALLOWED_AFTER | {
+    "control)",
+    "declaration",
+    "default",
+}
+DECLARATION_PREFIX_TOKENS = frozenset(
+    {"abstract", "async", "declare", "default", "export"}
+)
+DECLARATION_BODY_TOKENS = frozenset(
+    {"class", "enum", "function", "interface", "module", "namespace"}
+)
+TYPE_CONTINUATION_BEFORE = frozenset(
+    {
+        "(",
+        "[",
+        ",",
+        ".",
+        ":",
+        "=",
+        "=>",
+        "&",
+        "|",
+        "?",
+        "<",
+        "extends",
+        "implements",
+        "infer",
+        "keyof",
+        "readonly",
+        "typeof",
+    }
+)
+TYPE_CONTINUATION_WORDS = frozenset(
+    {"as", "extends", "implements", "in", "infer", "is", "keyof", "readonly"}
+)
 EXPRESSION_BRACE_AFTER = frozenset(
     {
         "(",
@@ -751,6 +785,7 @@ class _CommentScanner:
         missing,
         initial_previous="",
         object_context=False,
+        member_context=False,
     ):
         cursor = start
         previous = initial_previous
@@ -759,9 +794,15 @@ class _CommentScanner:
         pending_ternaries = 0
         colon_starts_expression = False
         pending_expression_body = None
+        pending_declaration_body = None
         pending_body_angle_depth = 0
         pending_function_return_type = False
         type_alias_state = 0
+        module_declaration = None
+        variable_declaration = None
+        variable_in_type = False
+        variable_type_angle_depth = 0
+        bracket_depth = 0
         line_break_since_token = False
         while cursor < len(self.source):
             self._mark(cursor)
@@ -787,14 +828,15 @@ class _CommentScanner:
                 cursor = end + 2
                 continue
             char = self.source[cursor]
-            if pending_expression_body is not None:
+            pending_construct = pending_expression_body or pending_declaration_body
+            if pending_construct is not None:
                 if char == "<" and (
                     pending_body_angle_depth
-                    or previous == pending_expression_body
+                    or previous == pending_construct
                     or before_previous
-                    in {pending_expression_body, ":", "extends", "implements"}
+                    in {pending_construct, ":", "extends", "implements"}
                     or (
-                        pending_expression_body == "function"
+                        pending_construct == "function"
                         and pending_function_return_type
                     )
                 ):
@@ -809,6 +851,20 @@ class _CommentScanner:
                 cursor = self._string_end(cursor)
                 before_previous = previous
                 previous = "string"
+                if module_declaration in {"import", "import_equals"}:
+                    module_declaration = "import_complete"
+                elif module_declaration == "export_from":
+                    module_declaration = "export_complete"
+                if (
+                    pending_declaration_body is not None
+                    and line_break_since_token
+                    and not paren_contexts
+                    and before_previous not in TYPE_CONTINUATION_BEFORE
+                    and before_previous != pending_declaration_body
+                ):
+                    pending_declaration_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
@@ -821,6 +877,16 @@ class _CommentScanner:
                 )
                 before_previous = previous
                 previous = "template"
+                if (
+                    pending_declaration_body is not None
+                    and line_break_since_token
+                    and not paren_contexts
+                    and before_previous not in TYPE_CONTINUATION_BEFORE
+                    and before_previous != pending_declaration_body
+                ):
+                    pending_declaration_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
@@ -843,16 +909,24 @@ class _CommentScanner:
                 line_break_since_token = False
                 continue
             if char == "{":
+                if (
+                    module_declaration == "export"
+                    and previous in {"export", "type"}
+                ):
+                    module_declaration = "export_list"
                 function_type_literal = (
-                    pending_expression_body == "function"
+                    pending_construct == "function"
                     and pending_function_return_type
                     and previous in TYPE_LITERAL_BRACE_AFTER
                 )
                 construct_body = (
-                    pending_expression_body is not None
+                    pending_construct is not None
                     and not paren_contexts
                     and pending_body_angle_depth == 0
                     and not function_type_literal
+                )
+                declaration_body = (
+                    construct_body and pending_declaration_body is not None
                 )
                 closes_expression = construct_body or (
                     previous in EXPRESSION_BRACE_AFTER
@@ -863,7 +937,10 @@ class _CommentScanner:
                     )
                 )
                 if construct_body:
-                    pending_expression_body = None
+                    if declaration_body:
+                        pending_declaration_body = None
+                    else:
+                        pending_expression_body = None
                     pending_function_return_type = False
                 if type_alias_state == 1:
                     type_alias_state = 0
@@ -879,14 +956,35 @@ class _CommentScanner:
                         and not construct_body
                         and previous != "=>"
                     ),
+                    member_context=(
+                        declaration_body
+                        and pending_construct in {"class", "enum", "interface"}
+                    ),
                 )
                 before_previous = previous
-                previous = "expression" if closes_expression else "}"
+                previous = (
+                    "declaration"
+                    if declaration_body
+                    else "expression" if closes_expression else "}"
+                )
+                if declaration_body:
+                    module_declaration = None
+                    variable_declaration = None
+                    type_alias_state = 0
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
             regex_goal = previous in COMMENT_REGEX_ALLOWED_AFTER or (
                 type_alias_state == 3 and line_break_since_token
+            ) or (
+                line_break_since_token
+                and not paren_contexts
+                and (
+                    module_declaration
+                    in {"import_complete", "export_complete"}
+                    or variable_declaration == "uninitialized"
+                    or pending_declaration_body == "function"
+                )
             )
             if char == "/" and regex_goal:
                 regex_end = _scan_comment_safe_regex(self.source, cursor)
@@ -896,6 +994,11 @@ class _CommentScanner:
                     previous = "regex"
                     colon_starts_expression = False
                     type_alias_state = 0
+                    module_declaration = None
+                    variable_declaration = None
+                    pending_declaration_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
                     line_break_since_token = False
                     continue
             if char in WORD_CHARS:
@@ -903,37 +1006,84 @@ class _CommentScanner:
                 while end < len(self.source) and self.source[end] in WORD_CHARS:
                     end += 1
                 token = self.source[cursor:end]
-                type_alias_start = token == "type" and not object_context and (
-                    previous in {"", ";", "}", "export", "declare"}
-                    or (
-                        line_break_since_token
-                        and (
-                            previous
-                            in {
-                                ")",
-                                "]",
-                                "expression",
-                                "jsx",
-                                "postfix",
-                                "regex",
-                                "return",
-                                "string",
-                                "template",
-                            }
-                            or (
+                if (
+                    type_alias_state == 3
+                    and line_break_since_token
+                    and previous not in TYPE_CONTINUATION_BEFORE
+                    and token not in TYPE_CONTINUATION_WORDS
+                ):
+                    type_alias_state = 0
+                if (
+                    variable_declaration == "uninitialized"
+                    and line_break_since_token
+                    and previous not in TYPE_CONTINUATION_BEFORE
+                    and token not in TYPE_CONTINUATION_WORDS
+                ):
+                    variable_declaration = None
+                    variable_in_type = False
+                    variable_type_angle_depth = 0
+                if (
+                    module_declaration == "import_complete"
+                    and line_break_since_token
+                    and token not in {"assert", "with"}
+                ):
+                    module_declaration = None
+                if (
+                    module_declaration == "export_complete"
+                    and line_break_since_token
+                    and token not in {"assert", "with"}
+                ):
+                    module_declaration = None
+                if (
+                    pending_declaration_body is not None
+                    and line_break_since_token
+                    and not paren_contexts
+                    and previous not in TYPE_CONTINUATION_BEFORE
+                    and previous != pending_declaration_body
+                    and token not in TYPE_CONTINUATION_WORDS
+                ):
+                    pending_declaration_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
+                type_alias_start = (
+                    token == "type"
+                    and not object_context
+                    and not member_context
+                    and (
+                        previous
+                        in {"", ";", "}", "declaration", "export", "declare"}
+                        or (
+                            line_break_since_token
+                            and (
                                 previous
-                                and all(char in WORD_CHARS for char in previous)
-                                and previous
-                                not in {
-                                    "as",
-                                    "extends",
-                                    "implements",
-                                    "infer",
-                                    "keyof",
-                                    "readonly",
-                                    "satisfies",
-                                    "typeof",
+                                in {
+                                    ")",
+                                    "]",
+                                    "expression",
+                                    "jsx",
+                                    "postfix",
+                                    "regex",
+                                    "return",
+                                    "string",
+                                    "template",
                                 }
+                                or (
+                                    previous
+                                    and all(
+                                        char in WORD_CHARS for char in previous
+                                    )
+                                    and previous
+                                    not in {
+                                        "as",
+                                        "extends",
+                                        "implements",
+                                        "infer",
+                                        "keyof",
+                                        "readonly",
+                                        "satisfies",
+                                        "typeof",
+                                    }
+                                )
                             )
                         )
                     )
@@ -942,7 +1092,15 @@ class _CommentScanner:
                     type_alias_state = 2
                 elif type_alias_start:
                     type_alias_state = 1
-                if token in {"class", "function"} and (
+                statement_start = (
+                    previous in {"", ";", "}", "declaration"}
+                    or previous in DECLARATION_PREFIX_TOKENS
+                    or (
+                        line_break_since_token
+                        and previous not in TYPE_CONTINUATION_BEFORE
+                    )
+                )
+                expression_construct = token in {"class", "function"} and (
                     (
                         previous in EXPRESSION_BRACE_AFTER
                         and previous != "default"
@@ -952,8 +1110,68 @@ class _CommentScanner:
                         and before_previous in EXPRESSION_BRACE_AFTER
                         and before_previous != "default"
                     )
-                ):
+                )
+                if expression_construct:
                     pending_expression_body = token
+                elif (
+                    token in DECLARATION_BODY_TOKENS
+                    and statement_start
+                    and not object_context
+                    and not member_context
+                ):
+                    pending_declaration_body = token
+                    pending_expression_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
+                    type_alias_state = 0
+                    module_declaration = None
+                    variable_declaration = None
+                if (
+                    token == "export"
+                    and statement_start
+                    and not object_context
+                    and not member_context
+                ):
+                    module_declaration = "export"
+                elif module_declaration == "export_list" and token == "from":
+                    module_declaration = "export_from"
+                elif (
+                    module_declaration == "export"
+                    and previous == "namespace"
+                    and before_previous == "as"
+                ):
+                    module_declaration = "export_complete"
+                elif module_declaration == "export" and token == "default":
+                    module_declaration = None
+                elif (
+                    module_declaration == "export"
+                    and previous == "type"
+                    and token != "from"
+                ):
+                    module_declaration = None
+                if (
+                    token == "import"
+                    and statement_start
+                    and not object_context
+                    and not member_context
+                ):
+                    module_declaration = "import"
+                    type_alias_state = 0
+                    variable_declaration = None
+                elif module_declaration == "import_equals":
+                    module_declaration = "import_complete"
+                if (
+                    token in {"const", "let", "var"}
+                    and statement_start
+                    and not paren_contexts
+                    and not object_context
+                    and not member_context
+                ):
+                    variable_declaration = "uninitialized"
+                    variable_in_type = False
+                    variable_type_angle_depth = 0
+                    type_alias_state = 0
+                    module_declaration = None
                 before_previous = previous
                 previous = token
                 colon_starts_expression = False
@@ -966,10 +1184,38 @@ class _CommentScanner:
             else:
                 if char == ";":
                     type_alias_state = 0
+                    module_declaration = None
+                    variable_declaration = None
+                    variable_in_type = False
+                    variable_type_angle_depth = 0
+                    pending_declaration_body = None
+                    pending_body_angle_depth = 0
+                    pending_function_return_type = False
                 elif char == "=" and not self.source.startswith(
                     ("=>", "=="), cursor
                 ):
-                    type_alias_state = 3 if type_alias_state == 2 else 0
+                    if type_alias_state == 2:
+                        type_alias_state = 3
+                    elif type_alias_state != 3:
+                        type_alias_state = 0
+                    if module_declaration == "import":
+                        module_declaration = "import_equals"
+                    if (
+                        pending_declaration_body is not None
+                        and not paren_contexts
+                        and pending_body_angle_depth == 0
+                    ):
+                        pending_declaration_body = None
+                        pending_function_return_type = False
+                    if (
+                        variable_declaration is not None
+                        and not (
+                            variable_in_type and variable_type_angle_depth > 0
+                        )
+                    ):
+                        variable_declaration = "initialized"
+                        variable_in_type = False
+                        variable_type_angle_depth = 0
                 elif type_alias_state == 1:
                     type_alias_state = 0
                 if self.source.startswith(("++", "--"), cursor):
@@ -992,6 +1238,28 @@ class _CommentScanner:
                     cursor += 1
                     continue
                 if char == "(":
+                    if module_declaration == "import":
+                        module_declaration = None
+                    if (
+                        pending_declaration_body == "function"
+                        and line_break_since_token
+                        and not paren_contexts
+                        and previous not in TYPE_CONTINUATION_BEFORE
+                    ):
+                        pending_declaration_body = None
+                        pending_body_angle_depth = 0
+                        pending_function_return_type = False
+                    if pending_declaration_body in {
+                        "enum",
+                        "interface",
+                        "module",
+                        "namespace",
+                    }:
+                        pending_declaration_body = None
+                        pending_body_angle_depth = 0
+                        pending_function_return_type = False
+                    if module_declaration == "import_complete":
+                        module_declaration = "import_equals"
                     paren_contexts.append(
                         (
                             previous in CONTROL_HEAD_KEYWORDS
@@ -1009,6 +1277,8 @@ class _CommentScanner:
                     control_head = paren_contexts.pop() if paren_contexts else False
                     before_previous = previous
                     previous = "control)" if control_head else ")"
+                    if module_declaration == "import_equals":
+                        module_declaration = "import_complete"
                     colon_starts_expression = False
                     line_break_since_token = False
                     cursor += 1
@@ -1023,11 +1293,39 @@ class _CommentScanner:
                         and pending_body_angle_depth == 0
                     ):
                         pending_function_return_type = True
+                    if variable_declaration == "uninitialized":
+                        variable_in_type = True
                     colon_starts_expression = pending_ternaries > 0
                     if pending_ternaries:
                         pending_ternaries -= 1
                 elif char != "?":
                     colon_starts_expression = False
+                if char == "[":
+                    bracket_depth += 1
+                elif char == "]" and bracket_depth:
+                    bracket_depth -= 1
+                if variable_in_type and char == "<":
+                    variable_type_angle_depth += 1
+                elif (
+                    variable_in_type
+                    and char == ">"
+                    and variable_type_angle_depth
+                    and self.source[cursor - 1] != "="
+                ):
+                    variable_type_angle_depth -= 1
+                if (
+                    char == ","
+                    and variable_declaration is not None
+                    and not paren_contexts
+                    and bracket_depth == 0
+                    and variable_type_angle_depth == 0
+                ):
+                    variable_declaration = "uninitialized"
+                    variable_in_type = False
+                if module_declaration == "import_complete" and char == ".":
+                    module_declaration = "import_equals"
+                if module_declaration == "export" and char == "*":
+                    module_declaration = "export_list"
                 if (
                     previous
                     and previous[-1] == char

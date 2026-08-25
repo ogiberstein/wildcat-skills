@@ -1,11 +1,13 @@
 """Guard Imprimatur's offset-preserving source-prose boundary."""
 
 from pathlib import Path
+import io
 import inspect
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +19,7 @@ import imprimatur as imprimatur_module  # noqa: E402
 
 
 build = imprimatur_module.build
+read_text = imprimatur_module.read_text
 SourceExtractionError = getattr(imprimatur_module, "SourceExtractionError", ValueError)
 extract_source_prose = getattr(imprimatur_module, "extract_source_prose", None)
 SOURCE_MODE = (
@@ -327,6 +330,67 @@ class SourceExtractionTests(unittest.TestCase):
                     [(hit["line"], hit["col"]) for hit in hits],
                 )
 
+    def test_typescript_declaration_regex_does_not_become_comment_prose(self):
+        source = (
+            "declare const value: string\n"
+            "/[/*] Leverage hidden [*/]/.test(value); "
+            "// Leverage the actual helper.\n"
+        )
+        for suffix in (".ts", ".tsx"):
+            with self.subTest(suffix=suffix):
+                hits = term_hits(source, suffix)
+                self.assertEqual(
+                    [(2, source.rindex("Leverage") - source.index("\n"))],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_typescript_class_member_names_do_not_hide_comment_prose(self):
+        source = (
+            "class Outer {\n"
+            "  class = C\n"
+            "  ratio = {} / /* Leverage the field helper. */ 2\n"
+            "}\n"
+        )
+        for suffix in (".ts", ".tsx"):
+            with self.subTest(suffix=suffix):
+                self.assertEqual(
+                    [(3, 19)],
+                    [
+                        (hit["line"], hit["col"])
+                        for hit in term_hits(source, suffix)
+                    ],
+                )
+
+    def test_typescript_contextual_declaration_word_does_not_hide_prose(self):
+        source = (
+            "interface = value\n"
+            "const ratio = {} / /* Leverage the expression helper. */ 2\n"
+        )
+        for suffix in (".ts", ".tsx"):
+            with self.subTest(suffix=suffix):
+                self.assertEqual(
+                    [(2, 23)],
+                    [
+                        (hit["line"], hit["col"])
+                        for hit in term_hits(source, suffix)
+                    ],
+                )
+
+    def test_typescript_dynamic_import_division_keeps_comment_prose(self):
+        source = (
+            'import("pkg")\n'
+            "/ /* Leverage the division helper. */ 2; // ordinary trailing\n"
+        )
+        for suffix in (".ts", ".tsx"):
+            with self.subTest(suffix=suffix):
+                self.assertEqual(
+                    [(2, 6)],
+                    [
+                        (hit["line"], hit["col"])
+                        for hit in term_hits(source, suffix)
+                    ],
+                )
+
     def test_type_alias_newline_restores_regex_without_exposing_its_text(self):
         aliases = {
             "primitive": "type Alias = string",
@@ -492,6 +556,49 @@ class SourceExtractionTests(unittest.TestCase):
         self.assertIn(f"=== {clean} ===", result.stdout)
         self.assertIn(f"=== {finding} ===", result.stdout)
         self.assertIn("2:17", result.stdout)
+
+    def test_cli_path_read_preserves_crlf_and_lone_cr(self):
+        payload = b"// first\r\n// second\r// third\n"
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "terminators.ts"
+            source.write_bytes(payload)
+            options = (
+                {"preserve_newlines": True}
+                if "preserve_newlines" in inspect.signature(read_text).parameters
+                else {}
+            )
+            observed = read_text(str(source), **options)
+        self.assertEqual(payload.decode("utf-8"), observed)
+
+    def test_cli_markdown_path_keeps_universal_newline_behavior(self):
+        payload = b"first\r\nsecond\rthird\n"
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "ordinary.md"
+            source.write_bytes(payload)
+            observed = read_text(str(source))
+        self.assertEqual("first\nsecond\nthird\n", observed)
+
+    def test_cli_preserves_newlines_only_for_default_source_mode(self):
+        cases = {
+            "default source": (["sample.ts"], True),
+            "include code": (["sample.ts", "--include-code"], False),
+            "Markdown": (["sample.md"], False),
+        }
+        for label, (arguments, expected) in cases.items():
+            with self.subTest(label=label):
+                with mock.patch.object(
+                    imprimatur_module,
+                    "read_text",
+                    return_value="// ordinary prose\n",
+                ) as reader, mock.patch.object(
+                    sys,
+                    "argv",
+                    [str(SCRIPT), *arguments],
+                ), mock.patch.object(sys, "stdout", new=io.StringIO()):
+                    self.assertEqual(0, imprimatur_module.main())
+                reader.assert_called_once_with(
+                    arguments[0], preserve_newlines=expected
+                )
 
     def test_cli_returns_two_without_a_partial_clean_report_on_extraction_error(self):
         with tempfile.TemporaryDirectory() as raw:

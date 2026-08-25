@@ -283,6 +283,138 @@ class TypeScriptLexerTests(unittest.TestCase):
                 source = alias + "\n/[/*]literal/.test(value); // trailing\n"
                 self.assertEqual(["// trailing"], comments(source, tsx=True))
 
+    def test_declaration_boundaries_restore_the_regex_goal(self):
+        declarations = {
+            "defaulted alias": "type Alias<T = string> = <U extends T = T>(value: U) => U",
+            "nested alias": (
+                "type Alias<T = Map<string, Array<number>>> = "
+                "{ [K in keyof T]: T[K] }"
+            ),
+            "import equals": 'import Foo = require("foo")',
+            "import qualified": "import Foo = Bar.Baz",
+            "import declaration": 'import type { Foo } from "foo"',
+            "export from": 'export { Foo } from "foo"',
+            "export star": 'export * from "foo"',
+            "export as namespace": "export as namespace Library",
+            "ambient variable": "declare const value: Map<string, Array<number>>",
+            "uninitialised variable": "let value: Map<string, Array<number>>",
+            "final uninitialised declarator": (
+                "let first = 1, value: Map<string, Array<number>>"
+            ),
+            "class declaration": (
+                "class C<T extends Map<string, Array<number>> = "
+                "Map<string, Array<number>>> extends Base<T> implements I<T> "
+                "{ value!: T }"
+            ),
+            "interface declaration": (
+                "interface I<T extends string = string> { value: T }"
+            ),
+            "function overload": (
+                "function f<T extends string = string>(value: T): "
+                "Promise<T | { value: T }>"
+            ),
+            "declared function": (
+                "declare function f<T extends string = string>(value: T): T"
+            ),
+        }
+        for tsx in (False, True):
+            for label, declaration in declarations.items():
+                with self.subTest(tsx=tsx, label=label):
+                    source = (
+                        declaration
+                        + "\n/[/*]literal/.test(value); // trailing\n"
+                    )
+                    self.assertEqual(["// trailing"], comments(source, tsx=tsx))
+
+    def test_declaration_state_does_not_leak_across_sequential_statements(self):
+        source = (
+            "type Alias<T = string> = T\n"
+            "const template = `${value /* template comment */}`;\n"
+            "declare const item: Alias\n"
+            "/[/*]literal/.test(item); // trailing\n"
+            'const ratio = compute()\n/ "a/b".length; // division trailing\n'
+        )
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx):
+                self.assertEqual(
+                    [
+                        "/* template comment */",
+                        "// trailing",
+                        "// division trailing",
+                    ],
+                    comments(source, tsx=tsx),
+                )
+
+    def test_bodyless_function_declaration_state_does_not_leak(self):
+        source = (
+            "declare function f(): void\n"
+            "/[a]/.test(value);\n"
+            'const ratio = {} / "a/b".length; // trailing\n'
+        )
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx):
+                self.assertEqual(["// trailing"], comments(source, tsx=tsx))
+
+    def test_class_member_names_do_not_start_declaration_state(self):
+        source = (
+            "class Outer {\n"
+            "  class = C\n"
+            "  interface = I\n"
+            "  ratio = {} / /* field comment */ 2\n"
+            "}\n"
+            "// trailing\n"
+        )
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx):
+                self.assertEqual(
+                    ["/* field comment */", "// trailing"],
+                    comments(source, tsx=tsx),
+                )
+
+    def test_contextual_declaration_words_do_not_leak_expression_state(self):
+        for word in ("interface", "module", "namespace"):
+            source = (
+                f"{word} = value\n"
+                "const ratio = {} / /* expression comment */ 2\n"
+                "// trailing\n"
+            )
+            for tsx in (False, True):
+                with self.subTest(word=word, tsx=tsx):
+                    self.assertEqual(
+                        ["/* expression comment */", "// trailing"],
+                        comments(source, tsx=tsx),
+                    )
+
+    def test_dynamic_import_keeps_expression_division_state(self):
+        division = (
+            'import("pkg")\n'
+            "/ /* division comment */ 2; // trailing\n"
+        )
+        statement = (
+            'import("pkg");\n'
+            "/[/*]literal/.test(value); // trailing\n"
+        )
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx, form="division"):
+                self.assertEqual(
+                    ["/* division comment */", "// trailing"],
+                    comments(division, tsx=tsx),
+                )
+            with self.subTest(tsx=tsx, form="statement"):
+                self.assertEqual(["// trailing"], comments(statement, tsx=tsx))
+
+    def test_declaration_following_regex_bytes_are_not_comments(self):
+        source = (
+            "declare const value: string\n"
+            "/[/*] leverage [*/]/.test(value); // genuine trailing\n"
+        )
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx):
+                self.assertEqual(
+                    ["// genuine trailing"],
+                    comments(source, tsx=tsx),
+                )
+
     def test_line_comments_end_at_every_ecmascript_line_terminator(self):
         for terminator in ("\r\n", "\r", "\u2028", "\u2029"):
             with self.subTest(terminator=ascii(terminator)):

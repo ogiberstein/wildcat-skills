@@ -52,3 +52,27 @@ Mechanical gates: TypeScript 5.9.2 parsed 50/50 audit specimens; focused shared-
 ### Leads not pursued
 
 Leads not pursued: full parser-level validity for TypeScript and Solidity remains outside the declared comment-extraction boundary. The TypeScript compiler was an audit oracle for the 50 named valid forms, not a repository dependency. Solidity NEL, LS, and PS outside comments or strings and a 65th recursively entered TypeScript code, template, or JSX region use the documented named-refusal boundary rather than speculative parsing.
+
+## Step 1, round 4 -- 2026-08-25
+
+Review basis: full fixed Step 1 diff against base `0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841`, with round-4 fixes starting from signed round-3 commit `3303a92514f886cfb56a12be9f3aa12c7fcce1ea`; Step 1 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R4-01 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | TypeScript 5.9.2 accepted declarations for which the comment scanner carried the division goal across ASI. Generic defaults ended type-alias state, while static imports, re-exports, ambient or uninitialised declarations, and bodyless functions did not end at their declaration boundary. Valid source could return a named refusal or retain regex bytes as comment prose. | fixed in this round: bounded type, module, variable, and body-declaration state restores the declaration-following regex goal; direct and Imprimatur guards cover plain `.ts` and `.tsx`, nested signatures, sequential statements, division controls, and declaration-following regexes |
+| S1-R4-02 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | Declaration candidates leaked into expression contexts. Contextual identifiers and ASI-separated class member names could hide a later real division comment, and dynamic `import()` was mistaken for a static import whose completion allowed a following division slash to consume a real block-comment opener. | fixed in this round: member and object contexts cannot start declarations, contextual assignments clear pending declarations, and `import(` cancels static-import state; parser-confirmed expression and semicolon controls guard both supported suffixes |
+| S1-R4-03 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | `Path.read_text()` translated CRLF and lone CR before default source extraction. A real source path therefore reached the same-length mask with changed length and terminators, contrary to the documented source view and Promise evidence. | fixed in this round: default supported-source paths opt into untranslated newline reads; Markdown and `--include-code` keep universal-newline behavior; actual-file and dispatch guards cover all three paths |
+
+### Negative review
+
+TypeScript 5.9.2 returned empty `parseDiagnostics` for 58/58 primary audit specimens and 35/35 independent transition specimens. The valid forms covered aliases with nested defaults, static imports and re-exports, ambient and multi-declarator variables, bodyless and implemented generic functions, generic classes and return types, comments and newlines inside signatures, declaration and expression closures, labels, case/default and control heads, optional chaining, postfix and non-null division, adjacent regex division/comments, sequential statements, templates, TSX fragments, generic arrows, spreads, attributes, and CR/LF/LS/PS boundaries. Invalid division controls remained refusals instead of widening the regex goal. The comment traversal remained forward and bounded, and extraction errors still discard every accumulated prefix before CLI output.
+
+Python 3.12.3 probes covered Unicode before token and AST columns, CR/CRLF input, true concatenated docstrings, later standalone string expressions, PEP 701 f-string comments, and the shared linear string-token cursor. Solidity 0.8.30 comparison covered LF, VT, FF, CR, NEL, LS, and PS outside literals, in line and block comments, and in strings, plus multi-file no-partial-output behavior. The compiler's VT/FF validity result was not elevated because the Promise explicitly says successful extraction does not establish source validity; the documented retained VT/FF mask and named NEL/LS/PS refusal remained unchanged. Markdown masking, `--include-code`, the complete-span `lex()` API, recursion and angle-depth boundaries, coordinates, and frontier/version invariants remained green.
+
+### Mechanical gates
+
+Mechanical gates: focused shared-lexer and source-extraction suites 69/69; focused Imprimatur 93/93; pinned Node v26.6.0 full Hexaemeron 1126/1126; evolution and version propagation 16/16; Promise Machine copies 14/14; root suite 350/350; root inoculation 1,258 cases, 0 crashes, 0 unexpected clean; Phylax 0; Ephoros 0; Hypomnema 0; changed-prose Imprimatur 0; Brevitas report and protected-source comparison 0; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
+
+### Leads not pursued
+
+Full parser-level validity for TypeScript and Solidity remains outside the declared comment-extraction boundary. TypeScript 5.9.2 and Solidity 0.8.30 were audit oracles, not repository dependencies. The bounded repair does not attempt a full parser.

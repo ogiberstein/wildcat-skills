@@ -14,13 +14,20 @@ it means the term needs gating, not banning.
 from __future__ import annotations
 
 import json
+import inspect
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from imprimatur import SourceExtractionError, build, extract_source_prose  # noqa: E402
+from imprimatur import (  # noqa: E402
+    SourceExtractionError,
+    build,
+    extract_source_prose,
+    read_text,
+)
 
 PASS, FAIL = "ok", "FAIL"
 results: list[tuple[str, str, str]] = []
@@ -362,6 +369,125 @@ check(
     "; ".join(alias_goal_detail),
 )
 
+declaration_sources = [
+    "type Alias<T = string> = <U extends T = T>(value: U) => U",
+    'import Foo = require("foo")',
+    'import type { Foo } from "foo"',
+    'export { Foo } from "foo"',
+    'export * from "foo"',
+    "export as namespace Library",
+    "declare const value: Map<string, Array<number>>",
+    "let value: Map<string, Array<number>>",
+    "let first = 1, value: Map<string, Array<number>>",
+    "class C<T extends string = string> { value!: T }",
+    "interface I<T extends string = string> { value: T }",
+    "function f<T extends string = string>(value: T): Promise<T | { value: T }>",
+]
+declaration_goal_ok = True
+declaration_goal_detail = []
+for suffix in (".ts", ".tsx"):
+    for declaration in declaration_sources:
+        source = declaration + "\n/[/*]Leverage/.test(value); // Leverage the helper.\n"
+        try:
+            hits = [
+                hit
+                for hit in build(source, source_suffix=suffix)["hits"]
+                if hit["term"] == "leverage"
+            ]
+        except SourceExtractionError as exc:
+            declaration_goal_ok = False
+            declaration_goal_detail.append(f"{suffix}:{exc}")
+            continue
+        positions = [(hit["line"], hit["col"]) for hit in hits]
+        expected = [(2, source.rindex("Leverage") - source.index("\n"))]
+        declaration_goal_ok = declaration_goal_ok and positions == expected
+        declaration_goal_detail.append(f"{suffix}:{positions}")
+check(
+    "source/typescript declaration boundaries restore regex goal",
+    declaration_goal_ok,
+    "; ".join(declaration_goal_detail),
+)
+
+false_comment_regex = (
+    "declare const value: string\n"
+    "/[/*] Leverage hidden [*/]/.test(value); "
+    "// Leverage the helper.\n"
+)
+false_comment_hits = [
+    hit
+    for hit in build(false_comment_regex, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript declaration regex stays code",
+    [(hit["line"], hit["col"]) for hit in false_comment_hits]
+    == [(2, false_comment_regex.rindex("Leverage") - false_comment_regex.index("\n"))],
+    str([(hit["line"], hit["col"]) for hit in false_comment_hits]),
+)
+
+bodyless_function_sequence = (
+    "declare function f(): void\n"
+    "/[a]/.test(value);\n"
+    'const ratio = {} / "a/b".length; // Leverage the helper.\n'
+)
+bodyless_function_hits = [
+    hit
+    for hit in build(bodyless_function_sequence, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript bodyless declaration state does not leak",
+    [(hit["line"], hit["col"]) for hit in bodyless_function_hits] == [(3, 37)],
+    str([(hit["line"], hit["col"]) for hit in bodyless_function_hits]),
+)
+
+class_member_source = (
+    "class Outer {\n"
+    "  class = C\n"
+    "  ratio = {} / /* Leverage the field helper. */ 2\n"
+    "}\n"
+)
+class_member_hits = [
+    hit
+    for hit in build(class_member_source, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript class member names do not leak declaration state",
+    [(hit["line"], hit["col"]) for hit in class_member_hits] == [(3, 19)],
+    str([(hit["line"], hit["col"]) for hit in class_member_hits]),
+)
+
+contextual_word_source = (
+    "interface = value\n"
+    "const ratio = {} / /* Leverage the expression helper. */ 2\n"
+)
+contextual_word_hits = [
+    hit
+    for hit in build(contextual_word_source, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript contextual declaration word does not leak state",
+    [(hit["line"], hit["col"]) for hit in contextual_word_hits] == [(2, 23)],
+    str([(hit["line"], hit["col"]) for hit in contextual_word_hits]),
+)
+
+dynamic_import_source = (
+    'import("pkg")\n'
+    "/ /* Leverage the division helper. */ 2; // ordinary trailing\n"
+)
+dynamic_import_hits = [
+    hit
+    for hit in build(dynamic_import_source, source_suffix=".ts")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/typescript dynamic import keeps expression division state",
+    [(hit["line"], hit["col"]) for hit in dynamic_import_hits] == [(2, 6)],
+    str([(hit["line"], hit["col"]) for hit in dynamic_import_hits]),
+)
+
 touching_regex_comment = "const value = /Leverage/// Leverage the helper.\n"
 touching_hits = [
     hit
@@ -449,6 +575,37 @@ check(
     "source/python CR Unicode docstring coordinates",
     [(hit["line"], hit["col"]) for hit in python_cr_hits] == [(4, 8)],
     str([(hit["line"], hit["col"]) for hit in python_cr_hits]),
+)
+
+with tempfile.TemporaryDirectory() as raw:
+    terminator_path = Path(raw) / "terminators.ts"
+    markdown_path = Path(raw) / "ordinary.md"
+    terminator_payload = b"// first\r\n// second\r// third\n"
+    markdown_payload = b"first\r\nsecond\rthird\n"
+    terminator_path.write_bytes(terminator_payload)
+    markdown_path.write_bytes(markdown_payload)
+    read_options = (
+        {"preserve_newlines": True}
+        if "preserve_newlines" in inspect.signature(read_text).parameters
+        else {}
+    )
+    preserved_terminators = read_text(str(terminator_path), **read_options)
+    include_code_newlines = read_text(str(terminator_path))
+    markdown_newlines = read_text(str(markdown_path))
+check(
+    "source/CLI path preserves CRLF and CR",
+    preserved_terminators == terminator_payload.decode("utf-8"),
+    repr(preserved_terminators),
+)
+check(
+    "source/CLI Markdown keeps universal newline behavior",
+    markdown_newlines == "first\nsecond\nthird\n",
+    repr(markdown_newlines),
+)
+check(
+    "source/CLI include-code keeps universal newline behavior",
+    include_code_newlines == "// first\n// second\n// third\n",
+    repr(include_code_newlines),
 )
 
 masked = extract_source_prose(solidity, ".sol")

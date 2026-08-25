@@ -60,14 +60,16 @@ def load_lexicons() -> tuple[dict, dict, dict]:
     return rd("hard.json"), rd("gated.json"), rd("structural.json")
 
 
-def read_text(path: str | None) -> str:
+def read_text(path: str | None, *, preserve_newlines: bool = False) -> str:
     if not path or path == "-":
         return sys.stdin.read()
     p = Path(path)
     if not p.exists():
         sys.stderr.write(f"imprimatur: no such file {path}\n")
         raise SystemExit(2)
-    return p.read_text(encoding="utf-8", errors="replace")
+    newline = "" if preserve_newlines else None
+    with p.open("r", encoding="utf-8", errors="replace", newline=newline) as source:
+        return source.read()
 
 
 def line_col(
@@ -768,9 +770,14 @@ def main() -> int:
     reports, failed = {}, False
 
     for t in targets:
-        text = read_text(t)
         label = t or "<stdin>"
         suffix = Path(t).suffix.lower() if t else None
+        text = read_text(
+            t,
+            preserve_newlines=(
+                not args.include_code and suffix in SOURCE_SUFFIXES
+            ),
+        )
         try:
             r = build(
                 text,
