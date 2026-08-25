@@ -1596,6 +1596,11 @@ def cmd_init(args) -> None:
             f"for '{run_branch}' off '{args.base}'"
         ),
     )
+    try:
+        starting_commit = _native_relation_worktree_start(worktree, run_branch)
+    except SystemExit:
+        remove_run_worktree(args.dir, worktree)
+        raise
 
     # From here the run's home is the worktree, so a failure has something to
     # undo. Anything that goes wrong while writing state takes the tree with it,
@@ -1633,7 +1638,12 @@ def cmd_init(args) -> None:
     state["config"]["audit"]["log_path"] = run_audit_log_path(run_branch)
     state["worktree"] = worktree
     state["origin"] = origin_root
-    init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
+    init_data = {
+        "topic": args.topic,
+        "base": args.base,
+        "run_branch": run_branch,
+        "starting_commit": starting_commit,
+    }
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
     try:
@@ -1988,6 +1998,85 @@ def _native_relation_branch_start(base_dir: str, branch: str) -> str:
     return lines[-1]
 
 
+def _native_relation_worktree_start(base_dir: str, branch: str) -> str:
+    """Capture the exact commit checked out when ``init`` made the worktree."""
+    first = _native_relation_branch_start(base_dir, "HEAD")
+    symbolic = _native_relation_git(
+        base_dir,
+        ["symbolic-ref", "--quiet", "HEAD"],
+        "run starting branch cannot be read",
+    )
+    current = _native_relation_git(
+        base_dir,
+        ["show-ref", "--verify", "--hash", f"refs/heads/{branch}"],
+        "run starting commit cannot be read",
+    )
+    final = _native_relation_branch_start(base_dir, "HEAD")
+    try:
+        symbolic_name = symbolic.decode("utf-8").strip()
+        current_sha = current.decode("ascii").strip()
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        symbolic_name = ""
+        current_sha = ""
+    if symbolic_name != f"refs/heads/{branch}":
+        die("run worktree did not retain its named starting branch")
+    if (
+        first != final
+        or not COMMIT_RE.fullmatch(current_sha)
+        or current_sha != first
+    ):
+        die("run starting commit changed while init recorded it")
+    return first
+
+
+def _relation_init_starting_commit(base_dir: str, state: dict) -> str:
+    """Read the exact run start from the intact hash-chained init receipt."""
+    path = ledger_path(base_dir)
+    if not os.path.exists(path):
+        die("version relation init evidence is missing", 1)
+    prev = "genesis"
+    first_entry = None
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                expected = hashlib.sha256(
+                    canonical(
+                        {
+                            "ts": entry["ts"],
+                            "event": entry["event"],
+                            "data": entry["data"],
+                            "prev": entry["prev"],
+                            "state": entry["state"],
+                        }
+                    ).encode()
+                ).hexdigest()
+                if entry["prev"] != prev or entry["hash"] != expected:
+                    die(
+                        f"version relation controller ledger is not intact at "
+                        f"line {line_number}",
+                        1,
+                    )
+                if first_entry is None:
+                    first_entry = entry
+                prev = entry["hash"]
+    except (OSError, UnicodeDecodeError, ValueError, KeyError, TypeError):
+        die("version relation controller ledger is malformed", 1)
+    data = as_dict(as_dict(first_entry).get("data"))
+    starting_commit = data.get("starting_commit")
+    if (
+        as_dict(first_entry).get("event") != "init"
+        or data.get("base") != state.get("base")
+        or data.get("run_branch") != run_branch_of(state)
+        or not isinstance(starting_commit, str)
+        or not re.fullmatch(r"[0-9a-f]{40}", starting_commit)
+    ):
+        die("version relation init starting commit is missing or malformed", 1)
+    return starting_commit
+
+
 def _require_native_relation_history(base_dir: str) -> None:
     """Refuse local object and ancestry substitutions before a branch point."""
     if "GIT_GRAFT_FILE" in os.environ:
@@ -2049,6 +2138,7 @@ def _require_native_relation_history(base_dir: str) -> None:
 
 def relation_anchor_commit(base_dir: str, state: dict) -> str:
     """The immutable branch point the run started from, using native local refs."""
+    init_start = _relation_init_starting_commit(base_dir, state)
     repository = _native_relation_repository_identity(base_dir)
     _require_native_relation_history(base_dir)
     starting = state.get("base")
@@ -2059,6 +2149,8 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
         _require_native_relation_history(base_dir)
         if _native_relation_repository_identity(base_dir) != repository:
             die("version relation repository changed while reading the starting commit")
+        if anchor != init_start:
+            die("version relation starting commit does not match the init starting commit")
         return anchor
     run_branch = run_branch_of(state)
     if not isinstance(run_branch, str) or not run_branch:
@@ -2101,6 +2193,8 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
             "version relation branch point does not match the run branch "
             "creation point"
         )
+    if branch_start != init_start:
+        die("version relation branch point does not match the init starting commit")
     return candidates[0]
 
 
@@ -4331,8 +4425,12 @@ def receipted_source(base_dir: str, state: dict, name: str):
     }
 
 
-def receipted_version_relations(base_dir: str, runbook: dict) -> dict | None:
+def receipted_version_relations(
+    base_dir: str, runbook: dict, *, state: dict | None = None
+) -> dict | None:
     """Reconstruct one optional anchor from its exact source and Git objects."""
+    if state is None:
+        state = load_state(base_dir)
     receipt = as_dict(runbook.get("receipt"))
     stored = receipt.get("version_relations")
     source = parse_version_relation_source(runbook["text"])
@@ -4358,6 +4456,11 @@ def receipted_version_relations(base_dir: str, runbook: dict) -> dict | None:
     ]
     if source["source_sha256"] != stored["source_sha256"] or declarations != recorded:
         die("runbook version relations source does not match its receipt", 1)
+    if stored["anchor_commit"] != _relation_init_starting_commit(base_dir, state):
+        die(
+            "runbook version relations anchor commit does not match the "
+            "init starting commit"
+        )
     repository = _native_relation_repository_identity(base_dir)
     _require_native_relation_history(base_dir)
     anchor_commit = _native_relation_commit(
@@ -6493,7 +6596,7 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
         # A pre-generation state cannot establish the source claims needed by
         # the four new briefs, so it retains an explicit inline directive.
         return packet
-    version_relations = receipted_version_relations(root, runbook)
+    version_relations = receipted_version_relations(root, runbook, state=state)
 
     step = current_step(state)
     plan = branch_plan(state, step)
@@ -6665,7 +6768,9 @@ def cmd_status(args) -> None:
         source = receipted_source(args.dir, state, name)
         if name == "runbook":
             _receipted_runbook_amendments(source)
-            version_relations = receipted_version_relations(args.dir, source)
+            version_relations = receipted_version_relations(
+                args.dir, source, state=state
+            )
     if args.json:
         payload = dict(state)
         payload["observation_run_id"] = controller_run_id(state)
@@ -6807,7 +6912,9 @@ def verify_run(base_dir: str, *, allow_pending_amendment: bool = False) -> int:
     if runbook_receipt.get("sha256") is not None:
         runbook = receipted_source(base_dir, state, "runbook")
         _receipted_runbook_amendments(runbook)
-        version_relations = receipted_version_relations(base_dir, runbook)
+        version_relations = receipted_version_relations(
+            base_dir, runbook, state=state
+        )
         event_relations = as_dict(runbook_event).get("version_relations")
         if version_relations is None and event_relations is not None:
             die("done:runbook ledger event has an unreceipted version anchor", 1)

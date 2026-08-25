@@ -288,6 +288,84 @@ class VersionRelationTests(HexctlCase):
         self.assertNotIn(older, result.stderr)
         self.assert_unchanged_after_refusal(before_state, before_ledger)
 
+    def test_run_branch_recreation_cannot_replace_the_init_anchor(self):
+        self.install_target("fiat")
+        original = self.commit_seed()
+        self.init()
+        run_branch = self.state()["run_branch"]
+
+        origin_ledger = os.path.join(self.dir, self.ledger_path("fiat"))
+        origin_skill = os.path.join(self.dir, self.skill_path("fiat"))
+        with open(origin_ledger, "w", encoding="utf-8") as handle:
+            handle.write(self.ledger("fiat", (9, 9, 9)))
+        with open(origin_skill, "w", encoding="utf-8") as handle:
+            handle.write(self.skill("fiat", (9, 9, 9)))
+        subprocess.run(
+            ["git", "add", "-A"], cwd=self.dir, check=True, capture_output=True
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "move the integration base"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+        )
+        moved = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+        # Deleting and recreating the checked-out ref replaces its branch
+        # reflog without touching the linked worktree's controller state.
+        subprocess.run(
+            ["git", "update-ref", "-d", f"refs/heads/{run_branch}"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "update-ref",
+                "--create-reflog",
+                f"refs/heads/{run_branch}",
+                moved,
+            ],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+        )
+
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        before_state = self.state()
+        with open(
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"), "rb"
+        ) as handle:
+            before_ledger = handle.read()
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done",
+            "runbook",
+            "--artifact",
+            runbook,
+            "--steps-file",
+            steps,
+            expect=2,
+        )
+        self.assertIn("init starting commit", result.stderr)
+        self.assertNotIn(original, result.stderr)
+        self.assertNotIn(moved, result.stderr)
+        self.assert_unchanged_after_refusal(before_state, before_ledger)
+
     def test_commit_replacement_cannot_substitute_anchor_tree(self):
         self.install_target("fiat")
         anchor = self.commit_seed()
