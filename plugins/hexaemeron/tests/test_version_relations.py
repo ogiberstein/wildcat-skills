@@ -5,7 +5,9 @@ earlier boundary: ``done runbook`` captures exact starting-commit evidence,
 does not reserve a label, and leaves a literal-only run byte-compatible.
 """
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -469,6 +471,34 @@ class VersionRelationTests(HexctlCase):
         )
         self.assertIn("starting history is shallow", result.stderr)
 
+    def test_anchor_derivation_refuses_history_that_turns_shallow_mid_read(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.init()
+        state = self.state()
+        shallow = self.git(
+            "rev-parse", "--path-format=absolute", "--git-path", "shallow"
+        ).stdout.strip()
+        module = hexctl_module()
+        native_git = module._native_relation_git
+        changed = False
+
+        def change_history_after_check(base_dir, argv, refusal):
+            nonlocal changed
+            output = native_git(base_dir, argv, refusal)
+            if argv == ["rev-parse", "--is-shallow-repository"] and not changed:
+                with open(shallow, "w", encoding="ascii") as handle:
+                    handle.write(anchor + "\n")
+                changed = True
+            return output
+
+        module._native_relation_git = change_history_after_check
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                module.relation_anchor_commit(self.target, state)
+        self.assertIn("starting history is shallow", stderr.getvalue())
+
     def test_replay_refuses_tree_typed_anchor_commit(self):
         self.install_target("fiat")
         anchor = self.commit_seed()
@@ -522,6 +552,35 @@ class VersionRelationTests(HexctlCase):
                 result = self.run_ctl(*command, expect=2)
                 self.assertIn("starting history is shallow", result.stderr)
                 self.assertNotIn("Traceback", result.stderr)
+
+    def test_replay_refuses_history_that_turns_shallow_mid_read(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.receipt_runbook("fiat")
+        state = self.state()
+        shallow = self.git(
+            "rev-parse", "--path-format=absolute", "--git-path", "shallow"
+        ).stdout.strip()
+        module = hexctl_module()
+        runbook = module.receipted_source(self.target, state, "runbook")
+        native_git = module._native_relation_git
+        changed = False
+
+        def change_history_during_replay(base_dir, argv, refusal):
+            nonlocal changed
+            output = native_git(base_dir, argv, refusal)
+            if argv[:2] == ["cat-file", "blob"] and not changed:
+                with open(shallow, "w", encoding="ascii") as handle:
+                    handle.write(anchor + "\n")
+                changed = True
+            return output
+
+        module._native_relation_git = change_history_during_replay
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                module.receipted_version_relations(self.target, runbook)
+        self.assertIn("starting history is shallow", stderr.getvalue())
 
     def test_no_block_preserves_the_legacy_receipt_and_packet_shape(self):
         _, state = self.receipt_runbook()
@@ -650,6 +709,36 @@ class VersionRelationTests(HexctlCase):
         packet = self.next_json()["brief"]["runbook_step"]["version_relations"]
         self.assertEqual(packet["targets"][0]["anchor_version"], "fiat-v7.99.13")
         self.assertEqual(packet["targets"][0]["projection"], "fiat-v7.100.13")
+
+    def test_projection_refuses_an_unrepresentable_generation_successor(self):
+        maximum = "9" * 128
+        self.install_target("fiat", (1, maximum, 0))
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        before_state = self.state()
+        with open(
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"), "rb"
+        ) as handle:
+            before_ledger = handle.read()
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook,
+            "--steps-file", steps, expect=2,
+        )
+        self.assertIn(
+            "generation cannot be projected within its counter bound",
+            result.stderr,
+        )
+        self.assertNotIn(maximum, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assert_unchanged_after_refusal(before_state, before_ledger)
 
     def test_leading_zero_counters_are_not_canonical_labels(self):
         self.install_target("fiat", ("01", "02", "03"))
@@ -819,6 +908,57 @@ class VersionRelationTests(HexctlCase):
             "--steps-file", steps, expect=2,
         )
         self.assertIn("frontmatter metadata version", result.stderr)
+
+    def test_yaml_equivalent_protected_keys_are_ambiguous(self):
+        canonical = self.skill("fiat")
+        specimens = {
+            "escaped-name": canonical.replace(
+                "name: fiat\n", 'name: fiat\n"na\\u006de": other\n'
+            ),
+            "tagged-name": canonical.replace(
+                "name: fiat\n", "name: fiat\n!!str name: other\n"
+            ),
+            "explicit-name": canonical.replace(
+                "name: fiat\n", "name: fiat\n? name\n: other\n"
+            ),
+            "continued-name": canonical.replace(
+                "name: fiat\n", "name: fiat\n  other\n"
+            ),
+            "escaped-version": canonical.replace(
+                '  version: "1.2.3"\n',
+                '  version: "1.2.3"\n  "ver\\u0073ion": "9.9.9"\n',
+            ),
+            "tagged-version": canonical.replace(
+                '  version: "1.2.3"\n',
+                '  version: "1.2.3"\n  !!str version: "9.9.9"\n',
+            ),
+        }
+        for label, text in specimens.items():
+            with self.subTest(label=label):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit):
+                        hexctl_module()._skill_frontmatter_identity(text, "fiat")
+
+    def test_relation_failure_does_not_echo_the_controlled_target_id(self):
+        controlled = "private-relation-target-token"
+        self.write(self.skill_path(controlled), self.skill(controlled))
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block(controlled)
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook,
+            "--steps-file", steps, expect=2,
+        )
+        self.assertNotIn(controlled, result.stderr)
+        self.assertLessEqual(len(result.stderr.encode("utf-8")), 256)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_unbounded_decimal_label_refuses_instead_of_raising(self):
         label = "fiat-v" + ("9" * 5000) + ".0.0"

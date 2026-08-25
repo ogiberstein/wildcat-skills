@@ -348,3 +348,93 @@ Leads not pursued: recomputing every native Git object identity after direct
 object-store corruption. The guarded substitutions, stored object type, and
 full-history state now refuse or reconstruct from native objects; physical
 object-store integrity remains Git's repository boundary.
+
+## Step 2, round 4 -- 2026-08-25
+
+Non-Solidity correctness audit over signed Warden tip
+`5d2e8c1bf60ade02466a5333876fbe142c2ae0d2`. Four residual findings were
+fixed on the exact Step 2 audit branch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R4-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The frontmatter reader accepted a canonical `name` or `metadata.version` beside a YAML-equivalent protected key written with an escape, tag, or explicit-key form. It also accepted an indented scalar continuation that changes the parsed `name`. A YAML consumer could therefore read a different governed identity from the one Fiat anchored. | fixed in this round: anchor capture accepts a closed plain block-mapping key subset, requires one canonical protected line at the correct level, and refuses unsupported or continuing identity syntax |
+| S2-R4-02 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | A 128-digit maximum generation was accepted into the anchor, but its required successor has 129 digits and is outside the controller's own label bound. The stored anchor could not produce a valid projection. | fixed in this round: capture refuses the maximum generation before state or ledger mutation, and state replay refuses such a stored anchor with a value-free field fault |
+| S2-R4-03 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | Anchor-capture failures interpolated the runbook-controlled skill id into diagnostics. A valid id can occupy most of the admitted path budget, so the failure was neither content-free nor held to the intended short diagnostic shape. | fixed in this round: Git-object, ledger, identity, and metadata failures use fixed field labels and never echo the controlled target id |
+| S2-R4-04 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | Anchor derivation checked for a shallow repository only before reading refs and running `merge-base`. A shallow boundary created after that check was accepted with unchanged refs. Replay had the same one-sided history check around exact blob reads. | fixed in this round: starting-commit derivation, all-target capture, and receipt replay bracket their Git reads with full-history checks; a persistent graft, alternate, or shallow change during the read refuses before a receipt or packet is returned |
+
+### Evidence
+
+The first causal report is
+`.elenchus/fiat-556-step-2-warden-round4-red.json`, SHA-256
+`02233e098266cbe1e2ca4ef49fbc481b97ade7f25a6324ab2769d69467166ce7`.
+It records `elenchus.unittest.v1`, 1,098 tests, seven assertion failures,
+zero errors, and zero skips. Those failures cover five YAML-equivalent
+protected-key specimens, the unrepresentable generation successor, and the
+controlled-id diagnostic echo. No Warden product repair was present.
+
+The second causal report is
+`.elenchus/fiat-556-step-2-warden-round4-history-race-red.json`, SHA-256
+`2c586194af3d1e6f79ae9e2fcf4621c07883ec70a5d237f20bcce7ed88c4ba02`.
+It records `elenchus.unittest.v1`, 1,099 tests, one assertion failure, zero
+errors, and zero skips. The new specimen inserted a shallow boundary after
+the first history check; anchor derivation returned success instead of the
+required refusal. An adjacent replay specimen covers the same mid-read change
+while the exact blobs are reconstructed.
+
+The repaired-tree report is
+`.elenchus/fiat-556-step-2-warden-round4-precommit-green.json`, SHA-256
+`55b77dfee9003ca96e22b4f608aee7880d9598c2ba3cae0d0a4d26f89392d3f6`.
+It records `elenchus.unittest.v1`, 1,100 tests with zero failures, errors, or
+skips. The fixed tree also passes 42 focused relation tests, the 397-test
+controller and Fiat companion gate, and all 350 root tests. All 16
+non-Solidity suite commands in `AGENTS.md` are green; Lazarus contributes 364
+tests under the pinned Python 3.13 lockfile runtime. The inherited root HTTP
+fixture cleanup warnings, controller fixture `ResourceWarning`, and Pandects
+catalogue `ResourceWarning` remain non-failing and unchanged by this round.
+
+Promise Machine reports 14 clean plugin copies and 71 of 71 covered promises.
+Phylax, Ephoros, and Hypomnema each exit 0 on the complete repository paths.
+Horos reports that the boundary matches the tree. Python compilation and
+`git diff --check` are clean. The receipted and tracked study bytes remain at
+SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+the receipted and tracked runbook bytes remain at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+All five relative study links resolve from both copies. The three product
+paths and this audit record are admitted by Step 2's Files field, and
+`audit/AUDIT.md` remains unchanged.
+
+The prior 22,955-byte audit record is the exact prefix of this round,
+SHA-256
+`d05928665e8e4dc3aba9640ca30c7a751097b47edbabc0042c9abc4c6f75bbb4`.
+The bounded Sapheneia comparison preserves every finding, severity,
+counterexample, path, hash, count, qualification, status, scope exclusion,
+and unpursued lead in the new candidate. Its audit heading, findings table,
+evidence, risk register, scope boundary, and lead boundary are present.
+Imprimatur accepts the append. Brevitas reports only the inherited B011 at the
+two-row Step 1 table in the unchanged prefix.
+
+### Risk register
+
+`metadata-mismatch`, `generation-arithmetic`, `diagnostic-leak`,
+`anchor-substitution`, and `receipt-replay` surfaced S2-R4-01 through
+S2-R4-04. The new guards cover escaped, tagged, explicit, duplicated, and
+continued protected identity syntax; the last representable generation;
+content-free failure text; and history changes during derivation and replay.
+One, two, partial, reordered, and one-bad-target capture; exact object type and
+path checks; every anchored ledger, skill, evolution, epoch, and frontier
+field; all-or-nothing mutation; state and ledger receipt matching; status and
+worker reconstruction with explicit `resolution: null`; Promise declarations;
+and legacy v1 replay remain green. The no-block fixture keeps `done runbook`,
+`status`, and `next` byte-identical behind a Git wrapper that refuses any call.
+
+Live integration snapshots, frontier and ledger drift, remote failures, sync
+carriage, resolution receipt recovery, stale or capped resolution history,
+terminal parent races, and the self-hosted collision remain Steps 3 and 4 and
+receive no Step 2 claim.
+
+Lead not pursued: an uncooperative process can change and restore Git's
+internal shallow, graft, alternate, or object-store state between two local
+observations. This round establishes matching before-and-after history checks;
+it does not claim an operating-system lock over `.git`. Physical repository
+integrity remains Git's boundary, as in the prior direct-corruption lead.

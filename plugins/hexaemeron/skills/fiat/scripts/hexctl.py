@@ -865,6 +865,11 @@ def validate_version_relations_shape(value, path: str) -> dict:
                 or counter > VERSION_RELATION_COUNTER_MAX
             ):
                 _state_relation_fault(f"{target_path}.{name}", "is malformed")
+            if name == "generation" and counter == VERSION_RELATION_COUNTER_MAX:
+                _state_relation_fault(
+                    f"{target_path}.generation",
+                    "cannot be projected within its counter bound",
+                )
             counters.append(counter)
         expected_label = f"{skill}-v{counters[0]}.{counters[1]}.{counters[2]}"
         if target.get("anchor_version") != expected_label:
@@ -1995,9 +2000,11 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
     _require_native_relation_history(base_dir)
     starting = state.get("base")
     if isinstance(starting, str) and COMMIT_RE.fullmatch(starting):
-        return _native_relation_commit(
+        anchor = _native_relation_commit(
             base_dir, starting, "version relation starting commit"
         )
+        _require_native_relation_history(base_dir)
+        return anchor
     run_branch = run_branch_of(state)
     if not isinstance(run_branch, str) or not run_branch:
         die("version relations require the run's integration branch")
@@ -2027,6 +2034,7 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
     )
     if (run_head, base_head) != (final_run, final_base):
         die("version relation refs changed while deriving the starting commit")
+    _require_native_relation_history(base_dir)
     return candidates[0]
 
 
@@ -2094,66 +2102,113 @@ def _ledger_field_bytes(text: str, name: str, label: str) -> tuple[str, bytes]:
     return values[0].strip().strip("`"), values[0].encode("utf-8")
 
 
+def _frontmatter_plain_key(
+    line: str, indent: int, unsupported: str
+) -> str | None:
+    """Read one key from Fiat's closed block-mapping frontmatter subset."""
+    prefix = " " * indent
+    if not line.startswith(prefix):
+        return None
+    tail = line[indent:]
+    if not tail or tail[0].isspace() or tail.startswith("#"):
+        return None
+    match = re.match(r"^([A-Za-z][A-Za-z0-9_-]*)\s*:", tail)
+    if match is None:
+        die(unsupported)
+    return match.group(1)
+
+
 def _skill_frontmatter_identity(text: str, skill: str) -> str:
-    """Read the governed name and numeric version only from YAML frontmatter."""
+    """Read one unambiguous name and numeric version from frontmatter."""
     lines = text.splitlines()
     if not lines or lines[0] != "---":
-        die(f"version relation target {skill} skill frontmatter is missing")
+        die("version relation target skill frontmatter is missing")
     try:
         closing = lines.index("---", 1)
     except ValueError:
-        die(f"version relation target {skill} skill frontmatter is not closed")
+        die("version relation target skill frontmatter is not closed")
     frontmatter = lines[1:closing]
+    if any("\t" in line for line in frontmatter):
+        die("version relation target skill frontmatter uses unsupported key syntax")
 
-    name_lines = [
-        line
-        for line in frontmatter
-        if re.match(r'''^(?:name|"name"|'name')\s*:''', line)
+    top_level = [
+        (index, key)
+        for index, line in enumerate(frontmatter)
+        if (
+            key := _frontmatter_plain_key(
+                line,
+                0,
+                "version relation target skill frontmatter name or metadata "
+                "identity is ambiguous",
+            )
+        ) is not None
     ]
-    if len(name_lines) != 1:
-        die(f"version relation target {skill} skill frontmatter name does not match")
+    names = [(index, key) for index, key in top_level if key == "name"]
+    if len(names) != 1:
+        die("version relation target skill frontmatter name does not match")
+    name_index = names[0][0]
     name = re.fullmatch(
-        r"name:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*", name_lines[0]
+        r"name:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*",
+        frontmatter[name_index],
     )
     if name is None or name.group(1) != skill:
-        die(f"version relation target {skill} skill frontmatter name does not match")
+        die("version relation target skill frontmatter name does not match")
+    next_top = next(
+        (index for index, _ in top_level if index > name_index),
+        len(frontmatter),
+    )
+    if any(
+        line.strip() and not line.lstrip().startswith("#")
+        for line in frontmatter[name_index + 1 : next_top]
+    ):
+        die("version relation target skill frontmatter name does not match")
 
     metadata = [
         index
-        for index, line in enumerate(frontmatter)
-        if re.match(r'''^(?:metadata|"metadata"|'metadata')\s*:''', line)
+        for index, key in top_level
+        if key == "metadata"
     ]
     if len(metadata) != 1:
         die(
-            f"version relation target {skill} skill frontmatter metadata version "
+            "version relation target skill frontmatter metadata version "
             "is missing or ambiguous"
         )
     if frontmatter[metadata[0]] != "metadata:":
         die(
-            f"version relation target {skill} skill frontmatter metadata version "
+            "version relation target skill frontmatter metadata version "
             "is missing or ambiguous"
         )
-    body = []
-    for line in frontmatter[metadata[0] + 1 :]:
-        if line and not line[0].isspace():
-            break
-        body.append(line)
-    version_lines = [
-        line
-        for line in body
-        if re.match(r'''^  (?:version|"version"|'version')\s*:''', line)
+    metadata_end = next(
+        (index for index, _ in top_level if index > metadata[0]),
+        len(frontmatter),
+    )
+    metadata_body = frontmatter[metadata[0] + 1 : metadata_end]
+    metadata_keys = [
+        (index, key)
+        for index, line in enumerate(metadata_body)
+        if (
+            key := _frontmatter_plain_key(
+                line,
+                2,
+                "version relation target skill frontmatter metadata version "
+                "is missing or ambiguous",
+            )
+        ) is not None
     ]
-    if len(version_lines) != 1:
+    versions = [(index, key) for index, key in metadata_keys if key == "version"]
+    if len(versions) != 1:
         die(
-            f"version relation target {skill} skill frontmatter metadata version "
+            "version relation target skill frontmatter metadata version "
             "is missing or ambiguous"
         )
+    version_index = versions[0][0]
     version = re.fullmatch(
-        r'  version: "([0-9]+\.[0-9]+\.[0-9]+)"', version_lines[0]
+        r'  version: "([0-9]+\.[0-9]+\.[0-9]+)"',
+        metadata_body[version_index],
     )
     if version is None:
         die(
-            f"version relation target {skill} skill frontmatter metadata version "
+            "version relation target skill frontmatter metadata version "
             "is missing or ambiguous"
         )
     return version.group(1)
@@ -2166,45 +2221,50 @@ def capture_version_relation_target(
     skill = declaration["skill"]
     ledger_path = declaration["ledger"]
     _, ledger_bytes = read_commit_blob(
-        base_dir, anchor_commit, ledger_path, f"version relation target {skill} ledger"
+        base_dir, anchor_commit, ledger_path, "version relation target ledger"
     )
     try:
         ledger_text = ledger_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        die(f"version relation target {skill} ledger is not UTF-8 text")
+        die("version relation target ledger is not UTF-8 text")
     skill_path = ledger_path.rsplit("/", 1)[0] + "/SKILL.md"
     _, skill_bytes = read_commit_blob(
-        base_dir, anchor_commit, skill_path, f"version relation target {skill} skill"
+        base_dir, anchor_commit, skill_path, "version relation target skill"
     )
     try:
         skill_text = skill_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        die(f"version relation target {skill} skill is not UTF-8 text")
+        die("version relation target skill is not UTF-8 text")
 
     current, _ = _ledger_field_bytes(
-        ledger_text, "Current version", f"version relation target {skill} ledger"
+        ledger_text, "Current version", "version relation target ledger"
     )
     status, _ = _ledger_field_bytes(
-        ledger_text, "Frontier status", f"version relation target {skill} ledger"
+        ledger_text, "Frontier status", "version relation target ledger"
     )
     revision, _ = _ledger_field_bytes(
-        ledger_text, "Frontier revision", f"version relation target {skill} ledger"
+        ledger_text, "Frontier revision", "version relation target ledger"
     )
     frontier, frontier_raw = _ledger_field_bytes(
-        ledger_text, "Current frontier", f"version relation target {skill} ledger"
+        ledger_text, "Current frontier", "version relation target ledger"
     )
     next_job, next_job_raw = _ledger_field_bytes(
-        ledger_text, "Next Fiat job", f"version relation target {skill} ledger"
+        ledger_text, "Next Fiat job", "version relation target ledger"
     )
     parts = _label_parts(current, skill)
     if parts is None or current != f"{skill}-v{parts[0]}.{parts[1]}.{parts[2]}":
-        die(f"version relation target {skill} ledger has a malformed current label")
+        die("version relation target ledger has a malformed current label")
+    if parts[1] == VERSION_RELATION_COUNTER_MAX:
+        die(
+            "version relation target generation cannot be projected within "
+            "its counter bound"
+        )
     if status not in ("open", "mature"):
-        die(f"version relation target {skill} ledger has a malformed frontier status")
+        die("version relation target ledger has a malformed frontier status")
     if status == "mature" and next_job != "None -- mature":
-        die(f"version relation target {skill} ledger has an inconsistent mature frontier")
+        die("version relation target ledger has an inconsistent mature frontier")
     if status == "open" and next_job == "None -- mature":
-        die(f"version relation target {skill} ledger has an inconsistent open frontier")
+        die("version relation target ledger has an inconsistent open frontier")
     frontier_digest = hashlib.sha256(
         f"{status}|{revision}|{frontier}|{next_job}\n".encode("utf-8")
     ).hexdigest()
@@ -2215,13 +2275,13 @@ def capture_version_relation_target(
         or rows[-1]["revision"] != revision
         or rows[-1]["digest"] != frontier_digest
     ):
-        die(f"version relation target {skill} ledger history does not match its header")
+        die("version relation target ledger history does not match its header")
 
     metadata = _skill_frontmatter_identity(skill_text, skill)
     expected_metadata = ".".join(str(part) for part in parts)
     if metadata != expected_metadata:
         die(
-            f"version relation target {skill} skill frontmatter metadata version "
+            "version relation target skill frontmatter metadata version "
             "does not match the ledger"
         )
     return {
@@ -3003,6 +3063,7 @@ def done_runbook(args, state: dict) -> None:
         version_relations = capture_version_relations(
             args.dir, relation_source, anchor_commit
         )
+        _require_native_relation_history(args.dir)
     steps_file = _require_file(args.steps_file, "steps-file")
     _, steps_bytes = read_bounded_source(args.dir, steps_file, "steps file")
     try:
@@ -4239,6 +4300,7 @@ def receipted_version_relations(base_dir: str, runbook: dict) -> dict | None:
     reconstructed = capture_version_relations(
         base_dir, source, anchor_commit
     )
+    _require_native_relation_history(base_dir)
     if reconstructed != stored:
         die("runbook version relations anchor does not match its exact Git evidence", 1)
     return stored
