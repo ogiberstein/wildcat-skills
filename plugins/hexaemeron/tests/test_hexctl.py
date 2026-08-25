@@ -12,12 +12,16 @@ import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stderr
-from io import StringIO
+from contextlib import ExitStack, redirect_stderr
+from io import BytesIO, StringIO, TextIOWrapper
+from pathlib import Path
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
+AUDIT_SYNOPSIS = os.path.join(
+    HERE, "..", "skills", "fiat", "scripts", "audit_synopsis.py"
+)
 PROTASIS = os.path.join(HERE, "..", "skills", "protasis", "scripts", "protasis.py")
 COMPLETE_STUDY = os.path.join(HERE, "fixtures", "protasis", "complete-study.md")
 
@@ -96,6 +100,18 @@ def hexctl_module():
     return module
 
 
+def audit_synopsis_module():
+    """The sibling renderer imported under the controller test runner."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "audit_synopsis_under_test", AUDIT_SYNOPSIS
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def protasis_module():
     import importlib.util
 
@@ -103,6 +119,97 @@ def protasis_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+class AuditSynopsisResourceBoundaryTests(unittest.TestCase):
+    def test_record_framing_preserves_literal_separator_and_escape_tokens(self):
+        renderer = audit_synopsis_module()
+        lead = "Leads not pursued: literal <br>; escapes %, %%, and %b"
+        source = (
+            "\n".join(
+                [
+                    "## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z",
+                    "",
+                    "Audit schema: fiat-audit-round/v1",
+                    "",
+                    "Covered: fixture-risk=reviewed",
+                    "",
+                    "Not checked: none",
+                    "",
+                    "Elenchus verdict: null",
+                    "",
+                    "| id | severity | file | finding | status |",
+                    "| --- | --- | --- | --- | --- |",
+                    "| -- | -- | -- | none | -- |",
+                    "",
+                    lead,
+                ]
+            )
+            + "\n"
+        ).encode()
+        rendered = renderer.render_source("audit/AUDIT.md", source)
+        record = rendered["bytes"].decode().splitlines()[1]
+        decoder = getattr(renderer, "decode_synopsis_record", None)
+        physical = record.split("<br>") if decoder is None else decoder(record)
+
+        self.assertEqual(physical[-1], lead)
+        self.assertEqual(physical.count(lead), 1)
+        self.assertTrue(callable(decoder))
+
+    def test_many_short_lines_remain_inside_the_receipted_acceptance_domain(self):
+        renderer = audit_synopsis_module()
+        source = b"## legacy\nLeads not pursued:\n" + b"x\n" * 200_000
+        rendered = renderer.render_source("audit/AUDIT.md", source)
+
+        self.assertEqual(rendered["source_lines"], 200_002)
+        self.assertEqual(rendered["h2_count"], 1)
+        self.assertLess(len(rendered["bytes"]), renderer.SYNOPSIS_BYTES_MAX)
+
+    def test_write_refuses_a_source_change_after_planning(self):
+        renderer = audit_synopsis_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            source = Path(raw_root, "audit", "AUDIT.md")
+            source.parent.mkdir()
+            source.write_bytes(
+                b"## legacy\nLeads not pursued: none\n" + b"x\n" * 20
+            )
+            destination = source.with_name("AUDIT_SYNOPSIS.md")
+            real_replace = renderer.atomic_replace
+            replacement_observed = False
+
+            def mutate_then_replace(root, relative, data):
+                nonlocal replacement_observed
+                source.write_bytes(source.read_bytes().replace(b"none", b"nope"))
+                result = real_replace(root, relative, data)
+                replacement_observed = destination.is_file()
+                return result
+
+            with mock.patch.object(
+                renderer, "atomic_replace", side_effect=mutate_then_replace
+            ):
+                with self.assertRaisesRegex(
+                    renderer.SynopsisError, "source changed after planning"
+                ):
+                    renderer.process_repository(raw_root, write=True)
+            self.assertTrue(replacement_observed)
+            self.assertFalse(destination.exists())
+
+    def test_table_cell_scanner_scales_with_the_accepted_line_length(self):
+        renderer = audit_synopsis_module()
+
+        def elapsed(size):
+            line = "| " + "x" * size + " | b | c | d | e |"
+            started = time.process_time()
+            self.assertEqual(len(renderer._table_cells(line)), 5)
+            return time.process_time() - started
+
+        small = elapsed(64 * 1024)
+        large = elapsed(512 * 1024)
+        self.assertLess(
+            large,
+            small * 20,
+            f"table scan scaled from {small:.6f}s to {large:.6f}s",
+        )
 
 
 class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
@@ -144,6 +251,12 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
                     state = json.load(handle)
             except (OSError, ValueError):
                 state = None
+        if (
+            args[:1] == ("audit-round",)
+            and expect == 0
+            and getattr(self, "auto_audit_records", True)
+        ):
+            self.append_valid_audit_record(args, state)
         if args[:2] == ("done", "implement") and expect == 0:
             branch = args[args.index("--branch") + 1]
             head = args[args.index("--commit") + 1]
@@ -199,6 +312,91 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             self.fake_prs = pending_prs
             self.fake_parents = pending_parents
         return proc
+
+    def append_valid_audit_record(self, args, state):
+        """Stand in for Warden when a controller test is not about log syntax."""
+        if state is None:
+            raise AssertionError("cannot write an audit record without controller state")
+        findings = int(args[args.index("--findings") + 1])
+        verdict = (
+            args[args.index("--elenchus-verdict") + 1]
+            if "--elenchus-verdict" in args
+            else "null"
+        )
+        study_path = state["receipts"]["study"]["artifact"]
+        if not os.path.isabs(study_path):
+            study_path = os.path.join(self.target, study_path)
+        with open(study_path, encoding="utf-8") as handle:
+            study = handle.read()
+        block = re.search(
+            r"(?ms)^```risk-register\s*$\n(?P<body>.*?)^```\s*$",
+            study,
+        )
+        if block is None:
+            raise AssertionError("fixture study has no risk register")
+        risk_ids = [
+            line.split("|", 1)[0].strip()
+            for line in block.group("body").splitlines()
+            if line.strip()
+        ]
+        covered = "; ".join(f"{risk_id}=reviewed" for risk_id in risk_ids)
+        round_number = len(
+            state["steps"][state["current_step"] - 1]["audit"]["rounds"]
+        ) + 1
+        table_rows = (
+            ["| -- | -- | -- | none | -- |"]
+            if findings == 0
+            else [
+                f"| F-{index:02d} | low | fixture.py | finding {index} | open |"
+                for index in range(1, findings + 1)
+            ]
+        )
+        record = "\n".join(
+            [
+                f"## Step {state['current_step']}, round {round_number} "
+                "-- 2026-08-23T02:17:46Z",
+                "",
+                "Audit schema: fiat-audit-round/v2",
+                "",
+                f"Covered: {covered}",
+                "",
+                "Not checked: none",
+                "",
+                f"Elenchus verdict: {verdict}",
+                "",
+                "| id | severity | file | finding | status |",
+                "| --- | --- | --- | --- | --- |",
+                *table_rows,
+                "",
+                "Leads not pursued: none",
+                "",
+            ]
+        )
+        log_path = state["config"]["audit"]["log_path"]
+        path = log_path if os.path.isabs(log_path) else os.path.join(self.target, log_path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        needs_gap = os.path.exists(path) and os.path.getsize(path) > 0
+        with open(path, "a", encoding="utf-8") as handle:
+            if needs_gap:
+                handle.write("\n")
+            handle.write(record)
+        synopsis_result = subprocess.run(
+            [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
+            cwd=self.target,
+            capture_output=True,
+            text=True,
+        )
+        if synopsis_result.returncode:
+            raise AssertionError(
+                f"audit synopsis fixture failed\nstdout: {synopsis_result.stdout}"
+                f"stderr: {synopsis_result.stderr}"
+            )
+        # Warden owns and commits the append in a real run. Keep the fixture's
+        # worktree equally clean so retirement tests exercise controller state,
+        # not an untracked stand-in log.
+        synopsis_path = os.path.splitext(log_path)[0] + ".synopsis.md"
+        self.git("add", "--", log_path, synopsis_path)
+        self.git("commit", "-q", "-m", "fixture audit record")
 
     @staticmethod
     def fake_sha(ref):
@@ -268,6 +466,39 @@ elif args and args[0] == "merge-base":
                 raise SystemExit(1)
         raise SystemExit(0)
     print(os.environ.get("FAKE_GIT_MERGE_BASE", "4" * 40))
+elif args and args[0] == "ls-tree":
+    if mode == "baseline-unavailable":
+        raise SystemExit(128)
+    baseline_hex = os.environ.get("FAKE_GIT_BASELINE_HEX")
+    if baseline_hex is not None:
+        baseline = bytes.fromhex(baseline_hex)
+        object_id = hashlib.sha1(
+            b"blob " + str(len(baseline)).encode() + b"\\0" + baseline
+        ).hexdigest()
+        path = args[-1].encode()
+        if mode == "baseline-ambiguous":
+            sys.stdout.buffer.write(b"ambiguous\\0")
+        elif mode == "baseline-unsafe":
+            sys.stdout.buffer.write(
+                f"120000 blob {{object_id}}\\t".encode() + path + b"\\0"
+            )
+        else:
+            sys.stdout.buffer.write(
+                f"100644 blob {{object_id}}\\t".encode() + path + b"\\0"
+            )
+elif args and args[:2] == ["cat-file", "-s"]:
+    baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
+    if mode == "baseline-oversized":
+        print(2 * 1024 * 1024 + 1)
+    elif mode == "baseline-malformed-size":
+        print("not-a-size")
+    elif mode == "baseline-short-read":
+        print(len(baseline) + 1)
+    else:
+        print(len(baseline))
+elif args and args[:2] == ["cat-file", "blob"]:
+    baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
+    sys.stdout.buffer.write(baseline)
 elif (
     args
     and args[0] == "diff"
@@ -877,7 +1108,13 @@ class TestDelegationPackets(HexctlCase):
         self.assert_packet(
             scribe, "scribe", ("files", "pr_base", "pr_draft_path", "plugin_root")
         )
-        self.assertEqual(scribe["brief"]["files"], [])
+        self.assertEqual(
+            scribe["brief"]["files"],
+            [
+                "audit/rounds/fiat-test-topic.md",
+                "audit/rounds/fiat-test-topic.synopsis.md",
+            ],
+        )
         self.run_ctl("done", "prose", "--files", "1", "--skills",
                      "hexaemeron:imprimatur,hexaemeron:vulgate")
         push = self.next_json()
@@ -1087,8 +1324,15 @@ class TestDelegationPackets(HexctlCase):
             self.write(name, name)
         self.git("add", "zeta.md", "alpha.md")
         self.git("commit", "-m", "step")
-        self.assertEqual(self.next_json()["brief"]["files"],
-                         ["alpha.md", "zeta.md"])
+        self.assertEqual(
+            self.next_json()["brief"]["files"],
+            [
+                "alpha.md",
+                "audit/rounds/fiat-test-topic.md",
+                "audit/rounds/fiat-test-topic.synopsis.md",
+                "zeta.md",
+            ],
+        )
 
         for number in range(499):
             self.write(f"many/{number:03d}.md", "x")
@@ -3314,6 +3558,10 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.to_receiptable_audit()
         self.run_ctl("audit-round", "--findings", "1")
         self.make_last_round_legacy()
+        log_path = self.state()["config"]["audit"]["log_path"]
+        self.env["FAKE_GIT_BASELINE_HEX"] = Path(
+            os.path.join(self.target, *log_path.split("/"))
+        ).read_bytes().hex()
 
         self.run_ctl("status")
         directive = self.next_json()
@@ -3333,6 +3581,14 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.assertEqual(rounds[1]["audit_filter"], "sapheneia:sapheneia")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
+
+try:
+    from .audit_record_schema_cases import build_audit_record_schema_tests
+except ImportError:
+    from audit_record_schema_cases import build_audit_record_schema_tests
+
+
+AuditRecordSchemaTests = build_audit_record_schema_tests(globals())
 
 class TestProseAndPush(HexctlCase):
     def to_prose(self, task_issue=None):
