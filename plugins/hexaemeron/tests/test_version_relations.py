@@ -88,6 +88,17 @@ class VersionRelationTests(HexctlCase):
         self.git("commit", "-m", "seed governed skills")
         return self.git("rev-parse", "HEAD").stdout.strip()
 
+    def hash_object(self, text):
+        result = subprocess.run(
+            ["git", "hash-object", "-w", "--stdin"],
+            cwd=self.target,
+            input=text,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+
     @staticmethod
     def relation_block(*skills):
         rows = [
@@ -233,6 +244,87 @@ class VersionRelationTests(HexctlCase):
         self.assertEqual(relation["anchor_commit"], anchor)
         self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
 
+    def test_commit_replacement_cannot_substitute_anchor_tree(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.write(self.ledger_path("fiat"), self.ledger("fiat", (9, 9, 9)))
+        self.write(self.skill_path("fiat"), self.skill("fiat", (9, 9, 9)))
+        self.git("add", "-A")
+        self.git("commit", "-m", "replacement tree")
+        replacement = self.git("rev-parse", "HEAD").stdout.strip()
+        self.git("reset", "--hard", anchor)
+
+        self.init(base=anchor)
+        self.git("replace", anchor, replacement)
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+
+        relation = self.receipt(self.state())
+        self.assertEqual(relation["anchor_commit"], anchor)
+        self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
+
+    def test_blob_replacements_cannot_substitute_anchor_bytes(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        ledger_blob = self.git(
+            "rev-parse", f"{anchor}:{self.ledger_path('fiat')}"
+        ).stdout.strip()
+        skill_blob = self.git(
+            "rev-parse", f"{anchor}:{self.skill_path('fiat')}"
+        ).stdout.strip()
+        replacement_ledger = self.hash_object(self.ledger("fiat", (9, 9, 9)))
+        replacement_skill = self.hash_object(self.skill("fiat", (9, 9, 9)))
+
+        self.init(base=anchor)
+        self.git("replace", ledger_blob, replacement_ledger)
+        self.git("replace", skill_blob, replacement_skill)
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+
+        relation = self.receipt(self.state())
+        self.assertEqual(relation["anchor_commit"], anchor)
+        self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
+
+    def test_grafted_branch_history_refuses_anchor_derivation(self):
+        self.install_target("fiat")
+        self.commit_seed()
+        self.init()
+        self.env["GIT_GRAFT_FILE"] = os.path.join(self.dir, "attacker-grafts")
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps,
+            expect=2,
+        )
+        self.assertIn("rewritten by a graft", result.stderr)
+
     def test_no_block_preserves_the_legacy_receipt_and_packet_shape(self):
         _, state = self.receipt_runbook()
         self.assertEqual(
@@ -351,6 +443,32 @@ class VersionRelationTests(HexctlCase):
             self.receipt(state), self.state()["receipts"]["runbook"]["version_relations"]
         )
 
+    def test_projection_increments_generation_without_semver_reset(self):
+        self.install_target("fiat", (7, 99, 13))
+        self.commit_seed()
+        self.receipt_runbook("fiat")
+        packet = self.next_json()["brief"]["runbook_step"]["version_relations"]
+        self.assertEqual(packet["targets"][0]["anchor_version"], "fiat-v7.99.13")
+        self.assertEqual(packet["targets"][0]["projection"], "fiat-v7.100.13")
+
+    def test_leading_zero_counters_are_not_canonical_labels(self):
+        self.install_target("fiat", ("01", "02", "03"))
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps,
+            expect=2,
+        )
+        self.assertIn("malformed current label", result.stderr)
+
     def test_warden_and_scribe_packets_reconstruct_the_same_anchor(self):
         self.install_target("fiat")
         self.commit_seed()
@@ -403,6 +521,63 @@ class VersionRelationTests(HexctlCase):
         )
         self.assertIn("metadata version", result.stderr)
         self.assert_unchanged_after_refusal(before_state, before_ledger)
+
+    def test_body_example_cannot_stand_in_for_frontmatter_metadata(self):
+        self.write(self.ledger_path("fiat"), self.ledger("fiat"))
+        self.write(
+            self.skill_path("fiat"),
+            "---\n"
+            "name: fiat\n"
+            "description: Fixture with no metadata field.\n"
+            "---\n\n"
+            "Example only:\n\n"
+            '  version: "1.2.3"\n',
+        )
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps,
+            expect=2,
+        )
+        self.assertIn("frontmatter metadata version", result.stderr)
+
+    def test_skill_frontmatter_name_must_match_the_relation_target(self):
+        self.write(self.ledger_path("fiat"), self.ledger("fiat"))
+        self.write(
+            self.skill_path("fiat"),
+            self.skill("other").replace("# other", "# fiat"),
+        )
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps,
+            expect=2,
+        )
+        self.assertIn("frontmatter name", result.stderr)
+
+    def test_unbounded_decimal_label_refuses_instead_of_raising(self):
+        label = "fiat-v" + ("9" * 5000) + ".0.0"
+        try:
+            parsed = hexctl_module()._label_parts(label, "fiat")
+        except ValueError:
+            self.fail("unbounded decimal label raised instead of refusing")
+        self.assertIsNone(parsed)
 
     def test_one_bad_target_refuses_the_whole_capture(self):
         self.install_target("fiat")

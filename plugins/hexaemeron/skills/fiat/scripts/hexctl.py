@@ -1708,7 +1708,15 @@ def ledger_frontier_digest(text: str) -> str | None:
 
 def _label_parts(label: str, skill: str) -> tuple[int, int, int] | None:
     match = re.fullmatch(rf"{re.escape(skill)}-v(\d+)\.(\d+)\.(\d+)", label)
-    return tuple(int(g) for g in match.groups()) if match else None
+    if match is None:
+        return None
+    try:
+        return tuple(int(group) for group in match.groups())
+    except ValueError:
+        # Python bounds decimal-to-integer conversion. Treat a label beyond that
+        # bound as malformed input instead of letting its exception escape with
+        # interpreter-specific diagnostic text.
+        return None
 
 
 def _contains_nonprinting_character(value: str) -> bool:
@@ -1863,18 +1871,80 @@ def parse_version_relation_source(text: str) -> dict | None:
     }
 
 
+def _native_relation_git(
+    base_dir: str, argv: list[str], refusal: str
+) -> bytes:
+    """Read native Git objects without allowing local replacement refs."""
+    return bounded_git(
+        base_dir,
+        ["--no-replace-objects", *argv],
+        refusal,
+    )
+
+
+def _native_relation_commit(base_dir: str, ref: str, label: str) -> str:
+    raw = _native_relation_git(
+        base_dir,
+        ["rev-parse", "--verify", f"{ref}^{{commit}}"],
+        f"{label} does not resolve to a native commit",
+    )
+    try:
+        lines = [line for line in raw.decode("ascii").splitlines() if line]
+    except UnicodeDecodeError:
+        lines = []
+    if len(lines) != 1 or not COMMIT_RE.fullmatch(lines[0]):
+        die(f"{label} did not resolve to one full native commit SHA")
+    return lines[0]
+
+
+def _require_native_relation_history(base_dir: str) -> None:
+    """Refuse ancestry rewritten by a graft before deriving a branch point."""
+    if "GIT_GRAFT_FILE" in os.environ:
+        die("version relation starting history is rewritten by a graft")
+    raw = _native_relation_git(
+        base_dir,
+        ["rev-parse", "--path-format=absolute", "--git-path", "info/grafts"],
+        "version relation graft state cannot be located",
+    )
+    try:
+        lines = raw.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        lines = []
+    if (
+        len(lines) != 1
+        or not os.path.isabs(lines[0])
+        or len(lines[0].encode("utf-8")) > 4096
+    ):
+        die("version relation graft path is malformed")
+    try:
+        graft = os.lstat(lines[0])
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError):
+        die("version relation graft state cannot be read")
+    if not stat.S_ISREG(graft.st_mode) or graft.st_size:
+        die("version relation starting history is rewritten by a graft")
+
+
 def relation_anchor_commit(base_dir: str, state: dict) -> str:
-    """The immutable branch point the run started from, using local refs only."""
+    """The immutable branch point the run started from, using native local refs."""
     starting = state.get("base")
     if isinstance(starting, str) and COMMIT_RE.fullmatch(starting):
-        return resolved_commit(base_dir, starting, "version relation starting commit")
+        return _native_relation_commit(
+            base_dir, starting, "version relation starting commit"
+        )
     run_branch = run_branch_of(state)
     if not isinstance(run_branch, str) or not run_branch:
         die("version relations require the run's integration branch")
     base_branch = integration_base_of(state)
-    run_head = resolved_commit(base_dir, run_branch, "version relation run branch")
-    base_head = resolved_commit(base_dir, base_branch, "version relation base branch")
-    raw = bounded_git(
+    _require_native_relation_history(base_dir)
+    run_head = _native_relation_commit(
+        base_dir, run_branch, "version relation run branch"
+    )
+    base_head = _native_relation_commit(
+        base_dir, base_branch, "version relation base branch"
+    )
+    raw = _native_relation_git(
         base_dir,
         ["merge-base", "--all", run_head, base_head],
         "version relation starting commit cannot be derived",
@@ -1885,6 +1955,14 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
         candidates = []
     if len(candidates) != 1 or not re.fullmatch(r"[0-9a-f]{40}", candidates[0]):
         die("version relation starting commit is ambiguous or malformed")
+    final_run = _native_relation_commit(
+        base_dir, run_branch, "version relation run branch"
+    )
+    final_base = _native_relation_commit(
+        base_dir, base_branch, "version relation base branch"
+    )
+    if (run_head, base_head) != (final_run, final_base):
+        die("version relation refs changed while deriving the starting commit")
     return candidates[0]
 
 
@@ -1892,7 +1970,7 @@ def read_commit_blob(
     base_dir: str, commit_sha: str, relative: str, label: str
 ) -> tuple[str, bytes]:
     """Read one bounded regular Git blob at an exact commit without a worktree."""
-    raw = bounded_git(
+    raw = _native_relation_git(
         base_dir,
         ["ls-tree", "-z", commit_sha, "--", relative],
         f"{label} object cannot be inspected",
@@ -1920,7 +1998,7 @@ def read_commit_blob(
         or not re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", object_sha)
     ):
         die(f"{label} object is not a regular blob")
-    size_raw = bounded_git(
+    size_raw = _native_relation_git(
         base_dir,
         ["cat-file", "-s", object_sha],
         f"{label} object size cannot be read",
@@ -1934,7 +2012,7 @@ def read_commit_blob(
         die(f"{label} object size is malformed")
     if size > SOURCE_BYTES_MAX:
         die(f"{label} object exceeds {SOURCE_BYTES_MAX}-byte cap")
-    data = bounded_git(
+    data = _native_relation_git(
         base_dir,
         ["cat-file", "blob", object_sha],
         f"{label} object cannot be read",
@@ -1950,6 +2028,49 @@ def _ledger_field_bytes(text: str, name: str, label: str) -> tuple[str, bytes]:
     if len(values) != 1 or not values[0]:
         die(f"{label} has a missing or ambiguous {name} field")
     return values[0].strip().strip("`"), values[0].encode("utf-8")
+
+
+def _skill_frontmatter_identity(text: str, skill: str) -> str:
+    """Read the governed name and numeric version only from YAML frontmatter."""
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        die(f"version relation target {skill} skill frontmatter is missing")
+    try:
+        closing = lines.index("---", 1)
+    except ValueError:
+        die(f"version relation target {skill} skill frontmatter is not closed")
+    frontmatter = lines[1:closing]
+
+    names = []
+    for line in frontmatter:
+        match = re.fullmatch(r"name:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*", line)
+        if match is not None:
+            names.append(match.group(1))
+    if len(names) != 1 or names[0] != skill:
+        die(f"version relation target {skill} skill frontmatter name does not match")
+
+    metadata = [index for index, line in enumerate(frontmatter) if line == "metadata:"]
+    if len(metadata) != 1:
+        die(
+            f"version relation target {skill} skill frontmatter metadata version "
+            "is missing or ambiguous"
+        )
+    body = []
+    for line in frontmatter[metadata[0] + 1 :]:
+        if line and not line[0].isspace():
+            break
+        body.append(line)
+    versions = []
+    for line in body:
+        match = re.fullmatch(r'  version: "(\d+\.\d+\.\d+)"', line)
+        if match is not None:
+            versions.append(match.group(1))
+    if len(versions) != 1:
+        die(
+            f"version relation target {skill} skill frontmatter metadata version "
+            "is missing or ambiguous"
+        )
+    return versions[0]
 
 
 def capture_version_relation_target(
@@ -2010,12 +2131,13 @@ def capture_version_relation_target(
     ):
         die(f"version relation target {skill} ledger history does not match its header")
 
-    metadata = re.findall(r'(?m)^  version: "(\d+\.\d+\.\d+)"$', skill_text)
-    if len(metadata) != 1:
-        die(f"version relation target {skill} skill metadata version is missing or ambiguous")
+    metadata = _skill_frontmatter_identity(skill_text, skill)
     expected_metadata = ".".join(str(part) for part in parts)
-    if metadata[0] != expected_metadata:
-        die(f"version relation target {skill} skill metadata version does not match the ledger")
+    if metadata != expected_metadata:
+        die(
+            f"version relation target {skill} skill frontmatter metadata version "
+            "does not match the ledger"
+        )
     return {
         "skill": skill,
         "ledger": ledger_path,
@@ -2031,7 +2153,7 @@ def capture_version_relation_target(
         "next_job_sha256": hashlib.sha256(next_job_raw).hexdigest(),
         "ledger_sha256": hashlib.sha256(ledger_bytes).hexdigest(),
         "skill_sha256": hashlib.sha256(skill_bytes).hexdigest(),
-        "skill_metadata_version": metadata[0],
+        "skill_metadata_version": metadata,
     }
 
 

@@ -132,3 +132,75 @@ covers near tokens, partial declarations, and no-block runbooks.
 concerns belong to later steps and receive no claim in this round.
 
 Leads not pursued: none.
+
+## Step 2, round 1 -- 2026-08-25
+
+Non-Solidity round over signed Mason commit
+`c924b4766b6bc8011ba52b1caff0faace443aeae`, whose parent is the audited Step
+1 tip `417c2a876df77ac2a3d04e6378d959bca6299fc1`. Three findings were fixed on
+the named audit branch in this round.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | Relation anchor reads honoured local Git replacement refs. Replacing the named commit, or replacing both selected blobs, let `done runbook` record `fiat-v9.9.9` while `anchor_commit` still named the native `fiat-v1.2.3` commit. Branch-point derivation also accepted grafted ancestry. | fixed in this round: relation ref, ancestry, tree, size, and blob reads bypass replacement refs; grafts refuse; branch refs are reread; commit, two-blob, and graft specimens guard the boundary |
+| S2-R1-02 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The metadata regex searched all of `SKILL.md`. A body example containing `  version: "1.2.3"` stood in for absent frontmatter, and a file whose frontmatter named another skill still anchored as `fiat`. | fixed in this round: one bounded parser reads only the first closed YAML frontmatter, requires the exact target name, and takes one numeric version from the `metadata` mapping |
+| S2-R1-03 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | A 5,000-digit counter matched the label grammar, then escaped as Python's decimal-conversion exception instead of the controller's value-free malformed-label refusal. | fixed in this round: conversion-limit failure returns the existing malformed-label result; the 5,000-digit specimen guards it, while `7.99.13` projects to `7.100.13` without SemVer reset |
+
+### Evidence
+
+The Warden pre-fix report is
+`tmp/elenchus/fiat-556-step-2-warden-round-1-red.json`, SHA-256
+`a00dfe45c6c2eacfbfc8a09e0554c216c4aabf54c09f40c833ed6342f7db6762`.
+It records `elenchus.unittest.v1`, 1,081 tests, four assertion failures, one
+error, and zero skips while the diff from Mason's commit contained the five
+new guards and no Warden product repair. The fixed-tree report is
+`.elenchus/fiat-556-step-2-warden-round1-green.json`, SHA-256
+`d27a91f360cb57639a240f6a865c07b792f6af52d9cc564e10744a0b63a0c1fb`.
+It records 1,084 tests with zero failures, errors, or skips.
+
+Mason's causal matrix remains at
+`tmp/elenchus/fiat-556-step-2-red-matrix.json`, SHA-256
+`38805d0e89fdceb632b7fa54860dec9a990770606a6bec08932f5e04f128adc9`:
+1,073 tests, nine assertion failures, six errors, and zero skips. Its canonical
+green report remains unchanged at `tmp/elenchus/fiat-556-step-2.json`, SHA-256
+`3fe2ea15aea672bb4deaae16a85c18f80260a10c2ef697ee5fef8ffc08a2be72`:
+1,076 tests with zero failures, errors, or skips.
+
+The fixed tree passes 26 focused relation tests and all 350 root tests.
+Promise Machine reports 14 clean plugin copies and 71 of 71 covered promises.
+Phylax, Ephoros, and Hypomnema exit 0 over the complete repository paths.
+Horos reports that the boundary matches the tree. The tracked study remains
+byte-identical to its receipt at SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+the tracked runbook remains byte-identical to its amended receipt at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+All five product paths remain inside Step 2's Files field, and
+`audit/AUDIT.md` remains unchanged.
+
+The bounded Sapheneia pass preserves every finding, counterexample, path,
+commit, hash, count, severity, qualification, and status in the required
+round shape. It changes no existing audit byte. Imprimatur scores the complete
+record 100.0 with zero defects. Brevitas accepts the new Step 2 append; the
+complete append-only file retains only its inherited B011 at the two-row Step
+1 findings table.
+
+### Risk register
+
+`anchor-substitution`, `metadata-mismatch`, and `generation-arithmetic`
+surfaced S2-R1-01 through S2-R1-03. `multi-target-partial` is green for one,
+two, partial, reordered, and one-bad-target capture. `git-object-shape` is
+green for unsafe, missing, tree, symlink, submodule, non-UTF-8, oversized, and
+native-object cases. `literal-compatibility`, `legacy-state`,
+`receipt-replay`, `diagnostic-leak`, and `promise-overclaim` are green within
+Step 2's anchor and packet boundary. Live base and run snapshots, frontier and
+ledger drift, remote failures, sync carriage, revalidation coverage, stale or
+capped resolution history, the terminal parent race, self-hosted collision,
+and interrupted resolution belong to Steps 3 and 4 and receive no claim here.
+
+Leads not pursued: none.
+
+The first source-bound mechanical guard run against preliminary signed Warden
+object `eeb9fe8f508fe1a316d3cdbcb52dc41b49267ec9` was inconclusive because the
+5,000-digit counter specimen let the known parent `ValueError` register as a
+unittest error. The guard now translates that exact old exception into an
+assertion failure; no product repair changed in response.
