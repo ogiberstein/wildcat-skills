@@ -37,9 +37,12 @@ sign, no leading zero and at most seven digits each, matched in full before
 either is parsed. The offsets count bytes of the UTF-8 encoding of
 `question`, the unit citations already use, and the checker re-slices them:
 `start` is below `end`, `end` is within the encoded length, the slice
-decodes as whole UTF-8 and is not blank. A sentence may name several spans.
-No citation or read id may begin with `question:`, so one evidence string
-resolves to one kind of thing whichever sentence cites it.
+decodes as whole UTF-8 and is not blank. Offsets are read only after
+`question` itself proves encodable. A question with no UTF-8 encoding,
+which a lone-surrogate escape in the JSON produces, fails `answer-shape`
+before any span is read, for either kind of document. A sentence may name
+several spans. No citation or read id may begin with `question:`, so one
+evidence string resolves to one kind of thing whichever sentence cites it.
 
 The check proves that the sentence points at real, whole, non-blank bytes
 of the asker's question. It does not prove that the sentence rests on them
