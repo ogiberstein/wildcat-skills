@@ -65,13 +65,17 @@ and true module, class, function, or async-function docstrings, and TypeScript
 or TSX comments and JSDoc are retained. Code, ordinary strings, templates, and
 regular-expression literals are blanked. The mask keeps the source length and
 line terminators unchanged, so findings carry their original source line and
-column.
+column. The TypeScript and TSX comment scanner accepts at most 64 recursively
+entered code, template, or JSX regions. A 65th such region is a named
+extraction refusal rather than a clean result or an interpreter traceback;
+iteratively scanned type-argument depth is outside that recursion budget.
 
-Malformed supported source is not a clean result. An extraction failure names
-the path and source position and exits 2 before any partial multi-file report is
-printed. Markdown, standard input, and other suffixes keep the existing
-Markdown masking rules. `--include-code` bypasses source extraction and scans
-the whole input, as it already did for Markdown code.
+Malformed supported source and source beyond that nesting boundary are not
+clean results. An extraction failure names the path and source position and
+exits 2 before any partial multi-file report is printed. Markdown, standard
+input, and other suffixes keep the existing Markdown masking rules.
+`--include-code` bypasses source extraction and scans the whole input, as it
+already did for Markdown code.
 
 ## Workflow
 
@@ -143,7 +147,7 @@ Attribution, licence, and the list of deviations are in `NOTICE.md`.
 - Promise: A successful Imprimatur run establishes that the exact prose crossed the configured hard, gated and structural pattern thresholds and that every reported defect was cleared or evidenced under the checker rules.
 - Evidence: The exact input bytes and path suffix, lexicon and allowlist, selected mode and threshold, successful source extraction when the suffix is `.sol`, `.py`, `.ts`, or `.tsx`, defect and signal output, labelled-corpus provenance and zero exit status.
 - Evidence classes: checked, recorded
-- Boundary: Source mode covers only comments and the documented Python docstring owners in `.sol`, `.py`, `.ts`, and `.tsx`; it does not establish source validity beyond successful extraction, inspect executable semantics, or extend to another suffix. The gate does not establish human authorship, factual accuracy, sound reasoning, an intended voice or absence of every machine-writing pattern.
+- Boundary: Source mode covers only comments and the documented Python docstring owners in `.sol`, `.py`, `.ts`, and `.tsx`; its TypeScript and TSX scanner refuses a 65th recursively entered code, template, or JSX region while scanning angle-group depth iteratively. It does not establish source validity beyond successful extraction, inspect executable semantics, or extend to another suffix. The gate does not establish human authorship, factual accuracy, sound reasoning, an intended voice or absence of every machine-writing pattern.
 - Authorises: Presentation or hand-off of the checked prose as Imprimatur-clean at the named checker version and threshold.
 - Consequence: 0
 - Refuses: Calling prose clean when the gate did not run or failed, returning a clean result after supported-source extraction fails, hiding a hard hit with a synonym, treating a cadence signal as a defect or deleting a scope-bearing qualifier to clear a word.

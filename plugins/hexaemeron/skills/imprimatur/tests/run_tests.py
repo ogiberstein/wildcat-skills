@@ -247,6 +247,34 @@ for suffix, source, wanted_line in [
         str([(h["line"], h["col"]) for h in hits]),
     )
 
+for suffix in (".ts", ".tsx"):
+    source = "const ratio = {} / 2; // Leverage the real comment.\n"
+    hits = [
+        hit
+        for hit in build(source, source_suffix=suffix)["hits"]
+        if hit["term"] == "leverage"
+    ]
+    check(
+        f"source/{suffix[1:]} division keeps later comment",
+        [(hit["line"], hit["col"]) for hit in hits] == [(1, 26)],
+        str([(hit["line"], hit["col"]) for hit in hits]),
+    )
+
+generic_jsx = (
+    "const view = <Foo<Item> value={item} />; "
+    "// Leverage the real comment.\n"
+)
+generic_hits = [
+    hit
+    for hit in build(generic_jsx, source_suffix=".tsx")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/tsx generic component keeps later comment",
+    [(hit["line"], hit["col"]) for hit in generic_hits] == [(1, 45)],
+    str([(hit["line"], hit["col"]) for hit in generic_hits]),
+)
+
 masked = extract_source_prose(solidity, ".sol")
 check(
     "source/mask preserves offsets",
@@ -267,6 +295,20 @@ for suffix, source in [
     else:
         refused = False
     check(f"source/{suffix[1:]} malformed refuses clean", refused)
+
+for depth, expected_refusal in [(64, False), (65, True)]:
+    nested = "const value = " + "{" * depth + "0" + "}" * depth + ";\n"
+    try:
+        extract_source_prose(nested, ".ts")
+    except SourceExtractionError:
+        refused = True
+    else:
+        refused = False
+    check(
+        f"source/typescript depth {depth}",
+        refused == expected_refusal,
+        f"refused={refused}",
+    )
 
 check(
     "source/markdown masking unchanged",

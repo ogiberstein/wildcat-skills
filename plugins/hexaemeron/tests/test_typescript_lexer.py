@@ -3,6 +3,7 @@
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -27,6 +28,20 @@ def comments(source, *, tsx=False):
     if errors:
         raise AssertionError(f"unexpected comment-span errors: {errors}")
     return [source[start:end] for _, start, end in spans]
+
+
+class SliceCountingSource(str):
+    """Expose suffix copies made by a scanner without timing assertions."""
+
+    def __new__(cls, value):
+        instance = super().__new__(cls, value)
+        instance.suffix_slice_count = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, slice) and key.stop is None:
+            self.suffix_slice_count += 1
+        return super().__getitem__(key)
 
 
 class TypeScriptLexerTests(unittest.TestCase):
@@ -94,6 +109,73 @@ class TypeScriptLexerTests(unittest.TestCase):
             ["/* real JSX comment */", "// real trailing comment"],
             comments(source, tsx=True),
         )
+
+    def test_tsx_unicode_element_child_text_is_not_a_comment(self):
+        source = (
+            "const view = <É>// visible child text</É>;\n"
+            "// real trailing comment\n"
+        )
+        self.assertEqual(["// real trailing comment"], comments(source, tsx=True))
+
+    def test_comment_spans_do_not_let_division_hide_a_later_comment(self):
+        source = "const ratio = {} / 2; // real comment\n"
+        for tsx in (False, True):
+            with self.subTest(tsx=tsx):
+                self.assertEqual(["// real comment"], comments(source, tsx=tsx))
+
+    def test_tsx_generic_component_type_arguments_keep_trailing_comment(self):
+        source = "const view = <Foo<Item> value={item} />; // real comment\n"
+        self.assertEqual(["// real comment"], comments(source, tsx=True))
+
+    def test_tsx_unterminated_element_returns_a_named_error(self):
+        _, errors = ts.comment_spans("const view = <p>", tsx=True)
+        self.assertEqual(1, len(errors))
+        self.assertIn("unterminated JSX element", errors[0][1])
+
+    def test_comment_scanner_accepts_depth_64_and_refuses_depth_65(self):
+        accepted = "const value = " + "{" * 64 + "0" + "}" * 64 + ";\n"
+        refused = "const value = " + "{" * 65 + "0" + "}" * 65 + ";\n"
+        self.assertEqual([], ts.comment_spans(accepted)[1])
+        _, errors = ts.comment_spans(refused)
+        self.assertEqual([(78, "nesting exceeds supported depth")], errors)
+
+    def test_template_comment_scan_does_not_repeatedly_call_complete_lexer(self):
+        source = "const value = `" + "".join("${item}" for _ in range(80)) + "`;\n"
+        with mock.patch.object(ts, "lex", wraps=ts.lex) as complete_lex:
+            _, errors = ts.comment_spans(source)
+        self.assertEqual([], errors)
+        self.assertLessEqual(complete_lex.call_count, 1)
+
+    def test_tsx_candidates_do_not_search_the_remaining_suffix_repeatedly(self):
+        source = "const value = " + " + ".join("<Name>" for _ in range(80)) + ";\n"
+        with mock.patch.object(ts.re, "search", wraps=ts.re.search) as tail_search:
+            ts.comment_spans(source, tsx=True)
+        self.assertLessEqual(tail_search.call_count, 1)
+
+    def test_many_valid_jsx_elements_do_not_copy_remaining_suffixes(self):
+        source = SliceCountingSource(
+            "const views = ["
+            + ", ".join("<A>child text</A>" for _ in range(80))
+            + "]; // real comment\n"
+        )
+        spans, errors = ts.comment_spans(source, tsx=True)
+        self.assertEqual([], errors)
+        self.assertEqual(0, source.suffix_slice_count)
+        self.assertEqual(
+            ["// real comment"],
+            [str.__getitem__(source, slice(start, end)) for _, start, end in spans],
+        )
+
+    def test_many_valid_self_closing_elements_are_a_clean_linear_scan(self):
+        source = SliceCountingSource(
+            "const views = ["
+            + ", ".join("<Name />" for _ in range(256))
+            + "];\n"
+        )
+        spans, errors = ts.comment_spans(source, tsx=True)
+        self.assertEqual([], errors)
+        self.assertEqual([], spans)
+        self.assertEqual(0, source.suffix_slice_count)
 
 
 if __name__ == "__main__":

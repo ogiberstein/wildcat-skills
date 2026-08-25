@@ -263,25 +263,39 @@ def _python_prose(text: str) -> list[tuple[int, int]]:
         raise SourceExtractionError(line, col + 1, f"Python tokenization failed: {position[0]}") from exc
 
     starts = _line_starts(text)
-    token_spans: list[tuple[py_tokenize.TokenInfo, int, int]] = []
+    string_spans: list[tuple[py_tokenize.TokenInfo, int, int]] = []
     prose: list[tuple[int, int]] = []
     for token in tokens:
         start = _position_offset(text, starts, token.start[0], token.start[1])
         end = _position_offset(text, starts, token.end[0], token.end[1])
-        token_spans.append((token, start, end))
         if token.type == py_tokenize.COMMENT:
             prose.append((start + 1, end))
+        elif token.type == py_tokenize.STRING:
+            string_spans.append((token, start, end))
 
-    for node in _python_docstring_nodes(tree):
+    docstrings = sorted(
+        _python_docstring_nodes(tree),
+        key=lambda node: (node.lineno, node.col_offset),
+    )
+    string_cursor = 0
+    for node in docstrings:
         if node.end_lineno is None or node.end_col_offset is None:
             raise SourceExtractionError(node.lineno, node.col_offset + 1, "docstring has no end position")
         node_start = _ast_position_offset(text, starts, node.lineno, node.col_offset)
         node_end = _ast_position_offset(text, starts, node.end_lineno, node.end_col_offset)
-        strings = [
-            (token, start, end)
-            for token, start, end in token_spans
-            if token.type == py_tokenize.STRING and node_start <= start and end <= node_end
-        ]
+        while (
+            string_cursor < len(string_spans)
+            and string_spans[string_cursor][2] <= node_start
+        ):
+            string_cursor += 1
+        probe = string_cursor
+        strings = []
+        while probe < len(string_spans) and string_spans[probe][1] < node_end:
+            token, start, end = string_spans[probe]
+            if node_start <= start and end <= node_end:
+                strings.append((token, start, end))
+            probe += 1
+        string_cursor = probe
         if not strings:
             line, col = line_col(text, node_start)
             raise SourceExtractionError(line, col, "docstring source token was not found")
