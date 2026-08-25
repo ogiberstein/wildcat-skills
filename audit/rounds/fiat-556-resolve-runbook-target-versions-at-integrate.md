@@ -750,3 +750,95 @@ local hash chain, and coordinate matching ref and object substitutions. Hash
 chaining detects partial or accidental edits; without an external signed
 anchor it does not prove that local evidence survived a malicious complete
 rewrite. No operating-system lock or external storage guarantee is claimed.
+
+## Step 2, round 8 -- 2026-08-25
+
+Zero findings over signed audit tip
+`3521bd5c83aeb79d90574a99f1e2d607b2e84e04`. Its signed repair parent is
+`f990e1119f01628c52354549e65390231c399732`; both local Shoggoth signatures
+verify, and each commit carries exactly one co-author trailer and one origin
+trailer.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+### Evidence
+
+All 47 focused relation cases are green. They cover the hash-chained init
+starting commit, stable native ref and branch-point reconstruction without a
+reflog, real SHA-1 and SHA-256 repositories, receipt replay, `status`, `next`,
+`verify`, and Mason, Warden, and Scribe packets. The adjacent controller and
+Fiat contract selection runs 397 tests, and the root suite runs 350 tests, all
+green.
+
+The fresh complete report is
+`.elenchus/fiat-556-step-2-warden-round8-green.json`, SHA-256
+`8474a72c8712c76676d5fb2bc82a76a548ab7e74fa7930f32f696c2203924b93`.
+It records `elenchus.unittest.v1`, 1,105 tests, zero failures, zero errors,
+and zero skips.
+
+All 16 non-Solidity suite commands in `AGENTS.md` are green: Alexandria ran
+255 tests; Ariadne 632 with six skips; Berean 151 with one skip; Brevitas 21;
+Hermes 72; Hexaemeron 1,105; Imprimatur 62; Horos 217; Lazarus 364; Pandects
+116; Probitas 276; Sapheneia 11; and Tabularium 134. Both Lemma runners report
+zero failures; the Solidity runner leaves its compiler cases skipped without
+`--solc`. Lazarus ran under its pinned Python 3.13 lockfile runtime.
+
+The inherited root HTTP fixture cleanup warnings, controller fixture
+`ResourceWarning` at `test_hexctl.py:5537`, and Pandects catalogue
+`ResourceWarning` at `test_search_record.py:46` remain non-failing. Promise
+Machine reports 14 clean plugin copies and 71 of 71 covered promises. Phylax,
+Ephoros, and Hypomnema each exit 0. Horos reports that the boundary matches
+the tree. Protasis accepts both source and tracked study and runbook copies.
+Python compilation, JSON parsing, and `git diff --check` are clean.
+
+The receipted and tracked study copies remain byte-identical at SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+the receipted and tracked runbook copies remain byte-identical at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+All five relative study links resolve, the misplaced plugin-local study path
+remains absent, and `audit/AUDIT.md` remains byte-identical to the Step 1 tip.
+
+The prior 50,053-byte audit record is the exact prefix of this append,
+SHA-256
+`2cc4653bc3211678581e39cfc586cd025e55c5f61250079c9c19ecef6571d7fc`.
+The bounded Sapheneia comparison preserves the zero-finding status, commits,
+paths, hashes, counts, skips, warnings, qualifications, scope exclusions, and
+unpursued lead. The required heading, empty findings table, evidence, risk
+register, scope boundary, and lead boundary are present.
+
+Imprimatur scores the complete record 100.0 out of 100 with zero defects.
+Brevitas reports five B011 table-shape diagnostics: the four required
+finding tables already present in the unchanged prefix and this round's
+required empty findings table. Removing a table or inventing finding rows
+would break the audit-loop schema and the recorded finding counts.
+
+### Risk register
+
+`anchor-substitution`, `git-object-shape`, and `receipt-replay` are green. The
+first hash-chained init event records the exact directly read worktree commit.
+Relation capture reconstructs one native branch point from stable run and base
+refs, requires it to equal that init evidence, and does not require a reflog.
+The same closed 40-or-64-character object-id grammar governs init evidence,
+capture, stored receipt validation, recovery, replay, `status`, `next`, and
+`verify`; a real SHA-256 repository also completes packet reconstruction.
+
+`literal-compatibility` and `legacy-state` are green. A runbook without the
+optional block retains the prior receipt and worker directive shapes, works
+with native reflogs disabled, and makes no version Git read during `done
+runbook`, `status`, or `next`. One- and multi-target capture, source sorting,
+all-or-nothing refusal, metadata identity, projection arithmetic, value-free
+diagnostics, exact blob reconstruction, and explicit `resolution: null`
+remain green.
+
+Live integration snapshots, frontier and ledger drift, remote failures, sync
+carriage, resolution recovery, stale or capped resolution history, terminal
+parent races, and the self-hosted collision remain Steps 3 and 4 and receive
+no Step 2 claim.
+
+Leads not pursued: a process with direct write access to both controller
+storage and Git internals can rewrite the init event, recompute the complete
+local hash chain, and coordinate matching ref and object substitutions. Hash
+chaining detects partial or accidental edits; without an external signed
+anchor it does not prove that local evidence survived a malicious complete
+rewrite. No operating-system lock or external storage guarantee is claimed.
