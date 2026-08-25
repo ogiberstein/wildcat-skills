@@ -130,7 +130,13 @@ rank-only pass over the six phase skills records `mode` as `phase-only` and
    start the run with `hexctl init --frontier <that skill's EVOLUTION.md>`, and
    `done integrate` refuses until the ledger carries exactly one new valid row.
    A loop that ranks by held job cannot afford to take an unchanged ledger for
-   a closed one, because the next pass would rank the same job again. Then
+   a closed one, because the next pass would rank the same job again. Before
+   rescanning, restore controller currency: run `hexctl currency`, and while
+   it exits 3, reinstall every plugin it reports behind through this host's
+   own installer, refresh, and re-resolve the paths, so the next ranking runs
+   on the pins the merged run just published rather than the ones the chain
+   started with; `../fiat/references/plugin-currency.md` names the host
+   mechanism. Then
    rescan the entire scope from disk -- every plugin and every governed skill,
    not only those ranked in the previous pass -- rerank from scratch, and
    repeat. A skill whose frontier was replaced re-enters the ranking carrying
