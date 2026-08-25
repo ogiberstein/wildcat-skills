@@ -19,6 +19,16 @@ def only(source, kind):
     return [text for current, text in kinds(source) if current == kind]
 
 
+def comments(source, *, tsx=False):
+    classify = getattr(ts, "comment_spans", None)
+    if classify is None:
+        raise AssertionError("the shared lexer has no comment-span entry point")
+    spans, errors = classify(source, tsx=tsx)
+    if errors:
+        raise AssertionError(f"unexpected comment-span errors: {errors}")
+    return [source[start:end] for _, start, end in spans]
+
+
 class TypeScriptLexerTests(unittest.TestCase):
     def test_spans_reconstruct_the_complete_source(self):
         source = 'const a = "x"; // done\nconst b = /two/g;\n'
@@ -58,6 +68,31 @@ class TypeScriptLexerTests(unittest.TestCase):
         self.assertEqual(
             ['"first line\n  second line"'],
             [source[start:end] for kind, start, end in spans if kind == "string"],
+        )
+
+    def test_comment_spans_open_template_substitutions_only(self):
+        source = (
+            "const raw = `// not a comment`;\n"
+            "const value = `${item // line comment\n"
+            "  + `${other /* nested comment */}`}`;\n"
+        )
+        self.assertEqual(
+            ["// line comment", "/* nested comment */"],
+            comments(source),
+        )
+
+    def test_tsx_comment_spans_exclude_child_text_and_keep_code_comments(self):
+        source = (
+            "const view = (\n"
+            "  <p>// visible child text\n"
+            "    <span>/* nested child text */</span>\n"
+            "    {/* real JSX comment */}\n"
+            "  </p>\n"
+            "); // real trailing comment\n"
+        )
+        self.assertEqual(
+            ["/* real JSX comment */", "// real trailing comment"],
+            comments(source, tsx=True),
         )
 
 

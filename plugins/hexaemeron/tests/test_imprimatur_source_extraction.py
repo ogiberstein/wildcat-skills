@@ -86,8 +86,21 @@ class SourceExtractionTests(unittest.TestCase):
             r"const pattern = /https?:\/\/Leverage/;" "\n"
             "// Leverage the helper.\n"
         )
-        hits = term_hits(source, ".ts")
-        self.assertEqual([4], [hit["line"] for hit in hits])
+        for suffix in (".ts", ".tsx"):
+            with self.subTest(suffix=suffix):
+                hits = term_hits(source, suffix)
+                self.assertEqual([4], [hit["line"] for hit in hits])
+
+    def test_typescript_template_expression_comments_are_prose(self):
+        source = (
+            "const first = `${value // Leverage the line helper.\n}`;\n"
+            "const second = `${value /* Leverage the block helper. */}`;\n"
+            "const nested = `${`${value // Leverage the nested helper.\n}`}`;\n"
+        )
+        for suffix in (".ts", ".tsx"):
+            with self.subTest(suffix=suffix):
+                hits = term_hits(source, suffix)
+                self.assertEqual([1, 3, 4], [hit["line"] for hit in hits])
 
     def test_tsx_jsdoc_is_prose_but_jsx_strings_are_not(self):
         source = (
@@ -96,6 +109,41 @@ class SourceExtractionTests(unittest.TestCase):
         )
         hits = term_hits(source, ".tsx")
         self.assertEqual([2], [hit["line"] for hit in hits])
+
+    def test_tsx_raw_child_text_is_not_a_comment(self):
+        source = (
+            "const view = (\n"
+            "  <>\n"
+            "    <p>// Leverage is visible text</p>\n"
+            "    <p>/* Leverage is visible text */</p>\n"
+            "    <p>outer <b>// Leverage is nested text</b></p>\n"
+            "    {/* Leverage the actual JSX comment. */}\n"
+            "  </>\n"
+            ");\n"
+        )
+        hits = term_hits(source, ".tsx")
+        self.assertEqual([(6, 9)], [(hit["line"], hit["col"]) for hit in hits])
+
+    def test_tsx_closing_tag_does_not_hide_a_following_comment(self):
+        cases = {
+            "closing": (
+                "const view = <p>text</p>; // Leverage the real comment.\n",
+                (1, 30),
+            ),
+            "self-closing": (
+                "const view = <P />; // Leverage the real comment.\n",
+                (1, 24),
+            ),
+            "nested expression": (
+                "const view = <p>{flag ? <span>text</span> : value}</p>; "
+                "// Leverage the real comment.\n",
+                (1, 60),
+            ),
+        }
+        for label, (source, expected) in cases.items():
+            with self.subTest(label=label):
+                hits = term_hits(source, ".tsx")
+                self.assertEqual([expected], [(hit["line"], hit["col"]) for hit in hits])
 
     def test_each_mask_has_the_source_length_and_line_terminators(self):
         self.assertTrue(SOURCE_MODE, "Imprimatur has no source-prose mode")

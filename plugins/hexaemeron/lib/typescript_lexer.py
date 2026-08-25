@@ -5,7 +5,11 @@ Skills commit b95f332379a9ed9fdacbbbd26fc194eb93ad757a.  The copy preserves the
 ``lex(source)`` span and error contract while keeping Hexaemeron independently
 installable.  Horos remains the provenance source; changes here should be
 reconciled against its tested lexer rather than redesigned in place.
+Hexaemeron's ``comment_spans(source, tsx=...)`` wrapper keeps that API fixed
+while opening template expressions and traversing JSX for comment consumers.
 """
+
+import re
 
 # Tokens after which a slash starts a regex literal rather than division.
 # After an identifier, a number, or a closing ) ] } the slash divides.
@@ -314,3 +318,302 @@ def _scan_regex(source, start):
             return i
         i += 1
     return None
+
+
+def _comment_contents(spans):
+    """Return only comment spans, with their delimiters still attached."""
+    return [
+        (kind, start, end)
+        for kind, start, end in spans
+        if kind in ("line_comment", "block_comment")
+    ]
+
+
+class _CommentScanError(ValueError):
+    def __init__(self, offset, reason):
+        super().__init__(reason)
+        self.offset = offset
+        self.reason = reason
+
+
+def _template_expression_comments(source, start, limit):
+    """Find one `${...}` close and its nested comments."""
+    spans, _ = lex(source[start:limit])
+    depth = 1
+    comments = []
+    for kind, relative_start, relative_end in spans:
+        span_start = start + relative_start
+        span_end = start + relative_end
+        if kind in ("line_comment", "block_comment"):
+            comments.append((kind, span_start, span_end))
+            continue
+        if kind == "template":
+            comments.extend(_template_comments(source, span_start, span_end))
+            continue
+        if kind != "code":
+            continue
+        for offset in range(span_start, span_end):
+            if source[offset] == "{":
+                depth += 1
+            elif source[offset] == "}":
+                depth -= 1
+                if depth == 0:
+                    return offset + 1, comments
+    return None, comments
+
+
+def _template_comments(source, start, end):
+    """Return comments inside a template's substitution expressions."""
+    comments = []
+    cursor = start + 1
+    while cursor < end - 1:
+        if source[cursor] == "\\":
+            cursor += 2
+            continue
+        if source.startswith("${", cursor):
+            expression_end, nested = _template_expression_comments(
+                source, cursor + 2, end - 1
+            )
+            if expression_end is None:
+                raise _CommentScanError(cursor, "unterminated template expression")
+            comments.extend(nested)
+            cursor = expression_end
+            continue
+        cursor += 1
+    return comments
+
+
+JSX_NAME = re.compile(r"[A-Za-z_$][\w.$:-]*")
+
+
+class _TsxCommentScanner:
+    """Classify comments while treating JSX markup and child text as data."""
+
+    def __init__(self, source):
+        self.source = source
+        self.comments = []
+
+    def _error(self, offset, reason):
+        return _CommentScanError(offset, reason)
+
+    def _string_end(self, start):
+        end = _scan_string(self.source, start)
+        if end is None:
+            raise self._error(start, "unterminated string")
+        return end
+
+    def _template_end(self, start, record):
+        cursor = start + 1
+        while cursor < len(self.source):
+            if self.source[cursor] == "\\":
+                cursor += 2
+                continue
+            if self.source[cursor] == "`":
+                return cursor + 1
+            if self.source.startswith("${", cursor):
+                cursor = self._code_end(
+                    cursor + 2,
+                    stop_on_brace=True,
+                    record=record,
+                    missing="unterminated template expression",
+                )
+                continue
+            cursor += 1
+        raise self._error(start, "unterminated template literal")
+
+    def _attribute_string_end(self, start):
+        quote = self.source[start]
+        cursor = start + 1
+        while cursor < len(self.source):
+            if self.source[cursor] == quote:
+                return cursor + 1
+            cursor += 1
+        raise self._error(start, "unterminated JSX attribute string")
+
+    def _jsx_open(self, start, record):
+        cursor = start + 1
+        if cursor < len(self.source) and self.source[cursor] == ">":
+            return cursor + 1, "", False
+        match = JSX_NAME.match(self.source, cursor)
+        if match is None:
+            raise self._error(start, "invalid JSX opening tag")
+        name = match.group(0)
+        cursor = match.end()
+        if cursor < len(self.source) and not (
+            self.source[cursor].isspace() or self.source[cursor] in "/>"
+        ):
+            raise self._error(start, "invalid JSX tag name")
+        while cursor < len(self.source):
+            if self.source[cursor] in "'\"":
+                cursor = self._attribute_string_end(cursor)
+                continue
+            if self.source[cursor] == "{":
+                cursor = self._code_end(
+                    cursor + 1,
+                    stop_on_brace=True,
+                    record=record,
+                    missing="unterminated JSX attribute expression",
+                )
+                continue
+            if self.source.startswith("/>", cursor):
+                return cursor + 2, name, True
+            if self.source[cursor] == ">":
+                return cursor + 1, name, False
+            cursor += 1
+        raise self._error(start, "unterminated JSX opening tag")
+
+    def _jsx_close_end(self, start, name):
+        if name == "":
+            return start + 3 if self.source.startswith("</>", start) else None
+        match = re.match(
+            r"</" + re.escape(name) + r"\s*>", self.source[start:]
+        )
+        return start + match.end() if match is not None else None
+
+    def _jsx_candidate(self, start):
+        try:
+            end, name, self_closing = self._jsx_open(start, record=False)
+        except _CommentScanError:
+            return False
+        if self_closing:
+            return True
+        if name == "":
+            return "</>" in self.source[end:]
+        return re.search(
+            r"</" + re.escape(name) + r"\s*>", self.source[end:]
+        ) is not None
+
+    def _jsx_end(self, start, record):
+        cursor, name, self_closing = self._jsx_open(start, record)
+        if self_closing:
+            return cursor
+        while cursor < len(self.source):
+            close_end = self._jsx_close_end(cursor, name)
+            if close_end is not None:
+                return close_end
+            if self.source[cursor] == "<" and self._jsx_candidate(cursor):
+                cursor = self._jsx_end(cursor, record)
+                continue
+            if self.source[cursor] == "{":
+                cursor = self._code_end(
+                    cursor + 1,
+                    stop_on_brace=True,
+                    record=record,
+                    missing="unterminated JSX child expression",
+                )
+                continue
+            cursor += 1
+        raise self._error(start, "unterminated JSX element")
+
+    def _code_end(self, start, *, stop_on_brace, record, missing):
+        cursor = start
+        previous = ""
+        while cursor < len(self.source):
+            if stop_on_brace and self.source[cursor] == "}":
+                return cursor + 1
+            if self.source.startswith("//", cursor):
+                end = self.source.find("\n", cursor + 2)
+                end = len(self.source) if end == -1 else end
+                if record:
+                    self.comments.append(("line_comment", cursor, end))
+                cursor = end
+                continue
+            if self.source.startswith("/*", cursor):
+                end = self.source.find("*/", cursor + 2)
+                if end == -1:
+                    raise self._error(cursor, "unterminated block comment")
+                if record:
+                    self.comments.append(("block_comment", cursor, end + 2))
+                cursor = end + 2
+                continue
+            char = self.source[cursor]
+            if char in "'\"":
+                cursor = self._string_end(cursor)
+                previous = "string"
+                continue
+            if char == "`":
+                cursor = self._template_end(cursor, record)
+                previous = "template"
+                continue
+            if (
+                char == "<"
+                and previous in REGEX_ALLOWED_AFTER
+                and self._jsx_candidate(cursor)
+            ):
+                cursor = self._jsx_end(cursor, record)
+                previous = "jsx"
+                continue
+            if char == "{":
+                cursor = self._code_end(
+                    cursor + 1,
+                    stop_on_brace=True,
+                    record=record,
+                    missing="unterminated brace expression",
+                )
+                previous = "}"
+                continue
+            if char == "/" and previous in REGEX_ALLOWED_AFTER:
+                regex_end = _scan_regex(self.source, cursor)
+                if regex_end is not None:
+                    cursor = regex_end
+                    previous = "regex"
+                    continue
+            if char in WORD_CHARS:
+                end = cursor + 1
+                while end < len(self.source) and self.source[end] in WORD_CHARS:
+                    end += 1
+                previous = self.source[cursor:end]
+                cursor = end
+                continue
+            if not char.isspace():
+                if (
+                    previous
+                    and previous[-1] == char
+                    and previous + char in REGEX_ALLOWED_AFTER
+                ):
+                    previous += char
+                elif char == ">" and previous == "=":
+                    previous = "=>"
+                else:
+                    previous = char
+            cursor += 1
+        if stop_on_brace:
+            raise self._error(start, missing)
+        return cursor
+
+    def scan(self):
+        self._code_end(
+            0,
+            stop_on_brace=False,
+            record=True,
+            missing="",
+        )
+        return self.comments
+
+
+def comment_spans(source, *, tsx=False):
+    """Return genuine comment spans plus named lexical errors.
+
+    Plain TypeScript keeps ``lex`` as its outer classifier and opens template
+    substitutions only to recover comments. TSX adds a bounded JSX traversal
+    so child text and tag syntax cannot masquerade as comments or regexes.
+    """
+    if tsx:
+        scanner = _TsxCommentScanner(source)
+        try:
+            return scanner.scan(), []
+        except _CommentScanError as exc:
+            return scanner.comments, [(exc.offset, exc.reason)]
+
+    spans, errors = lex(source)
+    comments = _comment_contents(spans)
+    if errors:
+        return comments, errors
+    try:
+        for kind, start, end in spans:
+            if kind == "template":
+                comments.extend(_template_comments(source, start, end))
+    except _CommentScanError as exc:
+        return comments, [(exc.offset, exc.reason)]
+    comments.sort(key=lambda span: (span[1], span[2]))
+    return comments, []

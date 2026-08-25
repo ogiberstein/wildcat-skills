@@ -30,7 +30,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 if str(PLUGIN_ROOT) not in sys.path:
     sys.path.insert(0, str(PLUGIN_ROOT))
 
-from lib.typescript_lexer import lex as lex_typescript  # noqa: E402
+from lib.typescript_lexer import comment_spans as typescript_comment_spans  # noqa: E402
 
 SEVERITY_WEIGHT = {"critical": 5, "high": 3, "medium": 2, "low": 1}
 DEFAULT_SEVERITY = {"hard": "high", "gated": "medium", "structural": "medium"}
@@ -173,8 +173,8 @@ def _comment_contents(spans: list[tuple[str, int, int]]) -> list[tuple[int, int]
     return contents
 
 
-def _typescript_prose(text: str) -> list[tuple[int, int]]:
-    spans, errors = lex_typescript(text)
+def _typescript_prose(text: str, *, tsx: bool = False) -> list[tuple[int, int]]:
+    spans, errors = typescript_comment_spans(text, tsx=tsx)
     if errors:
         offset, reason = errors[0]
         line, col = line_col(text, offset)
@@ -309,7 +309,7 @@ def extract_source_prose(text: str, suffix: str) -> str:
     elif suffix == ".py":
         spans = _python_prose(text)
     elif suffix in {".ts", ".tsx"}:
-        spans = _typescript_prose(text)
+        spans = _typescript_prose(text, tsx=suffix == ".tsx")
     else:
         raise ValueError(f"unsupported source suffix {suffix}")
     return _masked_spans(text, spans)
