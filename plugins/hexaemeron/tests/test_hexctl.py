@@ -12,12 +12,16 @@ import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stderr
-from io import StringIO
+from contextlib import ExitStack, redirect_stderr
+from io import BytesIO, StringIO, TextIOWrapper
+from pathlib import Path
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HEXCTL = os.path.join(HERE, "..", "skills", "fiat", "scripts", "hexctl.py")
+AUDIT_SYNOPSIS = os.path.join(
+    HERE, "..", "skills", "fiat", "scripts", "audit_synopsis.py"
+)
 PROTASIS = os.path.join(HERE, "..", "skills", "protasis", "scripts", "protasis.py")
 COMPLETE_STUDY = os.path.join(HERE, "fixtures", "protasis", "complete-study.md")
 
@@ -96,6 +100,18 @@ def hexctl_module():
     return module
 
 
+def audit_synopsis_module():
+    """The sibling renderer imported under the controller test runner."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "audit_synopsis_under_test", AUDIT_SYNOPSIS
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def protasis_module():
     import importlib.util
 
@@ -144,6 +160,12 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
                     state = json.load(handle)
             except (OSError, ValueError):
                 state = None
+        if (
+            args[:1] == ("audit-round",)
+            and expect == 0
+            and getattr(self, "auto_audit_records", True)
+        ):
+            self.append_valid_audit_record(args, state)
         if args[:2] == ("done", "implement") and expect == 0:
             branch = args[args.index("--branch") + 1]
             head = args[args.index("--commit") + 1]
@@ -200,6 +222,91 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             self.fake_prs = pending_prs
             self.fake_parents = pending_parents
         return proc
+
+    def append_valid_audit_record(self, args, state):
+        """Stand in for Warden when a controller test is not about log syntax."""
+        if state is None:
+            raise AssertionError("cannot write an audit record without controller state")
+        findings = int(args[args.index("--findings") + 1])
+        verdict = (
+            args[args.index("--elenchus-verdict") + 1]
+            if "--elenchus-verdict" in args
+            else "null"
+        )
+        study_path = state["receipts"]["study"]["artifact"]
+        if not os.path.isabs(study_path):
+            study_path = os.path.join(self.target, study_path)
+        with open(study_path, encoding="utf-8") as handle:
+            study = handle.read()
+        block = re.search(
+            r"(?ms)^```risk-register\s*$\n(?P<body>.*?)^```\s*$",
+            study,
+        )
+        if block is None:
+            raise AssertionError("fixture study has no risk register")
+        risk_ids = [
+            line.split("|", 1)[0].strip()
+            for line in block.group("body").splitlines()
+            if line.strip()
+        ]
+        covered = "; ".join(f"{risk_id}=reviewed" for risk_id in risk_ids)
+        round_number = len(
+            state["steps"][state["current_step"] - 1]["audit"]["rounds"]
+        ) + 1
+        table_rows = (
+            ["| -- | -- | -- | none | -- |"]
+            if findings == 0
+            else [
+                f"| F-{index:02d} | low | fixture.py | finding {index} | open |"
+                for index in range(1, findings + 1)
+            ]
+        )
+        record = "\n".join(
+            [
+                f"## Step {state['current_step']}, round {round_number} "
+                "-- 2026-08-23T02:17:46Z",
+                "",
+                "Audit schema: fiat-audit-round/v2",
+                "",
+                f"Covered: {covered}",
+                "",
+                "Not checked: none",
+                "",
+                f"Elenchus verdict: {verdict}",
+                "",
+                "| id | severity | file | finding | status |",
+                "| --- | --- | --- | --- | --- |",
+                *table_rows,
+                "",
+                "Leads not pursued: none",
+                "",
+            ]
+        )
+        log_path = state["config"]["audit"]["log_path"]
+        path = log_path if os.path.isabs(log_path) else os.path.join(self.target, log_path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        needs_gap = os.path.exists(path) and os.path.getsize(path) > 0
+        with open(path, "a", encoding="utf-8") as handle:
+            if needs_gap:
+                handle.write("\n")
+            handle.write(record)
+        synopsis_result = subprocess.run(
+            [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
+            cwd=self.target,
+            capture_output=True,
+            text=True,
+        )
+        if synopsis_result.returncode:
+            raise AssertionError(
+                f"audit synopsis fixture failed\nstdout: {synopsis_result.stdout}"
+                f"stderr: {synopsis_result.stderr}"
+            )
+        # Warden owns and commits the append in a real run. Keep the fixture's
+        # worktree equally clean so retirement tests exercise controller state,
+        # not an untracked stand-in log.
+        synopsis_path = os.path.splitext(log_path)[0] + ".synopsis.md"
+        self.git("add", "--", log_path, synopsis_path)
+        self.git("commit", "-q", "-m", "fixture audit record")
 
     @staticmethod
     def fake_sha(ref):
@@ -275,6 +382,39 @@ elif args and args[0] == "merge-base":
                 raise SystemExit(1)
         raise SystemExit(0)
     print(os.environ.get("FAKE_GIT_MERGE_BASE", "4" * 40))
+elif args and args[0] == "ls-tree":
+    if mode == "baseline-unavailable":
+        raise SystemExit(128)
+    baseline_hex = os.environ.get("FAKE_GIT_BASELINE_HEX")
+    if baseline_hex is not None:
+        baseline = bytes.fromhex(baseline_hex)
+        object_id = hashlib.sha1(
+            b"blob " + str(len(baseline)).encode() + b"\\0" + baseline
+        ).hexdigest()
+        path = args[-1].encode()
+        if mode == "baseline-ambiguous":
+            sys.stdout.buffer.write(b"ambiguous\\0")
+        elif mode == "baseline-unsafe":
+            sys.stdout.buffer.write(
+                f"120000 blob {{object_id}}\\t".encode() + path + b"\\0"
+            )
+        else:
+            sys.stdout.buffer.write(
+                f"100644 blob {{object_id}}\\t".encode() + path + b"\\0"
+            )
+elif args and args[:2] == ["cat-file", "-s"]:
+    baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
+    if mode == "baseline-oversized":
+        print(2 * 1024 * 1024 + 1)
+    elif mode == "baseline-malformed-size":
+        print("not-a-size")
+    elif mode == "baseline-short-read":
+        print(len(baseline) + 1)
+    else:
+        print(len(baseline))
+elif args and args[:2] == ["cat-file", "blob"]:
+    baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
+    sys.stdout.buffer.write(baseline)
 elif (
     args
     and args[0] == "diff"
@@ -887,7 +1027,13 @@ class TestDelegationPackets(HexctlCase):
         self.assert_packet(
             scribe, "scribe", ("files", "pr_base", "pr_draft_path", "plugin_root")
         )
-        self.assertEqual(scribe["brief"]["files"], [])
+        self.assertEqual(
+            scribe["brief"]["files"],
+            [
+                "audit/rounds/fiat-test-topic.md",
+                "audit/rounds/fiat-test-topic.synopsis.md",
+            ],
+        )
         self.run_ctl("done", "prose", "--files", "1", "--skills",
                      "hexaemeron:imprimatur,hexaemeron:vulgate")
         push = self.next_json()
@@ -1097,8 +1243,15 @@ class TestDelegationPackets(HexctlCase):
             self.write(name, name)
         self.git("add", "zeta.md", "alpha.md")
         self.git("commit", "-m", "step")
-        self.assertEqual(self.next_json()["brief"]["files"],
-                         ["alpha.md", "zeta.md"])
+        self.assertEqual(
+            self.next_json()["brief"]["files"],
+            [
+                "alpha.md",
+                "audit/rounds/fiat-test-topic.md",
+                "audit/rounds/fiat-test-topic.synopsis.md",
+                "zeta.md",
+            ],
+        )
 
         for number in range(499):
             self.write(f"many/{number:03d}.md", "x")
@@ -1675,187 +1828,13 @@ class TestCommitVerification(HexctlCase):
                         module.verify_github_commits(self.dir, ["a" * 40])
 
 
-class TestGithubTransport(HexctlCase):
-    """How the receipt readers reach GitHub, and how they refuse when they cannot.
+try:
+    from .github_transport_cases import build_github_transport_tests
+except ImportError:
+    from github_transport_cases import build_github_transport_tests
 
-    Two properties are the subject. Every read goes over REST, because a `gh`
-    command taking `--json` goes over GraphQL and an environment that serves
-    one transport and not the other could receipt nothing at all, however the
-    commits were signed. And a read that never arrived refuses in a shape no
-    verdict shares, because an operator holding `verified: true` commits must
-    not be told a check failed when it was never asked.
-    """
 
-    URL = "https://github.com/wildcat-finance/example/pull/1"
-
-    def gh_calls(self, run):
-        log_path = os.path.join(self.dir, "transport.log")
-        with mock.patch.dict(
-            os.environ, {"PATH": self.env["PATH"], "FAKE_GH_LOG": log_path}
-        ):
-            run(hexctl_module())
-        with open(log_path, encoding="utf-8") as handle:
-            return [json.loads(line) for line in handle if line.strip()]
-
-    def test_every_receipt_read_goes_over_rest(self):
-        branch, base, head = "fiat/run-step-1", "fiat/run", "a" * 40
-        payload = self.fake_pr(self.URL, branch, base, head)
-
-        def read(module):
-            with mock.patch.dict(os.environ, {"FAKE_GH_PRS": json.dumps({self.URL: payload})}):
-                module.inspect_pull_request(
-                    self.dir,
-                    self.URL,
-                    expected_head=branch,
-                    expected_base=base,
-                    expected_head_sha=head,
-                    expected_merge_sha=None,
-                )
-            module.verify_github_commits(self.dir, [head])
-
-        calls = self.gh_calls(read)
-        self.assertTrue(calls, "the readers made no GitHub request at all")
-        for call in calls:
-            self.assertEqual(call[:1], ["api"], f"{call} is not a REST read")
-            self.assertNotIn("--json", call, f"{call} would go over GraphQL")
-
-    def test_the_rest_paths_name_the_repository_and_the_pull_request(self):
-        branch, base, head = "fiat/run-step-1", "fiat/run", "a" * 40
-        payload = self.fake_pr(self.URL, branch, base, head)
-
-        def read(module):
-            with mock.patch.dict(os.environ, {"FAKE_GH_PRS": json.dumps({self.URL: payload})}):
-                module.inspect_pull_request(
-                    self.dir,
-                    self.URL,
-                    expected_head=branch,
-                    expected_base=base,
-                    expected_head_sha=head,
-                    expected_merge_sha=None,
-                )
-
-        paths = [call[-1] for call in self.gh_calls(read)]
-        self.assertIn("repos/wildcat-finance/example", paths)
-        self.assertIn("repos/wildcat-finance/example/pulls/1", paths)
-
-    def refusal(self, mode, read):
-        error = StringIO()
-        with mock.patch.dict(
-            os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
-        ), redirect_stderr(error):
-            with self.assertRaises(SystemExit):
-                read(hexctl_module())
-        return error.getvalue()
-
-    def test_an_unreachable_reader_refuses_apart_from_an_unverified_verdict(self):
-        """The halt this change came from: signed, verified commits, no transport.
-
-        The run had four commits GitHub reported as `verified: true` with
-        `reason: valid`, and the receipt still refused. The refusal has to say
-        the read failed, not that the work is unverified.
-        """
-        unreachable = self.refusal(
-            "nonzero", lambda module: module.verify_github_commits(self.dir, ["a" * 40])
-        )
-        self.assertIn("transport failure", unreachable)
-        self.assertIn("was not answered", unreachable)
-        self.assertNotIn("not verified:true", unreachable)
-
-        unverified = self.refusal(
-            "verified-false",
-            lambda module: module.verify_github_commits(self.dir, ["a" * 40]),
-        )
-        self.assertIn("not verified:true", unverified)
-        self.assertNotIn("transport failure", unverified)
-
-    def test_an_unreachable_identity_read_is_named_as_transport(self):
-        message = self.refusal("nonzero", lambda module: module.github_repository(self.dir))
-        self.assertIn("transport failure", message)
-        self.assertIn("repos/wildcat-finance/example", message)
-
-    def test_no_answer_at_all_is_transport_not_verdict(self):
-        """A stall, an overrun and a non-document all mean the same thing.
-
-        None of them is a verdict about the commits, so none of them may refuse
-        in a shape that reads as one.
-        """
-        for mode in ("invalid-json", "overflow", "timeout"):
-            with self.subTest(mode=mode):
-                module = hexctl_module()
-                module.GIT_TIMEOUT = 0.05
-                error = StringIO()
-                with mock.patch.dict(
-                    os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
-                ), redirect_stderr(error):
-                    with self.assertRaises(SystemExit):
-                        module.verify_github_commits(self.dir, ["a" * 40])
-                self.assertIn("transport failure", error.getvalue())
-                self.assertNotIn("not verified:true", error.getvalue())
-
-    def test_an_open_pull_request_records_no_merge_commit(self):
-        """REST fills `merge_commit_sha` on an open pull request with a test merge.
-
-        Recording that value would put a commit that is not on any branch into
-        the receipt, and would let `done integrate` read a merge where GitHub
-        reported none.
-        """
-        module = hexctl_module()
-        branch, base, head = "fiat/run-step-1", "fiat/run", "a" * 40
-        payload = self.fake_pr(self.URL, branch, base, head)
-        self.assertEqual(payload["merge_commit_sha"], "f" * 40)
-        with mock.patch.dict(
-            os.environ,
-            {
-                "PATH": self.env["PATH"],
-                "FAKE_GH_PRS": json.dumps({self.URL: payload}),
-            },
-        ):
-            record = module.inspect_pull_request(
-                self.dir,
-                self.URL,
-                expected_head=branch,
-                expected_base=base,
-                expected_head_sha=head,
-                expected_merge_sha=None,
-            )
-        self.assertIsNone(record["merge_sha"])
-        self.assertEqual(record["state"], "OPEN")
-
-    def test_a_merged_pull_request_records_its_merge_and_state(self):
-        module = hexctl_module()
-        branch, base, head, merge = "fiat/run-step-1", "fiat/run", "a" * 40, "e" * 40
-        payload = self.fake_pr(self.URL, branch, base, head, merge)
-        with mock.patch.dict(
-            os.environ,
-            {
-                "PATH": self.env["PATH"],
-                "FAKE_GH_PRS": json.dumps({self.URL: payload}),
-            },
-        ):
-            record = module.inspect_pull_request(
-                self.dir,
-                self.URL,
-                expected_head=branch,
-                expected_base=base,
-                expected_head_sha=head,
-                expected_merge_sha=merge,
-            )
-        self.assertEqual(record["merge_sha"], merge)
-        self.assertEqual(record["state"], "MERGED")
-
-    def test_an_origin_with_a_relative_segment_is_refused(self):
-        """The origin owner and name are interpolated into every REST path."""
-        error = StringIO()
-        with mock.patch.dict(
-            os.environ,
-            {
-                "PATH": self.env["PATH"],
-                "FAKE_GIT_ORIGIN": "https://github.com/../wildcat-finance",
-            },
-        ), redirect_stderr(error):
-            with self.assertRaises(SystemExit):
-                hexctl_module().github_repository(self.dir)
-        self.assertIn("one GitHub repository", error.getvalue())
+TestGithubTransport = build_github_transport_tests(globals())
 
 
 class TestMergedAttribution(HexctlCase):
@@ -3511,6 +3490,10 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.to_receiptable_audit()
         self.run_ctl("audit-round", "--findings", "1")
         self.make_last_round_legacy()
+        log_path = self.state()["config"]["audit"]["log_path"]
+        self.env["FAKE_GIT_BASELINE_HEX"] = Path(
+            os.path.join(self.target, *log_path.split("/"))
+        ).read_bytes().hex()
 
         self.run_ctl("status")
         directive = self.next_json()
@@ -3530,6 +3513,23 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.assertEqual(rounds[1]["audit_filter"], "sapheneia:sapheneia")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
+
+try:
+    from .audit_record_schema_cases import (
+        build_audit_record_schema_tests,
+        build_audit_synopsis_resource_boundary_tests,
+    )
+except ImportError:
+    from audit_record_schema_cases import (
+        build_audit_record_schema_tests,
+        build_audit_synopsis_resource_boundary_tests,
+    )
+
+
+AuditSynopsisResourceBoundaryTests = (
+    build_audit_synopsis_resource_boundary_tests(globals())
+)
+AuditRecordSchemaTests = build_audit_record_schema_tests(globals())
 
 class TestProseAndPush(HexctlCase):
     def to_prose(self, task_issue=None):
