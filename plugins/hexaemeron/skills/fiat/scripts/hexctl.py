@@ -6013,8 +6013,56 @@ def contained_in(root: str, resolved: str) -> bool:
         return False
 
 
-def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
-    return bounded_tool(base_dir, "gh", argv, refusal)
+def github_unreachable(label: str, path: str, detail: str) -> None:
+    """Refuse a read GitHub never answered, in a shape no verdict shares.
+
+    A verdict refusal says something is wrong with the work. This one says
+    nothing was learned about the work: the request failed, or came back as
+    something other than the document the check reads. Sharing one shape
+    between them tells an operator holding `verified: true` commits that a
+    check failed when it was never asked.
+    """
+    die(
+        f"GitHub read for {label} was not answered: GET {path} {detail}. "
+        "This is a transport failure, not a verification result; "
+        "nothing here says the work is unverified."
+    )
+
+
+def github_rest(base_dir: str, path: str, label: str) -> dict:
+    """One bounded REST read of the GitHub API, parsed as one JSON object.
+
+    Every receipt reader goes over REST because that is the transport the
+    checks need. `gh <command> --json` speaks GraphQL, and an environment
+    serving one and not the other could receipt nothing at all, however the
+    commits were signed. REST carries every field these readers ask for.
+
+    The bounds are `bounded_probe`'s rather than `bounded_run`'s so that a
+    reader that never started, stalled, or overran its cap refuses as the
+    transport failure it is, instead of in the generic tool shape.
+    """
+    returncode, output, failure = bounded_probe(
+        base_dir, "gh", ["api", "--method", "GET", path]
+    )
+    if failure == "start":
+        github_unreachable(label, path, "could not start the gh client")
+    if failure == "timeout":
+        github_unreachable(label, path, f"timed out after {GIT_TIMEOUT} seconds")
+    if failure == "output-cap":
+        github_unreachable(label, path, f"exceeded the {GIT_OUTPUT_MAX}-byte output cap")
+    if returncode != 0:
+        github_unreachable(label, path, f"failed with exit {returncode}")
+    try:
+        text = output.decode("utf-8")
+    except UnicodeDecodeError:
+        github_unreachable(label, path, "returned output that is not UTF-8")
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        github_unreachable(label, path, "returned a response that is not JSON")
+    if not isinstance(payload, dict):
+        github_unreachable(label, path, "returned a response that is not one object")
+    return payload
 
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
@@ -6419,35 +6467,52 @@ def target_repository(base_dir: str) -> str:
     match = GITHUB_HTTPS_RE.fullmatch(lines[0]) or GITHUB_SSH_RE.fullmatch(lines[0])
     if match is None:
         die("target origin does not name one GitHub repository")
-    return match.group("repo")
+    repository = match.group("repo")
+    if any(segment in (".", "..") for segment in repository.split("/")):
+        # The owner and name go into REST paths below, so a relative segment
+        # here would address some other endpoint entirely.
+        die("target origin does not name one GitHub repository")
+    return repository
 
 
 def github_repository(base_dir: str) -> str:
     target = target_repository(base_dir)
-    data = bounded_gh(
-        base_dir,
-        ["repo", "view", "--json", "nameWithOwner"],
-        "GitHub repository identity could not be resolved",
-    )
-    try:
-        payload = json.loads(tool_text(data, "GitHub repository identity"))
-    except ValueError:
-        die("GitHub repository identity returned invalid JSON")
-    repository = payload.get("nameWithOwner") if isinstance(payload, dict) else None
+    payload = github_rest(base_dir, f"repos/{target}", "repository identity")
+    repository = payload.get("full_name")
     if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
-        die("GitHub repository identity is missing nameWithOwner")
+        die("GitHub repository identity is missing full_name")
     if repository.casefold() != target.casefold():
         die("GitHub repository identity does not match target origin")
     return target
 
 
-def pull_request_repository(pr_url: object, repository: str) -> str:
+def pull_request_target(pr_url: object, repository: str) -> tuple[str, str]:
+    """One recorded pull request URL and its number, bound to one repository."""
     if not isinstance(pr_url, str):
         die("pull request URL is invalid")
     match = GITHUB_PR_RE.fullmatch(pr_url)
     if match is None or match.group("repo").casefold() != repository.casefold():
         die("pull request URL does not match target repository")
-    return pr_url.rstrip("/")
+    return pr_url.rstrip("/"), match.group("number")
+
+
+def pull_request_repository(pr_url: object, repository: str) -> str:
+    return pull_request_target(pr_url, repository)[0]
+
+
+def pull_request_state(payload: dict, merged: bool) -> str:
+    """The recorded state of one pull request, in the receipt's own vocabulary.
+
+    REST reports `open` or `closed` and carries the merge separately, while a
+    receipt records `MERGED`, `OPEN` or `CLOSED`. Recording the three keeps
+    every receipt this loop has written readable against the same three words.
+    """
+    if merged:
+        return "MERGED"
+    state = payload.get("state")
+    if state not in ("open", "closed"):
+        die("pull request topology is missing its state")
+    return state.upper()
 
 
 def inspect_pull_request(
@@ -6471,58 +6536,62 @@ def inspect_pull_request(
         else None
     )
     repository = github_repository(base_dir)
-    url = pull_request_repository(pr_url, repository)
-    data = bounded_gh(
+    url, number = pull_request_target(pr_url, repository)
+    payload = github_rest(
         base_dir,
-        [
-            "pr", "view", url, "--repo", repository, "--json",
-            "url,state,headRefName,headRefOid,baseRefName,mergeCommit,author,body",
-        ],
-        "pull request topology could not be read",
+        f"repos/{repository}/pulls/{number}",
+        "pull request topology",
     )
-    try:
-        payload = json.loads(tool_text(data, "pull request topology"))
-    except ValueError:
-        die("pull request topology returned invalid JSON")
-    if not isinstance(payload, dict):
-        die("pull request topology is invalid")
-    author = payload.get("author")
+    author = payload.get("user")
     author_login = author.get("login") if isinstance(author, dict) else None
     if not isinstance(author_login, str):
         die("pull request topology is missing its author")
     if author_login.casefold() in HOST_PR_LOGINS:
         die("pull request uses a runtime host as author; hand off before publication")
-    body = payload.get("body")
+    if "body" not in payload:
+        die("pull request topology is missing its body")
+    # REST spells an empty body as null rather than as an empty string. There
+    # is no byline in either, so the absence of text is not a missing field.
+    body = payload["body"] or ""
     if not isinstance(body, str):
         die("pull request topology is missing its body")
     if HOST_BYLINE_RE.search(body):
         die("pull request body carries a runtime-host byline")
-    returned_url = payload.get("url")
+    returned_url = payload.get("html_url")
     if not isinstance(returned_url, str):
         die("pull request topology is missing its URL")
     pull_request_repository(returned_url, repository)
     if returned_url.rstrip("/") != url:
         die("pull request topology did not name the recorded pull request")
-    if payload.get("headRefName") != expected_head or payload.get("baseRefName") != expected_base:
+    head, base = payload.get("head"), payload.get("base")
+    head_ref = head.get("ref") if isinstance(head, dict) else None
+    base_ref = base.get("ref") if isinstance(base, dict) else None
+    if head_ref != expected_head or base_ref != expected_base:
         die("pull request topology does not match the expected head and base")
-    returned_head = payload.get("headRefOid")
+    returned_head = head.get("sha")
     if not isinstance(returned_head, str) or not COMMIT_RE.fullmatch(returned_head):
         die("pull request topology has no full head SHA")
     if head_sha is not None and returned_head != head_sha:
         die(f"pull request head does not match the {expected_head_label}")
-    merge = payload.get("mergeCommit")
-    returned_merge = merge.get("oid") if isinstance(merge, dict) else None
+    merged = payload.get("merged")
+    if not isinstance(merged, bool):
+        die("pull request topology is missing its merged state")
+    # REST also fills `merge_commit_sha` on an open pull request, with the test
+    # merge GitHub computes for it. Only a merged pull request has a merge
+    # commit, so an open one records none.
+    merge_commit = payload.get("merge_commit_sha")
+    returned_merge = merge_commit if merged and isinstance(merge_commit, str) else None
     if merge_sha is not None:
-        if payload.get("state") != "MERGED" or returned_merge != merge_sha:
+        if not merged or returned_merge != merge_sha:
             die("pull request is not the expected merged topology")
-    elif payload.get("state") == "MERGED":
+    elif merged:
         die("step pull request was already merged before integrate")
     return {
         "url": url,
         "head": expected_head,
         "base": expected_base,
         "head_sha": returned_head,
-        "state": payload.get("state"),
+        "state": pull_request_state(payload, merged),
         "merge_sha": returned_merge,
         "author_login": author_login,
     }
@@ -6530,30 +6599,32 @@ def inspect_pull_request(
 
 def github_commit_payload(base_dir: str, repository: str, commit_sha: str) -> dict:
     """One bounded GitHub commit payload, checked for the exact SHA."""
-    data = bounded_gh(
+    payload = github_rest(
         base_dir,
-        ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
-        f"GitHub verification for {commit_sha} could not be read",
+        f"repos/{repository}/commits/{commit_sha}",
+        f"commit {commit_sha}",
     )
-    try:
-        payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
-    except ValueError:
-        die(f"GitHub verification for {commit_sha} returned invalid JSON")
-    if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+    if payload.get("sha") != commit_sha:
         die(f"GitHub verification response did not name exact SHA {commit_sha}")
     return payload
 
 
 def require_github_verified(payload: dict, commit_sha: str) -> None:
-    """GitHub's own verification result for one commit, or a refusal."""
+    """GitHub's own verification result for one commit, or a refusal.
+
+    Every refusal here names an answer GitHub gave. A read that never arrived
+    refuses in `github_unreachable`'s shape instead, because an operator has to
+    be able to tell a commit GitHub rejected from a commit GitHub was never
+    asked about.
+    """
     commit = payload.get("commit")
     verification = commit.get("verification") if isinstance(commit, dict) else None
     if not isinstance(verification, dict):
-        die(f"GitHub verification for {commit_sha} is missing")
+        die(f"GitHub answered for {commit_sha} without a verification result")
     if verification.get("verified") is not True:
-        die(f"GitHub verification for {commit_sha} is not verified:true")
+        die(f"GitHub answered for {commit_sha}: not verified:true")
     if verification.get("reason") != "valid":
-        die(f"GitHub verification for {commit_sha} reason is not valid")
+        die(f"GitHub answered for {commit_sha}: verification reason is not valid")
 
 
 def commit_attribution(payload: dict, commit_sha: str) -> dict:

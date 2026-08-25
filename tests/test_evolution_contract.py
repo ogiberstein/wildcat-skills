@@ -108,13 +108,13 @@ class EvolutionContractTests(unittest.TestCase):
         ledger = (
             PLUGINS / "hexaemeron" / "skills" / "fiat" / "EVOLUTION.md"
         ).read_text(encoding="utf-8")
-        self.assertEqual(field(ledger, "Current version"), "fiat-v5.25.1")
+        self.assertEqual(field(ledger, "Current version"), "fiat-v5.26.1")
         self.assertEqual(field(ledger, "Frontier status"), "open")
         self.assertEqual(field(ledger, "Frontier revision"), "state-shape-validation")
         self.assertEqual(field(ledger, "Current frontier"), FIAT_FRONTIER)
         self.assertEqual(field(ledger, "Next Fiat job"), FIAT_NEXT_JOB)
         latest = history_rows(ledger)[-1]
-        self.assertEqual(latest["version"], "fiat-v5.25.1")
+        self.assertEqual(latest["version"], "fiat-v5.26.1")
         self.assertEqual(latest["axis"], "generation")
         self.assertEqual(latest["revision"], "state-shape-validation")
         self.assertEqual(
@@ -124,6 +124,10 @@ class EvolutionContractTests(unittest.TestCase):
         self.assertIn("skills#429", latest["evidence"])
         self.assertIn("pull/552", latest["evidence"])
         self.assertIn("audit-record-schema-timestamp-synopsis-recovery", latest["evidence"])
+        predecessor = history_rows(ledger)[-2]
+        self.assertEqual(predecessor["version"], "fiat-v5.25.1")
+        self.assertIn("skills#495", predecessor["evidence"])
+        self.assertIn("fiat-run-worktree-study.md", predecessor["evidence"])
 
     def test_history_rows_accept_compact_list(self):
         digest = "a" * 64

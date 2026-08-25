@@ -1,6 +1,107 @@
 """Strict audit-record controller cases loaded by ``test_hexctl``."""
 
 
+class AuditSynopsisResourceBoundaryCases:
+    def test_record_framing_preserves_literal_separator_and_escape_tokens(self):
+        renderer = audit_synopsis_module()
+        lead = "Leads not pursued: literal <br>; escapes %, %%, and %b"
+        source = (
+            "\n".join(
+                [
+                    "## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z",
+                    "",
+                    "Audit schema: fiat-audit-round/v1",
+                    "",
+                    "Covered: fixture-risk=reviewed",
+                    "",
+                    "Not checked: none",
+                    "",
+                    "Elenchus verdict: null",
+                    "",
+                    "| id | severity | file | finding | status |",
+                    "| --- | --- | --- | --- | --- |",
+                    "| -- | -- | -- | none | -- |",
+                    "",
+                    lead,
+                ]
+            )
+            + "\n"
+        ).encode()
+        rendered = renderer.render_source("audit/AUDIT.md", source)
+        record = rendered["bytes"].decode().splitlines()[1]
+        decoder = getattr(renderer, "decode_synopsis_record", None)
+        physical = record.split("<br>") if decoder is None else decoder(record)
+
+        self.assertEqual(physical[-1], lead)
+        self.assertEqual(physical.count(lead), 1)
+        self.assertTrue(callable(decoder))
+
+    def test_many_short_lines_remain_inside_the_receipted_acceptance_domain(self):
+        renderer = audit_synopsis_module()
+        source = b"## legacy\nLeads not pursued:\n" + b"x\n" * 200_000
+        rendered = renderer.render_source("audit/AUDIT.md", source)
+
+        self.assertEqual(rendered["source_lines"], 200_002)
+        self.assertEqual(rendered["h2_count"], 1)
+        self.assertLess(len(rendered["bytes"]), renderer.SYNOPSIS_BYTES_MAX)
+
+    def test_write_refuses_a_source_change_after_planning(self):
+        renderer = audit_synopsis_module()
+        with tempfile.TemporaryDirectory() as raw_root:
+            source = Path(raw_root, "audit", "AUDIT.md")
+            source.parent.mkdir()
+            source.write_bytes(
+                b"## legacy\nLeads not pursued: none\n" + b"x\n" * 20
+            )
+            destination = source.with_name("AUDIT_SYNOPSIS.md")
+            real_replace = renderer.atomic_replace
+            replacement_observed = False
+
+            def mutate_then_replace(root, relative, data):
+                nonlocal replacement_observed
+                source.write_bytes(source.read_bytes().replace(b"none", b"nope"))
+                result = real_replace(root, relative, data)
+                replacement_observed = destination.is_file()
+                return result
+
+            with mock.patch.object(
+                renderer, "atomic_replace", side_effect=mutate_then_replace
+            ):
+                with self.assertRaisesRegex(
+                    renderer.SynopsisError, "source changed after planning"
+                ):
+                    renderer.process_repository(raw_root, write=True)
+            self.assertTrue(replacement_observed)
+            self.assertFalse(destination.exists())
+
+    def test_table_cell_scanner_scales_with_the_accepted_line_length(self):
+        renderer = audit_synopsis_module()
+
+        def elapsed(size):
+            line = "| " + "x" * size + " | b | c | d | e |"
+            started = time.process_time()
+            self.assertEqual(len(renderer._table_cells(line)), 5)
+            return time.process_time() - started
+
+        small = elapsed(64 * 1024)
+        large = elapsed(512 * 1024)
+        self.assertLess(
+            large,
+            small * 20,
+            f"table scan scaled from {small:.6f}s to {large:.6f}s",
+        )
+def build_audit_synopsis_resource_boundary_tests(context):
+    """Build synopsis boundary cases against the loaded controller harness."""
+    globals().update(
+        {name: value for name, value in context.items() if not name.startswith("__")}
+    )
+    return type(
+        "AuditSynopsisResourceBoundaryTests",
+        (AuditSynopsisResourceBoundaryCases, context["unittest"].TestCase),
+        {},
+    )
+
+
 def build_audit_record_schema_tests(context):
     """Build the cases against the already-loaded controller test harness."""
     globals().update(

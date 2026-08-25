@@ -25,7 +25,7 @@ SCRIPT = (
     / "audit_synopsis.py"
 )
 FIXTURE = ROOT / "tests" / "fixtures" / "audit-synopsis" / "heterogeneous.md"
-LIVE_SOURCES = (
+REQUIRED_PRODUCT_SOURCES = (
     "audit/AUDIT.md",
     "audit/rounds/fiat-429-audit-record-schema-timestamp-synopsis.md",
     "audit/rounds/fiat-429-recover-issue-429-from-pull-request-552.md",
@@ -36,6 +36,9 @@ LIVE_SOURCES = (
     "plugins/pandects/audit/AUDIT.md",
     "plugins/probitas/audit/AUDIT.md",
     "plugins/tabularium/audit/AUDIT.md",
+)
+INTEGRATED_UNTAGGED_SOURCE = (
+    "audit/rounds/fiat-331-bind-user-supplied-sentences-to-the-recorded.md"
 )
 
 
@@ -932,11 +935,13 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
         self.assertTrue(SCRIPT.is_file(), "audit synopsis renderer is missing")
         self.module = synopsis_module()
 
-    def test_release_set_is_exact_current_and_below_budget(self):
-        discovered = self.module.discover_sources(str(ROOT))
-        self.assertEqual(tuple(discovered), LIVE_SOURCES)
+    def test_release_set_keeps_product_sources_current_and_below_budget(self):
+        discovered = tuple(self.module.discover_sources(str(ROOT)))
+        self.assertTrue(set(REQUIRED_PRODUCT_SOURCES).issubset(discovered))
+        self.assertIn(INTEGRATED_UNTAGGED_SOURCE, discovered)
+        self.assertEqual(len(discovered), len(set(discovered)))
         results = self.module.process_repository(str(ROOT), write=False)
-        self.assertEqual(len(results), len(LIVE_SOURCES))
+        self.assertEqual(len(results), len(discovered))
         for result in results:
             with self.subTest(source=result["source"]):
                 self.assertEqual(result["committed"], "match")
@@ -1021,7 +1026,7 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                         self.module.render_source(source_path, changed_source)
 
     def test_live_headings_leads_and_issue_327_values_survive(self):
-        for relative in LIVE_SOURCES:
+        for relative in self.module.discover_sources(str(ROOT)):
             with self.subTest(source=relative):
                 source = (ROOT / relative).read_text(encoding="utf-8")
                 synopsis = (ROOT / self.module._output_path(relative)).read_text(

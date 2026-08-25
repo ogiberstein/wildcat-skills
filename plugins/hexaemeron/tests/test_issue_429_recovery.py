@@ -35,9 +35,16 @@ STEP_ONE_PRE_PROSE_HEAD = "ab9e70d142fdad70b089268615e107f1733f7900"
 STEP_ONE_HEAD = "dda57e8a3258b5c26891fe0b6a39396ce13b9490"
 TRAILER_FIXTURE_PARENT = "a79e663a136c446a6653ddbb14648782fef99173"
 TRAILER_FIXTURE = "43babf204a0a21435f49a6681d355b692232b1f5"
-FIAT_VERSION = "5.25.1"
-HEXAEMERON_VERSION = "1.6.1"
-CONTROLLER_SHA256 = "2c29f696f2b368a334eb4a880e745fa3cd468cc9c385e36346000aed7c91ba9f"
+PRODUCT_FIAT_VERSION = "5.25.1"
+PRODUCT_HEXAEMERON_VERSION = "1.6.1"
+INTEGRATED_FIAT_VERSION = "5.26.1"
+INTEGRATED_HEXAEMERON_VERSION = "1.6.1"
+PRODUCT_CONTROLLER_SHA256 = (
+    "2c29f696f2b368a334eb4a880e745fa3cd468cc9c385e36346000aed7c91ba9f"
+)
+INTEGRATED_CONTROLLER_SHA256 = (
+    "4850f6892a54d30529dec51b641c50bdb1fa763ff2cdc6a14dba67b2e85310f4"
+)
 PROOF_SHA256 = "badb5f3eeffe9927453e43b8d3dbdcfbda87773e5b9ce1cbb7973cc44796bafb"
 PRODUCT_SUFFIX = (
     ROOT
@@ -47,6 +54,21 @@ PRODUCT_SUFFIX = (
 )
 RECOVERY_LOG_SOURCE = (
     "audit/rounds/fiat-429-recover-issue-429-from-pull-request-552.md"
+)
+INTEGRATED_UNTAGGED_SOURCE = (
+    "audit/rounds/fiat-331-bind-user-supplied-sentences-to-the-recorded.md"
+)
+PRODUCT_AUDIT_SOURCES = (
+    "audit/AUDIT.md",
+    "audit/rounds/fiat-429-audit-record-schema-timestamp-synopsis.md",
+    RECOVERY_LOG_SOURCE,
+    "audit/rounds/fiat-576-give-each-fiat-run-its-own-audit-log-path.md",
+    "audit/rounds/fiat-594-bind-a-step-merge-to-the-pull-request-the-di.md",
+    "plugins/ariadne/audit/AUDIT.md",
+    "plugins/hexaemeron/audit/AUDIT.md",
+    "plugins/pandects/audit/AUDIT.md",
+    "plugins/probitas/audit/AUDIT.md",
+    "plugins/tabularium/audit/AUDIT.md",
 )
 PRODUCT_SUFFIX_SHA256 = (
     "51891eaf4a387acb79ab65c9508c09cb84828cb40c475a3b363fddcecd74fe8d"
@@ -209,15 +231,15 @@ class Issue429RecoveryTests(unittest.TestCase):
             STUDY_SHA256,
             RUNBOOK_SHA256,
             sha256(COMPOSITION_MANIFEST),
-            CONTROLLER_SHA256,
+            PRODUCT_CONTROLLER_SHA256,
             sha256(GENERATOR),
-            f"fiat-v{FIAT_VERSION}",
-            f"Hexaemeron {HEXAEMERON_VERSION}",
+            f"fiat-v{PRODUCT_FIAT_VERSION}",
+            f"Hexaemeron {PRODUCT_HEXAEMERON_VERSION}",
         ):
             with self.subTest(value=value):
                 self.assertIn(value, proof)
 
-    def test_release_tree_has_ten_collision_free_current_synopses(self):
+    def test_release_tree_keeps_product_sources_and_current_unique_synopses(self):
         result = subprocess.run(
             ["python3", str(GENERATOR), "--check", str(ROOT)],
             cwd=ROOT,
@@ -227,7 +249,10 @@ class Issue429RecoveryTests(unittest.TestCase):
             text=True,
         )
         rows = [line for line in result.stdout.splitlines() if line.strip()]
-        self.assertEqual(len(rows), 10)
+        sources = [row.split(": source_lines=", 1)[0] for row in rows]
+        self.assertTrue(set(PRODUCT_AUDIT_SOURCES).issubset(sources))
+        self.assertIn(INTEGRATED_UNTAGGED_SOURCE, sources)
+        self.assertEqual(len(sources), len(set(sources)))
         destinations = []
         for row in rows:
             source = row.split(": source_lines=", 1)[0]
@@ -237,7 +262,7 @@ class Issue429RecoveryTests(unittest.TestCase):
                 destinations.append(str(Path(source).with_suffix(".synopsis.md")))
         self.assertEqual(len(destinations), len(set(destinations)))
 
-    def test_released_controller_digest_reaches_every_promise_binding(self):
+    def test_integrated_controller_digest_reaches_every_promise_binding(self):
         coverage = json.loads(
             (ROOT / "tests" / "promise_machine_coverage.json").read_text(
                 encoding="utf-8"
@@ -252,7 +277,10 @@ class Issue429RecoveryTests(unittest.TestCase):
             "fiat-run-observation-binding",
         ):
             digests.append(coverage["runtime"][promise]["sha256"])
-        self.assertEqual(digests, [CONTROLLER_SHA256] * len(digests))
+        self.assertEqual(sha256(CONTROLLER), INTEGRATED_CONTROLLER_SHA256)
+        self.assertEqual(
+            digests, [INTEGRATED_CONTROLLER_SHA256] * len(digests)
+        )
 
 
 if PROOF_MODE:
@@ -805,7 +833,11 @@ if PROOF_MODE:
                     for line in release_check.stdout.decode().splitlines()
                     if line.strip()
                 ]
-                self.assertEqual(len(release_diagnostics), 10)
+                release_sources = {
+                    row.split(": source_lines=", 1)[0] for row in release_diagnostics
+                }
+                self.assertTrue(set(PRODUCT_AUDIT_SOURCES).issubset(release_sources))
+                self.assertIn(INTEGRATED_UNTAGGED_SOURCE, release_sources)
                 for diagnostic in release_diagnostics:
                     source = diagnostic.split(": source_lines=", 1)[0]
                     source_path = ROOT / Path(source)
@@ -852,9 +884,11 @@ if PROOF_MODE:
                 recovery_row = release_by_source[RECOVERY_LOG_SOURCE]
                 self.assertEqual(recovery_row["v1"], 0)
                 self.assertGreaterEqual(recovery_row["v2"], 2)
+                integrated_row = release_by_source[INTEGRATED_UNTAGGED_SOURCE]
+                self.assertEqual((integrated_row["v1"], integrated_row["v2"]), (0, 0))
                 for source, row in release_by_source.items():
-                    if source not in {product_source, RECOVERY_LOG_SOURCE}:
-                        self.assertEqual((row["v1"], row["v2"]), (0, 0))
+                    if source != product_source:
+                        self.assertEqual(row["v1"], 0)
 
                 specification = importlib.util.spec_from_file_location(
                     "issue_429_checked_generator", GENERATOR
@@ -1009,11 +1043,11 @@ if PROOF_MODE:
                         raise ValueError("Fiat release predecessor changed")
                     if package_predecessors != ["1.6.0"] * 4:
                         raise ValueError("Hexaemeron release predecessor changed")
-                    return FIAT_VERSION, HEXAEMERON_VERSION
+                    return PRODUCT_FIAT_VERSION, PRODUCT_HEXAEMERON_VERSION
 
                 self.assertEqual(
                     allocate_successors(predecessor_fiat, predecessor_versions),
-                    (FIAT_VERSION, HEXAEMERON_VERSION),
+                    (PRODUCT_FIAT_VERSION, PRODUCT_HEXAEMERON_VERSION),
                 )
                 with self.assertRaisesRegex(ValueError, "predecessor changed"):
                     allocate_successors(predecessor_fiat, ["1.6.0"] * 3 + ["1.6.1"])
@@ -1025,8 +1059,10 @@ if PROOF_MODE:
                 ledger = (ROOT / "plugins/hexaemeron/skills/fiat/EVOLUTION.md").read_text(
                     encoding="utf-8"
                 )
-                self.assertIn(f'version: "{FIAT_VERSION}"', skill)
-                self.assertIn(f"Current version: `fiat-v{FIAT_VERSION}`", ledger)
+                self.assertIn(f'version: "{INTEGRATED_FIAT_VERSION}"', skill)
+                self.assertIn(
+                    f"Current version: `fiat-v{INTEGRATED_FIAT_VERSION}`", ledger
+                )
 
             self.assertFalse(temporary_root.exists())
             self.assertEqual(
@@ -1056,8 +1092,10 @@ if PROOF_MODE:
                 "commands": self.command_count,
                 "peak_output_bytes": self.peak_output_bytes,
                 "elapsed_seconds": round(time.monotonic() - started, 3),
-                "released_fiat": FIAT_VERSION,
-                "released_hexaemeron": HEXAEMERON_VERSION,
+                "product_fiat": PRODUCT_FIAT_VERSION,
+                "product_hexaemeron": PRODUCT_HEXAEMERON_VERSION,
+                "integrated_fiat": INTEGRATED_FIAT_VERSION,
+                "integrated_hexaemeron": INTEGRATED_HEXAEMERON_VERSION,
                 "cleanup": "complete",
             }
             print("\n" + json.dumps(summary, sort_keys=True))

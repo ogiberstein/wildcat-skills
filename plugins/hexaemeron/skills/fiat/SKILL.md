@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.25.1"
+  version: "5.26.1"
 ---
 
 # Fiat
@@ -239,7 +239,10 @@ state transition.
 2. Confirm `git` and `gh auth status` work in the target directory. Resolve
    the repository from the current directory and the user's named target;
    never substitute an organisation or clone a different repository merely
-   because its name looks related.
+   because its name looks related. Every receipt reads GitHub over REST, so a
+   proxy or environment that serves the REST API without GraphQL can still
+   receipt a run. A read that never arrived says so in its own words, and it
+   is not a statement about whether the commits are verified.
 3. `init` observes this controller's own currency and refuses a proven-behind
    pin by name, before any run state exists. On that refusal, re-pin through
    the host's own installer, refresh, and re-resolve the paths, per
