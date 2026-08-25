@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import subprocess
+import tempfile
 
 try:
     from plugins.hexaemeron.tests.test_hexctl import HexctlCase, hexctl_module
@@ -325,6 +326,149 @@ class VersionRelationTests(HexctlCase):
         )
         self.assertIn("rewritten by a graft", result.stderr)
 
+    def test_relation_git_environment_cannot_redirect_anchor_repository(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.init()
+        state = self.state()
+
+        with tempfile.TemporaryDirectory() as attacker:
+            for argv in (
+                ("init", "-q", "-b", "main"),
+                ("config", "user.email", "attacker@example.invalid"),
+                ("config", "user.name", "Attacker"),
+                ("config", "commit.gpgsign", "false"),
+            ):
+                subprocess.run(
+                    ["git", *argv], cwd=attacker, check=True, capture_output=True
+                )
+            ledger = os.path.join(attacker, self.ledger_path("fiat"))
+            skill = os.path.join(attacker, self.skill_path("fiat"))
+            os.makedirs(os.path.dirname(ledger), exist_ok=True)
+            with open(ledger, "w", encoding="utf-8") as handle:
+                handle.write(self.ledger("fiat", (9, 9, 9)))
+            with open(skill, "w", encoding="utf-8") as handle:
+                handle.write(self.skill("fiat", (9, 9, 9)))
+            subprocess.run(
+                ["git", "add", "-A"], cwd=attacker, check=True, capture_output=True
+            )
+            subprocess.run(
+                ["git", "commit", "-q", "-m", "substitute repository"],
+                cwd=attacker,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "branch", state["run_branch"]],
+                cwd=attacker,
+                check=True,
+                capture_output=True,
+            )
+
+            study = self.write("study.md", "# Study\n")
+            self.run_ctl("done", "study", "--artifact", study)
+            runbook = self.write(
+                "runbook.md",
+                "# Runbook\n\n"
+                + self.relation_block("fiat")
+                + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+            )
+            steps = self.write("steps.json", '["Build"]')
+            self.env["GIT_DIR"] = os.path.join(attacker, ".git")
+            try:
+                self.run_ctl(
+                    "done", "runbook", "--artifact", runbook,
+                    "--steps-file", steps,
+                )
+            finally:
+                self.env.pop("GIT_DIR", None)
+
+        with open(
+            os.path.join(self.target, ".hexaemeron", "state.json"),
+            encoding="utf-8",
+        ) as handle:
+            relation = self.receipt(json.load(handle))
+        self.assertEqual(relation["anchor_commit"], anchor)
+        self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
+
+    def test_relation_git_ignores_alternate_object_environment(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        self.env["GIT_ALTERNATE_OBJECT_DIRECTORIES"] = os.path.join(
+            self.dir, "absent-object-store"
+        )
+        try:
+            self.run_ctl(
+                "done", "runbook", "--artifact", runbook, "--steps-file", steps
+            )
+        finally:
+            self.env.pop("GIT_ALTERNATE_OBJECT_DIRECTORIES", None)
+
+        relation = self.receipt(self.state())
+        self.assertEqual(relation["anchor_commit"], anchor)
+        self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
+
+    def test_repository_alternate_object_store_refuses_anchor_capture(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.init(base=anchor)
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        alternates = self.git(
+            "rev-parse", "--path-format=absolute", "--git-path",
+            "objects/info/alternates",
+        ).stdout.strip()
+        os.makedirs(os.path.dirname(alternates), exist_ok=True)
+        with tempfile.TemporaryDirectory() as alternate:
+            with open(alternates, "w", encoding="utf-8") as handle:
+                handle.write(alternate + "\n")
+            runbook = self.write(
+                "runbook.md",
+                "# Runbook\n\n"
+                + self.relation_block("fiat")
+                + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+            )
+            steps = self.write("steps.json", '["Build"]')
+            result = self.run_ctl(
+                "done", "runbook", "--artifact", runbook,
+                "--steps-file", steps, expect=2,
+            )
+        self.assertIn("uses an alternate object store", result.stderr)
+
+    def test_shallow_history_refuses_anchor_derivation(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        shallow = self.git(
+            "rev-parse", "--path-format=absolute", "--git-path", "shallow"
+        ).stdout.strip()
+        with open(shallow, "w", encoding="ascii") as handle:
+            handle.write(anchor + "\n")
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps,
+            expect=2,
+        )
+        self.assertIn("starting history is shallow", result.stderr)
+
     def test_no_block_preserves_the_legacy_receipt_and_packet_shape(self):
         _, state = self.receipt_runbook()
         self.assertEqual(
@@ -579,6 +723,36 @@ class VersionRelationTests(HexctlCase):
             self.fail("unbounded decimal label raised instead of refusing")
         self.assertIsNone(parsed)
 
+    def test_decimal_limit_is_independent_of_python_startup_policy(self):
+        huge = "9" * 5000
+        self.install_target("fiat", (huge, 0, 0))
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        before_state = self.state()
+        with open(
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"), "rb"
+        ) as handle:
+            before_ledger = handle.read()
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        self.env["PYTHONINTMAXSTRDIGITS"] = "0"
+        try:
+            result = self.run_ctl(
+                "done", "runbook", "--artifact", runbook,
+                "--steps-file", steps, expect=2,
+            )
+        finally:
+            self.env.pop("PYTHONINTMAXSTRDIGITS", None)
+        self.assertIn("malformed current label", result.stderr)
+        self.assertNotIn(huge, result.stderr)
+        self.assert_unchanged_after_refusal(before_state, before_ledger)
+
     def test_one_bad_target_refuses_the_whole_capture(self):
         self.install_target("fiat")
         self.write(self.skill_path("protasis"), self.skill("protasis", (4, 7, 0)))
@@ -704,6 +878,29 @@ class VersionRelationTests(HexctlCase):
             with self.subTest(command=command):
                 result = self.run_ctl(*command, expect=1)
                 self.assertIn("version relations", result.stderr)
+
+    def test_surrogate_revision_is_a_bounded_state_refusal(self):
+        self.install_target("fiat")
+        self.commit_seed()
+        self.receipt_runbook("fiat")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["receipts"]["runbook"]["version_relations"]["targets"][0][
+            "frontier_revision"
+        ] = "\ud800"
+        with open(state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+        expected = (
+            "state version relations key "
+            "'receipts.runbook.version_relations.targets[0].frontier_revision' "
+            "is malformed"
+        )
+        for command in (("status",), ("next",), ("verify",)):
+            with self.subTest(command=command):
+                result = self.run_ctl(*command, expect=1)
+                self.assertIn(expected, result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":

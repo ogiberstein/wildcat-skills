@@ -204,3 +204,67 @@ object `eeb9fe8f508fe1a316d3cdbcb52dc41b49267ec9` was inconclusive because the
 5,000-digit counter specimen let the known parent `ValueError` register as a
 unittest error. The guard now translates that exact old exception into an
 assertion failure; no product repair changed in response.
+
+## Step 2, round 2 -- 2026-08-25
+
+Non-Solidity correctness round over signed Warden tip
+`30a929065c65b3d41df6a1fb75087acdb7d08d5b`. Three residual findings were
+fixed on the exact Step 2 audit branch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | Relation Git reads still inherited repository-substitution variables. `GIT_DIR` redirected the same branch names to an attacker repository and receipted `fiat-v9.9.9`; `GIT_ALTERNATE_OBJECT_DIRECTORIES` also changed command output, and a repository-local alternate remained admissible. | fixed in this round: relation reads discard inherited `GIT_*` state, disable global and system configuration and lazy fetching, retain fixed argv with `--end-of-options`, and refuse a populated repository alternate before either an exact-start or derived-start read |
+| S2-R2-02 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | A crafted shallow boundary changed the unique merge base from the real run start to an earlier commit, so the controller could anchor the wrong ledger and skill bytes. | fixed in this round: relation capture requires a non-shallow repository before accepting an exact or derived starting commit |
+| S2-R2-03 | low | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | With `PYTHONINTMAXSTRDIGITS=0`, a 5,000-digit label was accepted and persisted instead of receiving the value-free malformed-label refusal. A stored surrogate in `frontier_revision` escaped as a traceback during `status`, `next`, and `verify`. | fixed in this round: ASCII counters have an explicit 128-digit pre-conversion limit and matching stored-state maximum; invalid UTF-8 scalar values reach the stable field-specific refusal without encoding first |
+
+### Evidence
+
+The Warden pre-fix report is
+`tmp/elenchus/fiat-556-step-2-warden-round-2-red.json`, SHA-256
+`1d36cdea1bf33c25e274cfb6412663f5212e99e39d790f86e14432fdfc63b0b0`.
+It records `elenchus.unittest.v1`, 1,089 tests, seven assertion failures, zero
+errors, and zero skips. The fixed-tree report is
+`.elenchus/fiat-556-step-2-warden-round2-final-green.json`, SHA-256
+`29d2a7eed48962b1cae726b225f9441ab935d936200263200052763bce278ac1`.
+It records 1,090 tests with zero failures, errors, or skips.
+
+The fixed tree passes 32 focused relation tests, the 397-test controller and
+Fiat contract gate, and all 350 root tests. Promise Machine reports 14 clean
+plugin copies and 71 of 71 covered promises. Phylax, Ephoros, and Hypomnema
+exit 0 over the complete repository paths. Horos reports that the boundary
+matches the tree. The tracked study remains byte-identical to its receipt at
+SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+the tracked runbook remains byte-identical to its amended receipt at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+All four changed product paths are admitted by Step 2's Files field, and
+`audit/AUDIT.md` remains unchanged.
+
+The prior 12,780-byte audit record is the exact prefix of this append, SHA-256
+`3d60fef2a407c3611d78a649220d1d4d479a7c2b6c677c36ce62eca03f0aa02c`.
+The bounded Sapheneia comparison preserves all three findings, severities,
+counterexamples, paths, hashes, counts, qualifications, statuses, and later
+step boundaries. Imprimatur reports zero defects. Brevitas accepts the new
+round; the complete file retains only its inherited B011 at the two-row Step
+1 findings table.
+
+### Risk register
+
+`anchor-substitution`, `git-object-shape`, `generation-arithmetic`,
+`diagnostic-leak`, and `legacy-state` surfaced S2-R2-01 through S2-R2-03.
+`multi-target-partial` remains green for one, two, partial, reordered, and
+one-bad-target capture. Exact starting-commit reads now cover ref and worktree
+drift, replacement refs, grafts, inherited Git state, repository alternates,
+and shallow history. Top-level `SKILL.md` identity, all anchor fields,
+all-or-nothing state and ledger capture, explicit `resolution: null`, Promise
+declarations, literal-only byte identity, no-block Git silence, and legacy v1
+replay remain green.
+
+Live integration snapshots, frontier and ledger drift, remote failures, sync
+carriage, revalidation coverage, stale or capped resolution history, terminal
+parent races, self-hosted collision, and interrupted resolution belong to
+Steps 3 and 4 and receive no claim here.
+
+Lead not pursued: recomputing every native Git object identity after direct
+object-store corruption. This round refuses the observed substitution paths;
+native object-store integrity remains Git's repository boundary.

@@ -200,6 +200,8 @@ VERSION_RELATIONS_INFO = "version-relations"
 VERSION_RELATION = "next-generation-after-integration-base"
 VERSION_RELATIONS_MAX = 32
 VERSION_RELATION_PATH_BYTES_MAX = 1024
+VERSION_RELATION_COUNTER_DIGITS_MAX = 128
+VERSION_RELATION_COUNTER_MAX = (10 ** VERSION_RELATION_COUNTER_DIGITS_MAX) - 1
 VERSION_RELATION_SKILL_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION_RELATION_FENCE_RE = re.compile(
     r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<info>.*)$"
@@ -856,7 +858,12 @@ def validate_version_relations_shape(value, path: str) -> dict:
         counters = []
         for name in ("evolution", "generation", "epoch"):
             counter = target.get(name)
-            if not isinstance(counter, int) or isinstance(counter, bool) or counter < 0:
+            if (
+                not isinstance(counter, int)
+                or isinstance(counter, bool)
+                or counter < 0
+                or counter > VERSION_RELATION_COUNTER_MAX
+            ):
                 _state_relation_fault(f"{target_path}.{name}", "is malformed")
             counters.append(counter)
         expected_label = f"{skill}-v{counters[0]}.{counters[1]}.{counters[2]}"
@@ -870,10 +877,16 @@ def validate_version_relations_shape(value, path: str) -> dict:
         if target.get("frontier_status") not in ("open", "mature"):
             _state_relation_fault(f"{target_path}.frontier_status", "is malformed")
         revision = target.get("frontier_revision")
+        try:
+            revision_bytes = (
+                revision.encode("utf-8") if isinstance(revision, str) else b""
+            )
+        except UnicodeEncodeError:
+            revision_bytes = b""
         if (
             not isinstance(revision, str)
-            or not revision
-            or len(revision.encode("utf-8")) > VERSION_RELATION_PATH_BYTES_MAX
+            or not revision_bytes
+            or len(revision_bytes) > VERSION_RELATION_PATH_BYTES_MAX
             or _contains_nonprinting_character(revision)
         ):
             _state_relation_fault(f"{target_path}.frontier_revision", "is malformed")
@@ -1707,11 +1720,16 @@ def ledger_frontier_digest(text: str) -> str | None:
 
 
 def _label_parts(label: str, skill: str) -> tuple[int, int, int] | None:
-    match = re.fullmatch(rf"{re.escape(skill)}-v(\d+)\.(\d+)\.(\d+)", label)
+    match = re.fullmatch(
+        rf"{re.escape(skill)}-v([0-9]+)\.([0-9]+)\.([0-9]+)", label
+    )
     if match is None:
         return None
+    groups = match.groups()
+    if any(len(group) > VERSION_RELATION_COUNTER_DIGITS_MAX for group in groups):
+        return None
     try:
-        return tuple(int(group) for group in match.groups())
+        return tuple(int(group) for group in groups)
     except ValueError:
         # Python bounds decimal-to-integer conversion. Treat a label beyond that
         # bound as malformed input instead of letting its exception escape with
@@ -1857,7 +1875,7 @@ def parse_version_relation_source(text: str) -> dict | None:
     for skill in sorted(seen_skills):
         token = re.compile(
             rf"(?<![A-Za-z0-9-]){re.escape(skill)}-v"
-            rf"\d+\.\d+\.\d+(?![A-Za-z0-9-])"
+            rf"[0-9]+\.[0-9]+\.[0-9]+(?![A-Za-z0-9-])"
         )
         if token.search(outside):
             die(
@@ -1874,18 +1892,34 @@ def parse_version_relation_source(text: str) -> dict | None:
 def _native_relation_git(
     base_dir: str, argv: list[str], refusal: str
 ) -> bytes:
-    """Read native Git objects without allowing local replacement refs."""
-    return bounded_git(
+    """Read native local objects without inherited Git substitution state."""
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_NO_LAZY_FETCH": "1",
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    return bounded_tool(
         base_dir,
+        "git",
         ["--no-replace-objects", *argv],
         refusal,
+        environment=environment,
     )
 
 
 def _native_relation_commit(base_dir: str, ref: str, label: str) -> str:
     raw = _native_relation_git(
         base_dir,
-        ["rev-parse", "--verify", f"{ref}^{{commit}}"],
+        ["rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
         f"{label} does not resolve to a native commit",
     )
     try:
@@ -1898,36 +1932,67 @@ def _native_relation_commit(base_dir: str, ref: str, label: str) -> str:
 
 
 def _require_native_relation_history(base_dir: str) -> None:
-    """Refuse ancestry rewritten by a graft before deriving a branch point."""
+    """Refuse local object and ancestry substitutions before a branch point."""
     if "GIT_GRAFT_FILE" in os.environ:
         die("version relation starting history is rewritten by a graft")
-    raw = _native_relation_git(
+    local_substitutions = (
+        (
+            "info/grafts",
+            "graft",
+            "version relation starting history is rewritten by a graft",
+        ),
+        (
+            "objects/info/alternates",
+            "alternate object store",
+            "version relation repository uses an alternate object store",
+        ),
+    )
+    for git_path, label, populated_refusal in local_substitutions:
+        raw = _native_relation_git(
+            base_dir,
+            ["rev-parse", "--path-format=absolute", "--git-path", git_path],
+            f"version relation {label} state cannot be located",
+        )
+        try:
+            lines = raw.decode("utf-8").splitlines()
+            encoded_path = lines[0].encode("utf-8") if len(lines) == 1 else b""
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            lines = []
+            encoded_path = b""
+        if (
+            len(lines) != 1
+            or not os.path.isabs(lines[0])
+            or not encoded_path
+            or len(encoded_path) > 4096
+        ):
+            die(f"version relation {label} path is malformed")
+        try:
+            candidate = os.lstat(lines[0])
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError):
+            die(f"version relation {label} state cannot be read")
+        if not stat.S_ISREG(candidate.st_mode) or candidate.st_size:
+            die(populated_refusal)
+
+    shallow = _native_relation_git(
         base_dir,
-        ["rev-parse", "--path-format=absolute", "--git-path", "info/grafts"],
-        "version relation graft state cannot be located",
+        ["rev-parse", "--is-shallow-repository"],
+        "version relation shallow state cannot be read",
     )
     try:
-        lines = raw.decode("utf-8").splitlines()
+        shallow_state = shallow.decode("ascii").strip()
     except UnicodeDecodeError:
-        lines = []
-    if (
-        len(lines) != 1
-        or not os.path.isabs(lines[0])
-        or len(lines[0].encode("utf-8")) > 4096
-    ):
-        die("version relation graft path is malformed")
-    try:
-        graft = os.lstat(lines[0])
-    except FileNotFoundError:
-        return
-    except (OSError, ValueError):
-        die("version relation graft state cannot be read")
-    if not stat.S_ISREG(graft.st_mode) or graft.st_size:
-        die("version relation starting history is rewritten by a graft")
+        shallow_state = ""
+    if shallow_state == "true":
+        die("version relation starting history is shallow")
+    if shallow_state != "false":
+        die("version relation shallow state is malformed")
 
 
 def relation_anchor_commit(base_dir: str, state: dict) -> str:
     """The immutable branch point the run started from, using native local refs."""
+    _require_native_relation_history(base_dir)
     starting = state.get("base")
     if isinstance(starting, str) and COMMIT_RE.fullmatch(starting):
         return _native_relation_commit(
@@ -1937,7 +2002,6 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
     if not isinstance(run_branch, str) or not run_branch:
         die("version relations require the run's integration branch")
     base_branch = integration_base_of(state)
-    _require_native_relation_history(base_dir)
     run_head = _native_relation_commit(
         base_dir, run_branch, "version relation run branch"
     )
@@ -2062,7 +2126,7 @@ def _skill_frontmatter_identity(text: str, skill: str) -> str:
         body.append(line)
     versions = []
     for line in body:
-        match = re.fullmatch(r'  version: "(\d+\.\d+\.\d+)"', line)
+        match = re.fullmatch(r'  version: "([0-9]+\.[0-9]+\.[0-9]+)"', line)
         if match is not None:
             versions.append(match.group(1))
     if len(versions) != 1:
@@ -5098,7 +5162,13 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
+def bounded_run(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    *,
+    environment: dict[str, str] | None = None,
+) -> tuple[int, bytes]:
     """Run one fixed-argv tool and return its status and output.
 
     The reader itself: no shell, a hard timeout, a hard output cap, and nothing
@@ -5115,6 +5185,7 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=False,
+            env=environment,
         )
     except OSError as exc:
         die(f"{operation} could not start")
@@ -5159,9 +5230,13 @@ def bounded_tool(
     program: str,
     argv: list[str],
     refusal: str | None = None,
+    *,
+    environment: dict[str, str] | None = None,
 ) -> bytes:
     """Run one fixed-argv tool without exposing its output in failures."""
-    returncode, output = bounded_run(base_dir, program, argv)
+    returncode, output = bounded_run(
+        base_dir, program, argv, environment=environment
+    )
     if returncode != 0:
         if refusal is not None:
             die(refusal)
