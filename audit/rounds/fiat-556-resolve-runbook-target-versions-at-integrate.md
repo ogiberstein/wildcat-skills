@@ -624,3 +624,129 @@ chain, and coordinate matching ref and object substitutions. Hash chaining
 detects partial or accidental edits; without an external signed anchor it does
 not prove the local evidence store survived a malicious complete rewrite. That
 physical-storage trust boundary is unchanged and receives no stronger claim.
+
+## Step 2, round 7 -- 2026-08-25
+
+Non-Solidity correctness audit over signed audit tip
+`9b1cc58885a8bff3f31d3f2c9f80d576fe66c2bb` found two defects in the native
+init-anchor path. Their signed repair is
+`f990e1119f01628c52354549e65390231c399732`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R7-01 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | Init and relation capture unconditionally read native `HEAD` and run-branch reflogs. A repository with `core.logAllRefUpdates=false` therefore failed `init` with a malformed branch-creation-history diagnostic, including a runbook with no version relation block, even though the hash-chained init event already supplies the immutable start. | fixed in this round: init brackets direct `HEAD` and checked-out branch reads, while later relation capture derives the merge base from stable run and base refs and requires it to equal the hash-chained init starting commit; neither path requires a reflog |
+| S2-R7-02 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | The relation receipt validator, init-evidence reader, and merge-base reader each required exactly 40 hexadecimal characters. Git repositories using SHA-256 object IDs could initialize, but relation receipt capture stopped with a malformed init-starting-commit diagnostic instead of accepting the controller's otherwise supported 64-character commit identity. | fixed in this round: every relation commit boundary uses the controller's existing closed 40-or-64-character `COMMIT_RE`, with a real SHA-256 repository guard across capture, receipt replay, `status`, `next`, and `verify` |
+
+### Evidence
+
+The first causal report is
+`.elenchus/fiat-556-step-2-warden-round7-red.json`, SHA-256
+`252309be916b09c4024755805ba4519cba2abb92776caa33e2931d8c8b551539`.
+It records `elenchus.unittest.v1`, 1,104 tests, two assertion failures, zero
+errors, and zero skips against the signed audit tip. The two specimens disable
+`core.logAllRefUpdates`: one carries a version relation block and one uses the
+legacy no-block runbook. Both stop at `init` with `version relation run branch
+creation history is malformed`; neither writes a state receipt.
+
+A third reduced specimen creates a real repository with `git init
+--object-format=sha256`, records a valid governed target, and follows the
+ordinary study and runbook receipts. Before the complete repair, `done
+runbook` stopped with `version relation init starting commit is missing or
+malformed`. Its native starting commit is 64 hexadecimal characters. This
+isolates the closed object-ID assumption from reflog availability.
+
+Elenchus reports `guarded` for signed repair candidate
+`f990e1119f01628c52354549e65390231c399732` against exact parent
+`9b1cc58885a8bff3f31d3f2c9f80d576fe66c2bb`. Its detached-parent replay ran
+1,105 tests with four assertion failures, zero errors, and zero skips: the
+three new regression guards and the existing base-rewind guard whose expected
+diagnostic changed from the removed branch-creation proof to the init-starting
+commit proof. The repaired tree runs all 47 focused relation cases, the prior
+44 plus those three guards, with zero failures.
+
+The repaired-tree report is
+`.elenchus/fiat-556-step-2-warden-round7-final-green.json`, SHA-256
+`8474a72c8712c76676d5fb2bc82a76a548ab7e74fa7930f32f696c2203924b93`.
+It records 1,105 tests with zero failures, errors, or skips. The controller and
+Fiat contract selection runs 397 tests, and the root suite runs 350 tests,
+all green. All 16 non-Solidity suite commands in `AGENTS.md` are green:
+Alexandria ran 255 tests; Ariadne 632 with six skips; Berean 151 with one skip;
+Brevitas 21; Hermes 72; Hexaemeron 1,105; Imprimatur 62; Horos 217; Lazarus
+364; Pandects 116; Probitas 276; Sapheneia 11; and Tabularium 134. Both Lemma
+runners report zero failures; the Solidity runner leaves its compiler cases
+skipped without `--solc`. Lazarus ran under its pinned Python 3.13 lockfile
+runtime because the system Python lacks its declared third-party packages.
+
+The inherited root HTTP fixture cleanup `ResourceWarning`s, the controller
+fixture's unclosed `EVOLUTION.md` `ResourceWarning` at `test_hexctl.py:5537`,
+and the Pandects catalogue `ResourceWarning` at `test_search_record.py:46`
+remain non-failing. Promise
+Machine reports 14 clean plugin copies and 71 of 71 covered promises after the
+six controller digest bindings were updated to
+`bfcbac780719f26f2a10132721dd30c4bb6662d2d5b673189a852e40a16afe2f`.
+Phylax, Ephoros, and Hypomnema each exit 0. Horos reports that the boundary
+matches the 1,542-file tree with 100 entries and 29 candidates. Python
+compilation, JSON parsing, and `git diff --check` are clean.
+
+The receipted and tracked study copies remain byte-identical at SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+the receipted and tracked runbook copies remain byte-identical at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+Protasis accepts both source and tracked copies. All five relative study links
+resolve from the tracked study, the misplaced plugin-local study path remains
+absent, and `audit/AUDIT.md` remains unchanged from the Step 1 tip.
+
+The prior 41,539-byte audit record is the exact prefix of this round, SHA-256
+`ab8fead61860a20643162e61a4f853f7893f73dc2d9cad562602a286177a58e2`.
+The bounded Sapheneia comparison preserves both findings, severities,
+counterexamples, paths, hashes, counts, warnings, statuses, scope exclusions,
+and the unpursued lead. Its audit heading, findings table, evidence, risk
+register, scope boundary, and lead boundary are present. Imprimatur scores the
+complete record 100.0 out of 100 with zero defects. Brevitas reports four B011
+table-shape diagnostics: the prior two-row Step 1 table, the prior one-row Step
+2 round 5 and round 6 tables, and this required two-row findings table.
+Removing a required findings table or inventing rows would break the audit-loop
+schema.
+
+### Risk register
+
+`anchor-substitution`, `literal-compatibility`, `legacy-state`,
+`git-object-shape`, and `receipt-replay` surfaced S2-R7-01 and S2-R7-02. Init
+now records the exact directly read `HEAD` commit in the first hash-chained
+event without requiring reflogs. Relation capture brackets repository identity,
+history state, run ref, base ref, and merge base, then requires the sole derived
+anchor to equal that init commit. A later ref or reflog mutation cannot select
+a different anchor. Legitimate base advancement remains accepted; base rewind,
+run-ref recreation, repository replacement, shallow or substituted history,
+and ambiguous ancestry remain refused with bounded value-free diagnostics.
+
+Repository identity, full-history state, commit object shape, exact target blob
+path, type, bytes, text, and metadata remain coherent before and after capture.
+The same closed 40-or-64-character commit grammar governs init evidence,
+capture, stored receipt shape, recovery, and replay. One- and multi-target
+projection, all-or-nothing state and ledger recovery, receipt replay, and
+deterministic `status`, `next`, and worker packets remain green.
+
+The legacy v1 fixture still replays. A no-block runbook retains its exact
+legacy receipt and directive shapes. After init, `done runbook`, `status`, and
+`next` make no version Git read when no relation block exists. Disabling native
+reflogs changes neither relation-bearing nor no-block behavior, apart from
+removing the former false refusal.
+
+`diagnostic-leak` and `promise-overclaim` were rechecked. Refusals name only
+the bounded evidence class and do not echo repository paths, refs, commit IDs,
+or blob contents. Promise bindings name the hash-chained init evidence and
+optional relation reconstruction without claiming that local storage is an
+external trust anchor.
+
+Live integration snapshots, frontier and ledger drift, remote failures, sync
+carriage, resolution receipt recovery, stale or capped resolution history,
+terminal parent races, and the self-hosted collision remain Steps 3 and 4 and
+receive no Step 2 claim.
+
+Leads not pursued: a process with direct write access to both controller
+storage and Git internals can rewrite the init event, recompute the complete
+local hash chain, and coordinate matching ref and object substitutions. Hash
+chaining detects partial or accidental edits; without an external signed
+anchor it does not prove that local evidence survived a malicious complete
+rewrite. No operating-system lock or external storage guarantee is claimed.
