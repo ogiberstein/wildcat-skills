@@ -115,6 +115,22 @@ ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive")
 AUDIT_FILTER = "sapheneia:sapheneia"
 """The exact bounded audit-record pass every new round declares."""
 
+AUDIT_RECORD_SCHEMAS = (
+    "fiat-audit-round/v1",
+    "fiat-audit-round/v2",
+)
+AUDIT_RECORD_SCHEMA = AUDIT_RECORD_SCHEMAS[-1]
+AUDIT_COVERAGE_VALUES = ("reviewed", "not-applicable")
+AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
+AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
+AUDIT_ZERO_FINDING_ROW = "| -- | -- | -- | none | -- |"
+AUDIT_TIMESTAMP_RE = re.compile(
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", re.ASCII
+)
+AUDIT_OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
+AUDIT_PHYSICAL_LINE_BYTES_MAX = 1024 * 1024
+AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX = 4096
+
 
 def elenchus_verdict_obligation() -> dict:
     """Describe the conditional audit-round input without claiming it was run."""
@@ -198,9 +214,14 @@ _OBSERVATION_VALIDATOR = None
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
     """Resolve one path and refuse anything outside the target directory."""
-    root = os.path.realpath(base_dir)
-    candidate = supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
-    resolved = os.path.realpath(candidate)
+    try:
+        root = os.path.realpath(base_dir)
+        candidate = (
+            supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
+        )
+        resolved = os.path.realpath(candidate)
+    except (OSError, TypeError, ValueError):
+        die(f"{label} is not a valid filesystem path")
     try:
         inside = os.path.commonpath((root, resolved)) == root
     except ValueError:
@@ -558,6 +579,170 @@ def decoded_source(data: bytes, label: str) -> str:
         die(f"{label} is not UTF-8 text")
 
 
+def read_configured_audit_log(
+    base_dir: str, configured: str, supplied: str | None
+) -> tuple[str, bytes]:
+    """Read the one configured log without following aliases or symlinks."""
+    if not isinstance(configured, str) or not configured:
+        die("audit config has no log_path")
+    root = os.path.realpath(base_dir)
+    configured_path = scoped_path(root, configured, "audit log path")
+    lexical = os.path.abspath(
+        configured if os.path.isabs(configured) else os.path.join(root, configured)
+    )
+    if supplied is not None:
+        supplied_lexical = os.path.abspath(
+            supplied if os.path.isabs(supplied) else os.path.join(root, supplied)
+        )
+        supplied_path = scoped_path(root, supplied, "supplied audit log path")
+        if supplied_lexical != lexical:
+            die("--log must name the configured audit log path")
+        if supplied_path != supplied_lexical:
+            die("supplied audit log path traverses a symlink")
+    if lexical != configured_path:
+        die("audit log path traverses a symlink")
+    try:
+        info = os.lstat(lexical)
+    except OSError:
+        die("audit log path is not a regular file")
+    if stat.S_ISLNK(info.st_mode):
+        die("audit log path is a symlink")
+    if not stat.S_ISREG(info.st_mode):
+        die("audit log path is not a regular file")
+
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    directory_only = getattr(os, "O_DIRECTORY", 0)
+    non_blocking = getattr(os, "O_NONBLOCK", 0)
+    if (
+        not no_follow
+        or not directory_only
+        or not non_blocking
+        or not AUDIT_OPEN_SUPPORTS_DIR_FD
+    ):
+        die("platform cannot safely read the configured audit log")
+    close_exec = getattr(os, "O_CLOEXEC", 0)
+    directory_flags = (
+        os.O_RDONLY | close_exec | no_follow | directory_only
+    )
+    file_flags = os.O_RDONLY | close_exec | no_follow | non_blocking
+    relative = os.path.relpath(lexical, root)
+    components = relative.split(os.sep)
+    directory_descriptor = None
+    file_descriptor = None
+    try:
+        directory_descriptor = os.open(root, directory_flags)
+        if not stat.S_ISDIR(os.fstat(directory_descriptor).st_mode):
+            die("target directory is not a regular directory")
+        for component in components[:-1]:
+            next_descriptor = None
+            try:
+                next_descriptor = os.open(
+                    component, directory_flags, dir_fd=directory_descriptor
+                )
+                if not stat.S_ISDIR(os.fstat(next_descriptor).st_mode):
+                    die("audit log path has a non-directory component")
+                os.close(directory_descriptor)
+                directory_descriptor = next_descriptor
+                next_descriptor = None
+            finally:
+                if next_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(next_descriptor)
+        file_descriptor = os.open(
+            components[-1], file_flags, dir_fd=directory_descriptor
+        )
+        handle = os.fdopen(file_descriptor, "rb")
+        file_descriptor = None
+        with handle:
+            opened = os.fstat(handle.fileno())
+            if not stat.S_ISREG(opened.st_mode):
+                die("audit log path is not a regular file")
+            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                die("audit log path changed during access")
+            data = handle.read(SOURCE_BYTES_MAX + 1)
+            finished = os.fstat(handle.fileno())
+            opened_identity = (
+                opened.st_dev,
+                opened.st_ino,
+                opened.st_size,
+                opened.st_mtime_ns,
+                opened.st_ctime_ns,
+            )
+            finished_identity = (
+                finished.st_dev,
+                finished.st_ino,
+                finished.st_size,
+                finished.st_mtime_ns,
+                finished.st_ctime_ns,
+            )
+            current_directory_descriptor = None
+            current_file_descriptor = None
+            try:
+                current_directory_descriptor = os.open(root, directory_flags)
+                for component in components[:-1]:
+                    next_descriptor = None
+                    try:
+                        next_descriptor = os.open(
+                            component,
+                            directory_flags,
+                            dir_fd=current_directory_descriptor,
+                        )
+                        os.close(current_directory_descriptor)
+                        current_directory_descriptor = next_descriptor
+                        next_descriptor = None
+                    finally:
+                        if next_descriptor is not None:
+                            with contextlib.suppress(OSError):
+                                os.close(next_descriptor)
+                current_file_descriptor = os.open(
+                    components[-1],
+                    file_flags,
+                    dir_fd=current_directory_descriptor,
+                )
+                current_directory = os.fstat(current_directory_descriptor)
+                current_file = os.fstat(current_file_descriptor)
+            except OSError:
+                die("audit log path changed during read")
+            finally:
+                if current_file_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(current_file_descriptor)
+                if current_directory_descriptor is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(current_directory_descriptor)
+            if opened_identity != finished_identity or (
+                len(data) <= SOURCE_BYTES_MAX and len(data) != finished.st_size
+            ) or (
+                (current_directory.st_dev, current_directory.st_ino)
+                != (
+                    os.fstat(directory_descriptor).st_dev,
+                    os.fstat(directory_descriptor).st_ino,
+                )
+            ) or (
+                finished_identity
+                != (
+                    current_file.st_dev,
+                    current_file.st_ino,
+                    current_file.st_size,
+                    current_file.st_mtime_ns,
+                    current_file.st_ctime_ns,
+                )
+            ):
+                die("audit log path changed during read")
+    except OSError:
+        die("audit log path cannot be read")
+    finally:
+        if file_descriptor is not None:
+            with contextlib.suppress(OSError):
+                os.close(file_descriptor)
+        if directory_descriptor is not None:
+            with contextlib.suppress(OSError):
+                os.close(directory_descriptor)
+    if len(data) > SOURCE_BYTES_MAX:
+        die(f"audit log path exceeds {SOURCE_BYTES_MAX}-byte cap")
+    return relative.replace(os.sep, "/"), data
+
+
 def plugin_root() -> str:
     return os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
@@ -565,6 +750,56 @@ def plugin_root() -> str:
 def die(msg: str, code: int = 2) -> None:
     print(f"hexctl: error: {msg}", file=sys.stderr)
     sys.exit(code)
+
+
+def refuse_audit_renderer(message) -> None:
+    """Emit one bounded ASCII renderer refusal, then return code 2.
+
+    The renderer is executable input to this controller. Its declared errors and
+    the diagnostic stream can both fail while a receipt is being refused, so this
+    boundary cannot delegate formatting or the final exit status to either one.
+    KeyboardInterrupt and GeneratorExit remain process-level interrupts.
+    """
+    prefix = b"hexctl: error: "
+    fallback = "audit synopsis renderer validation failed"
+    payload_bytes_max = AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX - len(prefix) - 1
+    try:
+        rendered = str(message)
+        if not rendered or len(rendered) > AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX:
+            escaped = fallback
+        else:
+            escaped = rendered.encode("unicode_escape").decode("ascii")
+            if len(escaped) > payload_bytes_max:
+                escaped = fallback
+    except (Exception, SystemExit):
+        escaped = fallback
+    frame = prefix + escaped.encode("ascii") + b"\n"
+    try:
+        binary_stderr = getattr(sys.stderr, "buffer", None)
+    except (Exception, SystemExit):
+        binary_stderr = None
+    try:
+        if binary_stderr is None:
+            sys.stderr.write(frame.decode("ascii"))
+        else:
+            remaining = frame
+            while remaining:
+                written = binary_stderr.write(remaining)
+                if (
+                    isinstance(written, bool)
+                    or not isinstance(written, int)
+                    or written <= 0
+                    or written > len(remaining)
+                ):
+                    break
+                remaining = remaining[written:]
+            if not remaining:
+                flush = getattr(binary_stderr, "flush", None)
+                if callable(flush):
+                    flush()
+    except (Exception, SystemExit):
+        pass
+    raise SystemExit(2)
 
 
 def canonical(obj) -> str:
@@ -671,10 +906,15 @@ def task_issue_number(value: str) -> str:
     return match.group(1)
 
 
-def check_branch_name(name: str) -> None:
+def branch_name_ok(name: str) -> bool:
+    """Whether one string satisfies the conservative refname subset above."""
     if not BRANCH_RE.match(name) or ".." in name or "//" in name:
-        die(f"'{name}' is not a usable branch name")
-    if name.endswith(".lock"):
+        return False
+    return not name.endswith(".lock")
+
+
+def check_branch_name(name: str) -> None:
+    if not branch_name_ok(name):
         die(f"'{name}' is not a usable branch name")
 
 
@@ -1385,6 +1625,14 @@ def cmd_init(args) -> None:
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
+    waiver = None
+    if args.controller_currency_waiver is not None:
+        waiver = args.controller_currency_waiver.strip()
+        if not waiver:
+            die(
+                "--controller-currency-waiver needs a reason; an empty one "
+                "records nothing"
+            )
     prefix = DEFAULT_CONFIG["git"]["run_branch_prefix"]
     issue_number = (
         task_issue_number(args.task_issue) if args.task_issue is not None else None
@@ -1439,6 +1687,31 @@ def cmd_init(args) -> None:
     worktree = check_worktree_path(repo_root, candidate)
     refuse_checked_out_branch(args.dir, run_branch)
 
+    # The currency observation is the last pre-mutation check because it is
+    # the only one that may wait on the network: every cheaper refusal has
+    # already had its chance. A proven-behind controller stops the run here,
+    # while a refusal still costs nothing; anything the observation could not
+    # prove proceeds as `unknown` with the nulls recorded rather than guessed.
+    currency = observe_controller_currency()
+    if currency["verdict"] == "behind" and waiver is None:
+        die(
+            "controller currency: this controller's recorded pin "
+            f"{currency['pin']} differs from the observed upstream head "
+            f"{currency['observed_head']}. Either re-pin the plugin through "
+            "this host's own installer (references/plugin-currency.md), or "
+            "rerun init with --controller-currency-waiver '<reason>' to "
+            "proceed with the gap recorded.",
+            1,
+        )
+    if currency["verdict"] == "unknown":
+        print(
+            "hexctl: warning: controller currency is unknown "
+            f"({currency['warning']}); the run starts anyway and its receipt "
+            "records the nulls rather than a verdict.",
+            file=sys.stderr,
+        )
+    provenance = {**currency, "waiver": waiver}
+
     home = os.path.dirname(worktree)
     os.makedirs(home, exist_ok=True)
     # Self-ignoring, the same trick the state directory uses. Without it the
@@ -1474,7 +1747,7 @@ def cmd_init(args) -> None:
         remove_run_worktree(args.dir, worktree)
         die(f"could not write the run's state into {root}")
 
-    receipts = {}
+    receipts = {"controller_currency": provenance}
     if args.task_issue is not None:
         receipts["task_issue"] = args.task_issue
 
@@ -1496,7 +1769,12 @@ def cmd_init(args) -> None:
     state["config"]["audit"]["log_path"] = run_audit_log_path(run_branch)
     state["worktree"] = worktree
     state["origin"] = origin_root
-    init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
+    init_data = {
+        "topic": args.topic,
+        "base": args.base,
+        "run_branch": run_branch,
+        "controller_currency": provenance,
+    }
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
     try:
@@ -1846,6 +2124,402 @@ def stale_controller(target_dir: str) -> tuple[str, str, str] | None:
     return None
 
 
+CURRENCY_REGISTRY_FILE = "installed_plugins.json"
+CURRENCY_REGISTRY_MAX = 1024 * 1024
+CURRENCY_CACHE_DIR = "cache"
+CURRENCY_MARKETPLACES_DIR = "marketplaces"
+"""The host install layout the currency observation reads, never assumes.
+
+`<plugins root>/installed_plugins.json` records every install;
+`<plugins root>/cache/<marketplace>/<plugin>/<version>/` holds the running
+copy; `<plugins root>/marketplaces/<marketplace>/` is the git clone whose own
+configuration names the upstream. The plugins root is derived from the
+controller's resolved file, so no environment or target-repository value
+chooses what gets read.
+"""
+
+
+def currency_inside_git_worktree(start_dir: str) -> bool:
+    """Whether a directory has a `.git` somewhere above it."""
+    current = start_dir
+    while True:
+        if os.path.exists(os.path.join(current, ".git")):
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
+
+
+def currency_cache_split(real_file: str) -> tuple[str, str] | None:
+    """The (plugins root, marketplace) a cached controller file sits under.
+
+    The nearest ancestor named `cache` with marketplace, plugin and version
+    components between it and the file decides; None means the file is not
+    under an install cache and the in-repo check applies instead.
+    """
+    parts = real_file.split(os.sep)
+    for index in range(len(parts) - 5, 0, -1):
+        if parts[index] != CURRENCY_CACHE_DIR:
+            continue
+        if all(parts[index + 1:index + 4]):
+            return os.sep.join(parts[:index]), parts[index + 1]
+    return None
+
+
+def currency_registry_load(plugins_root: str) -> tuple[str, dict | str]:
+    """The host registry's plugins mapping, read once and bounded.
+
+    Returns ("ok", plugins) or ("unknown", warning) when the registry cannot
+    answer at all: missing, oversized, malformed, or the wrong kind. Hostile
+    bytes are named by kind, never echoed.
+    """
+    path = os.path.join(plugins_root, CURRENCY_REGISTRY_FILE)
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read(CURRENCY_REGISTRY_MAX + 1)
+    except OSError:
+        return "unknown", "registry-missing"
+    if len(raw) > CURRENCY_REGISTRY_MAX:
+        return "unknown", "registry-oversized"
+    try:
+        registry = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return "unknown", "registry-malformed"
+    plugins = registry.get("plugins") if isinstance(registry, dict) else None
+    if not isinstance(plugins, dict):
+        return "unknown", "registry-wrong-kind"
+    return "ok", plugins
+
+
+def currency_record_pin(record: dict) -> tuple[str, str | None]:
+    """One install record's pin answer.
+
+    ("pin", sha) when the record carries a commit SHA, ("absent", None) when
+    it carries none, and ("unknown", "registry-pin-malformed") for anything
+    else, because a pin that is not a commit is hostile input, not a null.
+    """
+    pin = record.get("gitCommitSha")
+    if pin is None:
+        return "absent", None
+    if isinstance(pin, str) and COMMIT_RE.fullmatch(pin):
+        return "pin", pin
+    return "unknown", "registry-pin-malformed"
+
+
+def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str | None]:
+    """The pin the host registry records for the install holding one file.
+
+    Returns ("pin", sha) when the matching install records a commit SHA,
+    ("absent", None) when it records none, and ("unknown", warning) when the
+    registry cannot answer: missing, oversized, malformed, wrong kind, no
+    install path holding the file, or a pin that is not a commit SHA.
+    """
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return "unknown", plugins
+    for records in plugins.values():
+        if not isinstance(records, list):
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            install_path = record.get("installPath")
+            if not isinstance(install_path, str) or not install_path:
+                continue
+            prefix = os.path.join(os.path.realpath(install_path), "")
+            if not real_file.startswith(prefix):
+                continue
+            return currency_record_pin(record)
+    return "unknown", "registry-unmatched"
+
+
+def currency_clone_branch(clone_dir: str) -> str | None:
+    """The branch name a marketplace clone's HEAD points at, or None."""
+    try:
+        with open(os.path.join(clone_dir, ".git", "HEAD"),
+                  encoding="utf-8") as handle:
+            head = handle.read(4096).strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    branch = head.removeprefix("ref: refs/heads/")
+    if branch == head or not branch_name_ok(branch):
+        return None
+    return branch
+
+
+def currency_remote_head(clone_dir: str, branch: str) -> tuple[str | None, str | None]:
+    """One bounded upstream observation: the clone's origin head for a branch.
+
+    Runs inside the marketplace clone and names the remote rather than a URL,
+    so only the clone's own configuration can choose where the read goes, and
+    no URL passes through this controller at all. Credential prompts are
+    disabled; the read is time-capped and output-capped by `bounded_probe`.
+    Returns (head, None), or (None, warning) for anything but exactly one
+    well-formed ref line -- a failed read is never a verdict.
+    """
+    expected_ref = f"refs/heads/{branch}"
+    status, output, failure = bounded_probe(
+        clone_dir,
+        "git",
+        ["ls-remote", "--refs", "origin", expected_ref],
+        extra_env={"GIT_TERMINAL_PROMPT": "0"},
+    )
+    if failure is not None:
+        return None, f"remote-{failure}"
+    if status != 0:
+        return None, "remote-failed"
+    try:
+        text = output.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, "remote-malformed"
+    lines = [line for line in text.splitlines() if line]
+    if len(lines) != 1:
+        return None, "remote-malformed"
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        return None, "remote-malformed"
+    return fields[0], None
+
+
+def observe_controller_currency(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> dict:
+    """Resolve the running controller's own file to route, pin and upstream head.
+
+    The one observation `init` gates on. Every input is observed rather than
+    assumed: the plugins root and marketplace come from the controller's own
+    resolved path, the pin from the host registry beside that root, and the
+    upstream head from one bounded read inside the marketplace clone, on the
+    git-backed route only. Whatever the observation cannot prove reads as an
+    explicit null and, where it blocks a verdict, as `unknown` with a named
+    warning -- never a guess toward `current` or `behind`.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    observation = {
+        "ledger_version": ledger_version(
+            os.path.join(os.path.dirname(real), os.pardir, "EVOLUTION.md")
+        ),
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
+    split = currency_cache_split(real)
+    if split is None:
+        if currency_inside_git_worktree(os.path.dirname(real)):
+            observation["route"] = "in-repo-source"
+            observation["verdict"] = "no-pin"
+        else:
+            observation["warning"] = "route-unresolved"
+        return observation
+    plugins_root, marketplace = split
+    kind, value = currency_registry_pin(plugins_root, real)
+    observation.update(
+        currency_pin_observation(plugins_root, marketplace, kind, value,
+                                 remote_reader)
+    )
+    return observation
+
+
+def currency_pin_observation(
+    plugins_root: str,
+    marketplace: str,
+    kind: str,
+    value: str | None,
+    remote_reader,
+) -> dict:
+    """Route, pin, head, verdict and warning for one registry pin answer.
+
+    The shared tail of the init gate and the `currency` report: `kind` and
+    `value` come from the registry ("pin", "absent" or "unknown"), and
+    everything past them is observed from the marketplace clone under the
+    same plugins root. A recorded pin makes the install git-backed even when
+    the marketplace clone is gone: claiming `managed` there would let one
+    deleted directory silence the gate without a warning (S2-R1-02). The pin
+    stays recorded, the head stays an explicit null, and the verdict stays
+    `unknown`.
+    """
+    observation = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
+    if kind == "unknown":
+        observation["warning"] = value
+        return observation
+    if kind == "absent":
+        observation["route"] = "managed"
+        observation["verdict"] = "managed"
+        return observation
+    observation["route"] = "git-backed"
+    observation["pin"] = value
+    clone = os.path.join(plugins_root, CURRENCY_MARKETPLACES_DIR, marketplace)
+    if not os.path.exists(os.path.join(clone, ".git")):
+        observation["warning"] = "clone-missing"
+        return observation
+    branch = currency_clone_branch(clone)
+    if branch is None:
+        observation["warning"] = "clone-head-unreadable"
+        return observation
+    head, warning = remote_reader(clone, branch)
+    if head is None:
+        observation["warning"] = warning or "remote-failed"
+        return observation
+    observation["observed_head"] = head
+    observation["verdict"] = "current" if head == value else "behind"
+    return observation
+
+
+def currency_record_marketplace(plugins_root: str, record: dict) -> str | None:
+    """The marketplace directory an install record sits under, or None.
+
+    Observed from the record's install path relative to the same plugins
+    root the controller derived from its own file, so a hostile registry
+    entry cannot point the clone read outside that root.
+    """
+    install_path = record.get("installPath")
+    if not isinstance(install_path, str) or not install_path:
+        return None
+    real = os.path.realpath(install_path)
+    prefix = os.path.join(plugins_root, CURRENCY_CACHE_DIR, "")
+    if not real.startswith(prefix):
+        return None
+    return real[len(prefix):].split(os.sep, 1)[0] or None
+
+
+def currency_report(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> tuple[list[dict], str | None]:
+    """One currency row per installed plugin, or a named refusal.
+
+    Returns (rows, None) or ([], refusal). The plugins root comes from the
+    running controller's own resolved file exactly as the init gate derives
+    it, the registry is one bounded read, and upstream is asked at most once
+    per distinct marketplace clone rather than once per plugin. A defective
+    record is a row with verdict `unknown`, so a plugin never vanishes from
+    the report; a registry that cannot answer at all is a refusal, because an
+    empty success would read as a fleet with nothing behind. Every install
+    record in the registry gets a row: filtering by a hard-coded marketplace
+    name would blind the report on a private-mirror host.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    split = currency_cache_split(real)
+    if split is None:
+        return [], (
+            "currency reports the install registry, and this controller does "
+            "not run from an install cache; run the installed copy instead"
+        )
+    plugins_root, _ = split
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return [], f"the install registry cannot be read ({plugins})"
+
+    memo: dict = {}
+
+    def read_once(clone_dir: str, branch: str):
+        key = (clone_dir, branch)
+        if key not in memo:
+            memo[key] = remote_reader(clone_dir, branch)
+        return memo[key]
+
+    unknown_row = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+    }
+    rows = []
+    for key in sorted(plugins):
+        plugin = key.rsplit("@", 1)[0] or key
+        records = plugins[key]
+        if not isinstance(records, list) or not records:
+            rows.append({"plugin": plugin, "version": None, **unknown_row,
+                         "warning": "registry-wrong-kind"})
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                rows.append({"plugin": plugin, "version": None, **unknown_row,
+                             "warning": "registry-wrong-kind"})
+                continue
+            version = record.get("version")
+            row = {
+                "plugin": plugin,
+                "version": version if isinstance(version, str) else None,
+            }
+            marketplace = currency_record_marketplace(plugins_root, record)
+            if marketplace is None:
+                row.update(unknown_row)
+                row["warning"] = "install-path-unrecognised"
+            else:
+                kind, value = currency_record_pin(record)
+                row.update(currency_pin_observation(
+                    plugins_root, marketplace, kind, value, read_once))
+            rows.append(row)
+    return rows, None
+
+
+def currency_text_field(value) -> str:
+    """One row value rendered for the line-per-plugin text report.
+
+    Plugin names and versions are registry bytes, and a byte that breaks or
+    reorders lines would forge row boundaries -- a newline in a key prints a
+    fabricated row that the eye reads as another plugin's verdict (S3-R1-01),
+    a Unicode line or paragraph separator does the same to a `splitlines`
+    consumer, and a lone surrogate crashes the encoder mid-report
+    (S3-R2-01). Anything not printable renders as `?`, which keeps every
+    legitimate slug, semver, hex and verdict byte for byte; the exit code
+    and `--json`, which escapes hostile values natively, are the machine
+    surfaces either way.
+    """
+    if value is None:
+        return "null"
+    return "".join(ch if ch.isprintable() else "?" for ch in str(value))
+
+
+def cmd_currency(args) -> None:
+    """Report pin-versus-upstream currency for every installed plugin.
+
+    Read-only: no state, no lock, no `.hexaemeron`. Exit 0 when nothing is
+    behind, 3 while anything is, 1 on a refusal, so a loop can gate a re-pin
+    on the status alone.
+    """
+    rows, refusal = currency_report()
+    if refusal is not None:
+        die(refusal, 1)
+    if args.json:
+        print(json.dumps(rows, indent=2))
+    else:
+        for row in rows:
+            line = " ".join(
+                currency_text_field(row[field])
+                for field in ("plugin", "version", "route", "pin",
+                              "observed_head", "verdict")
+            )
+            if row["warning"] is not None:
+                line += f" ({row['warning']})"
+            print(line)
+    if any(row["verdict"] == "behind" for row in rows):
+        sys.exit(3)
+
+
 RESERVED_RECEIPTS = {"study", "runbook", "run_observations"}
 
 
@@ -1853,6 +2527,11 @@ def cmd_record(args) -> None:
     state = load_state(args.dir)
     if args.key in RESERVED_RECEIPTS:
         die(f"'{args.key}' is a phase receipt; only `hexctl done {args.key}` writes it")
+    if args.key == "controller_currency":
+        # Init's own observation, protected like `task_issue`: a later
+        # rewrite would replace the recorded verdict and waiver with a
+        # value nothing observed (S2-R1-01).
+        die("controller_currency is init's observation; only `hexctl init` writes it")
     if state.get("halted") and args.key != "halt_note":
         # Recording context while halted is allowed; progress commands are not.
         pass
@@ -2403,6 +3082,364 @@ def done_implement(args, state: dict) -> None:
     print(f"step {step['n']} implementation receipted; phase -> audit")
 
 
+def audit_risk_ids(base_dir: str, state: dict) -> list[str]:
+    """Return the exact ids from Protasis's receipted risk-register block."""
+    study = receipted_source(base_dir, state, "study")
+    if study is None:
+        die("study receipt is unavailable for Covered validation")
+    register = source_risk_register(study)["markdown"]
+    risk_ids = []
+    seen = set()
+    for line in register.splitlines()[1:-1]:
+        if not line.strip():
+            continue
+        risk_id = line.split("|", 1)[0].strip()
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", risk_id):
+            die("study risk register has an invalid id")
+        if risk_id in seen:
+            die("study risk register has a duplicate id")
+        seen.add(risk_id)
+        risk_ids.append(risk_id)
+    if not risk_ids:
+        die("study risk register has no ids")
+    return risk_ids
+
+
+def audit_baseline_blob(base_dir: str, step: dict, log_path: str) -> bytes:
+    """Read the configured log blob at the last locally verified commit."""
+    baseline_ref = last_local_commit(step)
+    if not isinstance(baseline_ref, str) or not baseline_ref:
+        die("audit baseline has no locally verified commit")
+    baseline_commit = resolved_commit(
+        base_dir, baseline_ref, "audit baseline commit"
+    )
+    listing = bounded_git(
+        base_dir,
+        ["ls-tree", "-z", "--full-tree", baseline_commit, "--", log_path],
+        "audit baseline path cannot be read from its verified commit",
+    )
+    if not listing:
+        return b""
+    if not listing.endswith(b"\0"):
+        die("audit baseline path returned an ambiguous Git result")
+    entries = [entry for entry in listing.split(b"\0") if entry]
+    if len(entries) != 1:
+        die("audit baseline path returned an ambiguous Git result")
+    metadata, separator, raw_path = entries[0].partition(b"\t")
+    match = re.fullmatch(
+        rb"(?P<mode>[0-7]{6}) (?P<kind>[a-z]+) "
+        rb"(?P<object>[0-9a-f]{40}(?:[0-9a-f]{24})?)",
+        metadata,
+    )
+    try:
+        listed_path = raw_path.decode("utf-8")
+    except UnicodeDecodeError:
+        listed_path = None
+    if separator != b"\t" or match is None or listed_path != log_path:
+        die("audit baseline path returned an ambiguous Git result")
+    if match.group("kind") != b"blob" or match.group("mode") not in (
+        b"100644",
+        b"100755",
+    ):
+        die("audit baseline path is not a regular Git blob")
+    object_id = match.group("object").decode("ascii")
+    size_text = tool_text(
+        bounded_git(
+            base_dir,
+            ["cat-file", "-s", object_id],
+            "audit baseline blob size cannot be read",
+        ),
+        "audit baseline blob size",
+    ).strip()
+    if not re.fullmatch(r"0|[1-9][0-9]*", size_text):
+        die("audit baseline blob size is malformed")
+    size = int(size_text)
+    if size > SOURCE_BYTES_MAX:
+        die(f"audit baseline blob exceeds {SOURCE_BYTES_MAX}-byte cap")
+    blob = bounded_git(
+        base_dir,
+        ["cat-file", "blob", object_id],
+        "audit baseline blob cannot be read",
+    )
+    if len(blob) != size:
+        die("audit baseline blob length does not match Git metadata")
+    return blob
+
+
+def audit_delta_start(
+    base_dir: str, state: dict, step: dict, log_path: str, data: bytes
+) -> int:
+    """Choose the durable boundary before the one unreceipted raw suffix."""
+    latest_offset = None
+    for prior_step in state.get("steps") or []:
+        if as_dict(prior_step).get("n") > step["n"]:
+            break
+        rounds = as_dict(as_dict(prior_step).get("audit")).get("rounds") or []
+        for round_entry in rounds:
+            entry = as_dict(round_entry)
+            if "log_end_offset" not in entry:
+                continue
+            if entry.get("log") != log_path:
+                die("stored audit log path does not match the configured log")
+            offset = entry["log_end_offset"]
+            if isinstance(offset, bool) or not isinstance(offset, int):
+                die("stored audit log end offset must be a non-boolean integer")
+            if offset < 0 or offset > SOURCE_BYTES_MAX or offset >= len(data):
+                die("stored audit log end offset is outside the current log")
+            latest_offset = offset
+    if latest_offset is not None:
+        return latest_offset
+
+    baseline = audit_baseline_blob(base_dir, step, log_path)
+    if len(data) <= len(baseline):
+        die("audit log does not append a new record after its Git baseline")
+    if data[:len(baseline)] != baseline:
+        die("audit log changed before its Git baseline boundary")
+    return len(baseline)
+
+
+def audit_covered(value: str, expected_ids: list[str]) -> None:
+    """Check total, unique risk disposition without retaining or printing prose."""
+    expected = set(expected_ids)
+    dispositions = {}
+    for raw in value.split(";"):
+        item = raw.strip()
+        if not item or item.count("=") != 1:
+            die("audit record Covered has a malformed risk disposition")
+        risk_id, disposition = (part.strip() for part in item.split("=", 1))
+        if risk_id in dispositions:
+            die("audit record Covered has a duplicate risk id")
+        if risk_id not in expected:
+            die("audit record Covered has an unknown risk id")
+        if disposition not in AUDIT_COVERAGE_VALUES:
+            die("audit record Covered has an invalid disposition")
+        dispositions[risk_id] = disposition
+    missing = [risk_id for risk_id in expected_ids if risk_id not in dispositions]
+    if missing:
+        die("audit record Covered is missing a study risk id")
+
+
+def audit_table_cells(line: str) -> list[str]:
+    """Split one raw row at pipes not escaped by an odd backslash run."""
+    trailing_slashes = len(line) - 1 - len(line[:-1].rstrip("\\"))
+    if (
+        len(line) < 2
+        or not line.startswith("|")
+        or not line.endswith("|")
+        or trailing_slashes % 2
+    ):
+        return []
+    cells = []
+    start = 1
+    slashes = 0
+    for index, char in enumerate(line[1:-1], 1):
+        if char == "|" and slashes % 2 == 0:
+            cells.append(line[start:index].strip())
+            start = index + 1
+        slashes = slashes + 1 if char == "\\" else 0
+    cells.append(line[start:-1].strip())
+    return cells
+
+
+def audit_raw_field(line: str, label: str) -> str:
+    """Read one exact raw field line without exposing its value."""
+    prefix = f"{label}: "
+    if not line.startswith(prefix):
+        die(f"audit record is missing or malformed {label}")
+    value = line[len(prefix):]
+    if not value or not value.strip() or value != value.strip():
+        die(f"audit record {label} must have a canonical non-empty value")
+    return value
+
+
+def audit_record_bytes(data: bytes, start: int) -> bytes:
+    """Return the exact LF-only record after its boundary separator."""
+    if start == 0:
+        separator = b""
+    elif data[start - 1:start] == b"\n":
+        separator = b"\n"
+    else:
+        separator = b"\n\n"
+    delta = data[start:]
+    if not delta.startswith(separator):
+        die("audit record has a non-canonical boundary separator")
+    record = delta[len(separator):]
+    if not record or b"\r" in delta:
+        die("audit record must use LF line endings")
+    if not record.endswith(b"\n"):
+        die("audit record must end with one LF at EOF")
+    for physical in record.split(b"\n"):
+        if len(physical) > AUDIT_PHYSICAL_LINE_BYTES_MAX:
+            die(
+                "audit record has a physical line over "
+                f"{AUDIT_PHYSICAL_LINE_BYTES_MAX}-byte cap"
+            )
+    return record
+
+
+def audit_line(lines: list[str], index: int, expected: str, label: str) -> int:
+    """Consume one exact line from the raw record grammar."""
+    if index >= len(lines) or lines[index] != expected:
+        die(f"audit record has a non-canonical {label}")
+    return index + 1
+
+
+def audit_field_line(
+    lines: list[str], index: int, label: str
+) -> tuple[int, str]:
+    if index >= len(lines):
+        die(f"audit record is missing {label}")
+    return index + 1, audit_raw_field(lines[index], label)
+
+
+def parse_audit_record(
+    record: bytes, base_dir: str, state: dict, step: dict, args
+) -> tuple[str, str]:
+    """Validate the one exact raw suffix and return schema and timestamp."""
+    try:
+        text = record.decode("utf-8")
+    except UnicodeDecodeError:
+        die("audit record delta is not UTF-8 text")
+    lines = text[:-1].split("\n")
+    round_number = len(step["audit"]["rounds"]) + 1
+    if not lines:
+        die("audit record is empty")
+    heading = lines[0]
+    index = 1
+    index = audit_line(lines, index, "", "blank line after heading")
+    index, schema = audit_field_line(lines, index, "Audit schema")
+    if schema not in AUDIT_RECORD_SCHEMAS:
+        die("Audit schema must be " + " or ".join(AUDIT_RECORD_SCHEMAS))
+    if schema == "fiat-audit-round/v1":
+        heading_prefix = (
+            f"## {state['topic']}, step {step['n']}, round {round_number} -- "
+        )
+    else:
+        heading_prefix = f"## Step {step['n']}, round {round_number} -- "
+    if not heading.startswith(heading_prefix):
+        die("audit record heading does not match its schema, step, and round")
+    timestamp = heading[len(heading_prefix):]
+    if not AUDIT_TIMESTAMP_RE.fullmatch(timestamp):
+        die("audit record timestamp must be YYYY-MM-DDTHH:MM:SSZ UTC")
+    try:
+        parsed_timestamp = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        die("audit record timestamp is not calendar-valid")
+    if parsed_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") != timestamp:
+        die("audit record timestamp is not canonical UTC")
+    index = audit_line(lines, index, "", "blank line after Audit schema")
+    index, covered = audit_field_line(lines, index, "Covered")
+    audit_covered(covered, audit_risk_ids(base_dir, state))
+    index = audit_line(lines, index, "", "blank line after Covered")
+    index, _ = audit_field_line(lines, index, "Not checked")
+    index = audit_line(lines, index, "", "blank line after Not checked")
+    index, verdict = audit_field_line(lines, index, "Elenchus verdict")
+    expected_verdict = args.elenchus_verdict or "null"
+    if verdict != expected_verdict:
+        die("audit record Elenchus verdict does not match the receipt")
+    index = audit_line(lines, index, "", "blank line after Elenchus verdict")
+    index = audit_line(
+        lines, index, AUDIT_FINDINGS_HEADER, "findings table header"
+    )
+    index = audit_line(
+        lines, index, AUDIT_FINDINGS_SEPARATOR, "findings table separator"
+    )
+
+    row_count = 1 if args.findings == 0 else args.findings
+    rows = []
+    for _ in range(row_count):
+        if index >= len(lines):
+            die("audit record findings table row count does not match --findings")
+        row = lines[index]
+        cells = audit_table_cells(row)
+        if len(cells) != 5 or any(not cell for cell in cells):
+            die("audit record findings table has a malformed data row")
+        rows.append(row)
+        index += 1
+    if args.findings == 0:
+        if rows != [AUDIT_ZERO_FINDING_ROW]:
+            die("audit record findings table must use the exact zero-finding row")
+    elif AUDIT_ZERO_FINDING_ROW in rows:
+        die("audit record findings table row count does not match --findings")
+    if index >= len(lines) or lines[index] != "":
+        die("audit record findings table row count does not match --findings")
+    index += 1
+    index, _ = audit_field_line(lines, index, "Leads not pursued")
+    if index != len(lines):
+        die("audit record has content after Leads not pursued")
+    return schema, timestamp
+
+
+def validated_audit_record(
+    base_dir: str, state: dict, step: dict, args
+) -> dict:
+    """Validate one raw Warden append and return only receipt-safe evidence."""
+    audit = as_dict(as_dict(state.get("config")).get("audit"))
+    log_path, data = read_configured_audit_log(
+        base_dir, audit.get("log_path"), args.log
+    )
+    entry_start = audit_delta_start(base_dir, state, step, log_path, data)
+    entry_bytes = audit_record_bytes(data, entry_start)
+    schema, timestamp = parse_audit_record(
+        entry_bytes, base_dir, state, step, args
+    )
+    synopsis_path = os.path.join(
+        os.path.dirname(__file__), "audit_synopsis.py"
+    )
+    if not os.path.isfile(synopsis_path):
+        refuse_audit_renderer("audit synopsis renderer is unavailable")
+    try:
+        specification = importlib.util.spec_from_file_location(
+            "fiat_audit_synopsis", synopsis_path
+        )
+        if specification is None or specification.loader is None:
+            raise ImportError("renderer has no executable module specification")
+        renderer = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(renderer)
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        synopsis_validator = getattr(renderer, "validate_committed_synopsis", None)
+        synopsis_error = getattr(renderer, "SynopsisError", None)
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        interface_valid = (
+            callable(synopsis_validator)
+            and isinstance(synopsis_error, type)
+            and issubclass(synopsis_error, Exception)
+        )
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    if not interface_valid:
+        refuse_audit_renderer("audit synopsis renderer cannot be loaded")
+    try:
+        synopsis_sha256 = synopsis_validator(base_dir, log_path, data)
+    except synopsis_error as error:
+        refuse_audit_renderer(error)
+    except SystemExit:
+        refuse_audit_renderer(
+            "audit synopsis renderer validation terminated unexpectedly"
+        )
+    try:
+        digest_valid = (
+            isinstance(synopsis_sha256, str)
+            and re.fullmatch(r"[0-9a-f]{64}", synopsis_sha256) is not None
+        )
+    except (Exception, SystemExit):
+        refuse_audit_renderer("audit synopsis renderer returned an invalid digest")
+    if not digest_valid:
+        refuse_audit_renderer("audit synopsis renderer returned an invalid digest")
+    return {
+        "schema": schema,
+        "log": log_path,
+        "record_timestamp": timestamp,
+        "entry_sha256": hashlib.sha256(entry_bytes).hexdigest(),
+        "log_end_offset": len(data),
+        "synopsis_sha256": synopsis_sha256,
+    }
+
+
 def cmd_audit_round(args) -> None:
     state = load_state(args.dir)
     step = require_step_phase(state, "audit")
@@ -2469,6 +3506,8 @@ def cmd_audit_round(args) -> None:
             + "; a non-zero lint exit is a finding like any other"
         )
 
+    record = validated_audit_record(args.dir, state, step, args)
+
     verified_commits = []
     if args.fixes_commit:
         base = last_local_commit(step)
@@ -2487,6 +3526,7 @@ def cmd_audit_round(args) -> None:
         "verified_commits": verified_commits,
         "lints": recorded or None,
         "ts": now(),
+        **record,
     }
     rounds.append(entry)
     commit(args.dir, state, "audit-round", {"step": step["n"], **entry})
@@ -2511,6 +3551,12 @@ def done_audit(args, state: dict) -> None:
     if not rounds:
         die("no audit rounds recorded; run at least one round before closing")
     last = rounds[-1]
+    strict_log = last.get("schema") in AUDIT_RECORD_SCHEMAS
+    if strict_log and args.log is not None and args.log != last.get("log"):
+        die(
+            f"--log names '{args.log}', but the final round's checked audit "
+            f"log is '{last.get('log')}'"
+        )
     clean = last["findings"] == 0
     if not clean and not args.no_further_leads:
         die(
@@ -3624,7 +4670,9 @@ def receipted_source(base_dir: str, state: dict, name: str):
 STEP_HEADING_RE = re.compile(
     r"^##\s+Step\s+(?P<number>\d+)\s*:\s*(?P<title>.*?)\s*$"
 )
-MARKDOWN_FENCE_RE = re.compile(r"^ {0,3}(?P<mark>`{3,}|~{3,})")
+MARKDOWN_FENCE_RE = re.compile(
+    r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<remainder>.*)$"
+)
 RISK_REGISTER_INFO = "risk-register"
 AMENDMENT_HEADING_RE = re.compile(
     r"^###\s+Amendment\s+--\s+(?P<date>\d{4}-\d{2}-\d{2})\s*$"
@@ -3650,14 +4698,41 @@ COMPLETE_REPLACEMENT_RE = re.compile(
 )
 
 
+def markdown_fence(line: str):
+    """Return one CommonMark fence marker, excluding invalid backtick info."""
+    fence = MARKDOWN_FENCE_RE.match(line)
+    if (
+        fence is not None
+        and fence.group("mark").startswith("`")
+        and "`" in fence.group("remainder")
+    ):
+        return None
+    return fence
+
+
+def markdown_blank(line: str) -> bool:
+    """Whether one physical line is blank under CommonMark's ASCII grammar."""
+    return re.fullmatch(r"[ \t]*", line) is not None
+
+
+def markdown_physical_lines(text: str):
+    """Yield only CommonMark's LF, CRLF, and CR-delimited physical lines."""
+    start = 0
+    for ending in re.finditer(r"\r\n|\r|\n", text):
+        yield text[start:ending.end()]
+        start = ending.end()
+    if start < len(text):
+        yield text[start:]
+
+
 def markdown_lines(text: str):
     """Yield source offsets and fence state without treating quoted headings as real."""
     offset = 0
     open_mark = None
     open_length = None
-    for physical in text.splitlines(keepends=True):
+    for physical in markdown_physical_lines(text):
         line = physical.rstrip("\r\n")
-        fence = MARKDOWN_FENCE_RE.match(line)
+        fence = markdown_fence(line)
         was_open = open_mark
         if fence:
             sequence = fence.group("mark")
@@ -3668,7 +4743,7 @@ def markdown_lines(text: str):
             elif (
                 mark == open_mark
                 and len(sequence) >= open_length
-                and not line[fence.end():].strip()
+                and not fence.group("remainder").strip(" \t")
             ):
                 open_mark = None
                 open_length = None
@@ -4532,7 +5607,7 @@ def source_risk_register(source: dict) -> dict:
     risk_mark = None
     for line_start, line_end, line, is_fence, was_open in markdown_lines(text):
         if start is None and was_open is None and is_fence:
-            opened = MARKDOWN_FENCE_RE.match(line)
+            opened = markdown_fence(line)
             if opened:
                 mark = opened.group("mark")
                 info = line.strip()[len(mark):].strip()
@@ -4543,7 +5618,7 @@ def source_risk_register(source: dict) -> dict:
                 risk_mark = mark[0]
             continue
         if start is not None and is_fence and was_open == risk_mark:
-            fence = MARKDOWN_FENCE_RE.match(line)
+            fence = markdown_fence(line)
             if fence and fence.group("mark")[0] == risk_mark:
                 matches.append(text[start:line_end])
                 start = None
@@ -4559,16 +5634,23 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
-    """Run one fixed-argv tool and return its status and output.
+def bounded_probe(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    extra_env: dict | None = None,
+) -> tuple[int | None, bytes, str | None]:
+    """Run one fixed-argv tool and report failure instead of refusing.
 
-    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
-    from the child's stream in any diagnosis. Callers that treat a non-zero
-    status as fatal go through `bounded_tool`; callers for which a refusal is a
-    real answer, such as git declining to remove a tree holding modifications,
-    read the status here.
+    The reader core `bounded_run` wraps: no shell, a hard timeout, a hard
+    output cap, and nothing from the child's stream in any diagnosis. This
+    surface exists for callers that must keep going when the child cannot
+    answer, such as the currency observation, where a stalled read is a
+    recorded `unknown` rather than a refusal. Returns (returncode, output,
+    failure); failure is None, "start", "timeout" or "output-cap", and the
+    returncode is None whenever the child never finished cleanly.
     """
-    operation = f"{program} {argv[0]}" if argv else program
+    env = {**os.environ, **extra_env} if extra_env is not None else None
     try:
         process = subprocess.Popen(
             [program, *argv],
@@ -4576,9 +5658,10 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=False,
+            env=env,
         )
-    except OSError as exc:
-        die(f"{operation} could not start")
+    except OSError:
+        return None, b"", "start"
     assert process.stdout is not None
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
@@ -4590,7 +5673,7 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             if remaining <= 0:
                 process.kill()
                 process.wait()
-                die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+                return None, bytes(output), "timeout"
             events = selector.select(min(remaining, 0.1))
             if not events and process.poll() is not None:
                 events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
@@ -4603,16 +5686,36 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
                 if len(output) > GIT_OUTPUT_MAX:
                     process.kill()
                     process.wait()
-                    die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+                    return None, bytes(output), "output-cap"
         returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
-        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+        return None, bytes(output), "timeout"
     finally:
         selector.close()
         process.stdout.close()
-    return returncode, bytes(output)
+    return returncode, bytes(output), None
+
+
+def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
+    """Run one fixed-argv tool and return its status and output.
+
+    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
+    from the child's stream in any diagnosis. Callers that treat a non-zero
+    status as fatal go through `bounded_tool`; callers for which a refusal is a
+    real answer, such as git declining to remove a tree holding modifications,
+    read the status here.
+    """
+    operation = f"{program} {argv[0]}" if argv else program
+    returncode, output, failure = bounded_probe(base_dir, program, argv)
+    if failure == "start":
+        die(f"{operation} could not start")
+    if failure == "timeout":
+        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+    if failure == "output-cap":
+        die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+    return returncode, output
 
 
 def bounded_tool(
@@ -4910,8 +6013,56 @@ def contained_in(root: str, resolved: str) -> bool:
         return False
 
 
-def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> bytes:
-    return bounded_tool(base_dir, "gh", argv, refusal)
+def github_unreachable(label: str, path: str, detail: str) -> None:
+    """Refuse a read GitHub never answered, in a shape no verdict shares.
+
+    A verdict refusal says something is wrong with the work. This one says
+    nothing was learned about the work: the request failed, or came back as
+    something other than the document the check reads. Sharing one shape
+    between them tells an operator holding `verified: true` commits that a
+    check failed when it was never asked.
+    """
+    die(
+        f"GitHub read for {label} was not answered: GET {path} {detail}. "
+        "This is a transport failure, not a verification result; "
+        "nothing here says the work is unverified."
+    )
+
+
+def github_rest(base_dir: str, path: str, label: str) -> dict:
+    """One bounded REST read of the GitHub API, parsed as one JSON object.
+
+    Every receipt reader goes over REST because that is the transport the
+    checks need. `gh <command> --json` speaks GraphQL, and an environment
+    serving one and not the other could receipt nothing at all, however the
+    commits were signed. REST carries every field these readers ask for.
+
+    The bounds are `bounded_probe`'s rather than `bounded_run`'s so that a
+    reader that never started, stalled, or overran its cap refuses as the
+    transport failure it is, instead of in the generic tool shape.
+    """
+    returncode, output, failure = bounded_probe(
+        base_dir, "gh", ["api", "--method", "GET", path]
+    )
+    if failure == "start":
+        github_unreachable(label, path, "could not start the gh client")
+    if failure == "timeout":
+        github_unreachable(label, path, f"timed out after {GIT_TIMEOUT} seconds")
+    if failure == "output-cap":
+        github_unreachable(label, path, f"exceeded the {GIT_OUTPUT_MAX}-byte output cap")
+    if returncode != 0:
+        github_unreachable(label, path, f"failed with exit {returncode}")
+    try:
+        text = output.decode("utf-8")
+    except UnicodeDecodeError:
+        github_unreachable(label, path, "returned output that is not UTF-8")
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        github_unreachable(label, path, "returned a response that is not JSON")
+    if not isinstance(payload, dict):
+        github_unreachable(label, path, "returned a response that is not one object")
+    return payload
 
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
@@ -5316,35 +6467,52 @@ def target_repository(base_dir: str) -> str:
     match = GITHUB_HTTPS_RE.fullmatch(lines[0]) or GITHUB_SSH_RE.fullmatch(lines[0])
     if match is None:
         die("target origin does not name one GitHub repository")
-    return match.group("repo")
+    repository = match.group("repo")
+    if any(segment in (".", "..") for segment in repository.split("/")):
+        # The owner and name go into REST paths below, so a relative segment
+        # here would address some other endpoint entirely.
+        die("target origin does not name one GitHub repository")
+    return repository
 
 
 def github_repository(base_dir: str) -> str:
     target = target_repository(base_dir)
-    data = bounded_gh(
-        base_dir,
-        ["repo", "view", "--json", "nameWithOwner"],
-        "GitHub repository identity could not be resolved",
-    )
-    try:
-        payload = json.loads(tool_text(data, "GitHub repository identity"))
-    except ValueError:
-        die("GitHub repository identity returned invalid JSON")
-    repository = payload.get("nameWithOwner") if isinstance(payload, dict) else None
+    payload = github_rest(base_dir, f"repos/{target}", "repository identity")
+    repository = payload.get("full_name")
     if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
-        die("GitHub repository identity is missing nameWithOwner")
+        die("GitHub repository identity is missing full_name")
     if repository.casefold() != target.casefold():
         die("GitHub repository identity does not match target origin")
     return target
 
 
-def pull_request_repository(pr_url: object, repository: str) -> str:
+def pull_request_target(pr_url: object, repository: str) -> tuple[str, str]:
+    """One recorded pull request URL and its number, bound to one repository."""
     if not isinstance(pr_url, str):
         die("pull request URL is invalid")
     match = GITHUB_PR_RE.fullmatch(pr_url)
     if match is None or match.group("repo").casefold() != repository.casefold():
         die("pull request URL does not match target repository")
-    return pr_url.rstrip("/")
+    return pr_url.rstrip("/"), match.group("number")
+
+
+def pull_request_repository(pr_url: object, repository: str) -> str:
+    return pull_request_target(pr_url, repository)[0]
+
+
+def pull_request_state(payload: dict, merged: bool) -> str:
+    """The recorded state of one pull request, in the receipt's own vocabulary.
+
+    REST reports `open` or `closed` and carries the merge separately, while a
+    receipt records `MERGED`, `OPEN` or `CLOSED`. Recording the three keeps
+    every receipt this loop has written readable against the same three words.
+    """
+    if merged:
+        return "MERGED"
+    state = payload.get("state")
+    if state not in ("open", "closed"):
+        die("pull request topology is missing its state")
+    return state.upper()
 
 
 def inspect_pull_request(
@@ -5368,58 +6536,62 @@ def inspect_pull_request(
         else None
     )
     repository = github_repository(base_dir)
-    url = pull_request_repository(pr_url, repository)
-    data = bounded_gh(
+    url, number = pull_request_target(pr_url, repository)
+    payload = github_rest(
         base_dir,
-        [
-            "pr", "view", url, "--repo", repository, "--json",
-            "url,state,headRefName,headRefOid,baseRefName,mergeCommit,author,body",
-        ],
-        "pull request topology could not be read",
+        f"repos/{repository}/pulls/{number}",
+        "pull request topology",
     )
-    try:
-        payload = json.loads(tool_text(data, "pull request topology"))
-    except ValueError:
-        die("pull request topology returned invalid JSON")
-    if not isinstance(payload, dict):
-        die("pull request topology is invalid")
-    author = payload.get("author")
+    author = payload.get("user")
     author_login = author.get("login") if isinstance(author, dict) else None
     if not isinstance(author_login, str):
         die("pull request topology is missing its author")
     if author_login.casefold() in HOST_PR_LOGINS:
         die("pull request uses a runtime host as author; hand off before publication")
-    body = payload.get("body")
+    if "body" not in payload:
+        die("pull request topology is missing its body")
+    # REST spells an empty body as null rather than as an empty string. There
+    # is no byline in either, so the absence of text is not a missing field.
+    body = payload["body"] or ""
     if not isinstance(body, str):
         die("pull request topology is missing its body")
     if HOST_BYLINE_RE.search(body):
         die("pull request body carries a runtime-host byline")
-    returned_url = payload.get("url")
+    returned_url = payload.get("html_url")
     if not isinstance(returned_url, str):
         die("pull request topology is missing its URL")
     pull_request_repository(returned_url, repository)
     if returned_url.rstrip("/") != url:
         die("pull request topology did not name the recorded pull request")
-    if payload.get("headRefName") != expected_head or payload.get("baseRefName") != expected_base:
+    head, base = payload.get("head"), payload.get("base")
+    head_ref = head.get("ref") if isinstance(head, dict) else None
+    base_ref = base.get("ref") if isinstance(base, dict) else None
+    if head_ref != expected_head or base_ref != expected_base:
         die("pull request topology does not match the expected head and base")
-    returned_head = payload.get("headRefOid")
+    returned_head = head.get("sha")
     if not isinstance(returned_head, str) or not COMMIT_RE.fullmatch(returned_head):
         die("pull request topology has no full head SHA")
     if head_sha is not None and returned_head != head_sha:
         die(f"pull request head does not match the {expected_head_label}")
-    merge = payload.get("mergeCommit")
-    returned_merge = merge.get("oid") if isinstance(merge, dict) else None
+    merged = payload.get("merged")
+    if not isinstance(merged, bool):
+        die("pull request topology is missing its merged state")
+    # REST also fills `merge_commit_sha` on an open pull request, with the test
+    # merge GitHub computes for it. Only a merged pull request has a merge
+    # commit, so an open one records none.
+    merge_commit = payload.get("merge_commit_sha")
+    returned_merge = merge_commit if merged and isinstance(merge_commit, str) else None
     if merge_sha is not None:
-        if payload.get("state") != "MERGED" or returned_merge != merge_sha:
+        if not merged or returned_merge != merge_sha:
             die("pull request is not the expected merged topology")
-    elif payload.get("state") == "MERGED":
+    elif merged:
         die("step pull request was already merged before integrate")
     return {
         "url": url,
         "head": expected_head,
         "base": expected_base,
         "head_sha": returned_head,
-        "state": payload.get("state"),
+        "state": pull_request_state(payload, merged),
         "merge_sha": returned_merge,
         "author_login": author_login,
     }
@@ -5427,30 +6599,32 @@ def inspect_pull_request(
 
 def github_commit_payload(base_dir: str, repository: str, commit_sha: str) -> dict:
     """One bounded GitHub commit payload, checked for the exact SHA."""
-    data = bounded_gh(
+    payload = github_rest(
         base_dir,
-        ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
-        f"GitHub verification for {commit_sha} could not be read",
+        f"repos/{repository}/commits/{commit_sha}",
+        f"commit {commit_sha}",
     )
-    try:
-        payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
-    except ValueError:
-        die(f"GitHub verification for {commit_sha} returned invalid JSON")
-    if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+    if payload.get("sha") != commit_sha:
         die(f"GitHub verification response did not name exact SHA {commit_sha}")
     return payload
 
 
 def require_github_verified(payload: dict, commit_sha: str) -> None:
-    """GitHub's own verification result for one commit, or a refusal."""
+    """GitHub's own verification result for one commit, or a refusal.
+
+    Every refusal here names an answer GitHub gave. A read that never arrived
+    refuses in `github_unreachable`'s shape instead, because an operator has to
+    be able to tell a commit GitHub rejected from a commit GitHub was never
+    asked about.
+    """
     commit = payload.get("commit")
     verification = commit.get("verification") if isinstance(commit, dict) else None
     if not isinstance(verification, dict):
-        die(f"GitHub verification for {commit_sha} is missing")
+        die(f"GitHub answered for {commit_sha} without a verification result")
     if verification.get("verified") is not True:
-        die(f"GitHub verification for {commit_sha} is not verified:true")
+        die(f"GitHub answered for {commit_sha}: not verified:true")
     if verification.get("reason") != "valid":
-        die(f"GitHub verification for {commit_sha} reason is not valid")
+        die(f"GitHub answered for {commit_sha}: verification reason is not valid")
 
 
 def commit_attribution(payload: dict, commit_sha: str) -> dict:
@@ -6134,11 +7308,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="EVOLUTION.md this run is meant to advance; the terminal receipt "
              "then refuses until it carries exactly one new valid row",
     )
+    sp.add_argument(
+        "--controller-currency-waiver",
+        dest="controller_currency_waiver",
+        metavar="REASON",
+        help="proceed on a behind controller verdict, recording this reason "
+             "in the run's evidence",
+    )
     sp.set_defaults(fn=cmd_init)
 
     sp = sub.add_parser("status", help="show run state")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=cmd_status)
+
+    sp = sub.add_parser(
+        "currency",
+        help="report pin-versus-upstream currency for installed plugins",
+    )
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=cmd_currency)
 
     sp = sub.add_parser("next", help="emit the single next action as JSON")
     sp.set_defaults(fn=cmd_next)
