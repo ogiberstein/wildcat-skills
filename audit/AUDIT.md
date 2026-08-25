@@ -13426,3 +13426,246 @@ Leads not pursued: the study's three external links (issue 363, pull requests
 under `~/.claude/plugins` describe a host outside the tracked tree and were
 not re-measured; both stand as receipted study claims. No other lead was
 found.
+
+## Step 2, round 1 -- 2026-08-24
+
+Two findings, both fixed on the stacked branch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R1-01 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | `hexctl record controller_currency` replaced the init-written provenance receipt in state with an arbitrary value; `verify` stayed green afterwards and the honest values survived only in the init transition, while `task_issue`, the other init-written receipt, already had an immutability guard | fixed |
+| S2-R1-02 | medium | plugins/hexaemeron/skills/fiat/scripts/hexctl.py | a git-pinned install whose marketplace clone is missing read route and verdict `managed` with the pin recorded and no warning, so deleting one directory silenced the gate without a trace, against the study glossary (pin absent on the managed route) and the verdict-honesty control (an unobservable head warns) | fixed |
+
+The audited range is
+`f97b10a90e69db3c2e48a42680967ec1fcc7137f..d113c06b7eb267e1aade53d81a3c0ad940e7a72a`
+on `fiat/controller-currency-guarantee-step-2-observe-controller-currency-at-i`,
+two commits: `068a8da2bbd66c6f04c36cdc596d059115114dcc` adds the observation,
+the init gate, the waiver flag, the `test_hexctl_currency.py` suite, the
+shared fake-git `ls-remote` log hook in `test_hexctl.py`, and the six
+refreshed digest pins; `d113c06b7eb267e1aade53d81a3c0ad940e7a72a` adds
+ADR-033. Both commits have a good local Shoggoth signature and exactly one
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer and one
+`Wildcat-Origin: shoggoth` trailer. The range touches only files the amended
+Step 2 Files boundary names; this append and the fixes stay inside it too.
+
+Six-pin note, recorded as directed: the coverage refresh in `068a8da2`
+changed six `hexctl.py` digest pins in `tests/promise_machine_coverage.json`
+-- five `runtime.*` rows plus `run_observation_binding.controller.sha256` --
+where the amendment's Why field counted five. The Files clause ("refreshed
+runtime digests only") governs, and all six are digests of the same runtime
+file: the JSON diff replaces only sha256 values on `hexctl.py` rows, 12
+changed lines, nothing else, from
+`b84075e32d73602eb2e05bb12070845740811008f203e6422497f99827982a6b` to
+`7a629f691cc65c588dbdd9ee22392a0a61e9371f9581dd30688f230cd549be54`, and the
+new value equals the file's digest at both commits. The fixes commit
+refreshes the same six pins again to
+`43ee3e565d20a41fab4df1c8b417ec562828e73c008199ff416fe2538e1c50f5` for the
+repaired controller bytes.
+
+Mechanical results, re-run on the fixed tree after a session interruption so
+every number below is from a completed run: Phylax, Ephoros (each over
+`plugins tests`) and Hypomnema (over `README.md AGENTS.md .agents plugins
+docs`) all print `clean` and exit 0, both before and after the fixes. The
+Hexaemeron suite passed 1037/1037 at the step tip and passes 1039/1039 with
+the fixes; the root suite passes 349/349 at both points. Imprimatur exits 0
+on ADR-033 at score 100.0/100 with zero defects. Horos reports `boundary
+matches the tree` and `git diff --check` exits 0 over the range and after
+the fixes. The security suite stays waived: no Solidity in scope; the range
+changes the Python controller, tests, one JSON fixture and one ADR.
+
+The Elenchus convention was checked directly: with the
+`observe_controller_currency()` call neutralised in `cmd_init`, the three
+sampled guards (behind refusal, waiver receipt, current provenance) fail
+3/3, and the tree was restored byte-clean afterwards. The suite carries 18
+gate tests at the step tip, six beyond the required twelve, and 20 after
+the fixes.
+
+Fixes: one commit, `561252ff2f287e72c4e339f81ed921cb62cc75fc` on
+`fiat/controller-currency-guarantee-step-2-observe-controller-currency-at-i--audit`,
+referencing both finding ids, signed with a good Shoggoth signature and the
+two trailers. S2-R1-01: `cmd_record` now refuses the `controller_currency`
+key by name, as it already did for `task_issue`, with a guard test that
+drives the CLI. S2-R1-02: only a pin-absent record classifies as `managed`;
+a recorded pin with a missing clone now reads route `git-backed`, verdict
+`unknown`, warning `clone-missing`, pin recorded and head an explicit null,
+with a guard test; the managed-route test now models a true pinless managed
+install and additionally asserts `pin` null with the clone present but
+unread. The source-bound Elenchus runner was invoked exactly as Step 2
+declares it -- test command `python3 plugins/hexaemeron/tests/run_tests.py
+--elenchus-report {report}`, format `unittest-json-v1`, report file
+`.elenchus/fiat-controller-currency-step-2.json`, fresh path inside the
+runner's detached parent worktree -- against the fixes commit. Its verdict
+is `guarded`: the parent report is complete, 1039 tests executed, exactly
+the two new guards fail as assertions, zero errors, zero skips.
+
+Risk-id dispositions for this range:
+
+- `upstream-read-surface`: holds. The one `ls-remote` runs argv-fixed
+  (`ls-remote --refs origin refs/heads/<branch>`), shell-free, with
+  `GIT_TERMINAL_PROMPT=0` (witnessed by a test), `GIT_TIMEOUT` and the
+  output cap through `bounded_probe`, and the URL-confinement test proves
+  exactly one read at init. Failure vocabulary is fixed
+  (`remote-start|timeout|output-cap|failed|malformed`); no child byte
+  reaches any diagnosis, transition or receipt.
+- `url-source-confusion`: holds. The read runs with cwd inside the
+  marketplace clone naming remote `origin`; no URL string passes through
+  controller code, and a hostile target-repository `url.insteadOf` rewrite
+  is proven inert by test. The plugins root derives from
+  `os.path.realpath(__file__)`, which also normalises `..`, so no registry
+  or environment value can steer the directory; a crafted `installPath` is
+  only string-compared, never opened or followed.
+- `registry-hostile-input`: holds. Missing, oversized (1 MiB cap),
+  malformed, wrong-kind and unmatched registries each read `unknown` with a
+  named warning, by test; a non-hex pin reads
+  `unknown`/`registry-pin-malformed` and mixed-kind entries are skipped, by
+  direct probe; nothing echoes registry bytes. Multiple matching install
+  records resolve first-match in registry order, deterministically.
+- `route-misdetection`: S2-R1-02 found here and fixed. Cache-split
+  precedence over the in-repo check is deterministic when both conditions
+  hold; an unmatched install path reads `unknown` per test; the deepest
+  `cache` ancestor with marketplace, plugin and version components decides,
+  and a wrong split degrades to `registry-missing`, never a verdict.
+- `verdict-honesty`: holds with the S2-R1-02 repair. `behind` requires a
+  validated pin and one well-formed observed head that differ; every
+  `unknown` path returns before the comparison, so `unknown` cannot promote;
+  a malformed remote line, wrong ref, duplicate line, non-SHA and empty
+  answer each read `remote-malformed` by test. A waiver passed when the
+  verdict is not `behind` is recorded verbatim beside the true verdict --
+  the receipt stays honest about both.
+- `waiver-visibility`: holds, strengthened by S2-R1-01. An empty reason is
+  refused by test; a waived init records verdict `behind` and the reason;
+  no other flag or environment value silences the gate; and the receipt can
+  no longer be rewritten after init, so the ledger and the receipt now
+  agree durably.
+- `secret-echo`: holds. The refusal states only the two validated hex SHAs
+  the exit condition requires; warnings come from a closed vocabulary; the
+  behind-refusal test asserts no `https://` reaches stderr and the
+  confinement test asserts no URL reaches the receipt.
+- `state-compat`: holds. The compat test strips the receipt from state and
+  the init transition, re-fingerprints and re-hashes the ledger entry, then
+  drives `status`, `verify` and `next` through the CLI at exit 0 -- real
+  `load_state` and `verify` paths, not a JSON reload.
+- `bootstrap-limit`: reviewed at its documentation surface: ADR-033 states
+  the gate ships inside the artifact it gates and governs runs after the
+  next re-pin. The reference and SKILL text land in step 4; no claim here.
+- `repin-partiality` sits in step 3, `ledger-arithmetic` and
+  `version-propagation` in step 4: not reachable in this range, no claim.
+
+The `bounded_run` refactor preserves every existing caller: `bounded_run`
+now wraps the non-dying `bounded_probe` core, the three refusal messages
+(`could not start`, `timed out after {GIT_TIMEOUT} seconds`, `exceeded
+{GIT_OUTPUT_MAX}-byte output cap`) are byte-identical at the same exit 2,
+the returncode passes through unchanged, and `env=None` inherits the parent
+environment exactly as before, so `bounded_tool`, `bounded_tool_status`,
+`bounded_git` and the publishable-versions `git show` reader keep their
+refusal semantics; the full green suites at both ends carry the regression
+evidence. The `branch_name_ok` extraction keeps `check_branch_name`
+behaviour identical and gives the clone-HEAD read the same conservative
+refname subset, which also keeps a leading-dash argv confusion out of the
+`ls-remote` call because the passed ref always begins `refs/heads/`.
+
+Qualification: this round establishes the audited range's behaviour under
+the study's boundary controls and the fixes above, not step 3 or 4
+behaviour, remote signature verification, push, pull request, or
+integration state. The Elenchus line records the runner's declared result;
+it does not attest the report bytes.
+
+The Sapheneia durable-record comparison preserved the heading, the finding
+table with both ids, severities, files and statuses, the audited range,
+branch and three commit SHAs, all four digests, the six-pin count and
+12-line measurement, every exit code, all four suite counts, the 3/3
+spot-check, the 18/20 test counts, the Elenchus contract tokens and
+`guarded` verdict with its counters, all twelve register dispositions, the
+qualification, and every lead below, item by item. The comparison caught one
+mismatched number in the draft -- the gate-test tally, drafted 17/19 against
+the measured 18/20 -- which was corrected before this append. It changes no
+existing audit byte.
+
+Leads seen and not pursued: the `registry-pin-malformed` branch has no
+dedicated suite guard (probed by hand here, reads `unknown`); `COMMIT_RE`
+accepts 64-hex object-format pins alongside 40-hex, consistent with the
+codebase-wide validator and still hex-bounded, though the amendment's test
+list says "not 40-hex"; a hostile registry record with a crafted
+`installPath` prefix such as `/` can supply the pin for any file, which
+stays inside the registry's existing authority over pin values and is never
+echoed or dereferenced; `bounded_probe` inherits stdin as every
+`bounded_run` caller always has, bounded by the timeout; and a clone whose
+`.git/HEAD` is detached or unreadable reads `clone-head-unreadable` by
+probe, without a dedicated suite guard. None of these changes a verdict or
+crosses a boundary; they stand for a later round or step.
+
+## Step 2, round 2 -- 2026-08-24
+
+Zero findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+The audited range is
+`d113c06b7eb267e1aade53d81a3c0ad940e7a72a..fb98d4da595070ec3533f6cabdf30e59355653b0`
+on
+`fiat/controller-currency-guarantee-step-2-observe-controller-currency-at-i--audit`,
+two commits: `561252ff2f287e72c4e339f81ed921cb62cc75fc` carries the round 1
+fixes for S2-R1-01 and S2-R1-02 with their guard tests and the six digest
+pins refreshed to
+`43ee3e565d20a41fab4df1c8b417ec562828e73c008199ff416fe2538e1c50f5`, and
+`fb98d4da595070ec3533f6cabdf30e59355653b0` appends the round 1 record to
+`audit/AUDIT.md` and touches nothing else. Both commits have a good local
+Shoggoth signature and exactly one
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer and one
+`Wildcat-Origin: shoggoth` trailer. This round re-audits the two repairs on
+the fixed tree.
+
+The S2-R1-01 repair breaks no legitimate record path: the only writers of
+the `controller_currency` key are init's receipt and init transition, a
+search across `plugins/hexaemeron/skills`, `docs` and `README.md` finds no
+flow that directs `hexctl record controller_currency`, and the refusal sits
+after the phase-receipt check and before the `halt_note` and `task_issue`
+handling, which keep their behaviour. The refusal message is one fixed
+string with no interpolated value.
+
+The S2-R1-02 repair reads honestly on every side. A pinned install with the
+marketplace clone missing warns on stderr with the pre-existing unknown
+sentence naming `clone-missing` and stating that the receipt records the
+nulls rather than a verdict, so the wording claims neither `current` nor
+`behind`; the guard test pins the receipt to route `git-backed`, verdict
+`unknown`, warning `clone-missing`, the pin recorded and the head an
+explicit null, with no network read. The rewritten managed fixture is a true
+pinless install: `gitCommitSha` null classifies `absent`, the receipt
+asserts `pin` null, and the clone is present but unread.
+
+The four risk ids the fixes touched were re-checked on the fixed code.
+`verdict-honesty`: the `clone-missing` path returns before the comparison,
+and the only verdict assignments remain `no-pin`, `managed` on a pin-absent
+record, `current`/`behind` after one validated head, and `unknown`
+everywhere else. `route-misdetection`: `git-backed` now follows the
+registry's recorded pin, matching the study glossary, and the cache-split
+precedence is unchanged. `registry-hostile-input`: registry parsing is
+untouched by the fixes and its named-warning vocabulary is unchanged.
+`secret-echo`: the two new strings -- the `clone-missing` warning token and
+the record refusal -- are fixed vocabulary with no value bytes.
+
+Mechanical results for this round: Phylax, Ephoros (each over `plugins
+tests`) and Hypomnema (over `README.md AGENTS.md .agents plugins docs`) all
+print `clean` and exit 0. The Hexaemeron suite passes 1039/1039 and the root
+suite passes 349/349. Horos reports `boundary matches the tree` and `git
+diff --check` exits 0 over the range. The security suite stays waived: no
+Solidity in scope, unchanged from round 1. No repair was made this round, so
+no Elenchus report was created and no Elenchus verdict applies.
+
+Qualification: this round establishes that the round 1 repairs hold on the
+fixed tree and that the tree is healthy, not step 3 or 4 behaviour, remote
+signature verification, push, pull request, or integration state.
+
+The Sapheneia durable-record comparison preserved the heading, the zero
+count, the empty finding table, the date, the range, branch and both commit
+SHAs, the refreshed digest, both finding ids named as context with their
+held repairs, every exit code and suite count, all four re-checked register
+dispositions, the qualification, and the lead line below, item by item. It
+changes no existing audit byte.
+
+Leads not pursued: the five recorded at round 1 stand unchanged --
+the unguarded `registry-pin-malformed` branch, the 64-hex pin acceptance,
+the crafted `installPath` prefix inside the registry's existing authority,
+`bounded_probe` stdin inheritance, and the unguarded `clone-head-unreadable`
+branch. No new lead was found this round.
