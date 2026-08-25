@@ -16,8 +16,13 @@ import sys
 
 SYNOPSIS_SCHEMA = "fiat-audit-synopsis/v1"
 AUDIT_SCHEMA = "fiat-audit-round/v1"
+AUDIT_SCHEMAS = (AUDIT_SCHEMA, "fiat-audit-round/v2")
 SOURCE_NAME = "AUDIT.md"
 SYNOPSIS_NAME = "AUDIT_SYNOPSIS.md"
+ROUND_SOURCE_DIRECTORY = "audit/rounds"
+PRODUCT_SOURCE = (
+    "audit/rounds/fiat-429-audit-record-schema-timestamp-synopsis.md"
+)
 SYNOPSIS_SEPARATOR = "<br>"
 SYNOPSIS_ESCAPE = "%"
 SYNOPSIS_ESCAPED_SEPARATOR = "%b"
@@ -34,23 +39,33 @@ ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive", "null")
 COVERAGE_VALUES = ("reviewed", "not-applicable")
 LEGACY_SCHEMA_DRAFT_H3 = ("### Coverage", "### Findings", "### Leads")
 PINNED_LEGACY_SCHEMA_DRAFTS = {
-    344: "761253edc37e6262d87f032e870c9aa084f8e5361dcfe08f46ea2c4a3858e6a1",
-    345: "b519682b4ab8687dfab790f44db6fedc1ed1dc8ca40b40b6b53c4d2bf9311666",
-    346: "c52a85e933edf9b4489a5bea522986be165c78df3e72029769283ff8064c1ce9",
-    347: "e854ba720e8df264aa23f9c1bfe0351eb3b68cdccc8f9d7b9f1939331c9444be",
-    348: "c1226d85df510c3c9d7fee9788ebcf99b621ee73627e2962c974be89a47673c5",
-    349: "8e3d0d4670f693361872715c2d8002b72295c625c2e1a475b7c9de25d9ce8f2c",
-    350: "f80d1e83bfcfa4d0ba893a3fa08383310cc82a90b92ca8a224bf73404513aade",
-    351: "6a7d2652b1b1d72586eb2da78fc5dd1a9ca60d49c123a587b255e9696743a237",
-    352: "5679164692620843043cacd7d86266113a0aa94b260f8ff39ef7eeb910846788",
-    353: "339531852f52439befb1410a0b72230f623cbd9cd08be6f777fb20f4b3ef19e1",
+    1: "761253edc37e6262d87f032e870c9aa084f8e5361dcfe08f46ea2c4a3858e6a1",
+    2: "b519682b4ab8687dfab790f44db6fedc1ed1dc8ca40b40b6b53c4d2bf9311666",
+    3: "c52a85e933edf9b4489a5bea522986be165c78df3e72029769283ff8064c1ce9",
+    4: "e854ba720e8df264aa23f9c1bfe0351eb3b68cdccc8f9d7b9f1939331c9444be",
+    5: "c1226d85df510c3c9d7fee9788ebcf99b621ee73627e2962c974be89a47673c5",
+    6: "8e3d0d4670f693361872715c2d8002b72295c625c2e1a475b7c9de25d9ce8f2c",
+    7: "f80d1e83bfcfa4d0ba893a3fa08383310cc82a90b92ca8a224bf73404513aade",
+    8: "6a7d2652b1b1d72586eb2da78fc5dd1a9ca60d49c123a587b255e9696743a237",
+    9: "5679164692620843043cacd7d86266113a0aa94b260f8ff39ef7eeb910846788",
+    10: "339531852f52439befb1410a0b72230f623cbd9cd08be6f777fb20f4b3ef19e1",
 }
-STRICT_HEADING_RE = re.compile(
+V1_HEADING_RE = re.compile(
     r"## .+, step [1-9][0-9]*, round [1-9][0-9]* -- "
     r"(?P<timestamp>[0-9]{4}-[0-9]{2}-[0-9]{2}T"
     r"[0-9]{2}:[0-9]{2}:[0-9]{2}Z)",
     re.ASCII,
 )
+V2_HEADING_RE = re.compile(
+    r"## Step [1-9][0-9]*, round [1-9][0-9]* -- "
+    r"(?P<timestamp>[0-9]{4}-[0-9]{2}-[0-9]{2}T"
+    r"[0-9]{2}:[0-9]{2}:[0-9]{2}Z)",
+    re.ASCII,
+)
+STRICT_HEADING_RES = {
+    "fiat-audit-round/v1": V1_HEADING_RE,
+    "fiat-audit-round/v2": V2_HEADING_RE,
+}
 OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 UNLINK_SUPPORTS_DIR_FD = os.unlink in os.supports_dir_fd
 
@@ -415,7 +430,7 @@ def _field(line, label, record_number, source_path):
 
 def _pinned_legacy_schema_draft(record, record_number, source_path, h3_headings):
     """Recognise only the ten immutable pre-cutover root records."""
-    if source_path != "audit/AUDIT.md" or h3_headings != LEGACY_SCHEMA_DRAFT_H3:
+    if source_path != PRODUCT_SOURCE or h3_headings != LEGACY_SCHEMA_DRAFT_H3:
         return False
     expected = PINNED_LEGACY_SCHEMA_DRAFTS.get(record_number)
     if expected is None:
@@ -432,7 +447,7 @@ def _strict_candidate(text, start, stop, record_number, source_path):
         return False
 
     pinned = (
-        source_path == "audit/AUDIT.md"
+        source_path == PRODUCT_SOURCE
         and record_number in PINNED_LEGACY_SCHEMA_DRAFTS
     )
     digest = hashlib.sha256() if pinned else None
@@ -462,7 +477,10 @@ def _strict_candidate(text, start, stop, record_number, source_path):
         return not exact_draft
     if h3_count:
         return has_schema
-    return has_schema or STRICT_HEADING_RE.fullmatch(heading) is not None
+    return has_schema or any(
+        pattern.fullmatch(heading) is not None
+        for pattern in STRICT_HEADING_RES.values()
+    )
 
 
 def _strict_record(
@@ -500,7 +518,13 @@ def _strict_record(
 
     heading = take()
     retained.append(heading)
-    match = STRICT_HEADING_RE.fullmatch(heading)
+    exact("", "heading separator")
+    schema = field("Audit schema")
+    if schema not in AUDIT_SCHEMAS:
+        raise SynopsisError(
+            f"{source_path}: strict record {record_number} has unsupported schema"
+        )
+    match = STRICT_HEADING_RES[schema].fullmatch(heading)
     if match is None:
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has malformed heading"
@@ -515,13 +539,6 @@ def _strict_record(
     if parsed.strftime("%Y-%m-%dT%H:%M:%SZ") != timestamp:
         raise SynopsisError(
             f"{source_path}: strict record {record_number} has non-canonical timestamp"
-        )
-
-    exact("", "heading separator")
-    schema = field("Audit schema")
-    if schema != AUDIT_SCHEMA:
-        raise SynopsisError(
-            f"{source_path}: strict record {record_number} has unsupported schema"
         )
     exact("", "Audit schema separator")
     covered = field("Covered")
@@ -823,7 +840,7 @@ def render_source(source_path, data):
 
 
 def discover_sources(root):
-    """Discover sorted regular **/audit/AUDIT.md paths without following links."""
+    """Discover legacy and direct per-run sources without following links."""
     root = _root_path(root)
     discovered = []
 
@@ -859,7 +876,12 @@ def discover_sources(root):
                 raise SynopsisError(
                     f"audit source changed kind during discovery: {relative}"
                 )
+            candidate_relative = os.path.relpath(candidate, root).replace(os.sep, "/")
             if stat.S_ISLNK(info.st_mode):
+                if candidate_relative == ROUND_SOURCE_DIRECTORY:
+                    raise SynopsisError(
+                        f"audit directory is a symlink: {candidate_relative}"
+                    )
                 if name == "audit":
                     relative = os.path.relpath(candidate, root).replace(os.sep, "/")
                     relative = _relative_path(relative)
@@ -869,29 +891,76 @@ def discover_sources(root):
                 continue
             kept.append(name)
         names[:] = kept
-        if os.path.basename(directory) != "audit" or SOURCE_NAME not in files:
-            continue
-        candidate = os.path.join(directory, SOURCE_NAME)
-        relative = _relative_path(
-            os.path.relpath(candidate, root).replace(os.sep, "/")
-        )
-        try:
-            info = os.lstat(candidate)
-        except OSError:
-            raise SynopsisError(f"audit source cannot be inspected: {relative}") from None
-        if stat.S_ISLNK(info.st_mode):
-            raise SynopsisError(f"audit source is a symlink: {relative}")
-        if not stat.S_ISREG(info.st_mode):
-            raise SynopsisError(f"audit source is not a regular file: {relative}")
-        discovered.append(_relative_path(relative))
+        if os.path.basename(directory) == "audit" and SOURCE_NAME in files:
+            candidate = os.path.join(directory, SOURCE_NAME)
+            relative = _relative_path(
+                os.path.relpath(candidate, root).replace(os.sep, "/")
+            )
+            try:
+                info = os.lstat(candidate)
+            except OSError:
+                raise SynopsisError(
+                    f"audit source cannot be inspected: {relative}"
+                ) from None
+            if stat.S_ISLNK(info.st_mode):
+                raise SynopsisError(f"audit source is a symlink: {relative}")
+            if not stat.S_ISREG(info.st_mode):
+                raise SynopsisError(f"audit source is not a regular file: {relative}")
+            discovered.append(_relative_path(relative))
+
+        relative_directory = os.path.relpath(directory, root).replace(os.sep, "/")
+        if relative_directory == ROUND_SOURCE_DIRECTORY:
+            for name in sorted(files):
+                if not name.endswith(".md") or name.endswith(".synopsis.md"):
+                    continue
+                candidate = os.path.join(directory, name)
+                relative = _relative_path(
+                    os.path.relpath(candidate, root).replace(os.sep, "/")
+                )
+                try:
+                    info = os.lstat(candidate)
+                except OSError:
+                    raise SynopsisError(
+                        f"audit source cannot be inspected: {relative}"
+                    ) from None
+                if stat.S_ISLNK(info.st_mode):
+                    raise SynopsisError(f"audit source is a symlink: {relative}")
+                if not stat.S_ISREG(info.st_mode):
+                    raise SynopsisError(
+                        f"audit source is not a regular file: {relative}"
+                    )
+                discovered.append(relative)
     discovered.sort()
     if not discovered:
-        raise SynopsisError("repository contains no **/audit/AUDIT.md source")
+        raise SynopsisError("repository contains no supported audit source")
     return discovered
 
 
 def _output_path(source):
-    return posixpath.join(posixpath.dirname(source), SYNOPSIS_NAME)
+    source = _relative_path(source)
+    directory = posixpath.dirname(source)
+    name = posixpath.basename(source)
+    if name == SOURCE_NAME and posixpath.basename(directory) == "audit":
+        return posixpath.join(directory, SYNOPSIS_NAME)
+    if (
+        directory == ROUND_SOURCE_DIRECTORY
+        and name.endswith(".md")
+        and not name.endswith(".synopsis.md")
+    ):
+        return posixpath.join(directory, name[:-3] + ".synopsis.md")
+    raise SynopsisError(f"unsupported audit source path: {source}")
+
+
+def _is_output_path(relative):
+    directory = posixpath.dirname(relative)
+    name = posixpath.basename(relative)
+    return (
+        name == SYNOPSIS_NAME and posixpath.basename(directory) == "audit"
+    ) or (
+        directory == ROUND_SOURCE_DIRECTORY
+        and name.endswith(".synopsis.md")
+        and name != ".synopsis.md"
+    )
 
 
 def _write_all(descriptor, data):
@@ -908,8 +977,8 @@ def atomic_replace(root, relative, data):
     root = _root_path(root)
     relative = _relative_path(relative)
     components = relative.split("/")
-    if components[-1] != SYNOPSIS_NAME:
-        raise SynopsisError(f"output is not a {SYNOPSIS_NAME} sibling: {relative}")
+    if not _is_output_path(relative):
+        raise SynopsisError(f"output is not a supported synopsis sibling: {relative}")
     lexical = os.path.join(root, *components)
     mode = 0o644
     try:
@@ -932,7 +1001,7 @@ def atomic_replace(root, relative, data):
     descriptor = None
     try:
         for _ in range(128):
-            candidate = f".{SYNOPSIS_NAME}.{secrets.token_hex(8)}.tmp"
+            candidate = f".{components[-1]}.{secrets.token_hex(8)}.tmp"
             try:
                 descriptor = os.open(
                     candidate,
@@ -1017,10 +1086,16 @@ def validate_committed_synopsis(root, source_path, source_bytes):
 def process_repository(root, *, write):
     root = _root_path(root)
     rendered = []
-    for source in discover_sources(root):
+    sources = discover_sources(root)
+    outputs = [_output_path(source) for source in sources]
+    if len(set(outputs)) != len(outputs):
+        raise SynopsisError("audit sources map to duplicate synopsis outputs")
+    if set(sources) & set(outputs):
+        raise SynopsisError("a synopsis output was rediscovered as an audit source")
+    for source, output in zip(sources, outputs):
         source_bytes = read_regular_bytes(root, source, "audit source")
         item = render_source(source, source_bytes)
-        item["output"] = _output_path(source)
+        item["output"] = output
         committed = None
         if not write:
             committed = read_regular_bytes(

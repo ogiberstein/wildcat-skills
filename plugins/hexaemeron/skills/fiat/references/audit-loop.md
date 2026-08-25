@@ -20,15 +20,19 @@ another pass.
    The Warden packet also carries the exact source-bound `runbook_step`.
    For a fix, take the test command, report format, and report file from that
    step, run Elenchus against the fixes commit, and return its exact verdict.
-2. Append every finding to the audit file (`config audit.log_path`,
-   default `audit/AUDIT.md`), even when the count is zero. Read the exact topic
-   from `hexctl status --json`; status is read-only. The appended raw suffix
-   uses this complete schema:
+2. Prepare every finding for the run's audit file, even when the count is
+   zero. `init` derives it as `audit/rounds/<run branch with separators
+   flattened>.md`, one record per run, and `hexctl next` names the exact path on
+   every `audit-round` directive. Read it from there or from
+   `config audit.log_path` rather than assuming a shared file: appending to one
+   put the record in `sync-run`'s overlap set on every integration where
+   anything else had merged. `audit/AUDIT.md` holds every round written before
+   that change and takes no new ones.
 
    ```markdown
-   ## <topic>, step <n>, round <r> -- 2026-08-23T02:17:46Z
+   ## Step <n>, round <r> -- 2026-08-23T02:17:46Z
 
-   Audit schema: fiat-audit-round/v1
+   Audit schema: fiat-audit-round/v2
 
    Covered: <risk-id>=reviewed; <risk-id>=not-applicable
 
@@ -43,38 +47,28 @@ another pass.
    Leads not pursued: <what and why, or "none">
    ```
 
-   Use whole-second UTC `YYYY-MM-DDTHH:MM:SSZ`. `Covered` names every id in
-   the source-bound study risk register exactly once as `reviewed` or
-   `not-applicable`; it names no other id. `Not checked` and
-   `Leads not pursued` keep non-empty same-line values. Every block is separated
-   by one empty LF line, the table uses physical five-cell rows, and the leads
-   line ends the file with one LF. There is no prelude, extra field, continuation
-   row, later heading, or trailer. A clean round uses the exact row
-   `| -- | -- | -- | none | -- |`. No-fix rounds write the exact
-   `Elenchus verdict: null`; fixed rounds write the exact returned verdict.
+   Before appending, freeze the table shape and protected evidence inventory,
+   then apply Sapheneia's bounded audit-record operation; compact connective
+   and process prose only. Compare the candidate item by item and refuse the
+   append if it drops or changes a finding, qualification, unknown, negative
+   result, identifier, number, link, severity, verdict, status, or unpursued
+   lead. Existing audit history is append-only and stays untouched.
 
-   Regenerate every discovered sibling view before committing:
-
-   ```text
-   python3 "$PLUGIN_ROOT/skills/fiat/scripts/audit_synopsis.py" --write .
-   python3 "$PLUGIN_ROOT/skills/fiat/scripts/audit_synopsis.py" --check .
-   ```
-
-   The writer emits `fiat-audit-synopsis/v1`: one clock-free metadata line and
-   one physical line per raw H2. An unescaped `<br>` separates retained source
-   lines, `%b` encodes a literal `<br>`, and `%%` encodes a literal `%`;
-   `decode_synopsis_record()` reverses the framing exactly. The view binds the
-   source path, source SHA-256, H2 count, strict fields, canonical findings,
-   recognised legacy risk tables, and every physical `Leads not pursued`
-   occurrence with its remaining section. Missing legacy fields stay labelled
-   missing. Each view must satisfy
-   `synopsis_lines * 100 < audit_lines * 15`.
+   Version 2 belongs to the per-run topology: the path identifies the run and
+   the heading identifies only the step, round, and UTC time. The timestamp
+   grammar is exactly `YYYY-MM-DDTHH:MM:SSZ`; offsets and fractional seconds
+   are not accepted. Historical topic-bearing `fiat-audit-round/v1` records
+   stay readable but are not
+   reinterpreted as version 2. An explicitly tagged record must match its own
+   grammar; untagged historical records remain legacy prose.
 
 3. Apply fixes on the stacked branch: `<step-branch><suffix>` (suffix from
    `config audit.stacked_suffix`, default `--audit`), with a PR targeting
    the step branch. Fixes accumulate there across rounds; the audit file and its
-   regenerated sibling `AUDIT_SYNOPSIS.md` commit alongside them. Warden owns both
-   changes in the same signed commit; the controller never rewrites either.
+   regenerated sibling commit alongside them. A legacy `AUDIT.md` source uses
+   `AUDIT_SYNOPSIS.md`; `audit/rounds/<run>.md` uses
+   `audit/rounds/<run>.synopsis.md`. Warden owns both changes in the same signed
+   commit; the controller never rewrites either.
 4. Record the round. The controller resolves and reads the configured log once
    and refuses a different `--log`. The latest stored same-log end offset is
    the next boundary. With no stored offset, the configured path's regular blob
@@ -91,9 +85,21 @@ another pass.
    log end offset, and synopsis SHA-256 without printing record content:
 
    ```text
-   hexctl audit-round --findings <n> --log audit/AUDIT.md \
+   hexctl audit-round --findings <n> --log <the directive's log_path> \
+     --audit-filter sapheneia:sapheneia \
      --fixes-commit <sha> --elenchus-verdict <value>
    ```
+
+   `--log` is optional and checked: supply it and it has to name the file the
+   directive named, or the round is refused and records nothing. Omit it and the
+   round records that same path, because the loop already required the record to
+   go there. Either way the receipt cannot name a file the round never opened.
+
+   `--audit-filter sapheneia:sapheneia` is required on every round, whether it
+   found anything or produced a fix. The controller checks and records this
+   exact checked operator declaration before mutating state or the ledger. It is
+   not semantic proof that the Sapheneia pass preserved the candidate; the Warden's
+   item-by-item comparison remains the evidence for that claim.
 
    `<value>` is exactly `guarded`, `unguarded`, `passed`, or `inconclusive`.
    The two flags are conditional as a pair: a fixes commit without a verdict,
@@ -156,14 +162,16 @@ The controller takes the three exits as fields, and refuses the round without
 them:
 
 ```text
-hexctl audit-round --findings <n> --log audit/AUDIT.md \
+hexctl audit-round --findings <n> --log <the directive's log_path> \
+  --audit-filter sapheneia:sapheneia \
   --phylax-exit <n> --ephoros-exit <n> --hypomnema-exit <n>
 ```
 
-`next` names the three flags when the round owes them, so the requirement
-arrives before the refusal does. A round reporting zero findings beside a
-non-zero exit is refused as well: the log would otherwise say a lint failed
-while the ledger said the round was clean.
+`next` names the exact audit-filter obligation on every round and the three
+lint flags when the round owes them, so each requirement arrives before the
+refusal does. A round reporting zero findings beside a non-zero exit is refused
+as well: the log would otherwise say a lint failed while the ledger said the
+round was clean.
 
 Which rounds owe them comes from the `security_suite` receipt. A waiver means
 these three are the mechanical part. A recorded list of suite ids means the

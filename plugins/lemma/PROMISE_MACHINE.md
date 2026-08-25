@@ -128,6 +128,9 @@ In particular:
   cross-host conformance.
 - Ariadne binds an artefact digest to declared evidence; without an external
   signature verifier it does not establish author identity.
+- A Fiat run-observation binding preserves the observation validator and
+  capture boundaries. It attaches only the checked prefix to one receipt; it
+  does not make observation availability or event truth delivery evidence.
 
 Any unexplained strengthening is a conformance failure.
 
@@ -187,6 +190,46 @@ findings. The checker reaches no network and executes no evidence command.
 - Consequence: 3
 - Refuses: A missing, unsafe, oversized, or divergent licence, an inconsistent host manifest, or any claim that the first-party licence covers a vendored skill.
 - Recovery: Restore the canonical root licence and first-party copies, correct the host manifests, leave vendored licences untouched, and rerun the licence check.
+- Exceptions: none
+
+## Run observation promise
+
+### promise-machine-run-observation-structural-validation
+
+- Promise: A successful `python3 scripts/run_observation.py check <path>` establishes that the named regular JSON Lines file conforms to `promise-machine-run-observation/v1` under the validator's closed shapes, limits, lifecycle, backward-reference, evidence-binding, unknown-fact, optional-token, Unicode-path and final-snapshot rules.
+- Evidence: The exact input path and validated bytes, one bounded final named-path reread with matching digest and file identity, v1 schema, standard-library validator, stable finding report, valid and refusing fixtures, focused tests and zero command exit.
+- Evidence classes: checked
+- Boundary: Validation does not capture a run, prove that the record is complete or externally true, establish cause or model quality, bind a Fiat receipt, make a security conclusion, authorise mutation, or prevent a writer changing the path after the final reread.
+- Authorises: Treating only the named bytes as structurally conforming and passing that bounded result to a consumer that preserves its subject, scope, time domain, evidence class, unknowns and refusal boundary.
+- Consequence: 1
+- Refuses: Unsafe or unbounded input, a final byte or identity mismatch, malformed or duplicate-key JSON, an open event shape, missing identity, invalid order or lifecycle, a forward or cross-run reference, unbound or strengthened evidence, hidden reasoning, raw payloads, non-scalar, non-NFC, control-bearing, bidirectional or otherwise unsafe repository paths, placeholder host facts, invalid token counts or a non-zero finding report.
+- Recovery: Inspect the stable finding code, repair the source record without having the checker mutate it, preserve unknowns and evidence boundaries, then rerun the same command.
+- Exceptions: none
+
+### promise-machine-run-observation-capture
+
+- Promise: A successful `python3 scripts/run_observation_capture.py check <candidate>` establishes that the named bounded candidate was processed by `promise-machine-run-observation-capture/v1` into one accepted event, visible gap, or refusal before a durable observation exists.
+- Evidence: The named candidate, closed standard-library adapter, capture schema, direct-allowlist fixtures, hostile byte-survival tests, source-owned reporter, and zero command exit.
+- Evidence classes: checked
+- Boundary: The result does not prove the source is true or complete, detect every secret, govern another host memory, itself bind a Fiat receipt, make a security conclusion, or authorise another controller transition.
+- Authorises: Passing an accepted result to the capture writer, or recording the bounded gap or refusal without treating it as an accepted observation.
+- Consequence: 1
+- Refuses: An open or oversized candidate, raw payload family, malformed redaction, unsafe repository path, low-entropy correlation input, unknown shape, or writer bypass.
+- Recovery: Remove the unsafe field from the candidate adapter, retain only a closed redaction or safe descriptor, then rerun the same command and hostile fixture surface.
+- Exceptions: none
+
+## Contributor ranking promise
+
+### promise-machine-contributor-ranking
+
+- Promise: A successful `python3 scripts/contributors.py --check` establishes that every contributor row GitHub returned for the named repository was placed in exactly one of ranked, excluded with a named reason, or refused; that each ranked login is a valid GitHub login absent from the declared runtime-host set, is neither the Shoggoth's account nor the repository owner, and had at least one commit in a bounded sample authored by a non-host identity; that the order is merged commits, then merged pull requests, then login; and that `CONTRIBUTORS.md` and the marked region of `README.md` match that one computation byte for byte.
+- Evidence: The recorded contributors, merged-pull-request and commit-authorship reads, the host-set parity check against `hexctl.py`'s declaration, the login grammar check, the per-identity classification lines, the ranking digest, the byte comparison of both artefacts and zero command exit.
+- Evidence classes: checked, recorded
+- Boundary: Ranking does not establish that the counts fairly measure contribution, that a commit carried judgement, who wrote which line, anything about a person beyond the account they committed under, or that GitHub's resolution of author emails to accounts is correct. It does not detect a merge that discarded commit authorship before the commit reached the default branch, and its authorship corroboration samples at most twenty commits per account rather than all of them.
+- Authorises: Writing `CONTRIBUTORS.md` and the marked region of `README.md` and nothing outside those two targets, and reporting the ranking without strengthening what the counts mean.
+- Consequence: 1
+- Refuses: An account type other than User or Bot, a Bot absent from the declared host set, a login failing the GitHub login grammar, a repository argument carrying query syntax, any failed API read including a rate limit, a host set diverged from `hexctl.py` in either direction, an excluded login reaching the ranked output, a `README.md` that is absent or not UTF-8, and a read that would silently truncate.
+- Recovery: Read the stop, which names the identity or field at fault; extend the host set in `hexctl.py` and `scripts/contributors.py` together for an unknown host, set a token or wait for the named reset for a rate limit, and rerun with `--write` for a stale artefact. The generator never repairs an input.
 - Exceptions: none
 
 ## Installation copies

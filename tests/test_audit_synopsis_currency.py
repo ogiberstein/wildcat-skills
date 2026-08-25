@@ -27,6 +27,9 @@ SCRIPT = (
 FIXTURE = ROOT / "tests" / "fixtures" / "audit-synopsis" / "heterogeneous.md"
 LIVE_SOURCES = (
     "audit/AUDIT.md",
+    "audit/rounds/fiat-429-audit-record-schema-timestamp-synopsis.md",
+    "audit/rounds/fiat-576-give-each-fiat-run-its-own-audit-log-path.md",
+    "audit/rounds/fiat-594-bind-a-step-merge-to-the-pull-request-the-di.md",
     "plugins/ariadne/audit/AUDIT.md",
     "plugins/hexaemeron/audit/AUDIT.md",
     "plugins/pandects/audit/AUDIT.md",
@@ -51,11 +54,22 @@ def decode_record(module, record):
     return decoder(record)
 
 
-def strict_record(verdict="null", *, omit=None, finding_row=None):
+def strict_record(
+    verdict="null",
+    *,
+    omit=None,
+    finding_row=None,
+    schema="fiat-audit-round/v1",
+):
+    heading = (
+        "## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z"
+        if schema == "fiat-audit-round/v1"
+        else "## Step 1, round 1 -- 2026-08-23T02:17:46Z"
+    )
     lines = [
-        "## Fixture, step 1, round 1 -- 2026-08-23T02:17:46Z",
+        heading,
         "",
-        "Audit schema: fiat-audit-round/v1",
+        f"Audit schema: {schema}",
         "",
         "Covered: fixture-risk=reviewed",
         "",
@@ -303,6 +317,29 @@ class SynopsisFixtureTests(unittest.TestCase):
         rendered = self.module.render_source("audit/AUDIT.md", schema_less_h3)
         self.assertIn(b"[missing legacy field: audit-schema]", rendered["bytes"])
 
+    def test_v1_and_v2_headings_are_not_context_reinterpreted(self):
+        for schema, source in (
+            ("fiat-audit-round/v1", "audit/AUDIT.md"),
+            ("fiat-audit-round/v2", "audit/rounds/example.md"),
+        ):
+            with self.subTest(schema=schema):
+                record = strict_record(schema=schema)
+                rendered = self.module.render_source(source, record)
+                self.assertEqual(rendered["h2_count"], 1)
+                other = (
+                    "fiat-audit-round/v2"
+                    if schema == "fiat-audit-round/v1"
+                    else "fiat-audit-round/v1"
+                )
+                changed = record.replace(
+                    f"Audit schema: {schema}".encode(),
+                    f"Audit schema: {other}".encode(),
+                )
+                with self.assertRaisesRegex(
+                    self.module.SynopsisError, "malformed heading"
+                ):
+                    self.module.render_source(source, changed)
+
     def test_strict_record_boundaries_require_the_canonical_lf_bytes(self):
         canonical = strict_record()
         self.module.render_source("audit/AUDIT.md", canonical)
@@ -442,6 +479,37 @@ class SynopsisRepositoryTests(unittest.TestCase):
             self.module.process_repository(str(self.root), write=False)
         self.module.process_repository(str(self.root), write=True)
         self.module.process_repository(str(self.root), write=False)
+
+    def test_round_sources_get_unique_siblings_and_outputs_are_not_sources(self):
+        self.source()
+        rounds = self.root / "audit" / "rounds"
+        rounds.mkdir()
+        (rounds / "one.md").write_bytes(
+            strict_record(schema="fiat-audit-round/v2")
+        )
+        (rounds / "two.md").write_bytes(
+            strict_record(schema="fiat-audit-round/v2")
+        )
+        results = self.module.process_repository(str(self.root), write=True)
+        self.assertEqual(
+            [item["output"] for item in results],
+            [
+                "audit/AUDIT_SYNOPSIS.md",
+                "audit/rounds/one.synopsis.md",
+                "audit/rounds/two.synopsis.md",
+            ],
+        )
+        self.assertEqual(
+            self.module.discover_sources(str(self.root)),
+            ["audit/AUDIT.md", "audit/rounds/one.md", "audit/rounds/two.md"],
+        )
+        with mock.patch.object(
+            self.module, "_output_path", return_value="audit/AUDIT_SYNOPSIS.md"
+        ):
+            with self.assertRaisesRegex(
+                self.module.SynopsisError, "duplicate synopsis outputs"
+            ):
+                self.module.process_repository(str(self.root), write=False)
 
     def test_duplicate_leads_and_wrapped_tail_are_not_lossy(self):
         path = self.root / "audit" / "AUDIT.md"
@@ -805,7 +873,7 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
         discovered = self.module.discover_sources(str(ROOT))
         self.assertEqual(tuple(discovered), LIVE_SOURCES)
         results = self.module.process_repository(str(ROOT), write=False)
-        self.assertEqual(len(results), 6)
+        self.assertEqual(len(results), len(LIVE_SOURCES))
         for result in results:
             with self.subTest(source=result["source"]):
                 self.assertEqual(result["committed"], "match")
@@ -815,7 +883,8 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                 )
 
     def test_pinned_legacy_schema_drafts_bind_path_ordinal_and_exact_bytes(self):
-        source = (ROOT / "audit" / "AUDIT.md").read_bytes()
+        source_path = self.module.PRODUCT_SOURCE
+        source = (ROOT / source_path).read_bytes()
         text = source.decode("utf-8")
         lines = text.split("\n")
         if text.endswith("\n"):
@@ -831,7 +900,7 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
             cursor += len(physical)
 
         self.assertEqual(
-            tuple(self.module.PINNED_LEGACY_SCHEMA_DRAFTS), tuple(range(344, 354))
+            tuple(self.module.PINNED_LEGACY_SCHEMA_DRAFTS), tuple(range(1, 11))
         )
         for ordinal, expected_digest in (
             self.module.PINNED_LEGACY_SCHEMA_DRAFTS.items()
@@ -848,18 +917,18 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(raw).hexdigest(), expected_digest)
                 self.assertTrue(
                     self.module._pinned_legacy_schema_draft(
-                        record, ordinal, "audit/AUDIT.md", headings
+                        record, ordinal, source_path, headings
                     )
                 )
                 changed = [*record[:-1], record[-1] + "x"]
                 self.assertFalse(
                     self.module._pinned_legacy_schema_draft(
-                        changed, ordinal, "audit/AUDIT.md", headings
+                        changed, ordinal, source_path, headings
                     )
                 )
                 self.assertFalse(
                     self.module._pinned_legacy_schema_draft(
-                        record, ordinal + 100, "audit/AUDIT.md", headings
+                        record, ordinal + 100, source_path, headings
                     )
                 )
                 self.assertFalse(
@@ -867,7 +936,7 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                         record, ordinal, "plugins/x/audit/AUDIT.md", headings
                     )
                 )
-                if ordinal == 344:
+                if ordinal == 1:
                     schema_index = record.index(
                         "Audit schema: fiat-audit-round/v1"
                     )
@@ -884,19 +953,17 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
                         + source[offsets[starts[ordinal]]:]
                     )
                     with self.assertRaisesRegex(
-                        self.module.SynopsisError, "strict record 344"
+                        self.module.SynopsisError, "strict record 1"
                     ):
-                        self.module.render_source(
-                            "audit/AUDIT.md", changed_source
-                        )
+                        self.module.render_source(source_path, changed_source)
 
     def test_live_headings_leads_and_issue_327_values_survive(self):
         for relative in LIVE_SOURCES:
             with self.subTest(source=relative):
                 source = (ROOT / relative).read_text(encoding="utf-8")
-                synopsis = (ROOT / relative).with_name(
-                    "AUDIT_SYNOPSIS.md"
-                ).read_text(encoding="utf-8")
+                synopsis = (ROOT / self.module._output_path(relative)).read_text(
+                    encoding="utf-8"
+                )
                 headings = [
                     line for line in source.splitlines() if line.startswith("## ")
                 ]
@@ -932,6 +999,7 @@ class LiveSynopsisCurrencyTests(unittest.TestCase):
             for entry in boundary["entries"]
             if entry["path"].endswith("/AUDIT_SYNOPSIS.md")
             or entry["path"] == "audit/AUDIT_SYNOPSIS.md"
+            or entry["path"].endswith(".synopsis.md")
         ]
         self.assertEqual(synopsis_entries, [])
 

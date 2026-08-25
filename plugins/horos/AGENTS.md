@@ -1,7 +1,7 @@
 # Horos runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Horos.** Horos classifies a repository's evidenced token sinks and emits the reading boundary agents consult before ordinary work. Use Lemma to chunk source for retrieval, Brevitas to constrain engineering prose and Metron to measure runtime cost. No reading boundary applies during security review. **Current frontier:** The reopened scope is complete: the three home repositories carry graded boundaries, candidates, censuses and adoption stanzas, with the product pull requests awaiting their own review gates; no evidenced improvement remains.
+> **Marketplace context: Horos.** Horos records evidence-backed reading exclusions and deterministic skeleton maps for ordinary repository work. It does not chunk source, measure runtime cost, or narrow any security review. **Current frontier:** A census roll-up of the skills repository refuted the closure: the marker rule files horos.py and test_classify.py as generated from their own rule list, 42,673 of the boundary's 114,151 bytes, and content-addressed object stores stand unclassified at 7,844,877 bytes more. The held job is the marker self-exclusion fix; the content-addressed object rule and the Markdown outline extractor follow it, with maturity expected after all three.
 <!-- marketplace-context:end -->
 
 ## Promise Machine binding

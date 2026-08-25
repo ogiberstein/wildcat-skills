@@ -48,6 +48,12 @@ NEXT_JOB_SUFFIX = (
 )
 MARKETPLACE_CONTEXT_START = "<!-- marketplace-context:start -->"
 MARKETPLACE_CONTEXT_END = "<!-- marketplace-context:end -->"
+IMMUTABLE_CONTEXT_PREFIXES = (
+    ("audit",),
+    ("skills", "fizz"),
+    ("skills", "solidity-auditor"),
+    ("skills", "x-ray"),
+)
 
 
 def marketplace_entries():
@@ -79,6 +85,51 @@ def marketplace_frontiers(path):
             raise AssertionError(f"marketplace context has no current frontier: {path}")
         frontiers.append(match.group(1).strip())
     return frontiers
+
+
+def mutable_marketplace_surface(plugin_root, path):
+    """Whether a context block is first-party prose that may track now.
+
+    Audit logs are historical evidence. The three Pashov roots are
+    upstream-owned distribution copies. Their recorded marketplace context is
+    allowed to describe the installation moment rather than being rewritten
+    when the first-party landing page advances.
+    """
+    relative = path.relative_to(plugin_root)
+    return not any(
+        relative.parts[: len(prefix)] == prefix
+        for prefix in IMMUTABLE_CONTEXT_PREFIXES
+    )
+
+
+# Directories that hold a checkout of this same repository rather than shipped
+# content. A sweep that descends into one finds every landing README twice and
+# reports the copies as strays.
+#
+# `.claude` was the only entry for a while, which missed the location Fiat
+# actually uses: its documented worktree home is `tmp/fiat/<run>`, gitignored as
+# `/tmp/`, so the suite failed for anybody with a delivery in flight in the same
+# clone. Listing names is what let that happen, so nested checkouts are now
+# detected rather than enumerated, and the names below are only the fast path.
+NESTED_CHECKOUT_NAMES = {".git", ".hexaemeron", ".claude", "tmp"}
+
+
+def _inside_nested_checkout(relative, root):
+    if relative.parts and relative.parts[0] in NESTED_CHECKOUT_NAMES:
+        return True
+    current = root
+    for part in relative.parts[:-1]:
+        current = current / part
+        if (current / ".git").exists():
+            return True
+    return False
+
+
+def repository_markdown(root):
+    """Every shipped Markdown file, skipping checkouts of this repository."""
+    for path in sorted(root.rglob("*.md")):
+        if not _inside_nested_checkout(path.relative_to(root), root):
+            yield path
 
 
 class MarketplaceProseTests(unittest.TestCase):
@@ -162,6 +213,43 @@ class MarketplaceProseTests(unittest.TestCase):
         self.assertIn("fiat/<issue>-", push)
         self.assertIn("issue number in its run branch", codex["interface"]["longDescription"])
 
+    def test_fiat_public_prose_names_durable_record_gates(self):
+        plugin = ROOT / "plugins" / "hexaemeron"
+        skill = (plugin / "skills" / "fiat" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        readme = (plugin / "README.md").read_text(encoding="utf-8")
+        agent = (plugin / "skills" / "fiat" / "agents" / "openai.yaml").read_text(
+            encoding="utf-8"
+        )
+        codex = json.loads(
+            (plugin / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("--audit-filter sapheneia:sapheneia", skill)
+        self.assertIn("--audit-filter sapheneia:sapheneia", readme)
+        for text in (readme, agent, codex["interface"]["longDescription"]):
+            self.assertIn("Sapheneia", text)
+            self.assertIn("task issue", text.lower())
+            self.assertIn("comment", text.lower())
+
+    def test_sapheneia_public_prose_names_the_bounded_durable_record_operation(self):
+        plugin = ROOT / "plugins" / "sapheneia"
+        skill = (plugin / "skills" / "sapheneia" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        runtime = (plugin / "AGENTS.md").read_text(encoding="utf-8")
+        readme = (plugin / "README.md").read_text(encoding="utf-8")
+        agent = (plugin / "skills" / "sapheneia" / "agents" / "openai.yaml").read_text(
+            encoding="utf-8"
+        )
+        codex = json.loads(
+            (plugin / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        for text in (skill, runtime, readme, agent, codex["interface"]["longDescription"]):
+            self.assertIn("audit record", text)
+            self.assertIn("issue", text.lower())
+            self.assertIn("comment", text.lower())
+
     def test_root_readme_maps_every_plugin(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("## Meet the Shoggoth", readme)
@@ -170,6 +258,51 @@ class MarketplaceProseTests(unittest.TestCase):
             with self.subTest(plugin=name):
                 self.assertIn("[", readme)
                 self.assertIn("./plugins/%s" % name, readme)
+
+    def test_root_readme_names_the_complete_collective(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        roster = readme.split("## Meet the Shoggoth", 1)[1].split(
+            "## How the members fit together", 1
+        )[0]
+
+        governed = sorted(
+            skill
+            for skill in (ROOT / "plugins").glob("*/skills/**/SKILL.md")
+            if (skill.parent / "EVOLUTION.md").is_file()
+        )
+        self.assertEqual(len(governed), 23)
+        for skill in governed:
+            plugin = skill.parents[2]
+            target = skill.parent if plugin.name == "hexaemeron" else plugin
+            relative = target.relative_to(ROOT).as_posix()
+            with self.subTest(skill=skill.parent.name):
+                self.assertIn(f"(./{relative})", roster)
+
+        for worker in ("Surveyor", "Mason", "Warden", "Scribe"):
+            with self.subTest(worker=worker):
+                self.assertIn(f"**{worker}**", roster)
+
+        for upstream in (
+            "X-Ray",
+            "Solidity Auditor",
+            "Fizz",
+            "Fizz Convert",
+            "Fizz Sync",
+        ):
+            with self.subTest(upstream=upstream):
+                self.assertIn(upstream, roster)
+
+    def test_external_contributor_prose_keeps_the_human_identity(self):
+        paths = (ROOT / "README.md", ROOT / "docs" / "how-to-help-shoggoth.md")
+        for path in paths:
+            with self.subTest(path=path):
+                text = " ".join(path.read_text(encoding="utf-8").split())
+                self.assertIn("not Shoggoth", text)
+                self.assertIn("own Git author", text)
+                self.assertIn("signing identity", text)
+                self.assertIn("GitHub account", text)
+                self.assertNotIn("pull/479", text)
+                self.assertNotIn("PR #479", text)
 
     def test_root_readme_documents_how_to_publish(self):
         """Install was documented for three hosts and publishing for none.
@@ -242,14 +375,7 @@ class MarketplaceProseTests(unittest.TestCase):
     def test_rolling_fiat_jobs_exist_only_in_plugin_landing_readmes(self):
         allowed = set(plugin_landing_readmes().values())
         found = set()
-        for path in ROOT.rglob("*.md"):
-            relative = path.relative_to(ROOT)
-            # `.claude` holds git worktrees of this same repository, so a
-            # sweep that descends into it finds every landing README twice and
-            # reports the copies as strays. Nothing shipped lives under a dot
-            # directory here.
-            if relative.parts[0] in {".git", ".hexaemeron", ".claude"}:
-                continue
+        for path in repository_markdown(ROOT):
             if "**Next Fiat job.**" in path.read_text(encoding="utf-8"):
                 found.add(path)
         self.assertEqual(found, allowed)
@@ -263,8 +389,13 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertEqual(len(landing_frontiers), 1)
             expected = landing_frontiers[0]
 
-            surfaces = [path for path in (ROOT / "plugins" / name).rglob("*.md")
-                        if ".claude" not in path.parts]
+            plugin_root = ROOT / "plugins" / name
+            surfaces = [
+                path
+                for path in plugin_root.rglob("*.md")
+                if ".claude" not in path.parts
+                and mutable_marketplace_surface(plugin_root, path)
+            ]
             portable = ROOT / ".agents" / "skills" / name / "SKILL.md"
             if portable.is_file():
                 surfaces.append(portable)
@@ -302,10 +433,8 @@ class MarketplaceProseTests(unittest.TestCase):
 
     def test_no_shipped_document_carries_a_sibling_handoff_label(self):
         strays = []
-        for path in ROOT.rglob("*.md"):
+        for path in repository_markdown(ROOT):
             relative = path.relative_to(ROOT)
-            if relative.parts[0] in {".git", ".hexaemeron", ".claude"}:
-                continue
             text = path.read_text(encoding="utf-8")
             for label in ("**Use another tool when.**", "**Try something else when.**"):
                 if label in text:

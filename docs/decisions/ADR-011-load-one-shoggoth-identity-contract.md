@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted, 2026-08-22. Superseded by a later numbered record once it stops being
-true.
+Superseded, 2026-08-23. [ADR-016](ADR-016-attribute-governed-agent-work-to-shoggoth.md)
+retains its single-contract placement and replaces its communication-only
+boundary.
 
 ## Context
 

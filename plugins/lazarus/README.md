@@ -3,12 +3,20 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests.
+Lazarus captures the finite historical Ethereum state and exact RPC evidence one application test needs, proves the state-backed part, and replays only recorded requests.
 
 **Current frontier.** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 
 **Next Fiat job.** Use /hexaemeron:fiat to prove the fixture's recorded transaction receipt and its logs against the captured header's receiptsRoot, so receipt evidence stops resting on the provider's word, and carry the resulting evidence class through the manifest, the verifier, the release and the Ariadne state-fixture predicate without moving any other recorded RPC response into a proved class. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Lazarus preserves one test's finite chain boundary. Alexandria preserves wider
+lending-data captures, while Berean may consume fixed-block reads in a grounded
+agent release. Ariadne can bind a verified Lazarus preservation release to its
+state-fixture evidence. None of those hand-offs promotes receipts, logs, calls,
+or traces into state proofs; that distinction remains Lazarus's boundary.
 
 Lazarus preserves the finite part of historical Ethereum state and RPC
 evidence that one application test needs. A fixture binds an explicit capture

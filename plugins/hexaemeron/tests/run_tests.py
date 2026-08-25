@@ -14,15 +14,23 @@ def report_target(argv):
     """Parse one fresh report path and bind its worktree identity."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "report",
+        nargs="?",
+        metavar="PATH",
+        help="the source-bound Elenchus report path",
+    )
+    parser.add_argument(
         "--elenchus-report",
         action="append",
         metavar="PATH",
         help="write an elenchus.unittest.v1 result to a fresh worktree path",
     )
     arguments = parser.parse_args(argv)
-    values = arguments.elenchus_report or []
+    values = list(arguments.elenchus_report or [])
+    if arguments.report is not None:
+        values.append(arguments.report)
     if len(values) > 1:
-        parser.error("--elenchus-report may be supplied only once")
+        parser.error("name one report path, either positionally or with --elenchus-report")
     if not values:
         return None
 

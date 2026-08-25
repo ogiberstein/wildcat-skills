@@ -37,6 +37,9 @@ test about a Solidity round.
 LINTS_CLEAN = ("--phylax-exit", "0", "--ephoros-exit", "0", "--hypomnema-exit", "0")
 """What a non-Solidity round records when all three lints came back clean."""
 
+AUDIT_FILTER = ("--audit-filter", "sapheneia:sapheneia")
+"""The exact checked operator declaration every new audit round owes."""
+
 
 def make_origin_checkout(path):
     """A real repository on `main` at `path`.
@@ -200,7 +203,14 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
                 process.wait(timeout=5)
         self.tmp.cleanup()
 
-    def run_ctl(self, *args, expect=0):
+    def run_ctl(self, *args, expect=0, audit_filter=True):
+        if (
+            args
+            and args[0] == "audit-round"
+            and audit_filter
+            and "--audit-filter" not in args
+        ):
+            args = (*args, *AUDIT_FILTER)
         pending_refs = dict(self.fake_refs)
         pending_prs = json.loads(json.dumps(self.fake_prs))
         pending_parents = json.loads(json.dumps(self.fake_parents))
@@ -250,7 +260,7 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
             merge = args[args.index("--merge-commit") + 1]
             head = pending_refs.get(state["run_branch"], self.fake_sha(state["run_branch"]))
             pending_prs[url] = self.fake_pr(
-                url, state["run_branch"], state["base"], head, merge
+                url, state["run_branch"], self.integration_base(state), head, merge
             )
         env = dict(self.env)
         env["FAKE_GIT_REFS"] = json.dumps(pending_refs)
@@ -314,10 +324,10 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
         )
         record = "\n".join(
             [
-                f"## {state['topic']}, step {state['current_step']}, "
-                f"round {round_number} -- 2026-08-23T02:17:46Z",
+                f"## Step {state['current_step']}, round {round_number} "
+                "-- 2026-08-23T02:17:46Z",
                 "",
-                "Audit schema: fiat-audit-round/v1",
+                "Audit schema: fiat-audit-round/v2",
                 "",
                 f"Covered: {covered}",
                 "",
@@ -355,7 +365,7 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
         # Warden owns and commits the append in a real run. Keep the fixture's
         # worktree equally clean so retirement tests exercise controller state,
         # not an untracked stand-in log.
-        synopsis_path = os.path.join(os.path.dirname(log_path), "AUDIT_SYNOPSIS.md")
+        synopsis_path = os.path.splitext(log_path)[0] + ".synopsis.md"
         self.git("add", "--", log_path, synopsis_path)
         self.git("commit", "-q", "-m", "fixture audit record")
 
@@ -368,6 +378,8 @@ class HexctlCase(OriginCheckoutMixin, unittest.TestCase):
         return {
             "url": url,
             "state": "MERGED" if merge_sha else "OPEN",
+            "author": {"login": "shoggoth-wildcat"},
+            "body": "Delivery evidence.\n\n<!-- wildcat-origin: shoggoth -->",
             "headRefName": head,
             "headRefOid": head_sha,
             "baseRefName": base,
@@ -399,6 +411,9 @@ if args and args[0] == "rev-parse" and "--show-toplevel" not in args:
 elif args[:3] == ["remote", "get-url", "origin"]:
     print(os.environ.get("FAKE_GIT_ORIGIN", "https://github.com/wildcat-finance/example.git"))
 elif args and args[0] == "ls-remote":
+    if os.environ.get("FAKE_GIT_LS_REMOTE_LOG"):
+        with open(os.environ["FAKE_GIT_LS_REMOTE_LOG"], "a", encoding="utf-8") as log:
+            log.write(json.dumps({{"args": args, "cwd": os.getcwd()}}) + "\\n")
     ref = args[-1]
     branch = ref.removeprefix("refs/heads/")
     refs = json.loads(os.environ.get("FAKE_GIT_REFS", "{{}}"))
@@ -413,35 +428,59 @@ elif args and args[0] == "ls-remote":
     else:
         print(f"{{tip}}\\t{{ref}}")
 elif args and args[0] == "merge-base":
-    raise SystemExit(0)
+    if "--is-ancestor" in args:
+        if mode == "ancestry-error":
+            raise SystemExit(128)
+        if mode == "not-ancestor":
+            detached = os.environ.get("FAKE_GIT_NOT_ANCESTOR", "d" * 40).split(",")
+            if args[-2] in detached:
+                raise SystemExit(1)
+        raise SystemExit(0)
+    print(os.environ.get("FAKE_GIT_MERGE_BASE", "4" * 40))
 elif args and args[0] == "ls-tree":
     if mode == "baseline-unavailable":
-        raise SystemExit(3)
-    if "FAKE_GIT_BASELINE_HEX" not in os.environ:
-        raise SystemExit(0)
-    path = args[-1]
-    object_id = "a" * 40
-    tree_mode = "120000" if mode == "baseline-unsafe" else "100644"
-    entry = tree_mode + " blob " + object_id + "\\t" + path + "\\0"
-    sys.stdout.buffer.write(entry.encode())
-    if mode == "baseline-ambiguous":
-        sys.stdout.buffer.write(entry.encode())
-elif args[:2] == ["cat-file", "-s"]:
-    if mode == "baseline-unavailable":
-        raise SystemExit(3)
-    if mode == "baseline-malformed-size":
-        print("not-a-size")
-    elif mode == "baseline-oversized":
-        print(2 * 1024 * 1024 + 1)
-    else:
-        print(len(bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))))
-elif args[:2] == ["cat-file", "blob"]:
-    if mode == "baseline-unavailable":
-        raise SystemExit(3)
+        raise SystemExit(128)
+    baseline_hex = os.environ.get("FAKE_GIT_BASELINE_HEX")
+    if baseline_hex is not None:
+        baseline = bytes.fromhex(baseline_hex)
+        object_id = hashlib.sha1(
+            b"blob " + str(len(baseline)).encode() + b"\\0" + baseline
+        ).hexdigest()
+        path = args[-1].encode()
+        if mode == "baseline-ambiguous":
+            sys.stdout.buffer.write(b"ambiguous\\0")
+        elif mode == "baseline-unsafe":
+            sys.stdout.buffer.write(
+                f"120000 blob {{object_id}}\\t".encode() + path + b"\\0"
+            )
+        else:
+            sys.stdout.buffer.write(
+                f"100644 blob {{object_id}}\\t".encode() + path + b"\\0"
+            )
+elif args and args[:2] == ["cat-file", "-s"]:
     baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
-    if mode == "baseline-short-read" and baseline:
-        baseline = baseline[:-1]
+    if mode == "baseline-oversized":
+        print(2 * 1024 * 1024 + 1)
+    elif mode == "baseline-malformed-size":
+        print("not-a-size")
+    elif mode == "baseline-short-read":
+        print(len(baseline) + 1)
+    else:
+        print(len(baseline))
+elif args and args[:2] == ["cat-file", "blob"]:
+    baseline = bytes.fromhex(os.environ.get("FAKE_GIT_BASELINE_HEX", ""))
     sys.stdout.buffer.write(baseline)
+elif (
+    args
+    and args[0] == "diff"
+    and "--name-only" in args
+    and any(".." in value for value in args)
+    and "FAKE_GIT_DIFF_PATHS" in os.environ
+):
+    pair = next(value for value in args if ".." in value)
+    paths = json.loads(os.environ.get("FAKE_GIT_DIFF_PATHS", "{{}}")).get(pair, [])
+    if paths:
+        sys.stdout.write("\\0".join(paths) + "\\0")
 elif args and args[0] == "rev-list":
     pair = next(value for value in args if ".." in value)
     base, head = pair.split("..", 1)
@@ -468,10 +507,19 @@ elif args and args[0] == "show":
     if "--format=%P" in args:
         parents = json.loads(os.environ.get("FAKE_GIT_PARENTS", "{{}}"))
         print(" ".join(parents.get(args[-1], [])))
+    elif "--format=%an%x00%ae" in args:
+        if mode == "host-author":
+            sys.stdout.write("Claude\\0noreply@anthropic.com\\n")
+        else:
+            sys.stdout.write("Shoggoth\\0shoggoth@wildcat.finance\\n")
     elif mode == "missing-trailer":
         print("subject\\n\\nWildcat-Origin: shoggoth")
     elif mode == "duplicate-trailer":
         print("subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
+    elif mode == "host-coauthor":
+        print("subject\\n\\nCo-authored-by: Claude <noreply@anthropic.com>\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
+    elif mode == "host-byline":
+        print("subject\\n\\nGenerated by Claude Code\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
     else:
         print("subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth")
 else:
@@ -516,16 +564,80 @@ if args[:2] == ["pr", "view"]:
         payload["baseRefName"] = "wrong-base"
     if mode == "pr-head-mismatch":
         payload["headRefOid"] = "9" * 40
+    if mode == "host-pr-author":
+        payload["author"] = {"login": "app/claude"}
+    if mode == "host-pr-byline":
+        payload["body"] += "\\n\\nGenerated by [Claude Code](https://claude.ai/code)"
     print(json.dumps(payload))
     raise SystemExit(0)
 sha = args[-1].rsplit("/", 1)[-1]
+account = {"login": "shoggoth-wildcat"}
+identity = {"name": "Shoggoth", "email": "shoggoth@wildcat.finance"}
+message = "subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\nWildcat-Origin: shoggoth"
+if mode == "external-author":
+    account = {"login": "kethcode"}
+    identity = {"name": "Kethcode", "email": "Kethcode@Example.Invalid"}
+elif mode == "unlinked-author":
+    account = None
+    identity = {"name": "Kethcode", "email": "kethcode@example.invalid"}
+elif mode == "attribution-null-account-object":
+    account = {"login": None}
+elif mode == "attribution-host-account":
+    account = {"login": "claude[bot]"}
+elif mode == "attribution-account-not-object":
+    account = "kethcode"
+elif mode == "attribution-bad-login":
+    account = {"login": "not a login"}
+elif mode == "attribution-host-author":
+    identity = {"name": "Claude", "email": "noreply@anthropic.com"}
+elif mode == "attribution-missing-identity":
+    identity = None
+elif mode == "attribution-blank-name":
+    identity = {"name": "   ", "email": "kethcode@example.invalid"}
+elif mode == "attribution-long-name":
+    identity = {"name": "n" * (256 + 1), "email": "kethcode@example.invalid"}
+elif mode == "attribution-spaced-email":
+    identity = {"name": "Kethcode", "email": "keth code@example.invalid"}
+elif mode == "attribution-long-email":
+    identity = {"name": "Kethcode", "email": "k" * 310 + "@example.invalid"}
+elif mode == "attribution-missing-message":
+    message = None
+elif mode == "attribution-host-coauthor":
+    message = "subject\\n\\nCo-authored-by: Claude <noreply@anthropic.com>"
+elif mode == "attribution-many-coauthors":
+    message = "subject\\n\\n" + "\\n".join(
+        "Co-authored-by: Person%d <person%d@example.invalid>" % (i, i)
+        for i in range(40)
+    )
+elif mode == "attribution-merge-coauthor":
+    account = {"login": "maintainer"}
+    identity = {"name": "Maintainer", "email": "maintainer@example.invalid"}
+    message = (
+        "Merge pull request #1\\n\\n"
+        "Co-authored-by: Kethcode <kethcode@example.invalid>"
+    )
+elif mode == "attribution-merge-stranger":
+    account = {"login": "maintainer"}
+    identity = {"name": "Maintainer", "email": "maintainer@example.invalid"}
+    message = "Merge pull request #1"
+elif mode == "attribution-second-coauthor":
+    message = (
+        "subject\\n\\nCo-authored-by: Shoggoth <shoggoth@wildcat.finance>\\n"
+        "Co-authored-by: Kethcode <kethcode@example.invalid>\\n"
+        "Wildcat-Origin: shoggoth"
+    )
 payload = {
     "sha": None if mode == "missing-sha" else sha,
-    "commit": {"verification": {
-        "verified": mode != "verified-false",
-        "reason": os.environ.get("FAKE_GH_REASON", "expired_key") if mode == "invalid-reason" else "valid",
-        "signature": "RAW FAKE SIGNATURE",
-    }},
+    "author": account,
+    "commit": {
+        "author": identity,
+        "message": message,
+        "verification": {
+            "verified": mode != "verified-false",
+            "reason": os.environ.get("FAKE_GH_REASON", "expired_key") if mode == "invalid-reason" else "valid",
+            "signature": "RAW FAKE SIGNATURE",
+        },
+    },
 }
 print(json.dumps(payload))
 """)
@@ -549,14 +661,25 @@ print(json.dumps(payload))
             body += "\n## Carried forward\n\n" + carried
         return self.write(os.path.join(".hexaemeron", "run-pr.md"), body)
 
-    def init(self, topic="test topic", task_issue=None):
+    def init(self, topic="test topic", task_issue=None, base=None):
         args = ["init", "--topic", topic]
         if task_issue is not None:
             args += ["--task-issue", task_issue]
+        if base is not None:
+            args += ["--base", base]
         self.run_ctl(*args)
 
+    @staticmethod
+    def integration_base(state):
+        starting_base = state["base"]
+        if re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", starting_base):
+            return state["config"]["git"]["base"]
+        return starting_base
+
     def state(self):
-        return json.loads(self.run_ctl("status", "--json").stdout)
+        payload = json.loads(self.run_ctl("status", "--json").stdout)
+        payload.pop("observation_run_id", None)
+        return payload
 
     def run_branch(self):
         return self.state()["run_branch"]
@@ -657,8 +780,8 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         stdout, stderr = process.communicate(timeout=5)
         self.assertEqual(process.returncode, 0, (stdout, stderr))
 
-    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None):
-        self.init(task_issue=task_issue)
+    def to_steps(self, titles=("Scaffold", "Core"), task_issue=None, base=None):
+        self.init(task_issue=task_issue, base=base)
         study = self.write(
             "study.md",
             "# Study\n\n```risk-register\n"
@@ -705,6 +828,32 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         )
         return original
 
+    def to_runbook_amendable_steps(self, titles=("Core", "Finish")):
+        """A source-bound run whose baseline also passes Protasis runbook mode."""
+        self.init()
+        with open(COMPLETE_STUDY, encoding="utf-8") as handle:
+            study_text = handle.read()
+        study = self.write("study.md", study_text)
+        self.run_ctl("done", "study", "--artifact", study)
+        blocks = []
+        for number, title in enumerate(titles, 1):
+            blocks.append(
+                f"## Step {number}: {title}\n\n"
+                f"**Goal.** Ship {title}.\n"
+                f"**Entry.** Step {number} is ready.\n"
+                "**Exit.** Run `fiat-v1.0.0`.\n"
+                f"**Files.** `step-{number}.md`.\n"
+                "**Tests.** Run `python3 -m unittest`.\n"
+                "**Disciplines.** none, fixture only.\n"
+            )
+        runbook_text = "# Runbook\n\n" + "\n".join(blocks)
+        runbook = self.write("runbook.md", runbook_text)
+        steps = self.write("steps.json", json.dumps(list(titles)))
+        self.run_ctl(
+            "done", "runbook", "--artifact", runbook, "--steps-file", steps
+        )
+        return study_text, runbook_text
+
     @staticmethod
     def amendment(
         verdicts=(
@@ -715,6 +864,26 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
         date="2026-08-22",
         what="The fixture assumption was corrected.",
         why="The receipted baseline disproved it.",
+        touched="Steps 1 and 2.",
+    ):
+        return (
+            f"\n### Amendment -- {date}\n\n"
+            f"**What changed.** {what}\n"
+            f"**Why.** {why}\n"
+            f"**Steps touched.** {touched}\n"
+            f"**Still holding.** {verdicts}\n"
+        )
+
+    @staticmethod
+    def runbook_amendment(
+        verdicts=(
+            "Step 1: entry holds; exit holds. "
+            "Step 2: entry holds; exit holds."
+        ),
+        *,
+        date="2026-08-24",
+        what="Complete replacement Exit: Run `fiat-v2.0.0`.",
+        why="The target version changed.",
         touched="Steps 1 and 2.",
     ):
         return (
@@ -744,15 +913,21 @@ with module.held_lock(sys.argv[2], sys.argv[3]):
     def finish_step(self, step_no=1):
         self.run_ctl("done", "implement", "--branch", self.step_branch(step_no),
                      "--commit", f"abc{step_no}")
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         self.run_ctl("done", "audit")
         self.run_ctl("done", "prose", "--files", "3",
                      "--skills", "hexaemeron:imprimatur,hexaemeron:vulgate")
+        # A real push receipt always records the branch's actual head, because
+        # `done push` takes the sha the agent pushed. A placeholder like
+        # "head2" broke that invariant: the fake remote stores fake_sha(head)
+        # as the branch tip, so the receipt and the tip disagreed and the
+        # rewritten-stack refusal fired on a stack nothing had rewritten.
+        # Passing a 40-hex head makes fake_sha the identity, which is exactly
+        # the receipt-equals-tip state a genuine run is in.
         self.run_ctl(
             "done", "push",
             "--pr-url", f"https://github.com/wildcat-finance/example/pull/{step_no}",
-            "--head-commit", f"head{step_no}",
+            "--head-commit", self.fake_sha(f"head{step_no}"),
             "--pr-base", self.step_base(step_no),
         )
 
@@ -861,7 +1036,16 @@ class TestDelegationPackets(HexctlCase):
         mason = self.next_json()
         self.assert_packet(mason, "mason", ("runbook_step", "branch", "branch_from"))
         source = mason["brief"]["runbook_step"]
-        self.assertEqual(set(source), {"markdown", "path", "sha256", "number", "title"})
+        self.assertEqual(
+            set(source),
+            {
+                "markdown", "baseline_markdown", "baseline_sha256",
+                "amendments", "effective_sha256", "path", "sha256",
+                "number", "title",
+            },
+        )
+        self.assertEqual(source["baseline_markdown"], source["markdown"])
+        self.assertEqual(source["amendments"], [])
         self.assertEqual(source["number"], 1)
         self.assertEqual(source["title"], "Core")
         self.assertTrue(source["markdown"].startswith("## Step 1: Core\n"))
@@ -877,7 +1061,8 @@ class TestDelegationPackets(HexctlCase):
             warden,
             "warden",
             ("step_branch", "stacked_branch", "security_suite", "plugin_root",
-             "audit_log_path", "round", "risk_register", "runbook_step"),
+             "audit_log_path", "round", "audit_filter", "risk_register",
+             "runbook_step"),
         )
         risk = warden["brief"]["risk_register"]
         self.assertEqual(set(risk), {"markdown", "path", "sha256"})
@@ -896,7 +1081,10 @@ class TestDelegationPackets(HexctlCase):
         )
         self.assertEqual(
             scribe["brief"]["files"],
-            ["audit/AUDIT.md", "audit/AUDIT_SYNOPSIS.md"],
+            [
+                "audit/rounds/fiat-test-topic.md",
+                "audit/rounds/fiat-test-topic.synopsis.md",
+            ],
         )
         self.run_ctl("done", "prose", "--files", "1", "--skills",
                      "hexaemeron:imprimatur,hexaemeron:vulgate")
@@ -1111,8 +1299,8 @@ class TestDelegationPackets(HexctlCase):
             self.next_json()["brief"]["files"],
             [
                 "alpha.md",
-                "audit/AUDIT.md",
-                "audit/AUDIT_SYNOPSIS.md",
+                "audit/rounds/fiat-test-topic.md",
+                "audit/rounds/fiat-test-topic.synopsis.md",
                 "zeta.md",
             ],
         )
@@ -1593,8 +1781,8 @@ class TestCommitVerification(HexctlCase):
         module.GIT_TIMEOUT = 0.05
         for mode in (
             "nonzero", "timeout", "overflow", "missing-trailer",
-            "duplicate-trailer", "range-confusion", "malformed-range",
-            "missing-commit",
+            "duplicate-trailer", "host-author", "host-coauthor", "host-byline",
+            "range-confusion", "malformed-range", "missing-commit",
         ):
             with self.subTest(mode=mode):
                 error = StringIO()
@@ -1606,6 +1794,35 @@ class TestCommitVerification(HexctlCase):
                         module.verify_local_range(self.dir, "base", "head", "step")
                 self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
                 self.assertNotIn("FAKE SIGNATURE MATERIAL", error.getvalue())
+
+    def test_pull_request_refuses_host_author_and_byline(self):
+        module = hexctl_module()
+        url = "https://github.com/wildcat-finance/example/pull/1"
+        branch = "fiat/run-step-1"
+        base = "fiat/run"
+        head = "a" * 40
+        payload = self.fake_pr(url, branch, base, head)
+        for mode in ("host-pr-author", "host-pr-byline"):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "PATH": self.env["PATH"],
+                        "FAKE_GH_MODE": mode,
+                        "FAKE_GH_PRS": json.dumps({url: payload}),
+                    },
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.inspect_pull_request(
+                            self.dir,
+                            url,
+                            expected_head=branch,
+                            expected_base=base,
+                            expected_head_sha=head,
+                            expected_merge_sha=None,
+                        )
+                self.assertIn("runtime", error.getvalue())
 
     def test_local_success_checks_every_intermediate_commit(self):
         module = hexctl_module()
@@ -1663,7 +1880,15 @@ class TestCommitVerification(HexctlCase):
                         module.verify_github_commits(self.dir, ["a" * 40])
 
 
-class TestPublicationBindings(HexctlCase):
+class TestMergedAttribution(HexctlCase):
+    """Who a run published under, recorded without an address.
+
+    The GitHub commits endpoint is the source: its `author` is the account the
+    commit was matched to, and it is `null` when nothing matched. These drive
+    the reader directly where the shape is the subject, and through the CLI
+    where the recorded receipt is.
+    """
+
     def to_push(self):
         self.to_steps(("Ship",))
         self.run_ctl(
@@ -1678,16 +1903,398 @@ class TestPublicationBindings(HexctlCase):
             "hexaemeron:imprimatur,hexaemeron:vulgate",
         )
 
-    def to_merge_step(self):
+    def attribution_of(self, mode, commits=("a" * 40,)):
+        module = hexctl_module()
+        with mock.patch.dict(
+            os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+        ):
+            return module.verified_github_attribution(self.dir, list(commits))[1]
+
+    def test_an_external_author_is_recorded_by_account_and_normalised_digest(self):
+        record = self.attribution_of("external-author")[0]
+        self.assertEqual(record["login"], "kethcode")
+        self.assertEqual(record["name"], "Kethcode")
+        self.assertEqual(record["commit"], "a" * 40)
+        self.assertEqual(
+            record["email_sha256"],
+            hashlib.sha256(b"kethcode@example.invalid").hexdigest(),
+        )
+
+    def test_an_unlinked_author_records_an_explicit_null(self):
+        record = self.attribution_of("unlinked-author")[0]
+        self.assertIsNone(record["login"])
+        self.assertEqual(len(record["email_sha256"]), 64)
+
+    def test_every_coauthor_trailer_becomes_its_own_identity(self):
+        record = self.attribution_of("attribution-second-coauthor")[0]
+        self.assertEqual(
+            [entry["name"] for entry in record["coauthors"]],
+            ["Shoggoth", "Kethcode"],
+        )
+        self.assertEqual(
+            len({entry["email_sha256"] for entry in record["coauthors"]}), 2
+        )
+
+    def test_attribution_negative_matrix_is_fail_closed_and_secret_safe(self):
+        module = hexctl_module()
+        for mode, expected in (
+            ("attribution-host-account", "runtime host account"),
+            ("attribution-account-not-object", "account is not an object"),
+            ("attribution-null-account-object", "account login is not a string"),
+            ("attribution-bad-login", "account login is malformed"),
+            ("attribution-host-author", "runtime host as author"),
+            ("attribution-missing-identity", "identity is not an object"),
+            ("attribution-blank-name", "identity name is malformed"),
+            ("attribution-long-name", "identity name is malformed"),
+            ("attribution-spaced-email", "identity address is malformed"),
+            ("attribution-long-email", "identity address is malformed"),
+            ("attribution-missing-message", "commit message is missing"),
+            ("attribution-host-coauthor", "runtime host as co-author"),
+            ("attribution-many-coauthors", "co-author trailers"),
+        ):
+            with self.subTest(mode=mode):
+                error = StringIO()
+                with mock.patch.dict(
+                    os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+                ), redirect_stderr(error):
+                    with self.assertRaises(SystemExit):
+                        module.verified_github_attribution(self.dir, ["a" * 40])
+                self.assertIn(expected, error.getvalue())
+                self.assertNotIn("RAW FAKE SIGNATURE", error.getvalue())
+                self.assertNotIn("ghp_FAKE_SECRET", error.getvalue())
+
+    def test_verification_alone_does_not_apply_the_attribution_checks(self):
+        """A merge commit refuses on its signature, never on its identity shape.
+
+        `verify_github_commits` also covers the merge and sync receipts. If it
+        read identities too, an unexpected author shape on a merge commit would
+        refuse a receipt that has nothing to do with attribution.
+        """
+        module = hexctl_module()
+        for mode in ("attribution-long-name", "attribution-missing-message",
+                     "attribution-null-account-object"):
+            with self.subTest(mode=mode):
+                with mock.patch.dict(
+                    os.environ, {"PATH": self.env["PATH"], "FAKE_GH_MODE": mode}
+                ):
+                    self.assertEqual(
+                        module.verify_github_commits(self.dir, ["a" * 40]),
+                        ["a" * 40],
+                    )
+
+    def test_verification_and_attribution_share_one_request_per_sha(self):
+        module = hexctl_module()
+        log_path = os.path.join(self.dir, "gh.log")
+        with mock.patch.dict(
+            os.environ,
+            {"PATH": self.env["PATH"], "FAKE_GH_LOG": log_path},
+        ):
+            module.verified_github_attribution(self.dir, ["a" * 40, "b" * 40])
+        with open(log_path, encoding="utf-8") as handle:
+            calls = [json.loads(line) for line in handle if line.strip()]
+        self.assertEqual(len([call for call in calls if call[:1] == ["api"]]), 2)
+
+    def test_the_push_receipt_records_the_accounts_and_no_address(self):
         self.to_push()
+        self.env["FAKE_GH_MODE"] = "external-author"
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        receipt = self.state()["steps"][0]["receipts"]["push"]
+        attribution = receipt["attribution"]
+        self.assertEqual(attribution["pull_request_author"], "shoggoth-wildcat")
+        self.assertEqual(
+            [entry["login"] for entry in attribution["commits"]], ["kethcode"]
+        )
+        self.assertEqual(receipt["pull_request"]["author_login"], "shoggoth-wildcat")
+        self.assertNotIn("@", json.dumps(attribution))
+
+    def test_the_ledger_carries_the_attribution_and_no_address(self):
+        self.to_push()
+        self.env["FAKE_GH_MODE"] = "unlinked-author"
+        self.run_ctl(
+            "done", "push",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(path, encoding="utf-8") as handle:
+            events = [json.loads(line) for line in handle if line.strip()]
+        pushed = [event for event in events if event["event"] == "done:push"]
+        self.assertEqual(len(pushed), 1)
+        recorded = pushed[0]["data"]["attribution"]
+        self.assertIsNone(recorded["commits"][0]["login"])
+        self.assertNotIn("@", json.dumps(recorded))
+        self.run_ctl("verify")
+
+
+class TestMergedState(HexctlCase):
+    """Whether the base still carries the identities a run published under."""
+
+    URL = "https://github.com/wildcat-finance/example/pull/1"
+    RUN_URL = "https://github.com/wildcat-finance/example/pull/9"
+
+    def to_integrate(self, push_mode="external-author", base=None):
+        self.to_steps(("Ship",), base=base)
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+        self.env["FAKE_GH_MODE"] = push_mode
+        self.run_ctl(
+            "done", "push", "--pr-url", self.URL,
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.env.pop("FAKE_GH_MODE", None)
+        self.run_ctl(
+            "done", "merge-step", "--step", "1", "--merge-commit", "e" * 40
+        )
+        self.write_run_pr()
+
+    def integrate(self, *, expect=0, git_mode=None, gh_mode=None):
+        if expect != 0:
+            # `run_ctl` only seeds the integration pull request for a call it
+            # expects to succeed, so a refusal case has to stand it up itself
+            # or it fails on the topology read instead of the check under test.
+            state = self.state()
+            self.fake_refs[state["run_branch"]] = "e" * 40
+            self.fake_prs[self.RUN_URL] = self.fake_pr(
+                self.RUN_URL, state["run_branch"], self.integration_base(state),
+                "e" * 40, "f" * 40,
+            )
+        if git_mode:
+            self.env["FAKE_GIT_MODE"] = git_mode
+        if gh_mode:
+            self.env["FAKE_GH_MODE"] = gh_mode
+        try:
+            return self.run_ctl(
+                "done", "integrate", "--pr-url", self.RUN_URL,
+                "--merge-commit", "f" * 40, expect=expect,
+            )
+        finally:
+            self.env.pop("FAKE_GIT_MODE", None)
+            self.env.pop("FAKE_GH_MODE", None)
+
+    def recorded(self):
+        return self.state()["receipts"]["integrate"]["attribution"]
+
+    def test_a_preserved_merge_records_the_ancestor_mechanism(self):
+        self.to_integrate()
+        self.integrate()
+        recorded = self.recorded()
+        self.assertEqual(recorded["mechanisms"], ["ancestor"])
+        self.assertEqual(
+            [entry["login"] for entry in recorded["identities"]], ["kethcode"]
+        )
+        self.assertEqual(recorded["carriers"], {})
+        self.assertEqual(
+            [entry["carrier"] for entry in recorded["identities"]], [None]
+        )
+        self.run_ctl("verify")
+
+    def test_a_rewritten_merge_may_be_carried_by_the_merge_author(self):
+        self.to_integrate()
+        self.integrate(git_mode="not-ancestor", gh_mode="external-author")
+        recorded = self.recorded()
+        self.assertEqual(recorded["mechanisms"], ["merge-author"])
+        # The step's own merge into the run branch is tried before the base
+        # merge, and under this fixture it carries the identity.
+        self.assertEqual(
+            [entry["carrier"] for entry in recorded["identities"]], ["e" * 40]
+        )
+        self.assertEqual(recorded["carriers"], {"e" * 40: "kethcode"})
+
+    def test_a_rewritten_merge_may_be_carried_by_a_coauthor_trailer(self):
+        self.to_integrate()
+        self.integrate(git_mode="not-ancestor", gh_mode="attribution-merge-coauthor")
+        recorded = self.recorded()
+        self.assertEqual(recorded["mechanisms"], ["merge-coauthor"])
+        self.assertEqual(recorded["carriers"], {"e" * 40: "maintainer"})
+
+    def test_a_rewritten_merge_that_dropped_the_identity_refuses(self):
+        self.to_integrate()
+        proc = self.integrate(
+            expect=2, git_mode="not-ancestor", gh_mode="attribution-merge-stranger"
+        )
+        self.assertIn("no merge this run recorded carries that commit", proc.stderr)
+        self.assertIn("kethcode", proc.stderr)
+        self.assertNotIn("@", proc.stderr)
+        self.assertEqual(self.state()["phase"], "integrate")
+
+    def test_an_unanswerable_ancestry_call_refuses_rather_than_reporting_no(self):
+        self.to_integrate()
+        proc = self.integrate(expect=2, git_mode="ancestry-error")
+        self.assertIn("ancestry", proc.stderr)
+        self.assertIn("could not be determined", proc.stderr)
+
+    def test_a_legacy_receipt_without_attribution_still_integrates(self):
+        self.to_integrate()
+        path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["steps"][0]["receipts"]["push"].pop("attribution", None)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+        ledger_path = os.path.join(
+            self.target, ".hexaemeron", "ledger.jsonl"
+        )
+        with open(ledger_path, encoding="utf-8") as handle:
+            entries = [json.loads(line) for line in handle if line.strip()]
+        entries[-1]["state"] = hexctl_module().state_fingerprint(state)
+        entries[-1]["hash"] = hashlib.sha256(
+            hexctl_module().canonical(
+                {
+                    "ts": entries[-1]["ts"],
+                    "event": entries[-1]["event"],
+                    "data": entries[-1]["data"],
+                    "prev": entries[-1]["prev"],
+                    "state": entries[-1]["state"],
+                }
+            ).encode()
+        ).hexdigest()
+        with open(ledger_path, "w", encoding="utf-8") as handle:
+            for entry in entries:
+                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+        self.integrate()
+        recorded = self.recorded()
+        self.assertEqual(recorded["identities"], [])
+        self.assertEqual(recorded["mechanisms"], [])
+        self.assertEqual(recorded["carriers"], {})
+
+    def test_a_step_merge_is_tried_before_the_base_merge(self):
+        """A squashed step keeps its identity on its own merge, not the base one.
+
+        The base merge's message names no contributor, so a fallback that
+        looked only there would refuse an identity that did reach the base.
+        """
+        self.to_integrate()
+        state = self.state()
+        self.assertEqual(
+            state["integrate"]["merges"]["1"]["merge_commit"], "e" * 40
+        )
+        self.integrate(git_mode="not-ancestor", gh_mode="attribution-merge-coauthor")
+        identities = self.recorded()["identities"]
+        self.assertEqual([entry["carrier"] for entry in identities], ["e" * 40])
+        self.assertNotIn("f" * 40, self.recorded()["carriers"])
+
+    def test_a_step_merge_that_never_reached_the_base_is_not_a_carrier(self):
+        """A recorded merge only counts while it is reachable from the base."""
+        self.to_integrate()
+        self.env["FAKE_GIT_NOT_ANCESTOR"] = ",".join(("d" * 40, "e" * 40))
+        try:
+            self.integrate(git_mode="not-ancestor", gh_mode="external-author")
+        finally:
+            self.env.pop("FAKE_GIT_NOT_ANCESTOR", None)
+        identities = self.recorded()["identities"]
+        self.assertEqual([entry["carrier"] for entry in identities], ["f" * 40])
+        self.assertEqual(self.recorded()["carriers"], {"f" * 40: "kethcode"})
+
+    def test_an_empty_repaired_container_is_current_not_absent(self):
+        """A repair that recorded no commits does not fall back to stale data.
+
+        `effective_push` is the fresher record by construction. Reading it by
+        truthiness rather than presence would treat an empty container as
+        absent and quietly use the head the repair replaced.
+        """
+        module = hexctl_module()
+        state = {
+            "steps": [{"n": 1, "receipts": {"push": {"attribution": {
+                "commits": [{"commit": "d" * 40, "login": "stale"}]}}}}],
+            "integrate": {"merges": {"1": {"effective_push": {"attribution": {}}}}},
+        }
+        self.assertEqual(module.recorded_run_attribution(state), [])
+
+    def test_the_integrate_directive_names_the_preserving_merge_method(self):
+        self.to_integrate()
+        directive = self.next_json()
+        self.assertEqual(directive["do"], "integrate")
+        self.assertEqual(directive["attribution"]["recorded_identities"], 1)
+        self.assertIn("merge commit", directive["attribution"]["preserved_by"])
+        self.assertIn("squash", directive["attribution"]["preserved_by"])
+
+    def test_a_merge_time_repair_refreshes_the_attribution(self):
+        """A repaired head must not be described by the old head's identities.
+
+        The lead step 2's round 1 carried forward: the repair path recomputes
+        the verified range and GitHub's result, so the attribution beside them
+        has to be recomputed too or it describes commits that are gone.
+        """
+        self.to_steps(("Ship",))
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+        self.env["FAKE_GH_MODE"] = "external-author"
+        self.run_ctl(
+            "done", "push", "--pr-url", self.URL,
+            "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
+        )
+        self.env.pop("FAKE_GH_MODE", None)
+        branch = self.step_branch(1)
+        self.fake_refs[branch] = "c" * 40
+        self.fake_prs[self.URL]["headRefOid"] = "c" * 40
+        self.env["FAKE_GH_MODE"] = "unlinked-author"
+        self.run_ctl(
+            "done", "merge-step", "--step", "1", "--merge-commit", "e" * 40
+        )
+        self.env.pop("FAKE_GH_MODE", None)
+        effective = self.state()["integrate"]["merges"]["1"]["effective_push"]
+        self.assertTrue(effective["repaired"])
+        self.assertEqual(effective["head"], "c" * 40)
+        refreshed = effective["attribution"]["commits"]
+        self.assertEqual([entry["login"] for entry in refreshed], [None])
+        self.assertEqual([entry["commit"] for entry in refreshed], ["c" * 40])
+        self.assertNotIn("@", json.dumps(effective["attribution"]))
+
+        # The integration check reads the refreshed container, not the stale one.
+        self.write_run_pr()
+        self.integrate()
+        self.assertEqual(
+            [entry["commit"] for entry in self.recorded()["identities"]], ["c" * 40]
+        )
+
+
+class TestPublicationBindings(HexctlCase):
+    def to_push(self, base=None):
+        self.to_steps(("Ship",), base=base)
+        self.run_ctl(
+            "done", "implement", "--branch", self.step_branch(1),
+            "--commit", "abc123",
+        )
+        self.run_ctl("record", "security_suite", SUITE)
+        self.run_ctl("audit-round", "--findings", "0")
+        self.run_ctl("done", "audit")
+        self.run_ctl(
+            "done", "prose", "--files", "1", "--skills",
+            "hexaemeron:imprimatur,hexaemeron:vulgate",
+        )
+
+    def to_merge_step(self, base=None):
+        self.to_push(base=base)
         self.run_ctl(
             "done", "push",
             "--pr-url", "https://github.com/wildcat-finance/example/pull/1",
             "--head-commit", "d" * 40, "--pr-base", self.step_base(1),
         )
 
-    def to_integrate(self):
-        self.to_merge_step()
+    def to_integrate(self, base=None):
+        self.to_merge_step(base=base)
         self.run_ctl(
             "done", "merge-step", "--step", "1",
             "--merge-commit", "e" * 40,
@@ -1932,21 +2539,177 @@ class TestPublicationBindings(HexctlCase):
         )
         self.assertIn("final recorded step merge", proc.stderr)
 
-    def prepare_run_sync(self, sync_sha="7" * 40, base_sha="6" * 40):
-        self.to_integrate()
+    def prepare_run_sync(
+        self, sync_sha="7" * 40, base_sha="6" * 40, starting_base=None
+    ):
+        self.to_integrate(base=starting_base)
         state = self.state()
         final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        base_before = "4" * 40
         self.fake_refs[state["run_branch"]] = sync_sha
-        self.fake_refs[state["base"]] = base_sha
+        self.fake_refs[self.integration_base(state)] = base_sha
         self.fake_parents[sync_sha] = [final_merge, base_sha]
+        self.env["FAKE_GIT_MERGE_BASE"] = base_before
+        self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
+            {
+                f"{base_before}..{final_merge}": [
+                    "product.py",
+                    "shared.json",
+                ],
+                f"{base_before}..{base_sha}": [
+                    "shared.json",
+                    "upstream.py",
+                ],
+                f"{final_merge}..{sync_sha}": [
+                    "shared.json",
+                    "upstream.py",
+                ],
+            }
+        )
         return state, sync_sha, base_sha
+
+    def test_pinned_starting_commit_syncs_and_integrates_into_the_named_base(self):
+        starting_base = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        _, sync_sha, base_sha = self.prepare_run_sync(
+            starting_base=starting_base
+        )
+        directive = self.next_json()
+        self.assertEqual(directive["base"], "main")
+        self.assertEqual(directive["starting_base"], starting_base)
+
+        revalidation = self.write_integration_revalidation()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        self.assertIn("synced with main", proc.stdout)
+        sync = self.state()["integrate"]["sync"]
+        self.assertEqual(sync["base"], "main")
+        self.assertEqual(sync["starting_base"], starting_base)
+
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["base"], "main")
+        self.assertEqual(receipt["starting_base"], starting_base)
+
+    def test_integration_base_distinguishes_a_branch_from_a_pinned_commit(self):
+        module = hexctl_module()
+        self.assertEqual(
+            module.integration_base_of(
+                {"base": "release/one", "config": {"git": {"base": "main"}}}
+            ),
+            "release/one",
+        )
+        for configured, message in (
+            (None, "needs config.git.base"),
+            ("6" * 40, "must name an integration branch"),
+            ("../main", "not a usable branch name"),
+        ):
+            with self.subTest(configured=configured):
+                error = StringIO()
+                state = {
+                    "base": "5" * 40,
+                    "config": {"git": {"base": configured}},
+                }
+                with redirect_stderr(error), self.assertRaises(SystemExit):
+                    module.integration_base_of(state)
+                self.assertIn(message, error.getvalue())
+
+    def write_integration_revalidation(
+        self, *, affected_paths=None, checks=None
+    ):
+        affected_paths = (
+            ["shared.json", "upstream.py"]
+            if affected_paths is None else affected_paths
+        )
+        checks = checks or [
+            {
+                "id": "root-suite",
+                "command": "python3 -m unittest discover -s tests",
+                "paths": affected_paths,
+                "exit": 0,
+            }
+        ]
+        return self.write(
+            ".hexaemeron/integration-revalidation.json",
+            json.dumps(
+                {
+                    "schema": "fiat-integration-revalidation/v1",
+                    "affected_paths": affected_paths,
+                    "checks": checks,
+                }
+            ),
+        )
+
+    def configure_sync_replacement(self, sync_sha, base_sha):
+        state = self.state()
+        final_merge = state["integrate"]["merges"]["1"]["merge_commit"]
+        base_before = "4" * 40
+        self.fake_refs[state["run_branch"]] = sync_sha
+        self.fake_refs[self.integration_base(state)] = base_sha
+        self.fake_parents[sync_sha] = [final_merge, base_sha]
+        self.env["FAKE_GIT_DIFF_PATHS"] = json.dumps(
+            {
+                f"{base_before}..{final_merge}": [
+                    "product.py",
+                    "shared.json",
+                ],
+                f"{base_before}..{base_sha}": [
+                    "controller.py",
+                    "shared.json",
+                    "upstream.py",
+                ],
+                f"{final_merge}..{sync_sha}": [
+                    "controller.py",
+                    "shared.json",
+                    "upstream.py",
+                ],
+            }
+        )
+        return self.write_integration_revalidation(
+            affected_paths=["controller.py", "shared.json", "upstream.py"]
+        )
 
     def test_sync_run_receipts_exact_merge_and_allows_integration(self):
         state, sync_sha, base_sha = self.prepare_run_sync()
+        before = self.state()
+        revalidation = self.write_integration_revalidation()
         self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
         )
+        after_sync = self.state()
+        self.assertEqual(before["steps"], after_sync["steps"])
+        sync = after_sync["integrate"]["sync"]
+        self.assertEqual(sync["product_evidence"]["head"], "e" * 40)
+        self.assertEqual(sync["revalidation"]["base_before"], "4" * 40)
+        self.assertEqual(sync["revalidation"]["product_paths"], [
+            "product.py", "shared.json",
+        ])
+        self.assertEqual(sync["revalidation"]["upstream_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        self.assertEqual(sync["revalidation"]["overlap_paths"], ["shared.json"])
+        self.assertEqual(sync["revalidation"]["composition_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        self.assertEqual(sync["revalidation"]["affected_paths"], [
+            "shared.json", "upstream.py",
+        ])
+        status = self.run_ctl("status").stdout
+        self.assertIn("product eeeeeeeeeeee preserved", status)
+        self.assertIn("1 integration revalidation check(s) recorded", status)
         self.write_run_pr()
         self.run_ctl(
             "done", "integrate",
@@ -1958,38 +2721,337 @@ class TestPublicationBindings(HexctlCase):
         self.assertEqual(receipt["sync"]["base_head"], base_sha)
         self.assertEqual(receipt["sync"]["parents"], ["e" * 40, base_sha])
 
-    def test_sync_run_refuses_wrong_merge_parents(self):
+    def test_sync_run_supersedes_one_failed_composition_without_reopening_product(self):
+        _, first_sync, first_base = self.prepare_run_sync()
+        first_revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", first_sync,
+            "--base-commit", first_base,
+            "--revalidation", first_revalidation,
+        )
+        product = self.state()["integrate"]["sync"]["product_evidence"]
+
+        replacement_sync = "8" * 40
+        replacement_base = "9" * 40
+        replacement_revalidation = self.configure_sync_replacement(
+            replacement_sync, replacement_base
+        )
+        proc = self.run_ctl(
+            "done", "sync-run",
+            "--commit", replacement_sync,
+            "--base-commit", replacement_base,
+            "--revalidation", replacement_revalidation,
+            "--supersede-sync", first_sync,
+            "--reason", "the required integration check failed in a shallow clone",
+        )
+        self.assertIn("superseded", proc.stdout)
+
+        integrate = self.state()["integrate"]
+        self.assertEqual(integrate["sync"]["commit"], replacement_sync)
+        self.assertEqual(integrate["sync"]["base_head"], replacement_base)
+        self.assertEqual(integrate["sync"]["product_evidence"], product)
+        self.assertEqual(len(integrate["superseded_syncs"]), 1)
+        prior = integrate["superseded_syncs"][0]
+        self.assertEqual(prior["sync"]["commit"], first_sync)
+        self.assertEqual(prior["superseded_by"], replacement_sync)
+        self.assertEqual(
+            prior["reason"],
+            "the required integration check failed in a shallow clone",
+        )
+        status = self.run_ctl("status").stdout
+        self.assertIn("1 superseded sync(s) retained", status)
+        directive = self.next_json()
+        self.assertEqual(
+            directive["base_advance"]["recovery"],
+            "supersede-sync-and-revalidate",
+        )
+        self.assertIn(
+            f"--supersede-sync {replacement_sync}",
+            directive["base_advance"]["then"],
+        )
+
+        self.write_run_pr()
+        self.run_ctl(
+            "done", "integrate",
+            "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+            "--merge-commit", "f" * 40,
+        )
+        receipt = self.state()["receipts"]["integrate"]
+        self.assertEqual(receipt["sync"]["commit"], replacement_sync)
+        self.assertEqual(
+            receipt["superseded_syncs"][0]["sync"]["commit"], first_sync
+        )
+
+    def test_sync_supersession_requires_a_receipt_and_reason(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
-        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
+        )
+        self.assertIn("use --supersede-sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", sync_sha, expect=2,
+        )
+        self.assertIn("--reason is required", proc.stderr)
+
+    def test_sync_supersession_refuses_stale_or_malformed_subject_evidence(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "8" * 40,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", "5" * 40,
+            "--reason", "a failed check", expect=2,
+        )
+        self.assertIn("active recorded sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            "--supersede-sync", sync_sha, "--reason", "a failed check",
+            expect=2,
+        )
+        self.assertIn("must use a new signed commit", proc.stderr)
+
+        for reason in ("   ", "line one\nline two", "bad\x7fvalue", "é" * 513):
+            with self.subTest(reason=repr(reason)):
+                proc = self.run_ctl(
+                    "done", "sync-run", "--commit", "8" * 40,
+                    "--base-commit", base_sha, "--revalidation", revalidation,
+                    "--supersede-sync", sync_sha, "--reason", reason,
+                    expect=2,
+                )
+                self.assertIn("reason is invalid", proc.stderr)
+
+    def test_sync_supersession_is_bounded_and_requires_an_existing_receipt(self):
+        _, active_sync, active_base = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+            "--supersede-sync", "5" * 40, "--reason", "nothing active yet",
+            expect=2,
+        )
+        self.assertIn("requires an active recorded sync", proc.stderr)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+            "--reason", "not attached to a receipt", expect=2,
+        )
+        self.assertIn("--reason requires --supersede-sync", proc.stderr)
+        self.run_ctl(
+            "done", "sync-run", "--commit", active_sync,
+            "--base-commit", active_base, "--revalidation", revalidation,
+        )
+
+        for number in range(8):
+            replacement_sync = hashlib.sha1(
+                f"replacement-sync-{number}".encode()
+            ).hexdigest()
+            replacement_base = hashlib.sha1(
+                f"replacement-base-{number}".encode()
+            ).hexdigest()
+            replacement_revalidation = self.configure_sync_replacement(
+                replacement_sync, replacement_base
+            )
+            self.run_ctl(
+                "done", "sync-run", "--commit", replacement_sync,
+                "--base-commit", replacement_base,
+                "--revalidation", replacement_revalidation,
+                "--supersede-sync", active_sync,
+                "--reason", f"bounded replacement {number + 1}",
+            )
+            active_sync = replacement_sync
+
+        self.assertEqual(len(self.state()["integrate"]["superseded_syncs"]), 8)
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", "a" * 40,
+            "--base-commit", "b" * 40,
+            "--revalidation", revalidation,
+            "--supersede-sync", active_sync,
+            "--reason", "one replacement too many", expect=2,
+        )
+        self.assertIn("supersession limit", proc.stderr)
+
+    def test_sync_and_integration_refuse_edited_state_before_receipt_laundering(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+        )
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, "rb") as handle:
+            valid_state = handle.read()
+        with open(ledger_path, "rb") as handle:
+            valid_ledger = handle.read()
+
+        for command in ("sync", "integrate"):
+            with self.subTest(command=command):
+                state = json.loads(valid_state)
+                state["integrate"]["sync"]["commit"] = "8" * 40
+                with open(state_path, "w", encoding="utf-8") as handle:
+                    json.dump(state, handle)
+                if command == "sync":
+                    proc = self.run_ctl(
+                        "done", "sync-run", "--commit", "9" * 40,
+                        "--base-commit", base_sha,
+                        "--revalidation", revalidation,
+                        "--supersede-sync", "8" * 40,
+                        "--reason", "try to absorb edited state", expect=1,
+                    )
+                else:
+                    proc = self.run_ctl(
+                        "done", "integrate",
+                        "--pr-url", "https://github.com/wildcat-finance/example/pull/2",
+                        "--merge-commit", "f" * 40, expect=1,
+                    )
+                self.assertIn("edited outside hexctl", proc.stderr)
+                with open(ledger_path, "rb") as handle:
+                    self.assertEqual(handle.read(), valid_ledger)
+                with open(state_path, "wb") as handle:
+                    handle.write(valid_state)
+
+    def test_sync_run_requires_bounded_green_revalidation(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
             "--base-commit", base_sha, expect=2,
+        )
+        self.assertIn("--revalidation is required", proc.stderr)
+
+        failed = self.write_integration_revalidation(
+            checks=[
+                {
+                    "id": "root-suite",
+                    "command": "python3 -m unittest discover -s tests",
+                    "paths": ["shared.json", "upstream.py"],
+                    "exit": 1,
+                }
+            ]
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", failed, expect=2,
+        )
+        self.assertIn("must record exit 0", proc.stderr)
+
+    def test_sync_run_revalidation_covers_the_computed_composition_surface(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        outside = self.write_integration_revalidation(
+            affected_paths=["not-in-delta.py"]
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", outside, expect=2,
+        )
+        self.assertIn("outside the computed integration delta", proc.stderr)
+
+        omitted = self.write_integration_revalidation(
+            affected_paths=["upstream.py"],
+            checks=[
+                {
+                    "id": "upstream-suite",
+                    "command": "python3 -m unittest upstream_tests",
+                    "paths": ["upstream.py"],
+                    "exit": 0,
+                }
+            ],
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", omitted, expect=2,
+        )
+        self.assertIn("omits the computed integration surface", proc.stderr)
+
+        uncovered = self.write_integration_revalidation(
+            affected_paths=["shared.json", "upstream.py"],
+            checks=[
+                {
+                    "id": "shared-suite",
+                    "command": "python3 -m unittest shared_tests",
+                    "paths": ["shared.json"],
+                    "exit": 0,
+                }
+            ],
+        )
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", uncovered, expect=2,
+        )
+        self.assertIn("do not cover every affected path", proc.stderr)
+
+    def test_integrate_directive_preserves_product_evidence_on_base_drift(self):
+        self.to_integrate()
+        directive = self.next_json()
+        self.assertEqual(
+            directive["product_evidence"]["status"], "preserved-exact-tree"
+        )
+        self.assertEqual(directive["product_evidence"]["head"], "e" * 40)
+        self.assertEqual(
+            directive["base_advance"]["recovery"], "sync-run-and-revalidate"
+        )
+        self.assertIn(
+            "--revalidation .hexaemeron/integration-revalidation.json",
+            directive["base_advance"]["then"],
+        )
+        self.assertIn(
+            "does not authorise a carryover",
+            directive["base_advance"]["boundary"],
+        )
+
+    def test_sync_run_refuses_wrong_merge_parents(self):
+        _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
+        self.fake_parents[sync_sha] = ["9" * 40, base_sha]
+        proc = self.run_ctl(
+            "done", "sync-run", "--commit", sync_sha,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("merge parents", proc.stderr)
 
     def test_sync_run_refuses_unsigned_commit(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         self.env["FAKE_GIT_MODE"] = "unsigned"
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha, expect=2,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("valid local signature", proc.stderr)
 
     def test_sync_run_refuses_stale_remote_base(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", "5" * 40, expect=2,
+            "--base-commit", "5" * 40, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("remote base branch tip", proc.stderr)
 
     def test_sync_run_refuses_invalid_github_verification(self):
         _, sync_sha, base_sha = self.prepare_run_sync()
+        revalidation = self.write_integration_revalidation()
         self.env["FAKE_GH_MODE"] = "verified-false"
         proc = self.run_ctl(
             "done", "sync-run", "--commit", sync_sha,
-            "--base-commit", base_sha, expect=2,
+            "--base-commit", base_sha, "--revalidation", revalidation,
+            expect=2,
         )
         self.assertIn("not verified:true", proc.stderr)
 
@@ -2221,7 +3283,7 @@ class TestAuditLoop(HexctlCase):
         self.run_ctl("record", "security_suite",
                      '["pashov-xray","pashov-solidity-auditor"]')
         self.assertEqual(self.next_json()["do"], "audit-round")
-        self.run_ctl("audit-round", "--findings", "3", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "3")
         out = self.next_json()
         self.assertEqual(out["do"], "audit-round")
         self.assertEqual(out["round"], 2)
@@ -2319,12 +3381,8 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(state_path, encoding="utf-8") as handle:
             state = json.load(handle)
-        new_leaves = (
-            "schema", "record_timestamp", "entry_sha256", "log_end_offset",
-            "synopsis_sha256", "elenchus_verdict",
-        )
-        for leaf in new_leaves:
-            state["steps"][0]["audit"]["rounds"][-1].pop(leaf, None)
+        state["steps"][0]["audit"]["rounds"][-1].pop("elenchus_verdict")
+        state["steps"][0]["audit"]["rounds"][-1].pop("audit_filter")
         canonical_state = json.dumps(state, sort_keys=True, separators=(",", ":"))
         with open(state_path, "w", encoding="utf-8") as handle:
             json.dump(state, handle, indent=2)
@@ -2333,8 +3391,8 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         with open(ledger_path, encoding="utf-8") as handle:
             entries = [json.loads(line) for line in handle if line.strip()]
         self.assertEqual(entries[-1]["event"], "audit-round")
-        for leaf in new_leaves:
-            entries[-1]["data"].pop(leaf, None)
+        entries[-1]["data"].pop("elenchus_verdict")
+        entries[-1]["data"].pop("audit_filter")
         entries[-1]["state"] = hashlib.sha256(canonical_state.encode()).hexdigest()
         unsigned = {key: value for key, value in entries[-1].items() if key != "hash"}
         entries[-1]["hash"] = hashlib.sha256(
@@ -2433,6 +3491,10 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         expected_markdown = "## Step 1: Core\n\n**Goal.** Ship Core.\n"
         expected_source = {
             "markdown": expected_markdown,
+            "baseline_markdown": expected_markdown,
+            "baseline_sha256": hashlib.sha256(expected_markdown.encode()).hexdigest(),
+            "amendments": [],
+            "effective_sha256": hashlib.sha256(expected_markdown.encode()).hexdigest(),
             "path": os.path.realpath(os.path.join(self.target, "runbook.md")),
             "sha256": hashlib.sha256(
                 ("# Runbook\n\n" + expected_markdown).encode()
@@ -2458,7 +3520,8 @@ class ElenchusVerdictReceiptTests(HexctlCase):
             set(warden_first["brief"]),
             {
                 "step_branch", "stacked_branch", "security_suite", "plugin_root",
-                "audit_log_path", "round", "risk_register", "runbook_step",
+                "audit_log_path", "round", "audit_filter", "risk_register",
+                "runbook_step",
             },
         )
 
@@ -2466,8 +3529,9 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.to_receiptable_audit()
         self.run_ctl("audit-round", "--findings", "1")
         self.make_last_round_legacy()
+        log_path = self.state()["config"]["audit"]["log_path"]
         self.env["FAKE_GIT_BASELINE_HEX"] = Path(
-            os.path.join(self.target, "audit", "AUDIT.md")
+            os.path.join(self.target, *log_path.split("/"))
         ).read_bytes().hex()
 
         self.run_ctl("status")
@@ -2483,1356 +3547,19 @@ class ElenchusVerdictReceiptTests(HexctlCase):
         self.run_ctl("verify")
         rounds = self.state()["steps"][0]["audit"]["rounds"]
         self.assertNotIn("elenchus_verdict", rounds[0])
+        self.assertNotIn("audit_filter", rounds[0])
         self.assertEqual(rounds[1]["elenchus_verdict"], "passed")
+        self.assertEqual(rounds[1]["audit_filter"], "sapheneia:sapheneia")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
 
-class AuditRecordSchemaTests(HexctlCase):
-    """The receipt checks Warden's final append before durable mutation."""
+try:
+    from .audit_record_schema_cases import build_audit_record_schema_tests
+except ImportError:
+    from audit_record_schema_cases import build_audit_record_schema_tests
 
-    def setUp(self):
-        super().setUp()
-        self.auto_audit_records = False
-        self.to_audit()
-        self.run_ctl("record", "security_suite", SUITE)
 
-    def run_ctl(self, *args, expect=0):
-        if args[:1] == ("audit-round",) and expect == 0:
-            synopsis = subprocess.run(
-                [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
-                cwd=self.target,
-                capture_output=True,
-                text=True,
-            )
-            if synopsis.returncode:
-                raise AssertionError(
-                    f"audit synopsis fixture failed\nstdout: {synopsis.stdout}"
-                    f"stderr: {synopsis.stderr}"
-                )
-        return super().run_ctl(*args, expect=expect)
-
-    def state_ledger_digests(self):
-        return tuple(
-            hashlib.sha256(Path(path).read_bytes()).hexdigest()
-            for path in (
-                os.path.join(self.target, ".hexaemeron", "state.json"),
-                os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
-            )
-        )
-
-    def log_path(self):
-        return os.path.join(self.target, "audit", "AUDIT.md")
-
-    def record_lines(
-        self,
-        findings=0,
-        verdict="null",
-        *,
-        timestamp="2026-08-23T02:17:46Z",
-        covered="packet-state-drift=reviewed",
-        omit=(),
-        table_rows=None,
-        extra=(),
-    ):
-        state = self.state()
-        round_number = len(state["steps"][0]["audit"]["rounds"]) + 1
-        rows = table_rows
-        if rows is None:
-            rows = (
-                ["| -- | -- | -- | none | -- |"]
-                if findings == 0
-                else [
-                    f"| F-{index:02d} | low | fixture.py | finding {index} | open |"
-                    for index in range(1, findings + 1)
-                ]
-            )
-        blocks = {
-            "heading": [
-                f"## {state['topic']}, step 1, round {round_number} -- {timestamp}"
-            ],
-            "schema": ["Audit schema: fiat-audit-round/v1"],
-            "covered": [f"Covered: {covered}"],
-            "not_checked": ["Not checked: none"],
-            "verdict": [f"Elenchus verdict: {verdict}"],
-            "table": [
-                "| id | severity | file | finding | status |",
-                "| --- | --- | --- | --- | --- |",
-                *rows,
-            ],
-            "leads": ["Leads not pursued: none"],
-        }
-        lines = []
-        for name in (
-            "heading", "schema", "covered", "not_checked", "verdict", "table", "leads"
-        ):
-            if name not in omit:
-                lines.extend(blocks[name])
-                lines.append("")
-        lines.extend(extra)
-        return lines
-
-    def write_record(self, *args, append=False, **kwargs):
-        path = self.log_path()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        record = "\n".join(self.record_lines(*args, **kwargs)).encode()
-        prefix = Path(path).read_bytes() if append and os.path.exists(path) else b""
-        separator = b""
-        if prefix:
-            separator = b"\n" if prefix.endswith(b"\n") else b"\n\n"
-        Path(path).write_bytes(prefix + separator + record)
-        return path
-
-    def set_fake_baseline(self, data):
-        self.env["FAKE_GIT_BASELINE_HEX"] = data.hex()
-
-    def rewrite_latest_round(self, **changes):
-        state_path = Path(self.target, ".hexaemeron", "state.json")
-        ledger_path = Path(self.target, ".hexaemeron", "ledger.jsonl")
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        latest = state["steps"][0]["audit"]["rounds"][-1]
-        for key, value in changes.items():
-            if value is ...:
-                latest.pop(key, None)
-            else:
-                latest[key] = value
-        state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-
-        entries = [
-            json.loads(line)
-            for line in ledger_path.read_text(encoding="utf-8").splitlines()
-            if line
-        ]
-        self.assertEqual(entries[-1]["event"], "audit-round")
-        for key, value in changes.items():
-            if value is ...:
-                entries[-1]["data"].pop(key, None)
-            else:
-                entries[-1]["data"][key] = value
-        entries[-1]["state"] = hashlib.sha256(
-            json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
-        unsigned = {key: value for key, value in entries[-1].items() if key != "hash"}
-        entries[-1]["hash"] = hashlib.sha256(
-            json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
-        ledger_path.write_text(
-            "".join(json.dumps(entry, sort_keys=True) + "\n" for entry in entries),
-            encoding="utf-8",
-        )
-
-    def refuse(self, fragment, *args):
-        before = self.state_ledger_digests()
-        result = self.run_ctl("audit-round", *args, expect=2)
-        self.assertIn(fragment, result.stderr)
-        self.assertEqual(self.state_ledger_digests(), before)
-
-    def write_synopsis(self):
-        result = subprocess.run(
-            [sys.executable, AUDIT_SYNOPSIS, "--write", self.target],
-            cwd=self.target,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode:
-            raise AssertionError(
-                f"audit synopsis fixture failed\nstdout: {result.stdout}"
-                f"stderr: {result.stderr}"
-            )
-        return Path(self.log_path()).with_name("AUDIT_SYNOPSIS.md")
-
-    def call_with_renderer(self, controller, renderer, stderr):
-        class Loader:
-            @staticmethod
-            def exec_module(_module):
-                pass
-
-        specification = argparse.Namespace(loader=Loader())
-        with (
-            mock.patch.object(
-                controller, "read_configured_audit_log",
-                return_value=("audit/AUDIT.md", b"record"),
-            ),
-            mock.patch.object(controller, "audit_delta_start", return_value=0),
-            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
-            mock.patch.object(
-                controller,
-                "parse_audit_record",
-                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
-            ),
-            mock.patch.object(
-                controller.importlib.util,
-                "spec_from_file_location",
-                return_value=specification,
-            ),
-            mock.patch.object(
-                controller.importlib.util, "module_from_spec", return_value=renderer
-            ),
-            redirect_stderr(stderr),
-        ):
-            return controller.validated_audit_record(
-                self.target,
-                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
-                {"audit": {"rounds": []}},
-                argparse.Namespace(log=None),
-            )
-
-    def assert_renderer_refusal(self, call):
-        try:
-            call()
-        except BaseException as error:
-            caught = error
-        else:
-            self.fail("renderer validation did not refuse")
-        self.assertIsInstance(caught, SystemExit)
-        self.assertEqual(caught.code, 2)
-
-    def test_missing_stale_and_lossy_synopsis_refuse_without_drift(self):
-        self.write_record()
-        self.refuse("synopsis is missing", "--findings", "0")
-
-        synopsis = self.write_synopsis()
-        synopsis.write_bytes(synopsis.read_bytes() + b"stale\n")
-        self.refuse("synopsis is stale", "--findings", "0")
-
-        self.write_synopsis()
-        text = synopsis.read_text(encoding="utf-8")
-        synopsis.write_text(
-            text.replace("Leads not pursued: none", "[lead dropped]", 1),
-            encoding="utf-8",
-        )
-        self.refuse("synopsis is stale", "--findings", "0")
-
-    def test_corrupt_renderer_import_is_a_bounded_refusal(self):
-        controller = hexctl_module()
-
-        class BrokenLoader:
-            @staticmethod
-            def exec_module(_module):
-                raise RuntimeError("corrupt renderer fixture")
-
-        specification = argparse.Namespace(loader=BrokenLoader())
-        stderr = StringIO()
-        with (
-            mock.patch.object(
-                controller, "read_configured_audit_log",
-                return_value=("audit/AUDIT.md", b"record"),
-            ),
-            mock.patch.object(controller, "audit_delta_start", return_value=0),
-            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
-            mock.patch.object(
-                controller,
-                "parse_audit_record",
-                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
-            ),
-            mock.patch.object(
-                controller.importlib.util,
-                "spec_from_file_location",
-                return_value=specification,
-            ),
-            mock.patch.object(
-                controller.importlib.util, "module_from_spec", return_value=object()
-            ),
-            redirect_stderr(stderr),
-            self.assertRaises(BaseException) as raised,
-        ):
-            controller.validated_audit_record(
-                self.target,
-                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
-                {"audit": {"rounds": []}},
-                argparse.Namespace(log=None),
-            )
-        self.assertIsInstance(raised.exception, SystemExit)
-        self.assertEqual(raised.exception.code, 2)
-        self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
-
-    def test_renderer_cannot_terminate_successfully_at_checked_boundaries(self):
-        controller = hexctl_module()
-
-        class RendererError(Exception):
-            def __str__(self):
-                if renderer.stop_during_error_format:
-                    raise SystemExit(0)
-                return super().__str__()
-
-        class StoppingRenderer:
-            SynopsisError = RendererError
-            stop_during_interface = False
-            stop_during_validation = False
-            stop_during_error_format = False
-
-            def __getattribute__(self, name):
-                if (
-                    name == "validate_committed_synopsis"
-                    and object.__getattribute__(self, "stop_during_interface")
-                ):
-                    raise SystemExit(0)
-                return object.__getattribute__(self, name)
-
-            @staticmethod
-            def validate_committed_synopsis(*_args):
-                if renderer.stop_during_error_format:
-                    raise RendererError("renderer refusal")
-                if renderer.stop_during_validation:
-                    raise SystemExit(0)
-                return "a" * 64
-
-        renderer = StoppingRenderer()
-
-        class StoppingLoader:
-            stop_during_load = True
-
-            def exec_module(self, _module):
-                if self.stop_during_load:
-                    raise SystemExit(0)
-
-        loader = StoppingLoader()
-        specification = argparse.Namespace(loader=loader)
-        for stop_at in (
-            "module",
-            "load",
-            "interface",
-            "type-check",
-            "validation",
-            "error-format",
-            "digest-check",
-        ):
-            with self.subTest(stop_at=stop_at):
-                loader.stop_during_load = stop_at == "load"
-                renderer.stop_during_interface = stop_at == "interface"
-                renderer.stop_during_validation = stop_at == "validation"
-                renderer.stop_during_error_format = stop_at == "error-format"
-                stderr = StringIO()
-
-                def create_module(_specification):
-                    if stop_at == "module":
-                        raise SystemExit(0)
-                    return renderer
-
-                with ExitStack() as stack:
-                    stack.enter_context(mock.patch.object(
-                        controller, "read_configured_audit_log",
-                        return_value=("audit/AUDIT.md", b"record"),
-                    ))
-                    stack.enter_context(mock.patch.object(
-                        controller, "audit_delta_start", return_value=0
-                    ))
-                    stack.enter_context(mock.patch.object(
-                        controller, "audit_record_bytes", return_value=b"record"
-                    ))
-                    stack.enter_context(mock.patch.object(
-                        controller,
-                        "parse_audit_record",
-                        return_value=(
-                            "fiat-audit-round/v1", "2026-08-23T02:17:46Z"
-                        ),
-                    ))
-                    stack.enter_context(mock.patch.object(
-                        controller.importlib.util,
-                        "spec_from_file_location",
-                        return_value=specification,
-                    ))
-                    stack.enter_context(mock.patch.object(
-                        controller.importlib.util,
-                        "module_from_spec",
-                        side_effect=create_module,
-                    ))
-                    if stop_at == "type-check":
-                        stack.enter_context(mock.patch.object(
-                            controller,
-                            "issubclass",
-                            side_effect=SystemExit(0),
-                            create=True,
-                        ))
-                    if stop_at == "digest-check":
-                        stack.enter_context(mock.patch.object(
-                            controller.re, "fullmatch", side_effect=SystemExit(0)
-                        ))
-                    stack.enter_context(redirect_stderr(stderr))
-                    raised = stack.enter_context(self.assertRaises(SystemExit))
-                    controller.validated_audit_record(
-                        self.target,
-                        {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
-                        {"audit": {"rounds": []}},
-                        argparse.Namespace(log=None),
-                    )
-                self.assertEqual(raised.exception.code, 2)
-                self.assertIn("audit synopsis renderer", stderr.getvalue())
-
-    def test_declared_renderer_diagnostics_cannot_break_the_refusal(self):
-        controller = hexctl_module()
-
-        class RendererError(Exception):
-            pass
-
-        class Renderer:
-            SynopsisError = RendererError
-            message = "unsafe\nsurrogate: \ud800"
-
-            @classmethod
-            def validate_committed_synopsis(cls, *_args):
-                raise RendererError(cls.message)
-
-        before = self.state_ledger_digests()
-        for message, expected, exact_size in (
-            (
-                "unsafe\x00\x1b\nsurrogate: \ud800\\",
-                b"unsafe\\x00\\x1b\\nsurrogate: \\ud800\\\\",
-                None,
-            ),
-            ("x" * 4_080, b"x" * 4_080, 4_096),
-            ("x" * 4_081, b"audit synopsis renderer validation failed", None),
-            ("x" * 4_096, b"audit synopsis renderer validation failed", None),
-            ("\\" * 2_040, b"\\\\" * 2_040, 4_096),
-            ("\\" * 2_041, b"audit synopsis renderer validation failed", None),
-            ("x" * 5_000, b"audit synopsis renderer validation failed", None),
-        ):
-            with self.subTest(message_chars=len(message)):
-                Renderer.message = message
-                output = BytesIO()
-                stderr = TextIOWrapper(output, encoding="ascii", errors="strict")
-                try:
-                    self.assert_renderer_refusal(lambda:
-                        self.call_with_renderer(controller, Renderer(), stderr)
-                    )
-                    stderr.flush()
-                    self.assertIn(expected, output.getvalue())
-                    self.assertLessEqual(
-                        len(output.getvalue()),
-                        controller.AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX,
-                    )
-                    if exact_size is not None:
-                        self.assertEqual(len(output.getvalue()), exact_size)
-                    self.assertEqual(output.getvalue()[-1:], b"\n")
-                    self.assertTrue(
-                        all(32 <= byte <= 126 for byte in output.getvalue()[:-1])
-                    )
-                finally:
-                    stderr.detach()
-        self.assertEqual(self.state_ledger_digests(), before)
-
-    def test_renderer_diagnostic_byte_cap_is_encoding_independent(self):
-        controller = hexctl_module()
-        for encoding in ("utf-8", "utf-16"):
-            with self.subTest(encoding=encoding):
-                output = BytesIO()
-                stderr = TextIOWrapper(output, encoding=encoding, errors="strict")
-                try:
-                    with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
-                        controller.refuse_audit_renderer("x" * 4_080)
-                    stderr.flush()
-                    self.assertEqual(raised.exception.code, 2)
-                    self.assertEqual(
-                        len(output.getvalue()),
-                        controller.AUDIT_RENDERER_DIAGNOSTIC_BYTES_MAX,
-                    )
-                finally:
-                    stderr.detach()
-
-    def test_renderer_diagnostic_completes_binary_short_writes(self):
-        controller = hexctl_module()
-        expected = b"hexctl: error: renderer refusal\n"
-
-        class ShortBuffer:
-            def __init__(self, limit):
-                self.limit = limit
-                self.output = bytearray()
-                self.flushed = False
-
-            def write(self, value):
-                size = min(self.limit, len(value))
-                self.output.extend(value[:size])
-                return size
-
-            def flush(self):
-                self.flushed = True
-
-        for limit in (1, 3, len(expected) - 1):
-            with self.subTest(limit=limit):
-                stderr = argparse.Namespace(buffer=ShortBuffer(limit))
-                with mock.patch.object(controller.sys, "stderr", stderr):
-                    with self.assertRaises(SystemExit) as raised:
-                        controller.refuse_audit_renderer("renderer refusal")
-                self.assertEqual(raised.exception.code, 2)
-                self.assertEqual(bytes(stderr.buffer.output), expected)
-                self.assertTrue(stderr.buffer.flushed)
-
-    def test_renderer_diagnostic_binary_write_boundaries_preserve_exit(self):
-        controller = hexctl_module()
-        full_write = object()
-
-        class BoundaryBuffer:
-            def __init__(
-                self, *, result=full_write, write_error=None, flush_error=None
-            ):
-                self.result = result
-                self.write_error = write_error
-                self.flush_error = flush_error
-
-            def write(self, value):
-                if self.write_error is not None:
-                    raise self.write_error
-                return len(value) if self.result is full_write else self.result
-
-            def flush(self):
-                if self.flush_error is not None:
-                    raise self.flush_error
-
-        for result in (None, 0, -1, True, 10_000):
-            with self.subTest(result=result):
-                stderr = argparse.Namespace(buffer=BoundaryBuffer(result=result))
-                with mock.patch.object(controller.sys, "stderr", stderr):
-                    with self.assertRaises(SystemExit) as raised:
-                        controller.refuse_audit_renderer("renderer refusal")
-                self.assertEqual(raised.exception.code, 2)
-
-        for stage in ("write", "flush"):
-            for failure in (OSError("diagnostic failure"), SystemExit(0)):
-                with self.subTest(stage=stage, failure=type(failure).__name__):
-                    stderr = argparse.Namespace(buffer=BoundaryBuffer(**{
-                        f"{stage}_error": failure,
-                    }))
-                    with mock.patch.object(controller.sys, "stderr", stderr):
-                        with self.assertRaises(SystemExit) as raised:
-                            controller.refuse_audit_renderer("renderer refusal")
-                    self.assertEqual(raised.exception.code, 2)
-
-        for stage in ("write", "flush"):
-            for failure in (KeyboardInterrupt(), GeneratorExit()):
-                with self.subTest(stage=stage, failure=type(failure).__name__):
-                    stderr = argparse.Namespace(buffer=BoundaryBuffer(**{
-                        f"{stage}_error": failure,
-                    }))
-                    with mock.patch.object(controller.sys, "stderr", stderr):
-                        try:
-                            controller.refuse_audit_renderer("renderer refusal")
-                        except BaseException as error:
-                            caught = error
-                        else:
-                            self.fail("renderer diagnostic did not terminate")
-                    self.assertIs(caught, failure)
-
-        stderr = StringIO()
-        with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
-            controller.refuse_audit_renderer("renderer refusal")
-        self.assertEqual(raised.exception.code, 2)
-        self.assertEqual(stderr.getvalue(), "hexctl: error: renderer refusal\n")
-
-    def test_renderer_diagnostic_emission_cannot_report_false_success(self):
-        controller = hexctl_module()
-
-        class RendererError(Exception):
-            pass
-
-        renderer = argparse.Namespace(
-            SynopsisError=RendererError,
-            validate_committed_synopsis=lambda *_args: (_ for _ in ()).throw(
-                RendererError("renderer refusal")
-            ),
-        )
-
-        class BrokenDiagnostic(StringIO):
-            def __init__(self, failure):
-                super().__init__()
-                self.failure = failure
-
-            def write(self, _value):
-                raise self.failure
-
-        before = self.state_ledger_digests()
-        for failure in (SystemExit(0), OSError("closed diagnostic stream")):
-            with self.subTest(failure=type(failure).__name__):
-                self.assert_renderer_refusal(lambda:
-                    self.call_with_renderer(
-                        controller, renderer, BrokenDiagnostic(failure)
-                    )
-                )
-                self.assertEqual(self.state_ledger_digests(), before)
-
-    def test_foreign_renderer_exceptions_and_process_interrupts_stay_distinct(self):
-        controller = hexctl_module()
-
-        class RendererError(Exception):
-            pass
-
-        for failure in (
-            RuntimeError("foreign renderer failure"),
-            KeyboardInterrupt(),
-            GeneratorExit(),
-        ):
-            with self.subTest(failure=type(failure).__name__):
-                renderer = argparse.Namespace(
-                    SynopsisError=RendererError,
-                    validate_committed_synopsis=lambda *_args, failure=failure: (
-                        _ for _ in ()
-                    ).throw(failure),
-                )
-                with self.assertRaises(type(failure)) as raised:
-                    self.call_with_renderer(controller, renderer, StringIO())
-                self.assertIs(raised.exception, failure)
-
-    def test_corrupt_renderer_interface_is_a_bounded_refusal(self):
-        controller = hexctl_module()
-
-        class Loader:
-            @staticmethod
-            def exec_module(_module):
-                pass
-
-        specification = argparse.Namespace(loader=Loader())
-        stderr = StringIO()
-        with (
-            mock.patch.object(
-                controller, "read_configured_audit_log",
-                return_value=("audit/AUDIT.md", b"record"),
-            ),
-            mock.patch.object(controller, "audit_delta_start", return_value=0),
-            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
-            mock.patch.object(
-                controller,
-                "parse_audit_record",
-                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
-            ),
-            mock.patch.object(
-                controller.importlib.util,
-                "spec_from_file_location",
-                return_value=specification,
-            ),
-            mock.patch.object(
-                controller.importlib.util, "module_from_spec", return_value=object()
-            ),
-            redirect_stderr(stderr),
-            self.assertRaises(BaseException) as raised,
-        ):
-            controller.validated_audit_record(
-                self.target,
-                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
-                {"audit": {"rounds": []}},
-                argparse.Namespace(log=None),
-            )
-        self.assertIsInstance(raised.exception, SystemExit)
-        self.assertEqual(raised.exception.code, 2)
-        self.assertIn("audit synopsis renderer cannot be loaded", stderr.getvalue())
-
-    def test_renderer_must_return_one_sha256_digest(self):
-        controller = hexctl_module()
-
-        class RendererError(Exception):
-            pass
-
-        renderer = argparse.Namespace(
-            SynopsisError=RendererError,
-            validate_committed_synopsis=lambda *_args: "not-a-sha256",
-        )
-
-        class Loader:
-            @staticmethod
-            def exec_module(_module):
-                pass
-
-        specification = argparse.Namespace(loader=Loader())
-        stderr = StringIO()
-        with (
-            mock.patch.object(
-                controller, "read_configured_audit_log",
-                return_value=("audit/AUDIT.md", b"record"),
-            ),
-            mock.patch.object(controller, "audit_delta_start", return_value=0),
-            mock.patch.object(controller, "audit_record_bytes", return_value=b"record"),
-            mock.patch.object(
-                controller,
-                "parse_audit_record",
-                return_value=("fiat-audit-round/v1", "2026-08-23T02:17:46Z"),
-            ),
-            mock.patch.object(
-                controller.importlib.util,
-                "spec_from_file_location",
-                return_value=specification,
-            ),
-            mock.patch.object(
-                controller.importlib.util, "module_from_spec", return_value=renderer
-            ),
-            redirect_stderr(stderr),
-            self.assertRaises(SystemExit) as raised,
-        ):
-            controller.validated_audit_record(
-                self.target,
-                {"config": {"audit": {"log_path": "audit/AUDIT.md"}}},
-                {"audit": {"rounds": []}},
-                argparse.Namespace(log=None),
-            )
-        self.assertEqual(raised.exception.code, 2)
-        self.assertIn("renderer returned an invalid digest", stderr.getvalue())
-
-    def test_date_only_heading_is_refused_before_mutation(self):
-        self.write_record(timestamp="2026-08-23")
-        self.refuse("record timestamp", "--findings", "0")
-
-    def test_heading_identity_and_calendar_date_are_exact(self):
-        self.write_record(timestamp="2026-02-30T02:17:46Z")
-        self.refuse("calendar-valid", "--findings", "0")
-        lines = self.record_lines()
-        lines[0] = "## another topic, step 1, round 1 -- 2026-08-23T02:17:46Z"
-        Path(self.log_path()).write_text("\n".join(lines), encoding="utf-8")
-        self.refuse("topic, step, and round", "--findings", "0")
-
-    def test_prior_offset_makes_legacy_markdown_irrelevant(self):
-        self.write_record(findings=1)
-        self.run_ctl("audit-round", "--findings", "1")
-        path = Path(self.log_path())
-        prefix = bytearray(path.read_bytes())
-        prefix[3:11] = b"<script>"
-        path.write_bytes(prefix)
-        self.write_record(append=True)
-        self.env["FAKE_GIT_MODE"] = "missing-commit"
-        self.run_ctl("audit-round", "--findings", "0")
-
-    def test_clean_log_only_predecessor_also_supplies_the_next_offset(self):
-        self.write_record()
-        self.run_ctl("audit-round", "--findings", "0")
-        self.write_record(append=True)
-        self.env["FAKE_GIT_MODE"] = "missing-commit"
-        self.run_ctl("audit-round", "--findings", "0")
-
-    def test_first_strict_round_accepts_a_git_absent_log(self):
-        self.write_record()
-        self.run_ctl("audit-round", "--findings", "0")
-        latest = self.state()["steps"][0]["audit"]["rounds"][-1]
-        self.assertEqual(latest["log_end_offset"], os.path.getsize(self.log_path()))
-
-    def test_first_strict_round_preserves_a_git_baseline_ending_in_lf(self):
-        baseline = b"legacy evidence\n"
-        self.set_fake_baseline(baseline)
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_bytes(baseline)
-        self.write_record(append=True)
-        self.run_ctl("audit-round", "--findings", "0")
-
-    def test_first_strict_round_preserves_a_git_baseline_without_lf(self):
-        baseline = b"legacy evidence"
-        self.set_fake_baseline(baseline)
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_bytes(baseline)
-        self.write_record(append=True)
-        self.run_ctl("audit-round", "--findings", "0")
-
-    def test_legacy_missing_leaves_use_the_verified_git_blob(self):
-        self.write_record(findings=1, verdict="guarded")
-        self.run_ctl(
-            "audit-round", "--findings", "1",
-            "--fixes-commit", "legacy-fix",
-            "--elenchus-verdict", "guarded",
-        )
-        baseline = Path(self.log_path()).read_bytes()
-        self.rewrite_latest_round(
-            schema=...,
-            record_timestamp=...,
-            entry_sha256=...,
-            log_end_offset=...,
-            elenchus_verdict=...,
-        )
-        self.run_ctl("status")
-        self.run_ctl("verify")
-        self.set_fake_baseline(baseline)
-        self.write_record(append=True)
-        self.run_ctl("audit-round", "--findings", "0")
-        rounds = self.state()["steps"][0]["audit"]["rounds"]
-        self.assertNotIn("log_end_offset", rounds[0])
-        self.assertEqual(rounds[1]["log_end_offset"], os.path.getsize(self.log_path()))
-
-    def test_git_baseline_failures_refuse_without_state_or_ledger_drift(self):
-        baseline = b"legacy evidence\n"
-        self.set_fake_baseline(baseline)
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_bytes(baseline)
-        self.write_record(append=True)
-        for mode, fragment in (
-            ("missing-commit", "baseline commit"),
-            ("baseline-unavailable", "baseline path"),
-            ("baseline-ambiguous", "ambiguous Git"),
-            ("baseline-unsafe", "regular Git blob"),
-            ("baseline-oversized", "byte cap"),
-            ("baseline-malformed-size", "size is malformed"),
-            ("baseline-short-read", "length does not match"),
-        ):
-            with self.subTest(mode=mode):
-                self.env["FAKE_GIT_MODE"] = mode
-                self.refuse(fragment, "--findings", "0")
-        self.env.pop("FAKE_GIT_MODE", None)
-
-    def test_changed_git_baseline_refuses_without_drift(self):
-        self.set_fake_baseline(b"expected legacy\n")
-        Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.log_path()).write_bytes(b"changed! legacy\n")
-        self.write_record(append=True)
-        self.refuse("changed before", "--findings", "0")
-
-    def test_boundary_separator_is_exact_for_all_baseline_endings(self):
-        record = "\n".join(self.record_lines()).encode()
-        cases = (
-            (b"", b"\n" + record),
-            (b"legacy\n", b"legacy\n" + record),
-            (b"legacy\n", b"legacy\n\n\n" + record),
-            (b"legacy", b"legacy\n" + record),
-            (b"legacy", b"legacy\n\n\n" + record),
-        )
-        for baseline, live in cases:
-            with self.subTest(baseline=baseline, delta=live[len(baseline):]):
-                self.set_fake_baseline(baseline)
-                Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-                Path(self.log_path()).write_bytes(live)
-                self.refuse("audit record", "--findings", "0")
-
-    def test_malformed_mismatched_and_past_eof_offsets_never_fall_back(self):
-        self.write_record(findings=1)
-        self.run_ctl("audit-round", "--findings", "1")
-        log = Path(self.log_path())
-        initial_log = log.read_bytes()
-        state_path = Path(self.target, ".hexaemeron", "state.json")
-        ledger_path = Path(self.target, ".hexaemeron", "ledger.jsonl")
-        initial_state = state_path.read_bytes()
-        initial_ledger = ledger_path.read_bytes()
-        cases = (
-            ({"log_end_offset": True}, "non-boolean integer", True),
-            ({"log_end_offset": "1"}, "non-boolean integer", True),
-            ({"log_end_offset": -1}, "outside the current log", True),
-            ({"log_end_offset": len(initial_log)}, "outside the current log", False),
-            ({"log_end_offset": 2 * 1024 * 1024 + 1}, "outside", True),
-            ({"log": "other/AUDIT.md"}, "does not match", True),
-        )
-        self.set_fake_baseline(initial_log)
-        for changes, fragment, append in cases:
-            with self.subTest(changes=changes):
-                state_path.write_bytes(initial_state)
-                ledger_path.write_bytes(initial_ledger)
-                log.write_bytes(initial_log)
-                self.rewrite_latest_round(**changes)
-                if append:
-                    self.write_record(append=True)
-                self.refuse(fragment, "--findings", "0")
-
-    def test_prefix_utf8_stays_outside_delta_parsing_but_fails_synopsis_input(self):
-        self.write_record(findings=1)
-        self.run_ctl("audit-round", "--findings", "1")
-        path = Path(self.log_path())
-        prefix = bytearray(path.read_bytes())
-        prefix[0] = 0xff
-        path.write_bytes(prefix)
-        self.write_record(append=True)
-        self.refuse("source is not UTF-8", "--findings", "0")
-
-    def test_invalid_utf8_in_the_delta_refuses_without_drift(self):
-        self.write_record(findings=1)
-        self.run_ctl("audit-round", "--findings", "1")
-        path = Path(self.log_path())
-        path.write_bytes(path.read_bytes() + b"\n\xff\n")
-        self.refuse("delta is not UTF-8", "--findings", "0")
-
-    def test_raw_suffix_refuses_prelude_extra_fields_rows_headings_and_trailers(self):
-        canonical = self.record_lines()
-        placeholder = canonical.index("| -- | -- | -- | none | -- |")
-        leads = canonical.index("Leads not pursued: none")
-        cases = {
-            "prelude": ["prelude", *canonical],
-            "field": canonical[:leads] + ["Extra: value", ""] + canonical[leads:],
-            "row": canonical[:placeholder + 1]
-            + ["| F-02 | low | fixture.py | extra | open |"]
-            + canonical[placeholder + 1:],
-            "heading": canonical[:-1] + ["## later", ""],
-            "trailer": canonical[:-1] + ["trailer", ""],
-        }
-        for name, lines in cases.items():
-            with self.subTest(name=name):
-                Path(self.log_path()).parent.mkdir(parents=True, exist_ok=True)
-                Path(self.log_path()).write_bytes("\n".join(lines).encode())
-                self.refuse("audit record", "--findings", "0")
-
-    def test_each_field_and_blank_separator_is_required(self):
-        for omitted in (
-            "schema", "covered", "not_checked", "verdict", "table", "leads"
-        ):
-            with self.subTest(omitted=omitted):
-                self.write_record(omit=(omitted,))
-                self.refuse("audit record", "--findings", "0")
-        lines = self.record_lines()
-        for index, line in enumerate(lines):
-            if line != "":
-                continue
-            with self.subTest(blank_index=index):
-                altered = lines[:index] + lines[index + 1:]
-                Path(self.log_path()).write_bytes("\n".join(altered).encode())
-                self.refuse("audit record", "--findings", "0")
-
-    def test_active_round_ten_offset_is_a_stable_raw_boundary(self):
-        controller = hexctl_module()
-        repository = Path(HERE).parents[2]
-        prefix = (repository / "audit" / "AUDIT.md").read_bytes()[:601787]
-        self.assertEqual(len(prefix), 601787)
-        self.assertEqual(
-            hashlib.sha256(prefix).hexdigest(),
-            "6f5e09a9bbb79582cab41839c9ae43b6becfd45fd3668f2845bf7f9cc887dffb",
-        )
-        step = {
-            "n": 1,
-            "audit": {
-                "rounds": [
-                    {"log": "audit/AUDIT.md", "log_end_offset": 601787}
-                ]
-            }
-        }
-        boundary = getattr(controller, "audit_delta_start", None)
-        self.assertTrue(callable(boundary))
-        self.assertEqual(
-            boundary(
-                str(repository), {"steps": [step]}, step,
-                "audit/AUDIT.md", prefix + b"\nnext"
-            ),
-            601787,
-        )
-
-    def test_covered_refuses_missing_duplicate_unknown_and_invalid_values(self):
-        for covered in (
-            "",
-            "packet-state-drift=reviewed; packet-state-drift=reviewed",
-            "packet-state-drift=reviewed; unknown-risk=reviewed",
-            "packet-state-drift=accepted",
-        ):
-            with self.subTest(covered=covered):
-                self.write_record(covered=covered)
-                self.refuse("Covered", "--findings", "0")
-
-    def test_findings_count_zero_row_and_verdict_must_match(self):
-        self.write_record(findings=1, table_rows=[])
-        self.refuse("findings table", "--findings", "1")
-        self.write_record(
-            findings=0,
-            table_rows=["| F-01 | low | fixture.py | unexpected | open |"],
-        )
-        self.refuse("zero-finding row", "--findings", "0")
-        self.write_record(findings=1, verdict="guarded")
-        self.refuse(
-            "Elenchus verdict",
-            "--findings", "1", "--fixes-commit", "fix-1",
-            "--elenchus-verdict", "passed",
-        )
-
-    def test_findings_table_accepts_a_raw_escaped_pipe_in_a_cell(self):
-        self.write_record(
-            findings=1,
-            table_rows=[
-                r"| F-01 | low | fixture.py | comparison `a \| b` | open |"
-            ],
-        )
-        self.run_ctl("audit-round", "--findings", "1")
-
-    def test_controller_table_cell_scanner_scales_with_the_line_cap(self):
-        controller = hexctl_module()
-
-        def elapsed(size):
-            line = "| " + "x" * size + " | b | c | d | e |"
-            started = time.process_time()
-            self.assertEqual(len(controller.audit_table_cells(line)), 5)
-            return time.process_time() - started
-
-        small = elapsed(64 * 1024)
-        large = elapsed(512 * 1024)
-        self.assertLess(
-            large,
-            small * 20,
-            f"controller table scan scaled from {small:.6f}s to {large:.6f}s",
-        )
-
-    def test_findings_table_refuses_an_escaped_closing_pipe(self):
-        self.write_record(
-            findings=1,
-            table_rows=[r"| F-01 | low | fixture.py | finding | open \|"],
-        )
-        self.refuse("malformed data row", "--findings", "1")
-
-    def test_supplied_log_must_be_the_configured_path(self):
-        self.write_record()
-        self.refuse(
-            "configured audit log path",
-            "--findings", "0", "--log", "other/AUDIT.md",
-        )
-        alias = os.path.join(self.target, "audit", "alias.md")
-        os.symlink("AUDIT.md", alias)
-        self.refuse(
-            "configured audit log path",
-            "--findings", "0", "--log", "audit/alias.md",
-        )
-
-    def test_log_must_be_regular_contained_utf8_and_bounded(self):
-        path = self.log_path()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        self.refuse("regular file", "--findings", "0")
-
-        self.write_record()
-        os.remove(path)
-        os.mkdir(path)
-        self.refuse("regular file", "--findings", "0")
-        os.rmdir(path)
-
-        real = os.path.join(os.path.dirname(path), "real.md")
-        Path(real).write_text("\n".join(self.record_lines()), encoding="utf-8")
-        os.symlink("real.md", path)
-        self.refuse("symlink", "--findings", "0")
-        os.remove(path)
-
-        Path(path).write_bytes(b"\xff\n")
-        self.refuse("UTF-8", "--findings", "0")
-        Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
-        self.refuse("byte cap", "--findings", "0")
-
-    def test_log_refuses_delta_line_and_total_byte_caps(self):
-        path = self.write_record()
-        record = Path(path).read_bytes()
-        Path(path).write_bytes(b"x" * (1024 * 1024 + 1) + b"\n" + record)
-        self.refuse("physical line", "--findings", "0")
-
-        Path(path).write_bytes(b"x" * (2 * 1024 * 1024 + 1))
-        self.refuse("byte cap", "--findings", "0")
-
-    def test_high_cardinality_risk_coverage_stays_within_the_input_bound(self):
-        controller = hexctl_module()
-        count = 30_000
-        register = (
-            "```risk-register\n"
-            + "\n".join(
-                f"risk-{index} | boundary | check" for index in range(count)
-            )
-            + "\n```\n"
-        )
-        started = time.monotonic()
-        with (
-            mock.patch.object(controller, "receipted_source", return_value={}),
-            mock.patch.object(
-                controller,
-                "source_risk_register",
-                return_value={"markdown": register},
-            ),
-        ):
-            risk_ids = controller.audit_risk_ids(".", {})
-        controller.audit_covered(
-            "; ".join(f"{risk_id}=reviewed" for risk_id in risk_ids),
-            risk_ids,
-        )
-        elapsed = time.monotonic() - started
-        self.assertEqual(len(risk_ids), count)
-        self.assertLess(elapsed, 1.0)
-
-    def test_invalid_configured_path_refuses_without_a_traceback(self):
-        for invalid in ("audit/\0.md", "audit/\ud800.md"):
-            with self.subTest(invalid=ascii(invalid)):
-                self.run_ctl(
-                    "config", "set", "audit.log_path", json.dumps(invalid)
-                )
-                self.refuse("valid filesystem path", "--findings", "0")
-
-    def test_parent_symlink_swap_cannot_escape_the_descriptor_walk(self):
-        controller = hexctl_module()
-        with (
-            tempfile.TemporaryDirectory() as raw_root,
-            tempfile.TemporaryDirectory() as raw_outside,
-        ):
-            root = os.path.realpath(raw_root)
-            outside = os.path.realpath(raw_outside)
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            (audit_dir / "AUDIT.md").write_bytes(b"inside")
-            (Path(outside) / "AUDIT.md").write_bytes(b"outside")
-            lexical = str(audit_dir / "AUDIT.md")
-            real_open = os.open
-            swapped = False
-
-            def racing_open(target, flags, *args, **kwargs):
-                nonlocal swapped
-                opens_old_path = target == lexical
-                opens_new_component = target == "audit" and "dir_fd" in kwargs
-                if not swapped and (opens_old_path or opens_new_component):
-                    swapped = True
-                    audit_dir.rename(Path(root) / "audit-before-swap")
-                    os.symlink(outside, audit_dir)
-                return real_open(target, flags, *args, **kwargs)
-
-            stderr = StringIO()
-            with mock.patch.object(controller.os, "open", side_effect=racing_open):
-                with redirect_stderr(stderr), self.assertRaises(SystemExit):
-                    controller.read_configured_audit_log(
-                        root, "audit/AUDIT.md", None
-                    )
-            self.assertIn("audit log path cannot be read", stderr.getvalue())
-
-    def test_descriptor_walk_closes_a_child_when_its_stat_fails(self):
-        controller = hexctl_module()
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = os.path.realpath(raw_root)
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            (audit_dir / "AUDIT.md").write_bytes(b"inside")
-            real_fstat = os.fstat
-            opened = []
-
-            def failing_child_stat(descriptor):
-                opened.append(descriptor)
-                if len(opened) == 2:
-                    raise OSError("synthetic child fstat failure")
-                return real_fstat(descriptor)
-
-            stderr = StringIO()
-            with mock.patch.object(
-                controller.os, "fstat", side_effect=failing_child_stat
-            ):
-                with redirect_stderr(stderr), self.assertRaises(SystemExit):
-                    controller.read_configured_audit_log(
-                        root, "audit/AUDIT.md", None
-                    )
-            self.assertIn("audit log path cannot be read", stderr.getvalue())
-
-            still_open = []
-            for descriptor in opened:
-                try:
-                    real_fstat(descriptor)
-                except OSError:
-                    continue
-                still_open.append(descriptor)
-                os.close(descriptor)
-            self.assertEqual(still_open, [])
-
-    def test_canonical_reopen_closes_a_child_when_parent_close_fails(self):
-        controller = hexctl_module()
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = os.path.realpath(raw_root)
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            (audit_dir / "AUDIT.md").write_bytes(b"inside")
-            real_open = os.open
-            real_close = os.close
-            real_fstat = os.fstat
-            opened = []
-            close_failed = False
-
-            def tracking_open(*args, **kwargs):
-                descriptor = real_open(*args, **kwargs)
-                opened.append(descriptor)
-                return descriptor
-
-            def fail_current_parent_close(descriptor):
-                nonlocal close_failed
-                if len(opened) >= 5 and descriptor == opened[3] and not close_failed:
-                    close_failed = True
-                    raise OSError("synthetic parent close failure")
-                return real_close(descriptor)
-
-            stderr = StringIO()
-            with (
-                mock.patch.object(controller.os, "open", side_effect=tracking_open),
-                mock.patch.object(
-                    controller.os, "close", side_effect=fail_current_parent_close
-                ),
-                redirect_stderr(stderr),
-                self.assertRaises(SystemExit),
-            ):
-                controller.read_configured_audit_log(
-                    root, "audit/AUDIT.md", None
-                )
-            self.assertTrue(close_failed)
-            self.assertIn("changed during read", stderr.getvalue())
-
-            still_open = []
-            for descriptor in opened:
-                try:
-                    real_fstat(descriptor)
-                except OSError:
-                    continue
-                still_open.append(descriptor)
-                real_close(descriptor)
-            self.assertEqual(still_open, [])
-
-    def test_descriptor_walk_refuses_a_platform_without_safe_primitives(self):
-        controller = hexctl_module()
-        with tempfile.TemporaryDirectory() as root:
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            (audit_dir / "AUDIT.md").write_bytes(b"inside")
-            stderr = StringIO()
-            with mock.patch.object(controller.os, "O_NOFOLLOW", 0):
-                with redirect_stderr(stderr), self.assertRaises(SystemExit):
-                    controller.read_configured_audit_log(
-                        root, "audit/AUDIT.md", None
-                    )
-            self.assertIn("platform cannot safely read", stderr.getvalue())
-
-    def test_configured_log_read_refuses_an_observed_in_place_rewrite(self):
-        controller = hexctl_module()
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = os.path.realpath(raw_root)
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            log = audit_dir / "AUDIT.md"
-            log.write_bytes(b"inside")
-            real_fdopen = controller.os.fdopen
-
-            class RacingHandle:
-                def __init__(self, descriptor, mode):
-                    self.handle = real_fdopen(descriptor, mode)
-
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, *args):
-                    self.handle.close()
-
-                def fileno(self):
-                    return self.handle.fileno()
-
-                def read(self, size):
-                    data = self.handle.read(size)
-                    log.write_bytes(b"outside")
-                    return data
-
-            stderr = StringIO()
-            with mock.patch.object(
-                controller.os, "fdopen", side_effect=RacingHandle
-            ):
-                with redirect_stderr(stderr), self.assertRaises(SystemExit):
-                    controller.read_configured_audit_log(
-                        root, "audit/AUDIT.md", None
-                    )
-            self.assertIn("changed during read", stderr.getvalue())
-
-    def test_configured_log_read_refuses_an_observed_parent_rebind(self):
-        controller = hexctl_module()
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = os.path.realpath(raw_root)
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            log = audit_dir / "AUDIT.md"
-            log.write_bytes(b"inside")
-            moved_dir = Path(root) / "moved-audit"
-            real_fdopen = controller.os.fdopen
-
-            class RacingHandle:
-                def __init__(self, descriptor, mode):
-                    self.handle = real_fdopen(descriptor, mode)
-
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, *args):
-                    self.handle.close()
-
-                def fileno(self):
-                    return self.handle.fileno()
-
-                def read(self, size):
-                    data = self.handle.read(size)
-                    audit_dir.rename(moved_dir)
-                    audit_dir.mkdir()
-                    (audit_dir / "AUDIT.md").write_bytes(b"outside")
-                    return data
-
-            stderr = StringIO()
-            with mock.patch.object(
-                controller.os, "fdopen", side_effect=RacingHandle
-            ):
-                with redirect_stderr(stderr), self.assertRaises(SystemExit):
-                    controller.read_configured_audit_log(
-                        root, "audit/AUDIT.md", None
-                    )
-            self.assertIn("changed during read", stderr.getvalue())
-
-    def test_fifo_swap_cannot_block_the_final_open(self):
-        controller = hexctl_module()
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = os.path.realpath(raw_root)
-            audit_dir = Path(root) / "audit"
-            audit_dir.mkdir()
-            log = audit_dir / "AUDIT.md"
-            log.write_bytes(b"inside")
-            real_open = os.open
-            swapped = False
-
-            def racing_open(target, flags, *args, **kwargs):
-                nonlocal swapped
-                if not swapped and target == "AUDIT.md" and "dir_fd" in kwargs:
-                    self.assertTrue(flags & os.O_NONBLOCK)
-                    swapped = True
-                    log.unlink()
-                    os.mkfifo(log)
-                return real_open(target, flags, *args, **kwargs)
-
-            stderr = StringIO()
-            with mock.patch.object(controller.os, "open", side_effect=racing_open):
-                with redirect_stderr(stderr), self.assertRaises(SystemExit):
-                    controller.read_configured_audit_log(
-                        root, "audit/AUDIT.md", None
-                    )
-            self.assertIn("not a regular file", stderr.getvalue())
-
-    def test_escaping_configured_log_is_refused(self):
-        self.run_ctl("config", "set", "audit.log_path", '"../AUDIT.md"')
-        self.refuse("escapes target directory", "--findings", "0")
-
-    def test_valid_rounds_store_schema_timestamp_digest_offset_and_exact_verdicts(self):
-        expected_verdicts = ["guarded", "unguarded", "passed", "inconclusive", None]
-        for index, verdict in enumerate(expected_verdicts, 1):
-            findings = 0 if verdict is None else 1
-            self.write_record(
-                findings=findings,
-                verdict=verdict or "null",
-                append=index > 1,
-            )
-            args = ["--findings", str(findings), "--log", "audit/AUDIT.md"]
-            if verdict is not None:
-                args += [
-                    "--fixes-commit", f"fix-{index}",
-                    "--elenchus-verdict", verdict,
-                ]
-            self.run_ctl("audit-round", *args)
-            round_entry = self.state()["steps"][0]["audit"]["rounds"][-1]
-            self.assertEqual(round_entry.get("schema"), "fiat-audit-round/v1")
-            self.assertEqual(round_entry["log"], "audit/AUDIT.md")
-            self.assertEqual(
-                round_entry.get("record_timestamp"), "2026-08-23T02:17:46Z"
-            )
-            self.assertRegex(
-                round_entry.get("entry_sha256", ""), r"^[0-9a-f]{64}$"
-            )
-            self.assertRegex(
-                round_entry.get("synopsis_sha256", ""), r"^[0-9a-f]{64}$"
-            )
-            self.assertEqual(
-                round_entry.get("log_end_offset"), os.path.getsize(self.log_path())
-            )
-            self.assertEqual(round_entry["elenchus_verdict"], verdict)
-
-        events = [
-            json.loads(line)["data"]
-            for line in Path(
-                os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
-            ).read_text(encoding="utf-8").splitlines()
-            if json.loads(line)["event"] == "audit-round"
-        ]
-        self.assertEqual(
-            [event.get("elenchus_verdict") for event in events], expected_verdicts
-        )
-
-    def test_audit_closure_cannot_replace_the_checked_log_path(self):
-        self.write_record()
-        self.run_ctl("audit-round", "--findings", "0")
-        before = self.state_ledger_digests()
-        result = self.run_ctl(
-            "done", "audit", "--log", "other/AUDIT.md", expect=2
-        )
-        self.assertIn("final round", result.stderr)
-        self.assertEqual(self.state_ledger_digests(), before)
-
-        self.run_ctl("done", "audit", "--log", "audit/AUDIT.md")
-        self.assertEqual(
-            self.state()["steps"][0]["receipts"]["audit"]["log"],
-            "audit/AUDIT.md",
-        )
-
+AuditRecordSchemaTests = build_audit_record_schema_tests(globals())
 
 class TestProseAndPush(HexctlCase):
     def to_prose(self, task_issue=None):
@@ -4334,9 +4061,8 @@ class TestFuzzRegressions(HexctlCase):
 
     def test_state_edit_detected_by_verify(self):
         self.to_audit_with_suite()
-        self.run_ctl("audit-round", "--findings", "2", "--log", "audit/AUDIT.md",
-                     "--fixes-commit", "fff",
-                     "--elenchus-verdict", "guarded")
+        self.run_ctl("audit-round", "--findings", "2",
+                     "--fixes-commit", "fff", "--elenchus-verdict", "guarded")
         with open(self.state_file()) as fh:
             st = json.load(fh)
         st["steps"][0]["audit"]["rounds"][0]["findings"] = 0
@@ -4437,9 +4163,7 @@ class StateContainerValidationTests(HexctlCase):
         super().setUp()
         self.to_audit()
         self.run_ctl("record", "security_suite", SUITE)
-        self.run_ctl(
-            "audit-round", "--findings", "1", "--log", "audit/AUDIT.md"
-        )
+        self.run_ctl("audit-round", "--findings", "1")
         self.state_path = os.path.join(self.target, ".hexaemeron", "state.json")
         self.ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
         with open(self.state_path, "rb") as handle:
@@ -4576,6 +4300,93 @@ class StateContainerValidationTests(HexctlCase):
         self.assertEqual(loaded["version"], 1)
 
 
+class AuditFilterReceiptTests(HexctlCase):
+    """The exact Sapheneia declaration is visible, checked, and retained."""
+
+    def to_receiptable_audit(self, *, solidity=True):
+        self.to_audit()
+        receipt = SUITE if solidity else '"waived: prose-only repo"'
+        self.run_ctl("record", "security_suite", receipt)
+
+    def state_ledger_digests(self):
+        paths = (
+            os.path.join(self.target, ".hexaemeron", "state.json"),
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"),
+        )
+        digests = []
+        for path in paths:
+            with open(path, "rb") as handle:
+                digests.append(hashlib.sha256(handle.read()).hexdigest())
+        return tuple(digests)
+
+    def audit_events(self):
+        path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        entries = []
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                if entry["event"] == "audit-round":
+                    entries.append(entry)
+        return entries
+
+    def test_missing_declaration_is_refused_without_state_or_ledger_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "0", expect=2, audit_filter=False
+        )
+        self.assertIn("--audit-filter sapheneia:sapheneia", result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_different_declaration_is_refused_without_state_or_ledger_drift(self):
+        self.to_receiptable_audit()
+        before = self.state_ledger_digests()
+        result = self.run_ctl(
+            "audit-round", "--findings", "0",
+            "--audit-filter", "something:else", expect=2,
+        )
+        self.assertIn("must equal sapheneia:sapheneia", result.stderr)
+        self.assertEqual(self.state_ledger_digests(), before)
+
+    def test_exact_declaration_reaches_round_state_ledger_and_stdout(self):
+        self.to_receiptable_audit()
+        result = self.run_ctl("audit-round", "--findings", "0", *AUDIT_FILTER)
+        self.assertIn("audit filter sapheneia:sapheneia", result.stdout)
+        round_entry = self.state()["steps"][0]["audit"]["rounds"][0]
+        self.assertEqual(round_entry["audit_filter"], "sapheneia:sapheneia")
+        self.assertEqual(
+            self.audit_events()[0]["data"]["audit_filter"],
+            "sapheneia:sapheneia",
+        )
+
+    def test_next_and_warden_brief_name_the_exact_obligation_every_round(self):
+        self.to_receiptable_audit()
+        expected = {
+            "flag": "--audit-filter",
+            "value": "sapheneia:sapheneia",
+        }
+        first = self.next_json()
+        self.assertEqual(first["audit_filter"], expected)
+        self.assertEqual(first["brief"]["audit_filter"], expected)
+        self.run_ctl("audit-round", "--findings", "1", *AUDIT_FILTER)
+        second = self.next_json()
+        self.assertEqual(second["round"], 2)
+        self.assertEqual(second["audit_filter"], expected)
+        self.assertEqual(second["brief"]["audit_filter"], expected)
+
+    def test_non_solidity_round_needs_the_same_exact_declaration(self):
+        self.to_receiptable_audit(solidity=False)
+        self.run_ctl(
+            "audit-round", "--findings", "0", *AUDIT_FILTER, *LINTS_CLEAN
+        )
+        self.assertEqual(
+            self.state()["steps"][0]["audit"]["rounds"][0]["audit_filter"],
+            "sapheneia:sapheneia",
+        )
+
+
 class LintReceiptTests(HexctlCase):
     """The three lint results a non-Solidity round owes, and the refusals."""
 
@@ -4660,7 +4471,7 @@ class LintReceiptTests(HexctlCase):
 
     def test_a_solidity_round_needs_none_of_them(self):
         self.to_solidity_audit()
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "0")
         self.assertIsNone(self.rounds()[0]["lints"])
 
     def test_a_solidity_round_may_still_record_them(self):
@@ -4680,7 +4491,7 @@ class LintReceiptTests(HexctlCase):
     def test_the_override_lifts_the_requirement(self):
         self.to_waived_audit()
         self.run_ctl("config", "set", "solidity", "true")
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md")
+        self.run_ctl("audit-round", "--findings", "0")
         self.assertIsNone(self.rounds()[0]["lints"])
 
     def test_the_override_can_impose_it_on_a_recorded_suite(self):
@@ -4711,8 +4522,7 @@ class LintReceiptTests(HexctlCase):
 
     def test_closing_the_audit_reads_a_round_that_carries_lints(self):
         self.to_waived_audit()
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         self.run_ctl("done", "audit")
         self.assertEqual(self.state()["steps"][0]["phase"], "prose")
 
@@ -4731,8 +4541,7 @@ class LintReceiptTests(HexctlCase):
         blocked = self.run_ctl("done", "audit", expect=2)
         self.assertIn("open", blocked.stderr)
 
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         self.run_ctl("done", "audit", "--fixes-ref", "deadbeef")
         receipt = self.state()["steps"][0]["receipts"]["audit"]
         self.assertTrue(receipt["clean"])
@@ -4744,8 +4553,7 @@ class LintReceiptTests(HexctlCase):
         """Rounds already on disk carry no lints key. Every reader has to treat it as
         absent rather than assume it."""
         self.to_waived_audit()
-        self.run_ctl("audit-round", "--findings", "0", "--log", "audit/AUDIT.md",
-                     *LINTS_CLEAN)
+        self.run_ctl("audit-round", "--findings", "0", *LINTS_CLEAN)
         path = os.path.join(self.target, ".hexaemeron", "state.json")
         with open(path, encoding="utf-8") as fh:
             state = json.load(fh)
@@ -5811,3 +5619,364 @@ class ResumeAndRetirementTests(HexctlCase):
     @property
     def retired(self):
         return os.path.join(self.dir, "tmp", "fiat", "fiat-test-topic")
+
+
+class FrontierRowAttributionTests(OriginCheckoutMixin, unittest.TestCase):
+    """A run is charged for its own rows and no others.
+
+    The gate counted every row added since `init`, which cannot tell this run's
+    row from one another run published meanwhile. The issue 466 run added
+    `fiat-v5.15.1`, absorbed `fiat-v5.14.1` in its one permitted sync, and was
+    refused for two rows. It could renumber neither: `done_integrate` freezes
+    the run branch at the sync commit.
+    """
+
+    HELD = ("open", "held-thing", "The widget does not do the thing.",
+            "Make the widget do the thing.")
+    FOREIGN = "widget-v1.2.0"
+    OWN = "widget-v1.3.0"
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        make_origin_checkout(self.dir)
+        self.ledger = os.path.join(
+            self.dir, "plugins", "demo", "skills", "widget", "EVOLUTION.md")
+        self.base_digest = frontier_digest(*self.HELD)
+        self.base_row = row("widget-v1.1.0", "baseline", self.HELD[1],
+                            self.base_digest, "Versioning starts here.")
+        widget_ledger(self.ledger, [self.base_row], version="widget-v1.1.0",
+                      status=self.HELD[0], revision=self.HELD[1],
+                      frontier=self.HELD[2], job=self.HELD[3])
+        with open(self.ledger, "rb") as handle:
+            ledger_sha256 = hashlib.sha256(handle.read()).hexdigest()
+        self.before = {
+            "ledger": os.path.relpath(self.ledger, self.dir),
+            "sha256": ledger_sha256,
+            "rows": 1,
+        }
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def held_row(self, version):
+        """One generation row retaining the held revision and digest."""
+        return row(version, "generation", self.HELD[1], self.base_digest)
+
+    def write_chain(self, versions, header_version=None):
+        widget_ledger(
+            self.ledger,
+            [self.base_row, *(self.held_row(v) for v in versions)],
+            version=header_version or versions[-1],
+            status=self.HELD[0], revision=self.HELD[1],
+            frontier=self.HELD[2], job=self.HELD[3],
+        )
+
+    def fault_with(self, published):
+        return hexctl_module().frontier_close_fault(
+            self.ledger, self.before, frozenset(published)
+        )
+
+    def test_a_row_published_meanwhile_is_not_charged_to_this_run(self):
+        self.write_chain([self.FOREIGN, self.OWN])
+        self.assertIsNone(self.fault_with({self.FOREIGN}))
+
+    def test_without_the_published_set_the_same_ledger_is_refused(self):
+        """The red side of the issue 466 refusal, on the same topology."""
+        self.write_chain([self.FOREIGN, self.OWN])
+        fault = self.fault_with(set())
+        self.assertIn("gained 2 history row(s)", fault)
+        self.assertNotIn("already published", fault)
+
+    def test_the_refusal_says_how_many_it_subtracted(self):
+        self.write_chain([self.FOREIGN, self.OWN, "widget-v1.4.0"])
+        fault = self.fault_with({self.FOREIGN})
+        self.assertIn("gained 2 history row(s)", fault)
+        self.assertIn("after subtracting 1 already published", fault)
+
+    def test_two_rows_of_its_own_are_still_refused(self):
+        self.write_chain([self.FOREIGN, self.OWN])
+        self.assertIn("gained 2", self.fault_with({"widget-v9.9.9"}))
+
+    def test_the_newest_row_may_not_be_a_published_one(self):
+        """One own row, then a row published on top of it during the sync."""
+        self.write_chain([self.FOREIGN, self.OWN], header_version=self.OWN)
+        fault = self.fault_with({self.OWN})
+        self.assertIn("was already published in the recorded base", fault)
+        self.assertIn("has to be the newest", fault)
+
+    def test_a_duplicated_published_label_cannot_subtract_twice(self):
+        self.write_chain([self.FOREIGN, self.FOREIGN], header_version=self.FOREIGN)
+        self.assertIn("gained 0", self.fault_with({self.FOREIGN}))
+
+    def test_the_base_ledger_read_returns_the_versions_it_committed(self):
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN])
+        relative = self.before["ledger"]
+        subprocess.run(["git", "add", relative], cwd=self.dir, check=True,
+                       capture_output=True)
+        subprocess.run(["git", "commit", "-q", "-m", "ledger"], cwd=self.dir,
+                       check=True, capture_output=True)
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.dir,
+                              check=True, capture_output=True,
+                              text=True).stdout.strip()
+        self.assertEqual(
+            module.base_ledger_versions(self.dir, head, relative),
+            frozenset({"widget-v1.1.0", self.FOREIGN}),
+        )
+
+    def test_an_unreadable_base_ledger_subtracts_nothing(self):
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN, self.OWN])
+        relative = self.before["ledger"]
+        for base in ("", "not-a-sha", "0" * 40):
+            with self.subTest(base=base):
+                self.assertEqual(
+                    module.base_ledger_versions(self.dir, base, relative),
+                    frozenset(),
+                )
+        # A read that answers nothing leaves the older, stricter arithmetic.
+        self.assertIn(
+            "gained 2",
+            self.fault_with(module.base_ledger_versions(self.dir, "0" * 40, relative)),
+        )
+
+    def test_the_receipt_records_only_what_was_subtracted(self):
+        """Not the whole base ledger: the rows the refusal actually discounted."""
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN, self.OWN])
+        # A base carrying an unrelated row as well; only the overlap counts.
+        published = frozenset({self.FOREIGN, "widget-v0.9.0"})
+        self.assertEqual(
+            module.frontier_subtracted_rows(self.dir, self.before, published),
+            [self.FOREIGN],
+        )
+
+    def test_nothing_published_records_nothing(self):
+        module = hexctl_module()
+        self.write_chain([self.OWN])
+        self.assertEqual(
+            module.frontier_subtracted_rows(self.dir, self.before, frozenset()),
+            [],
+        )
+
+    def test_the_gate_and_the_receipt_slice_the_same_rows(self):
+        """One slicing rule, so a refusal cannot count rows the receipt omits."""
+        module = hexctl_module()
+        self.write_chain([self.FOREIGN, self.OWN])
+        rows = module.ledger_rows(open(self.ledger, encoding="utf-8").read())
+        after = module.frontier_rows_after_anchor(rows, self.before)
+        self.assertEqual([entry["version"] for entry in after],
+                         [self.FOREIGN, self.OWN])
+        self.assertEqual(
+            module.frontier_subtracted_rows(
+                self.dir, self.before, frozenset({self.FOREIGN})),
+            [self.FOREIGN],
+        )
+
+    def test_a_missing_ledger_path_subtracts_nothing(self):
+        module = hexctl_module()
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.dir,
+                              check=True, capture_output=True,
+                              text=True).stdout.strip()
+        self.assertEqual(
+            module.base_ledger_versions(self.dir, head, "nowhere/EVOLUTION.md"),
+            frozenset(),
+        )
+
+
+class GitHubSignerDiagnosis(unittest.TestCase):
+    """A refusal must name GitHub's key as the cause, not just fail.
+
+    A commit GitHub rewrote carries GitHub's web-flow signature. `verify-commit`
+    then fails against a local keyring, and the bare message sends whoever reads
+    it looking for a broken signing setup rather than at the branch rewrite that
+    actually happened. The wrong repair for that message is importing GitHub's
+    public key, which makes the check pass and removes the guarantee it exists
+    for, so the message says so explicitly.
+    """
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+
+    def test_the_known_github_keys_are_declared(self):
+        self.assertIn("B5690EEEBB952194", self.hexctl.GITHUB_SIGNING_KEYS)
+        self.assertIn("4AEE18F83AFDEB23", self.hexctl.GITHUB_SIGNING_KEYS)
+
+    def _refusal(self, key):
+        """The message verify_local_commit dies with, for a given signing key."""
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=1), \
+             mock.patch.object(module, "signing_key", return_value=key), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             redirect_stderr(captured):
+            with self.assertRaises(SystemExit):
+                module.verify_local_commit(".", "a" * 40, "step 1")
+        return captured.getvalue()
+
+    def test_a_github_signed_commit_is_refused_and_the_cause_is_named(self):
+        message = self._refusal("b5690eeebb952194")
+        self.assertIn("signed by GitHub", message)
+        self.assertIn("B5690EEEBB952194", message)
+        self.assertIn("stacked", message, "the rewrite that causes this must be named")
+        self.assertIn(
+            "Do not import GitHub's public key",
+            message,
+            "the wrong repair is the obvious one and has to be ruled out in the message",
+        )
+
+    def test_an_unknown_key_is_reported_without_blaming_github(self):
+        message = self._refusal("DEADBEEFDEADBEEF")
+        self.assertIn("DEADBEEFDEADBEEF", message)
+        self.assertIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_an_unsigned_commit_keeps_the_plain_message(self):
+        message = self._refusal("")
+        self.assertIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_a_verifying_commit_is_not_refused_by_the_signature_check(self):
+        """The diagnosis must not turn a passing verification into a refusal.
+
+        Checks which refusal, not whether one happened. A commit that verifies
+        still goes on to the author and trailer checks, and those refuse this
+        synthetic sha for reasons that have nothing to do with signing. What must
+        not appear is a signature complaint.
+        """
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=0), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             redirect_stderr(captured):
+            try:
+                module.verify_local_commit(".", "a" * 40, "step 1")
+            except BaseException:
+                pass
+        message = captured.getvalue()
+        self.assertNotIn("no valid local signature", message)
+        self.assertNotIn("signed by GitHub", message)
+
+    def test_the_signature_check_runs_before_anything_else(self):
+        """A later check must not mask an unverifiable signature."""
+        module = self.hexctl
+        captured = StringIO()
+        with mock.patch.object(module, "bounded_tool_status", return_value=1), \
+             mock.patch.object(module, "signing_key", return_value=""), \
+             mock.patch.object(module, "require_full_sha", side_effect=lambda s, _l: s), \
+             mock.patch.object(module, "commit_author",
+                               side_effect=AssertionError("author read before signature check")), \
+             redirect_stderr(captured):
+            with self.assertRaises(SystemExit):
+                module.verify_local_commit(".", "a" * 40, "step 1")
+        self.assertIn("no valid local signature", captured.getvalue())
+
+
+class RewrittenStackRefusal(unittest.TestCase):
+    """The stack rewrite is caught at the first merge-step after it happens.
+
+    GitHub's native stacked-pull-request flow rebases every downstream branch on
+    each merge and re-signs the rewritten commits with its own key. Before this
+    check, the first symptom was an invalid local signature at a later
+    merge-step, which reads as a broken signing setup, and by then several steps
+    had already merged. The check compares each waiting step's remote tip with
+    the head its push receipt names, so the rewrite is named before any further
+    merge is receipted.
+    """
+
+    def setUp(self):
+        self.hexctl = hexctl_module()
+
+    def _state(self):
+        return {
+            "integrate": {"merged": [1]},
+            "steps": [
+                {"n": 1, "title": "one",
+                 "receipts": {"push": {"head_commit": "a" * 40}}},
+                {"n": 2, "title": "two",
+                 "receipts": {"push": {"head_commit": "b" * 40}}},
+                {"n": 3, "title": "three",
+                 "receipts": {"push": {"head_commit": "c" * 40}}},
+            ],
+        }
+
+    def _refusal(self, state, current_step, tips):
+        """The stderr the check dies with, or None when it returns."""
+        module = self.hexctl
+
+        def tip(_dir, branch, label="remote run branch tip"):
+            value = tips[branch]
+            if value is SystemExit:
+                module.die(f"{label} could not be read")
+            return value
+
+        captured = StringIO()
+        with mock.patch.object(module, "step_branch_name",
+                               side_effect=lambda _s, step: f"branch-{step['n']}"), \
+             mock.patch.object(module, "remote_branch_tip", side_effect=tip), \
+             redirect_stderr(captured):
+            try:
+                module.refuse_rewritten_stack(".", state, current_step)
+            except SystemExit:
+                return captured.getvalue()
+        return None
+
+    def test_an_untouched_stack_passes(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": "c" * 40}
+        )
+        self.assertIsNone(message)
+
+    def test_a_rewritten_waiting_branch_is_refused_and_the_rewrite_named(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": "d" * 40}
+        )
+        self.assertIsNotNone(message, "a rewritten waiting branch was not refused")
+        self.assertIn("has been rewritten since it was pushed", message)
+        self.assertIn("branch-3", message)
+        self.assertIn("stacked-pull-request", message)
+        self.assertIn(
+            "do not import GitHub's public key",
+            message,
+            "the wrong repair is the obvious one and must be ruled out in the message",
+        )
+
+    def test_the_step_being_merged_is_never_queried(self):
+        """The current step's branch may legitimately differ from its receipt
+        after audit-branch fast-forwards; only the WAITING steps are the rewrite
+        signal. Step order is enforced before this check runs, so the current
+        step is always the lowest unmerged one and everything below it is in
+        `merged`."""
+        module = self.hexctl
+        queried = []
+
+        def tip(_dir, branch, label="remote run branch tip"):
+            queried.append(branch)
+            return "c" * 40
+
+        with mock.patch.object(module, "step_branch_name",
+                               side_effect=lambda _s, step: f"branch-{step['n']}"), \
+             mock.patch.object(module, "remote_branch_tip", side_effect=tip):
+            module.refuse_rewritten_stack(".", self._state(), 2)
+        self.assertEqual(queried, ["branch-3"], "only the waiting steps are compared")
+
+    def test_merged_steps_are_not_compared(self):
+        state = self._state()
+        state["integrate"]["merged"] = [1, 2]
+        message = self._refusal(state, 3, {})
+        self.assertIsNone(message)
+
+    def test_an_unreadable_waiting_branch_is_reported_not_skipped(self):
+        message = self._refusal(
+            self._state(), 2, {"branch-3": SystemExit}
+        )
+        self.assertIsNotNone(message)
+        self.assertIn("could not be read", message)
+        self.assertIn("step 3", message)
+
+    def test_a_step_without_a_push_receipt_is_left_alone(self):
+        state = self._state()
+        state["steps"][2]["receipts"] = {}
+        message = self._refusal(state, 2, {})
+        self.assertIsNone(message)

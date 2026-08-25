@@ -1,14 +1,21 @@
 ---
 name: promise-machine
-description: Route any Wildcat Labs skill request through the Promise Machine contract to one canonical skill without widening its evidence, boundary or authorised transition.
+description: Route a Wildcat Labs request to the one canonical first-party or vendored skill that owns it, preserving the Promise Machine evidence boundary and every named sibling hand-off.
 ---
 
 # Promise Machine router
 
-This is the suite's only host-neutral discovery entry. It has no behavioural
-version and owns no domain promise. Read the [root runtime
-contract](../../../AGENTS.md) first; that contract loads the suite law and sets
+This is the suite's only host-neutral discovery entry. It is a switchboard, not
+another domain agent: it has no behavioural version, performs no specialist
+work, and owns no domain promise. Read the [root runtime
+contract](../../../AGENTS.md) first. That contract loads the suite law and sets
 the repository-wide selection boundary.
+
+The router sees the complete collective. Thirteen first-party specialists live
+in their own plugins. Hexaemeron contains Fiat, Kronos, six phase disciplines,
+two prose masks, four Fiat worker briefs, and the untouched Pashov security
+suite. The worker briefs are packets Fiat may delegate; they are not canonical
+skills a user selects through this router.
 
 ## Select one runtime contract
 
@@ -23,15 +30,36 @@ canonical skill only when the selected workflow requires a named handoff.
 | Verify a protocol agent against pinned corpora and chain reads | [Berean](../../../plugins/berean/AGENTS.md) | `berean` |
 | Constrain the volume and structure of engineering prose | [Brevitas](../../../plugins/brevitas/AGENTS.md) | `brevitas` |
 | Measure one Solidity gas-optimisation class | [Hermes](../../../plugins/hermes/AGENTS.md) | `hermes` |
-| Run receipted delivery or a named specification, audit, debugging, hardening, telemetry, measurement or record-keeping phase | [Hexaemeron](../../../plugins/hexaemeron/AGENTS.md) | One named Hexaemeron skill |
 | Classify evidenced reading sinks | [Horos](../../../plugins/horos/AGENTS.md) | `horos` |
 | Check hook effects around a host action | [Janus](../../../plugins/janus/AGENTS.md) | `janus` |
 | Preserve finite historical Ethereum state and exact RPC traffic | [Lazarus](../../../plugins/lazarus/AGENTS.md) | `lazarus` |
 | Produce source-linked Solidity or Markdown chunks | [Lemma](../../../plugins/lemma/AGENTS.md) | `lemma` |
 | Apply executable credit laws | [Pandects](../../../plugins/pandects/AGENTS.md) | `pandects` |
 | Build a declared-address counterparty dossier | [Probitas](../../../plugins/probitas/AGENTS.md) | `probitas` |
-| Shape the agent's own replies for an AuDHD reader | [Sapheneia](../../../plugins/sapheneia/AGENTS.md) | `sapheneia` |
+| Shape the agent's own replies for an AuDHD reader, or shape durable agent-authored audit records and GitHub issue titles, bodies and comments | [Sapheneia](../../../plugins/sapheneia/AGENTS.md) | `sapheneia` |
 | Build a venue-qualified credit-event release | [Tabularium](../../../plugins/tabularium/AGENTS.md) | `tabularium` |
+
+Hexaemeron is one plugin with several distinct owners. Use the same runtime
+contract, then select the named skill below.
+
+| Request | Runtime contract | Canonical selection |
+| --- | --- | --- |
+| Run or resume the explicit receipted delivery loop | [Hexaemeron](../../../plugins/hexaemeron/AGENTS.md) | `fiat` |
+| Rank eligible held frontier jobs, optionally repeating complete Fiat runs | Hexaemeron | `kronos` |
+| Hold a study or runbook to its pre-build content contract | Hexaemeron | `protasis` |
+| Work a reproduced failure to its cause and guard the fix | Hexaemeron | `elenchus` |
+| Harden off-chain inputs, commands, fetches, secrets, dependencies, paths, or model output | Hexaemeron | `phylax` |
+| Design events, metrics, correlation, traces, or alerts for unattended work | Hexaemeron | `ephoros` |
+| Measure non-gas performance before and after one change | Hexaemeron | `metron` |
+| Decide what explanation or decision record belongs where | Hexaemeron | `hypomnema` |
+| Lint prose for banned AI tells and unsupported terms of art | Hexaemeron | `imprimatur` |
+| Rewrite prose into a plain human register without changing its content | Hexaemeron | `vulgate` |
+| Run audit-readiness, Solidity review, or stateful fuzzing | Hexaemeron | The named upstream Pashov skill |
+
+Fiat may hand source-bound packets to Surveyor for one study, Mason for one
+implementation step, Warden for one audit round, or Scribe for one prose pass.
+They return evidence to Fiat; they never select themselves or receipt their own
+work.
 
 ## Preserve the selected promise
 
@@ -41,5 +69,6 @@ evidence class, erase a refusal or recovery path, widen scope, or authorise a
 more consequential transition.
 
 If no row matches, stop at inspection and explain the uncovered boundary. Do
-not improvise a new suite capability or treat this router as permission to run
-Fiat, Kronos or any external action.
+not improvise a new suite capability, collapse two siblings into a generalist,
+or treat this router as permission to run Fiat, Kronos, a worker, or any
+external action.

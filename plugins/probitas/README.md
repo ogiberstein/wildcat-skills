@@ -3,12 +3,20 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Probitas builds a sourced record of what a counterparty did across lending venues from addresses they declared, without identifying a person or issuing a Wildcat verdict.
+Probitas builds a sourced dossier of borrowing and repayment across lending venues from addresses the counterparty declared, without identifying a person or issuing a Wildcat verdict.
 
 **Current frontier.** Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented.
 
 **Next Fiat job.** Use /hexaemeron:fiat to add fail-closed Morpho Midnight fixed-maturity coverage so a dossier can establish whether repayment was timely. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Alexandria preserves venue captures and Tabularium turns supported records into
+rebuildable credit events. Probitas consumes that evidence, keeps venue gaps and
+source classes visible, and writes the counterparty-level dossier. It never
+infers undeclared identity, blesses a borrower, sets credit terms, or replaces a
+lender's judgement.
 
 A sourced dossier on a counterparty's record across on-chain lending venues,
 built from the addresses they declared.

@@ -36,11 +36,17 @@ import sys
 import tempfile
 import time
 import urllib.parse
+from pathlib import Path
 
 STATE_DIR_NAME = ".hexaemeron"
 STATE_FILE = "state.json"
 LEDGER_FILE = "ledger.jsonl"
 STUDY_AMENDMENT_PENDING_FILE = "study-amendment-pending.json"
+RUNBOOK_AMENDMENT_PENDING_FILE = "runbook-amendment-pending.json"
+AMENDMENT_PENDING_FILES = {
+    "study": STUDY_AMENDMENT_PENDING_FILE,
+    "runbook": RUNBOOK_AMENDMENT_PENDING_FILE,
+}
 
 # The run-level pull request body the prose phase writes and the integrate
 # phase opens the integration pull request from. It is the last thing a run
@@ -84,7 +90,9 @@ DEFAULT_CONFIG = {
         "max_rounds": 8,
         "stacked_suffix": "--audit",
         "fold": False,
-        "log_path": "audit/AUDIT.md",
+        # No `log_path` here. A literal put every run's rounds in one file, so
+        # that file entered `sync-run`'s overlap set on every integration where
+        # anything else had merged. `init` derives the run's own path instead.
     },
     "git": {
         "base": "main",
@@ -104,7 +112,14 @@ list. `references/audit-loop.md` is the contract they satisfy.
 ELENCHUS_VERDICTS = ("guarded", "unguarded", "passed", "inconclusive")
 """The complete Elenchus result vocabulary accepted on an audit fix receipt."""
 
-AUDIT_RECORD_SCHEMA = "fiat-audit-round/v1"
+AUDIT_FILTER = "sapheneia:sapheneia"
+"""The exact bounded audit-record pass every new round declares."""
+
+AUDIT_RECORD_SCHEMAS = (
+    "fiat-audit-round/v1",
+    "fiat-audit-round/v2",
+)
+AUDIT_RECORD_SCHEMA = AUDIT_RECORD_SCHEMAS[-1]
 AUDIT_COVERAGE_VALUES = ("reviewed", "not-applicable")
 AUDIT_FINDINGS_HEADER = "| id | severity | file | finding | status |"
 AUDIT_FINDINGS_SEPARATOR = "| --- | --- | --- | --- | --- |"
@@ -123,6 +138,14 @@ def elenchus_verdict_obligation() -> dict:
         "flag": "--elenchus-verdict",
         "required_with": "--fixes-commit",
         "choices": list(ELENCHUS_VERDICTS),
+    }
+
+
+def audit_filter_obligation() -> dict:
+    """Describe the exact checked declaration without claiming semantic proof."""
+    return {
+        "flag": "--audit-filter",
+        "value": AUDIT_FILTER,
     }
 
 
@@ -159,9 +182,34 @@ def now() -> str:
 
 
 SOURCE_BYTES_MAX = 2 * 1024 * 1024
+AMENDMENT_HISTORY_MAX = 500
 GIT_OUTPUT_MAX = 2 * 1024 * 1024
 GIT_PATHS_MAX = 500
 GIT_TIMEOUT = 30
+INTEGRATION_REVALIDATION_SCHEMA = "fiat-integration-revalidation/v1"
+INTEGRATION_REVALIDATION_FILE = os.path.join(
+    STATE_DIR_NAME, "integration-revalidation.json"
+)
+INTEGRATION_CHECKS_MAX = 64
+INTEGRATION_COMMAND_BYTES_MAX = 2048
+INTEGRATION_CHECK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+INTEGRATION_SYNC_SUPERSESSIONS_MAX = 8
+INTEGRATION_SYNC_REASON_BYTES_MAX = 1024
+OBSERVATION_BINDING_CONTRACT = "fiat-run-observation-binding/v1"
+OBSERVATION_CONTRACT = "promise-machine-run-observation/v1"
+OBSERVATION_BYTES_MAX = 1_048_576
+OBSERVATION_BINDINGS_MAX = 64
+OBSERVATION_PATH_BYTES_MAX = 1024
+OBSERVATION_CAPTURE_STATUSES = (
+    "accepted",
+    "gap",
+    "refused",
+    "unknown",
+    "unavailable",
+)
+OBSERVATION_REDACTION_STATUSES = ("passed", "failed", "unknown")
+OBSERVATION_REASON_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+_OBSERVATION_VALIDATOR = None
 
 
 def scoped_path(base_dir: str, supplied: str, label: str) -> str:
@@ -196,6 +244,332 @@ def read_bounded_source(base_dir: str, supplied: str, label: str) -> tuple[str, 
     if len(data) > SOURCE_BYTES_MAX:
         die(f"{label} exceeds {SOURCE_BYTES_MAX}-byte cap")
     return path, data
+
+
+def controller_run_id(state: dict) -> str:
+    """Return the stable observation identity for one controller run."""
+    identity = {
+        "base": state.get("base"),
+        "controller": state.get("controller", "hexctl"),
+        "created_at": state.get("created_at"),
+        "run_branch": state.get("run_branch"),
+        "topic": state.get("topic"),
+        "version": state.get("version", 1),
+    }
+    return "fiat-" + hashlib.sha256(canonical(identity).encode()).hexdigest()
+
+
+def observation_error(code: str, message: str, recovery: str, exit_code: int = 2):
+    die(f"{code} {message}; recovery: {recovery}", exit_code)
+
+
+def observation_relative_path(base_dir: str, supplied: str, *, exit_code: int = 2) -> str:
+    """Admit one canonical run-local observation path without following links."""
+    if not isinstance(supplied, str) or not supplied or os.path.isabs(supplied):
+        observation_error(
+            "FOB002",
+            "the companion path is not a canonical run-local relative path",
+            "name a regular file beneath .hexaemeron/observations",
+            exit_code,
+        )
+    if supplied != os.path.normpath(supplied):
+        observation_error(
+            "FOB002",
+            "the companion path is not lexically canonical",
+            "remove dot segments and name a file beneath .hexaemeron/observations",
+            exit_code,
+        )
+    try:
+        encoded = supplied.encode("utf-8")
+    except UnicodeEncodeError:
+        encoded = b""
+    parts = supplied.split(os.sep)
+    if (
+        not encoded
+        or len(encoded) > OBSERVATION_PATH_BYTES_MAX
+        or len(parts) < 3
+        or parts[:2] != [STATE_DIR_NAME, "observations"]
+        or any(
+            not part
+            or part in {".", ".."}
+            or any(ord(character) < 32 or ord(character) == 127 for character in part)
+            for part in parts
+        )
+    ):
+        observation_error(
+            "FOB002",
+            "the companion path is outside the bounded observation namespace",
+            "name a canonical regular file beneath .hexaemeron/observations",
+            exit_code,
+        )
+    return os.sep.join(parts)
+
+
+def _read_observation_once(
+    base_dir: str, relative: str, *, exit_code: int = 2
+) -> tuple[bytes, tuple]:
+    """Read through no-follow directory descriptors and retain one identity."""
+    root_fd = None
+    directory_fds = []
+    file_fd = None
+    try:
+        root_path = os.path.realpath(base_dir)
+        root_fd = os.open(
+            root_path,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0),
+        )
+        directory_fds = [root_fd]
+        directory_fd = root_fd
+        parts = relative.split(os.sep)
+        for part in parts[:-1]:
+            next_fd = os.open(
+                part,
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=directory_fd,
+            )
+            directory_fd = next_fd
+            directory_fds.append(next_fd)
+        file_fd = os.open(
+            parts[-1],
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_fd,
+        )
+        before = os.fstat(file_fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise OSError("not regular")
+        chunks = []
+        remaining = OBSERVATION_BYTES_MAX + 1
+        while remaining:
+            chunk = os.read(file_fd, min(65536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        data = b"".join(chunks)
+        if len(data) > OBSERVATION_BYTES_MAX:
+            raise OSError("too large")
+        after = os.fstat(file_fd)
+        named = os.stat(parts[-1], dir_fd=directory_fd, follow_symlinks=False)
+        identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        final_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        named_identity = (
+            named.st_dev,
+            named.st_ino,
+            named.st_size,
+            named.st_mtime_ns,
+            named.st_ctime_ns,
+        )
+        if identity != final_identity or identity != named_identity or len(data) != after.st_size:
+            raise OSError("changed during read")
+        root_named = os.stat(root_path, follow_symlinks=False)
+        root_identity = os.fstat(root_fd)
+        if (root_named.st_dev, root_named.st_ino) != (
+            root_identity.st_dev,
+            root_identity.st_ino,
+        ):
+            raise OSError("root changed during read")
+        for index, part in enumerate(parts[:-1]):
+            named_directory = os.stat(
+                part,
+                dir_fd=directory_fds[index],
+                follow_symlinks=False,
+            )
+            opened_directory = os.fstat(directory_fds[index + 1])
+            if (named_directory.st_dev, named_directory.st_ino) != (
+                opened_directory.st_dev,
+                opened_directory.st_ino,
+            ):
+                raise OSError("directory changed during read")
+        return data, identity
+    except OSError:
+        observation_error(
+            "FOB002",
+            "the companion path is missing, unsafe, unstable, or outside its byte ceiling",
+            "write one stable regular file beneath .hexaemeron/observations and retry",
+            exit_code,
+        )
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        for descriptor in reversed(directory_fds):
+            os.close(descriptor)
+
+
+def read_observation_bytes(
+    base_dir: str, supplied: str, *, exit_code: int = 2
+) -> tuple[str, bytes]:
+    """Read the same named bytes twice so a clean receipt has one stable subject."""
+    relative = observation_relative_path(base_dir, supplied, exit_code=exit_code)
+    first, first_identity = _read_observation_once(
+        base_dir, relative, exit_code=exit_code
+    )
+    second, second_identity = _read_observation_once(
+        base_dir, relative, exit_code=exit_code
+    )
+    if first_identity != second_identity or first != second:
+        observation_error(
+            "FOB002",
+            "the companion bytes changed while they were selected",
+            "stop the writer, publish one stable prefix, and retry",
+            exit_code,
+        )
+    return relative, second
+
+
+def recheck_observation_bytes(
+    base_dir: str,
+    relative: str,
+    expected: bytes,
+    *,
+    exit_code: int = 2,
+) -> None:
+    """Re-establish the named subject after validation has completed."""
+    final_relative, final = read_observation_bytes(
+        base_dir,
+        relative,
+        exit_code=exit_code,
+    )
+    if final_relative != relative or final != expected:
+        observation_error(
+            "FOB002",
+            "the companion bytes changed before the claim completed",
+            "stop the writer, publish one stable prefix, and retry",
+            exit_code,
+        )
+
+
+def _strict_observation_object(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate member")
+        value[key] = item
+    return value
+
+
+def observation_summary(data: bytes, *, exit_code: int = 2) -> dict:
+    """Extract the exact closed identity and interval from accepted JSONL bytes."""
+    try:
+        text = data.decode("utf-8")
+        lines = text.splitlines()
+        events = [
+            json.loads(
+                line,
+                object_pairs_hook=_strict_observation_object,
+                parse_constant=lambda _: (_ for _ in ()).throw(ValueError("non-finite")),
+            )
+            for line in lines
+        ]
+    except (UnicodeDecodeError, ValueError, TypeError):
+        observation_error(
+            "FOB003",
+            "the selected prefix is not closed UTF-8 JSONL",
+            "validate and republish the prefix before binding it",
+            exit_code,
+        )
+    if not events or any(not isinstance(event, dict) for event in events):
+        observation_error(
+            "FOB003",
+            "the selected prefix has no closed event sequence",
+            "record one run.started event and a valid closed prefix",
+            exit_code,
+        )
+    run_values = [event.get("run_id") for event in events]
+    contract_values = [event.get("schema_id") for event in events]
+    sequences = [event.get("sequence") for event in events]
+    event_ids = [event.get("event_id") for event in events]
+    if (
+        any(not isinstance(value, str) or not value for value in run_values)
+        or any(not isinstance(value, str) or not value for value in contract_values)
+        or len(set(run_values)) != 1
+        or len(set(contract_values)) != 1
+        or sequences != list(range(1, len(events) + 1))
+        or any(not isinstance(value, str) or not value for value in event_ids)
+    ):
+        observation_error(
+            "FOB003",
+            "the selected prefix identity or interval is inconsistent",
+            "emit one contract, run identity, and contiguous event interval",
+            exit_code,
+        )
+    return {
+        "contract": contract_values[0],
+        "run_id": run_values[0],
+        "event_count": len(events),
+        "first_sequence": sequences[0],
+        "last_sequence": sequences[-1],
+        "first_event_id": event_ids[0],
+        "last_event_id": event_ids[-1],
+    }
+
+
+def observation_validator_module(*, exit_code: int = 2):
+    global _OBSERVATION_VALIDATOR
+    if _OBSERVATION_VALIDATOR is not None:
+        return _OBSERVATION_VALIDATOR
+    repository = os.path.realpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
+    )
+    source = os.path.join(repository, "scripts", "run_observation.py")
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "fiat_run_observation_validator", source
+        )
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+    except (AttributeError, ImportError, OSError):
+        observation_error(
+            "FOB003",
+            "the bound observation validator is unavailable",
+            "restore the receipted validator surface before selecting a prefix",
+            exit_code,
+        )
+    _OBSERVATION_VALIDATOR = module
+    return module
+
+
+def validated_observation_prefix(base_dir: str, supplied: str, state: dict):
+    relative, data = read_observation_bytes(base_dir, supplied)
+    validator = observation_validator_module()
+    findings = validator.validate_bytes(
+        data,
+        display_path=relative,
+        allow_prefix=True,
+    )
+    if findings:
+        observation_error(
+            "FOB003",
+            "the selected observation prefix failed its bound validator",
+            "repair the prefix and rerun check-prefix before binding it",
+        )
+    summary = observation_summary(data)
+    if (
+        summary["contract"] != OBSERVATION_CONTRACT
+        or summary["run_id"] != controller_run_id(state)
+    ):
+        observation_error(
+            "FOB003",
+            "the selected prefix names the wrong contract or controller run",
+            "emit the current contract and observation_run_id, then retry",
+        )
+    recheck_observation_bytes(base_dir, relative, data)
+    return relative, data, summary
 
 
 def decoded_source(data: bytes, label: str) -> str:
@@ -532,16 +906,47 @@ def task_issue_number(value: str) -> str:
     return match.group(1)
 
 
-def check_branch_name(name: str) -> None:
+def branch_name_ok(name: str) -> bool:
+    """Whether one string satisfies the conservative refname subset above."""
     if not BRANCH_RE.match(name) or ".." in name or "//" in name:
-        die(f"'{name}' is not a usable branch name")
-    if name.endswith(".lock"):
+        return False
+    return not name.endswith(".lock")
+
+
+def check_branch_name(name: str) -> None:
+    if not branch_name_ok(name):
         die(f"'{name}' is not a usable branch name")
 
 
 def run_branch_of(state: dict):
     """The run's integration branch, or None for a run started before 3.4."""
     return state.get("run_branch")
+
+
+def integration_base_of(state: dict) -> str:
+    """The named branch a completed run integrates into.
+
+    Older runs may record the exact starting commit in ``state.base`` while
+    retaining the named delivery branch in ``config.git.base``.  The commit is
+    immutable starting-point evidence; it is not a remote branch name.
+    """
+    starting_base = state.get("base")
+    if not isinstance(starting_base, str) or not starting_base:
+        die("the recorded starting base must be a non-empty string")
+    if not COMMIT_RE.fullmatch(starting_base):
+        check_branch_name(starting_base)
+        return starting_base
+
+    configured = as_dict(as_dict(state.get("config")).get("git")).get("base")
+    if not isinstance(configured, str) or not configured:
+        die(
+            "a run started from a commit needs config.git.base to name its "
+            "integration branch"
+        )
+    if COMMIT_RE.fullmatch(configured):
+        die("config.git.base must name an integration branch, not a commit")
+    check_branch_name(configured)
+    return configured
 
 
 def step_branch_name(state: dict, step: dict) -> str:
@@ -645,47 +1050,90 @@ def validate_state_shape(state) -> dict:
     return root
 
 
+def amendment_pending_path(base_dir: str, subject: str) -> str:
+    try:
+        filename = AMENDMENT_PENDING_FILES[subject]
+    except KeyError:
+        die(f"unknown amendment subject: {subject}", 1)
+    return os.path.join(state_root(base_dir), filename)
+
+
 def study_amendment_pending_path(base_dir: str) -> str:
-    return os.path.join(state_root(base_dir), STUDY_AMENDMENT_PENDING_FILE)
+    """Compatibility name for callers that know the version-1 study marker."""
+    return amendment_pending_path(base_dir, "study")
 
 
-def load_study_amendment_pending(base_dir: str) -> dict | None:
-    """Read the bounded write-ahead record for an interrupted amendment."""
-    path = study_amendment_pending_path(base_dir)
+def load_amendment_pending(base_dir: str, subject: str) -> dict | None:
+    """Read one bounded, subject-labelled interrupted amendment record."""
+    path = amendment_pending_path(base_dir, subject)
     if not os.path.exists(path):
         return None
     if os.path.islink(path) or not os.path.isfile(path):
-        die("study amendment pending record is not a regular file", 1)
+        die(f"{subject} amendment pending record is not a regular file", 1)
     try:
         with open(path, "rb") as handle:
             raw = handle.read(65537)
     except OSError as exc:
-        die(f"study amendment pending record cannot be read: {exc}", 1)
+        die(f"{subject} amendment pending record cannot be read: {exc}", 1)
     if len(raw) > 65536:
-        die("study amendment pending record exceeds 65536-byte cap", 1)
+        die(f"{subject} amendment pending record exceeds 65536-byte cap", 1)
     try:
         value = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
-        die("study amendment pending record is malformed", 1)
+        die(f"{subject} amendment pending record is malformed", 1)
     if not isinstance(value, dict) or value.get("version") != 1:
-        die("study amendment pending record has an unsupported shape", 1)
+        die(f"{subject} amendment pending record has an unsupported shape", 1)
+    recorded_subject = value.get("subject")
+    # Study markers written by fiat-v5.20.1 and earlier had no subject field.
+    if recorded_subject is None and subject == "study":
+        recorded_subject = "study"
+    if recorded_subject != subject:
+        die(
+            f"{subject} amendment pending record names subject "
+            f"{recorded_subject!r}",
+            1,
+        )
     if not isinstance(value.get("artifact"), str) or not value["artifact"]:
-        die("study amendment pending record has no artefact path", 1)
+        die(f"{subject} amendment pending record has no artefact path", 1)
     before = value.get("state_before_sha256")
     if not isinstance(before, str) or not re.fullmatch(r"[0-9a-f]{64}", before):
-        die("study amendment pending record has an invalid state digest", 1)
+        die(f"{subject} amendment pending record has an invalid state digest", 1)
     amendment = value.get("amendment")
     if not isinstance(amendment, dict):
-        die("study amendment pending record has no amendment object", 1)
+        die(f"{subject} amendment pending record has no amendment object", 1)
+    value["subject"] = subject
     return value
 
 
-def write_study_amendment_pending(base_dir: str, value: dict) -> None:
-    """Publish a durable marker before replacing any receipted study bytes."""
+def load_study_amendment_pending(base_dir: str) -> dict | None:
+    """Compatibility reader for the existing study-amendment tests."""
+    return load_amendment_pending(base_dir, "study")
+
+
+def pending_amendments(base_dir: str) -> dict[str, dict]:
+    """Return the one pending subject, refusing an ambiguous collision."""
+    found = {
+        subject: pending
+        for subject in AMENDMENT_PENDING_FILES
+        if (pending := load_amendment_pending(base_dir, subject)) is not None
+    }
+    if len(found) > 1:
+        subjects = ", ".join(sorted(found))
+        die(
+            "multiple amendment transactions are pending for subjects "
+            f"{subjects}; restore exactly one recorded subject before recovery",
+            1,
+        )
+    return found
+
+
+def write_amendment_pending(base_dir: str, subject: str, value: dict) -> None:
+    """Publish a durable marker before replacing one receipted artefact."""
     root = state_root(base_dir)
-    path = study_amendment_pending_path(base_dir)
+    path = amendment_pending_path(base_dir, subject)
+    value = {**value, "subject": subject}
     descriptor, temporary = tempfile.mkstemp(
-        prefix=".study-amendment-pending-", dir=root
+        prefix=f".{subject}-amendment-pending-", dir=root
     )
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
@@ -708,12 +1156,20 @@ def write_study_amendment_pending(base_dir: str, value: dict) -> None:
             os.unlink(temporary)
         except FileNotFoundError:
             pass
-        die(f"study amendment pending record could not be written: {exc}", 1)
+        die(
+            f"{subject} amendment pending record could not be written: {exc}",
+            1,
+        )
 
 
-def clear_study_amendment_pending(base_dir: str) -> None:
+def write_study_amendment_pending(base_dir: str, value: dict) -> None:
+    """Compatibility writer; new study markers carry their subject."""
+    write_amendment_pending(base_dir, "study", value)
+
+
+def clear_amendment_pending(base_dir: str, subject: str) -> None:
     """Remove the write-ahead marker only after the receipt commit is durable."""
-    path = study_amendment_pending_path(base_dir)
+    path = amendment_pending_path(base_dir, subject)
     try:
         os.unlink(path)
         directory = os.open(state_root(base_dir), os.O_RDONLY)
@@ -724,7 +1180,15 @@ def clear_study_amendment_pending(base_dir: str) -> None:
     except FileNotFoundError:
         return
     except OSError as exc:
-        die(f"study amendment pending record could not be cleared: {exc}", 1)
+        die(
+            f"{subject} amendment pending record could not be cleared: {exc}",
+            1,
+        )
+
+
+def clear_study_amendment_pending(base_dir: str) -> None:
+    """Compatibility clearer for the existing study transition."""
+    clear_amendment_pending(base_dir, "study")
 
 
 def load_state(base_dir: str, *, allow_pending_amendment: bool = False) -> dict:
@@ -756,20 +1220,26 @@ def load_state(base_dir: str, *, allow_pending_amendment: bool = False) -> dict:
     except (ValueError, OSError) as exc:
         die(f"state file unreadable at {path}: {exc}", 1)
     state = validate_state_shape(state)
-    if not allow_pending_amendment and load_study_amendment_pending(base_dir):
-        die(
-            "study amendment transaction is pending; rerun `hexctl amend study "
-            "--artifact <canonical-study>` to recover before continuing"
-        )
+    if not allow_pending_amendment:
+        pending = pending_amendments(base_dir)
+        if pending:
+            subject = next(iter(pending))
+            die(
+                f"{subject} amendment transaction is pending; rerun `hexctl "
+                f"amend {subject} --artifact <canonical-{subject}>` to recover "
+                "before continuing"
+            )
     return state
 
 
 MUTATING = frozenset(
     {
         "cmd_init",
+        "cmd_observe",
         "cmd_record",
         "cmd_config",
         "cmd_amend_study",
+        "cmd_amend_runbook",
         "cmd_done",
         "cmd_audit_round",
         "cmd_halt",
@@ -967,16 +1437,43 @@ def require_global_phase(state: dict, phase: str) -> None:
 
 
 def amendment_block(state: dict) -> dict | None:
-    """Return the latest recorded broken verdict for the current step."""
+    """Return the latest un-repaired broken verdict for the current step."""
     if state.get("phase") != "steps" or state.get("current_step") is None:
         return None
-    amendments = as_dict(as_dict(state.get("receipts")).get("study")).get(
-        "amendments"
-    )
-    if not isinstance(amendments, list):
-        return None
     step_number = state["current_step"]
-    for amendment in reversed(amendments):
+
+    runbook_receipt = as_dict(as_dict(state.get("receipts")).get("runbook"))
+    runbook_amendments = runbook_receipt.get("amendments")
+    if runbook_amendments is not None and not isinstance(runbook_amendments, list):
+        die("runbook receipt amendments history must be an array", 1)
+    for amendment in reversed(runbook_amendments or []):
+        verdicts = as_dict(amendment).get("step_verdicts")
+        if not isinstance(verdicts, list):
+            continue
+        for verdict in verdicts:
+            item = as_dict(verdict)
+            if item.get("step") != step_number:
+                continue
+            if item.get("entry") == "holds" and item.get("exit") == "holds":
+                break
+            return {
+                "subject": "runbook",
+                "step": step_number,
+                "entry": item.get("entry"),
+                "exit": item.get("exit"),
+                "amendment_sha256": amendment.get("amendment_sha256"),
+                "runbook_sha256": amendment.get("new_sha256"),
+            }
+        else:
+            continue
+        break
+
+    study_receipt = as_dict(as_dict(state.get("receipts")).get("study"))
+    study_amendments = study_receipt.get("amendments")
+    if study_amendments is not None and not isinstance(study_amendments, list):
+        die("study receipt amendments history must be an array", 1)
+    broken = None
+    for amendment in reversed(study_amendments or []):
         verdicts = as_dict(amendment).get("step_verdicts")
         if not isinstance(verdicts, list):
             continue
@@ -986,14 +1483,49 @@ def amendment_block(state: dict) -> dict | None:
                 continue
             if item.get("entry") == "holds" and item.get("exit") == "holds":
                 return None
-            return {
+            broken = {
+                "subject": "study",
                 "step": step_number,
                 "entry": item.get("entry"),
                 "exit": item.get("exit"),
                 "amendment_sha256": amendment.get("amendment_sha256"),
                 "study_sha256": amendment.get("new_sha256"),
             }
-    return None
+            break
+        if broken is not None:
+            break
+    if broken is None:
+        return None
+
+    current_study = study_receipt.get("sha256")
+    for amendment in reversed(runbook_amendments or []):
+        item = as_dict(amendment)
+        if item.get("study_sha256") != current_study:
+            continue
+        if step_number not in (item.get("steps_touched") or []):
+            continue
+        replacements = item.get("replacement_fields")
+        if not isinstance(replacements, list) or not replacements:
+            continue
+        verdicts = item.get("step_verdicts")
+        if not isinstance(verdicts, list):
+            continue
+        current_verdict = next(
+            (
+                as_dict(verdict)
+                for verdict in verdicts
+                if as_dict(verdict).get("step") == step_number
+            ),
+            None,
+        )
+        if (
+            current_verdict is not None
+            and current_verdict.get("entry") == "holds"
+            and current_verdict.get("exit") == "holds"
+        ):
+            return None
+        break
+    return broken
 
 
 def require_no_amendment_block(state: dict) -> None:
@@ -1001,7 +1533,7 @@ def require_no_amendment_block(state: dict) -> None:
     if blocked is None:
         return
     die(
-        "study amendment blocks step {step}: entry {entry}, exit {exit}; "
+        "{subject} amendment blocks step {step}: entry {entry}, exit {exit}; "
         "inspect the amendment, halt the run, or use a separately specified "
         "runbook-repair transition".format(**blocked)
     )
@@ -1020,6 +1552,52 @@ def require_step_phase(state: dict, phase: str) -> dict:
             f"got 'done {phase}'"
         )
     return step
+
+
+def configured_audit_log(state: dict) -> str:
+    """The one file this run's rounds append to, as its own config records it.
+
+    Read through here rather than off the dict, so the Warden packet, `next` and
+    the two receipts all refuse the same way when a run has no path to write to.
+    """
+    log = as_dict(as_dict(state.get("config")).get("audit")).get("log_path")
+    if not isinstance(log, str) or not log:
+        die(
+            "config audit.log_path is missing or is not a path; a round cannot "
+            "say where it wrote without one"
+        )
+    return log
+
+
+def same_audit_log(declared: str, configured: str) -> bool:
+    """Whether two spellings name one record.
+
+    `audit/rounds/x.md` and `./audit/rounds/x.md` are the same file, and a round
+    turned away over a leading `./` would be turned away for punctuation.
+    """
+    def flatten(value: str) -> str:
+        return os.path.normpath(value.replace("\\", "/"))
+
+    return flatten(declared) == flatten(configured)
+
+
+def check_declared_audit_log(state: dict, declared: str, label: str) -> str:
+    """Hold a declared log to the one the caller was told to write.
+
+    `--log` was a free string stored verbatim while the Warden packet named
+    `config audit.log_path`, so a receipt could record a file the round never
+    opened and nothing noticed. The declaration is checked here and the
+    configured path is what gets recorded, so the two cannot drift apart by
+    spelling either.
+    """
+    configured = configured_audit_log(state)
+    if not same_audit_log(declared, configured):
+        die(
+            f"--log names '{declared}', but {label} writes '{configured}' "
+            "(config audit.log_path); a receipt naming a file nothing opened "
+            "is worse than a receipt naming none"
+        )
+    return configured
 
 
 def max_rounds_of(state: dict) -> int:
@@ -1047,6 +1625,14 @@ def cmd_init(args) -> None:
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
+    waiver = None
+    if args.controller_currency_waiver is not None:
+        waiver = args.controller_currency_waiver.strip()
+        if not waiver:
+            die(
+                "--controller-currency-waiver needs a reason; an empty one "
+                "records nothing"
+            )
     prefix = DEFAULT_CONFIG["git"]["run_branch_prefix"]
     issue_number = (
         task_issue_number(args.task_issue) if args.task_issue is not None else None
@@ -1101,6 +1687,31 @@ def cmd_init(args) -> None:
     worktree = check_worktree_path(repo_root, candidate)
     refuse_checked_out_branch(args.dir, run_branch)
 
+    # The currency observation is the last pre-mutation check because it is
+    # the only one that may wait on the network: every cheaper refusal has
+    # already had its chance. A proven-behind controller stops the run here,
+    # while a refusal still costs nothing; anything the observation could not
+    # prove proceeds as `unknown` with the nulls recorded rather than guessed.
+    currency = observe_controller_currency()
+    if currency["verdict"] == "behind" and waiver is None:
+        die(
+            "controller currency: this controller's recorded pin "
+            f"{currency['pin']} differs from the observed upstream head "
+            f"{currency['observed_head']}. Either re-pin the plugin through "
+            "this host's own installer (references/plugin-currency.md), or "
+            "rerun init with --controller-currency-waiver '<reason>' to "
+            "proceed with the gap recorded.",
+            1,
+        )
+    if currency["verdict"] == "unknown":
+        print(
+            "hexctl: warning: controller currency is unknown "
+            f"({currency['warning']}); the run starts anyway and its receipt "
+            "records the nulls rather than a verdict.",
+            file=sys.stderr,
+        )
+    provenance = {**currency, "waiver": waiver}
+
     home = os.path.dirname(worktree)
     os.makedirs(home, exist_ok=True)
     # Self-ignoring, the same trick the state directory uses. Without it the
@@ -1136,7 +1747,7 @@ def cmd_init(args) -> None:
         remove_run_worktree(args.dir, worktree)
         die(f"could not write the run's state into {root}")
 
-    receipts = {}
+    receipts = {"controller_currency": provenance}
     if args.task_issue is not None:
         receipts["task_issue"] = args.task_issue
 
@@ -1155,9 +1766,15 @@ def cmd_init(args) -> None:
         "halted": None,
         "frontier": frontier,
     }
+    state["config"]["audit"]["log_path"] = run_audit_log_path(run_branch)
     state["worktree"] = worktree
     state["origin"] = origin_root
-    init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
+    init_data = {
+        "topic": args.topic,
+        "base": args.base,
+        "run_branch": run_branch,
+        "controller_currency": provenance,
+    }
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
     try:
@@ -1313,12 +1930,79 @@ def carried_forward_record(path: str) -> dict:
     }
 
 
-def frontier_close_fault(path: str, before: dict) -> str | None:
+def base_ledger_versions(base_dir: str, base_commit: str, ledger: str) -> frozenset:
+    """Every row version the ledger already carried at one exact base commit.
+
+    A run that syncs absorbs whatever other runs published meanwhile, and those
+    rows are not its own. This is the only evidence that separates them, and it
+    is already recorded: `done sync-run` stores the exact base commit it merged.
+
+    An unreadable or unparsable blob returns the empty set, which leaves the
+    gate on its older and stricter arithmetic. Failing the other way would let a
+    broken read excuse a row nobody published.
+    """
+    if not COMMIT_RE.fullmatch(base_commit or ""):
+        return frozenset()
+    # `bounded_run` rather than `bounded_git`: a blob this reader cannot fetch is
+    # an answer it handles, not a fatal error, so it must not print a refusal or
+    # exit. Reading the status keeps that decision here.
+    status, raw = bounded_run(
+        base_dir, "git", ["show", f"{base_commit}:{ledger}"]
+    )
+    if status != 0:
+        return frozenset()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return frozenset()
+    return frozenset(row["version"] for row in ledger_rows(text))
+
+
+def frontier_rows_after_anchor(rows: list[dict], before: dict) -> list[dict]:
+    """The history rows a run is answerable for, in order.
+
+    Shared by the gate and the receipt. Two copies of this slicing would drift,
+    and the receipt would then name a different set from the one the refusal
+    counted.
+    """
+    anchor = before.get("version_at_init")
+    anchor_at = [i for i, entry in enumerate(rows) if entry["version"] == anchor]
+    if anchor_at:
+        return rows[anchor_at[-1] + 1:]
+    return rows[len(rows) - max(0, len(rows) - before["rows"]):]
+
+
+def frontier_subtracted_rows(
+    base_dir: str, before: dict, published: frozenset
+) -> list[str]:
+    """Which already-published versions the gate subtracted, for the receipt."""
+    if not published:
+        return []
+    path = os.path.join(base_dir, before["ledger"])
+    try:
+        with open(path, encoding="utf-8") as handle:
+            rows = ledger_rows(handle.read())
+    except OSError:
+        return []
+    after = frontier_rows_after_anchor(rows, before)
+    return sorted({entry["version"] for entry in after} & published)
+
+
+def frontier_close_fault(
+    path: str, before: dict, published: frozenset = frozenset()
+) -> str | None:
     """Why this run has not closed the frontier it declared, or None.
 
     The maturity gate says to update the ledger exactly once, and says it in
     prose. This repository has already had to reconstruct two broken evolutions,
     so the run proves the update instead of asserting it.
+
+    `published` names the rows the base already carried, so a run is charged for
+    its own rows and no others. Without it the second of two concurrent frontier
+    runs on one skill is refused for work it did not do, which is what happened
+    to the issue 466 run: it added `fiat-v5.15.1`, absorbed `fiat-v5.14.1` in
+    its one permitted sync, and could not renumber either, because
+    `done_integrate` freezes the run branch at that sync commit.
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -1339,13 +2023,21 @@ def frontier_close_fault(path: str, before: dict) -> str | None:
     if anchor is not None and not anchor_at:
         return (f"{path} no longer carries the init-time version row "
                 f"{anchor!r}; history is append-only")
-    gained = (len(rows) - (anchor_at[-1] + 1) if anchor_at
-              else len(rows) - before["rows"])
+    after = frontier_rows_after_anchor(rows, before)
+    foreign = [entry for entry in after if entry["version"] in published]
+    gained = len(after) - len(foreign)
     if gained != 1:
-        return (f"{path} gained {gained} history row(s); the contract allows "
-                f"exactly one per completed frontier job")
+        tail = ""
+        if foreign:
+            tail = (f", after subtracting {len(foreign)} already published in "
+                    f"the recorded base")
+        return (f"{path} gained {gained} history row(s){tail}; the contract "
+                f"allows exactly one per completed frontier job")
 
     row = rows[-1]
+    if row["version"] in published:
+        return (f"the newest row {row['version']} was already published in the "
+                f"recorded base; this run's own row has to be the newest")
     skill = os.path.basename(os.path.dirname(path))
     current = ledger_field(text, "Current version")
     if row["version"] != current:
@@ -1432,13 +2124,414 @@ def stale_controller(target_dir: str) -> tuple[str, str, str] | None:
     return None
 
 
-RESERVED_RECEIPTS = {"study", "runbook"}
+CURRENCY_REGISTRY_FILE = "installed_plugins.json"
+CURRENCY_REGISTRY_MAX = 1024 * 1024
+CURRENCY_CACHE_DIR = "cache"
+CURRENCY_MARKETPLACES_DIR = "marketplaces"
+"""The host install layout the currency observation reads, never assumes.
+
+`<plugins root>/installed_plugins.json` records every install;
+`<plugins root>/cache/<marketplace>/<plugin>/<version>/` holds the running
+copy; `<plugins root>/marketplaces/<marketplace>/` is the git clone whose own
+configuration names the upstream. The plugins root is derived from the
+controller's resolved file, so no environment or target-repository value
+chooses what gets read.
+"""
+
+
+def currency_inside_git_worktree(start_dir: str) -> bool:
+    """Whether a directory has a `.git` somewhere above it."""
+    current = start_dir
+    while True:
+        if os.path.exists(os.path.join(current, ".git")):
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
+
+
+def currency_cache_split(real_file: str) -> tuple[str, str] | None:
+    """The (plugins root, marketplace) a cached controller file sits under.
+
+    The nearest ancestor named `cache` with marketplace, plugin and version
+    components between it and the file decides; None means the file is not
+    under an install cache and the in-repo check applies instead.
+    """
+    parts = real_file.split(os.sep)
+    for index in range(len(parts) - 5, 0, -1):
+        if parts[index] != CURRENCY_CACHE_DIR:
+            continue
+        if all(parts[index + 1:index + 4]):
+            return os.sep.join(parts[:index]), parts[index + 1]
+    return None
+
+
+def currency_registry_load(plugins_root: str) -> tuple[str, dict | str]:
+    """The host registry's plugins mapping, read once and bounded.
+
+    Returns ("ok", plugins) or ("unknown", warning) when the registry cannot
+    answer at all: missing, oversized, malformed, or the wrong kind. Hostile
+    bytes are named by kind, never echoed.
+    """
+    path = os.path.join(plugins_root, CURRENCY_REGISTRY_FILE)
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read(CURRENCY_REGISTRY_MAX + 1)
+    except OSError:
+        return "unknown", "registry-missing"
+    if len(raw) > CURRENCY_REGISTRY_MAX:
+        return "unknown", "registry-oversized"
+    try:
+        registry = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return "unknown", "registry-malformed"
+    plugins = registry.get("plugins") if isinstance(registry, dict) else None
+    if not isinstance(plugins, dict):
+        return "unknown", "registry-wrong-kind"
+    return "ok", plugins
+
+
+def currency_record_pin(record: dict) -> tuple[str, str | None]:
+    """One install record's pin answer.
+
+    ("pin", sha) when the record carries a commit SHA, ("absent", None) when
+    it carries none, and ("unknown", "registry-pin-malformed") for anything
+    else, because a pin that is not a commit is hostile input, not a null.
+    """
+    pin = record.get("gitCommitSha")
+    if pin is None:
+        return "absent", None
+    if isinstance(pin, str) and COMMIT_RE.fullmatch(pin):
+        return "pin", pin
+    return "unknown", "registry-pin-malformed"
+
+
+def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str | None]:
+    """The pin the host registry records for the install holding one file.
+
+    Returns ("pin", sha) when the matching install records a commit SHA,
+    ("absent", None) when it records none, and ("unknown", warning) when the
+    registry cannot answer: missing, oversized, malformed, wrong kind, no
+    install path holding the file, or a pin that is not a commit SHA.
+    """
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return "unknown", plugins
+    for records in plugins.values():
+        if not isinstance(records, list):
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            install_path = record.get("installPath")
+            if not isinstance(install_path, str) or not install_path:
+                continue
+            prefix = os.path.join(os.path.realpath(install_path), "")
+            if not real_file.startswith(prefix):
+                continue
+            return currency_record_pin(record)
+    return "unknown", "registry-unmatched"
+
+
+def currency_clone_branch(clone_dir: str) -> str | None:
+    """The branch name a marketplace clone's HEAD points at, or None."""
+    try:
+        with open(os.path.join(clone_dir, ".git", "HEAD"),
+                  encoding="utf-8") as handle:
+            head = handle.read(4096).strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    branch = head.removeprefix("ref: refs/heads/")
+    if branch == head or not branch_name_ok(branch):
+        return None
+    return branch
+
+
+def currency_remote_head(clone_dir: str, branch: str) -> tuple[str | None, str | None]:
+    """One bounded upstream observation: the clone's origin head for a branch.
+
+    Runs inside the marketplace clone and names the remote rather than a URL,
+    so only the clone's own configuration can choose where the read goes, and
+    no URL passes through this controller at all. Credential prompts are
+    disabled; the read is time-capped and output-capped by `bounded_probe`.
+    Returns (head, None), or (None, warning) for anything but exactly one
+    well-formed ref line -- a failed read is never a verdict.
+    """
+    expected_ref = f"refs/heads/{branch}"
+    status, output, failure = bounded_probe(
+        clone_dir,
+        "git",
+        ["ls-remote", "--refs", "origin", expected_ref],
+        extra_env={"GIT_TERMINAL_PROMPT": "0"},
+    )
+    if failure is not None:
+        return None, f"remote-{failure}"
+    if status != 0:
+        return None, "remote-failed"
+    try:
+        text = output.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, "remote-malformed"
+    lines = [line for line in text.splitlines() if line]
+    if len(lines) != 1:
+        return None, "remote-malformed"
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        return None, "remote-malformed"
+    return fields[0], None
+
+
+def observe_controller_currency(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> dict:
+    """Resolve the running controller's own file to route, pin and upstream head.
+
+    The one observation `init` gates on. Every input is observed rather than
+    assumed: the plugins root and marketplace come from the controller's own
+    resolved path, the pin from the host registry beside that root, and the
+    upstream head from one bounded read inside the marketplace clone, on the
+    git-backed route only. Whatever the observation cannot prove reads as an
+    explicit null and, where it blocks a verdict, as `unknown` with a named
+    warning -- never a guess toward `current` or `behind`.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    observation = {
+        "ledger_version": ledger_version(
+            os.path.join(os.path.dirname(real), os.pardir, "EVOLUTION.md")
+        ),
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
+    split = currency_cache_split(real)
+    if split is None:
+        if currency_inside_git_worktree(os.path.dirname(real)):
+            observation["route"] = "in-repo-source"
+            observation["verdict"] = "no-pin"
+        else:
+            observation["warning"] = "route-unresolved"
+        return observation
+    plugins_root, marketplace = split
+    kind, value = currency_registry_pin(plugins_root, real)
+    observation.update(
+        currency_pin_observation(plugins_root, marketplace, kind, value,
+                                 remote_reader)
+    )
+    return observation
+
+
+def currency_pin_observation(
+    plugins_root: str,
+    marketplace: str,
+    kind: str,
+    value: str | None,
+    remote_reader,
+) -> dict:
+    """Route, pin, head, verdict and warning for one registry pin answer.
+
+    The shared tail of the init gate and the `currency` report: `kind` and
+    `value` come from the registry ("pin", "absent" or "unknown"), and
+    everything past them is observed from the marketplace clone under the
+    same plugins root. A recorded pin makes the install git-backed even when
+    the marketplace clone is gone: claiming `managed` there would let one
+    deleted directory silence the gate without a warning (S2-R1-02). The pin
+    stays recorded, the head stays an explicit null, and the verdict stays
+    `unknown`.
+    """
+    observation = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
+    if kind == "unknown":
+        observation["warning"] = value
+        return observation
+    if kind == "absent":
+        observation["route"] = "managed"
+        observation["verdict"] = "managed"
+        return observation
+    observation["route"] = "git-backed"
+    observation["pin"] = value
+    clone = os.path.join(plugins_root, CURRENCY_MARKETPLACES_DIR, marketplace)
+    if not os.path.exists(os.path.join(clone, ".git")):
+        observation["warning"] = "clone-missing"
+        return observation
+    branch = currency_clone_branch(clone)
+    if branch is None:
+        observation["warning"] = "clone-head-unreadable"
+        return observation
+    head, warning = remote_reader(clone, branch)
+    if head is None:
+        observation["warning"] = warning or "remote-failed"
+        return observation
+    observation["observed_head"] = head
+    observation["verdict"] = "current" if head == value else "behind"
+    return observation
+
+
+def currency_record_marketplace(plugins_root: str, record: dict) -> str | None:
+    """The marketplace directory an install record sits under, or None.
+
+    Observed from the record's install path relative to the same plugins
+    root the controller derived from its own file, so a hostile registry
+    entry cannot point the clone read outside that root.
+    """
+    install_path = record.get("installPath")
+    if not isinstance(install_path, str) or not install_path:
+        return None
+    real = os.path.realpath(install_path)
+    prefix = os.path.join(plugins_root, CURRENCY_CACHE_DIR, "")
+    if not real.startswith(prefix):
+        return None
+    return real[len(prefix):].split(os.sep, 1)[0] or None
+
+
+def currency_report(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> tuple[list[dict], str | None]:
+    """One currency row per installed plugin, or a named refusal.
+
+    Returns (rows, None) or ([], refusal). The plugins root comes from the
+    running controller's own resolved file exactly as the init gate derives
+    it, the registry is one bounded read, and upstream is asked at most once
+    per distinct marketplace clone rather than once per plugin. A defective
+    record is a row with verdict `unknown`, so a plugin never vanishes from
+    the report; a registry that cannot answer at all is a refusal, because an
+    empty success would read as a fleet with nothing behind. Every install
+    record in the registry gets a row: filtering by a hard-coded marketplace
+    name would blind the report on a private-mirror host.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    split = currency_cache_split(real)
+    if split is None:
+        return [], (
+            "currency reports the install registry, and this controller does "
+            "not run from an install cache; run the installed copy instead"
+        )
+    plugins_root, _ = split
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return [], f"the install registry cannot be read ({plugins})"
+
+    memo: dict = {}
+
+    def read_once(clone_dir: str, branch: str):
+        key = (clone_dir, branch)
+        if key not in memo:
+            memo[key] = remote_reader(clone_dir, branch)
+        return memo[key]
+
+    unknown_row = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+    }
+    rows = []
+    for key in sorted(plugins):
+        plugin = key.rsplit("@", 1)[0] or key
+        records = plugins[key]
+        if not isinstance(records, list) or not records:
+            rows.append({"plugin": plugin, "version": None, **unknown_row,
+                         "warning": "registry-wrong-kind"})
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                rows.append({"plugin": plugin, "version": None, **unknown_row,
+                             "warning": "registry-wrong-kind"})
+                continue
+            version = record.get("version")
+            row = {
+                "plugin": plugin,
+                "version": version if isinstance(version, str) else None,
+            }
+            marketplace = currency_record_marketplace(plugins_root, record)
+            if marketplace is None:
+                row.update(unknown_row)
+                row["warning"] = "install-path-unrecognised"
+            else:
+                kind, value = currency_record_pin(record)
+                row.update(currency_pin_observation(
+                    plugins_root, marketplace, kind, value, read_once))
+            rows.append(row)
+    return rows, None
+
+
+def currency_text_field(value) -> str:
+    """One row value rendered for the line-per-plugin text report.
+
+    Plugin names and versions are registry bytes, and a byte that breaks or
+    reorders lines would forge row boundaries -- a newline in a key prints a
+    fabricated row that the eye reads as another plugin's verdict (S3-R1-01),
+    a Unicode line or paragraph separator does the same to a `splitlines`
+    consumer, and a lone surrogate crashes the encoder mid-report
+    (S3-R2-01). Anything not printable renders as `?`, which keeps every
+    legitimate slug, semver, hex and verdict byte for byte; the exit code
+    and `--json`, which escapes hostile values natively, are the machine
+    surfaces either way.
+    """
+    if value is None:
+        return "null"
+    return "".join(ch if ch.isprintable() else "?" for ch in str(value))
+
+
+def cmd_currency(args) -> None:
+    """Report pin-versus-upstream currency for every installed plugin.
+
+    Read-only: no state, no lock, no `.hexaemeron`. Exit 0 when nothing is
+    behind, 3 while anything is, 1 on a refusal, so a loop can gate a re-pin
+    on the status alone.
+    """
+    rows, refusal = currency_report()
+    if refusal is not None:
+        die(refusal, 1)
+    if args.json:
+        print(json.dumps(rows, indent=2))
+    else:
+        for row in rows:
+            line = " ".join(
+                currency_text_field(row[field])
+                for field in ("plugin", "version", "route", "pin",
+                              "observed_head", "verdict")
+            )
+            if row["warning"] is not None:
+                line += f" ({row['warning']})"
+            print(line)
+    if any(row["verdict"] == "behind" for row in rows):
+        sys.exit(3)
+
+
+RESERVED_RECEIPTS = {"study", "runbook", "run_observations"}
 
 
 def cmd_record(args) -> None:
     state = load_state(args.dir)
     if args.key in RESERVED_RECEIPTS:
         die(f"'{args.key}' is a phase receipt; only `hexctl done {args.key}` writes it")
+    if args.key == "controller_currency":
+        # Init's own observation, protected like `task_issue`: a later
+        # rewrite would replace the recorded verdict and waiver with a
+        # value nothing observed (S2-R1-01).
+        die("controller_currency is init's observation; only `hexctl init` writes it")
     if state.get("halted") and args.key != "halt_note":
         # Recording context while halted is allowed; progress commands are not.
         pass
@@ -1456,6 +2549,365 @@ def cmd_record(args) -> None:
     state["receipts"][args.key] = value
     commit(args.dir, state, "record", {"key": args.key, "value": value})
     print(f"recorded {args.key}")
+
+
+def ledger_entries(base_dir: str) -> list[dict]:
+    entries = []
+    try:
+        with open(ledger_path(base_dir), encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                entry = dict(entry)
+                entry["_line"] = line_number
+                entries.append(entry)
+    except (OSError, ValueError, TypeError):
+        die("ledger unreadable; run `hexctl verify`", 1)
+    return entries
+
+
+def selected_observation_receipt(base_dir: str) -> dict:
+    entries = ledger_entries(base_dir)
+    if not entries or entries[-1].get("event") == "record:run-observation":
+        observation_error(
+            "FOB003",
+            "there is no new controller receipt immediately before this selection",
+            "record the observation after the delivery receipt it describes",
+        )
+    entry = entries[-1]
+    return {
+        "line": entry["_line"],
+        "event": entry.get("event"),
+        "hash": entry.get("hash"),
+        "state": entry.get("state"),
+    }
+
+
+def cmd_observe(args) -> None:
+    """Bind one validated prefix, or one explicit unavailable observation state."""
+    verify_run(args.dir)
+    state = load_state(args.dir)
+    receipt = selected_observation_receipt(args.dir)
+    existing = state["receipts"].get("run_observations", [])
+    if not isinstance(existing, list) or len(existing) >= OBSERVATION_BINDINGS_MAX:
+        observation_error(
+            "FOB003",
+            "the observation receipt collection is malformed or full",
+            "verify the run or start a fresh bounded run before recording more prefixes",
+        )
+
+    common = {
+        "schema": OBSERVATION_BINDING_CONTRACT,
+        "observation_contract": OBSERVATION_CONTRACT,
+        "controller_run_id": controller_run_id(state),
+        "recorded_at": now(),
+        "capture_status": args.capture_status,
+        "redaction_status": args.redaction_status,
+        "receipt": receipt,
+    }
+    if args.capture_status == "accepted":
+        if not args.artifact:
+            observation_error(
+                "FOB002",
+                "an accepted observation has no companion artifact",
+                "supply one stable path beneath .hexaemeron/observations",
+            )
+        if args.reason_code:
+            observation_error(
+                "FOB003",
+                "an accepted observation cannot carry an unavailable reason",
+                "remove the reason code or record a non-available capture status",
+            )
+        if args.redaction_status != "passed":
+            observation_error(
+                "FOB005",
+                "the selected prefix has no passing redaction result",
+                "complete redaction successfully or record a non-available status",
+            )
+        relative, data, summary = validated_observation_prefix(
+            args.dir, args.artifact, state
+        )
+        prior = next(
+            (
+                item
+                for item in reversed(existing)
+                if isinstance(item, dict)
+                and item.get("capture_status") == "accepted"
+            ),
+            None,
+        )
+        if prior is not None:
+            prior_count = prior.get("byte_count")
+            prior_events = prior.get("event_count")
+            prior_interval = prior.get("interval")
+            if (
+                relative != prior.get("artifact")
+                or isinstance(prior_count, bool)
+                or not isinstance(prior_count, int)
+                or prior_count < 1
+                or len(data) <= prior_count
+                or hashlib.sha256(data[:prior_count]).hexdigest()
+                != prior.get("sha256")
+                or isinstance(prior_events, bool)
+                or not isinstance(prior_events, int)
+                or summary["event_count"] <= prior_events
+                or not isinstance(prior_interval, dict)
+                or summary["first_event_id"]
+                != prior_interval.get("first_event_id")
+                or summary["first_sequence"]
+                != prior_interval.get("first_sequence")
+            ):
+                observation_error(
+                    "FOB004",
+                    "the new selection is not a strict extension of the bound stream",
+                    "preserve every earlier bound byte and append later events to the same file",
+                )
+        binding = {
+            **common,
+            "validation_status": "passed",
+            "artifact": relative,
+            "byte_count": len(data),
+            "event_count": summary["event_count"],
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "interval": {
+                "first_sequence": summary["first_sequence"],
+                "last_sequence": summary["last_sequence"],
+                "first_event_id": summary["first_event_id"],
+                "last_event_id": summary["last_event_id"],
+            },
+        }
+    else:
+        if args.artifact:
+            observation_error(
+                "FOB005",
+                "a non-available observation cannot bind artifact bytes",
+                "remove the artifact or record an accepted capture",
+            )
+        if not args.reason_code or not OBSERVATION_REASON_RE.fullmatch(args.reason_code):
+            observation_error(
+                "FOB005",
+                "the non-available observation has no bounded reason code",
+                "supply one lowercase reason code of at most 64 characters",
+            )
+        if args.redaction_status == "passed":
+            observation_error(
+                "FOB005",
+                "an unavailable capture cannot claim successful redaction",
+                "record redaction as failed or unknown",
+            )
+        binding = {
+            **common,
+            "validation_status": "unknown",
+            "reason_code": args.reason_code,
+        }
+
+    state["receipts"]["run_observations"] = [*existing, binding]
+    binding_digest = hashlib.sha256(canonical(binding).encode()).hexdigest()
+    commit(
+        args.dir,
+        state,
+        "record:run-observation",
+        {
+            "binding_sha256": binding_digest,
+            "capture_status": binding["capture_status"],
+            "receipt_hash": receipt["hash"],
+        },
+    )
+    print(
+        f"recorded {OBSERVATION_BINDING_CONTRACT}: "
+        f"capture={binding['capture_status']} phase unchanged"
+    )
+
+
+def verify_observation_bindings(base_dir: str, state: dict) -> tuple[int, int]:
+    bindings = state["receipts"].get("run_observations")
+    if not isinstance(bindings, list) or not bindings:
+        observation_error(
+            "FOB001",
+            "the requested run has no observation binding",
+            "record one available or explicit non-available observation receipt",
+            1,
+        )
+    if len(bindings) > OBSERVATION_BINDINGS_MAX:
+        observation_error(
+            "FOB003",
+            "the observation receipt collection exceeds its bound",
+            "restore the receipted state and verify again",
+            1,
+        )
+    entries = ledger_entries(base_dir)
+    by_hash = {entry.get("hash"): entry for entry in entries}
+    observation_records = [
+        entry
+        for entry in entries
+        if entry.get("event") == "record:run-observation"
+    ]
+    if len(observation_records) != len(bindings):
+        observation_error(
+            "FOB003",
+            "the observation binding and ledger record counts disagree",
+            "restore the bound state and every matching observation ledger record",
+            1,
+        )
+    used_record_lines = set()
+    latest_tail = 0
+    previous = None
+    for binding in bindings:
+        if not isinstance(binding, dict):
+            observation_error(
+                "FOB003",
+                "an observation binding is not a closed record",
+                "restore the receipted state and verify again",
+                1,
+            )
+        receipt = binding.get("receipt")
+        selected = by_hash.get(receipt.get("hash")) if isinstance(receipt, dict) else None
+        binding_digest = hashlib.sha256(canonical(binding).encode()).hexdigest()
+        matching_records = [
+            entry
+            for entry in observation_records
+            if isinstance(entry.get("data"), dict)
+            and entry["data"].get("binding_sha256") == binding_digest
+        ]
+        record = matching_records[0] if len(matching_records) == 1 else None
+        record_data = record.get("data") if isinstance(record, dict) else None
+        if (
+            binding.get("schema") != OBSERVATION_BINDING_CONTRACT
+            or binding.get("observation_contract") != OBSERVATION_CONTRACT
+            or binding.get("controller_run_id") != controller_run_id(state)
+            or selected is None
+            or selected.get("event") == "record:run-observation"
+            or record is None
+            or record.get("_line") in used_record_lines
+            or selected.get("_line") + 1 != record.get("_line")
+            or record_data.get("receipt_hash") != receipt.get("hash")
+            or record_data.get("capture_status") != binding.get("capture_status")
+            or receipt
+            != {
+                "line": selected.get("_line"),
+                "event": selected.get("event"),
+                "hash": selected.get("hash"),
+                "state": selected.get("state"),
+            }
+        ):
+            observation_error(
+                "FOB003",
+                "an observation binding disagrees with its contract, run, or receipt",
+                "restore the bound state and its immediately preceding ledger receipt",
+                1,
+            )
+        used_record_lines.add(record.get("_line"))
+        if (
+            binding.get("capture_status") != "accepted"
+            or binding.get("validation_status") != "passed"
+            or binding.get("redaction_status") != "passed"
+        ):
+            observation_error(
+                "FOB005",
+                "the requested observation claim is unavailable or failed",
+                "capture, validate, and redact an accepted prefix before claiming it",
+                1,
+            )
+        artifact = binding.get("artifact")
+        byte_count = binding.get("byte_count")
+        event_count = binding.get("event_count")
+        digest = binding.get("sha256")
+        interval = binding.get("interval")
+        if (
+            not isinstance(artifact, str)
+            or isinstance(byte_count, bool)
+            or not isinstance(byte_count, int)
+            or byte_count < 1
+            or isinstance(event_count, bool)
+            or not isinstance(event_count, int)
+            or event_count < 1
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or not isinstance(interval, dict)
+        ):
+            observation_error(
+                "FOB003",
+                "an available observation binding has an invalid closed shape",
+                "restore the complete receipted binding and verify again",
+                1,
+            )
+        _, current = read_observation_bytes(base_dir, artifact, exit_code=1)
+        if len(current) < byte_count:
+            observation_error(
+                "FOB004",
+                "the bound observation prefix was truncated",
+                "restore the exact bound prefix bytes or record a later receipt",
+                1,
+            )
+        prefix = current[:byte_count]
+        if hashlib.sha256(prefix).hexdigest() != digest:
+            observation_error(
+                "FOB004",
+                "the bound observation prefix was replaced, reordered, or changed",
+                "restore the exact bound prefix bytes or record a later receipt",
+                1,
+            )
+        findings = observation_validator_module(exit_code=1).validate_bytes(
+            prefix,
+            display_path=artifact,
+            allow_prefix=True,
+        )
+        if findings:
+            observation_error(
+                "FOB003",
+                "the bound prefix no longer passes structural validation",
+                "restore the exact validated prefix and verify again",
+                1,
+            )
+        summary = observation_summary(prefix, exit_code=1)
+        expected_interval = {
+            "first_sequence": summary["first_sequence"],
+            "last_sequence": summary["last_sequence"],
+            "first_event_id": summary["first_event_id"],
+            "last_event_id": summary["last_event_id"],
+        }
+        if (
+            summary["contract"] != OBSERVATION_CONTRACT
+            or summary["run_id"] != controller_run_id(state)
+            or summary["event_count"] != event_count
+            or interval != expected_interval
+        ):
+            observation_error(
+                "FOB003",
+                "the bound event count or identity interval diverges",
+                "restore the exact binding metadata and selected prefix",
+                1,
+            )
+        recheck_observation_bytes(
+            base_dir,
+            artifact,
+            current,
+            exit_code=1,
+        )
+        if previous is not None and (
+            record.get("_line") <= previous["record_line"]
+            or artifact != previous["artifact"]
+            or byte_count <= previous["byte_count"]
+            or event_count <= previous["event_count"]
+            or hashlib.sha256(prefix[: previous["byte_count"]]).hexdigest()
+            != previous["sha256"]
+        ):
+            observation_error(
+                "FOB004",
+                "the recorded observation sequence is not one monotonic stream",
+                "restore each earlier bound prefix and append later events to the same file",
+                1,
+            )
+        previous = {
+            "artifact": artifact,
+            "byte_count": byte_count,
+            "event_count": event_count,
+            "record_line": record.get("_line"),
+            "sha256": digest,
+        }
+        latest_tail = len(current) - byte_count
+    return len(bindings), latest_tail
 
 
 def cmd_config(args) -> None:
@@ -1483,6 +2935,15 @@ def cmd_config(args) -> None:
         die(
             "config solidity takes %s; got %r"
             % (", ".join(json.dumps(m) for m in SOLIDITY_MODES), value)
+        )
+    if args.path == "audit.log_path":
+        value = check_audit_log_path(args.dir, state, value)
+    elif args.path == "audit" and isinstance(value, dict) and "log_path" in value:
+        # Replacing the whole section reaches the same field. Without this the
+        # constraint is one `config set audit '{...}'` away from not existing,
+        # which is how the shared path would come back.
+        value["log_path"] = check_audit_log_path(
+            args.dir, state, value["log_path"]
         )
     node[leaf] = value
     commit(args.dir, state, "config-set", {"path": args.path, "value": node[leaf]})
@@ -1841,12 +3302,23 @@ def parse_audit_record(
         die("audit record delta is not UTF-8 text")
     lines = text[:-1].split("\n")
     round_number = len(step["audit"]["rounds"]) + 1
-    heading_prefix = (
-        f"## {state['topic']}, step {step['n']}, round {round_number} -- "
-    )
-    if not lines or not lines[0].startswith(heading_prefix):
-        die("audit record heading does not match topic, step, and round")
-    timestamp = lines[0][len(heading_prefix):]
+    if not lines:
+        die("audit record is empty")
+    heading = lines[0]
+    index = 1
+    index = audit_line(lines, index, "", "blank line after heading")
+    index, schema = audit_field_line(lines, index, "Audit schema")
+    if schema not in AUDIT_RECORD_SCHEMAS:
+        die("Audit schema must be " + " or ".join(AUDIT_RECORD_SCHEMAS))
+    if schema == "fiat-audit-round/v1":
+        heading_prefix = (
+            f"## {state['topic']}, step {step['n']}, round {round_number} -- "
+        )
+    else:
+        heading_prefix = f"## Step {step['n']}, round {round_number} -- "
+    if not heading.startswith(heading_prefix):
+        die("audit record heading does not match its schema, step, and round")
+    timestamp = heading[len(heading_prefix):]
     if not AUDIT_TIMESTAMP_RE.fullmatch(timestamp):
         die("audit record timestamp must be YYYY-MM-DDTHH:MM:SSZ UTC")
     try:
@@ -1855,12 +3327,6 @@ def parse_audit_record(
         die("audit record timestamp is not calendar-valid")
     if parsed_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") != timestamp:
         die("audit record timestamp is not canonical UTC")
-
-    index = 1
-    index = audit_line(lines, index, "", "blank line after heading")
-    index, schema = audit_field_line(lines, index, "Audit schema")
-    if schema != AUDIT_RECORD_SCHEMA:
-        die(f"Audit schema must be {AUDIT_RECORD_SCHEMA}")
     index = audit_line(lines, index, "", "blank line after Audit schema")
     index, covered = audit_field_line(lines, index, "Covered")
     audit_covered(covered, audit_risk_ids(base_dir, state))
@@ -1977,6 +3443,13 @@ def validated_audit_record(
 def cmd_audit_round(args) -> None:
     state = load_state(args.dir)
     step = require_step_phase(state, "audit")
+    if args.audit_filter is None:
+        die(
+            "audit-round requires --audit-filter sapheneia:sapheneia; "
+            "the declaration must precede every new round receipt"
+        )
+    if args.audit_filter != AUDIT_FILTER:
+        die("--audit-filter must equal sapheneia:sapheneia")
     if "security_suite" not in state["receipts"]:
         die(
             "no security_suite receipt; resolve the installed suite first "
@@ -1998,6 +3471,11 @@ def cmd_audit_round(args) -> None:
         )
     if args.elenchus_verdict is not None and not args.fixes_commit:
         die("--elenchus-verdict requires --fixes-commit")
+    recorded_log = (
+        check_declared_audit_log(state, args.log, "this round")
+        if args.log is not None
+        else configured_audit_log(state)
+    )
 
     exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
     for lint, value in exits.items():
@@ -2041,12 +3519,14 @@ def cmd_audit_round(args) -> None:
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
-        **record,
+        "log": recorded_log,
+        "audit_filter": args.audit_filter,
         "fixes_commit": args.fixes_commit,
         "elenchus_verdict": args.elenchus_verdict,
         "verified_commits": verified_commits,
         "lints": recorded or None,
         "ts": now(),
+        **record,
     }
     rounds.append(entry)
     commit(args.dir, state, "audit-round", {"step": step["n"], **entry})
@@ -2055,6 +3535,7 @@ def cmd_audit_round(args) -> None:
         tail = "; lints " + ", ".join(
             f"{lint} {recorded[lint]}" for lint in LINTS if lint in recorded
         )
+    tail += f"; audit filter {entry['audit_filter']}"
     tail += f"; Elenchus {entry['elenchus_verdict'] or 'null'}"
     print(
         f"step {step['n']} audit round {entry['round']} recorded "
@@ -2070,9 +3551,12 @@ def done_audit(args, state: dict) -> None:
     if not rounds:
         die("no audit rounds recorded; run at least one round before closing")
     last = rounds[-1]
-    strict_log = last.get("schema") == AUDIT_RECORD_SCHEMA
+    strict_log = last.get("schema") in AUDIT_RECORD_SCHEMAS
     if strict_log and args.log is not None and args.log != last.get("log"):
-        die("--log must name the final round's checked audit log")
+        die(
+            f"--log names '{args.log}', but the final round's checked audit "
+            f"log is '{last.get('log')}'"
+        )
     clean = last["findings"] == 0
     if not clean and not args.no_further_leads:
         die(
@@ -2081,6 +3565,16 @@ def done_audit(args, state: dict) -> None:
         )
     if args.no_further_leads and not args.reason:
         die("--no-further-leads requires --reason")
+    if args.log is not None:
+        closing_log = check_declared_audit_log(
+            state, args.log, "this step's audit"
+        )
+    else:
+        # A round recorded before this check keeps the value it holds; nothing
+        # rewrites a receipt that is already on the ledger. Config is read only
+        # when there is nothing recorded to keep, so a closure that needs
+        # nothing from it is not refused by it.
+        closing_log = last.get("log") or configured_audit_log(state)
     had_findings = any(r["findings"] > 0 for r in rounds)
     fixes_ref = args.fixes_ref or next(
         (r["fixes_commit"] for r in reversed(rounds) if r.get("fixes_commit")), None
@@ -2108,9 +3602,7 @@ def done_audit(args, state: dict) -> None:
         "no_further_leads": bool(args.no_further_leads),
         "reason": args.reason,
         "fixes_ref": fixes_ref,
-        "log": (
-            last.get("log") if strict_log else args.log or last.get("log")
-        ),
+        "log": closing_log,
         "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
@@ -2209,7 +3701,9 @@ def done_push(args, state: dict) -> None:
         expected_head_sha=verified_commits[-1],
         expected_merge_sha=args.merge_commit,
     )
-    github_verified = verify_github_commits(args.dir, verified_commits)
+    github_verified, attribution = verified_github_attribution(
+        args.dir, verified_commits
+    )
     merge_verified = []
     if args.merge_commit:
         merge_verified = verify_github_commits(args.dir, [args.merge_commit])
@@ -2223,6 +3717,10 @@ def done_push(args, state: dict) -> None:
         "github_verified": github_verified,
         "github_merge_verified": merge_verified,
         "pull_request": pr_record,
+        "attribution": {
+            "pull_request_author": pr_record.get("author_login"),
+            "commits": attribution,
+        },
     }
     step["status"] = "done"
     step["phase"] = "done"
@@ -2259,17 +3757,20 @@ def done_push(args, state: dict) -> None:
 def _integrate_directive(state: dict) -> dict:
     """Merge the stack bottom up, then the run branch into the base once."""
     run_branch = run_branch_of(state)
+    integration_base = integration_base_of(state)
     merged = as_dict(state.get("integrate")).get("merged") or []
     for step in state["steps"]:
         if step["n"] in merged:
             continue
+        pr_url = as_dict(step["receipts"].get("push")).get("pr_url")
         return {
             "do": "merge-step",
             "step": step["n"],
             "title": step["title"],
             "branch": step_branch_name(state, step),
-            "pr_url": as_dict(step["receipts"].get("push")).get("pr_url"),
+            "pr_url": pr_url,
             "into": run_branch,
+            "merge": step_merge_command(pr_url),
             "then": (
                 f"hexctl done merge-step --step {step['n']} "
                 "--merge-commit <sha>"
@@ -2278,13 +3779,468 @@ def _integrate_directive(state: dict) -> dict:
     then = "hexctl done integrate --pr-url <url> --merge-commit <sha>"
     if expected_task_issue(state):
         then += " --closed-issue-url <url>"
+    final_step = state["steps"][-1]["n"]
+    merge_records = as_dict(as_dict(state.get("integrate")).get("merges"))
+    final_head = require_full_sha(
+        as_dict(merge_records.get(str(final_step))).get("merge_commit"),
+        "final recorded product head",
+    )
+    sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+    sync_then = (
+        "hexctl done sync-run --commit <signed-merge-sha> "
+        "--base-commit <remote-base-sha> "
+        f"--revalidation {INTEGRATION_REVALIDATION_FILE}"
+    )
+    sync_recovery = "sync-run-and-revalidate"
+    if sync:
+        active_sync = require_full_sha(
+            sync.get("commit"), "active recorded sync commit"
+        )
+        sync_then += (
+            f" --supersede-sync {active_sync} "
+            "--reason <bounded-repair-reason>"
+        )
+        sync_recovery = "supersede-sync-and-revalidate"
     return {
         "do": "integrate",
         "run_branch": run_branch,
-        "base": state["base"],
+        "base": integration_base,
+        "starting_base": state["base"],
         "steps": len(state["steps"]),
+        "product_evidence": product_evidence_record(state, final_head),
+        "base_advance": {
+            "recovery": sync_recovery,
+            "artifact": INTEGRATION_REVALIDATION_FILE,
+            "then": sync_then,
+            "boundary": (
+                "base advancement alone does not authorise a carryover or "
+                "invalidate the exact-tree product evidence"
+            ),
+        },
+        "attribution": {
+            "recorded_identities": len(recorded_run_attribution(state)),
+            "preserved_by": (
+                "a merge commit, which leaves every recorded commit reachable "
+                "from the base; a squash or rebase merge rewrites them, and "
+                "then the merge commit itself has to carry each identity as "
+                "author or in a Co-authored-by trailer"
+            ),
+        },
         "then": then,
     }
+
+
+def product_evidence_record(state: dict, product_head: str) -> dict:
+    """Digest the completed product receipts without reclassifying them.
+
+    These digests establish only that the same implementation and audit records
+    remain attached to the exact product head. A later sync adds composition
+    evidence; it does not make the earlier audit apply to changed bytes.
+    """
+    records = []
+    for step in state["steps"]:
+        payload = {
+            "implement": as_dict(step["receipts"].get("implement")),
+            "audit": as_dict(step.get("audit")),
+            "audit_receipt": as_dict(step["receipts"].get("audit")),
+        }
+        records.append(
+            {
+                "step": step["n"],
+                "sha256": hashlib.sha256(
+                    canonical(payload).encode("utf-8")
+                ).hexdigest(),
+            }
+        )
+    receipts = as_dict(state.get("receipts"))
+    return {
+        "status": "preserved-exact-tree",
+        "head": require_full_sha(product_head, "final recorded product head"),
+        "study_sha256": as_dict(receipts.get("study")).get("sha256"),
+        "runbook_sha256": as_dict(receipts.get("runbook")).get("sha256"),
+        "steps": records,
+    }
+
+
+def merge_base_commit(base_dir: str, product_head: str, base_head: str) -> str:
+    raw = bounded_git(
+        base_dir,
+        ["merge-base", product_head, base_head],
+        "could not resolve the product/base merge base",
+    )
+    try:
+        lines = raw.decode("ascii", "strict").splitlines()
+    except UnicodeDecodeError:
+        die("product/base merge base is not ASCII")
+    if len(lines) != 1:
+        die("product/base merge base did not return one commit")
+    return require_full_sha(lines[0], "product/base merge base")
+
+
+def git_diff_paths(base_dir: str, before: str, after: str) -> list[str]:
+    raw = bounded_git(
+        base_dir,
+        ["diff", "--name-only", "-z", f"{before}..{after}", "--"],
+        "could not read the integration path delta",
+    )
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        die("integration path delta is not UTF-8")
+    paths = [path for path in decoded.split("\0") if path]
+    unique = sorted(set(paths))
+    if len(unique) > GIT_PATHS_MAX:
+        die(f"integration path delta exceeds {GIT_PATHS_MAX} paths")
+    if len(unique) != len(paths):
+        die("integration path delta contains duplicate paths")
+    root = os.path.realpath(base_dir)
+    for index, path in enumerate(unique):
+        if (
+            not isinstance(path, str)
+            or not path
+            or os.path.isabs(path)
+            or path in (".", "..")
+            or ".." in path.split("/")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+        ):
+            die(f"integration path delta contains an unsafe path at index {index}")
+        candidate = os.path.realpath(os.path.join(root, path))
+        try:
+            inside = os.path.commonpath((root, candidate)) == root
+        except ValueError:
+            inside = False
+        if not inside:
+            die(f"integration path delta escapes the repository at index {index}")
+    return unique
+
+
+def _strict_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate object key")
+        result[key] = value
+    return result
+
+
+def _manifest_paths(value, label: str, allowed: set[str] | None = None) -> list[str]:
+    if not isinstance(value, list) or len(value) > GIT_PATHS_MAX:
+        die(f"{label} must be an array of at most {GIT_PATHS_MAX} paths")
+    if any(not isinstance(path, str) for path in value):
+        die(f"{label} must contain only path strings")
+    if value != sorted(set(value)):
+        die(f"{label} must be sorted and unique")
+    for index, path in enumerate(value):
+        try:
+            encoded = path.encode("utf-8")
+        except UnicodeEncodeError:
+            die(f"{label} contains a non-Unicode-scalar path at index {index}")
+        if (
+            not path
+            or len(encoded) > 4096
+            or os.path.isabs(path)
+            or path in (".", "..")
+            or ".." in path.split("/")
+            or any(ord(character) < 32 or ord(character) == 127 for character in path)
+        ):
+            die(f"{label} contains an unsafe path at index {index}")
+        if allowed is not None and path not in allowed:
+            die(f"{label} names a path outside the computed integration delta")
+    return value
+
+
+def integration_revalidation_record(
+    base_dir: str,
+    supplied: str,
+    product_head: str,
+    base_head: str,
+    sync_head: str,
+) -> dict:
+    """Bind green composition checks to the exact product/base path delta."""
+    artifact, data = read_bounded_source(
+        base_dir, supplied, "integration revalidation artefact"
+    )
+    try:
+        raw = json.loads(
+            decoded_source(data, "integration revalidation artefact"),
+            object_pairs_hook=_strict_json_object,
+        )
+    except ValueError as exc:
+        die(f"integration revalidation artefact is not valid JSON: {exc}")
+    if not isinstance(raw, dict) or set(raw) != {
+        "schema", "affected_paths", "checks"
+    }:
+        die(
+            "integration revalidation artefact must contain exactly "
+            "schema, affected_paths and checks"
+        )
+    if raw["schema"] != INTEGRATION_REVALIDATION_SCHEMA:
+        die(
+            "integration revalidation artefact has the wrong schema "
+            f"(expected {INTEGRATION_REVALIDATION_SCHEMA})"
+        )
+
+    base_before = merge_base_commit(base_dir, product_head, base_head)
+    product_paths = git_diff_paths(base_dir, base_before, product_head)
+    upstream_paths = git_diff_paths(base_dir, base_before, base_head)
+    overlap_paths = sorted(set(product_paths) & set(upstream_paths))
+    composition_paths = git_diff_paths(base_dir, product_head, sync_head)
+    required_paths = sorted(set(composition_paths) | set(overlap_paths))
+    affected_paths = _manifest_paths(
+        raw["affected_paths"], "affected_paths", set(required_paths)
+    )
+    missing_paths = sorted(set(required_paths) - set(affected_paths))
+    if missing_paths:
+        die(
+            "affected_paths omits the computed integration surface: "
+            + ", ".join(missing_paths)
+        )
+
+    checks = raw["checks"]
+    if (
+        not isinstance(checks, list)
+        or not checks
+        or len(checks) > INTEGRATION_CHECKS_MAX
+    ):
+        die(
+            "integration revalidation checks must be a non-empty array of at "
+            f"most {INTEGRATION_CHECKS_MAX} entries"
+        )
+    normalized = []
+    seen_ids = set()
+    covered = set()
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict) or set(check) != {
+            "id", "command", "paths", "exit"
+        }:
+            die(
+                f"integration revalidation check {index} must contain exactly "
+                "id, command, paths and exit"
+            )
+        check_id = check["id"]
+        if (
+            not isinstance(check_id, str)
+            or not INTEGRATION_CHECK_ID_RE.fullmatch(check_id)
+            or check_id in seen_ids
+        ):
+            die(f"integration revalidation check {index} has an invalid id")
+        seen_ids.add(check_id)
+        command = check["command"]
+        try:
+            command_bytes = (
+                command.encode("utf-8") if isinstance(command, str) else b""
+            )
+        except UnicodeEncodeError:
+            command_bytes = b""
+        if (
+            not isinstance(command, str)
+            or not command
+            or not command_bytes
+            or len(command_bytes) > INTEGRATION_COMMAND_BYTES_MAX
+            or any(
+                ord(character) < 32 or ord(character) == 127
+                for character in command
+            )
+        ):
+            die(f"integration revalidation check {index} has an invalid command")
+        if isinstance(check["exit"], bool) or check["exit"] != 0:
+            die(f"integration revalidation check {check_id} must record exit 0")
+        paths = _manifest_paths(
+            check["paths"], f"integration revalidation check {check_id} paths",
+            set(affected_paths),
+        )
+        covered.update(paths)
+        normalized.append(
+            {"id": check_id, "command": command, "paths": paths, "exit": 0}
+        )
+    if covered != set(affected_paths):
+        die("integration revalidation checks do not cover every affected path")
+
+    return {
+        "schema": INTEGRATION_REVALIDATION_SCHEMA,
+        "artifact": os.path.relpath(artifact, os.path.realpath(base_dir)),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "base_before": base_before,
+        "base_after": base_head,
+        "product_paths": product_paths,
+        "upstream_paths": upstream_paths,
+        "overlap_paths": overlap_paths,
+        "composition_paths": composition_paths,
+        "affected_paths": affected_paths,
+        "checks": normalized,
+    }
+
+
+def step_merge_command(pr_url: object) -> str:
+    """The exact invocation that merges the pull request the directive names.
+
+    The directive already carried the URL and the receipt command, and left the
+    merge itself to whatever the operator typed from reading them. A number
+    retyped from a URL is where issue 594 went wrong, and `gh pr merge` with a
+    missing argument does not fail: it falls through to the current branch's pull
+    request, which on a chained stack is the one holding every commit in the run.
+
+    Built from the URL rather than a number and a repository flag, so nothing has
+    to be transcribed. Printed, never executed.
+    """
+    if not isinstance(pr_url, str) or GITHUB_PR_RE.fullmatch(pr_url) is None:
+        die(
+            "this step's push receipt holds no usable pull request URL, so the "
+            "merge command cannot be built from it; repair the receipt rather "
+            "than merging a pull request the directive did not name"
+        )
+    return f"gh pr merge {pr_url.rstrip('/')} --merge"
+
+
+def expected_run_branch_tip(state: dict):
+    """What the run branch's tip should be, from this run's own receipts.
+
+    An active sync is the most recent thing the controller put there; before
+    that, the last merge it receipted. Before the first merge it has recorded no
+    expectation at all, and `None` says the question cannot be asked yet rather
+    than that any tip will do.
+    """
+    integrate = as_dict(state.get("integrate"))
+    sync = as_dict(integrate.get("sync"))
+    candidate = sync.get("commit")
+    if isinstance(candidate, str) and COMMIT_RE.fullmatch(candidate):
+        return candidate
+    merges = as_dict(integrate.get("merges"))
+    for number in reversed(integrate.get("merged") or []):
+        candidate = as_dict(merges.get(str(number))).get("merge_commit")
+        if isinstance(candidate, str) and COMMIT_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+
+def unreceipted_run_branch_movement(base_dir: str, state: dict, landing=None):
+    """Whether the run branch moved without a receipt naming the move.
+
+    Every legitimate change to the run branch during integration is one this run
+    recorded: a merge-step receipt, or a sync. A tip that is neither means
+    something merged into it that the controller was never asked for.
+
+    A chained stack makes that unrecoverable rather than untidy. The topmost step
+    branch holds every commit in the run, so merging the wrong one lands all of
+    them, and the skipped pull requests can then be neither retargeted onto the
+    run branch, because GitHub reports no commits between them and a branch their
+    heads already sit in, nor merged into a base they are an ancestor of. The
+    issue 576 run lost three merge receipts that way. Reporting it at the first
+    directive after it happens is the only point where anything can still be done.
+    """
+    expected = expected_run_branch_tip(state)
+    branch = run_branch_of(state)
+    if expected is None or not isinstance(branch, str) or not branch:
+        return None
+    # A receipt runs after its own merge has landed, so the merge it is about to
+    # record is a legitimate tip as well as the one before it. `next` passes no
+    # landing commit, which is what makes the branch have to be where the loop
+    # left it.
+    accepted = {expected}
+    if isinstance(landing, str) and COMMIT_RE.fullmatch(landing):
+        accepted.add(landing)
+    try:
+        tip = remote_branch_tip(base_dir, branch)
+    except SystemExit:
+        return {"fault": "unreadable", "branch": branch, "expected": expected}
+    if tip in accepted:
+        return None
+    return {"fault": "moved", "branch": branch, "expected": expected, "tip": tip}
+
+
+def describe_run_branch_movement(fault: dict) -> str:
+    """One line saying what the run branch did, for a refusal or a report."""
+    if fault["fault"] == "unreadable":
+        return (
+            f"the run branch '{fault['branch']}' could not be read, so whether it "
+            f"still matches the receipted tip {fault['expected']} is unknown"
+        )
+    return (
+        f"the run branch '{fault['branch']}' is at {fault['tip']} and this run's "
+        f"last receipt names {fault['expected']}"
+    )
+
+
+def refuse_unreceipted_run_branch_movement(
+    base_dir: str, state: dict, landing=None
+) -> None:
+    """Stop the integrate phase when the run branch moved outside the loop."""
+    fault = unreceipted_run_branch_movement(base_dir, state, landing)
+    if fault is None:
+        return
+    if fault["fault"] == "unreadable":
+        die(
+            describe_run_branch_movement(fault)
+            + ". Integration cannot proceed without reading the branch it merges "
+            "into."
+        )
+    die(
+        describe_run_branch_movement(fault)
+        + ". Something merged into the run branch that this run did not receipt. "
+        "A stack chains, so the topmost step branch holds every commit in the run "
+        "and merging the wrong pull request lands all of them at once. There is no "
+        "repair from here: a skipped step's pull request cannot be retargeted onto "
+        "a branch its head already sits in, and cannot merge into a base it is an "
+        "ancestor of. Merge each step's pull request by the number the directive "
+        "names, one at a time. If this has already happened, halt the run with the "
+        "reason and finish by hand; do not receipt a merge the loop did not make."
+    )
+
+
+def refuse_rewritten_stack(base_dir: str, state: dict, current_step: int) -> None:
+    """Refuse when a step branch that is still waiting has moved since its push.
+
+    GitHub's native stacked-pull-request flow rebases every downstream branch on
+    each merge and re-signs the rewritten commits with its own key. Author and
+    the provenance trailers survive; the local signature does not.
+
+    Without this check the first symptom is an invalid local signature at a later
+    merge-step, which reads as a broken signing setup rather than as a branch
+    rewrite, and by then several steps have already merged. Comparing each
+    waiting step's remote tip against the head its push receipt names finds the
+    rewrite at the first merge-step after it happened, and says what happened.
+
+    A step whose branch cannot be read is reported rather than skipped: an absent
+    downstream branch during integration is not a normal state.
+    """
+    merged = as_dict(state.get("integrate")).get("merged") or []
+    moved, unreadable = [], []
+    for step in state["steps"]:
+        number = step["n"]
+        if number == current_step or number in merged:
+            continue
+        push_receipt = as_dict(step["receipts"].get("push"))
+        recorded = push_receipt.get("head_commit")
+        if not recorded:
+            continue
+        branch = step_branch_name(state, step)
+        try:
+            tip = remote_branch_tip(base_dir, branch)
+        except SystemExit:
+            unreadable.append(f"step {number} ('{branch}')")
+            continue
+        if tip != recorded:
+            moved.append(
+                f"step {number} ('{branch}') is at {tip} and its push receipt "
+                f"names {recorded}"
+            )
+    if unreadable:
+        die(
+            "a step branch still waiting to merge could not be read: "
+            + "; ".join(unreadable)
+            + ". Integration cannot proceed while a downstream branch is missing."
+        )
+    if moved:
+        die(
+            "a step branch still waiting to merge has been rewritten since it was "
+            "pushed: " + "; ".join(moved) + ". GitHub's stacked-pull-request flow "
+            "rebases downstream branches on each merge and re-signs them with its "
+            "own key, which keeps the author and the provenance trailers and "
+            "discards the local signature. The range these receipts describe is no "
+            "longer the range on the remote. Land the run from a branch holding the "
+            "original commits rather than merging the rewritten stack, and do not "
+            "import GitHub's public key to make the signature check pass."
+        )
 
 
 def done_merge_step(args, state: dict) -> None:
@@ -2307,6 +4263,8 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    refuse_unreceipted_run_branch_movement(args.dir, state, args.merge_commit)
+    refuse_rewritten_stack(args.dir, state, args.step)
     step = state["steps"][args.step - 1]
     push_receipt = as_dict(step["receipts"].get("push"))
     pr_record = inspect_pull_request(
@@ -2349,13 +4307,18 @@ def done_merge_step(args, state: dict) -> None:
             remote_head,
             f"step {step['n']} merge-time push repair",
         )
-        repaired_github = verify_github_commits(args.dir, repaired_local)
+        # The recorded push attribution describes the head this repair replaced,
+        # so it is re-derived here rather than carried forward stale.
+        repaired_github, repaired_attribution = verified_github_attribution(
+            args.dir, repaired_local
+        )
         effective_push = {
             "repaired": True,
             "pr_base": pr_base,
             "head": remote_head,
             "verified_commits": repaired_local,
             "github_verified": repaired_github,
+            "attribution": {"commits": repaired_attribution},
         }
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
@@ -2388,7 +4351,8 @@ def done_merge_step(args, state: dict) -> None:
 
 
 def done_sync_run(args, state: dict) -> None:
-    """Receipt one signed merge of the current base into a completed run stack."""
+    """Receipt or supersede a signed composition of a completed run stack."""
+    verify_run(args.dir)
     if state["phase"] != "integrate":
         die(
             "sync-run is an integrate-phase receipt; the run is in phase "
@@ -2403,19 +4367,64 @@ def done_sync_run(args, state: dict) -> None:
             f"'{run_branch_of(state)}' before the run can sync"
         )
     integrate = state.setdefault("integrate", {"merged": [], "merges": {}})
-    if integrate.get("sync") is not None:
-        die("the run branch already has a recorded integration sync")
+    current_sync = as_dict(integrate.get("sync"))
+    superseded_sync = None
+    supersession_reason = None
+    if current_sync:
+        if args.supersede_sync is None:
+            die(
+                "the run branch already has a recorded integration sync; "
+                "use --supersede-sync with its exact commit after repairing "
+                "and revalidating the composition"
+            )
+        active = require_full_sha(
+            current_sync.get("commit"), "active recorded sync commit"
+        )
+        supplied = require_full_sha(
+            args.supersede_sync, "sync commit to supersede"
+        )
+        if supplied != active:
+            die("--supersede-sync must name the active recorded sync commit")
+        if not isinstance(args.reason, str) or not args.reason:
+            die("--reason is required when superseding an integration sync")
+        try:
+            reason_bytes = args.reason.encode("utf-8")
+        except UnicodeEncodeError:
+            reason_bytes = b""
+        if (
+            not reason_bytes
+            or not args.reason.strip()
+            or len(reason_bytes) > INTEGRATION_SYNC_REASON_BYTES_MAX
+            or any(ord(character) < 32 or ord(character) == 127
+                   for character in args.reason)
+        ):
+            die("integration sync supersession reason is invalid")
+        supersession_reason = args.reason
+        history = integrate.get("superseded_syncs") or []
+        if not isinstance(history, list):
+            die("recorded superseded integration syncs are malformed")
+        if len(history) >= INTEGRATION_SYNC_SUPERSESSIONS_MAX:
+            die("the integration sync supersession limit has been reached")
+    elif args.supersede_sync is not None:
+        die("--supersede-sync requires an active recorded sync")
+    elif args.reason is not None:
+        die("--reason requires --supersede-sync")
     if not args.commit:
         die("--commit is required for sync-run")
     if not args.base_commit:
         die("--base-commit is required for sync-run")
+    if not args.revalidation:
+        die("--revalidation is required for sync-run")
     sync_tip = require_full_sha(args.commit, "run sync commit")
     base_tip = require_full_sha(args.base_commit, "run sync base commit")
+    if current_sync and sync_tip == current_sync.get("commit"):
+        die("replacement integration sync must use a new signed commit")
+    integration_base = integration_base_of(state)
     remote_tip = remote_branch_tip(args.dir, run_branch_of(state))
     if remote_tip != sync_tip:
         die("run sync commit does not match the remote run branch tip")
     remote_base = remote_branch_tip(
-        args.dir, state["base"], "remote base branch tip"
+        args.dir, integration_base, "remote base branch tip"
     )
     if remote_base != base_tip:
         die("run sync base commit does not match the remote base branch tip")
@@ -2430,22 +4439,64 @@ def done_sync_run(args, state: dict) -> None:
             "run sync merge parents do not match the final recorded step merge "
             "and the exact remote base tip"
         )
+    product_evidence = product_evidence_record(state, recorded_tip)
+    if (
+        current_sync
+        and current_sync.get("product_evidence") != product_evidence
+    ):
+        die("recorded product evidence changed before sync supersession")
+    revalidation = integration_revalidation_record(
+        args.dir, args.revalidation, recorded_tip, base_tip, sync_tip
+    )
     verify_local_commit(args.dir, sync_tip, "run branch integration sync")
     github_verified = verify_github_commits(args.dir, [sync_tip])
-    integrate["sync"] = {
+    new_sync = {
         "commit": sync_tip,
+        "base": integration_base,
+        "starting_base": state["base"],
         "base_head": base_tip,
         "parents": parents,
         "github_verified": github_verified,
+        "product_evidence": product_evidence,
+        "revalidation": revalidation,
     }
-    commit(args.dir, state, "done:sync-run", integrate["sync"])
-    print(
-        f"{run_branch_of(state)} synced with {state['base']} at {base_tip}; "
-        "integration may continue"
-    )
+    if current_sync:
+        superseded_sync = {
+            "sync": current_sync,
+            "superseded_by": sync_tip,
+            "reason": supersession_reason,
+            "ts": now(),
+        }
+        history = list(integrate.get("superseded_syncs") or [])
+        history.append(superseded_sync)
+        integrate["superseded_syncs"] = history
+    integrate["sync"] = new_sync
+    if superseded_sync:
+        commit(
+            args.dir,
+            state,
+            "done:sync-run-supersede",
+            {"sync": new_sync, "superseded": superseded_sync},
+        )
+        print(
+            f"{run_branch_of(state)} superseded integration sync "
+            f"{superseded_sync['sync']['commit']} with {sync_tip}; "
+            f"product evidence preserved; {len(revalidation['checks'])} "
+            "integration revalidation check(s) recorded; integration may "
+            "continue"
+        )
+    else:
+        commit(args.dir, state, "done:sync-run", new_sync)
+        print(
+            f"{run_branch_of(state)} synced with {integration_base} at "
+            f"{base_tip}; product evidence preserved; "
+            f"{len(revalidation['checks'])} integration revalidation check(s) "
+            "recorded; integration may continue"
+        )
 
 
 def done_integrate(args, state: dict) -> None:
+    verify_run(args.dir)
     if state["phase"] != "integrate":
         die(
             "integrate is the terminal phase; the run is in phase "
@@ -2454,6 +4505,7 @@ def done_integrate(args, state: dict) -> None:
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     pending = _integrate_directive(state)
+    integration_base = integration_base_of(state)
     if pending["do"] != "integrate":
         die(
             f"step {pending['step']} still has to merge into "
@@ -2464,12 +4516,18 @@ def done_integrate(args, state: dict) -> None:
     if not args.merge_commit:
         die(
             "--merge-commit is required; the run is not complete until the run "
-            f"branch is merged into '{state['base']}'"
+            f"branch is merged into '{integration_base}'"
         )
     frontier = as_dict(state.get("frontier"))
+    published = frozenset()
     if frontier:
+        recorded_sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+        if recorded_sync:
+            published = base_ledger_versions(
+                args.dir, recorded_sync.get("base_commit"), frontier["ledger"]
+            )
         fault = frontier_close_fault(
-            os.path.join(args.dir, frontier["ledger"]), frontier)
+            os.path.join(args.dir, frontier["ledger"]), frontier, published)
         if fault:
             die(
                 f"the frontier ledger has not been closed: {fault}. This run "
@@ -2496,6 +4554,11 @@ def done_integrate(args, state: dict) -> None:
     sync = as_dict(integrate.get("sync"))
     expected_tip = recorded_tip
     if sync:
+        recorded_product = sync.get("product_evidence")
+        if recorded_product is not None and recorded_product != product_evidence_record(
+            state, recorded_tip
+        ):
+            die("recorded product evidence changed after the integration sync")
         expected_tip = require_full_sha(sync.get("commit"), "recorded run sync commit")
     if remote_tip != expected_tip:
         if sync:
@@ -2505,15 +4568,17 @@ def done_integrate(args, state: dict) -> None:
         args.dir,
         args.pr_url,
         expected_head=run_branch_of(state),
-        expected_base=state["base"],
+        expected_base=integration_base,
         expected_head_sha=remote_tip,
         expected_merge_sha=args.merge_commit,
         expected_head_label="remote run branch tip",
     )
     github_verified = verify_github_commits(args.dir, [args.merge_commit])
+    attribution = merged_attribution(args.dir, state, args.merge_commit)
     state["receipts"]["integrate"] = {
         "run_branch": run_branch_of(state),
-        "base": state["base"],
+        "base": integration_base,
+        "starting_base": state["base"],
         "pr_url": args.pr_url,
         "merge_commit": args.merge_commit,
         "closed_issue_url": args.closed_issue_url,
@@ -2522,9 +4587,16 @@ def done_integrate(args, state: dict) -> None:
         "pull_request": pr_record,
         "run_head": remote_tip,
         "final_step_merge": recorded_tip,
+        "attribution": attribution,
+        "frontier_subtracted_rows": frontier_subtracted_rows(
+            args.dir, frontier, published
+        ) if frontier else [],
     }
     if sync:
         state["receipts"]["integrate"]["sync"] = sync
+        state["receipts"]["integrate"]["superseded_syncs"] = list(
+            integrate.get("superseded_syncs") or []
+        )
     worktree = state.get("worktree")
     if worktree and os.path.isdir(worktree):
         state["receipts"]["integrate"]["worktree_clean"] = worktree_is_clean(worktree)
@@ -2540,7 +4612,7 @@ def done_integrate(args, state: dict) -> None:
                "keep the tree. Nothing is ever forced")
         )
     print(
-        f"{run_branch_of(state)} merged into {state['base']} "
+        f"{run_branch_of(state)} merged into {integration_base} "
         f"({args.merge_commit}); run complete"
     )
 
@@ -2588,6 +4660,7 @@ def receipted_source(base_dir: str, state: dict, name: str):
         "path": path,
         "sha256": expected,
         "text": decoded_source(data, f"{name} artefact"),
+        "receipt": receipt,
     }
 
 
@@ -2615,6 +4688,13 @@ STEP_VERDICT_RE = re.compile(
     r"entry\s+(?P<entry>holds|broken)\s*;\s*"
     r"exit\s+(?P<exit>holds|broken)\s*\.",
     re.IGNORECASE,
+)
+RUNBOOK_FIELDS = ("Goal", "Entry", "Exit", "Files", "Tests", "Disciplines")
+COMPLETE_REPLACEMENT_RE = re.compile(
+    r"Complete replacement (?P<field>Goal|Entry|Exit|Files|Tests|Disciplines):"
+    r"\s*(?P<value>.*?)"
+    r"(?=(?:\s+Complete replacement "
+    r"(?:Goal|Entry|Exit|Files|Tests|Disciplines):)|\Z)"
 )
 
 
@@ -2673,7 +4753,9 @@ def markdown_lines(text: str):
         offset += len(physical)
 
 
-def _study_amendment_boundary(text: str, expected: str) -> tuple[int, int, str]:
+def _study_amendment_boundary(
+    text: str, expected: str, subject: str = "study"
+) -> tuple[int, int, str]:
     """Find the one real final amendment whose byte prefix has the receipt hash."""
     headings = []
     for start, _, line, in_fence, _ in markdown_lines(text):
@@ -2698,7 +4780,7 @@ def _study_amendment_boundary(text: str, expected: str) -> tuple[int, int, str]:
     if not matches:
         die(
             "amendment candidate does not preserve the currently receipted "
-            "study bytes as its exact prefix"
+            f"{subject} bytes as its exact prefix"
         )
     if len(matches) != 1:
         die("amendment candidate has an ambiguous receipted prefix boundary")
@@ -2713,7 +4795,14 @@ def _study_amendment_boundary(text: str, expected: str) -> tuple[int, int, str]:
     return boundary, heading_start, date_text
 
 
-def _study_amendment_fields(text: str, heading_start: int) -> dict[str, str]:
+def _runbook_amendment_boundary(text: str, expected: str) -> tuple[int, int, str]:
+    """Use the same append boundary while naming the runbook subject."""
+    return _study_amendment_boundary(text, expected, "runbook")
+
+
+def _study_amendment_fields(
+    text: str, heading_start: int, subject: str = "study"
+) -> dict[str, str]:
     """Read the four ordered fields in the final amendment and nothing else."""
     fields = []
     headings_after = []
@@ -2729,7 +4818,7 @@ def _study_amendment_fields(text: str, heading_start: int) -> dict[str, str]:
         if ANY_AMENDMENT_FIELD_RE.fullmatch(line):
             die(f"amendment carries an unexpected field: {line}")
     if headings_after:
-        die("amendment block must be the final section of the study")
+        die(f"amendment block must be the final section of the {subject}")
 
     names = [item[2] for item in fields]
     if names != list(AMENDMENT_FIELDS):
@@ -2747,6 +4836,66 @@ def _study_amendment_fields(text: str, heading_start: int) -> dict[str, str]:
             die(f"amendment field '{name}' must not be empty")
         values[name] = value
     return values
+
+
+def _complete_replacement_fields(value: str) -> list[str]:
+    """Parse an exhaustive sequence of named full-field replacements."""
+    matches = list(COMPLETE_REPLACEMENT_RE.finditer(value))
+    if not matches:
+        die(
+            "runbook amendment field 'What changed' must restate at least one "
+            "complete field as 'Complete replacement Exit: <full value>'"
+        )
+    cursor = 0
+    fields = []
+    for match in matches:
+        if value[cursor:match.start()].strip():
+            die(
+                "runbook amendment field 'What changed' must contain only "
+                "complete replacement clauses"
+            )
+        field = match.group("field")
+        if not match.group("value").strip():
+            die(f"runbook amendment has an empty complete replacement {field}")
+        fields.append(field)
+        cursor = match.end()
+    if value[cursor:].strip():
+        die(
+            "runbook amendment field 'What changed' must contain only "
+            "complete replacement clauses"
+        )
+    duplicates = sorted({field for field in fields if fields.count(field) > 1})
+    if duplicates:
+        die(f"runbook amendment repeats complete replacement field(s): {duplicates}")
+    return fields
+
+
+def _runbook_topology(text: str) -> list[tuple[int, str]]:
+    """Return only the original numbered steps, before the first real amendment."""
+    topology = []
+    amendment_started = False
+    for _, _, line, in_fence, _ in markdown_lines(text):
+        if in_fence:
+            continue
+        if AMENDMENT_HEADING_RE.fullmatch(line):
+            amendment_started = True
+            continue
+        match = STEP_HEADING_RE.fullmatch(line)
+        if match:
+            if amendment_started:
+                die("runbook amendment cannot append a replacement Step heading")
+            topology.append((int(match.group("number")), match.group("title")))
+    return topology
+
+
+def _require_runbook_topology(state: dict, text: str) -> None:
+    expected = [(step["n"], step["title"]) for step in state["steps"]]
+    actual = _runbook_topology(text)
+    if actual != expected:
+        die(
+            "runbook amendment cannot add, remove, reorder, renumber, rename, "
+            "or duplicate steps"
+        )
 
 
 def _study_step_verdicts(fields: dict[str, str], state: dict) -> tuple[list[int], list[dict]]:
@@ -2832,6 +4981,34 @@ def _check_amended_study(base_dir: str, candidate: bytes) -> None:
             pass
 
 
+def _check_amended_runbook(base_dir: str, candidate: bytes) -> None:
+    """Run Protasis runbook mode over the exact captured candidate bytes."""
+    root = state_root(base_dir)
+    os.makedirs(root, exist_ok=True)
+    descriptor, path = tempfile.mkstemp(
+        prefix="amended-runbook-", suffix=".md", dir=root
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(candidate)
+            handle.flush()
+            os.fsync(handle.fileno())
+        checker = os.path.join(
+            plugin_root(), "skills", "protasis", "scripts", "protasis.py"
+        )
+        bounded_tool(
+            base_dir,
+            sys.executable,
+            [checker, path],
+            "Protasis rejected the runbook amendment candidate",
+        )
+    finally:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+
+
 def _replace_study_bytes(path: str, data: bytes) -> None:
     """Replace the canonical study atomically after every validation has passed."""
     directory = os.path.dirname(path)
@@ -2860,6 +5037,34 @@ def _replace_study_bytes(path: str, data: bytes) -> None:
         die(f"study artefact could not be replaced atomically: {exc}", 1)
 
 
+def _replace_runbook_bytes(path: str, data: bytes) -> None:
+    """Replace the canonical runbook atomically after complete validation."""
+    directory = os.path.dirname(path)
+    descriptor, temporary = tempfile.mkstemp(prefix=".hexctl-runbook-", dir=directory)
+    try:
+        os.fchmod(descriptor, os.stat(path).st_mode & 0o777)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        parent = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(parent)
+        finally:
+            os.close(parent)
+    except OSError as exc:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        die(f"runbook artefact could not be replaced atomically: {exc}", 1)
+
+
 def _study_amendment_record(
     state: dict, expected: str, candidate: bytes
 ) -> dict:
@@ -2880,7 +5085,46 @@ def _study_amendment_record(
     }
 
 
+def _runbook_amendment_record(
+    state: dict, expected: str, candidate: bytes
+) -> dict:
+    """Validate one runbook suffix and retain only bounded receipt evidence."""
+    text = decoded_source(candidate, "runbook amendment candidate")
+    boundary, heading_start, date_text = _runbook_amendment_boundary(text, expected)
+    fields = _study_amendment_fields(text, heading_start, "runbook")
+    replacement_fields = _complete_replacement_fields(fields["What changed"])
+    touched, verdicts = _study_step_verdicts(fields, state)
+    _require_runbook_topology(state, text)
+    prefix_bytes = text[:boundary].encode("utf-8")
+    amendment_bytes = candidate[len(prefix_bytes):]
+    study_digest = as_dict(as_dict(state.get("receipts")).get("study")).get(
+        "sha256"
+    )
+    if not isinstance(study_digest, str) or not re.fullmatch(
+        r"[0-9a-f]{64}", study_digest
+    ):
+        die("runbook amendment requires a source-bound current study digest")
+    return {
+        "date": date_text,
+        "prior_sha256": hashlib.sha256(prefix_bytes).hexdigest(),
+        "new_sha256": hashlib.sha256(candidate).hexdigest(),
+        "amendment_sha256": hashlib.sha256(amendment_bytes).hexdigest(),
+        "amendment_start": len(prefix_bytes),
+        "amendment_end": len(candidate),
+        "steps_touched": touched,
+        "step_verdicts": verdicts,
+        "replacement_fields": replacement_fields,
+        "study_sha256": study_digest,
+    }
+
+
 def _apply_study_amendment_receipt(receipt: dict, amendment: dict) -> None:
+    history = receipt.setdefault("amendments", [])
+    history.append(amendment)
+    receipt["sha256"] = amendment["new_sha256"]
+
+
+def _apply_runbook_amendment_receipt(receipt: dict, amendment: dict) -> None:
     history = receipt.setdefault("amendments", [])
     history.append(amendment)
     receipt["sha256"] = amendment["new_sha256"]
@@ -2909,6 +5153,31 @@ def _commit_or_complete_study_amendment(
         save_state(base_dir, state)
         return
     commit(base_dir, state, "amend:study", amendment)
+
+
+def _commit_or_complete_runbook_amendment(
+    base_dir: str, state: dict, amendment: dict
+) -> None:
+    """Complete the state write without duplicating a durable ledger event."""
+    last = None
+    path = ledger_path(base_dir)
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            lines = [line for line in handle.read().splitlines() if line.strip()]
+        if lines:
+            last = json.loads(lines[-1])
+    except (OSError, ValueError):
+        last = None
+    expected_state = state_fingerprint(state)
+    if (
+        isinstance(last, dict)
+        and last.get("event") == "amend:runbook"
+        and last.get("data") == amendment
+        and last.get("state") == expected_state
+    ):
+        save_state(base_dir, state)
+        return
+    commit(base_dir, state, "amend:runbook", amendment)
 
 
 def _recover_study_amendment(
@@ -2985,9 +5254,17 @@ def _recover_study_amendment(
 def cmd_amend_study(args) -> None:
     """Receipt one append-only Protasis amendment while build steps are active."""
     state = load_state(args.dir, allow_pending_amendment=True)
-    pending = load_study_amendment_pending(args.dir)
-    if pending is not None and _recover_study_amendment(args.dir, state, pending):
-        return
+    pending_by_subject = pending_amendments(args.dir)
+    if pending_by_subject:
+        if "study" not in pending_by_subject:
+            die(
+                "runbook amendment transaction is pending; recover that exact "
+                "subject before amending the study"
+            )
+        if _recover_study_amendment(
+            args.dir, state, pending_by_subject["study"]
+        ):
+            return
     if state.get("halted"):
         die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
     if state.get("phase") != "steps":
@@ -3052,11 +5329,221 @@ def cmd_amend_study(args) -> None:
     )
 
 
-def source_runbook_step(source: dict, step: dict) -> dict:
-    """Select one exact numbered step block without interpreting its schema."""
+def _recover_runbook_amendment(
+    base_dir: str, state: dict, pending: dict
+) -> bool:
+    """Finish or roll back one interrupted runbook amendment exactly once."""
+    receipt = as_dict(as_dict(state.get("receipts")).get("runbook"))
+    artifact = receipt.get("artifact")
+    if artifact != pending["artifact"]:
+        die("pending runbook amendment does not match the current artefact path", 1)
+    amendment = pending["amendment"]
+    prior = amendment.get("prior_sha256")
+    new = amendment.get("new_sha256")
+    if not all(
+        isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+        for value in (prior, new)
+    ):
+        die("pending runbook amendment has invalid receipt digests", 1)
+
+    canonical_path, canonical = read_bounded_source(
+        base_dir, artifact, "runbook artefact"
+    )
+    actual = hashlib.sha256(canonical).hexdigest()
+    current = receipt.get("sha256")
+
+    if current == new:
+        history = receipt.get("amendments")
+        if (
+            actual != new
+            or not isinstance(history, list)
+            or not history
+            or history[-1] != amendment
+        ):
+            die("pending runbook amendment disagrees with the committed receipt", 1)
+        verify_run(base_dir, allow_pending_amendment=True)
+        clear_amendment_pending(base_dir, "runbook")
+        print(f"runbook amendment recovered: committed {new}")
+        return True
+
+    if current != prior or state_fingerprint(state) != pending["state_before_sha256"]:
+        die("pending runbook amendment no longer matches controller state", 1)
+    if actual == prior:
+        verify_run(base_dir, allow_pending_amendment=True)
+        clear_amendment_pending(base_dir, "runbook")
+        print(f"runbook amendment recovered: rolled back to {prior}")
+        return True
+    if actual != new:
+        die(
+            "pending runbook amendment found neither the prior nor candidate bytes; "
+            "restore one recorded digest before recovery",
+            1,
+        )
+
+    recovered = _runbook_amendment_record(state, prior, canonical)
+    _check_amended_runbook(base_dir, canonical)
+    if recovered != amendment:
+        die("pending runbook amendment metadata does not match candidate bytes", 1)
+    existing_history = receipt.get("amendments")
+    if existing_history is not None and not isinstance(existing_history, list):
+        die("runbook receipt amendments history must be an array", 1)
+    if len(existing_history or []) >= AMENDMENT_HISTORY_MAX:
+        die(f"runbook amendment history is capped at {AMENDMENT_HISTORY_MAX}")
+    _apply_runbook_amendment_receipt(receipt, amendment)
+    _commit_or_complete_runbook_amendment(base_dir, state, amendment)
+    verify_run(base_dir, allow_pending_amendment=True)
+    clear_amendment_pending(base_dir, "runbook")
+    print(f"runbook amendment recovered: recorded {new}")
+    return True
+
+
+def cmd_amend_runbook(args) -> None:
+    """Receipt one append-only Protasis runbook amendment during build steps."""
+    state = load_state(args.dir, allow_pending_amendment=True)
+    pending_by_subject = pending_amendments(args.dir)
+    if pending_by_subject:
+        if "runbook" not in pending_by_subject:
+            die(
+                "study amendment transaction is pending; recover that exact "
+                "subject before amending the runbook"
+            )
+        if _recover_runbook_amendment(
+            args.dir, state, pending_by_subject["runbook"]
+        ):
+            return
+    if state.get("halted"):
+        die(f"run is halted ({state['halted']['reason']}); `hexctl resume` first")
+    if state.get("phase") != "steps":
+        die("runbook amendments are accepted only while build steps are active")
+
+    receipt = as_dict(as_dict(state.get("receipts")).get("runbook"))
+    expected = receipt.get("sha256")
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        die("runbook amendment requires a source-bound runbook receipt with sha256")
+    artifact = receipt.get("artifact")
+    if not isinstance(artifact, str) or not artifact:
+        die("runbook receipt has no artefact path")
+
+    candidate_arg = _require_file(args.artifact, "artifact")
+    candidate_path, candidate = read_bounded_source(
+        args.dir, candidate_arg, "runbook amendment candidate"
+    )
+    canonical_path, canonical_bytes = read_bounded_source(
+        args.dir, artifact, "runbook artefact"
+    )
+    if candidate_path != canonical_path:
+        actual = hashlib.sha256(canonical_bytes).hexdigest()
+        if actual != expected and canonical_bytes != candidate:
+            die(
+                f"runbook artefact digest changed: expected {expected}, got "
+                f"{actual}; restore the receipted bytes or halt the run"
+            )
+
+    amendment = _runbook_amendment_record(state, expected, candidate)
+    _check_amended_runbook(args.dir, candidate)
+    existing_history = receipt.get("amendments")
+    if existing_history is not None and not isinstance(existing_history, list):
+        die("runbook receipt amendments history must be an array", 1)
+    if len(existing_history or []) >= AMENDMENT_HISTORY_MAX:
+        die(f"runbook amendment history is capped at {AMENDMENT_HISTORY_MAX}")
+
+    pending = {
+        "version": 1,
+        "artifact": artifact,
+        "state_before_sha256": state_fingerprint(state),
+        "amendment": amendment,
+    }
+    write_amendment_pending(args.dir, "runbook", pending)
+    _replace_runbook_bytes(canonical_path, candidate)
+    _apply_runbook_amendment_receipt(receipt, amendment)
+    commit(args.dir, state, "amend:runbook", amendment)
+    verify_run(args.dir, allow_pending_amendment=True)
+    clear_amendment_pending(args.dir, "runbook")
+
+    current = state["current_step"]
+    verdict = next(
+        item for item in amendment["step_verdicts"] if item["step"] == current
+    )
+    disposition = (
+        "holds" if verdict["entry"] == "holds" and verdict["exit"] == "holds"
+        else "broken; dependent work is blocked"
+    )
+    print(
+        f"runbook amended: prior {amendment['prior_sha256']}; "
+        f"new {amendment['new_sha256']}; amendment "
+        f"{amendment['amendment_sha256']}; study "
+        f"{amendment['study_sha256']}; step {current} {disposition}"
+    )
+
+
+def _receipted_runbook_amendments(source: dict) -> list[dict]:
+    """Recompute each exact amendment slice from its bounded receipt offsets."""
+    receipt = as_dict(source.get("receipt"))
+    history = receipt.get("amendments")
+    if history is None:
+        return []
+    if not isinstance(history, list):
+        die("runbook receipt amendments history must be an array", 1)
+    if len(history) > AMENDMENT_HISTORY_MAX:
+        die(
+            f"runbook receipt has more than {AMENDMENT_HISTORY_MAX} amendments",
+            1,
+        )
+    data = source["text"].encode("utf-8")
+    verified = []
+    previous_end = None
+    for index, raw in enumerate(history, 1):
+        item = as_dict(raw)
+        start = item.get("amendment_start")
+        end = item.get("amendment_end")
+        if (
+            not isinstance(start, int)
+            or isinstance(start, bool)
+            or not isinstance(end, int)
+            or isinstance(end, bool)
+            or start < 0
+            or end <= start
+            or end > len(data)
+            or (previous_end is not None and start != previous_end)
+        ):
+            die(f"runbook amendment {index} has invalid source offsets", 1)
+        prior = hashlib.sha256(data[:start]).hexdigest()
+        new = hashlib.sha256(data[:end]).hexdigest()
+        amendment_bytes = data[start:end]
+        amendment_digest = hashlib.sha256(amendment_bytes).hexdigest()
+        if (
+            item.get("prior_sha256") != prior
+            or item.get("new_sha256") != new
+            or item.get("amendment_sha256") != amendment_digest
+        ):
+            die(f"runbook amendment {index} digest evidence does not match source", 1)
+        verified.append(
+            {
+                **item,
+                "markdown": decoded_source(
+                    amendment_bytes, f"runbook amendment {index}"
+                ),
+            }
+        )
+        previous_end = end
+    if verified and verified[-1].get("new_sha256") != source.get("sha256"):
+        die("runbook amendment history does not reach the current receipt", 1)
+    return verified
+
+
+def source_runbook_step(
+    source: dict, step: dict, *, current_study_sha256: str | None = None
+) -> dict:
+    """Carry one exact baseline step plus its current receipted amendments."""
     text = source["text"]
+    amendments = _receipted_runbook_amendments(source)
+    if amendments:
+        baseline_bytes = text.encode("utf-8")[: amendments[0]["amendment_start"]]
+        baseline_text = decoded_source(baseline_bytes, "runbook baseline")
+    else:
+        baseline_text = text
     headings = []
-    for start, _, line, in_fence, _ in markdown_lines(text):
+    for start, _, line, in_fence, _ in markdown_lines(baseline_text):
         if in_fence:
             continue
         match = STEP_HEADING_RE.fullmatch(line)
@@ -3068,16 +5555,43 @@ def source_runbook_step(source: dict, step: dict) -> dict:
             continue
         if heading.group("title") != step["title"]:
             continue
-        end = headings[index + 1][0] if index + 1 < len(headings) else len(text)
-        matches.append(text[start:end])
+        end = (
+            headings[index + 1][0]
+            if index + 1 < len(headings)
+            else len(baseline_text)
+        )
+        matches.append(baseline_text[start:end])
     if not matches:
         die(
             f"runbook step {step['n']} '{step['title']}' has no exact source block"
         )
     if len(matches) != 1:
         die(f"ambiguous runbook step {step['n']} '{step['title']}'")
+    baseline = matches[0]
+    applicable = []
+    for amendment in amendments:
+        if step["n"] not in (amendment.get("steps_touched") or []):
+            continue
+        if amendment.get("study_sha256") != current_study_sha256:
+            continue
+        applicable.append(
+            {
+                "markdown": amendment["markdown"],
+                "sha256": amendment["amendment_sha256"],
+                "runbook_sha256": amendment["new_sha256"],
+                "study_sha256": amendment["study_sha256"],
+                "date": amendment["date"],
+                "steps_touched": amendment["steps_touched"],
+                "replacement_fields": amendment["replacement_fields"],
+            }
+        )
+    markdown = baseline + "".join(item["markdown"] for item in applicable)
     return {
-        "markdown": matches[0],
+        "markdown": markdown,
+        "baseline_markdown": baseline,
+        "baseline_sha256": hashlib.sha256(baseline.encode("utf-8")).hexdigest(),
+        "amendments": applicable,
+        "effective_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
         "path": source["path"],
         "sha256": source["sha256"],
         "number": step["n"],
@@ -3120,16 +5634,23 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
-    """Run one fixed-argv tool and return its status and output.
+def bounded_probe(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    extra_env: dict | None = None,
+) -> tuple[int | None, bytes, str | None]:
+    """Run one fixed-argv tool and report failure instead of refusing.
 
-    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
-    from the child's stream in any diagnosis. Callers that treat a non-zero
-    status as fatal go through `bounded_tool`; callers for which a refusal is a
-    real answer, such as git declining to remove a tree holding modifications,
-    read the status here.
+    The reader core `bounded_run` wraps: no shell, a hard timeout, a hard
+    output cap, and nothing from the child's stream in any diagnosis. This
+    surface exists for callers that must keep going when the child cannot
+    answer, such as the currency observation, where a stalled read is a
+    recorded `unknown` rather than a refusal. Returns (returncode, output,
+    failure); failure is None, "start", "timeout" or "output-cap", and the
+    returncode is None whenever the child never finished cleanly.
     """
-    operation = f"{program} {argv[0]}" if argv else program
+    env = {**os.environ, **extra_env} if extra_env is not None else None
     try:
         process = subprocess.Popen(
             [program, *argv],
@@ -3137,9 +5658,10 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=False,
+            env=env,
         )
-    except OSError as exc:
-        die(f"{operation} could not start")
+    except OSError:
+        return None, b"", "start"
     assert process.stdout is not None
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
@@ -3151,7 +5673,7 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             if remaining <= 0:
                 process.kill()
                 process.wait()
-                die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+                return None, bytes(output), "timeout"
             events = selector.select(min(remaining, 0.1))
             if not events and process.poll() is not None:
                 events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
@@ -3164,16 +5686,36 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
                 if len(output) > GIT_OUTPUT_MAX:
                     process.kill()
                     process.wait()
-                    die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+                    return None, bytes(output), "output-cap"
         returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
-        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+        return None, bytes(output), "timeout"
     finally:
         selector.close()
         process.stdout.close()
-    return returncode, bytes(output)
+    return returncode, bytes(output), None
+
+
+def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
+    """Run one fixed-argv tool and return its status and output.
+
+    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
+    from the child's stream in any diagnosis. Callers that treat a non-zero
+    status as fatal go through `bounded_tool`; callers for which a refusal is a
+    real answer, such as git declining to remove a tree holding modifications,
+    read the status here.
+    """
+    operation = f"{program} {argv[0]}" if argv else program
+    returncode, output, failure = bounded_probe(base_dir, program, argv)
+    if failure == "start":
+        die(f"{operation} could not start")
+    if failure == "timeout":
+        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+    if failure == "output-cap":
+        die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+    return returncode, output
 
 
 def bounded_tool(
@@ -3233,6 +5775,67 @@ def repository_root(base_dir: str) -> str:
     if not reported:
         die(f"not a git repository: {root}")
     return os.path.realpath(reported)
+
+
+AUDIT_LOG_HOME = ("audit", "rounds")
+"""Where a run's own audit record lives, relative to the target directory."""
+
+
+def run_audit_log_path(run_branch: str) -> str:
+    """The one audit log path a run owns, derived from its own branch.
+
+    The branch already names the run's worktree directory, so the same
+    flattening names its record. Deriving it beats holding a literal: a shared
+    default puts the log on both sides of `sync-run`'s product/upstream
+    intersection whenever anything else merged during the run, and the record
+    then owes a green check on a file the run only appended to.
+
+    Separators are POSIX because the value is a repository path that is read
+    back out of state, printed by `config get`, and quoted in prose.
+    """
+    return "/".join((*AUDIT_LOG_HOME, flattened_run_branch(run_branch) + ".md"))
+
+
+def check_audit_log_path(base_dir: str, state: dict, value):
+    """Hold an audit log override to the one file this run owns.
+
+    The directory may move -- three plugins here already keep their rounds under
+    their own tree -- but the file name is the run's identity. Without that, an
+    override can aim at another run's record or back at the shared log, which is
+    the arrangement this default was changed to end.
+
+    A run whose state records no usable branch has nothing to derive from, so it
+    keeps the older unconstrained value rather than being refused for its age.
+    That covers a stored branch of the wrong type as well as an absent one: the
+    flattening runs a regex over it, and a state holding a number there would
+    otherwise raise rather than answer.
+    """
+    if not isinstance(value, str) or not value:
+        die("config audit.log_path takes a non-empty string")
+    run_branch = run_branch_of(state)
+    if not isinstance(run_branch, str) or not run_branch:
+        return value
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        die("config audit.log_path must carry no control character")
+    if os.path.isabs(value):
+        die(
+            "config audit.log_path is relative to the run's directory; "
+            f"got the absolute path '{value}'"
+        )
+    parts = value.replace("\\", "/").split("/")
+    if ".." in parts:
+        die(f"config audit.log_path must carry no '..' component; got '{value}'")
+    required = run_audit_log_path(run_branch).rsplit("/", 1)[-1]
+    if parts[-1] != required:
+        die(
+            f"config audit.log_path must end in '{required}', the record this "
+            f"run owns; got '{value}'. Move the directory if you need to; the "
+            "name is what keeps two runs out of one file."
+        )
+    # Containment last, because a symlinked directory component escapes a path
+    # that has already passed every textual check above.
+    scoped_path(base_dir, value, "audit log path")
+    return value
 
 
 def run_worktree_path(base_dir: str, run_branch: str) -> str:
@@ -3417,6 +6020,81 @@ def bounded_gh(base_dir: str, argv: list[str], refusal: str | None = None) -> by
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 COAUTHOR_TRAILER = "Co-authored-by: Shoggoth <shoggoth@wildcat.finance>"
 ORIGIN_TRAILER = "Wildcat-Origin: shoggoth"
+# Long key ids GitHub signs with when it creates a commit itself: the web-flow
+# key, used by the merge button, the Contents API, and the rebase performed by
+# the native stacked-pull-request flow. A commit carrying one of these was
+# rewritten by GitHub, not created locally, so `git verify-commit` cannot
+# validate it against a local keyring and the range is not the one that was
+# pushed. This set exists to explain a refusal, never to permit one.
+GITHUB_SIGNING_KEYS = frozenset(
+    {
+        "4AEE18F83AFDEB23",
+        "B5690EEEBB952194",
+    }
+)
+
+
+HOST_IDENTITY_NAMES = frozenset(
+    {
+        "aider",
+        "anthropic",
+        "chatgpt",
+        "claude",
+        "claude code",
+        "claude[bot]",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "gemini",
+        "gemini code assist",
+        "github copilot",
+        "openai",
+    }
+)
+HOST_IDENTITY_EMAILS = frozenset(
+    {
+        "noreply@anthropic.com",
+        "noreply@openai.com",
+    }
+)
+HOST_PR_LOGINS = frozenset(
+    {
+        "app/claude",
+        "chatgpt[bot]",
+        "claude[bot]",
+        "codex[bot]",
+        "copilot[bot]",
+    }
+)
+COAUTHOR_RE = re.compile(
+    r"^Co-authored-by:\s*(?P<name>.+?)\s*<(?P<email>[^<>]+)>$",
+    re.IGNORECASE,
+)
+GITHUB_LOGIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\[bot\])?$")
+"""One GitHub account login as the commits endpoint spells it.
+
+Closed on purpose. The endpoint's `author` is the account GitHub matched the
+commit to, and it is the only field here that later becomes a public claim, so
+an unexpected shape refuses rather than being stored and repeated.
+"""
+
+ATTRIBUTION_NAME_MAX = 256
+ATTRIBUTION_EMAIL_MAX = 320
+ATTRIBUTION_COAUTHOR_MAX = 32
+"""Caps on the identity fields read out of a GitHub commit payload.
+
+The address cap is RFC 5321's maximum path length. The co-author cap exists
+because the trailer count is attacker-influenceable and a receipt is not the
+place to discover that.
+"""
+
+HOST_BYLINE_RE = re.compile(
+    r"(?:generated|authored|co-authored)\s+by\s+"
+    r"(?:\[(?:claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)\]"
+    r"\([^\)]+\)|claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)",
+    re.IGNORECASE,
+)
 
 
 def tool_text(data: bytes, label: str) -> str:
@@ -3424,6 +6102,113 @@ def tool_text(data: bytes, label: str) -> str:
         return data.decode("utf-8")
     except UnicodeDecodeError:
         die(f"{label} returned non-UTF-8 output")
+
+
+def is_host_identity(name: str, email: str) -> bool:
+    """Recognise known runtime identities without reclassifying human authors."""
+    return (
+        name.strip().casefold() in HOST_IDENTITY_NAMES
+        or email.strip().casefold() in HOST_IDENTITY_EMAILS
+    )
+
+
+def identity_digest(email: str) -> str:
+    """SHA-256 of one normalised author address.
+
+    The receipt has to say whether the identity on the base is the identity
+    that was pushed, and it must not carry an address to do it. A digest
+    answers exactly that question and nothing else, and a reviewer holding the
+    public repository can recompute it.
+    """
+    return hashlib.sha256(email.strip().casefold().encode("utf-8")).hexdigest()
+
+
+def checked_login(value: object, label: str) -> str | None:
+    """The GitHub account a commit is linked to, or None when it is linked to none.
+
+    A literal `null` is the ordinary outcome for a contributor whose commit
+    address is not on their account, so it is recorded as itself. Coercing it
+    to a placeholder would turn "GitHub could not match this" into a name.
+
+    An account object without a usable login is not that outcome. It is a
+    payload nobody predicted, and reading it as "unlinked" would let a shape
+    the reader does not understand become a claim about a person.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        die(f"{label} account is not an object")
+    login = value.get("login")
+    if not isinstance(login, str):
+        die(f"{label} account login is not a string")
+    if login.casefold() in HOST_PR_LOGINS:
+        die(f"{label} links the commit to a runtime host account")
+    if not GITHUB_LOGIN_RE.fullmatch(login):
+        die(f"{label} account login is malformed")
+    return login
+
+
+def checked_identity(value: object, label: str) -> tuple[str, str]:
+    """One author name and address out of a GitHub commit payload."""
+    if not isinstance(value, dict):
+        die(f"{label} identity is not an object")
+    name = value.get("name")
+    email = value.get("email")
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or len(name) > ATTRIBUTION_NAME_MAX
+    ):
+        die(f"{label} identity name is malformed")
+    if (
+        not isinstance(email, str)
+        or not email.strip()
+        or len(email) > ATTRIBUTION_EMAIL_MAX
+        or any(character.isspace() for character in email)
+    ):
+        die(f"{label} identity address is malformed")
+    return name, email
+
+
+def message_coauthors(message: object, label: str) -> list[dict]:
+    """Every exact co-author trailer on one commit message.
+
+    Parsed with the same expression the local range gate uses, so the two
+    cannot disagree about what a trailer is. A host identity in a trailer
+    refuses here as well as locally: the two views are read from different
+    places and either one seeing a host is enough.
+    """
+    if not isinstance(message, str):
+        die(f"{label} commit message is missing")
+    found: list[dict] = []
+    for line in message.splitlines():
+        match = COAUTHOR_RE.fullmatch(line)
+        if match is None:
+            continue
+        name, email = match.group("name"), match.group("email")
+        if is_host_identity(name, email):
+            die(f"{label} names a runtime host as co-author")
+        if len(name) > ATTRIBUTION_NAME_MAX or len(email) > ATTRIBUTION_EMAIL_MAX:
+            die(f"{label} co-author identity is malformed")
+        found.append({"name": name, "email_sha256": identity_digest(email)})
+        if len(found) > ATTRIBUTION_COAUTHOR_MAX:
+            die(
+                f"{label} carries more than {ATTRIBUTION_COAUTHOR_MAX} "
+                "co-author trailers"
+            )
+    return found
+
+
+def commit_author(base_dir: str, commit_sha: str, label: str) -> tuple[str, str]:
+    data = bounded_git(
+        base_dir,
+        ["show", "-s", "--no-show-signature", "--format=%an%x00%ae", commit_sha],
+        f"{label} commit {commit_sha} author cannot be read",
+    )
+    fields = tool_text(data, f"{label} commit author").rstrip("\n").split("\0")
+    if len(fields) != 2 or not all(field.strip() for field in fields):
+        die(f"{label} commit {commit_sha} author identity is malformed")
+    return fields[0], fields[1]
 
 
 def resolved_commit(base_dir: str, ref: str, label: str) -> str:
@@ -3499,14 +6284,73 @@ def exact_commit_range(base_dir: str, base_ref: str, head_ref: str, label: str) 
     return commits
 
 
+def commit_is_ancestor(
+    base_dir: str, candidate: str, descendant: str, label: str
+) -> bool:
+    """Whether one exact commit is still reachable from another.
+
+    `merge-base --is-ancestor` answers 0 for yes and 1 for no. Anything else
+    means the question was not answered at all: a bad object, an unreadable
+    repository, a killed process. Reading an unexpected status as "no" would
+    turn a broken call into a finding about a person, so only the two
+    documented statuses count as an answer.
+    """
+    candidate = require_full_sha(candidate, f"{label} commit")
+    descendant = require_full_sha(descendant, f"{label} descendant")
+    status = bounded_tool_status(
+        base_dir, "git", ["merge-base", "--is-ancestor", candidate, descendant]
+    )
+    if status not in (0, 1):
+        die(f"{label} ancestry for {candidate} could not be determined")
+    return status == 0
+
+
+def signing_key(base_dir: str, commit_sha: str) -> str:
+    """The long key id a commit was signed with, or the empty string.
+
+    Used only to explain a failed verification. A missing or unreadable value
+    is reported as unknown rather than treated as an answer.
+    """
+    try:
+        data = bounded_git(
+            base_dir,
+            ["log", "-n1", "--pretty=%GK", commit_sha],
+            f"signing key for {commit_sha} could not be read",
+        )
+    except SystemExit:
+        return ""
+    return tool_text(data, "signing key").strip()
+
+
 def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
     """Verify one exact locally created commit and its required trailers."""
     commit_sha = require_full_sha(commit_sha, label)
-    bounded_git(
-        base_dir,
-        ["verify-commit", commit_sha],
-        f"{label} commit {commit_sha} has no valid local signature",
-    )
+    if bounded_tool_status(base_dir, "git", ["verify-commit", commit_sha]) != 0:
+        key = signing_key(base_dir, commit_sha).upper()
+        if key in GITHUB_SIGNING_KEYS:
+            die(
+                f"{label} commit {commit_sha} is signed by GitHub "
+                f"(key {key}), not locally. GitHub rewrote this commit: its merge "
+                "button, its Contents API and the rebase its native stacked "
+                "pull-request flow performs all re-sign with that key, and the "
+                "author and provenance trailers survive while the local signature "
+                "does not. The range being receipted is therefore not the range "
+                "that was pushed. Land the run from a branch holding the original "
+                "unrebased commits. Do not import GitHub's public key to make this "
+                "check pass; that removes the guarantee the check exists for."
+            )
+        if key:
+            die(
+                f"{label} commit {commit_sha} has no valid local signature "
+                f"(signed with key {key}, which this keyring cannot validate)"
+            )
+        die(f"{label} commit {commit_sha} has no valid local signature")
+    author_name, author_email = commit_author(base_dir, commit_sha, label)
+    if is_host_identity(author_name, author_email):
+        die(
+            f"{label} commit {commit_sha} uses a runtime host as author; "
+            "use Shoggoth or preserve the human contributor"
+        )
     body = tool_text(
         bounded_git(
             base_dir,
@@ -3516,6 +6360,12 @@ def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
         f"{label} commit message",
     )
     lines = body.splitlines()
+    for line in lines:
+        match = COAUTHOR_RE.fullmatch(line)
+        if match and is_host_identity(match.group("name"), match.group("email")):
+            die(f"{label} commit {commit_sha} uses a runtime host as co-author")
+    if HOST_BYLINE_RE.search(body):
+        die(f"{label} commit {commit_sha} carries a runtime-host byline")
     coauthors = lines.count(COAUTHOR_TRAILER)
     origins = lines.count(ORIGIN_TRAILER)
     if coauthors != 1:
@@ -3626,7 +6476,7 @@ def inspect_pull_request(
         base_dir,
         [
             "pr", "view", url, "--repo", repository, "--json",
-            "url,state,headRefName,headRefOid,baseRefName,mergeCommit",
+            "url,state,headRefName,headRefOid,baseRefName,mergeCommit,author,body",
         ],
         "pull request topology could not be read",
     )
@@ -3636,6 +6486,17 @@ def inspect_pull_request(
         die("pull request topology returned invalid JSON")
     if not isinstance(payload, dict):
         die("pull request topology is invalid")
+    author = payload.get("author")
+    author_login = author.get("login") if isinstance(author, dict) else None
+    if not isinstance(author_login, str):
+        die("pull request topology is missing its author")
+    if author_login.casefold() in HOST_PR_LOGINS:
+        die("pull request uses a runtime host as author; hand off before publication")
+    body = payload.get("body")
+    if not isinstance(body, str):
+        die("pull request topology is missing its body")
+    if HOST_BYLINE_RE.search(body):
+        die("pull request body carries a runtime-host byline")
     returned_url = payload.get("url")
     if not isinstance(returned_url, str):
         die("pull request topology is missing its URL")
@@ -3663,34 +6524,243 @@ def inspect_pull_request(
         "head_sha": returned_head,
         "state": payload.get("state"),
         "merge_sha": returned_merge,
+        "author_login": author_login,
     }
 
 
+def github_commit_payload(base_dir: str, repository: str, commit_sha: str) -> dict:
+    """One bounded GitHub commit payload, checked for the exact SHA."""
+    data = bounded_gh(
+        base_dir,
+        ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
+        f"GitHub verification for {commit_sha} could not be read",
+    )
+    try:
+        payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
+    except ValueError:
+        die(f"GitHub verification for {commit_sha} returned invalid JSON")
+    if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
+        die(f"GitHub verification response did not name exact SHA {commit_sha}")
+    return payload
+
+
+def require_github_verified(payload: dict, commit_sha: str) -> None:
+    """GitHub's own verification result for one commit, or a refusal."""
+    commit = payload.get("commit")
+    verification = commit.get("verification") if isinstance(commit, dict) else None
+    if not isinstance(verification, dict):
+        die(f"GitHub verification for {commit_sha} is missing")
+    if verification.get("verified") is not True:
+        die(f"GitHub verification for {commit_sha} is not verified:true")
+    if verification.get("reason") != "valid":
+        die(f"GitHub verification for {commit_sha} reason is not valid")
+
+
+def commit_attribution(payload: dict, commit_sha: str) -> dict:
+    """Who GitHub says wrote one commit, recorded without an address.
+
+    The linked account is the identity, because one person may hold several
+    addresses and one account. The digest corroborates it, and carries the
+    comparison on its own where the account is null.
+    """
+    label = f"GitHub attribution for {commit_sha}"
+    commit = payload.get("commit")
+    if not isinstance(commit, dict):
+        die(f"{label} is missing its commit object")
+    name, email = checked_identity(commit.get("author"), label)
+    if is_host_identity(name, email):
+        die(f"{label} names a runtime host as author")
+    return {
+        "commit": commit_sha,
+        "login": checked_login(payload.get("author"), label),
+        "name": name,
+        "email_sha256": identity_digest(email),
+        "coauthors": message_coauthors(commit.get("message"), label),
+    }
+
+
+def identity_matches(recorded: object, candidate: object) -> bool:
+    """Whether two recorded identities name the same contributor.
+
+    The account wins when both sides have one, because one person may hold
+    several addresses and one account. The digest decides otherwise, and it is
+    the only comparison available for a co-author trailer or an unlinked
+    commit.
+    """
+    if not isinstance(recorded, dict) or not isinstance(candidate, dict):
+        return False
+    left, right = recorded.get("login"), candidate.get("login")
+    if isinstance(left, str) and isinstance(right, str):
+        return left.casefold() == right.casefold()
+    digest = recorded.get("email_sha256")
+    return isinstance(digest, str) and digest == candidate.get("email_sha256")
+
+
+def identity_label(identity: dict) -> str:
+    """Name one identity in a refusal without printing an address."""
+    login = identity.get("login")
+    if isinstance(login, str):
+        return login
+    digest = identity.get("email_sha256")
+    return f"digest {digest[:12]}" if isinstance(digest, str) else "an unnamed identity"
+
+
+def recorded_run_attribution(state: dict) -> list[dict]:
+    """Every identity this run's receipts recorded, in step order.
+
+    A step whose push evidence was repaired at merge time carries a fresher
+    container on the merge record, because the recorded push attribution
+    describes commits that are no longer the branch tip. The fresher one wins.
+    A legacy receipt carries none, and contributes nothing rather than
+    refusing.
+    """
+    identities = []
+    merges = as_dict(as_dict(state.get("integrate")).get("merges"))
+    for step in state["steps"]:
+        push = as_dict(step["receipts"].get("push"))
+        effective = as_dict(as_dict(merges.get(str(step["n"]))).get("effective_push"))
+        source = as_dict(
+            effective["attribution"]
+            if "attribution" in effective
+            else push.get("attribution")
+        )
+        commits = source.get("commits")
+        if commits is None:
+            continue
+        if not isinstance(commits, list):
+            die(f"step {step['n']} recorded a malformed attribution container")
+        for record in commits:
+            if not isinstance(record, dict) or not isinstance(
+                record.get("commit"), str
+            ):
+                die(f"step {step['n']} recorded a malformed attribution entry")
+            identities.append({"step": step["n"], **record})
+    return identities
+
+
+def attribution_carriers(state: dict, identity: dict, merge_sha: str) -> list[str]:
+    """The merges that could have carried one identity onto the base.
+
+    A step squashed into the run branch leaves its commits unreachable while
+    its identity survives on that step's own merge commit, which is itself an
+    ancestor of the base merge. Looking only at the base merge would refuse an
+    identity that did reach the base, so the step's recorded merge is tried
+    first and the base merge second.
+    """
+    merges = as_dict(as_dict(state.get("integrate")).get("merges"))
+    step_merge = as_dict(merges.get(str(identity.get("step")))).get("merge_commit")
+    carriers = []
+    for candidate in (step_merge, merge_sha):
+        if (
+            isinstance(candidate, str)
+            and COMMIT_RE.fullmatch(candidate)
+            and candidate not in carriers
+        ):
+            carriers.append(candidate)
+    return carriers
+
+
+def merged_attribution(base_dir: str, state: dict, merge_sha: str) -> dict:
+    """Whether the base still carries every identity the run published under.
+
+    Two mechanisms count. A merge commit leaves every recorded commit
+    reachable from the base, which is the ordinary case and needs no further
+    read. A squash or rebase merge does not, and then the merge commit itself
+    has to carry the identity as its author or in a co-author trailer.
+
+    The merge commit's own identity is read only once an ancestry check has
+    failed. On the ordinary path no extra request happens, and an unexpected
+    identity shape on a merge commit cannot refuse a run whose commits all
+    reached the base intact.
+    """
+    identities = recorded_run_attribution(state)
+    resolved = []
+    unresolved = []
+    for identity in identities:
+        if commit_is_ancestor(
+            base_dir, identity["commit"], merge_sha, "merged attribution"
+        ):
+            resolved.append({**identity, "mechanism": "ancestor", "carrier": None})
+        else:
+            unresolved.append(identity)
+    read: dict[str, dict] = {}
+    if unresolved:
+        repository = github_repository(base_dir)
+        for identity in unresolved:
+            carried = None
+            for candidate in attribution_carriers(state, identity, merge_sha):
+                if candidate != merge_sha and not commit_is_ancestor(
+                    base_dir, candidate, merge_sha, "merged attribution carrier"
+                ):
+                    continue
+                if candidate not in read:
+                    read[candidate] = commit_attribution(
+                        github_commit_payload(base_dir, repository, candidate),
+                        candidate,
+                    )
+                record = read[candidate]
+                if identity_matches(identity, record):
+                    carried = (candidate, "merge-author")
+                    break
+                if any(
+                    identity_matches(identity, coauthor)
+                    for coauthor in record["coauthors"]
+                ):
+                    carried = (candidate, "merge-coauthor")
+                    break
+            if carried is None:
+                die(
+                    f"step {identity['step']} published commit "
+                    f"{identity['commit']} under {identity_label(identity)}, "
+                    f"and no merge this run recorded carries that commit or "
+                    "that identity; the merge discarded the authorship this "
+                    "run recorded"
+                )
+            resolved.append(
+                {**identity, "mechanism": carried[1], "carrier": carried[0]}
+            )
+    return {
+        "identities": resolved,
+        "carriers": {sha: record["login"] for sha, record in read.items()},
+        "mechanisms": sorted({entry["mechanism"] for entry in resolved}),
+    }
+
+
+def verified_github_attribution(
+    base_dir: str, commits: list[str]
+) -> tuple[list[str], list[dict]]:
+    """Verify each exact SHA and record who GitHub says wrote it.
+
+    One request per SHA serves both. Splitting them would double the reads and
+    let the verification and the attribution describe different responses.
+    """
+    commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
+    repository = github_repository(base_dir)
+    verified = []
+    attribution = []
+    for commit_sha in commits:
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
+        attribution.append(commit_attribution(payload, commit_sha))
+        verified.append(commit_sha)
+    return verified, attribution
+
+
 def verify_github_commits(base_dir: str, commits: list[str]) -> list[str]:
-    """Require GitHub's valid verification result for each exact SHA."""
+    """Require GitHub's valid verification result for each exact SHA.
+
+    Deliberately not implemented over `verified_github_attribution`. This gate
+    also covers merge commits and the run sync, and routing it through the
+    attribution reader would make an unexpected identity shape on a merge
+    commit refuse a receipt that has nothing to do with attribution. The two
+    read the same payload for different reasons and fail for different ones.
+    """
     commits = [require_full_sha(commit, "GitHub commit") for commit in commits]
     repository = github_repository(base_dir)
     verified = []
     for commit_sha in commits:
-        data = bounded_gh(
-            base_dir,
-            ["api", "--method", "GET", f"repos/{repository}/commits/{commit_sha}"],
-            f"GitHub verification for {commit_sha} could not be read",
-        )
-        try:
-            payload = json.loads(tool_text(data, f"GitHub verification for {commit_sha}"))
-        except ValueError:
-            die(f"GitHub verification for {commit_sha} returned invalid JSON")
-        if not isinstance(payload, dict) or payload.get("sha") != commit_sha:
-            die(f"GitHub verification response did not name exact SHA {commit_sha}")
-        commit = payload.get("commit")
-        verification = commit.get("verification") if isinstance(commit, dict) else None
-        if not isinstance(verification, dict):
-            die(f"GitHub verification for {commit_sha} is missing")
-        if verification.get("verified") is not True:
-            die(f"GitHub verification for {commit_sha} is not verified:true")
-        if verification.get("reason") != "valid":
-            die(f"GitHub verification for {commit_sha} reason is not valid")
+        payload = github_commit_payload(base_dir, repository, commit_sha)
+        require_github_verified(payload, commit_sha)
         verified.append(commit_sha)
     return verified
 
@@ -3754,7 +6824,9 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
     if action == "implement":
         packet["agent"] = "mason"
         packet["brief"] = {
-            "runbook_step": source_runbook_step(runbook, step),
+            "runbook_step": source_runbook_step(
+                runbook, step, current_study_sha256=study["sha256"]
+            ),
             "branch": plan["branch"],
             "branch_from": plan["branch_from"],
         }
@@ -3763,10 +6835,8 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
     root_plugin = plugin_root()
     if action == "audit-round":
         audit = as_dict(as_dict(state.get("config")).get("audit"))
-        log = audit.get("log_path")
+        log = configured_audit_log(state)
         suffix = audit.get("stacked_suffix")
-        if not isinstance(log, str) or not log:
-            die("audit config has no log_path for the warden packet")
         if not isinstance(suffix, str) or not suffix:
             die("audit config has no stacked_suffix for the warden packet")
         stacked_branch = plan["branch"] + suffix
@@ -3783,8 +6853,11 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
             "plugin_root": root_plugin,
             "audit_log_path": scoped_path(root, log, "audit log path"),
             "round": directive["round"],
+            "audit_filter": directive["audit_filter"],
             "risk_register": source_risk_register(study),
-            "runbook_step": source_runbook_step(runbook, step),
+            "runbook_step": source_runbook_step(
+                runbook, step, current_study_sha256=study["sha256"]
+            ),
         }
         return packet
 
@@ -3805,7 +6878,16 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
 
 def cmd_next(args) -> None:
     state = load_state(args.dir)
-    out = delegation_packet(args.dir, state, _next_directive(state))
+    directive = _next_directive(state)
+    if directive["do"] == "merge-step":
+        # While the stack is still coming down the run branch has to be where the
+        # loop left it, and this is the only point where a wrong merge can still
+        # be worked around. Once every step has merged the branch may legitimately
+        # carry a sync the controller has not receipted yet, and `done sync-run`
+        # owns that topology, so the check stops when the stack does.
+        refuse_unreceipted_run_branch_movement(args.dir, state)
+        refuse_rewritten_stack(args.dir, state, directive.get("step") or 0)
+    out = delegation_packet(args.dir, state, directive)
     print(json.dumps(out))
 
 
@@ -3814,14 +6896,15 @@ def _next_directive(state: dict) -> dict:
         return {"do": "halted", "reason": state["halted"]["reason"]}
     blocked = amendment_block(state)
     if blocked is not None:
+        subject = blocked.get("subject", "study")
         return {
             "do": "blocked",
             "reason": (
-                f"study amendment marks step {blocked['step']} entry "
+                f"{subject} amendment marks step {blocked['step']} entry "
                 f"{blocked['entry']} and exit {blocked['exit']}"
             ),
             "amendment_sha256": blocked["amendment_sha256"],
-            "study_sha256": blocked["study_sha256"],
+            f"{subject}_sha256": blocked.get(f"{subject}_sha256"),
             "recovery": (
                 "inspect the amendment, halt the run, or use a separately "
                 "specified runbook-repair transition"
@@ -3855,7 +6938,11 @@ def _next_directive(state: dict) -> dict:
         rounds = step["audit"]["rounds"]
         max_rounds = max_rounds_of(state)
         lints_owed = not solidity_round(state)
-        owed = {"elenchus_verdict": elenchus_verdict_obligation()}
+        owed = {
+            "audit_filter": audit_filter_obligation(),
+            "elenchus_verdict": elenchus_verdict_obligation(),
+            "log_path": configured_audit_log(state),
+        }
         if lints_owed:
             owed["lints"] = [f"--{lint}-exit" for lint in LINTS]
         if not rounds:
@@ -3893,19 +6980,30 @@ def clean(text: str) -> str:
 
 def cmd_status(args) -> None:
     state = load_state(args.dir)
+    for name in ("study", "runbook"):
+        receipt = as_dict(as_dict(state.get("receipts")).get(name))
+        if receipt.get("sha256") is None:
+            continue
+        source = receipted_source(args.dir, state, name)
+        if name == "runbook":
+            _receipted_runbook_amendments(source)
     if args.json:
-        print(json.dumps(state, indent=2))
+        payload = dict(state)
+        payload["observation_run_id"] = controller_run_id(state)
+        print(json.dumps(payload, indent=2))
         return
     print(f"topic: {clean(state['topic'])}")
     print(f"base:  {state['base']}")
     if state.get("run_branch"):
         print(f"run:   {state['run_branch']} -> {state['base']}")
+    print(f"observe: {controller_run_id(state)}")
     if state.get("halted"):
         print(f"HALTED: {state['halted']['reason']}")
     blocked = amendment_block(state)
     if blocked is not None:
         print(
-            f"BLOCKED: study amendment marks step {blocked['step']} "
+            f"BLOCKED: {blocked.get('subject', 'study')} amendment marks "
+            f"step {blocked['step']} "
             f"entry {blocked['entry']} and exit {blocked['exit']}"
         )
     phase = state["phase"]
@@ -3917,6 +7015,27 @@ def cmd_status(args) -> None:
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
         )
+        # Reported rather than refused. `status` is what somebody runs to find
+        # out what is wrong, so an unreadable remote answers "unknown" here and
+        # refuses at the receipt, where a wrong answer would be acted on.
+        movement = unreceipted_run_branch_movement(args.dir, state)
+        if movement is not None:
+            print(f"STACK: {describe_run_branch_movement(movement)}")
+        sync = as_dict(as_dict(state.get("integrate")).get("sync"))
+        product = as_dict(sync.get("product_evidence"))
+        revalidation = as_dict(sync.get("revalidation"))
+        if product:
+            print(
+                "evidence: product "
+                f"{str(product.get('head', ''))[:12]} preserved; "
+                f"{len(revalidation.get('checks') or [])} integration "
+                "revalidation check(s) recorded"
+            )
+            superseded = as_dict(state.get("integrate")).get(
+                "superseded_syncs"
+            ) or []
+            if superseded:
+                print(f"evidence: {len(superseded)} superseded sync(s) retained")
     elif phase == "done":
         print(f"phase: done ({len(state['steps'])} steps shipped)")
     else:
@@ -3995,6 +7114,10 @@ def verify_run(base_dir: str, *, allow_pending_amendment: bool = False) -> int:
     study_receipt = as_dict(as_dict(state.get("receipts")).get("study"))
     if study_receipt.get("sha256") is not None:
         receipted_source(base_dir, state, "study")
+    runbook_receipt = as_dict(as_dict(state.get("receipts")).get("runbook"))
+    if runbook_receipt.get("sha256") is not None:
+        runbook = receipted_source(base_dir, state, "runbook")
+        _receipted_runbook_amendments(runbook)
     if state["phase"] == "integrate":
         merged = as_dict(state.get("integrate")).get("merged") or []
         expected = [s["n"] for s in state["steps"][: len(merged)]]
@@ -4012,6 +7135,18 @@ def verify_run(base_dir: str, *, allow_pending_amendment: bool = False) -> int:
 
 def cmd_verify(args) -> None:
     count = verify_run(args.dir)
+    if args.observations:
+        state = load_state(args.dir)
+        observation_count, tail_bytes = verify_observation_bindings(args.dir, state)
+        suffix = (
+            f"; unbound tail: {tail_bytes} bytes" if tail_bytes else ""
+        )
+        noun = "prefix" if observation_count == 1 else "prefixes"
+        print(
+            f"ok: {count} ledger entries, chain intact, state consistent; "
+            f"{observation_count} observation {noun} verified{suffix}"
+        )
+        return
     print(f"ok: {count} ledger entries, chain intact, state consistent")
 
 
@@ -4102,11 +7237,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="EVOLUTION.md this run is meant to advance; the terminal receipt "
              "then refuses until it carries exactly one new valid row",
     )
+    sp.add_argument(
+        "--controller-currency-waiver",
+        dest="controller_currency_waiver",
+        metavar="REASON",
+        help="proceed on a behind controller verdict, recording this reason "
+             "in the run's evidence",
+    )
     sp.set_defaults(fn=cmd_init)
 
     sp = sub.add_parser("status", help="show run state")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=cmd_status)
+
+    sp = sub.add_parser(
+        "currency",
+        help="report pin-versus-upstream currency for installed plugins",
+    )
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=cmd_currency)
 
     sp = sub.add_parser("next", help="emit the single next action as JSON")
     sp.set_defaults(fn=cmd_next)
@@ -4116,11 +7265,34 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("value")
     sp.set_defaults(fn=cmd_record)
 
+    sp = sub.add_parser(
+        "observe",
+        help="bind one companion observation prefix or unavailable capture state",
+    )
+    sp.add_argument("--artifact")
+    sp.add_argument(
+        "--capture-status",
+        required=True,
+        choices=OBSERVATION_CAPTURE_STATUSES,
+    )
+    sp.add_argument(
+        "--redaction-status",
+        required=True,
+        choices=OBSERVATION_REDACTION_STATUSES,
+    )
+    sp.add_argument("--reason-code")
+    sp.set_defaults(fn=cmd_observe)
+
     sp = sub.add_parser("amend", help="receipt a bounded mid-run amendment")
     amend = sp.add_subparsers(dest="amend_subject", required=True)
     study = amend.add_parser("study", help="receipt one append-only study amendment")
     study.add_argument("--artifact", required=True)
     study.set_defaults(fn=cmd_amend_study)
+    runbook = amend.add_parser(
+        "runbook", help="receipt one append-only runbook amendment"
+    )
+    runbook.add_argument("--artifact", required=True)
+    runbook.set_defaults(fn=cmd_amend_runbook)
 
     sp = sub.add_parser("config", help="get or set a config value")
     sp.add_argument("action", choices=["get", "set"])
@@ -4136,6 +7308,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--branch")
     sp.add_argument("--commit")
     sp.add_argument("--base-commit", dest="base_commit")
+    sp.add_argument("--revalidation")
+    sp.add_argument("--supersede-sync", dest="supersede_sync")
     sp.add_argument("--tests")
     sp.add_argument("--no-further-leads", dest="no_further_leads", action="store_true")
     sp.add_argument("--reason")
@@ -4153,6 +7327,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("audit-round", help="record one security round")
     sp.add_argument("--findings", type=int, required=True)
     sp.add_argument("--log")
+    sp.add_argument("--audit-filter", dest="audit_filter")
     sp.add_argument("--fixes-commit", dest="fixes_commit")
     sp.add_argument(
         "--elenchus-verdict",
@@ -4182,6 +7357,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(fn=cmd_reset)
 
     sp = sub.add_parser("verify", help="check ledger chain and state consistency")
+    sp.add_argument(
+        "--observations",
+        action="store_true",
+        help="also recompute every selected companion observation prefix",
+    )
     sp.set_defaults(fn=cmd_verify)
 
     return p

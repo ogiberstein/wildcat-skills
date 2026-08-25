@@ -265,7 +265,7 @@ class AuditPrefixIntegrityTests(unittest.TestCase):
         self.assertEqual(self.fixture["schema"], "fiat-audit-prefixes/v1")
         self.assertEqual(
             self.fixture["starting_ref"],
-            "ced4e6f439021b7509833ed5da66348c86d22f01",
+            "c4650f02a979e859ce36374779eac9cd70744288",
         )
         self.assertEqual(
             tuple(item["path"] for item in self.fixture["prefixes"]),

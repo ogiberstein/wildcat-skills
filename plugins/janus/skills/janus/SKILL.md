@@ -25,10 +25,15 @@ after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Janus tests a contract hook at the threshold it controls: what can happen before the host action, what can happen after it, and what the hook must never change.
+Janus checks a contract hook at the host threshold it crosses: the observations and changes the host permits before and after the action, plus the state it must never touch.
 
 **Current frontier.** Janus ships the Wildcat v2.5 host adapter and its seven gates against modeled hooks, and no second host adapter yet shows the manifest format holds for another callback model.
 <!-- marketplace-context:end -->
+
+Pandects supplies economic laws when the host transition needs them. Hermes
+measures gas changes, and the Pashov suite audits the contracts. Janus
+alone owns the declared hook-effect boundary. Conformance to one manifest is
+not a whole-protocol security verdict.
 
 Janus is named for the Roman god of gates and passages, shown looking in both
 directions. A hook sits on exactly that boundary and inspects or alters an

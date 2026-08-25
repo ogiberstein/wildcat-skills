@@ -12,7 +12,7 @@ description: >-
   and do not use it to record a decision after the fact, which belongs to
   hypomnema.
 metadata:
-  version: "4.6.0"
+  version: "4.7.0"
 ---
 
 # Protasis
@@ -26,14 +26,17 @@ Protasis owns the content contract for the `study` and `runbook` phases: what
 those two documents must answer before implementation is allowed to start. It
 owns no state, writes no receipt and gates nothing itself.
 
-Serves the `study` and `runbook` phases.
+Surveyor may write the study packet, while Fiat keeps the artefact paths and
+receipt commands. Mason and Warden later receive the exact source-bound
+runbook step. Phylax, Ephoros, Metron, Elenchus, and Hypomnema answer the five
+discipline questions Protasis requires; Protasis cites their contracts rather
+than copying them. A decision made after the study belongs to Hypomnema's
+recording rules.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
 
-Fiat's study and runbook phases run under this contract. Fiat keeps the
-artefact paths and receipt commands; this skill says what the artefacts must
-contain. Nothing else carries these rules.
+**Current state.** The amendment contract fixes a dated block with four fields for a mid-run change, and no study exercises it yet: nothing enumerates whether an appended amendment carries its date or its fields, so the first live use is checked only by the person who writes it.
 
 ## Refuse these four
 
@@ -101,15 +104,17 @@ are happy.
    is written down. Carry each item forward as content here, as a stated
    non-goal, or as a named reason it stays open. Read the audit records of
    every in-scope skill the same way, before design options are drawn: the
-   audit file at the target's `config audit.log_path`, default
-   `audit/AUDIT.md`, holds what each round found, what was fixed, and the
-   leads accepted with the reason nobody pursued them. A study that cannot
-   find the real reason for a decision supplies a plausible one, and the
-   plausible one then governs the build: a rejected option gets rejected for
-   the wrong cause, an accepted risk gets quietly reopened, and the round
-   that already judged the question reads afterwards as though it never
-   happened. Found in the study it costs a sentence; found in step four it
-   costs the step.
+   run's audit file, at its `config audit.log_path`, holds what each round
+   found, what was fixed, and the leads accepted with the reason nobody
+   pursued them. Fiat derives one such file per run under `audit/rounds/`,
+   so the records of several runs are several files; a target that kept a
+   shared log before that change has the rest of its history in
+   `audit/AUDIT.md`. A study that cannot find the real reason for a
+   decision supplies a plausible one, and the plausible one then governs
+   the build: a rejected option gets rejected for the wrong cause, an
+   accepted risk gets quietly reopened, and the round that already judged
+   the question reads afterwards as though it never happened. Found in the
+   study it costs a sentence; found in step four it costs the step.
 3. **Constraints and non-goals.** The starting ref, toolchain and version pins,
    what the user ruled out, what is deferred past the prototype.
 4. **Design options.** Two to four candidate constructions, each with the trade
@@ -269,7 +274,10 @@ silence and a bare none on items 8 through 12, and reads item 5's
 risk-register block against the shape above: S005 when no block names a
 concern, S006 when a line does not split into the three pipe-separated
 fields, S007 when a field is malformed. The runbook mode reads the step
-schema above. Codes P000 to P004 and S000 to S007 are stable interfaces other
+schema above, ends the last baseline step before a real amendment heading and
+reports P005 when a runbook amendment does not carry the dated four-field
+shape and complete replacement clauses below. Codes P000 to P005 and S000 to
+S007 are stable interfaces other
 tools cite. Deliberate exceptions state a reason:
 `<!-- protasis: allow <why> -->` on the heading line or the line above it.
 Presence and shape are all the parser settles; whether an answer is any good
@@ -302,6 +310,30 @@ from the amended study, or re-specify the step, before building on it. The
 decision that forced the change is recorded where
 [hypomnema](../hypomnema/SKILL.md)'s rules put it, and the amendment points at
 that record rather than restating it.
+
+A receipted runbook is amended by appending the same dated block, never by
+editing or repeating a numbered step. Its `What changed` value is one or more
+clauses with this exact shape:
+
+```text
+Complete replacement Exit: <the full replacement field, including its command>
+```
+
+Each clause names one of `Goal`, `Entry`, `Exit`, `Files`, `Tests` or
+`Disciplines`, occurs once, and restates that entire field. More than one
+changed field is written as more than one `Complete replacement <Field>:`
+clause. The other three amendment fields remain `Why`, `Steps touched` and
+`Still holding`, in that order. Replacement prose is still an operator claim:
+the mechanical check establishes its shape and source bytes, not that the new
+criterion is correct or its command will pass.
+
+The runbook checker treats the first real `### Amendment -- YYYY-MM-DD`
+heading as the end of the last baseline step, so amendment fields cannot answer
+for a missing step field. It checks each real amendment's calendar date, four
+ordered non-empty fields, final-section placement and complete-replacement
+syntax. Fenced examples are not amendments. Fiat owns exact-prefix continuity,
+step topology, touched-step verdicts, receipts, recovery and the current-study
+binding; Protasis does not duplicate those controller gates.
 
 ## Rationalisations
 

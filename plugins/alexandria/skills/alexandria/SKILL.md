@@ -24,16 +24,18 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend.
+Alexandria preserves heterogeneous lending captures byte for byte, then exposes only the source-bound credit view a reviewed mapping can defend.
 
 **Current frontier.** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 <!-- marketplace-context:end -->
 
 Alexandria is the archive and catalogue behind durable lending-protocol
-research. Raw captures remain unchanged. Small manifests describe what was
-captured, what was missed and which digest names each object. Tabularium owns
-the interpretation of the narrow credit view, and Probitas consumes that view
-without treating Alexandria as a lending venue.
+research. Raw captures remain unchanged. Tabularium owns their interpretation
+as venue-qualified credit events, and Probitas may consume those events in a
+dossier. Ariadne may bind a finished release to its evidence. Lazarus is the
+neighbouring specialist for the finite historical Ethereum state and exact RPC
+traffic one application test needs; it does not replace Alexandria's dataset
+boundary.
 
 `$SKILL_DIR` is the directory holding this file. The command lives at
 `$SKILL_DIR/../../scripts/alexandria.py`; resolve it from where you loaded this

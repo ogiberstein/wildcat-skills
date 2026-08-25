@@ -40,14 +40,14 @@ DELIVERY_PACKAGE_VERSIONS = {
     "berean": "0.1.1",
     "brevitas": "0.2.1",
     "hermes": "0.1.1",
-    "hexaemeron": "1.5.6",
+    "hexaemeron": "1.6.0",
     "horos": "0.1.1",
     "janus": "0.1.1",
     "lazarus": "1.1.1",
     "lemma": "0.1.2",
     "pandects": "0.1.1",
     "probitas": "0.1.1",
-    "sapheneia": "0.1.1",
+    "sapheneia": "0.1.2",
     "tabularium": "0.3.1",
 }
 
@@ -137,6 +137,36 @@ class PluginVersionPropagationTests(unittest.TestCase):
             {
                 "agents_marketplace": agents_entry["version"],
                 "claude_marketplace": self.marketplace["hexaemeron"],
+                "claude_manifest": manifest_version(
+                    directory / ".claude-plugin" / "plugin.json"
+                ),
+                "codex_manifest": manifest_version(
+                    directory / ".codex-plugin" / "plugin.json"
+                ),
+            },
+            {
+                "agents_marketplace": expected,
+                "claude_marketplace": expected,
+                "claude_manifest": expected,
+                "codex_manifest": expected,
+            },
+        )
+
+    def test_sapheneia_version_reaches_both_marketplaces(self):
+        expected = DELIVERY_PACKAGE_VERSIONS["sapheneia"]
+        agents = json.loads(
+            (ROOT / ".agents" / "plugins" / "marketplace.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        agents_entry = next(
+            entry for entry in agents["plugins"] if entry["name"] == "sapheneia"
+        )
+        directory = PLUGINS / "sapheneia"
+        self.assertEqual(
+            {
+                "agents_marketplace": agents_entry["version"],
+                "claude_marketplace": self.marketplace["sapheneia"],
                 "claude_manifest": manifest_version(
                     directory / ".claude-plugin" / "plugin.json"
                 ),
