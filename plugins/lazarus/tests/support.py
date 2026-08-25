@@ -266,6 +266,15 @@ def synthetic_fixture_material():
     }
 
 
+def anchored_fixture_material(source_ids=("archive-a", "archive-b")):
+    material = synthetic_fixture_material()
+    material["plan"]["schema_version"] = 2
+    material["plan"]["anchor_sources"] = [
+        {"source_id": source_id} for source_id in source_ids
+    ]
+    return material
+
+
 def sample_proof_record():
     return {
         "schema_version": 1,
