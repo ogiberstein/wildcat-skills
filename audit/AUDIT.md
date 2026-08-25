@@ -13347,3 +13347,82 @@ proof is the same and the tree is where it started, but the method is not the on
 the step named.
 
 Leads not pursued: none.
+
+## Step 1, round 1 -- 2026-08-24
+
+Zero findings.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+The audited range is
+`08512d4ada7b1d7418e1af213be0d4b8c1494b6d..da5069195737aa17ece2ba9ebc448b6072b951cf`
+on `fiat/controller-currency-guarantee-step-1-publish-the-accepted-controller`.
+One commit; its parent is the run branch tip and the study's stated starting
+ref. It adds only `docs/fiat-controller-currency-study.md` and
+`docs/fiat-controller-currency-runbook.md`, both regular non-executable
+files. Both are byte-identical to their receipted sources: `cmp` against
+`.hexaemeron/study.md` and `.hexaemeron/runbook.md` exits 0 for each, the
+study SHA-256 is
+`ebc957fd8570d36f39b2e1597d09f61369498c390b9f4ef7a2158d7ed764cbee`, and the
+runbook SHA-256 is
+`964e52909a0e91951069d6d0e83032b5e04e6baa853b2544747604912ad46a7c`. The
+runbook's embedded source receipt quotes that same study digest, starting
+ref, and run branch. The study's five relative links resolve from `docs/` to
+the elenchus, ephoros, hypomnema, metron, and phylax `SKILL.md` files, and
+the runbook carries no relative link. Step 1's Files field permits
+`audit/AUDIT.md` solely for append-only Warden round records, so this append
+stays inside the implementation boundary.
+
+The three bundled lints exit 0: Phylax and Ephoros over `plugins` and
+`tests`, Hypomnema over `README.md AGENTS.md .agents plugins docs`. Protasis
+exits 0 on the study in `--study` mode and on the runbook. Imprimatur exits 0
+on each, score 100.0/100 with zero defects; its runbook output lists only
+known-false-positive and cadence signals. Horos reports `boundary matches the
+tree`, so the untouched `.horos/boundary.json` is correct. `git diff --check`
+over the range exits 0. The root suite passes 349/349 and the Hexaemeron
+suite passes 1019/1019, each at exit 0. The security suite stays waived: no
+Solidity in scope, and this range is Markdown only. The commit has a good
+local Shoggoth signature and exactly one
+`Co-authored-by: Shoggoth <shoggoth@wildcat.finance>` trailer and one
+`Wildcat-Origin: shoggoth` trailer. No Elenchus repair report was created and
+no Elenchus verdict applies to this zero-finding round.
+
+Two of the study's internal citations were spot-checked: `audit/AUDIT.md`
+line 11977 carries the `controller_version` lead driving installed
+`fiat-v5.14.1` against repository `fiat-v5.15.1`, as the study quotes it, and
+`I320-S3-R2-01` exists as the `ls-remote` parsing record.
+
+Eight register ids are not reachable in this docs-only range and remain owed
+to their steps: `upstream-read-surface`, `url-source-confusion`,
+`registry-hostile-input`, `route-misdetection`, and `state-compat` sit in
+step 2's controller work; `repin-partiality` sits in step 3;
+`ledger-arithmetic` and `version-propagation` sit in step 4. This round makes
+no claim about their implementation. The other four are reachable at
+specification level and were reviewed. `verdict-honesty`: both documents keep
+`behind` and `unknown` distinct at every occurrence -- the study's option B,
+glossary, and fail-closed section, and the runbook's step 2 exit conditions 1
+and 4. `waiver-visibility`: the flag, the recorded reason, and the runbook's
+empty-reason refusal agree across both documents. `secret-echo`: neither
+document carries a credentialed URL, raw child output, or registry bytes, and
+the only remote URL quoted is the public marketplace origin.
+`bootstrap-limit`: the study states the gate governs runs after the next
+re-pin, and the runbook's step 4 exit condition 1 binds `plugin-currency.md`
+to state both limits. The implementations of all four remain owed where the
+runbook places them.
+
+Qualification: this round establishes publication fidelity and tree health,
+not step 2 to 4 behaviour, remote signature verification, push, pull request,
+or integration state.
+
+The Sapheneia durable-record comparison preserved the heading, the empty
+finding table, the zero count, the date, every identifier, path, digest,
+exit code, suite count, and quoted token, all twelve register dispositions,
+the qualification, and the lead disposition item by item. It changes no
+existing audit byte.
+
+Leads not pursued: the study's three external links (issue 363, pull requests
+583 and 585) were not fetched, and its 2026-08-24 host-state measurements
+under `~/.claude/plugins` describe a host outside the tracked tree and were
+not re-measured; both stand as receipted study claims. No other lead was
+found.
