@@ -2998,7 +2998,7 @@
         "transition": "verified replay binding joined to the canonical Authorises field",
         "unknowns": "uncaptured requests and recorded-only RPC relations"
       },
-      "sha256": "c10e21227744347d0fc8887e908a8591171b10d1ff7b8b101ee4007d3b20f2e5",
+      "sha256": "9069da793bde12666d89716202dbe42e9cbc704de350ea316515634f4728f8fc",
       "source": "plugins/lazarus/scripts/lazarus.py"
     },
     "lazarus-fixture-capture": {

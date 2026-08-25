@@ -36,3 +36,45 @@ verification, exact plan-to-record coverage, and anchored release compatibility
 are not reachable in this format-only step. Step 1 refuses plan-v2 capture;
 Steps 2 and 3 own those transitions. These remain required risk-register
 checks, not accepted risks.
+
+## Step 2, round 1 -- 2026-08-25
+
+Non-Solidity round over implementation range
+`5529225625e407d93563c67729206d2e0f260518..1a49a3c6cf865641e2a0abdad3a05d7de0623fb8`
+on `fiat/386-record-a-structured-multi-provider-chain-anc-step-2-verify-anchor-records-offline`.
+Security receipt: `waived: issue 386 changes Lazarus Python, JSON schemas, tests, and documentation; no Solidity or Pashov security-suite target applies`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+
+### Review
+
+Zero findings. The review covered all 10 changed paths against Step 2 at
+effective SHA-256
+`6c3ee49bbf158ff32148cc6c4be5c188605f400bc1f1b45a9593feda2b39531c`
+and the risk register in `.hexaemeron/study.md` at SHA-256
+`f16d14e2182f872d95e56b4485218a264286a845f80b2857960dcd32c14442fd`.
+After manifest verification, `anchors.jsonl` receives one digest-bound semantic
+reread through `_read_bound`; `read_confined_bytes` supplies no-follow, size,
+and stable-file controls. Schema and record checks refuse malformed, duplicate,
+or reordered records. Plan and record source sets must match exactly, and chain,
+height, or verified-header disagreements fail closed. The report adds only
+`chain_anchors: {records: N, canonical_chain_claim: false, provider_independence_claim: false}`;
+`proof_backed`, `header_bound`, and `recorded_rpc` stay unchanged. Release-v1
+and the Ariadne-facing binding keep their structure while their component
+inventory binds `anchors.jsonl`.
+
+### Verification
+
+The focused set reports 217/217. The Lazarus suite and source-owned structured
+runner each report 399/399. The root suite reports 350/350, and its 1,258-case
+inoculation reports 0 crashes and 0 unexpected clean results. Goldfinch verifies
+at fixture digest
+`d93cd09fcb2c6bd689a223398ebd4ae4dc480ec7d8fd8e64283b88341d0a7e49`;
+the preservation-release demonstration exits 0 with both refusals held.
+Phylax, Ephoros, Hypomnema, and `git diff --check` each exit 0.
+
+Leads not pursued: runtime provider-secret handling, live provider identity,
+shared network and resource budgets, and atomic multi-provider finalisation are
+not reachable in this offline verification step. Step 3 owns those controls;
+they remain required risk-register checks, not accepted risks.

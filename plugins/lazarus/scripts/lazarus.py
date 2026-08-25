@@ -182,6 +182,7 @@ def run(argv: list[str] | None = None) -> int:
     print(f"proof-backed: {report['evidence_counts']['proof_backed']}")
     print(f"header-bound: {report['evidence_counts']['header_bound']}")
     print(f"recorded-rpc: {report['evidence_counts']['recorded_rpc']}")
+    print(f"chain-anchor-records: {report['chain_anchors']['records']}")
     return 0
 
 
