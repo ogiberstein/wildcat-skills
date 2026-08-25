@@ -76,3 +76,27 @@ Mechanical gates: focused shared-lexer and source-extraction suites 69/69; focus
 ### Leads not pursued
 
 Full parser-level validity for TypeScript and Solidity remains outside the declared comment-extraction boundary. TypeScript 5.9.2 and Solidity 0.8.30 were audit oracles, not repository dependencies. The bounded repair does not attempt a full parser.
+
+## Step 1, round 5 -- 2026-08-25
+
+Review basis: full fixed Step 1 diff `0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841..0d20abe905ecc3906237609367236d47e5491fb5`; Step 1 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R5-01 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | TypeScript 5.9.2 accepted `break`, `continue`, their labelled forms, and `debugger` when ASI ended them at CR, LF, LS, PS, or a comment-held line break. The scanner retained its division goal, so a following regular-expression body containing `/*...*/` became comment prose. | fixed in this round: explicit restricted-statement state restores the regular-expression goal only after the language-owned line break; member, property, expression-division, and comment controls guard state reset |
+| S1-R5-02 | medium | `plugins/hexaemeron/lib/typescript_lexer.py` | The same restricted-statement state prevented TSX element recognition after ASI. Raw JSX child `//` or `/*...*/` text then became source-comment prose. | fixed in this round: the completed restricted statement also admits the TSX element path; raw-child and JSX-expression controls guard the transition |
+| S1-R5-03 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | A generic-typed uninitialised variable or bodyless function ending in `>` finished before a following type alias, class, or bodyless function in accepted sequences. The old state cleared, but the `>` still made the next `class` or `function` look like an expression and prevented the next declaration boundary from restoring the regular-expression goal. Valid ordered declarations could expose `/*...*/` bytes from a later regular expression as prose. | fixed in this round: a local completed-declaration marker wins only when tracked declaration state ended; 324 ordered declaration pairs and a binary `>` plus class-expression division control guard both sides |
+
+### Negative review
+
+TypeScript 5.9.2 returned empty `parseDiagnostics` for 17/17 new restricted-statement, declaration-sequence, TSX, Unicode-terminator, and binary-expression controls. All 324/324 parser-valid ordered declaration pairs produced only their genuine trailing comment. Ten nearby statement, member, property, division, block, declaration, and TSX controls matched their expected comments. A 30,079-byte accumulated-state specimen yielded 201 comments and 0 errors after 200 declaration/expression clusters and one 64-region tail.
+
+Python probes retained true concatenated module and function docstrings, PEP 701 f-string comments, Unicode coordinates, CR and CRLF comments, and rejected later string expressions. Solidity probes kept NatSpec and ordinary comments, excluded ordinary, Unicode, and hex string contents, preserved the documented LF, VT, FF, and CR coordinates, and refused NEL, LS, and PS outside a comment or string. Multi-file failure still emitted no partial standard output. Markdown, `--include-code`, same-length masks, original coordinates, recursion refusal, the complete-span `lex()` API, and Imprimatur frontier and version invariants stayed unchanged.
+
+### Mechanical gates
+
+Mechanical gates: focused shared-lexer and source-extraction suites 73/73; focused Imprimatur 95/95; pinned Node v26.6.0 full Hexaemeron 1130/1130; evolution and version propagation 16/16; Promise Machine copies 14/14; root suite 350/350; root inoculation 1,258 cases, 0 crashes, 0 unexpected clean; Phylax 0; Ephoros 0; Hypomnema 0; changed-prose Imprimatur 0; Brevitas report and protected-source comparison 0; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
+
+### Leads not pursued
+
+Full parser-level TypeScript and Solidity validity remains outside the declared comment-extraction contract. TypeScript 5.9.2 was an audit oracle and is not a repository dependency. No full parser was added.

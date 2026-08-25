@@ -803,6 +803,7 @@ class _CommentScanner:
         variable_in_type = False
         variable_type_angle_depth = 0
         bracket_depth = 0
+        restricted_statement = None
         line_break_since_token = False
         while cursor < len(self.source):
             self._mark(cursor)
@@ -828,6 +829,11 @@ class _CommentScanner:
                 cursor = end + 2
                 continue
             char = self.source[cursor]
+            restricted_goal = (
+                restricted_statement is not None and line_break_since_token
+            )
+            if restricted_goal and not char.isspace():
+                restricted_statement = None
             pending_construct = pending_expression_body or pending_declaration_body
             if pending_construct is not None:
                 if char == "<" and (
@@ -893,7 +899,10 @@ class _CommentScanner:
             if (
                 self.tsx
                 and char == "<"
-                and previous in COMMENT_REGEX_ALLOWED_AFTER
+                and (
+                    previous in COMMENT_REGEX_ALLOWED_AFTER
+                    or restricted_goal
+                )
                 and self._jsx_prefix(cursor)
                 and not self._generic_arrow_start(cursor)
             ):
@@ -974,16 +983,19 @@ class _CommentScanner:
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
-            regex_goal = previous in COMMENT_REGEX_ALLOWED_AFTER or (
-                type_alias_state == 3 and line_break_since_token
-            ) or (
-                line_break_since_token
-                and not paren_contexts
-                and (
-                    module_declaration
-                    in {"import_complete", "export_complete"}
-                    or variable_declaration == "uninitialized"
-                    or pending_declaration_body == "function"
+            regex_goal = (
+                previous in COMMENT_REGEX_ALLOWED_AFTER
+                or restricted_goal
+                or (type_alias_state == 3 and line_break_since_token)
+                or (
+                    line_break_since_token
+                    and not paren_contexts
+                    and (
+                        module_declaration
+                        in {"import_complete", "export_complete"}
+                        or variable_declaration == "uninitialized"
+                        or pending_declaration_body == "function"
+                    )
                 )
             )
             if char == "/" and regex_goal:
@@ -1006,6 +1018,7 @@ class _CommentScanner:
                 while end < len(self.source) and self.source[end] in WORD_CHARS:
                     end += 1
                 token = self.source[cursor:end]
+                declaration_boundary = False
                 if (
                     type_alias_state == 3
                     and line_break_since_token
@@ -1013,6 +1026,7 @@ class _CommentScanner:
                     and token not in TYPE_CONTINUATION_WORDS
                 ):
                     type_alias_state = 0
+                    declaration_boundary = True
                 if (
                     variable_declaration == "uninitialized"
                     and line_break_since_token
@@ -1022,18 +1036,21 @@ class _CommentScanner:
                     variable_declaration = None
                     variable_in_type = False
                     variable_type_angle_depth = 0
+                    declaration_boundary = True
                 if (
                     module_declaration == "import_complete"
                     and line_break_since_token
                     and token not in {"assert", "with"}
                 ):
                     module_declaration = None
+                    declaration_boundary = True
                 if (
                     module_declaration == "export_complete"
                     and line_break_since_token
                     and token not in {"assert", "with"}
                 ):
                     module_declaration = None
+                    declaration_boundary = True
                 if (
                     pending_declaration_body is not None
                     and line_break_since_token
@@ -1045,12 +1062,14 @@ class _CommentScanner:
                     pending_declaration_body = None
                     pending_body_angle_depth = 0
                     pending_function_return_type = False
+                    declaration_boundary = True
                 type_alias_start = (
                     token == "type"
                     and not object_context
                     and not member_context
                     and (
-                        previous
+                        declaration_boundary
+                        or previous
                         in {"", ";", "}", "declaration", "export", "declare"}
                         or (
                             line_break_since_token
@@ -1093,22 +1112,27 @@ class _CommentScanner:
                 elif type_alias_start:
                     type_alias_state = 1
                 statement_start = (
-                    previous in {"", ";", "}", "declaration"}
+                    declaration_boundary
+                    or previous in {"", ";", "}", "declaration"}
                     or previous in DECLARATION_PREFIX_TOKENS
                     or (
                         line_break_since_token
                         and previous not in TYPE_CONTINUATION_BEFORE
                     )
                 )
-                expression_construct = token in {"class", "function"} and (
-                    (
-                        previous in EXPRESSION_BRACE_AFTER
-                        and previous != "default"
-                    )
-                    or (
-                        previous == "async"
-                        and before_previous in EXPRESSION_BRACE_AFTER
-                        and before_previous != "default"
+                expression_construct = (
+                    token in {"class", "function"}
+                    and not declaration_boundary
+                    and (
+                        (
+                            previous in EXPRESSION_BRACE_AFTER
+                            and previous != "default"
+                        )
+                        or (
+                            previous == "async"
+                            and before_previous in EXPRESSION_BRACE_AFTER
+                            and before_previous != "default"
+                        )
                     )
                 )
                 if expression_construct:
@@ -1172,6 +1196,24 @@ class _CommentScanner:
                     variable_type_angle_depth = 0
                     type_alias_state = 0
                     module_declaration = None
+                if restricted_statement == "labelable":
+                    restricted_statement = "complete"
+                elif restricted_statement is not None:
+                    restricted_statement = None
+                if (
+                    token in {"break", "continue"}
+                    and not object_context
+                    and not member_context
+                    and previous != "."
+                ):
+                    restricted_statement = "labelable"
+                elif (
+                    token == "debugger"
+                    and not object_context
+                    and not member_context
+                    and previous != "."
+                ):
+                    restricted_statement = "complete"
                 before_previous = previous
                 previous = token
                 colon_starts_expression = False
@@ -1191,6 +1233,7 @@ class _CommentScanner:
                     pending_declaration_body = None
                     pending_body_angle_depth = 0
                     pending_function_return_type = False
+                    restricted_statement = None
                 elif char == "=" and not self.source.startswith(
                     ("=>", "=="), cursor
                 ):

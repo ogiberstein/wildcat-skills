@@ -415,6 +415,99 @@ class TypeScriptLexerTests(unittest.TestCase):
                     comments(source, tsx=tsx),
                 )
 
+    def test_restricted_statement_asi_restores_regex_and_jsx_goals(self):
+        cases = {
+            "break": (
+                "while (ok) { break\n/[/*]literal[*/]/.test(value); } "
+                "// trailing\n",
+                ["// trailing"],
+                False,
+            ),
+            "continue": (
+                "while (ok) { continue\n/[/*]literal[*/]/.test(value); } "
+                "// trailing\n",
+                ["// trailing"],
+                False,
+            ),
+            "labelled break": (
+                "outer: while (ok) { break /* label trivia */ outer\n"
+                "/[/*]literal[*/]/.test(value); } // trailing\n",
+                ["/* label trivia */", "// trailing"],
+                False,
+            ),
+            "labelled continue": (
+                "outer: while (ok) { continue outer\n"
+                "/[/*]literal[*/]/.test(value); } // trailing\n",
+                ["// trailing"],
+                False,
+            ),
+            "debugger with block-comment line break": (
+                "while (ok) { debugger /* retained\ntrivia */ "
+                "/[/*]literal[*/]/.test(value); } // trailing\n",
+                ["/* retained\ntrivia */", "// trailing"],
+                False,
+            ),
+            "TSX after break": (
+                "while (ok) { break\n<p>// raw child text</p>; } "
+                "// trailing\n",
+                ["// trailing"],
+                True,
+            ),
+        }
+        for label, (source, expected, tsx) in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(expected, comments(source, tsx=tsx))
+
+        for terminator in ("\r", "\r\n", "\u2028", "\u2029"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    "while (ok) { break"
+                    + terminator
+                    + "/[/*]literal[*/]/.test(value); } // trailing"
+                )
+                self.assertEqual(["// trailing"], comments(source))
+
+    def test_declaration_boundaries_survive_several_statement_transitions(self):
+        cases = {
+            "generic ambient then alias": (
+                "declare const item: Map<string, Array<number>>\n"
+                "type Alias = string\n"
+            ),
+            "generic ambient then overload": (
+                "declare const item: Map<string, Array<number>>\n"
+                "function read<T>(value: T): T\n"
+            ),
+            "generic ambient then class": (
+                "declare const item: Map<string, Array<number>>\n"
+                "class Example {}\n"
+            ),
+            "generic overload then alias": (
+                "function read<T>(value: T): Map<string, Array<number>>\n"
+                "type Alias = string\n"
+            ),
+            "generic overload then class": (
+                "function read<T>(value: T): Map<string, Array<number>>\n"
+                "class Example {}\n"
+            ),
+        }
+        for tsx in (False, True):
+            for label, prefix in cases.items():
+                with self.subTest(tsx=tsx, label=label):
+                    source = (
+                        prefix
+                        + "/[/*]literal[*/]/.test(value); // trailing\n"
+                    )
+                    self.assertEqual(["// trailing"], comments(source, tsx=tsx))
+
+        binary_expression = (
+            "const result = left >\n"
+            "class Named {} / /* division comment */ 2; // trailing\n"
+        )
+        self.assertEqual(
+            ["/* division comment */", "// trailing"],
+            comments(binary_expression),
+        )
+
     def test_line_comments_end_at_every_ecmascript_line_terminator(self):
         for terminator in ("\r\n", "\r", "\u2028", "\u2029"):
             with self.subTest(terminator=ascii(terminator)):

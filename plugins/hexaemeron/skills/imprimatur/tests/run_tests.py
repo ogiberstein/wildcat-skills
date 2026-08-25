@@ -425,6 +425,104 @@ check(
     str([(hit["line"], hit["col"]) for hit in false_comment_hits]),
 )
 
+restricted_statement_sources = [
+    (
+        ".ts",
+        "while (ok) { break\n/[/*]Leverage[*/]/.test(value); } "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".tsx",
+        "outer: while (ok) { continue /* label trivia */ outer\n"
+        "/[/*]Leverage[*/]/.test(value); } "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".ts",
+        "while (ok) { debugger\n/[/*]Leverage[*/]/.test(value); } "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".tsx",
+        "while (ok) { break\n<p>// Leverage is raw child text</p>; } "
+        "// Leverage the actual helper.\n",
+    ),
+]
+restricted_statement_ok = True
+restricted_statement_detail = []
+for suffix, source in restricted_statement_sources:
+    try:
+        hits = [
+            hit
+            for hit in build(source, source_suffix=suffix)["hits"]
+            if hit["term"] == "leverage"
+        ]
+    except SourceExtractionError as exc:
+        restricted_statement_ok = False
+        restricted_statement_detail.append(f"{suffix}:{exc}")
+        continue
+    expected_offset = source.rindex("Leverage")
+    expected = (
+        source.count("\n", 0, expected_offset) + 1,
+        expected_offset - source.rfind("\n", 0, expected_offset),
+    )
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    restricted_statement_ok = restricted_statement_ok and positions == [expected]
+    restricted_statement_detail.append(f"{suffix}:{positions}")
+check(
+    "source/typescript restricted statements restore expression goal",
+    restricted_statement_ok,
+    "; ".join(restricted_statement_detail),
+)
+
+declaration_sequences = [
+    (
+        "declare const item: Map<string, Array<number>>\n"
+        "type Alias = string\n"
+        "function read<T>(value: T): T\n"
+    ),
+    (
+        "declare const item: Map<string, Array<number>>\n"
+        "class Example {}\n"
+    ),
+    (
+        "function read<T>(value: T): Map<string, Array<number>>\n"
+        "type Alias = string\n"
+    ),
+]
+declaration_sequence_ok = True
+declaration_sequence_detail = []
+for suffix in (".ts", ".tsx"):
+    for prefix in declaration_sequences:
+        source = (
+            prefix
+            + "/[/*]Leverage[*/]/.test(value); "
+            "// Leverage the actual helper.\n"
+        )
+        try:
+            hits = [
+                hit
+                for hit in build(source, source_suffix=suffix)["hits"]
+                if hit["term"] == "leverage"
+            ]
+        except SourceExtractionError as exc:
+            declaration_sequence_ok = False
+            declaration_sequence_detail.append(f"{suffix}:{exc}")
+            continue
+        expected_offset = source.rindex("Leverage")
+        expected = (
+            source.count("\n", 0, expected_offset) + 1,
+            expected_offset - source.rfind("\n", 0, expected_offset),
+        )
+        positions = [(hit["line"], hit["col"]) for hit in hits]
+        declaration_sequence_ok = declaration_sequence_ok and positions == [expected]
+        declaration_sequence_detail.append(f"{suffix}:{positions}")
+check(
+    "source/typescript declaration state survives sequences",
+    declaration_sequence_ok,
+    "; ".join(declaration_sequence_detail),
+)
+
 bodyless_function_sequence = (
     "declare function f(): void\n"
     "/[a]/.test(value);\n"

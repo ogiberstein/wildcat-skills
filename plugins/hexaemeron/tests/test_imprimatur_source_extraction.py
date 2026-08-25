@@ -344,6 +344,112 @@ class SourceExtractionTests(unittest.TestCase):
                     [(hit["line"], hit["col"]) for hit in hits],
                 )
 
+    def test_typescript_restricted_statement_asi_hides_regex_and_jsx_text(self):
+        cases = {
+            "break": (
+                "while (ok) { break\n/[/*]Leverage[*/]/.test(value); } "
+                "// Leverage the actual helper.\n",
+                ".ts",
+            ),
+            "continue label": (
+                "outer: while (ok) { continue /* label trivia */ outer\n"
+                "/[/*]Leverage[*/]/.test(value); } "
+                "// Leverage the actual helper.\n",
+                ".tsx",
+            ),
+            "debugger": (
+                "while (ok) { debugger\u2028/[/*]Leverage[*/]/.test(value); } "
+                "// Leverage the actual helper.\n",
+                ".ts",
+            ),
+            "TSX child text": (
+                "while (ok) { break\n<p>// Leverage is raw child text</p>; } "
+                "// Leverage the actual helper.\n",
+                ".tsx",
+            ),
+        }
+        for label, (source, suffix) in cases.items():
+            with self.subTest(label=label):
+                try:
+                    hits = term_hits(source, suffix)
+                except SourceExtractionError as exc:
+                    self.fail(
+                        "valid restricted-statement source was refused: "
+                        f"{exc}"
+                    )
+                expected = imprimatur_module.line_col(
+                    source,
+                    source.rindex("Leverage"),
+                    imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                )
+                self.assertEqual(
+                    [expected],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+        retained = (
+            "while (ok) { break /* Leverage the ASI note.\ncontinued */ "
+            "/[/*]Leverage[*/]/.test(value); } "
+            "// Leverage the actual helper.\n"
+        )
+        try:
+            hits = term_hits(retained, ".ts")
+        except SourceExtractionError as exc:
+            self.fail(f"valid ASI-comment source was refused: {exc}")
+        expected = [
+            imprimatur_module.line_col(
+                retained,
+                offset,
+                imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+            )
+            for offset in (
+                retained.index("Leverage"),
+                retained.rindex("Leverage"),
+            )
+        ]
+        self.assertEqual(expected, [(hit["line"], hit["col"]) for hit in hits])
+
+    def test_typescript_declaration_sequences_keep_later_regex_bytes_out(self):
+        prefixes = {
+            "ambient alias overload": (
+                "declare const item: Map<string, Array<number>>\n"
+                "type Alias = string\n"
+                "function read<T>(value: T): T\n"
+            ),
+            "ambient class": (
+                "declare const item: Map<string, Array<number>>\n"
+                "class Example {}\n"
+            ),
+            "overload alias": (
+                "function read<T>(value: T): Map<string, Array<number>>\n"
+                "type Alias = string\n"
+            ),
+        }
+        for suffix in (".ts", ".tsx"):
+            for label, prefix in prefixes.items():
+                with self.subTest(suffix=suffix, label=label):
+                    source = (
+                        prefix
+                        + "/[/*]Leverage[*/]/.test(value); "
+                        "// Leverage the actual helper.\n"
+                    )
+                    try:
+                        hits = term_hits(source, suffix)
+                    except SourceExtractionError as exc:
+                        self.fail(
+                            "valid declaration sequence was refused: "
+                            f"{exc}"
+                        )
+                    expected = imprimatur_module.line_col(
+                        source,
+                        source.rindex("Leverage"),
+                        imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                    )
+                    self.assertEqual(
+                        [expected],
+                        [(hit["line"], hit["col"]) for hit in hits],
+                    )
+
     def test_typescript_class_member_names_do_not_hide_comment_prose(self):
         source = (
             "class Outer {\n"
