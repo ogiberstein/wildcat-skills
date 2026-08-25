@@ -22,12 +22,17 @@ return to the named source before accepting the answer.
 ## Where this sits
 
 <!-- marketplace-context:start -->
-Berean pins the corpus, chain readings and evaluation record a protocol
-agent's answers rest on, so a release can be checked without the model that
-produced it.
+Berean pins the corpus, chain reads, recorded answers and evaluation needed to
+check a grounded protocol-agent release without rerunning its model.
 
 **Current frontier.** The reference release answers against a frozen demonstration corpus and preserved Goldfinch mainnet reads; no release yet cites live Wildcat documentation or a captured Wildcat market read, and no Ariadne statement binds a berean release.
 <!-- marketplace-context:end -->
+
+Lemma can prepare source-linked material for the pinned corpus, and Lazarus can
+preserve historical chain evidence. Berean owns neither operation: it checks
+the release assembled from those inputs, grades its recorded answers, and keeps
+promotion and rollback as records. Ariadne may bind the resulting release to
+its evidence after Berean has finished.
 
 ## Frontier
 

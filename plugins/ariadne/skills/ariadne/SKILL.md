@@ -24,7 +24,7 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
+Ariadne writes and checks the evidence statement that joins a released artefact digest to the work actually recorded behind it.
 
 **Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
@@ -34,6 +34,11 @@ by a URL and a promise: the compiler that produced the bytecode, the test run,
 the fuzz campaign, the audit and its scope, the deployment. Ariadne writes the
 join down as a statement whose subject is a digest, so a reader can check the
 binding without trusting whoever assembled it.
+
+Lazarus can supply a state-fixture release; Alexandria, Tabularium, or Berean
+can supply other release subjects and evidence. Ariadne binds and gates those
+exact inputs. It neither reruns a sibling's work nor upgrades its result, and
+signature creation and verification remain with cosign.
 
 `$SKILL_DIR` is the directory holding this file. The tool lives at
 `$SKILL_DIR/../../scripts/ariadne.py`; resolve it from where you loaded this

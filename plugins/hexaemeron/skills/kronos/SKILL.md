@@ -13,8 +13,19 @@ metadata:
 
 # Kronos
 
-Read [EVOLUTION.md](EVOLUTION.md). Kronos is terminal by design; that maturity
-blocks attempts to improve Kronos itself, not the frontier loop it controls.
+## Where this sits
+
+Kronos is the ranked loop around Fiat. It reads governed evolution ledgers,
+scores eligible held jobs, selects the highest unparked candidate, and either
+reports the ranking or dispatches that exact job to Fiat. Fiat owns every
+delivery transition after dispatch; Kronos never studies, implements, audits,
+rewrites, pushes, or merges the target itself.
+
+Read [EVOLUTION.md](EVOLUTION.md). Kronos is mature and terminal by design;
+that status blocks work intended to improve Kronos itself, not an explicitly
+authorised frontier loop over other skills.
+
+**Current state.** Kronos ranks eligible held Next Fiat jobs, selects the highest-value one, sets one durable goal, runs Fiat, and repeats until none remain.
 
 Named for the old knot between Kronos and Chronos: a sickle for taking the
 ripest frontier first, and a clock that keeps Fiat moving until the field is

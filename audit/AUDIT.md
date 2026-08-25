@@ -13348,6 +13348,19 @@ the step named.
 
 Leads not pursued: none.
 
+## Where the rounds after this one are
+
+Every run appended here, from a literal default in the Fiat controller. That put
+this file in `done sync-run`'s overlap set on every integration where anything
+else had merged, so a run that had only appended to it still owed a green check
+over it. `fiat-v5.22.1` derives `audit/rounds/<run branch with separators
+flattened>.md` at `init` instead, one record per run.
+
+This file keeps every round written before that change and takes no new ones.
+Nothing above this line was edited. The reasoning is in
+[ADR-025](../docs/decisions/ADR-025-give-each-fiat-run-its-own-audit-record.md),
+and Protasis item 2 tells a study to read both.
+
 ## Step 1, round 1 -- 2026-08-24
 
 Zero findings.

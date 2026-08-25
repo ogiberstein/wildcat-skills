@@ -90,7 +90,9 @@ DEFAULT_CONFIG = {
         "max_rounds": 8,
         "stacked_suffix": "--audit",
         "fold": False,
-        "log_path": "audit/AUDIT.md",
+        # No `log_path` here. A literal put every run's rounds in one file, so
+        # that file entered `sync-run`'s overlap set on every integration where
+        # anything else had merged. `init` derives the run's own path instead.
     },
     "git": {
         "base": "main",
@@ -1317,6 +1319,52 @@ def require_step_phase(state: dict, phase: str) -> dict:
     return step
 
 
+def configured_audit_log(state: dict) -> str:
+    """The one file this run's rounds append to, as its own config records it.
+
+    Read through here rather than off the dict, so the Warden packet, `next` and
+    the two receipts all refuse the same way when a run has no path to write to.
+    """
+    log = as_dict(as_dict(state.get("config")).get("audit")).get("log_path")
+    if not isinstance(log, str) or not log:
+        die(
+            "config audit.log_path is missing or is not a path; a round cannot "
+            "say where it wrote without one"
+        )
+    return log
+
+
+def same_audit_log(declared: str, configured: str) -> bool:
+    """Whether two spellings name one record.
+
+    `audit/rounds/x.md` and `./audit/rounds/x.md` are the same file, and a round
+    turned away over a leading `./` would be turned away for punctuation.
+    """
+    def flatten(value: str) -> str:
+        return os.path.normpath(value.replace("\\", "/"))
+
+    return flatten(declared) == flatten(configured)
+
+
+def check_declared_audit_log(state: dict, declared: str, label: str) -> str:
+    """Hold a declared log to the one the caller was told to write.
+
+    `--log` was a free string stored verbatim while the Warden packet named
+    `config audit.log_path`, so a receipt could record a file the round never
+    opened and nothing noticed. The declaration is checked here and the
+    configured path is what gets recorded, so the two cannot drift apart by
+    spelling either.
+    """
+    configured = configured_audit_log(state)
+    if not same_audit_log(declared, configured):
+        die(
+            f"--log names '{declared}', but {label} writes '{configured}' "
+            "(config audit.log_path); a receipt naming a file nothing opened "
+            "is worse than a receipt naming none"
+        )
+    return configured
+
+
 def max_rounds_of(state: dict) -> int:
     raw = state["config"]["audit"]["max_rounds"]
     try:
@@ -1483,6 +1531,7 @@ def cmd_init(args) -> None:
         "halted": None,
         "frontier": frontier,
     }
+    state["config"]["audit"]["log_path"] = run_audit_log_path(run_branch)
     state["worktree"] = worktree
     state["origin"] = origin_root
     init_data = {
@@ -2652,6 +2701,15 @@ def cmd_config(args) -> None:
             "config solidity takes %s; got %r"
             % (", ".join(json.dumps(m) for m in SOLIDITY_MODES), value)
         )
+    if args.path == "audit.log_path":
+        value = check_audit_log_path(args.dir, state, value)
+    elif args.path == "audit" and isinstance(value, dict) and "log_path" in value:
+        # Replacing the whole section reaches the same field. Without this the
+        # constraint is one `config set audit '{...}'` away from not existing,
+        # which is how the shared path would come back.
+        value["log_path"] = check_audit_log_path(
+            args.dir, state, value["log_path"]
+        )
     node[leaf] = value
     commit(args.dir, state, "config-set", {"path": args.path, "value": node[leaf]})
     print(f"set {args.path}")
@@ -2820,6 +2878,11 @@ def cmd_audit_round(args) -> None:
         )
     if args.elenchus_verdict is not None and not args.fixes_commit:
         die("--elenchus-verdict requires --fixes-commit")
+    recorded_log = (
+        check_declared_audit_log(state, args.log, "this round")
+        if args.log is not None
+        else configured_audit_log(state)
+    )
 
     exits = {lint: getattr(args, f"{lint}_exit", None) for lint in LINTS}
     for lint, value in exits.items():
@@ -2861,7 +2924,7 @@ def cmd_audit_round(args) -> None:
     entry = {
         "round": len(rounds) + 1,
         "findings": args.findings,
-        "log": args.log,
+        "log": recorded_log,
         "audit_filter": args.audit_filter,
         "fixes_commit": args.fixes_commit,
         "elenchus_verdict": args.elenchus_verdict,
@@ -2900,6 +2963,16 @@ def done_audit(args, state: dict) -> None:
         )
     if args.no_further_leads and not args.reason:
         die("--no-further-leads requires --reason")
+    if args.log is not None:
+        closing_log = check_declared_audit_log(
+            state, args.log, "this step's audit"
+        )
+    else:
+        # A round recorded before this check keeps the value it holds; nothing
+        # rewrites a receipt that is already on the ledger. Config is read only
+        # when there is nothing recorded to keep, so a closure that needs
+        # nothing from it is not refused by it.
+        closing_log = last.get("log") or configured_audit_log(state)
     had_findings = any(r["findings"] > 0 for r in rounds)
     fixes_ref = args.fixes_ref or next(
         (r["fixes_commit"] for r in reversed(rounds) if r.get("fixes_commit")), None
@@ -2927,7 +3000,7 @@ def done_audit(args, state: dict) -> None:
         "no_further_leads": bool(args.no_further_leads),
         "reason": args.reason,
         "fixes_ref": fixes_ref,
-        "log": args.log or last.get("log"),
+        "log": closing_log,
         "verified_fixes": verified_fixes,
     }
     step["phase"] = "prose"
@@ -3087,13 +3160,15 @@ def _integrate_directive(state: dict) -> dict:
     for step in state["steps"]:
         if step["n"] in merged:
             continue
+        pr_url = as_dict(step["receipts"].get("push")).get("pr_url")
         return {
             "do": "merge-step",
             "step": step["n"],
             "title": step["title"],
             "branch": step_branch_name(state, step),
-            "pr_url": as_dict(step["receipts"].get("push")).get("pr_url"),
+            "pr_url": pr_url,
             "into": run_branch,
+            "merge": step_merge_command(pr_url),
             "then": (
                 f"hexctl done merge-step --step {step['n']} "
                 "--merge-commit <sha>"
@@ -3394,6 +3469,122 @@ def integration_revalidation_record(
     }
 
 
+def step_merge_command(pr_url: object) -> str:
+    """The exact invocation that merges the pull request the directive names.
+
+    The directive already carried the URL and the receipt command, and left the
+    merge itself to whatever the operator typed from reading them. A number
+    retyped from a URL is where issue 594 went wrong, and `gh pr merge` with a
+    missing argument does not fail: it falls through to the current branch's pull
+    request, which on a chained stack is the one holding every commit in the run.
+
+    Built from the URL rather than a number and a repository flag, so nothing has
+    to be transcribed. Printed, never executed.
+    """
+    if not isinstance(pr_url, str) or GITHUB_PR_RE.fullmatch(pr_url) is None:
+        die(
+            "this step's push receipt holds no usable pull request URL, so the "
+            "merge command cannot be built from it; repair the receipt rather "
+            "than merging a pull request the directive did not name"
+        )
+    return f"gh pr merge {pr_url.rstrip('/')} --merge"
+
+
+def expected_run_branch_tip(state: dict):
+    """What the run branch's tip should be, from this run's own receipts.
+
+    An active sync is the most recent thing the controller put there; before
+    that, the last merge it receipted. Before the first merge it has recorded no
+    expectation at all, and `None` says the question cannot be asked yet rather
+    than that any tip will do.
+    """
+    integrate = as_dict(state.get("integrate"))
+    sync = as_dict(integrate.get("sync"))
+    candidate = sync.get("commit")
+    if isinstance(candidate, str) and COMMIT_RE.fullmatch(candidate):
+        return candidate
+    merges = as_dict(integrate.get("merges"))
+    for number in reversed(integrate.get("merged") or []):
+        candidate = as_dict(merges.get(str(number))).get("merge_commit")
+        if isinstance(candidate, str) and COMMIT_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+
+def unreceipted_run_branch_movement(base_dir: str, state: dict, landing=None):
+    """Whether the run branch moved without a receipt naming the move.
+
+    Every legitimate change to the run branch during integration is one this run
+    recorded: a merge-step receipt, or a sync. A tip that is neither means
+    something merged into it that the controller was never asked for.
+
+    A chained stack makes that unrecoverable rather than untidy. The topmost step
+    branch holds every commit in the run, so merging the wrong one lands all of
+    them, and the skipped pull requests can then be neither retargeted onto the
+    run branch, because GitHub reports no commits between them and a branch their
+    heads already sit in, nor merged into a base they are an ancestor of. The
+    issue 576 run lost three merge receipts that way. Reporting it at the first
+    directive after it happens is the only point where anything can still be done.
+    """
+    expected = expected_run_branch_tip(state)
+    branch = run_branch_of(state)
+    if expected is None or not isinstance(branch, str) or not branch:
+        return None
+    # A receipt runs after its own merge has landed, so the merge it is about to
+    # record is a legitimate tip as well as the one before it. `next` passes no
+    # landing commit, which is what makes the branch have to be where the loop
+    # left it.
+    accepted = {expected}
+    if isinstance(landing, str) and COMMIT_RE.fullmatch(landing):
+        accepted.add(landing)
+    try:
+        tip = remote_branch_tip(base_dir, branch)
+    except SystemExit:
+        return {"fault": "unreadable", "branch": branch, "expected": expected}
+    if tip in accepted:
+        return None
+    return {"fault": "moved", "branch": branch, "expected": expected, "tip": tip}
+
+
+def describe_run_branch_movement(fault: dict) -> str:
+    """One line saying what the run branch did, for a refusal or a report."""
+    if fault["fault"] == "unreadable":
+        return (
+            f"the run branch '{fault['branch']}' could not be read, so whether it "
+            f"still matches the receipted tip {fault['expected']} is unknown"
+        )
+    return (
+        f"the run branch '{fault['branch']}' is at {fault['tip']} and this run's "
+        f"last receipt names {fault['expected']}"
+    )
+
+
+def refuse_unreceipted_run_branch_movement(
+    base_dir: str, state: dict, landing=None
+) -> None:
+    """Stop the integrate phase when the run branch moved outside the loop."""
+    fault = unreceipted_run_branch_movement(base_dir, state, landing)
+    if fault is None:
+        return
+    if fault["fault"] == "unreadable":
+        die(
+            describe_run_branch_movement(fault)
+            + ". Integration cannot proceed without reading the branch it merges "
+            "into."
+        )
+    die(
+        describe_run_branch_movement(fault)
+        + ". Something merged into the run branch that this run did not receipt. "
+        "A stack chains, so the topmost step branch holds every commit in the run "
+        "and merging the wrong pull request lands all of them at once. There is no "
+        "repair from here: a skipped step's pull request cannot be retargeted onto "
+        "a branch its head already sits in, and cannot merge into a base it is an "
+        "ancestor of. Merge each step's pull request by the number the directive "
+        "names, one at a time. If this has already happened, halt the run with the "
+        "reason and finish by hand; do not receipt a merge the loop did not make."
+    )
+
+
 def refuse_rewritten_stack(base_dir: str, state: dict, current_step: int) -> None:
     """Refuse when a step branch that is still waiting has moved since its push.
 
@@ -3470,6 +3661,7 @@ def done_merge_step(args, state: dict) -> None:
             f"the stack merges in step order; step {pending['step']} "
             f"('{pending['branch']}') is next, not step {args.step}"
         )
+    refuse_unreceipted_run_branch_movement(args.dir, state, args.merge_commit)
     refuse_rewritten_stack(args.dir, state, args.step)
     step = state["steps"][args.step - 1]
     push_receipt = as_dict(step["receipts"].get("push"))
@@ -4954,6 +5146,67 @@ def repository_root(base_dir: str) -> str:
     return os.path.realpath(reported)
 
 
+AUDIT_LOG_HOME = ("audit", "rounds")
+"""Where a run's own audit record lives, relative to the target directory."""
+
+
+def run_audit_log_path(run_branch: str) -> str:
+    """The one audit log path a run owns, derived from its own branch.
+
+    The branch already names the run's worktree directory, so the same
+    flattening names its record. Deriving it beats holding a literal: a shared
+    default puts the log on both sides of `sync-run`'s product/upstream
+    intersection whenever anything else merged during the run, and the record
+    then owes a green check on a file the run only appended to.
+
+    Separators are POSIX because the value is a repository path that is read
+    back out of state, printed by `config get`, and quoted in prose.
+    """
+    return "/".join((*AUDIT_LOG_HOME, flattened_run_branch(run_branch) + ".md"))
+
+
+def check_audit_log_path(base_dir: str, state: dict, value):
+    """Hold an audit log override to the one file this run owns.
+
+    The directory may move -- three plugins here already keep their rounds under
+    their own tree -- but the file name is the run's identity. Without that, an
+    override can aim at another run's record or back at the shared log, which is
+    the arrangement this default was changed to end.
+
+    A run whose state records no usable branch has nothing to derive from, so it
+    keeps the older unconstrained value rather than being refused for its age.
+    That covers a stored branch of the wrong type as well as an absent one: the
+    flattening runs a regex over it, and a state holding a number there would
+    otherwise raise rather than answer.
+    """
+    if not isinstance(value, str) or not value:
+        die("config audit.log_path takes a non-empty string")
+    run_branch = run_branch_of(state)
+    if not isinstance(run_branch, str) or not run_branch:
+        return value
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        die("config audit.log_path must carry no control character")
+    if os.path.isabs(value):
+        die(
+            "config audit.log_path is relative to the run's directory; "
+            f"got the absolute path '{value}'"
+        )
+    parts = value.replace("\\", "/").split("/")
+    if ".." in parts:
+        die(f"config audit.log_path must carry no '..' component; got '{value}'")
+    required = run_audit_log_path(run_branch).rsplit("/", 1)[-1]
+    if parts[-1] != required:
+        die(
+            f"config audit.log_path must end in '{required}', the record this "
+            f"run owns; got '{value}'. Move the directory if you need to; the "
+            "name is what keeps two runs out of one file."
+        )
+    # Containment last, because a symlinked directory component escapes a path
+    # that has already passed every textual check above.
+    scoped_path(base_dir, value, "audit log path")
+    return value
+
+
 def run_worktree_path(base_dir: str, run_branch: str) -> str:
     """The one path this run's worktree belongs at. Creates nothing."""
     return os.path.join(
@@ -5951,10 +6204,8 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
     root_plugin = plugin_root()
     if action == "audit-round":
         audit = as_dict(as_dict(state.get("config")).get("audit"))
-        log = audit.get("log_path")
+        log = configured_audit_log(state)
         suffix = audit.get("stacked_suffix")
-        if not isinstance(log, str) or not log:
-            die("audit config has no log_path for the warden packet")
         if not isinstance(suffix, str) or not suffix:
             die("audit config has no stacked_suffix for the warden packet")
         stacked_branch = plan["branch"] + suffix
@@ -5996,7 +6247,16 @@ def delegation_packet(base_dir: str, state: dict, directive: dict) -> dict:
 
 def cmd_next(args) -> None:
     state = load_state(args.dir)
-    out = delegation_packet(args.dir, state, _next_directive(state))
+    directive = _next_directive(state)
+    if directive["do"] == "merge-step":
+        # While the stack is still coming down the run branch has to be where the
+        # loop left it, and this is the only point where a wrong merge can still
+        # be worked around. Once every step has merged the branch may legitimately
+        # carry a sync the controller has not receipted yet, and `done sync-run`
+        # owns that topology, so the check stops when the stack does.
+        refuse_unreceipted_run_branch_movement(args.dir, state)
+        refuse_rewritten_stack(args.dir, state, directive.get("step") or 0)
+    out = delegation_packet(args.dir, state, directive)
     print(json.dumps(out))
 
 
@@ -6050,6 +6310,7 @@ def _next_directive(state: dict) -> dict:
         owed = {
             "audit_filter": audit_filter_obligation(),
             "elenchus_verdict": elenchus_verdict_obligation(),
+            "log_path": configured_audit_log(state),
         }
         if lints_owed:
             owed["lints"] = [f"--{lint}-exit" for lint in LINTS]
@@ -6123,6 +6384,12 @@ def cmd_status(args) -> None:
             f"phase: integrate ({merged}/{len(state['steps'])} steps merged "
             f"into {state['run_branch']})"
         )
+        # Reported rather than refused. `status` is what somebody runs to find
+        # out what is wrong, so an unreadable remote answers "unknown" here and
+        # refuses at the receipt, where a wrong answer would be acted on.
+        movement = unreceipted_run_branch_movement(args.dir, state)
+        if movement is not None:
+            print(f"STACK: {describe_run_branch_movement(movement)}")
         sync = as_dict(as_dict(state.get("integrate")).get("sync"))
         product = as_dict(sync.get("product_evidence"))
         revalidation = as_dict(sync.get("revalidation"))

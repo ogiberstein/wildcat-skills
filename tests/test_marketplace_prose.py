@@ -48,6 +48,12 @@ NEXT_JOB_SUFFIX = (
 )
 MARKETPLACE_CONTEXT_START = "<!-- marketplace-context:start -->"
 MARKETPLACE_CONTEXT_END = "<!-- marketplace-context:end -->"
+IMMUTABLE_CONTEXT_PREFIXES = (
+    ("audit",),
+    ("skills", "fizz"),
+    ("skills", "solidity-auditor"),
+    ("skills", "x-ray"),
+)
 
 
 def marketplace_entries():
@@ -79,6 +85,21 @@ def marketplace_frontiers(path):
             raise AssertionError(f"marketplace context has no current frontier: {path}")
         frontiers.append(match.group(1).strip())
     return frontiers
+
+
+def mutable_marketplace_surface(plugin_root, path):
+    """Whether a context block is first-party prose that may track now.
+
+    Audit logs are historical evidence. The three Pashov roots are
+    upstream-owned distribution copies. Their recorded marketplace context is
+    allowed to describe the installation moment rather than being rewritten
+    when the first-party landing page advances.
+    """
+    relative = path.relative_to(plugin_root)
+    return not any(
+        relative.parts[: len(prefix)] == prefix
+        for prefix in IMMUTABLE_CONTEXT_PREFIXES
+    )
 
 
 # Directories that hold a checkout of this same repository rather than shipped
@@ -238,6 +259,39 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertIn("[", readme)
                 self.assertIn("./plugins/%s" % name, readme)
 
+    def test_root_readme_names_the_complete_collective(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        roster = readme.split("## Meet the Shoggoth", 1)[1].split(
+            "## How the members fit together", 1
+        )[0]
+
+        governed = sorted(
+            skill
+            for skill in (ROOT / "plugins").glob("*/skills/**/SKILL.md")
+            if (skill.parent / "EVOLUTION.md").is_file()
+        )
+        self.assertEqual(len(governed), 23)
+        for skill in governed:
+            plugin = skill.parents[2]
+            target = skill.parent if plugin.name == "hexaemeron" else plugin
+            relative = target.relative_to(ROOT).as_posix()
+            with self.subTest(skill=skill.parent.name):
+                self.assertIn(f"(./{relative})", roster)
+
+        for worker in ("Surveyor", "Mason", "Warden", "Scribe"):
+            with self.subTest(worker=worker):
+                self.assertIn(f"**{worker}**", roster)
+
+        for upstream in (
+            "X-Ray",
+            "Solidity Auditor",
+            "Fizz",
+            "Fizz Convert",
+            "Fizz Sync",
+        ):
+            with self.subTest(upstream=upstream):
+                self.assertIn(upstream, roster)
+
     def test_external_contributor_prose_keeps_the_human_identity(self):
         paths = (ROOT / "README.md", ROOT / "docs" / "how-to-help-shoggoth.md")
         for path in paths:
@@ -335,8 +389,13 @@ class MarketplaceProseTests(unittest.TestCase):
                 self.assertEqual(len(landing_frontiers), 1)
             expected = landing_frontiers[0]
 
-            surfaces = [path for path in (ROOT / "plugins" / name).rglob("*.md")
-                        if ".claude" not in path.parts]
+            plugin_root = ROOT / "plugins" / name
+            surfaces = [
+                path
+                for path in plugin_root.rglob("*.md")
+                if ".claude" not in path.parts
+                and mutable_marketplace_surface(plugin_root, path)
+            ]
             portable = ROOT / ".agents" / "skills" / name / "SKILL.md"
             if portable.is_file():
                 surfaces.append(portable)

@@ -2448,7 +2448,7 @@
     "contract": "fiat-run-observation-binding/v1",
     "controller": {
       "path": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py",
-      "sha256": "782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e"
+      "sha256": "58e56fd1e07771030ef19e11dacdd16d88ef1229cd6039b13ec55c85a3eb6a37"
     },
     "validator": {
       "path": "scripts/run_observation.py",
@@ -2760,7 +2760,7 @@
         "transition": "review acceptance joined to the canonical Authorises field",
         "unknowns": "unexercised failure modes and missing operational evidence"
       },
-      "sha256": "54a4953fce631b2191d72ac70e527a9de864c7da2df70d5dd5c1783f0c55ff25",
+      "sha256": "d33af653a1ee0083fd7fa9d19d8292a04585ed137d68ca18a6a1b9d69d786d4f",
       "source": "plugins/hexaemeron/skills/ephoros/SKILL.md"
     },
     "fiat-final-integration": {
@@ -2774,7 +2774,7 @@
         "transition": "integration receipt and explicit user authority joined to the canonical Authorises field",
         "unknowns": "carried-forward work and any unrun external check"
       },
-      "sha256": "782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e",
+      "sha256": "58e56fd1e07771030ef19e11dacdd16d88ef1229cd6039b13ec55c85a3eb6a37",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-receipted-delivery": {
@@ -2788,7 +2788,7 @@
         "transition": "single next controller directive joined to the canonical Authorises field",
         "unknowns": "heterogeneous leaf values, unrun checks and receipt assertions not independently proved"
       },
-      "sha256": "782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e",
+      "sha256": "58e56fd1e07771030ef19e11dacdd16d88ef1229cd6039b13ec55c85a3eb6a37",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-study-amendment": {
@@ -2802,7 +2802,7 @@
         "transition": "canonical study replacement, receipt re-pin and holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "truth of the correction, correctness of holding verdicts and any unperformed runbook repair"
       },
-      "sha256": "782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e",
+      "sha256": "58e56fd1e07771030ef19e11dacdd16d88ef1229cd6039b13ec55c85a3eb6a37",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-runbook-amendment": {
@@ -2816,7 +2816,7 @@
         "transition": "canonical runbook replacement, receipt re-pin, exact source carriage and causally bound holding-or-blocked result joined to the canonical Authorises field",
         "unknowns": "semantic completeness, replacement correctness, future command success and truth of operator verdicts"
       },
-      "sha256": "782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e",
+      "sha256": "58e56fd1e07771030ef19e11dacdd16d88ef1229cd6039b13ec55c85a3eb6a37",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "fiat-run-observation-binding": {
@@ -2830,7 +2830,7 @@
         "transition": "non-authorising binding and explicit dependent verification joined to the canonical Authorises field",
         "unknowns": "event truth, completeness, unbound tail and unavailable observer states"
       },
-      "sha256": "782629a7d37d68a31ba53503534ece05fb6432f3bc97ac8aa486240294d24a5e",
+      "sha256": "58e56fd1e07771030ef19e11dacdd16d88ef1229cd6039b13ec55c85a3eb6a37",
       "source": "plugins/hexaemeron/skills/fiat/scripts/hexctl.py"
     },
     "hermes-baseline-promotion": {
@@ -2942,7 +2942,7 @@
         "transition": "accepted record placement joined to the canonical Authorises field",
         "unknowns": "unresolved decisions and intentionally absent records"
       },
-      "sha256": "dff041c5b5a4db5ff9556bdae566b25bdd6d3b5229b139282d151a263f72c5be",
+      "sha256": "6bfa54aa158ac77caec07476e663649108755b6e398679a561f22de45c6705fa",
       "source": "plugins/hexaemeron/skills/hypomnema/SKILL.md"
     },
     "janus-bounded-conformance": {
@@ -3040,7 +3040,7 @@
         "transition": "keep or revert decision joined to the canonical Authorises field",
         "unknowns": "noise, unmeasured workloads and unexplained environmental changes"
       },
-      "sha256": "ee7b547770954dd651e2abad59eb23820b80f795a247e9acca51170bb474b5f3",
+      "sha256": "1f801631647bc1550956e03a7f236a1c68f6d299369470cc3a2a538c76fe5333",
       "source": "plugins/hexaemeron/skills/metron/SKILL.md"
     },
     "pandects-search-record": {
@@ -3068,7 +3068,7 @@
         "transition": "review acceptance joined to the canonical Authorises field",
         "unknowns": "unreviewed capabilities and unavailable adversarial evidence"
       },
-      "sha256": "fc3fdf6bf76cd24bf602d39ae30d1b77b1f196a34e0207522fec7ff9115007ca",
+      "sha256": "d450380b6f0a58468a8574ea7002af8be966204d4b7ba0dff79be43472c5349d",
       "source": "plugins/hexaemeron/skills/phylax/SKILL.md"
     },
     "probitas-dossier-verification": {

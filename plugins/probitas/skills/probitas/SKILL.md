@@ -24,7 +24,7 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Probitas builds a sourced record of what a counterparty did across lending venues from addresses they declared, without identifying a person or issuing a Wildcat verdict.
+Probitas builds a sourced dossier of borrowing and repayment across lending venues from addresses the counterparty declared, without identifying a person or issuing a Wildcat verdict.
 
 **Current frontier.** Euler v1/v2 now ship; Morpho Midnight fixed-maturity coverage and curation remain unimplemented.
 <!-- marketplace-context:end -->
@@ -33,6 +33,11 @@ Wildcat lends without collateral. Nothing stands between a lender and a total
 loss except a judgement about the borrower, so the counterparty record is the
 whole of the security. This assembles that record from public sources and hands
 it over without a verdict attached.
+
+Alexandria preserves venue captures and Tabularium maps supported records into
+rebuildable credit events. Probitas consumes that evidence at the counterparty
+level. It keeps gaps visible and never infers undeclared identity, blesses a
+borrower, sets terms, or replaces the lender's judgement.
 
 `$SKILL_DIR` is the directory holding this file. The tool lives at
 `$SKILL_DIR/../../scripts/probitas.py`; resolve it from where you loaded this

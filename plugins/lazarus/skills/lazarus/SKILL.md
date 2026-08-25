@@ -22,7 +22,7 @@ another frontier pass after that ledger becomes mature.
 <!-- marketplace-context:start -->
 ## Where this sits
 
-Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests.
+Lazarus captures the finite historical Ethereum state and exact RPC evidence one application test needs, proves the state-backed part, and replays only recorded requests.
 
 **Current frontier.** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
 <!-- marketplace-context:end -->
@@ -30,6 +30,11 @@ Lazarus captures the finite fixed-block Ethereum state and RPC evidence an appli
 Lazarus turns a finite historical Ethereum capture plan into a deterministic
 fixture and calls its exact JSON-RPC answers back into a local test after the
 original provider is gone.
+
+Alexandria preserves broader lending-data captures; Berean may consume
+fixed-block reads in a grounded-agent release; Ariadne may bind a verified
+preservation release to its evidence. None of those hand-offs promotes a
+receipt, log, call, or trace into proof-backed state.
 
 `$SKILL_DIR` is the directory holding this file. The command lives at
 `$SKILL_DIR/../../scripts/lazarus.py`; resolve it from where you loaded this

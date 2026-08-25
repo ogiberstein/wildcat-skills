@@ -3,14 +3,24 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release.
+Ariadne writes and checks the evidence statement that joins a released artefact digest to the work actually recorded behind it.
 
 **Current frontier.** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 
-**Next Fiat job.** Use /hexaemeron:fiat to implement the state-fixture predicate with its schema, gates, conformance fixtures and capture path, and close the gate 5 hole the dataset run recorded against the Solidity release predicate, which a new predicate would inherit. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to implement the grounded-agent predicate with its schema, gates, conformance fixtures and capture path, so a statement about what an agent was given and what it produced carries the same evidence a release does. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
-Release evidence another person can check.
+## Place in the collective
+
+Ariadne receives artefacts and evidence produced elsewhere. Lazarus can supply
+a verified state-fixture release, Alexandria or Tabularium can supply data
+releases, Berean can supply a grounded-agent release, and Hexaemeron can supply
+build and review records. Ariadne binds and gates those exact inputs; it does
+not rerun their work or turn a recorded result into a stronger verdict.
+
+The Promise Machine governs suite-wide hand-offs. Ariadne is the specialist
+that serialises a release-specific evidence claim into an in-toto statement,
+optionally wrapped in DSSE.
 
 A release publishes a claim. The evidence behind it sits somewhere else, joined
 by a URL and a promise: the compiler that produced the bytecode, the test run,

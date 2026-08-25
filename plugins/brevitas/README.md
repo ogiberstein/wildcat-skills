@@ -3,12 +3,22 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Brevitas puts mechanical volume and structure limits on engineering review prose without cutting its evidence.
+Brevitas enforces mechanical volume and structure limits on engineering prose while protecting every item of evidence that can change the decision.
 
 **Current frontier.** The linter has not been forward-tested across a held cross-model corpus of engineering reviews, and preservation of counterexamples and reproduction steps remains agent-checked.
 
 **Next Fiat job.** Use /hexaemeron:fiat to Forward-test Brevitas across held x-ray, Solidity-auditor, gas, `invariant` and diff-review outputs, then add every confirmed structural bypass to the corpus without weakening evidence precedence. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
+
+## Place in the collective
+
+Imprimatur catches banned wording and unsupported technical terms; Vulgate
+rewrites the same content into a plain register. Brevitas runs after those
+passes when the document is an engineering review, audit finding, gas analysis,
+protocol-property discussion, protocol analysis, or specification comment. Sapheneia
+may shape the surrounding interaction or one bounded durable record. None of
+the four may delete facts, uncertainty, counterexamples, or reproduction steps
+to make prose tidier.
 
 ## How it works
 

@@ -3,22 +3,34 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Hexaemeron runs an explicit, receipted delivery loop, and every skill it uses answers on its own: fuzzing, audit-readiness and security review, prose lint and voice, and the specification, debugging, hardening, telemetry, measurement and record-keeping skills the loop holds each phase to.
+Hexaemeron carries an explicit, receipted delivery from study to one merged change while keeping every controller, worker, phase discipline, prose mask, and security tool inside its own authority.
 
-**Current frontier.** The bundled Solidity audit suite has not yet been exercised in a published end-to-end Fiat delivery.
+**Current frontier.** load_state validates the version-1 state container spine in deterministic order before any command traverses it, with path-and-kind diagnostics shared by verify and mutations; delegated task identities can still expose an earlier issue when a collaboration handle is reused.
 
-**Next Fiat job.** Use /hexaemeron:fiat to run and publish the first Solidity delivery that exercises the bundled x-ray, solidity-auditor and fizz loop end to end, recording every round and closing state. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to complete skills#363 by binding every Fiat delegation task identity to the current issue or topic, step number and role, refusing or replacing a stale reused handle; accept it only when issue N cannot retain issue M in its visible name, all four workers expose current deterministic identities, resume and post-compaction reconstruction preserve them, and an executable regression rejects stale reuse. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 Let there be light.
 
-One command that takes a topic from nothing to a working prototype:
-study, runbook, then for each runbook step the simplest implementation that
-satisfies it, a security loop that runs until clean or
-reasoned out, a prose pass in the house voice, and a reviewable pull request.
-The steps stack; the stack lands on the base in one merge. Every phase
-leaves a receipt in a hash-chained ledger, so the run survives context
-resets, crashes, and week-long pauses -- resume is the same command.
+## Place in the collective
+
+Hexaemeron is the delivery system, not a general replacement for the other
+plugins. Fiat controls the run. Surveyor, Mason, Warden, and Scribe execute
+source-bound packets. Protasis, Phylax, Ephoros, Metron, Elenchus, and
+Hypomnema state the disciplines the phases must meet. Imprimatur and Vulgate
+shape prose. Kronos may rank held frontier jobs and dispatch one into Fiat.
+
+The Pashov X-Ray, Solidity Auditor, Fizz, Fizz Convert, and Fizz Sync skills
+remain upstream-owned security siblings. Warden reads the applicable upstream
+contracts by path; Hexaemeron does not rewrite or absorb them. Domain work such
+as gas optimisation, credit laws, evidence preservation, or source chunking
+stays with Hermes, Pandects, Lazarus or Alexandria, and Lemma respectively.
+
+One explicit Fiat request takes a topic through a study and runbook, then
+implements, audits, documents, pushes, and integrates each runbook step. The
+steps stack and the complete stack lands on the base in one merge. Every phase
+leaves a receipt in a hash-chained ledger inside a dedicated worktree, so the
+same local run can be verified and resumed after context loss.
 
 Named for the six days of ordered creation from a void to finished work,
 then rest. The entry skill is `fiat`, so the invocation is
@@ -48,7 +60,7 @@ exactly one merge per run.
 - the executable [`hexctl.py`](./skills/fiat/scripts/hexctl.py) controller with a tamper-evident ledger (`verify` proves both chain and state);
 - the [`imprimatur`](./skills/imprimatur) three-tier prose lint and the [`vulgate`](./skills/vulgate) voice mask, invokable on their own;
 - [`kronos`](./skills/kronos), which ranks eligible held frontier jobs and loops complete Fiat runs until none remain;
-- six more skills holding each phase to a standard, six of them with an executable check: [`protasis`](./skills/protasis) on what a study and runbook must answer, [`elenchus`](./skills/elenchus) on the root cause of a failure that already happened, [`phylax`](./skills/phylax) on the off-chain surface, [`ephoros`](./skills/ephoros) on what a step emits once it runs unattended, [`metron`](./skills/metron) on every measurement except gas, and [`hypomnema`](./skills/hypomnema) on what gets recorded and where;
+- six phase disciplines; all six ship an executable check: [`protasis`](./skills/protasis) on what a study and runbook must answer, [`elenchus`](./skills/elenchus) on the root cause of a failure that already happened, [`phylax`](./skills/phylax) on the off-chain surface, [`ephoros`](./skills/ephoros) on what a step emits once it runs unattended, [`metron`](./skills/metron) on every measurement except gas, and [`hypomnema`](./skills/hypomnema) on what gets recorded and where;
 - the Pashov Audit Group suite vendored verbatim (MIT; `LICENSE` and `NOTICE.md` in each skill directory);
 - Codex metadata for explicit or automatic invocation; and
 - the controller, contract, practice-check and lint test suite, plus a fuzz-audit log ([`audit/AUDIT.md`](./audit/AUDIT.md)) covering the controller's own surfaces.
@@ -192,7 +204,7 @@ Per-run, via `hexctl config set <path> <value>`:
 | `audit.max_rounds` | `8` | Rounds before the controller forces a verdict |
 | `audit.stacked_suffix` | `--audit` | Fix branch: `<step-branch>--audit` |
 | `audit.fold` | `false` | Merge the stacked branch into the step branch on close |
-| `audit.log_path` | `audit/AUDIT.md` | Where rounds append |
+| `audit.log_path` | `audit/rounds/<flattened run branch>.md` | Where this run's rounds append; `init` derives it, and an override may move the directory but must keep the file name, so no two runs share a record |
 | `git.base` | `main` | Starting ref, and the only branch a run merges into |
 | `git.run_branch_prefix` | `fiat/` | Run branch is this plus the topic slug, or `<issue>-<topic slug>` when `init --task-issue` binds a known issue; an exact override must keep that issue prefix |
 
@@ -234,12 +246,24 @@ state back from GitHub; the closure receipt does not attest the prose passes.
 
 ## Agents
 
-Four subagents for context isolation on long runs: `surveyor` (the study),
-`mason` (a step's implementation), `warden` (one audit round), `scribe`
-(the prose pass). The old caveat about skills not
-resolving inside subagents is gone on both fronts: the prose masks and the
-security suite are files inside the plugin, reachable from any context by
-path, so the warden and scribe always have their tools.
+The four workers isolate bulky phases without inheriting controller authority:
+
+- **Surveyor** receives one brief naming the topic, target, base, and output.
+  It researches and writes the study, then reports the path and summary.
+- **Mason** receives one exact runbook step plus `branch` and `branch_from`.
+  It builds and tests that step on those refs, signs its commits, and stops
+  before push or receipt.
+- **Warden** receives one audit round, the exact risk register and runbook step,
+  the step branches, audit path, and tool paths. It runs the applicable suite,
+  records findings, fixes them, and returns the exact Elenchus verdict.
+- **Scribe** receives the sorted prose diff, PR base and draft path. It runs
+  Imprimatur, applies Vulgate with content held fixed, reruns Imprimatur, and
+  returns the file count and skill identities.
+
+Fiat can do the same packet inline when isolated workers are unavailable. It
+alone receipts their results and chooses the next directive. The current open
+frontier is the visible identity of a reused worker handle: callers must reject
+one that still names an older issue, step, or role.
 
 ## Tests
 

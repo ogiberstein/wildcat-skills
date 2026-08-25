@@ -23,11 +23,16 @@ about why the thing broke. The job is to try to refute it, not to confirm it.
 Elenchus owns root-cause work on a failure that has already happened: a red
 test, a broken build, a returned counterexample, a behaviour that changed.
 
-Serves the `implement` and `audit-round` phases. Fiat has no counterpart for
-this work today, so nothing is superseded.
+Mason may invoke it when implementation breaks; Warden returns its exact
+four-state verdict when an audit fix has a source-bound runner contract.
+The Pashov suite hunts for security findings, while Elenchus starts only once a
+failure or counterexample exists. Metron handles something that is slow but not
+broken.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
+
+**Current state.** A check overlays a fix's changed tests onto the parent and classifies unittest, Forge and Node guards from fresh runner-owned reports, while diagnostics remain inert evidence. This frontier is mature.
 
 ## Stop the line
 

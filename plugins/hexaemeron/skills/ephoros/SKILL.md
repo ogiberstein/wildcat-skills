@@ -24,11 +24,16 @@ first incident becomes archaeology.
 Ephoros owns the telemetry that stays: what a step emits, in what shape, and
 what wakes someone up.
 
-Serves the `implement` phase. Fiat has no counterpart for this work today, so
-nothing is superseded.
+Fiat and Mason apply it while implementing anything that runs unattended, and
+Warden reruns its mechanical gate in non-Solidity rounds. Elenchus may add
+temporary instrumentation while chasing one failure; Ephoros decides what
+remains afterwards. Metron measures performance, and Phylax guards the data and
+secrets the telemetry boundary crosses.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
+
+**Current state.** Five rules are executable: E001 to E003 read Python only, E004 reads the supported block-YAML subset, and E005 reads Python, supported block-YAML label keys and the TypeScript surface through the shared masked lexer, running clean over this marketplace and the pinned application clone. TypeScript parity for E001 to E003 remains open.
 
 ## Write the questions before the code
 

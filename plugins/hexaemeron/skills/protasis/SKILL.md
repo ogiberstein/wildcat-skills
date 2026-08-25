@@ -26,14 +26,17 @@ Protasis owns the content contract for the `study` and `runbook` phases: what
 those two documents must answer before implementation is allowed to start. It
 owns no state, writes no receipt and gates nothing itself.
 
-Serves the `study` and `runbook` phases.
+Surveyor may write the study packet, while Fiat keeps the artefact paths and
+receipt commands. Mason and Warden later receive the exact source-bound
+runbook step. Phylax, Ephoros, Metron, Elenchus, and Hypomnema answer the five
+discipline questions Protasis requires; Protasis cites their contracts rather
+than copying them. A decision made after the study belongs to Hypomnema's
+recording rules.
 
 Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md).
 
-Fiat's study and runbook phases run under this contract. Fiat keeps the
-artefact paths and receipt commands; this skill says what the artefacts must
-contain. Nothing else carries these rules.
+**Current state.** The amendment contract fixes a dated block with four fields for a mid-run change, and no study exercises it yet: nothing enumerates whether an appended amendment carries its date or its fields, so the first live use is checked only by the person who writes it.
 
 ## Refuse these four
 
@@ -101,15 +104,17 @@ are happy.
    is written down. Carry each item forward as content here, as a stated
    non-goal, or as a named reason it stays open. Read the audit records of
    every in-scope skill the same way, before design options are drawn: the
-   audit file at the target's `config audit.log_path`, default
-   `audit/AUDIT.md`, holds what each round found, what was fixed, and the
-   leads accepted with the reason nobody pursued them. A study that cannot
-   find the real reason for a decision supplies a plausible one, and the
-   plausible one then governs the build: a rejected option gets rejected for
-   the wrong cause, an accepted risk gets quietly reopened, and the round
-   that already judged the question reads afterwards as though it never
-   happened. Found in the study it costs a sentence; found in step four it
-   costs the step.
+   run's audit file, at its `config audit.log_path`, holds what each round
+   found, what was fixed, and the leads accepted with the reason nobody
+   pursued them. Fiat derives one such file per run under `audit/rounds/`,
+   so the records of several runs are several files; a target that kept a
+   shared log before that change has the rest of its history in
+   `audit/AUDIT.md`. A study that cannot find the real reason for a
+   decision supplies a plausible one, and the plausible one then governs
+   the build: a rejected option gets rejected for the wrong cause, an
+   accepted risk gets quietly reopened, and the round that already judged
+   the question reads afterwards as though it never happened. Found in the
+   study it costs a sentence; found in step four it costs the step.
 3. **Constraints and non-goals.** The starting ref, toolchain and version pins,
    what the user ruled out, what is deferred past the prototype.
 4. **Design options.** Two to four candidate constructions, each with the trade

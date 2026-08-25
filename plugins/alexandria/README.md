@@ -3,14 +3,24 @@
 <!-- marketplace-context:start -->
 ## In one line
 
-Alexandria preserves heterogeneous lending data as digest-bound releases, then derives only the credit views a reviewed mapping can defend.
+Alexandria preserves heterogeneous lending captures byte for byte, then exposes only the source-bound credit view a reviewed mapping can defend.
 
 **Current frontier.** Compound v3 Phase 0 now pins the Comet registry and preserves one verified Ethereum execution witness; a resumable, reconciled Ethereum USDC interval harvester remains unimplemented.
 
 **Next Fiat job.** Use /hexaemeron:fiat to build the first resumable Ethereum USDC interval collector with implementation-epoch discovery, bounded shards, a second-provider reconciliation path, explicit finality and offline raw-release verification. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
-An offline tool for digest-bound lending-data releases.
+## Place in the collective
+
+Alexandria is the preservation end of the credit-data path. Tabularium consumes
+its raw releases and makes venue-qualified credit events; Probitas may use those
+events in a counterparty dossier. Ariadne can bind a finished release to its
+evidence. None of those later jobs authorises Alexandria to interpret missing
+history or make an underwriting claim.
+
+Lazarus is the neighbouring preservation specialist for a different boundary:
+the finite historical Ethereum state and exact RPC traffic one application
+test needs. Alexandria preserves lending datasets and derived source views.
 
 Alexandria keeps heterogeneous lending-protocol captures unchanged. It binds
 each capture to explicit scope and coverage, derives a narrow Tabularium credit
