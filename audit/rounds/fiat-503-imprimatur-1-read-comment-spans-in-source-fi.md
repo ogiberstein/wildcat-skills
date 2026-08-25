@@ -155,3 +155,27 @@ End-to-end issue specimen exit 1 at 2:17; focused shared-lexer and source-extrac
 ### Leads not pursued
 
 Full parser-level TypeScript and Solidity validity remains outside the source-comment extraction contract. TypeScript 5.9.2 and Solidity 0.8.34 were audit oracles, not repository dependencies. The finite grammar states and parser-backed closure above support the bounded repair, but do not establish equivalence with a full TypeScript parser; no new token-specific suffix rule or runtime dependency was added.
+
+## Step 1, round 8 -- 2026-08-25
+
+Review basis: full fixed Step 1 diff against base `0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841`, with round-8 repairs starting from signed round-7 tip `5de2900ddda7cda5ce11aa6a35ee557c89ba1276`; Step 1 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R8-01 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | A parenthesized class or function expression left its body candidate live after the real body and semicolon. The next unrelated brace consumed that stale candidate, so later regular-expression or raw JSX bytes containing comment markers became comment prose. | fixed in this round: a stack carries parenthesis depth, declaration role, angle depth and function-return-type state, pops only the matching body and clears stale entries at a semicolon; shared-scanner and Imprimatur guards cover both observed failures plus nested function-default and class-heritage controls |
+| S1-R8-02 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | A valid Python UTF-8 byte-order mark decoded to U+FEFF, which `ast.parse(str)` rejected even though Python consumes the bytes as an encoding marker. Default source mode therefore refused valid Python. | fixed in this round: AST and tokenizer work use a same-length form-feed parser view while spans and coordinates retain the original text; a Python 3.12.3 matrix matched 100/100 compiler-valid BOM, cookie, line-ending, owner, comment, docstring and literal cases with 0 extraction mismatches |
+| S1-R8-03 | medium | `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | Hard, gated and structural findings rescanned the source prefix for each coordinate; gated hits also repeated sentence lookup and evidence work. At 512 hits in 4,609 characters, the parent performed 1,177,344 indexed reads, or 255.4x the input. | fixed in this round: one line-start index, binary coordinate and sentence lookup, and same-sentence evidence caches reduce the probe to 4,609 reads, or 1.0x; assertion guards cover all three passes and 20,000 parent-versus-fixed prose cases had 0 report mismatches |
+
+### Negative review
+
+Babel parser 7.29.2 matched 11,968/11,968 systematic valid TS/TSX compositions, 50,000/50,000 deterministic random compositions and 1,125/1,125 parser-valid application-corpus files with 0 scanner errors and 0 comment-range mismatches. All 128/128 intentional malformed counterparts returned a named refusal. Indexed and legacy coordinates matched 1,000/1,000 random texts for each language-owned line-terminator set.
+
+Solidity 0.8.34 retained only expected prose in 60/60 compiler-valid ordinary, single-quoted, Unicode, hex, escaped, concatenated and LF, CR or CRLF-continued string/comment compositions; 20/20 compiler-invalid controls were excluded from compatibility claims. Descriptor-first reads still refuse FIFO, symlink, directory, device, oversize, invalid UTF-8 and simulated path replacement before output. Markdown, standard input, `--include-code`, multi-file no-partial-output behavior, same-length masks, original coordinates, recursion refusal and the complete-span `lex()` API received negative review with no other finding. `imprimatur-v2.3.0`, frontier revision `labelled-prose-v2`, digest `092addc4bcae8cd93d34df41146b3a3bbd3fd24a529cd84b1d16e0399d7affb4`, status `open` and the held job remain unchanged.
+
+### Mechanical gates
+
+End-to-end issue specimen exit 1 at 2:17; focused shared-lexer and source-extraction tests 104/104; focused Imprimatur 112/112; pinned Node v26.6.0 full Hexaemeron 1,161/1,161; root suite 350/350, including 1,258 inoculation cases with 0 crashes and 0 unexpected clean; evolution and version propagation 16/16; Promise Machine copies 14/14; Phylax 0; Ephoros 0; Hypomnema 0; changed-prose Imprimatur 0; Brevitas report and protected-source comparison 0; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
+
+### Leads not pursued
+
+Full parser equivalence remains outside the source-comment extraction contract. Babel parser 7.29.2 and Solidity 0.8.34 were audit oracles, not repository dependencies. Hosts without `O_NOFOLLOW` retain the named fail-closed refusal; this round adds no less-safe fallback. No external parser or new runtime dependency was added.

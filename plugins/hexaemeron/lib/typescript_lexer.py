@@ -851,10 +851,11 @@ class _CommentScanner:
         paren_contexts = []
         pending_ternaries = 0
         colon_starts_expression = False
-        pending_expression_body = None
-        pending_declaration_body = None
-        pending_body_angle_depth = 0
-        pending_function_return_type = False
+        # A function or class body can be nested inside an outer parenthesis,
+        # and its parameters or heritage can contain another construct.  Keep
+        # every outstanding construct with the parenthesis depth at which its
+        # body must appear; a single pending token leaks across either shape.
+        pending_constructs = []
         type_alias_state = 0
         module_declaration = None
         variable_declaration = None
@@ -908,7 +909,31 @@ class _CommentScanner:
             )
             if restricted_goal and not _is_typescript_space(char):
                 restricted_statement = None
-            pending_construct = pending_expression_body or pending_declaration_body
+            pending_state = (
+                pending_constructs[-1] if pending_constructs else None
+            )
+            pending_construct = (
+                pending_state["token"] if pending_state is not None else None
+            )
+            pending_declaration_body = (
+                pending_construct
+                if pending_state is not None and pending_state["declaration"]
+                else None
+            )
+            pending_body_angle_depth = (
+                pending_state["angle_depth"]
+                if pending_state is not None
+                else 0
+            )
+            pending_function_return_type = (
+                pending_state["function_return_type"]
+                if pending_state is not None
+                else False
+            )
+            pending_at_body_depth = (
+                pending_state is not None
+                and len(paren_contexts) == pending_state["paren_depth"]
+            )
             if pending_construct is not None:
                 if char == "<" and (
                     pending_body_angle_depth
@@ -926,12 +951,14 @@ class _CommentScanner:
                         and pending_function_return_type
                     )
                 ):
+                    pending_state["angle_depth"] += 1
                     pending_body_angle_depth += 1
                 elif (
                     char == ">"
                     and pending_body_angle_depth
                     and self.source[cursor - 1] != "="
                 ):
+                    pending_state["angle_depth"] -= 1
                     pending_body_angle_depth -= 1
             if char in "'\"":
                 cursor = self._string_end(cursor)
@@ -944,13 +971,11 @@ class _CommentScanner:
                 if (
                     pending_declaration_body is not None
                     and line_break_since_token
-                    and not paren_contexts
+                    and pending_at_body_depth
                     and before_previous not in TYPE_CONTINUATION_BEFORE
                     and before_previous != pending_declaration_body
                 ):
-                    pending_declaration_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
+                    pending_constructs.pop()
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
@@ -966,13 +991,11 @@ class _CommentScanner:
                 if (
                     pending_declaration_body is not None
                     and line_break_since_token
-                    and not paren_contexts
+                    and pending_at_body_depth
                     and before_previous not in TYPE_CONTINUATION_BEFORE
                     and before_previous != pending_declaration_body
                 ):
-                    pending_declaration_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
+                    pending_constructs.pop()
                 colon_starts_expression = False
                 line_break_since_token = False
                 continue
@@ -980,7 +1003,13 @@ class _CommentScanner:
                 type_alias_state == 3 and line_break_since_token
             ) or (
                 line_break_since_token
-                and not paren_contexts
+                and (
+                    not paren_contexts
+                    or (
+                        pending_declaration_body is not None
+                        and pending_at_body_depth
+                    )
+                )
                 and (
                     module_declaration
                     in {"import_complete", "export_complete"}
@@ -1041,10 +1070,11 @@ class _CommentScanner:
                         variable_declaration = None
                         variable_in_type = False
                         variable_type_angle_depth = 0
-                        if declaration_line_goal:
-                            pending_declaration_body = None
-                            pending_body_angle_depth = 0
-                            pending_function_return_type = False
+                        if (
+                            declaration_line_goal
+                            and pending_declaration_body is not None
+                        ):
+                            pending_constructs.pop()
                         colon_starts_expression = False
                         line_break_since_token = False
                         continue
@@ -1062,7 +1092,7 @@ class _CommentScanner:
                 )
                 construct_body = (
                     pending_construct is not None
-                    and not paren_contexts
+                    and pending_at_body_depth
                     and pending_body_angle_depth == 0
                     and not function_type_literal
                 )
@@ -1083,11 +1113,7 @@ class _CommentScanner:
                     )
                 )
                 if construct_body:
-                    if declaration_body:
-                        pending_declaration_body = None
-                    else:
-                        pending_expression_body = None
-                    pending_function_return_type = False
+                    pending_constructs.pop()
                 if type_alias_state == 1:
                     type_alias_state = 0
                 cursor = self._descend(
@@ -1144,10 +1170,11 @@ class _CommentScanner:
                     type_alias_state = 0
                     module_declaration = None
                     variable_declaration = None
-                    if declaration_line_goal:
-                        pending_declaration_body = None
-                        pending_body_angle_depth = 0
-                        pending_function_return_type = False
+                    if (
+                        declaration_line_goal
+                        and pending_declaration_body is not None
+                    ):
+                        pending_constructs.pop()
                     line_break_since_token = False
                     continue
                 if previous not in CONTEXTUAL_SLASH_GOALS:
@@ -1196,14 +1223,12 @@ class _CommentScanner:
                 if (
                     pending_declaration_body is not None
                     and line_break_since_token
-                    and not paren_contexts
+                    and pending_at_body_depth
                     and previous not in TYPE_CONTINUATION_BEFORE
                     and previous != pending_declaration_body
                     and token not in TYPE_CONTINUATION_WORDS
                 ):
-                    pending_declaration_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
+                    pending_constructs.pop()
                     declaration_boundary = True
                 if token == "while" and do_statement_states:
                     if (
@@ -1307,17 +1332,30 @@ class _CommentScanner:
                     )
                 )
                 if expression_construct:
-                    pending_expression_body = token
+                    pending_constructs.append(
+                        {
+                            "token": token,
+                            "declaration": False,
+                            "paren_depth": len(paren_contexts),
+                            "angle_depth": 0,
+                            "function_return_type": False,
+                        }
+                    )
                 elif (
                     token in DECLARATION_BODY_TOKENS
                     and statement_start
                     and not object_context
                     and not member_context
                 ):
-                    pending_declaration_body = token
-                    pending_expression_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
+                    pending_constructs.append(
+                        {
+                            "token": token,
+                            "declaration": True,
+                            "paren_depth": len(paren_contexts),
+                            "angle_depth": 0,
+                            "function_return_type": False,
+                        }
+                    )
                     type_alias_state = 0
                     module_declaration = None
                     variable_declaration = None
@@ -1442,9 +1480,7 @@ class _CommentScanner:
                     variable_declaration = None
                     variable_in_type = False
                     variable_type_angle_depth = 0
-                    pending_declaration_body = None
-                    pending_body_angle_depth = 0
-                    pending_function_return_type = False
+                    pending_constructs.clear()
                     restricted_statement = None
                     tsx_type_argument_depth = 0
                     if (
@@ -1464,11 +1500,10 @@ class _CommentScanner:
                         module_declaration = "import_equals"
                     if (
                         pending_declaration_body is not None
-                        and not paren_contexts
+                        and pending_at_body_depth
                         and pending_body_angle_depth == 0
                     ):
-                        pending_declaration_body = None
-                        pending_function_return_type = False
+                        pending_constructs.pop()
                     if (
                         variable_declaration is not None
                         and not (
@@ -1528,21 +1563,17 @@ class _CommentScanner:
                     if (
                         pending_declaration_body == "function"
                         and line_break_since_token
-                        and not paren_contexts
+                        and pending_at_body_depth
                         and previous not in TYPE_CONTINUATION_BEFORE
                     ):
-                        pending_declaration_body = None
-                        pending_body_angle_depth = 0
-                        pending_function_return_type = False
+                        pending_constructs.pop()
                     if pending_declaration_body in {
                         "enum",
                         "interface",
                         "module",
                         "namespace",
                     }:
-                        pending_declaration_body = None
-                        pending_body_angle_depth = 0
-                        pending_function_return_type = False
+                        pending_constructs.pop()
                     if module_declaration == "import_complete":
                         module_declaration = "import_equals"
                     if (
@@ -1591,10 +1622,10 @@ class _CommentScanner:
                     if (
                         pending_construct == "function"
                         and previous == ")"
-                        and not paren_contexts
+                        and pending_at_body_depth
                         and pending_body_angle_depth == 0
                     ):
-                        pending_function_return_type = True
+                        pending_state["function_return_type"] = True
                     if variable_declaration == "uninitialized":
                         variable_in_type = True
                     colon_starts_expression = pending_ternaries > 0

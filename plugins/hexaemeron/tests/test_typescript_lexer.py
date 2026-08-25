@@ -915,6 +915,39 @@ class TypeScriptLexerTests(unittest.TestCase):
                     comments(source, tsx=tsx),
                 )
 
+    def test_nested_construct_bodies_do_not_leak_across_statement_boundaries(self):
+        cases = {
+            "parenthesized class then block": (
+                "(class {});\n"
+                "{}\n"
+                "/[/*]literal[*/]/.test(value); // trailing\n",
+                False,
+                ["// trailing"],
+            ),
+            "parenthesized function then control": (
+                "(function() {});\n"
+                "if (ready) {}\n"
+                "<p>/* raw child text */</p>; // trailing\n",
+                True,
+                ["// trailing"],
+            ),
+            "nested function default then division": (
+                "const ratio = function outer(arg = function inner() {}) {} "
+                "/ /* division comment */ 2; // trailing\n",
+                False,
+                ["/* division comment */", "// trailing"],
+            ),
+            "nested class heritage then division": (
+                "const ratio = class Outer extends (class Inner {}) {} "
+                "/ /* division comment */ 2; // trailing\n",
+                True,
+                ["/* division comment */", "// trailing"],
+            ),
+        }
+        for label, (source, tsx, expected) in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(expected, comments(source, tsx=tsx))
+
     def test_tsx_nested_generic_function_types_keep_the_type_goal(self):
         cases = {
             "declaration constraint": (

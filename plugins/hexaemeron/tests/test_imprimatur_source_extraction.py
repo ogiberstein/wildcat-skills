@@ -45,6 +45,18 @@ def term_hits(source: str, suffix: str, term: str = "leverage") -> list[dict]:
     ]
 
 
+class CharacterCountingText(str):
+    def __new__(cls, value):
+        instance = super().__new__(cls, value)
+        instance.character_reads = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            self.character_reads += 1
+        return super().__getitem__(key)
+
+
 class SourceExtractionTests(unittest.TestCase):
     def test_indented_solidity_natspec_keeps_source_coordinates(self):
         source = (
@@ -140,6 +152,40 @@ class SourceExtractionTests(unittest.TestCase):
         )
         hits = term_hits(source, ".py")
         self.assertEqual([1, 5, 7, 8], [hit["line"] for hit in hits])
+
+    def test_python_utf8_bom_keeps_source_comments_and_coordinates(self):
+        source = (
+            "\ufeff# Leverage the module note.\n"
+            '"""Leverage the module documentation."""\n'
+        )
+        try:
+            prose = extract_source_prose(source, ".py")
+        except BaseException as exc:
+            refusal = f"{type(exc).__name__}: {exc}"
+            prose = ""
+        else:
+            refusal = None
+        self.assertIsNone(refusal, refusal)
+        self.assertEqual(len(source), len(prose))
+        self.assertEqual(" ", prose[0])
+        expected = [
+            imprimatur_module.line_col(
+                source,
+                offset,
+                imprimatur_module.PYTHON_LINE_TERMINATORS,
+            )
+            for offset in (
+                source.index("Leverage"),
+                source.rindex("Leverage"),
+            )
+        ]
+        self.assertEqual(
+            expected,
+            [
+                (hit["line"], hit["col"])
+                for hit in term_hits(source, ".py")
+            ],
+        )
 
     def test_python_ast_byte_columns_map_to_unicode_source_coordinates(self):
         source = (
@@ -518,6 +564,46 @@ class SourceExtractionTests(unittest.TestCase):
         ]
         self.assertEqual(expected, [(hit["line"], hit["col"]) for hit in hits])
 
+    def test_typescript_nested_construct_state_keeps_only_comment_prose(self):
+        cases = {
+            "parenthesized class then block": (
+                "(class {});\n"
+                "{}\n"
+                "/[/*]Leverage[*/]/.test(value); "
+                "// Leverage the actual helper.\n",
+                ".ts",
+            ),
+            "parenthesized function then control": (
+                "(function() {});\n"
+                "if (ready) {}\n"
+                "<p>/* Leverage is raw child text */</p>; "
+                "// Leverage the actual helper.\n",
+                ".tsx",
+            ),
+            "nested function default then division": (
+                "const ratio = function outer(arg = function inner() {}) {} "
+                "/ /* Leverage the actual divisor. */ 2;\n",
+                ".ts",
+            ),
+            "nested class heritage then division": (
+                "const ratio = class Outer extends (class Inner {}) {} "
+                "/ /* Leverage the actual divisor. */ 2;\n",
+                ".tsx",
+            ),
+        }
+        for label, (source, suffix) in cases.items():
+            with self.subTest(label=label):
+                hits = term_hits(source, suffix)
+                expected = imprimatur_module.line_col(
+                    source,
+                    source.rindex("Leverage"),
+                    imprimatur_module.TYPESCRIPT_LINE_TERMINATORS,
+                )
+                self.assertEqual(
+                    [expected],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
     def test_typescript_declaration_sequences_keep_later_regex_bytes_out(self):
         prefixes = {
             "ambient alias overload": (
@@ -858,6 +944,42 @@ class SourceExtractionTests(unittest.TestCase):
                     [index for index, char in enumerate(source) if char in "\r\n"],
                     [index for index, char in enumerate(masked) if char in "\r\n"],
                 )
+
+    def test_many_findings_share_one_bounded_coordinate_index(self):
+        hard, gated, _ = imprimatur_module.load_lexicons()
+        source = CharacterCountingText(("Leverage " * 512) + "\n")
+        hits = imprimatur_module.scan_hard(source, hard)
+        self.assertEqual(512, len(hits))
+        self.assertLess(source.character_reads, len(source) * 4)
+
+        repeated_gate = ("orthogonal " * 512) + "to the framing."
+        with mock.patch.object(
+            imprimatur_module,
+            "gate_evidence",
+            wraps=imprimatur_module.gate_evidence,
+        ) as gated_checks:
+            gated_hits = imprimatur_module.scan_gated(
+                repeated_gate,
+                gated,
+            )
+        self.assertEqual(512, len(gated_hits))
+        self.assertLessEqual(gated_checks.call_count, 2)
+
+        all_passes = (
+            "Leverage this helper.\n\n"
+            "This approach is orthogonal to the framing.\n\n"
+            "This isn't just a protocol, it's a promise.\n"
+        )
+        with mock.patch.object(
+            imprimatur_module,
+            "line_col",
+            side_effect=AssertionError("per-finding coordinate rescan"),
+        ):
+            report = build(all_passes)
+        self.assertEqual(
+            {"hard", "gated", "structural"},
+            {hit["pass"] for hit in report["hits"]},
+        )
 
     def test_malformed_supported_source_refuses_a_clean_result(self):
         self.assertTrue(SOURCE_MODE, "Imprimatur has no source-prose mode")

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+from bisect import bisect_right
 import errno
 import io
 import json
@@ -178,6 +179,32 @@ def line_col(
             line_start = cursor + 1
         cursor += 1
     return line, idx - line_start + 1
+
+
+def _coordinate_line_starts(
+    text: str,
+    line_terminators: frozenset[str],
+) -> list[int]:
+    starts = [0]
+    cursor = 0
+    while cursor < len(text):
+        char = text[cursor]
+        if char in line_terminators:
+            if (
+                char == "\r"
+                and "\n" in line_terminators
+                and cursor + 1 < len(text)
+                and text[cursor + 1] == "\n"
+            ):
+                cursor += 1
+            starts.append(cursor + 1)
+        cursor += 1
+    return starts
+
+
+def _indexed_line_col(starts: list[int], idx: int) -> tuple[int, int]:
+    line_index = bisect_right(starts, idx) - 1
+    return line_index + 1, idx - starts[line_index] + 1
 
 
 def excerpt(text: str, start: int, end: int, pad: int = 38) -> str:
@@ -391,8 +418,12 @@ def _python_docstring_nodes(tree: ast.AST) -> list[ast.Constant]:
 
 
 def _python_prose(text: str) -> list[tuple[int, int]]:
+    # ``compile(bytes, ...)`` consumes a UTF-8 BOM as an encoding marker, but
+    # ``ast.parse(str)`` rejects the decoded U+FEFF.  A leading form feed is
+    # same-length parser whitespace without introducing top-level indentation.
+    parser_text = "\f" + text[1:] if text.startswith("\ufeff") else text
     try:
-        tree = ast.parse(text)
+        tree = ast.parse(parser_text)
     except SyntaxError as exc:
         raise SourceExtractionError(
             exc.lineno or 1,
@@ -410,7 +441,9 @@ def _python_prose(text: str) -> list[tuple[int, int]]:
 
     try:
         tokens = list(
-            py_tokenize.generate_tokens(io.StringIO(text, newline="").readline)
+            py_tokenize.generate_tokens(
+                io.StringIO(parser_text, newline="").readline
+            )
         )
     except (MemoryError, RecursionError) as exc:
         raise SourceExtractionError(
@@ -445,8 +478,18 @@ def _python_prose(text: str) -> list[tuple[int, int]]:
     for node in docstrings:
         if node.end_lineno is None or node.end_col_offset is None:
             raise SourceExtractionError(node.lineno, node.col_offset + 1, "docstring has no end position")
-        node_start = _ast_position_offset(text, starts, node.lineno, node.col_offset)
-        node_end = _ast_position_offset(text, starts, node.end_lineno, node.end_col_offset)
+        node_start = _ast_position_offset(
+            parser_text,
+            starts,
+            node.lineno,
+            node.col_offset,
+        )
+        node_end = _ast_position_offset(
+            parser_text,
+            starts,
+            node.end_lineno,
+            node.end_col_offset,
+        )
         while (
             string_cursor < len(string_spans)
             and string_spans[string_cursor][2] <= node_start
@@ -511,8 +554,14 @@ def scan_hard(
     lex: dict,
     *,
     line_terminators: frozenset[str] = frozenset("\n"),
+    line_starts: list[int] | None = None,
 ) -> list[dict]:
     hits: list[dict] = []
+    coordinate_starts = (
+        line_starts
+        if line_starts is not None
+        else _coordinate_line_starts(text, line_terminators)
+    )
     lower = text.lower()
     for family, block in lex.items():
         if family.startswith("_") or not isinstance(block, dict):
@@ -522,7 +571,7 @@ def scan_hard(
             t = term.lower()
             pattern = re.compile(r"(?<![\w-])" + re.escape(t) + r"(?![\w-])")
             for m in pattern.finditer(lower):
-                ln, cl = line_col(text, m.start(), line_terminators)
+                ln, cl = _indexed_line_col(coordinate_starts, m.start())
                 hits.append(
                     {
                         "pass": "hard",
@@ -562,14 +611,33 @@ def sentence_spans(text: str) -> list[tuple[int, int]]:
     return [(a, b) for a, b in spans if b > a]
 
 
-def window_tokens(text: str, start: int, end: int, n: int, spans: list[tuple[int, int]]) -> str:
+def _sentence_index(
+    start: int,
+    spans: list[tuple[int, int]],
+    span_starts: list[int],
+) -> int | None:
+    index = bisect_right(span_starts, start) - 1
+    if index < 0 or not (spans[index][0] <= start < spans[index][1]):
+        return None
+    return index
+
+
+def window_tokens(
+    text: str,
+    start: int,
+    end: int,
+    n: int,
+    spans: list[tuple[int, int]],
+    span_starts: list[int] | None = None,
+) -> str:
     """Evidence window clamped to the sentence holding the term.
 
     A referent two sentences away does not license the term. The one allowance
     is anaphora: when the sentence opens with a pronoun or demonstrative it is
     continuing the previous subject, so the previous sentence counts.
     """
-    idx = next((i for i, (a, b) in enumerate(spans) if a <= start < b), None)
+    starts = span_starts if span_starts is not None else [a for a, _ in spans]
+    idx = _sentence_index(start, spans, starts)
     if idx is None:
         a = max(0, start - n * 8)
         b = min(len(text), end + n * 8)
@@ -608,8 +676,14 @@ def scan_gated(
     evidence_text: str | None = None,
     *,
     line_terminators: frozenset[str] = frozenset("\n"),
+    line_starts: list[int] | None = None,
 ) -> list[dict]:
     hits: list[dict] = []
+    coordinate_starts = (
+        line_starts
+        if line_starts is not None
+        else _coordinate_line_starts(text, line_terminators)
+    )
     # Term positions come from the masked text; evidence is read from the
     # original, because masking blanks inline code and inline code is exactly
     # what licenses a term of art. Both strings are the same length.
@@ -622,6 +696,10 @@ def scan_gated(
     default_win = int(lex.get("_default_window", 12))
 
     spans = sentence_spans(src)
+    span_starts = [start for start, _ in spans]
+    window_cache: dict[int, str] = {}
+    gate_cache: dict[tuple[int, bool], tuple[bool, str]] = {}
+    nearest_cache: dict[int, str | None] = {}
 
     for family, block in lex.items():
         if family.startswith("_") or not isinstance(block, dict):
@@ -633,14 +711,73 @@ def scan_gated(
             for m in pattern.finditer(text.lower()):
                 if RE_DEFINITIONAL.match(src[m.end():m.end() + 40]):
                     continue
-                win = window_tokens(src, m.start(), m.end(), n, spans)
-                ok, reason = gate_evidence(win, allow, require_numeric)
+                sentence_index = _sentence_index(
+                    m.start(),
+                    spans,
+                    span_starts,
+                )
+                if sentence_index is None:
+                    win = window_tokens(
+                        src,
+                        m.start(),
+                        m.end(),
+                        n,
+                        spans,
+                        span_starts,
+                    )
+                    ok, reason = gate_evidence(win, allow, require_numeric)
+                    nearest = next(
+                        (
+                            abstract_noun
+                            for abstract_noun in abstract
+                            if re.search(
+                                r"(?<![\w-])"
+                                + abstract_noun
+                                + r"(?![\w-])",
+                                win.lower(),
+                            )
+                        ),
+                        None,
+                    )
+                else:
+                    if sentence_index not in window_cache:
+                        window_cache[sentence_index] = window_tokens(
+                            src,
+                            m.start(),
+                            m.end(),
+                            n,
+                            spans,
+                            span_starts,
+                        )
+                    win = window_cache[sentence_index]
+                    gate_key = (sentence_index, require_numeric)
+                    if gate_key not in gate_cache:
+                        gate_cache[gate_key] = gate_evidence(
+                            win,
+                            allow,
+                            require_numeric,
+                        )
+                    ok, reason = gate_cache[gate_key]
+                    if sentence_index not in nearest_cache:
+                        lowered_window = win.lower()
+                        nearest_cache[sentence_index] = next(
+                            (
+                                abstract_noun
+                                for abstract_noun in abstract
+                                if re.search(
+                                    r"(?<![\w-])"
+                                    + abstract_noun
+                                    + r"(?![\w-])",
+                                    lowered_window,
+                                )
+                            ),
+                            None,
+                        )
+                    nearest = nearest_cache[sentence_index]
                 if ok:
                     continue
-                wl = win.lower()
-                nearest = next((a for a in abstract if re.search(r"(?<![\w-])" + a + r"(?![\w-])", wl)), None)
                 confidence = "high" if nearest else "medium"
-                ln, cl = line_col(text, m.start(), line_terminators)
+                ln, cl = _indexed_line_col(coordinate_starts, m.start())
                 hits.append(
                     {
                         "pass": "gated",
@@ -666,8 +803,14 @@ def scan_structural(
     lex: dict,
     *,
     line_terminators: frozenset[str] = frozenset("\n"),
+    line_starts: list[int] | None = None,
 ) -> list[dict]:
     hits: list[dict] = []
+    coordinate_starts = (
+        line_starts
+        if line_starts is not None
+        else _coordinate_line_starts(text, line_terminators)
+    )
     for name, spec in lex.get("patterns", {}).items():
         flags = re.M if spec.get("case_sensitive") else (re.I | re.M)
         try:
@@ -678,7 +821,7 @@ def scan_structural(
         for m in pattern.finditer(text):
             if m.group(0).strip() in spec.get("allow_exact", []):
                 continue
-            ln, cl = line_col(text, m.start(), line_terminators)
+            ln, cl = _indexed_line_col(coordinate_starts, m.start())
             hits.append(
                 {
                     "pass": "structural",
@@ -760,18 +903,26 @@ def build(text: str, *, hard_only: bool = False, skip_code: bool = True,
     if not strict:
         prose = mask_quoted(prose, line_terminators=line_terminators)
 
-    hits = scan_hard(prose, hard_lex, line_terminators=line_terminators)
+    coordinate_starts = _coordinate_line_starts(prose, line_terminators)
+    hits = scan_hard(
+        prose,
+        hard_lex,
+        line_terminators=line_terminators,
+        line_starts=coordinate_starts,
+    )
     if not hard_only:
         hits += scan_gated(
             prose,
             gated_lex,
             evidence_text=evidence_text,
             line_terminators=line_terminators,
+            line_starts=coordinate_starts,
         )
         hits += scan_structural(
             prose,
             struct_lex,
             line_terminators=line_terminators,
+            line_starts=coordinate_starts,
         )
     hits.sort(key=lambda h: (h["line"], h["col"]))
 

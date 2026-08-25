@@ -243,6 +243,22 @@ check(
     str([(h["line"], h["col"]) for h in python_report["hits"]]),
 )
 
+python_bom_source = (
+    "\ufeff# Leverage the module note.\n"
+    '"""Leverage the module documentation."""\n'
+)
+python_bom_hits = [
+    hit
+    for hit in build(python_bom_source, source_suffix=".py")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/python UTF-8 BOM preserves prose coordinates",
+    [(hit["line"], hit["col"]) for hit in python_bom_hits]
+    == [(1, 4), (2, 4)],
+    repr([(hit["line"], hit["col"]) for hit in python_bom_hits]),
+)
+
 try:
     extract_source_prose("value = " + "+" * 10_000 + "1\n", ".py")
 except SourceExtractionError as exc:
@@ -810,6 +826,54 @@ check(
     "source/typescript completed statements reset declaration state",
     completed_statement_ok,
     "; ".join(completed_statement_detail),
+)
+
+nested_construct_sources = [
+    (
+        ".ts",
+        "(class {});\n"
+        "{}\n"
+        "/[/*]Leverage[*/]/.test(value); "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".tsx",
+        "(function() {});\n"
+        "if (ready) {}\n"
+        "<p>/* Leverage is raw child text */</p>; "
+        "// Leverage the actual helper.\n",
+    ),
+    (
+        ".ts",
+        "const ratio = function outer(arg = function inner() {}) {} "
+        "/ /* Leverage the actual divisor. */ 2;\n",
+    ),
+    (
+        ".tsx",
+        "const ratio = class Outer extends (class Inner {}) {} "
+        "/ /* Leverage the actual divisor. */ 2;\n",
+    ),
+]
+nested_construct_ok = True
+nested_construct_detail = []
+for suffix, source in nested_construct_sources:
+    hits = [
+        hit
+        for hit in build(source, source_suffix=suffix)["hits"]
+        if hit["term"] == "leverage"
+    ]
+    expected_offset = source.rindex("Leverage")
+    expected = (
+        source.count("\n", 0, expected_offset) + 1,
+        expected_offset - source.rfind("\n", 0, expected_offset),
+    )
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    nested_construct_ok = nested_construct_ok and positions == [expected]
+    nested_construct_detail.append(f"{suffix}:{positions}")
+check(
+    "source/typescript nested construct state stays bounded",
+    nested_construct_ok,
+    "; ".join(nested_construct_detail),
 )
 
 nested_generic_source = (
