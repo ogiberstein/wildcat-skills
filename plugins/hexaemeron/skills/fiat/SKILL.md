@@ -1,31 +1,26 @@
 ---
 name: fiat
 description: >
-  Run the explicit, receipted delivery controller in its own worktree: study,
-  runbook, then per-step implement, audit, prose and push, followed by one
-  signed integration.
+  Run the one-shot delivery loop: study, runbook, then per-step
+  implement/audit/prose/push until a working prototype exists.
   Use only when a Wildcat contributor explicitly asks to start, run, resume,
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.23.1"
+  version: "5.24.1"
 ---
 
 # Fiat
 
 ## Where this sits
 
-Fiat owns the delivery controller: dedicated worktree, durable state,
-directives, receipts, stacked branches and pull requests, audit-round order,
-signature checks, one base integration, and the final report. It does not
-silently absorb the workers, phase disciplines, prose masks, Pashov suite, or
-domain specialists it calls.
-
-Its version, held frontier, next job, and maturity state live in
+Fiat owns the delivery controller, not Hexaemeron's bundled audit or prose
+skills. Its version, held frontier, next job, and maturity state live in
 [EVOLUTION.md](EVOLUTION.md). Read that ledger before suggesting, starting, or
 resuming work intended to advance Fiat itself.
 
-**Current frontier.** load_state validates the version-1 state container spine in deterministic order before any command traverses it, with path-and-kind diagnostics shared by verify and mutations; delegated task identities can still expose an earlier issue when a collaboration handle is reused.
+**Current frontier.** The ledger above is authoritative. Never substitute
+Hexaemeron's plugin-wide Solidity frontier for Fiat's own held target.
 
 ## Phase skills
 
@@ -44,25 +39,6 @@ defers to them rather than restating their rules. Each slots in as follows:
 Their lints run in every audit round, so meeting them during the step is
 cheaper than meeting them in the round. The phase notes below say how each one
 is applied.
-
-The two prose masks are separate again: Imprimatur diagnoses banned language
-and unsupported terms, then Vulgate rewrites the surface with content held
-fixed. Kronos may select an eligible held frontier and dispatch it here, but it
-never controls a Fiat run after dispatch. Hermes, Pandects, Lemma, Lazarus, and
-the other domain siblings keep their own promises when a run invokes them.
-
-### Worker packets
-
-- Surveyor researches one source-bound topic and writes the study.
-- Mason implements and tests one exact runbook step on the named branch pair.
-- Warden runs one audit round, preserves its record, fixes findings, and
-  reports the exact Elenchus verdict.
-- Scribe applies the prose pass to the bounded diff and pull-request draft.
-
-Fiat can perform the same packet inline when isolated workers are unavailable.
-Workers never receipt themselves or choose the next directive. Reject a reused
-worker handle that still exposes an earlier issue, step, or role; that stale
-identity is Fiat's current held frontier.
 
 Let there be light.
 
@@ -264,15 +240,17 @@ state transition.
    the repository from the current directory and the user's named target;
    never substitute an organisation or clone a different repository merely
    because its name looks related.
-3. If `init` warns that this controller is older than a Fiat checked into the
-   target repository, act on it before the run gets going: update the plugin,
-   refresh through the host's own boundary, and re-resolve the paths, per
-   [plugin-currency.md](references/plugin-currency.md). Where the update cannot
-   happen, record the `controller_version` receipt that reference specifies and
-   say so out loud. Do not run the loop under a controller you have noticed is
-   behind and said nothing more about: the rules it does not enforce leave no
-   trace, because a flag it rejects is indistinguishable from a rule nobody
-   wrote.
+3. `init` observes this controller's own currency and refuses a proven-behind
+   pin by name, before any run state exists. On that refusal, re-pin through
+   the host's own installer, refresh, and re-resolve the paths, per
+   [plugin-currency.md](references/plugin-currency.md); where that cannot
+   happen, rerun init with `--controller-currency-waiver '<reason>'`, which
+   records the verdict and reason in the init receipt. Treat an `unknown`
+   currency warning, or the warning that this controller is older than a Fiat
+   checked into the target repository, the same way. Do not run the loop
+   under a controller you have noticed is behind and said nothing more about:
+   the rules it does not enforce leave no trace, because a flag it rejects is
+   indistinguishable from a rule nobody wrote.
 4. The prose masks ship inside this plugin: the `imprimatur` lint (a script
    at `$PLUGIN_ROOT/skills/imprimatur/scripts/imprimatur.py`) and the
    `vulgate` voice mask (rules at `$PLUGIN_ROOT/skills/vulgate/SKILL.md`).
@@ -462,8 +440,7 @@ first, then `solidity-auditor`; when the step ships Solidity under Foundry or
 Hardhat, `fizz` builds or refreshes the invariant fuzz suite and its campaign
 results count as part of the round. Read each skill's SKILL.md from
 `$PLUGIN_ROOT/skills/<name>/` and follow it. Every finding is logged
-to the run's own audit file, which `init` derives and the directive names, fixes
-committed to the stacked branch. A supplied `--log` has to be that file. Warden receives the
+to the audit file, fixes committed to the stacked branch. Warden receives the
 exact source-bound runbook step and uses its test command, report format, and
 report file for any fix. A round supplying `--fixes-commit` also supplies one
 exact `--elenchus-verdict`: `guarded`, `unguarded`, `passed`, or

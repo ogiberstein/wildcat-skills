@@ -671,10 +671,15 @@ def task_issue_number(value: str) -> str:
     return match.group(1)
 
 
-def check_branch_name(name: str) -> None:
+def branch_name_ok(name: str) -> bool:
+    """Whether one string satisfies the conservative refname subset above."""
     if not BRANCH_RE.match(name) or ".." in name or "//" in name:
-        die(f"'{name}' is not a usable branch name")
-    if name.endswith(".lock"):
+        return False
+    return not name.endswith(".lock")
+
+
+def check_branch_name(name: str) -> None:
+    if not branch_name_ok(name):
         die(f"'{name}' is not a usable branch name")
 
 
@@ -1385,6 +1390,14 @@ def cmd_init(args) -> None:
     root = state_root(args.dir)
     if os.path.exists(state_path(args.dir)):
         die(f"state already exists at {root}; resume with `hexctl next`")
+    waiver = None
+    if args.controller_currency_waiver is not None:
+        waiver = args.controller_currency_waiver.strip()
+        if not waiver:
+            die(
+                "--controller-currency-waiver needs a reason; an empty one "
+                "records nothing"
+            )
     prefix = DEFAULT_CONFIG["git"]["run_branch_prefix"]
     issue_number = (
         task_issue_number(args.task_issue) if args.task_issue is not None else None
@@ -1439,6 +1452,31 @@ def cmd_init(args) -> None:
     worktree = check_worktree_path(repo_root, candidate)
     refuse_checked_out_branch(args.dir, run_branch)
 
+    # The currency observation is the last pre-mutation check because it is
+    # the only one that may wait on the network: every cheaper refusal has
+    # already had its chance. A proven-behind controller stops the run here,
+    # while a refusal still costs nothing; anything the observation could not
+    # prove proceeds as `unknown` with the nulls recorded rather than guessed.
+    currency = observe_controller_currency()
+    if currency["verdict"] == "behind" and waiver is None:
+        die(
+            "controller currency: this controller's recorded pin "
+            f"{currency['pin']} differs from the observed upstream head "
+            f"{currency['observed_head']}. Either re-pin the plugin through "
+            "this host's own installer (references/plugin-currency.md), or "
+            "rerun init with --controller-currency-waiver '<reason>' to "
+            "proceed with the gap recorded.",
+            1,
+        )
+    if currency["verdict"] == "unknown":
+        print(
+            "hexctl: warning: controller currency is unknown "
+            f"({currency['warning']}); the run starts anyway and its receipt "
+            "records the nulls rather than a verdict.",
+            file=sys.stderr,
+        )
+    provenance = {**currency, "waiver": waiver}
+
     home = os.path.dirname(worktree)
     os.makedirs(home, exist_ok=True)
     # Self-ignoring, the same trick the state directory uses. Without it the
@@ -1474,7 +1512,7 @@ def cmd_init(args) -> None:
         remove_run_worktree(args.dir, worktree)
         die(f"could not write the run's state into {root}")
 
-    receipts = {}
+    receipts = {"controller_currency": provenance}
     if args.task_issue is not None:
         receipts["task_issue"] = args.task_issue
 
@@ -1496,7 +1534,12 @@ def cmd_init(args) -> None:
     state["config"]["audit"]["log_path"] = run_audit_log_path(run_branch)
     state["worktree"] = worktree
     state["origin"] = origin_root
-    init_data = {"topic": args.topic, "base": args.base, "run_branch": run_branch}
+    init_data = {
+        "topic": args.topic,
+        "base": args.base,
+        "run_branch": run_branch,
+        "controller_currency": provenance,
+    }
     if args.task_issue is not None:
         init_data["task_issue"] = args.task_issue
     try:
@@ -1846,6 +1889,402 @@ def stale_controller(target_dir: str) -> tuple[str, str, str] | None:
     return None
 
 
+CURRENCY_REGISTRY_FILE = "installed_plugins.json"
+CURRENCY_REGISTRY_MAX = 1024 * 1024
+CURRENCY_CACHE_DIR = "cache"
+CURRENCY_MARKETPLACES_DIR = "marketplaces"
+"""The host install layout the currency observation reads, never assumes.
+
+`<plugins root>/installed_plugins.json` records every install;
+`<plugins root>/cache/<marketplace>/<plugin>/<version>/` holds the running
+copy; `<plugins root>/marketplaces/<marketplace>/` is the git clone whose own
+configuration names the upstream. The plugins root is derived from the
+controller's resolved file, so no environment or target-repository value
+chooses what gets read.
+"""
+
+
+def currency_inside_git_worktree(start_dir: str) -> bool:
+    """Whether a directory has a `.git` somewhere above it."""
+    current = start_dir
+    while True:
+        if os.path.exists(os.path.join(current, ".git")):
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
+
+
+def currency_cache_split(real_file: str) -> tuple[str, str] | None:
+    """The (plugins root, marketplace) a cached controller file sits under.
+
+    The nearest ancestor named `cache` with marketplace, plugin and version
+    components between it and the file decides; None means the file is not
+    under an install cache and the in-repo check applies instead.
+    """
+    parts = real_file.split(os.sep)
+    for index in range(len(parts) - 5, 0, -1):
+        if parts[index] != CURRENCY_CACHE_DIR:
+            continue
+        if all(parts[index + 1:index + 4]):
+            return os.sep.join(parts[:index]), parts[index + 1]
+    return None
+
+
+def currency_registry_load(plugins_root: str) -> tuple[str, dict | str]:
+    """The host registry's plugins mapping, read once and bounded.
+
+    Returns ("ok", plugins) or ("unknown", warning) when the registry cannot
+    answer at all: missing, oversized, malformed, or the wrong kind. Hostile
+    bytes are named by kind, never echoed.
+    """
+    path = os.path.join(plugins_root, CURRENCY_REGISTRY_FILE)
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read(CURRENCY_REGISTRY_MAX + 1)
+    except OSError:
+        return "unknown", "registry-missing"
+    if len(raw) > CURRENCY_REGISTRY_MAX:
+        return "unknown", "registry-oversized"
+    try:
+        registry = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return "unknown", "registry-malformed"
+    plugins = registry.get("plugins") if isinstance(registry, dict) else None
+    if not isinstance(plugins, dict):
+        return "unknown", "registry-wrong-kind"
+    return "ok", plugins
+
+
+def currency_record_pin(record: dict) -> tuple[str, str | None]:
+    """One install record's pin answer.
+
+    ("pin", sha) when the record carries a commit SHA, ("absent", None) when
+    it carries none, and ("unknown", "registry-pin-malformed") for anything
+    else, because a pin that is not a commit is hostile input, not a null.
+    """
+    pin = record.get("gitCommitSha")
+    if pin is None:
+        return "absent", None
+    if isinstance(pin, str) and COMMIT_RE.fullmatch(pin):
+        return "pin", pin
+    return "unknown", "registry-pin-malformed"
+
+
+def currency_registry_pin(plugins_root: str, real_file: str) -> tuple[str, str | None]:
+    """The pin the host registry records for the install holding one file.
+
+    Returns ("pin", sha) when the matching install records a commit SHA,
+    ("absent", None) when it records none, and ("unknown", warning) when the
+    registry cannot answer: missing, oversized, malformed, wrong kind, no
+    install path holding the file, or a pin that is not a commit SHA.
+    """
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return "unknown", plugins
+    for records in plugins.values():
+        if not isinstance(records, list):
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            install_path = record.get("installPath")
+            if not isinstance(install_path, str) or not install_path:
+                continue
+            prefix = os.path.join(os.path.realpath(install_path), "")
+            if not real_file.startswith(prefix):
+                continue
+            return currency_record_pin(record)
+    return "unknown", "registry-unmatched"
+
+
+def currency_clone_branch(clone_dir: str) -> str | None:
+    """The branch name a marketplace clone's HEAD points at, or None."""
+    try:
+        with open(os.path.join(clone_dir, ".git", "HEAD"),
+                  encoding="utf-8") as handle:
+            head = handle.read(4096).strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    branch = head.removeprefix("ref: refs/heads/")
+    if branch == head or not branch_name_ok(branch):
+        return None
+    return branch
+
+
+def currency_remote_head(clone_dir: str, branch: str) -> tuple[str | None, str | None]:
+    """One bounded upstream observation: the clone's origin head for a branch.
+
+    Runs inside the marketplace clone and names the remote rather than a URL,
+    so only the clone's own configuration can choose where the read goes, and
+    no URL passes through this controller at all. Credential prompts are
+    disabled; the read is time-capped and output-capped by `bounded_probe`.
+    Returns (head, None), or (None, warning) for anything but exactly one
+    well-formed ref line -- a failed read is never a verdict.
+    """
+    expected_ref = f"refs/heads/{branch}"
+    status, output, failure = bounded_probe(
+        clone_dir,
+        "git",
+        ["ls-remote", "--refs", "origin", expected_ref],
+        extra_env={"GIT_TERMINAL_PROMPT": "0"},
+    )
+    if failure is not None:
+        return None, f"remote-{failure}"
+    if status != 0:
+        return None, "remote-failed"
+    try:
+        text = output.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, "remote-malformed"
+    lines = [line for line in text.splitlines() if line]
+    if len(lines) != 1:
+        return None, "remote-malformed"
+    fields = lines[0].split("\t")
+    if (
+        len(fields) != 2
+        or not COMMIT_RE.fullmatch(fields[0])
+        or fields[1] != expected_ref
+    ):
+        return None, "remote-malformed"
+    return fields[0], None
+
+
+def observe_controller_currency(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> dict:
+    """Resolve the running controller's own file to route, pin and upstream head.
+
+    The one observation `init` gates on. Every input is observed rather than
+    assumed: the plugins root and marketplace come from the controller's own
+    resolved path, the pin from the host registry beside that root, and the
+    upstream head from one bounded read inside the marketplace clone, on the
+    git-backed route only. Whatever the observation cannot prove reads as an
+    explicit null and, where it blocks a verdict, as `unknown` with a named
+    warning -- never a guess toward `current` or `behind`.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    observation = {
+        "ledger_version": ledger_version(
+            os.path.join(os.path.dirname(real), os.pardir, "EVOLUTION.md")
+        ),
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
+    split = currency_cache_split(real)
+    if split is None:
+        if currency_inside_git_worktree(os.path.dirname(real)):
+            observation["route"] = "in-repo-source"
+            observation["verdict"] = "no-pin"
+        else:
+            observation["warning"] = "route-unresolved"
+        return observation
+    plugins_root, marketplace = split
+    kind, value = currency_registry_pin(plugins_root, real)
+    observation.update(
+        currency_pin_observation(plugins_root, marketplace, kind, value,
+                                 remote_reader)
+    )
+    return observation
+
+
+def currency_pin_observation(
+    plugins_root: str,
+    marketplace: str,
+    kind: str,
+    value: str | None,
+    remote_reader,
+) -> dict:
+    """Route, pin, head, verdict and warning for one registry pin answer.
+
+    The shared tail of the init gate and the `currency` report: `kind` and
+    `value` come from the registry ("pin", "absent" or "unknown"), and
+    everything past them is observed from the marketplace clone under the
+    same plugins root. A recorded pin makes the install git-backed even when
+    the marketplace clone is gone: claiming `managed` there would let one
+    deleted directory silence the gate without a warning (S2-R1-02). The pin
+    stays recorded, the head stays an explicit null, and the verdict stays
+    `unknown`.
+    """
+    observation = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+        "warning": None,
+    }
+    if kind == "unknown":
+        observation["warning"] = value
+        return observation
+    if kind == "absent":
+        observation["route"] = "managed"
+        observation["verdict"] = "managed"
+        return observation
+    observation["route"] = "git-backed"
+    observation["pin"] = value
+    clone = os.path.join(plugins_root, CURRENCY_MARKETPLACES_DIR, marketplace)
+    if not os.path.exists(os.path.join(clone, ".git")):
+        observation["warning"] = "clone-missing"
+        return observation
+    branch = currency_clone_branch(clone)
+    if branch is None:
+        observation["warning"] = "clone-head-unreadable"
+        return observation
+    head, warning = remote_reader(clone, branch)
+    if head is None:
+        observation["warning"] = warning or "remote-failed"
+        return observation
+    observation["observed_head"] = head
+    observation["verdict"] = "current" if head == value else "behind"
+    return observation
+
+
+def currency_record_marketplace(plugins_root: str, record: dict) -> str | None:
+    """The marketplace directory an install record sits under, or None.
+
+    Observed from the record's install path relative to the same plugins
+    root the controller derived from its own file, so a hostile registry
+    entry cannot point the clone read outside that root.
+    """
+    install_path = record.get("installPath")
+    if not isinstance(install_path, str) or not install_path:
+        return None
+    real = os.path.realpath(install_path)
+    prefix = os.path.join(plugins_root, CURRENCY_CACHE_DIR, "")
+    if not real.startswith(prefix):
+        return None
+    return real[len(prefix):].split(os.sep, 1)[0] or None
+
+
+def currency_report(
+    controller_file: str | None = None,
+    remote_reader=None,
+) -> tuple[list[dict], str | None]:
+    """One currency row per installed plugin, or a named refusal.
+
+    Returns (rows, None) or ([], refusal). The plugins root comes from the
+    running controller's own resolved file exactly as the init gate derives
+    it, the registry is one bounded read, and upstream is asked at most once
+    per distinct marketplace clone rather than once per plugin. A defective
+    record is a row with verdict `unknown`, so a plugin never vanishes from
+    the report; a registry that cannot answer at all is a refusal, because an
+    empty success would read as a fleet with nothing behind. Every install
+    record in the registry gets a row: filtering by a hard-coded marketplace
+    name would blind the report on a private-mirror host.
+    """
+    if controller_file is None:
+        controller_file = __file__
+    if remote_reader is None:
+        remote_reader = currency_remote_head
+    real = os.path.realpath(controller_file)
+    split = currency_cache_split(real)
+    if split is None:
+        return [], (
+            "currency reports the install registry, and this controller does "
+            "not run from an install cache; run the installed copy instead"
+        )
+    plugins_root, _ = split
+    kind, plugins = currency_registry_load(plugins_root)
+    if kind != "ok":
+        return [], f"the install registry cannot be read ({plugins})"
+
+    memo: dict = {}
+
+    def read_once(clone_dir: str, branch: str):
+        key = (clone_dir, branch)
+        if key not in memo:
+            memo[key] = remote_reader(clone_dir, branch)
+        return memo[key]
+
+    unknown_row = {
+        "route": "unknown",
+        "pin": None,
+        "observed_head": None,
+        "verdict": "unknown",
+    }
+    rows = []
+    for key in sorted(plugins):
+        plugin = key.rsplit("@", 1)[0] or key
+        records = plugins[key]
+        if not isinstance(records, list) or not records:
+            rows.append({"plugin": plugin, "version": None, **unknown_row,
+                         "warning": "registry-wrong-kind"})
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                rows.append({"plugin": plugin, "version": None, **unknown_row,
+                             "warning": "registry-wrong-kind"})
+                continue
+            version = record.get("version")
+            row = {
+                "plugin": plugin,
+                "version": version if isinstance(version, str) else None,
+            }
+            marketplace = currency_record_marketplace(plugins_root, record)
+            if marketplace is None:
+                row.update(unknown_row)
+                row["warning"] = "install-path-unrecognised"
+            else:
+                kind, value = currency_record_pin(record)
+                row.update(currency_pin_observation(
+                    plugins_root, marketplace, kind, value, read_once))
+            rows.append(row)
+    return rows, None
+
+
+def currency_text_field(value) -> str:
+    """One row value rendered for the line-per-plugin text report.
+
+    Plugin names and versions are registry bytes, and a byte that breaks or
+    reorders lines would forge row boundaries -- a newline in a key prints a
+    fabricated row that the eye reads as another plugin's verdict (S3-R1-01),
+    a Unicode line or paragraph separator does the same to a `splitlines`
+    consumer, and a lone surrogate crashes the encoder mid-report
+    (S3-R2-01). Anything not printable renders as `?`, which keeps every
+    legitimate slug, semver, hex and verdict byte for byte; the exit code
+    and `--json`, which escapes hostile values natively, are the machine
+    surfaces either way.
+    """
+    if value is None:
+        return "null"
+    return "".join(ch if ch.isprintable() else "?" for ch in str(value))
+
+
+def cmd_currency(args) -> None:
+    """Report pin-versus-upstream currency for every installed plugin.
+
+    Read-only: no state, no lock, no `.hexaemeron`. Exit 0 when nothing is
+    behind, 3 while anything is, 1 on a refusal, so a loop can gate a re-pin
+    on the status alone.
+    """
+    rows, refusal = currency_report()
+    if refusal is not None:
+        die(refusal, 1)
+    if args.json:
+        print(json.dumps(rows, indent=2))
+    else:
+        for row in rows:
+            line = " ".join(
+                currency_text_field(row[field])
+                for field in ("plugin", "version", "route", "pin",
+                              "observed_head", "verdict")
+            )
+            if row["warning"] is not None:
+                line += f" ({row['warning']})"
+            print(line)
+    if any(row["verdict"] == "behind" for row in rows):
+        sys.exit(3)
+
+
 RESERVED_RECEIPTS = {"study", "runbook", "run_observations"}
 
 
@@ -1853,6 +2292,11 @@ def cmd_record(args) -> None:
     state = load_state(args.dir)
     if args.key in RESERVED_RECEIPTS:
         die(f"'{args.key}' is a phase receipt; only `hexctl done {args.key}` writes it")
+    if args.key == "controller_currency":
+        # Init's own observation, protected like `task_issue`: a later
+        # rewrite would replace the recorded verdict and waiver with a
+        # value nothing observed (S2-R1-01).
+        die("controller_currency is init's observation; only `hexctl init` writes it")
     if state.get("halted") and args.key != "halt_note":
         # Recording context while halted is allowed; progress commands are not.
         pass
@@ -4559,16 +5003,23 @@ def source_risk_register(source: dict) -> dict:
     }
 
 
-def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
-    """Run one fixed-argv tool and return its status and output.
+def bounded_probe(
+    base_dir: str,
+    program: str,
+    argv: list[str],
+    extra_env: dict | None = None,
+) -> tuple[int | None, bytes, str | None]:
+    """Run one fixed-argv tool and report failure instead of refusing.
 
-    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
-    from the child's stream in any diagnosis. Callers that treat a non-zero
-    status as fatal go through `bounded_tool`; callers for which a refusal is a
-    real answer, such as git declining to remove a tree holding modifications,
-    read the status here.
+    The reader core `bounded_run` wraps: no shell, a hard timeout, a hard
+    output cap, and nothing from the child's stream in any diagnosis. This
+    surface exists for callers that must keep going when the child cannot
+    answer, such as the currency observation, where a stalled read is a
+    recorded `unknown` rather than a refusal. Returns (returncode, output,
+    failure); failure is None, "start", "timeout" or "output-cap", and the
+    returncode is None whenever the child never finished cleanly.
     """
-    operation = f"{program} {argv[0]}" if argv else program
+    env = {**os.environ, **extra_env} if extra_env is not None else None
     try:
         process = subprocess.Popen(
             [program, *argv],
@@ -4576,9 +5027,10 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=False,
+            env=env,
         )
-    except OSError as exc:
-        die(f"{operation} could not start")
+    except OSError:
+        return None, b"", "start"
     assert process.stdout is not None
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
@@ -4590,7 +5042,7 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
             if remaining <= 0:
                 process.kill()
                 process.wait()
-                die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+                return None, bytes(output), "timeout"
             events = selector.select(min(remaining, 0.1))
             if not events and process.poll() is not None:
                 events = [(key, selectors.EVENT_READ) for key in selector.get_map().values()]
@@ -4603,16 +5055,36 @@ def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, byte
                 if len(output) > GIT_OUTPUT_MAX:
                     process.kill()
                     process.wait()
-                    die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+                    return None, bytes(output), "output-cap"
         returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
-        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+        return None, bytes(output), "timeout"
     finally:
         selector.close()
         process.stdout.close()
-    return returncode, bytes(output)
+    return returncode, bytes(output), None
+
+
+def bounded_run(base_dir: str, program: str, argv: list[str]) -> tuple[int, bytes]:
+    """Run one fixed-argv tool and return its status and output.
+
+    The reader itself: no shell, a hard timeout, a hard output cap, and nothing
+    from the child's stream in any diagnosis. Callers that treat a non-zero
+    status as fatal go through `bounded_tool`; callers for which a refusal is a
+    real answer, such as git declining to remove a tree holding modifications,
+    read the status here.
+    """
+    operation = f"{program} {argv[0]}" if argv else program
+    returncode, output, failure = bounded_probe(base_dir, program, argv)
+    if failure == "start":
+        die(f"{operation} could not start")
+    if failure == "timeout":
+        die(f"{operation} timed out after {GIT_TIMEOUT} seconds")
+    if failure == "output-cap":
+        die(f"{operation} exceeded {GIT_OUTPUT_MAX}-byte output cap")
+    return returncode, output
 
 
 def bounded_tool(
@@ -6134,11 +6606,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="EVOLUTION.md this run is meant to advance; the terminal receipt "
              "then refuses until it carries exactly one new valid row",
     )
+    sp.add_argument(
+        "--controller-currency-waiver",
+        dest="controller_currency_waiver",
+        metavar="REASON",
+        help="proceed on a behind controller verdict, recording this reason "
+             "in the run's evidence",
+    )
     sp.set_defaults(fn=cmd_init)
 
     sp = sub.add_parser("status", help="show run state")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(fn=cmd_status)
+
+    sp = sub.add_parser(
+        "currency",
+        help="report pin-versus-upstream currency for installed plugins",
+    )
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=cmd_currency)
 
     sp = sub.add_parser("next", help="emit the single next action as JSON")
     sp.set_defaults(fn=cmd_next)
