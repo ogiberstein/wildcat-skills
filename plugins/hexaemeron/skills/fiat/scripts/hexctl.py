@@ -1936,6 +1936,58 @@ def _native_relation_commit(base_dir: str, ref: str, label: str) -> str:
     return lines[0]
 
 
+def _native_relation_repository_identity(base_dir: str) -> tuple[str, str]:
+    """Identify the worktree Git directory and its exact common repository."""
+    raw = _native_relation_git(
+        base_dir,
+        [
+            "rev-parse",
+            "--path-format=absolute",
+            "--absolute-git-dir",
+            "--git-common-dir",
+        ],
+        "version relation repository identity cannot be read",
+    )
+    try:
+        lines = raw.decode("utf-8").splitlines()
+        encoded = [line.encode("utf-8") for line in lines]
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        lines = []
+        encoded = []
+    if (
+        len(lines) != 2
+        or any(not os.path.isabs(line) for line in lines)
+        or any(not value or len(value) > 4096 for value in encoded)
+    ):
+        die("version relation repository identity is malformed")
+    return tuple(lines)
+
+
+def _native_relation_branch_start(base_dir: str, branch: str) -> str:
+    """Return the branch-creation commit from its bounded native reflog."""
+    raw = _native_relation_git(
+        base_dir,
+        [
+            "reflog",
+            "show",
+            "--format=%H",
+            "--no-abbrev",
+            "--no-color",
+            "--no-show-signature",
+            "--end-of-options",
+            branch,
+        ],
+        "version relation run branch creation history cannot be read",
+    )
+    try:
+        lines = [line for line in raw.decode("ascii").splitlines() if line]
+    except UnicodeDecodeError:
+        lines = []
+    if not lines or any(not re.fullmatch(r"[0-9a-f]{40}", line) for line in lines):
+        die("version relation run branch creation history is malformed")
+    return lines[-1]
+
+
 def _require_native_relation_history(base_dir: str) -> None:
     """Refuse local object and ancestry substitutions before a branch point."""
     if "GIT_GRAFT_FILE" in os.environ:
@@ -1997,6 +2049,7 @@ def _require_native_relation_history(base_dir: str) -> None:
 
 def relation_anchor_commit(base_dir: str, state: dict) -> str:
     """The immutable branch point the run started from, using native local refs."""
+    repository = _native_relation_repository_identity(base_dir)
     _require_native_relation_history(base_dir)
     starting = state.get("base")
     if isinstance(starting, str) and COMMIT_RE.fullmatch(starting):
@@ -2004,11 +2057,14 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
             base_dir, starting, "version relation starting commit"
         )
         _require_native_relation_history(base_dir)
+        if _native_relation_repository_identity(base_dir) != repository:
+            die("version relation repository changed while reading the starting commit")
         return anchor
     run_branch = run_branch_of(state)
     if not isinstance(run_branch, str) or not run_branch:
         die("version relations require the run's integration branch")
     base_branch = integration_base_of(state)
+    branch_start = _native_relation_branch_start(base_dir, run_branch)
     run_head = _native_relation_commit(
         base_dir, run_branch, "version relation run branch"
     )
@@ -2032,9 +2088,19 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
     final_base = _native_relation_commit(
         base_dir, base_branch, "version relation base branch"
     )
+    final_start = _native_relation_branch_start(base_dir, run_branch)
     if (run_head, base_head) != (final_run, final_base):
         die("version relation refs changed while deriving the starting commit")
+    if branch_start != final_start:
+        die("version relation run branch creation history changed during the read")
     _require_native_relation_history(base_dir)
+    if _native_relation_repository_identity(base_dir) != repository:
+        die("version relation repository changed while deriving the starting commit")
+    if candidates[0] != branch_start:
+        die(
+            "version relation branch point does not match the run branch "
+            "creation point"
+        )
     return candidates[0]
 
 
@@ -3059,11 +3125,14 @@ def done_runbook(args, state: dict) -> None:
     relation_source = parse_version_relation_source(artifact_text)
     version_relations = None
     if relation_source is not None:
+        repository = _native_relation_repository_identity(args.dir)
         anchor_commit = relation_anchor_commit(args.dir, state)
         version_relations = capture_version_relations(
             args.dir, relation_source, anchor_commit
         )
         _require_native_relation_history(args.dir)
+        if _native_relation_repository_identity(args.dir) != repository:
+            die("version relation repository changed during anchor capture")
     steps_file = _require_file(args.steps_file, "steps-file")
     _, steps_bytes = read_bounded_source(args.dir, steps_file, "steps file")
     try:
@@ -4289,6 +4358,7 @@ def receipted_version_relations(base_dir: str, runbook: dict) -> dict | None:
     ]
     if source["source_sha256"] != stored["source_sha256"] or declarations != recorded:
         die("runbook version relations source does not match its receipt", 1)
+    repository = _native_relation_repository_identity(base_dir)
     _require_native_relation_history(base_dir)
     anchor_commit = _native_relation_commit(
         base_dir,
@@ -4301,6 +4371,8 @@ def receipted_version_relations(base_dir: str, runbook: dict) -> dict | None:
         base_dir, source, anchor_commit
     )
     _require_native_relation_history(base_dir)
+    if _native_relation_repository_identity(base_dir) != repository:
+        die("version relation repository changed during anchor replay", 1)
     if reconstructed != stored:
         die("runbook version relations anchor does not match its exact Git evidence", 1)
     return stored

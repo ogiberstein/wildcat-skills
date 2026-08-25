@@ -247,6 +247,47 @@ class VersionRelationTests(HexctlCase):
         self.assertEqual(relation["anchor_commit"], anchor)
         self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
 
+    def test_base_rewind_cannot_move_anchor_before_the_run_start(self):
+        self.install_target("fiat", (1, 1, 3))
+        older = self.commit_seed()
+        self.write(self.ledger_path("fiat"), self.ledger("fiat", (1, 2, 3)))
+        self.write(self.skill_path("fiat"), self.skill("fiat", (1, 2, 3)))
+        self.commit_seed()
+        self.init()
+
+        subprocess.run(
+            ["git", "reset", "--hard", older],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+        )
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        before_state = self.state()
+        with open(
+            os.path.join(self.target, ".hexaemeron", "ledger.jsonl"), "rb"
+        ) as handle:
+            before_ledger = handle.read()
+        runbook = self.write(
+            "runbook.md",
+            "# Runbook\n\n"
+            + self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done",
+            "runbook",
+            "--artifact",
+            runbook,
+            "--steps-file",
+            steps,
+            expect=2,
+        )
+        self.assertIn("run branch creation point", result.stderr)
+        self.assertNotIn(older, result.stderr)
+        self.assert_unchanged_after_refusal(before_state, before_ledger)
+
     def test_commit_replacement_cannot_substitute_anchor_tree(self):
         self.install_target("fiat")
         anchor = self.commit_seed()
