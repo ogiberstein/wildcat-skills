@@ -127,6 +127,177 @@ class TypeScriptLexerTests(unittest.TestCase):
         source = "const view = <Foo<Item> value={item} />; // real comment\n"
         self.assertEqual(["// real comment"], comments(source, tsx=True))
 
+    def test_tsx_generic_arrows_accept_defaults_modifiers_and_comment_trivia(self):
+        cases = {
+            "default": (
+                "const f = <T = unknown,>(x: T) => x; // trailing\n",
+                ["// trailing"],
+            ),
+            "constraint comment": (
+                "const f = <T /* type prose */ extends object,>(x: T) => x; "
+                "// trailing\n",
+                ["/* type prose */", "// trailing"],
+            ),
+            "default comment": (
+                "const f = <T /* type prose */ = unknown,>(x: T) => x; "
+                "// trailing\n",
+                ["/* type prose */", "// trailing"],
+            ),
+            "const parameter": (
+                "const f = <const T,>(x: T) => x; // trailing\n",
+                ["// trailing"],
+            ),
+            "contextual name": (
+                "const f = <out /* type prose */,>(x: out) => x; "
+                "// trailing\n",
+                ["/* type prose */", "// trailing"],
+            ),
+            "between head and parameters": (
+                "const f = <T,> /* parameter prose */ (x: T) => x; "
+                "// trailing\n",
+                ["/* parameter prose */", "// trailing"],
+            ),
+        }
+        for label, (source, expected) in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(expected, comments(source, tsx=True))
+
+    def test_tsx_arrow_probe_does_not_consume_jsx_attributes_or_child_text(self):
+        source = (
+            '<Foo label="value">(// visible child text)</Foo>; '
+            "// trailing\n"
+        )
+        self.assertEqual(["// trailing"], comments(source, tsx=True))
+
+    def test_slash_goal_distinguishes_expression_division_and_control_regex(self):
+        cases = {
+            "object division": 'const ratio = {} / "a/b".length; // trailing\n',
+            "postfix division": (
+                'let x = 1; const ratio = x++ / "a/b".length; // trailing\n'
+            ),
+            "parenthesized arrow division": (
+                'const ratio = (() => {}) / "a/b".length; // trailing\n'
+            ),
+            "generic function expression division": (
+                'const ratio = function<T extends {}>() {} / "a/b".length; '
+                "// trailing\n"
+            ),
+            "function intersection return division": (
+                'const ratio = function(): Value & {} {} / "a/b".length; '
+                "// trailing\n"
+            ),
+            "function conditional return division": (
+                "const ratio = function<T>(): T extends Value ? {} : {} {} "
+                '/ "a/b".length; // trailing\n'
+            ),
+            "non-null assertion division": (
+                'const ratio = value! / "a/b".length; // trailing\n'
+            ),
+            "parenthesized arrow non-null division": (
+                'const ratio = (() => {})! / "a/b".length; // trailing\n'
+            ),
+            "as type-literal division": (
+                'const ratio = value as {} / "a/b".length; // trailing\n'
+            ),
+            "satisfies type-literal division": (
+                'const ratio = value satisfies {} / "a/b".length; '
+                "// trailing\n"
+            ),
+            "keyword-named method division": (
+                'const ratio = obj.if(ok) / "a/b".length; // trailing\n'
+            ),
+            "label block regex": (
+                "label: {} /[/*]literal/.test(value); // trailing\n"
+            ),
+            "case block regex": (
+                "switch (value) { case 1: {} /[/*]literal/.test(value); } "
+                "// trailing\n"
+            ),
+            "nested object division": (
+                'const value = {item: {} / "a/b".length}; // trailing\n'
+            ),
+            "exported object division": (
+                'export default {} / "a/b".length; // trailing\n'
+            ),
+            "function expression division": (
+                'const ratio = function named() {} / "a/b".length; '
+                "// trailing\n"
+            ),
+            "label in function expression": (
+                "const fn = function () { label: {} /[/*]literal/.test(value); }; "
+                "// trailing\n"
+            ),
+            "class expression division": (
+                'const ratio = class Named {} / "a/b".length; // trailing\n'
+            ),
+            "class comparison heritage division": (
+                'const ratio = class extends (a < b ? A : B) {} '
+                '/ "a/b".length; // trailing\n'
+            ),
+            "default function declaration regex": (
+                "export default function named() {} /[/*]literal/.test(value); "
+                "// trailing\n"
+            ),
+            "default class declaration regex": (
+                "export default class Named {} /[/*]literal/.test(value); "
+                "// trailing\n"
+            ),
+            "template expression division": (
+                'const value = `${{} / "a/b".length}`; // trailing\n'
+            ),
+            "JSX expression division": (
+                'const view = <A value={{} / "a/b".length} />; // trailing\n'
+            ),
+            "if-body regex": (
+                "if (ok) /[/*]literal/.test(value); // trailing\n"
+            ),
+            "while-body regex": (
+                "while (ok) /[//]literal/.test(value); // trailing\n"
+            ),
+            "adjacent regex-close division": (
+                "const value = /literal//2; // trailing\n"
+            ),
+            "adjacent regex-close comment": (
+                "const value = /literal/// trailing\n"
+            ),
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(["// trailing"], comments(source, tsx=True))
+
+    def test_type_alias_newline_restores_the_regex_goal(self):
+        aliases = {
+            "primitive": "type Alias = string",
+            "array": "type Alias = string[]",
+            "tuple": "type Alias = [string, number]",
+            "generic": "type Alias = Foo<Bar>",
+            "object": "type Alias = { value: string }",
+            "conditional": (
+                "type Alias<T> = T extends string ? First : Second"
+            ),
+            "function": "type Alias = (value: string) => number",
+            "union object": "type Alias = {} | { value: string }",
+        }
+        for label, alias in aliases.items():
+            with self.subTest(label=label):
+                source = alias + "\n/[/*]literal/.test(value); // trailing\n"
+                self.assertEqual(["// trailing"], comments(source, tsx=True))
+
+    def test_line_comments_end_at_every_ecmascript_line_terminator(self):
+        for terminator in ("\r\n", "\r", "\u2028", "\u2029"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    "// first"
+                    + terminator
+                    + "const value = 1; // second"
+                    + terminator
+                    + "// third"
+                )
+                self.assertEqual(
+                    ["// first", "// second", "// third"],
+                    comments(source, tsx=True),
+                )
+
     def test_tsx_unterminated_element_returns_a_named_error(self):
         _, errors = ts.comment_spans("const view = <p>", tsx=True)
         self.assertEqual(1, len(errors))

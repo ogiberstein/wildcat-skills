@@ -71,6 +71,66 @@ REGEX_ALLOWED_AFTER = frozenset(
 WORD_CHARS = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$"
 )
+ECMASCRIPT_LINE_TERMINATORS = frozenset("\r\n\u2028\u2029")
+CONTROL_HEAD_KEYWORDS = frozenset({"catch", "for", "if", "switch", "while", "with"})
+COMMENT_REGEX_ALLOWED_AFTER = REGEX_ALLOWED_AFTER | {"control)", "default"}
+EXPRESSION_BRACE_AFTER = frozenset(
+    {
+        "(",
+        "[",
+        ",",
+        ":",
+        "=",
+        "==",
+        "===",
+        "!",
+        "!=",
+        "!==",
+        "&",
+        "&&",
+        "|",
+        "||",
+        "?",
+        "??",
+        "+",
+        "-",
+        "*",
+        "/",
+        "%",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "~",
+        "^",
+        "return",
+        "case",
+        "typeof",
+        "instanceof",
+        "in",
+        "of",
+        "new",
+        "delete",
+        "void",
+        "yield",
+        "await",
+        "throw",
+        "default",
+        "as",
+        "satisfies",
+    }
+)
+TYPE_LITERAL_BRACE_AFTER = frozenset(
+    {"(", "[", ",", ":", "=", "=>", "&", "|", "?", "<", "extends"}
+)
+
+
+def _line_comment_end(source, start):
+    """Return the first ECMAScript line terminator or the source end."""
+    cursor = start
+    while cursor < len(source) and source[cursor] not in ECMASCRIPT_LINE_TERMINATORS:
+        cursor += 1
+    return cursor
 
 
 def lex(source):
@@ -332,12 +392,11 @@ class _CommentScanError(ValueError):
 
 
 def _scan_comment_safe_regex(source, start):
-    """Scan a regex without consuming a later comment as its closing slash.
+    """Scan one regex token without consuming its following slash token.
 
-    A slash after ``}`` is ambiguous without a parser: it can open a regex
-    after a statement block or divide an object expression. If the candidate
-    would close on the first slash of ``//`` or ``/*``, leave it as code so the
-    forward scanner can classify the comment at that offset.
+    The regex-closing slash can be immediately followed by division or by the
+    first slash of a comment. Return just past the regex and let the forward
+    scanner classify that next token from its own offset.
     """
     n = len(source)
     i = start + 1
@@ -345,17 +404,20 @@ def _scan_comment_safe_regex(source, start):
     while i < n:
         c = source[i]
         if c == "\\":
+            if (
+                i + 1 >= n
+                or source[i + 1] in ECMASCRIPT_LINE_TERMINATORS
+            ):
+                return None
             i += 2
             continue
-        if c == "\n":
+        if c in ECMASCRIPT_LINE_TERMINATORS:
             return None
         if c == "[":
             in_class = True
         elif c == "]":
             in_class = False
         elif c == "/" and not in_class:
-            if source.startswith("//", i) or source.startswith("/*", i):
-                return None
             i += 1
             while i < n and source[i] in "dgimsuvy":
                 i += 1
@@ -365,6 +427,7 @@ def _scan_comment_safe_regex(source, start):
 
 
 JSX_NAME = re.compile(r"(?:[^\W\d]|[$])[\w.$:-]*")
+TYPESCRIPT_IDENTIFIER = re.compile(r"(?:[^\W\d]|[$])[\w$]*")
 MAX_COMMENT_NESTING = 64
 
 
@@ -399,10 +462,47 @@ class _CommentScanner:
         self.furthest = max(self.furthest, offset)
 
     def _string_end(self, start):
-        end = _scan_string(self.source, start)
-        if end is None:
-            raise self._error(start, "unterminated string")
-        return end
+        quote = self.source[start]
+        cursor = start + 1
+        while cursor < len(self.source):
+            char = self.source[cursor]
+            if char == "\\":
+                cursor += 1
+                if cursor >= len(self.source):
+                    break
+                if (
+                    self.source[cursor] == "\r"
+                    and cursor + 1 < len(self.source)
+                    and self.source[cursor + 1] == "\n"
+                ):
+                    cursor += 1
+                cursor += 1
+                continue
+            if char == quote:
+                return cursor + 1
+            if char in ECMASCRIPT_LINE_TERMINATORS:
+                break
+            cursor += 1
+        raise self._error(start, "unterminated string")
+
+    def _trivia_end(self, start, limit):
+        """Skip whitespace and comments without consuming beyond ``limit``."""
+        cursor = start
+        while cursor < limit:
+            if self.source[cursor].isspace():
+                cursor += 1
+                continue
+            if self.source.startswith("//", cursor):
+                cursor = min(_line_comment_end(self.source, cursor + 2), limit)
+                continue
+            if self.source.startswith("/*", cursor):
+                end = self.source.find("*/", cursor + 2, limit)
+                if end == -1:
+                    return limit
+                cursor = end + 2
+                continue
+            break
+        return cursor
 
     def _template_end(self, start, record):
         cursor = start + 1
@@ -421,6 +521,7 @@ class _CommentScanner:
                     stop_on_brace=True,
                     record=record,
                     missing="unterminated template expression",
+                    initial_previous="=",
                 )
                 continue
             cursor += 1
@@ -433,8 +534,7 @@ class _CommentScanner:
         while cursor < len(self.source):
             self._mark(cursor)
             if self.source.startswith("//", cursor):
-                end = self.source.find("\n", cursor + 2)
-                end = len(self.source) if end == -1 else end
+                end = _line_comment_end(self.source, cursor + 2)
                 if record:
                     self.comments.append(("line_comment", cursor, end))
                 cursor = end
@@ -467,6 +567,7 @@ class _CommentScanner:
                     stop_on_brace=True,
                     record=record,
                     missing="unterminated type argument expression",
+                    initial_previous="=",
                 )
                 continue
             if char == "<":
@@ -501,30 +602,44 @@ class _CommentScanner:
 
     def _generic_arrow_start(self, start):
         """Recognize the TSX forms that disambiguate a generic arrow."""
-        match = JSX_NAME.match(self.source, start + 1)
-        if match is None or match.end() >= len(self.source):
-            return False
-        cursor = match.end()
-        generic_form = self.source.startswith(",", cursor)
-        if not generic_form and self.source[cursor].isspace():
-            keyword = cursor
-            while keyword < len(self.source) and self.source[keyword].isspace():
-                keyword += 1
-            end = keyword + len("extends")
-            generic_form = (
-                self.source.startswith("extends", keyword)
-                and (end == len(self.source) or self.source[end] not in WORD_CHARS)
-            )
-        if not generic_form:
-            return False
         try:
             end = self._angle_end(start, record=False)
         except _CommentScanError:
             return False
-        cursor = end
-        while cursor < len(self.source) and self.source[cursor].isspace():
-            cursor += 1
-        return cursor < len(self.source) and self.source[cursor] == "("
+        after = self._trivia_end(end, len(self.source))
+        if after >= len(self.source) or self.source[after] != "(":
+            return False
+
+        limit = end - 1
+        cursor = self._trivia_end(start + 1, limit)
+        match = TYPESCRIPT_IDENTIFIER.match(self.source, cursor, limit)
+        if match is None:
+            return False
+        token = match.group(0)
+        cursor = match.end()
+        while token == "const":
+            cursor = self._trivia_end(cursor, limit)
+            match = TYPESCRIPT_IDENTIFIER.match(self.source, cursor, limit)
+            if match is None:
+                return False
+            token = match.group(0)
+            cursor = match.end()
+        cursor = self._trivia_end(cursor, limit)
+        if cursor >= limit:
+            return False
+        if self.source[cursor] == ",":
+            return True
+        if self.source[cursor] == "=" and not self.source.startswith("=>", cursor):
+            return True
+        keyword_end = cursor + len("extends")
+        return (
+            self.source.startswith("extends", cursor)
+            and keyword_end <= limit
+            and (
+                keyword_end == limit
+                or self.source[keyword_end] not in WORD_CHARS
+            )
+        )
 
     def _jsx_open(self, start, record):
         cursor = start + 1
@@ -549,8 +664,7 @@ class _CommentScanner:
         while cursor < len(self.source):
             self._mark(cursor)
             if self.source.startswith("//", cursor):
-                end = self.source.find("\n", cursor + 2)
-                end = len(self.source) if end == -1 else end
+                end = _line_comment_end(self.source, cursor + 2)
                 if record:
                     self.comments.append(("line_comment", cursor, end))
                 cursor = end
@@ -574,6 +688,7 @@ class _CommentScanner:
                     stop_on_brace=True,
                     record=record,
                     missing="unterminated JSX attribute expression",
+                    initial_previous="=",
                 )
                 continue
             if self.source.startswith("/>", cursor):
@@ -621,21 +736,39 @@ class _CommentScanner:
                     stop_on_brace=True,
                     record=record,
                     missing="unterminated JSX child expression",
+                    initial_previous="=",
                 )
                 continue
             cursor += 1
         raise self._error(start, "unterminated JSX element")
 
-    def _code_end(self, start, *, stop_on_brace, record, missing):
+    def _code_end(
+        self,
+        start,
+        *,
+        stop_on_brace,
+        record,
+        missing,
+        initial_previous="",
+        object_context=False,
+    ):
         cursor = start
-        previous = ""
+        previous = initial_previous
+        before_previous = ""
+        paren_contexts = []
+        pending_ternaries = 0
+        colon_starts_expression = False
+        pending_expression_body = None
+        pending_body_angle_depth = 0
+        pending_function_return_type = False
+        type_alias_state = 0
+        line_break_since_token = False
         while cursor < len(self.source):
             self._mark(cursor)
             if stop_on_brace and self.source[cursor] == "}":
                 return cursor + 1
             if self.source.startswith("//", cursor):
-                end = self.source.find("\n", cursor + 2)
-                end = len(self.source) if end == -1 else end
+                end = _line_comment_end(self.source, cursor + 2)
                 if record:
                     self.comments.append(("line_comment", cursor, end))
                 cursor = end
@@ -646,12 +779,38 @@ class _CommentScanner:
                     raise self._error(cursor, "unterminated block comment")
                 if record:
                     self.comments.append(("block_comment", cursor, end + 2))
+                if any(
+                    char in ECMASCRIPT_LINE_TERMINATORS
+                    for char in self.source[cursor : end + 2]
+                ):
+                    line_break_since_token = True
                 cursor = end + 2
                 continue
             char = self.source[cursor]
+            if pending_expression_body is not None:
+                if char == "<" and (
+                    pending_body_angle_depth
+                    or previous == pending_expression_body
+                    or before_previous
+                    in {pending_expression_body, ":", "extends", "implements"}
+                    or (
+                        pending_expression_body == "function"
+                        and pending_function_return_type
+                    )
+                ):
+                    pending_body_angle_depth += 1
+                elif (
+                    char == ">"
+                    and pending_body_angle_depth
+                    and self.source[cursor - 1] != "="
+                ):
+                    pending_body_angle_depth -= 1
             if char in "'\"":
                 cursor = self._string_end(cursor)
+                before_previous = previous
                 previous = "string"
+                colon_starts_expression = False
+                line_break_since_token = False
                 continue
             if char == "`":
                 cursor = self._descend(
@@ -660,12 +819,15 @@ class _CommentScanner:
                     cursor,
                     record,
                 )
+                before_previous = previous
                 previous = "template"
+                colon_starts_expression = False
+                line_break_since_token = False
                 continue
             if (
                 self.tsx
                 and char == "<"
-                and previous in REGEX_ALLOWED_AFTER
+                and previous in COMMENT_REGEX_ALLOWED_AFTER
                 and self._jsx_prefix(cursor)
                 and not self._generic_arrow_start(cursor)
             ):
@@ -675,9 +837,36 @@ class _CommentScanner:
                     cursor,
                     record,
                 )
+                before_previous = previous
                 previous = "jsx"
+                colon_starts_expression = False
+                line_break_since_token = False
                 continue
             if char == "{":
+                function_type_literal = (
+                    pending_expression_body == "function"
+                    and pending_function_return_type
+                    and previous in TYPE_LITERAL_BRACE_AFTER
+                )
+                construct_body = (
+                    pending_expression_body is not None
+                    and not paren_contexts
+                    and pending_body_angle_depth == 0
+                    and not function_type_literal
+                )
+                closes_expression = construct_body or (
+                    previous in EXPRESSION_BRACE_AFTER
+                    and (
+                        previous != ":"
+                        or object_context
+                        or colon_starts_expression
+                    )
+                )
+                if construct_body:
+                    pending_expression_body = None
+                    pending_function_return_type = False
+                if type_alias_state == 1:
+                    type_alias_state = 0
                 cursor = self._descend(
                     cursor,
                     self._code_end,
@@ -685,33 +874,174 @@ class _CommentScanner:
                     stop_on_brace=True,
                     record=record,
                     missing="unterminated brace expression",
+                    object_context=(
+                        closes_expression
+                        and not construct_body
+                        and previous != "=>"
+                    ),
                 )
-                previous = "}"
+                before_previous = previous
+                previous = "expression" if closes_expression else "}"
+                colon_starts_expression = False
+                line_break_since_token = False
                 continue
-            if char == "/" and previous in REGEX_ALLOWED_AFTER:
+            regex_goal = previous in COMMENT_REGEX_ALLOWED_AFTER or (
+                type_alias_state == 3 and line_break_since_token
+            )
+            if char == "/" and regex_goal:
                 regex_end = _scan_comment_safe_regex(self.source, cursor)
                 if regex_end is not None:
                     cursor = regex_end
+                    before_previous = previous
                     previous = "regex"
+                    colon_starts_expression = False
+                    type_alias_state = 0
+                    line_break_since_token = False
                     continue
             if char in WORD_CHARS:
                 end = cursor + 1
                 while end < len(self.source) and self.source[end] in WORD_CHARS:
                     end += 1
-                previous = self.source[cursor:end]
+                token = self.source[cursor:end]
+                type_alias_start = token == "type" and not object_context and (
+                    previous in {"", ";", "}", "export", "declare"}
+                    or (
+                        line_break_since_token
+                        and (
+                            previous
+                            in {
+                                ")",
+                                "]",
+                                "expression",
+                                "jsx",
+                                "postfix",
+                                "regex",
+                                "return",
+                                "string",
+                                "template",
+                            }
+                            or (
+                                previous
+                                and all(char in WORD_CHARS for char in previous)
+                                and previous
+                                not in {
+                                    "as",
+                                    "extends",
+                                    "implements",
+                                    "infer",
+                                    "keyof",
+                                    "readonly",
+                                    "satisfies",
+                                    "typeof",
+                                }
+                            )
+                        )
+                    )
+                )
+                if type_alias_state == 1:
+                    type_alias_state = 2
+                elif type_alias_start:
+                    type_alias_state = 1
+                if token in {"class", "function"} and (
+                    (
+                        previous in EXPRESSION_BRACE_AFTER
+                        and previous != "default"
+                    )
+                    or (
+                        previous == "async"
+                        and before_previous in EXPRESSION_BRACE_AFTER
+                        and before_previous != "default"
+                    )
+                ):
+                    pending_expression_body = token
+                before_previous = previous
+                previous = token
+                colon_starts_expression = False
+                line_break_since_token = False
                 cursor = end
                 continue
-            if not char.isspace():
+            if char.isspace():
+                if char in ECMASCRIPT_LINE_TERMINATORS:
+                    line_break_since_token = True
+            else:
+                if char == ";":
+                    type_alias_state = 0
+                elif char == "=" and not self.source.startswith(
+                    ("=>", "=="), cursor
+                ):
+                    type_alias_state = 3 if type_alias_state == 2 else 0
+                elif type_alias_state == 1:
+                    type_alias_state = 0
+                if self.source.startswith(("++", "--"), cursor):
+                    before_previous = previous
+                    previous = "postfix"
+                    colon_starts_expression = False
+                    line_break_since_token = False
+                    cursor += 2
+                    continue
+                if (
+                    char == "!"
+                    and not self.source.startswith("!=", cursor)
+                    and previous
+                    and previous not in COMMENT_REGEX_ALLOWED_AFTER
+                ):
+                    before_previous = previous
+                    previous = "postfix"
+                    colon_starts_expression = False
+                    line_break_since_token = False
+                    cursor += 1
+                    continue
+                if char == "(":
+                    paren_contexts.append(
+                        (
+                            previous in CONTROL_HEAD_KEYWORDS
+                            and before_previous != "."
+                        )
+                        or (previous == "await" and before_previous == "for")
+                    )
+                    before_previous = previous
+                    previous = "("
+                    colon_starts_expression = False
+                    line_break_since_token = False
+                    cursor += 1
+                    continue
+                if char == ")":
+                    control_head = paren_contexts.pop() if paren_contexts else False
+                    before_previous = previous
+                    previous = "control)" if control_head else ")"
+                    colon_starts_expression = False
+                    line_break_since_token = False
+                    cursor += 1
+                    continue
+                if char == "?" and not self.source.startswith(("??", "?."), cursor):
+                    pending_ternaries += 1
+                if char == ":":
+                    if (
+                        pending_expression_body == "function"
+                        and previous == ")"
+                        and not paren_contexts
+                        and pending_body_angle_depth == 0
+                    ):
+                        pending_function_return_type = True
+                    colon_starts_expression = pending_ternaries > 0
+                    if pending_ternaries:
+                        pending_ternaries -= 1
+                elif char != "?":
+                    colon_starts_expression = False
                 if (
                     previous
                     and previous[-1] == char
                     and previous + char in REGEX_ALLOWED_AFTER
                 ):
+                    before_previous = previous
                     previous += char
                 elif char == ">" and previous == "=":
+                    before_previous = previous
                     previous = "=>"
                 else:
+                    before_previous = previous
                     previous = char
+                line_break_since_token = False
             cursor += 1
         if stop_on_brace:
             raise self._error(start, missing)

@@ -64,6 +64,46 @@ class SourceExtractionTests(unittest.TestCase):
         ]
         self.assertEqual([(1, 27)], [(hit["line"], hit["col"]) for hit in hits])
 
+    def test_solidity_line_comments_end_at_each_valid_line_break(self):
+        for terminator in ("\r", "\v", "\f"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    "// The first comment is clean."
+                    + terminator
+                    + "/// Leverage the actual helper."
+                )
+                hits = term_hits(source, ".sol")
+                self.assertEqual(
+                    [(2, 5)],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_solidity_invalid_source_line_breaks_refuse_by_name(self):
+        for terminator in ("\x85", "\u2028", "\u2029"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = "// clean" + terminator + "/// Leverage the helper."
+                with self.assertRaisesRegex(
+                    SourceExtractionError,
+                    "unsupported Solidity source line break",
+                ):
+                    build(source, source_suffix=".sol")
+
+    def test_solidity_quote_mask_does_not_erase_valid_line_breaks(self):
+        for terminator in ("\r", "\v", "\f"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    '// "quoted'
+                    + terminator
+                    + '// text"'
+                    + terminator
+                    + "/// Leverage the actual helper."
+                )
+                hits = term_hits(source, ".sol")
+                self.assertEqual(
+                    [(3, 5)],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
     def test_python_comments_and_owned_docstrings_are_prose(self):
         source = (
             '"""Leverage the module primitive."""\n'
@@ -78,6 +118,30 @@ class SourceExtractionTests(unittest.TestCase):
         )
         hits = term_hits(source, ".py")
         self.assertEqual([1, 5, 7, 8], [hit["line"] for hit in hits])
+
+    def test_python_ast_byte_columns_map_to_unicode_source_coordinates(self):
+        source = (
+            "# π is retained prose\n"
+            "def café():\n"
+            '    """Leverage the Unicode-named helper."""\n'
+            "    return 1\n"
+        )
+        hits = term_hits(source, ".py")
+        self.assertEqual([(3, 8)], [(hit["line"], hit["col"]) for hit in hits])
+
+    def test_python_cr_lines_keep_unicode_docstring_coordinates(self):
+        source = (
+            '# "quoted\r'
+            '# text"\r'
+            "def café():\r"
+            '    """Leverage the Unicode-named helper."""\r'
+            "    return 1\r"
+        )
+        try:
+            hits = term_hits(source, ".py")
+        except SourceExtractionError as exc:
+            self.fail(f"valid CR Python source was refused: {exc}")
+        self.assertEqual([(4, 8)], [(hit["line"], hit["col"]) for hit in hits])
 
     def test_python_docstring_token_walk_scales_with_source_size(self):
         def traced_line_events(function_count):
@@ -195,6 +259,138 @@ class SourceExtractionTests(unittest.TestCase):
         hits = term_hits(source, ".tsx")
         self.assertEqual([(1, 45)], [(hit["line"], hit["col"]) for hit in hits])
 
+    def test_tsx_generic_arrow_comments_are_prose_without_jsx_refusal(self):
+        cases = {
+            "default": (
+                "const f = <T = unknown,>(x: T) => x; "
+                "// Leverage the trailing helper.\n",
+                1,
+            ),
+            "commented constraint": (
+                "const f = <T /* Leverage the type helper. */ extends object,>"
+                "(x: T) => x; // Leverage the trailing helper.\n",
+                2,
+            ),
+            "commented default": (
+                "const f = <T /* Leverage the type helper. */ = unknown,>"
+                "(x: T) => x; // Leverage the trailing helper.\n",
+                2,
+            ),
+            "const parameter": (
+                "const f = <const T,>(x: T) => x; "
+                "// Leverage the trailing helper.\n",
+                1,
+            ),
+        }
+        for label, (source, expected_count) in cases.items():
+            with self.subTest(label=label):
+                try:
+                    hits = term_hits(source, ".tsx")
+                except SourceExtractionError as exc:
+                    self.fail(f"valid TSX generic arrow was refused: {exc}")
+                self.assertEqual(expected_count, len(hits))
+
+    def test_typescript_slash_goal_keeps_only_real_comment_prose(self):
+        cases = {
+            "object division": 'const ratio = {} / "a/b".length;',
+            "postfix division": 'let x = 1; const ratio = x++ / "a/b".length;',
+            "template division": 'const ratio = `${{} / "a/b".length}`;',
+            "JSX division": 'const view = <A value={{} / "a/b".length} />;',
+            "class comparison heritage division": (
+                'const ratio = class extends (a < b ? A : B) {} '
+                '/ "a/b".length;'
+            ),
+            "function intersection return division": (
+                'const ratio = function(): Value & {} {} / "a/b".length;'
+            ),
+            "function conditional return division": (
+                "const ratio = function<T>(): T extends Value ? {} : {} {} "
+                '/ "a/b".length;'
+            ),
+            "adjacent regex-close division": "const value = /Leverage//2;",
+            "control regex block marker": (
+                "if (ok) /[/*]Leverage/.test(value);"
+            ),
+            "control regex line marker": (
+                "while (ok) /[//]Leverage/.test(value);"
+            ),
+        }
+        for label, prefix in cases.items():
+            with self.subTest(label=label):
+                source = prefix + " // Leverage the real helper.\n"
+                try:
+                    hits = term_hits(source, ".tsx")
+                except SourceExtractionError as exc:
+                    self.fail(f"valid TSX slash context was refused: {exc}")
+                self.assertEqual(
+                    [(1, source.rindex("Leverage") + 1)],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_type_alias_newline_restores_regex_without_exposing_its_text(self):
+        aliases = {
+            "primitive": "type Alias = string",
+            "array": "type Alias = string[]",
+            "tuple": "type Alias = [string, number]",
+            "generic": "type Alias = Foo<Bar>",
+            "object": "type Alias = { value: string }",
+            "conditional": (
+                "type Alias<T> = T extends string ? First : Second"
+            ),
+            "function": "type Alias = (value: string) => number",
+        }
+        for label, alias in aliases.items():
+            with self.subTest(label=label):
+                source = (
+                    alias
+                    + "\n/[/*]Leverage/.test(value); // Leverage the helper.\n"
+                )
+                try:
+                    hits = term_hits(source, ".tsx")
+                except SourceExtractionError as exc:
+                    self.fail(f"valid TSX type-alias boundary was refused: {exc}")
+                self.assertEqual(
+                    [(2, source.rindex("Leverage") - source.index("\n"))],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_regex_close_can_touch_a_real_line_comment(self):
+        source = "const value = /Leverage/// Leverage the helper.\n"
+        hits = term_hits(source, ".tsx")
+        self.assertEqual([(1, 28)], [(hit["line"], hit["col"]) for hit in hits])
+
+    def test_typescript_unicode_line_terminators_keep_code_out_of_prose(self):
+        for terminator in ("\r\n", "\r", "\u2028", "\u2029"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    "// The first comment is clean."
+                    + terminator
+                    + "const Leverage = 1;"
+                    + terminator
+                    + "// Leverage the actual helper."
+                )
+                hits = term_hits(source, ".ts")
+                self.assertEqual(
+                    [(3, 4)],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
+    def test_typescript_quote_mask_does_not_erase_line_terminators(self):
+        for terminator in ("\r\n", "\r", "\u2028", "\u2029"):
+            with self.subTest(terminator=ascii(terminator)):
+                source = (
+                    '// "quoted'
+                    + terminator
+                    + '// text"'
+                    + terminator
+                    + "// Leverage the actual helper."
+                )
+                hits = term_hits(source, ".ts")
+                self.assertEqual(
+                    [(3, 4)],
+                    [(hit["line"], hit["col"]) for hit in hits],
+                )
+
     def test_each_mask_has_the_source_length_and_line_terminators(self):
         self.assertTrue(SOURCE_MODE, "Imprimatur has no source-prose mode")
         cases = {
@@ -255,6 +451,17 @@ class SourceExtractionTests(unittest.TestCase):
             build(solidity, source_suffix=".sol", skip_code=False)["defects"],
             0,
         )
+
+    def test_promise_evidence_conditions_extraction_on_default_masking(self):
+        skill = (
+            PLUGIN_ROOT / "skills" / "imprimatur" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        evidence = next(
+            line
+            for line in skill.splitlines()
+            if line.startswith("- Evidence: The exact input bytes")
+        )
+        self.assertIn("when default masking selects", evidence)
 
     def test_cli_reports_each_path_and_original_coordinates(self):
         with tempfile.TemporaryDirectory() as raw:

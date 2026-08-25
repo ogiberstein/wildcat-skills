@@ -29,3 +29,26 @@ Negative review: Solidity literal and comment boundaries, Python docstring owner
 Mechanical gates: Phylax 0; Ephoros 0; Hypomnema 0. Pinned Node v26.6.0 full Hexaemeron suite 1095/1095; focused Imprimatur suite 76/76; evolution and version propagation 16/16; Promise Machine copies 14/14; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
 
 Leads not pursued: full parser-level validity for TypeScript and Solidity remains outside the declared comment-extraction boundary. Regular-expression lexical-goal ambiguity beyond the guarded comment-safe case is not elevated to parser semantics. Iterative type-argument depth remains uncapped because it is a forward non-recursive counter; the public 64-region refusal covers recursively entered code, template, and JSX regions.
+
+## Step 1, round 3 -- 2026-08-25
+
+Review basis: full fixed Step 1 diff against base `0f835d5f5f7c95ad2716eb63bd9bdd8f68b0a841`, with round-3 fixes starting from signed round-2 commit `3613febd0435f612185ace8c3cddd04834400d52`; Step 1 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R3-01 | medium | `plugins/hexaemeron/lib/typescript_lexer.py` | The TSX generic-arrow probe accepted only a narrow comma or `extends` head. Valid defaulted or `const` type parameters and comment trivia inside or after the angle group entered JSX traversal and returned `unterminated JSX element`. | fixed in this round: the bounded probe traverses the complete angle group and recognizes trailing commas, defaults, constraints, modifiers, contextual names, and comment trivia before parameter-list entry |
+| S1-R3-02 | high | `plugins/hexaemeron/lib/typescript_lexer.py` | The comment scanner derived the slash lexical goal from one undifferentiated closing-brace token and refused valid division after object, function, class, postfix, assertion, and type-expression closures. It also read declaration-following regexes as division and could reclassify an adjacent regex close plus division or comment as comment prose. | fixed in this round: bounded brace, control-head, postfix, function/class signature, type-alias newline, and adjacent-regex state separates the parser-confirmed expression and statement contexts without changing the public `lex()` contract |
+| S1-R3-03 | high | `plugins/hexaemeron/lib/typescript_lexer.py`, `plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py` | LF-only comment, quote-mask, and coordinate handling absorbed code after valid source line breaks or erased those breaks. CR Python comments were omitted, TypeScript CR/LS/PS code became prose, and Solidity line-comment boundaries did not match its language rules. | fixed in this round: language-specific masks and coordinates preserve Python CR/LF and TypeScript CR/LF/LS/PS; Solidity accepts LF/VT/FF/CR and names parser-invalid NEL/LS/PS outside comments or strings as extraction refusals |
+| S1-R3-04 | low | `plugins/hexaemeron/skills/imprimatur/SKILL.md` | Promise evidence said every supported suffix supplied successful source extraction even when `--include-code` intentionally bypassed extraction. | fixed in this round: evidence conditions source extraction on default masking, while the running instructions retain the whole-input meaning of `--include-code` |
+
+### Negative review
+
+Negative review: Solidity ordinary, hex, and Unicode string, NatSpec, and block-comment boundaries; Python docstring ownership and AST byte columns versus token code-point columns; TSX fragments, nesting, attributes, spreads, generic components, and regular-expression character classes; multi-file refusal without partial output; Markdown and `--include-code`; bounded traversal and suffix-copy behavior; exact masks and coordinates; the stable `lex()` API; and frontier/version invariants remained green.
+
+### Mechanical gates
+
+Mechanical gates: TypeScript 5.9.2 parsed 50/50 audit specimens; focused shared-lexer and source-extraction suites 55/55; focused Imprimatur 84/84; pinned Node v26.6.0 full Hexaemeron 1112/1112; evolution and version propagation 16/16; Promise Machine copies 14/14; root suite 350/350; root inoculation 1,258 cases, 0 crashes, 0 unexpected clean; Phylax 0; Ephoros 0; Hypomnema 0; changed-prose Imprimatur 0; Brevitas report and source comparison 0; `git diff --check` 0. Audit filter: `--audit-filter sapheneia:sapheneia`.
+
+### Leads not pursued
+
+Leads not pursued: full parser-level validity for TypeScript and Solidity remains outside the declared comment-extraction boundary. The TypeScript compiler was an audit oracle for the 50 named valid forms, not a repository dependency. Solidity NEL, LS, and PS outside comments or strings and a 65th recursively entered TypeScript code, template, or JSX region use the documented named-refusal boundary rather than speculative parsing.

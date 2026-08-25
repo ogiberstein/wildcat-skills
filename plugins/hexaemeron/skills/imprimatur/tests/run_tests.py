@@ -275,6 +275,182 @@ check(
     str([(hit["line"], hit["col"]) for hit in generic_hits]),
 )
 
+generic_arrow = (
+    "const f = <T /* Leverage the type helper. */ = unknown,>"
+    "(x: T) => x; // Leverage the trailing helper.\n"
+)
+try:
+    generic_arrow_hits = [
+        hit
+        for hit in build(generic_arrow, source_suffix=".tsx")["hits"]
+        if hit["term"] == "leverage"
+    ]
+except SourceExtractionError as exc:
+    generic_arrow_hits = []
+    generic_arrow_detail = str(exc)
+else:
+    generic_arrow_detail = str(
+        [(hit["line"], hit["col"]) for hit in generic_arrow_hits]
+    )
+check(
+    "source/tsx generic arrow comments",
+    len(generic_arrow_hits) == 2,
+    generic_arrow_detail,
+)
+
+slash_sources = [
+    'const ratio = {} / "a/b".length;',
+    'let x = 1; const ratio = x++ / "a/b".length;',
+    'const ratio = function(): Value & {} {} / "a/b".length;',
+    'const value = /Leverage//2;',
+    "if (ok) /[/*]Leverage/.test(value);",
+    "while (ok) /[//]Leverage/.test(value);",
+]
+slash_goal_ok = True
+slash_goal_detail = []
+for prefix in slash_sources:
+    source = prefix + " // Leverage the real helper.\n"
+    try:
+        hits = [
+            hit
+            for hit in build(source, source_suffix=".tsx")["hits"]
+            if hit["term"] == "leverage"
+        ]
+    except SourceExtractionError as exc:
+        slash_goal_ok = False
+        slash_goal_detail.append(str(exc))
+        continue
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    expected = [(1, source.rindex("Leverage") + 1)]
+    slash_goal_ok = slash_goal_ok and positions == expected
+    slash_goal_detail.append(str(positions))
+check(
+    "source/tsx slash lexical goals",
+    slash_goal_ok,
+    "; ".join(slash_goal_detail),
+)
+
+alias_sources = [
+    "type Alias = string",
+    "type Alias = [string, number]",
+    "type Alias = Foo<Bar>",
+    "type Alias = { value: string }",
+    "type Alias<T> = T extends string ? First : Second",
+    "type Alias = (value: string) => number",
+]
+alias_goal_ok = True
+alias_goal_detail = []
+for alias in alias_sources:
+    source = alias + "\n/[/*]Leverage/.test(value); // Leverage the helper.\n"
+    try:
+        hits = [
+            hit
+            for hit in build(source, source_suffix=".tsx")["hits"]
+            if hit["term"] == "leverage"
+        ]
+    except SourceExtractionError as exc:
+        alias_goal_ok = False
+        alias_goal_detail.append(str(exc))
+        continue
+    positions = [(hit["line"], hit["col"]) for hit in hits]
+    expected = [(2, source.rindex("Leverage") - source.index("\n"))]
+    alias_goal_ok = alias_goal_ok and positions == expected
+    alias_goal_detail.append(str(positions))
+check(
+    "source/tsx type alias restores regex goal",
+    alias_goal_ok,
+    "; ".join(alias_goal_detail),
+)
+
+touching_regex_comment = "const value = /Leverage/// Leverage the helper.\n"
+touching_hits = [
+    hit
+    for hit in build(touching_regex_comment, source_suffix=".tsx")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/tsx regex close touches line comment",
+    [(hit["line"], hit["col"]) for hit in touching_hits] == [(1, 28)],
+    str([(hit["line"], hit["col"]) for hit in touching_hits]),
+)
+
+line_terminators_ok = True
+line_terminators_detail = []
+for terminator in ("\r\n", "\r", "\u2028", "\u2029"):
+    source = (
+        "// clean"
+        + terminator
+        + "const Leverage = 1;"
+        + terminator
+        + "// Leverage the real helper."
+    )
+    positions = [
+        (hit["line"], hit["col"])
+        for hit in build(source, source_suffix=".ts")["hits"]
+        if hit["term"] == "leverage"
+    ]
+    line_terminators_ok = line_terminators_ok and positions == [(3, 4)]
+    line_terminators_detail.append(f"{ascii(terminator)}={positions}")
+check(
+    "source/typescript line terminators",
+    line_terminators_ok,
+    "; ".join(line_terminators_detail),
+)
+
+solidity_line_breaks_ok = True
+solidity_line_breaks_detail = []
+for terminator in ("\r", "\v", "\f"):
+    source = "// clean" + terminator + "/// Leverage the real helper."
+    positions = [
+        (hit["line"], hit["col"])
+        for hit in build(source, source_suffix=".sol")["hits"]
+        if hit["term"] == "leverage"
+    ]
+    solidity_line_breaks_ok = solidity_line_breaks_ok and positions == [(2, 5)]
+    solidity_line_breaks_detail.append(f"{ascii(terminator)}={positions}")
+check(
+    "source/solidity line breaks",
+    solidity_line_breaks_ok,
+    "; ".join(solidity_line_breaks_detail),
+)
+
+solidity_invalid_breaks_ok = True
+solidity_invalid_breaks_detail = []
+for terminator in ("\x85", "\u2028", "\u2029"):
+    source = "// clean" + terminator + "/// Leverage the real helper."
+    try:
+        build(source, source_suffix=".sol")
+    except SourceExtractionError as exc:
+        refused = "unsupported Solidity source line break" in str(exc)
+        solidity_invalid_breaks_detail.append(str(exc))
+    else:
+        refused = False
+        solidity_invalid_breaks_detail.append("accepted")
+    solidity_invalid_breaks_ok = solidity_invalid_breaks_ok and refused
+check(
+    "source/solidity invalid line breaks refuse",
+    solidity_invalid_breaks_ok,
+    "; ".join(solidity_invalid_breaks_detail),
+)
+
+python_cr = (
+    '# "quoted\r'
+    '# text"\r'
+    "def café():\r"
+    '    """Leverage the Unicode-named helper."""\r'
+    "    return 1\r"
+)
+python_cr_hits = [
+    hit
+    for hit in build(python_cr, source_suffix=".py")["hits"]
+    if hit["term"] == "leverage"
+]
+check(
+    "source/python CR Unicode docstring coordinates",
+    [(hit["line"], hit["col"]) for hit in python_cr_hits] == [(4, 8)],
+    str([(hit["line"], hit["col"]) for hit in python_cr_hits]),
+)
+
 masked = extract_source_prose(solidity, ".sol")
 check(
     "source/mask preserves offsets",

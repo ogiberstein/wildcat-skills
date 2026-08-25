@@ -35,6 +35,10 @@ from lib.typescript_lexer import comment_spans as typescript_comment_spans  # no
 SEVERITY_WEIGHT = {"critical": 5, "high": 3, "medium": 2, "low": 1}
 DEFAULT_SEVERITY = {"hard": "high", "gated": "medium", "structural": "medium"}
 SOURCE_SUFFIXES = frozenset({".sol", ".py", ".ts", ".tsx"})
+TYPESCRIPT_LINE_TERMINATORS = frozenset("\r\n\u2028\u2029")
+SOLIDITY_LINE_BREAKS = frozenset("\n\v\f\r\x85\u2028\u2029")
+SOLIDITY_INVALID_LINE_BREAKS = frozenset("\x85\u2028\u2029")
+PYTHON_LINE_TERMINATORS = frozenset("\r\n")
 
 # Evidence that licenses a gated term.
 RE_BACKTICK = re.compile(r"`[^`\n]+`")
@@ -66,11 +70,28 @@ def read_text(path: str | None) -> str:
     return p.read_text(encoding="utf-8", errors="replace")
 
 
-def line_col(text: str, idx: int) -> tuple[int, int]:
-    before = text[:idx]
-    line = before.count("\n") + 1
-    col = idx - (before.rfind("\n") + 1) + 1
-    return line, col
+def line_col(
+    text: str,
+    idx: int,
+    line_terminators: frozenset[str] = frozenset("\n"),
+) -> tuple[int, int]:
+    line = 1
+    line_start = 0
+    cursor = 0
+    while cursor < idx:
+        char = text[cursor]
+        if char in line_terminators:
+            if (
+                char == "\r"
+                and "\n" in line_terminators
+                and cursor + 1 < idx
+                and text[cursor + 1] == "\n"
+            ):
+                cursor += 1
+            line += 1
+            line_start = cursor + 1
+        cursor += 1
+    return line, idx - line_start + 1
 
 
 def excerpt(text: str, start: int, end: int, pad: int = 38) -> str:
@@ -80,22 +101,37 @@ def excerpt(text: str, start: int, end: int, pad: int = 38) -> str:
     return ("…" if a > 0 else "") + re.sub(r"\s+", " ", frag).strip() + ("…" if b < len(text) else "")
 
 
-RE_QUOTED = re.compile(
-    r"`[^`\n]+`"          # inline code
-    r"|\"[^\"\n]{1,120}\""  # double quotes
-    r"|\u201c[^\u201d\n]{1,120}\u201d"  # smart quotes
-    r"|(?<![\w'])'[^'\n]{1,120}'(?![\w])"  # single quotes, not apostrophes
-)
+def _quoted_pattern(line_terminators: frozenset[str]) -> re.Pattern[str]:
+    excluded = re.escape("".join(sorted(line_terminators)))
+    return re.compile(
+        rf"`[^`{excluded}]+`"  # inline code
+        rf"|\"[^\"{excluded}]{{1,120}}\""  # double quotes
+        rf"|\u201c[^\u201d{excluded}]{{1,120}}\u201d"  # smart quotes
+        rf"|(?<![\w'])'[^'{excluded}]{{1,120}}'(?![\w])"  # not apostrophes
+    )
 
 
-def mask_quoted(text: str) -> str:
+RE_QUOTED = _quoted_pattern(frozenset("\n"))
+SOURCE_QUOTED_PATTERNS = {
+    TYPESCRIPT_LINE_TERMINATORS: _quoted_pattern(TYPESCRIPT_LINE_TERMINATORS),
+    SOLIDITY_LINE_BREAKS: _quoted_pattern(SOLIDITY_LINE_BREAKS),
+    PYTHON_LINE_TERMINATORS: _quoted_pattern(PYTHON_LINE_TERMINATORS),
+}
+
+
+def mask_quoted(
+    text: str,
+    *,
+    line_terminators: frozenset[str] = frozenset("\n"),
+) -> str:
     """Blank quoted spans.
 
     A banned term inside quotation marks is being mentioned, not used. Style
     guides, lexicon docs, and postmortems all need to cite the thing they are
     banning. Masking preserves offsets so line and column stay correct.
     """
-    return RE_QUOTED.sub(lambda m: " " * len(m.group(0)), text)
+    pattern = SOURCE_QUOTED_PATTERNS.get(line_terminators, RE_QUOTED)
+    return pattern.sub(lambda m: " " * len(m.group(0)), text)
 
 
 def strip_code_blocks(text: str) -> str:
@@ -117,8 +153,19 @@ class SourceExtractionError(ValueError):
 
 def _line_starts(text: str) -> list[int]:
     starts = [0]
-    starts.extend(match.end() for match in re.finditer("\n", text))
+    starts.extend(match.end() for match in re.finditer(r"\r\n?|\n", text))
     return starts
+
+
+def _source_line_end(
+    text: str,
+    start: int,
+    line_terminators: frozenset[str],
+) -> int:
+    cursor = start
+    while cursor < len(text) and text[cursor] not in line_terminators:
+        cursor += 1
+    return cursor
 
 
 def _position_offset(text: str, starts: list[int], line: int, col: int) -> int:
@@ -137,9 +184,7 @@ def _ast_position_offset(
     if line < 1 or line > len(starts):
         raise SourceExtractionError(max(line, 1), byte_col + 1, "AST position is outside the file")
     start = starts[line - 1]
-    end = text.find("\n", start)
-    if end == -1:
-        end = len(text)
+    end = _source_line_end(text, start, PYTHON_LINE_TERMINATORS)
     raw = text[start:end].encode("utf-8")
     try:
         prefix = raw[:byte_col].decode("utf-8")
@@ -150,13 +195,22 @@ def _ast_position_offset(
     return start + len(prefix)
 
 
-def _masked_spans(text: str, spans: list[tuple[int, int]]) -> str:
+def _masked_spans(
+    text: str,
+    spans: list[tuple[int, int]],
+    *,
+    line_terminators: frozenset[str],
+) -> str:
     """Retain selected bytes in place so every source coordinate stays valid."""
-    out = [char if char in "\r\n" else " " for char in text]
+    out = [char if char in line_terminators else " " for char in text]
     previous_end = 0
     for start, end in sorted(spans):
         if start < previous_end or end < start or end > len(text):
-            line, col = line_col(text, max(0, min(start, len(text))))
+            line, col = line_col(
+                text,
+                max(0, min(start, len(text))),
+                line_terminators,
+            )
             raise SourceExtractionError(line, col, "source spans overlap or escape the file")
         out[start:end] = text[start:end]
         previous_end = end
@@ -177,7 +231,7 @@ def _typescript_prose(text: str, *, tsx: bool = False) -> list[tuple[int, int]]:
     spans, errors = typescript_comment_spans(text, tsx=tsx)
     if errors:
         offset, reason = errors[0]
-        line, col = line_col(text, offset)
+        line, col = line_col(text, offset, TYPESCRIPT_LINE_TERMINATORS)
         raise SourceExtractionError(line, col, reason)
     return _comment_contents(spans)
 
@@ -187,19 +241,25 @@ def _solidity_prose(text: str) -> list[tuple[int, int]]:
     i = 0
     while i < len(text):
         if text.startswith("//", i):
-            end = text.find("\n", i + 2)
-            end = len(text) if end == -1 else end
+            end = _source_line_end(text, i + 2, SOLIDITY_LINE_BREAKS)
             spans.append((i + 2, end))
             i = end
             continue
         if text.startswith("/*", i):
             end = text.find("*/", i + 2)
             if end == -1:
-                line, col = line_col(text, i)
+                line, col = line_col(text, i, SOLIDITY_LINE_BREAKS)
                 raise SourceExtractionError(line, col, "unterminated block comment")
             spans.append((i + 2, end))
             i = end + 2
             continue
+        if text[i] in SOLIDITY_INVALID_LINE_BREAKS:
+            line, col = line_col(text, i, SOLIDITY_LINE_BREAKS)
+            raise SourceExtractionError(
+                line,
+                col,
+                "unsupported Solidity source line break",
+            )
         if text[i] in "'\"":
             quote = text[i]
             start = i
@@ -211,12 +271,12 @@ def _solidity_prose(text: str) -> list[tuple[int, int]]:
                 if text[i] == quote:
                     i += 1
                     break
-                if text[i] in "\r\n":
-                    line, col = line_col(text, start)
+                if text[i] in SOLIDITY_LINE_BREAKS:
+                    line, col = line_col(text, start, SOLIDITY_LINE_BREAKS)
                     raise SourceExtractionError(line, col, "unterminated string")
                 i += 1
             else:
-                line, col = line_col(text, start)
+                line, col = line_col(text, start, SOLIDITY_LINE_BREAKS)
                 raise SourceExtractionError(line, col, "unterminated string")
             continue
         i += 1
@@ -255,7 +315,9 @@ def _python_prose(text: str) -> list[tuple[int, int]]:
         ) from exc
 
     try:
-        tokens = list(py_tokenize.generate_tokens(io.StringIO(text).readline))
+        tokens = list(
+            py_tokenize.generate_tokens(io.StringIO(text, newline="").readline)
+        )
     except (py_tokenize.TokenError, IndentationError, SyntaxError) as exc:
         position = getattr(exc, "args", (None, (1, 0)))
         raw = position[1] if len(position) > 1 and isinstance(position[1], tuple) else (1, 0)
@@ -266,6 +328,8 @@ def _python_prose(text: str) -> list[tuple[int, int]]:
     string_spans: list[tuple[py_tokenize.TokenInfo, int, int]] = []
     prose: list[tuple[int, int]] = []
     for token in tokens:
+        if token.type not in {py_tokenize.COMMENT, py_tokenize.STRING}:
+            continue
         start = _position_offset(text, starts, token.start[0], token.start[1])
         end = _position_offset(text, starts, token.end[0], token.end[1])
         if token.type == py_tokenize.COMMENT:
@@ -320,19 +384,27 @@ def extract_source_prose(text: str, suffix: str) -> str:
     suffix = suffix.lower()
     if suffix == ".sol":
         spans = _solidity_prose(text)
+        line_terminators = SOLIDITY_LINE_BREAKS
     elif suffix == ".py":
         spans = _python_prose(text)
+        line_terminators = PYTHON_LINE_TERMINATORS
     elif suffix in {".ts", ".tsx"}:
         spans = _typescript_prose(text, tsx=suffix == ".tsx")
+        line_terminators = TYPESCRIPT_LINE_TERMINATORS
     else:
         raise ValueError(f"unsupported source suffix {suffix}")
-    return _masked_spans(text, spans)
+    return _masked_spans(text, spans, line_terminators=line_terminators)
 
 
 # --------------------------------------------------------------------------- hard
 
 
-def scan_hard(text: str, lex: dict) -> list[dict]:
+def scan_hard(
+    text: str,
+    lex: dict,
+    *,
+    line_terminators: frozenset[str] = frozenset("\n"),
+) -> list[dict]:
     hits: list[dict] = []
     lower = text.lower()
     for family, block in lex.items():
@@ -343,7 +415,7 @@ def scan_hard(text: str, lex: dict) -> list[dict]:
             t = term.lower()
             pattern = re.compile(r"(?<![\w-])" + re.escape(t) + r"(?![\w-])")
             for m in pattern.finditer(lower):
-                ln, cl = line_col(text, m.start())
+                ln, cl = line_col(text, m.start(), line_terminators)
                 hits.append(
                     {
                         "pass": "hard",
@@ -423,7 +495,13 @@ def gate_evidence(win: str, allow: list[str], require_numeric: bool) -> tuple[bo
     return False, "no concrete referent"
 
 
-def scan_gated(text: str, lex: dict, evidence_text: str | None = None) -> list[dict]:
+def scan_gated(
+    text: str,
+    lex: dict,
+    evidence_text: str | None = None,
+    *,
+    line_terminators: frozenset[str] = frozenset("\n"),
+) -> list[dict]:
     hits: list[dict] = []
     # Term positions come from the masked text; evidence is read from the
     # original, because masking blanks inline code and inline code is exactly
@@ -455,7 +533,7 @@ def scan_gated(text: str, lex: dict, evidence_text: str | None = None) -> list[d
                 wl = win.lower()
                 nearest = next((a for a in abstract if re.search(r"(?<![\w-])" + a + r"(?![\w-])", wl)), None)
                 confidence = "high" if nearest else "medium"
-                ln, cl = line_col(text, m.start())
+                ln, cl = line_col(text, m.start(), line_terminators)
                 hits.append(
                     {
                         "pass": "gated",
@@ -476,7 +554,12 @@ def scan_gated(text: str, lex: dict, evidence_text: str | None = None) -> list[d
 # --------------------------------------------------------------------------- structural
 
 
-def scan_structural(text: str, lex: dict) -> list[dict]:
+def scan_structural(
+    text: str,
+    lex: dict,
+    *,
+    line_terminators: frozenset[str] = frozenset("\n"),
+) -> list[dict]:
     hits: list[dict] = []
     for name, spec in lex.get("patterns", {}).items():
         flags = re.M if spec.get("case_sensitive") else (re.I | re.M)
@@ -488,7 +571,7 @@ def scan_structural(text: str, lex: dict) -> list[dict]:
         for m in pattern.finditer(text):
             if m.group(0).strip() in spec.get("allow_exact", []):
                 continue
-            ln, cl = line_col(text, m.start())
+            ln, cl = line_col(text, m.start(), line_terminators)
             hits.append(
                 {
                     "pass": "structural",
@@ -553,6 +636,14 @@ def build(text: str, *, hard_only: bool = False, skip_code: bool = True,
           strict: bool = False, source_suffix: str | None = None) -> dict:
     hard_lex, gated_lex, struct_lex = load_lexicons()
     suffix = source_suffix.lower() if source_suffix else None
+    if suffix in {".ts", ".tsx"}:
+        line_terminators = TYPESCRIPT_LINE_TERMINATORS
+    elif suffix == ".sol":
+        line_terminators = SOLIDITY_LINE_BREAKS
+    elif suffix == ".py":
+        line_terminators = PYTHON_LINE_TERMINATORS
+    else:
+        line_terminators = frozenset("\n")
     if skip_code and suffix in SOURCE_SUFFIXES:
         prose = extract_source_prose(text, suffix)
         evidence_text = prose
@@ -560,12 +651,21 @@ def build(text: str, *, hard_only: bool = False, skip_code: bool = True,
         prose = strip_code_blocks(text) if skip_code else text
         evidence_text = text
     if not strict:
-        prose = mask_quoted(prose)
+        prose = mask_quoted(prose, line_terminators=line_terminators)
 
-    hits = scan_hard(prose, hard_lex)
+    hits = scan_hard(prose, hard_lex, line_terminators=line_terminators)
     if not hard_only:
-        hits += scan_gated(prose, gated_lex, evidence_text=evidence_text)
-        hits += scan_structural(prose, struct_lex)
+        hits += scan_gated(
+            prose,
+            gated_lex,
+            evidence_text=evidence_text,
+            line_terminators=line_terminators,
+        )
+        hits += scan_structural(
+            prose,
+            struct_lex,
+            line_terminators=line_terminators,
+        )
     hits.sort(key=lambda h: (h["line"], h["col"]))
 
     # Signal-only patterns have known false positives on legitimate prose. They
