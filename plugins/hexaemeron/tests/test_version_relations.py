@@ -11,6 +11,7 @@ import io
 import json
 import os
 import subprocess
+import sys
 import tempfile
 
 try:
@@ -284,7 +285,7 @@ class VersionRelationTests(HexctlCase):
             steps,
             expect=2,
         )
-        self.assertIn("run branch creation point", result.stderr)
+        self.assertIn("init starting commit", result.stderr)
         self.assertNotIn(older, result.stderr)
         self.assert_unchanged_after_refusal(before_state, before_ledger)
 
@@ -365,6 +366,121 @@ class VersionRelationTests(HexctlCase):
         self.assertNotIn(original, result.stderr)
         self.assertNotIn(moved, result.stderr)
         self.assert_unchanged_after_refusal(before_state, before_ledger)
+
+    def test_relation_anchor_does_not_require_native_reflogs(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        subprocess.run(
+            ["git", "config", "core.logAllRefUpdates", "false"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+        )
+
+        _, state = self.receipt_runbook("fiat")
+
+        relation = self.receipt(state)
+        self.assertEqual(relation["anchor_commit"], anchor)
+        self.assertEqual(relation["targets"][0]["anchor_version"], "fiat-v1.2.3")
+
+    def test_sha256_repository_anchor_replays_across_packets_and_verify(self):
+        controller = os.path.realpath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "skills",
+                "fiat",
+                "scripts",
+                "hexctl.py",
+            )
+        )
+        with tempfile.TemporaryDirectory() as repository:
+            for argv in (
+                ("init", "-q", "--object-format=sha256", "-b", "main"),
+                ("config", "user.email", "fixture@example.invalid"),
+                ("config", "user.name", "Fixture"),
+                ("config", "commit.gpgsign", "false"),
+            ):
+                subprocess.run(
+                    ["git", *argv],
+                    cwd=repository,
+                    check=True,
+                    capture_output=True,
+                )
+            ledger = os.path.join(repository, self.ledger_path("fiat"))
+            skill = os.path.join(repository, self.skill_path("fiat"))
+            os.makedirs(os.path.dirname(ledger), exist_ok=True)
+            with open(ledger, "w", encoding="utf-8") as handle:
+                handle.write(self.ledger("fiat"))
+            with open(skill, "w", encoding="utf-8") as handle:
+                handle.write(self.skill("fiat"))
+            for argv in (("add", "-A"), ("commit", "-q", "-m", "seed")):
+                subprocess.run(
+                    ["git", *argv],
+                    cwd=repository,
+                    check=True,
+                    capture_output=True,
+                )
+            anchor = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repository,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            self.assertEqual(len(anchor), 64)
+
+            def control(directory, *argv):
+                result = subprocess.run(
+                    [sys.executable, controller, "--dir", directory, *argv],
+                    cwd=directory,
+                    env=self.env,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return result
+
+            control(repository, "init", "--topic", "sha256 relation")
+            with open(
+                os.path.join(repository, ".hexaemeron", "worktree"),
+                encoding="utf-8",
+            ) as handle:
+                worktree = handle.read().strip()
+            with open(
+                os.path.join(worktree, "study.md"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("# Study\n")
+            control(worktree, "done", "study", "--artifact", "study.md")
+            with open(
+                os.path.join(worktree, "runbook.md"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write(
+                    "# Runbook\n\n"
+                    + self.relation_block("fiat")
+                    + "\n## Step 1: Build\n\n**Goal.** Build.\n"
+                )
+            with open(
+                os.path.join(worktree, "steps.json"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write('["Build"]')
+            control(
+                worktree,
+                "done",
+                "runbook",
+                "--artifact",
+                "runbook.md",
+                "--steps-file",
+                "steps.json",
+            )
+            status = json.loads(control(worktree, "status", "--json").stdout)
+            relation = status["receipts"]["runbook"]["version_relations"]
+            self.assertEqual(relation["anchor_commit"], anchor)
+            self.assertEqual(
+                relation["targets"][0]["anchor_version"], "fiat-v1.2.3"
+            )
+            control(worktree, "next")
+            control(worktree, "verify")
 
     def test_commit_replacement_cannot_substitute_anchor_tree(self):
         self.install_target("fiat")
@@ -796,6 +912,23 @@ class VersionRelationTests(HexctlCase):
             self.env["PATH"] = prior_path
             self.env.pop("VERSION_GIT_SENTINEL", None)
         self.assertFalse(os.path.exists(sentinel))
+
+    def test_no_block_init_does_not_require_native_reflogs(self):
+        subprocess.run(
+            ["git", "config", "core.logAllRefUpdates", "false"],
+            cwd=self.dir,
+            check=True,
+            capture_output=True,
+        )
+
+        _, state = self.receipt_runbook()
+
+        self.assertEqual(
+            set(state["receipts"]["runbook"]),
+            {"artifact", "sha256", "step_count"},
+        )
+        self.assertNotIn("version_relations", self.run_ctl("next").stdout)
+        self.run_ctl("verify")
 
     def test_relation_packet_and_status_label_anchor_and_projection(self):
         self.install_target("fiat")

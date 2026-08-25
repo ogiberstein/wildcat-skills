@@ -825,8 +825,12 @@ def validate_version_relations_shape(value, path: str) -> dict:
         _state_relation_fault(f"{path}.schema", "is not supported")
     for name in ("source_sha256", "anchor_commit"):
         candidate = value.get(name)
-        pattern = r"[0-9a-f]{64}" if name == "source_sha256" else r"[0-9a-f]{40}"
-        if not isinstance(candidate, str) or not re.fullmatch(pattern, candidate):
+        valid = isinstance(candidate, str) and (
+            re.fullmatch(r"[0-9a-f]{64}", candidate) is not None
+            if name == "source_sha256"
+            else COMMIT_RE.fullmatch(candidate) is not None
+        )
+        if not valid:
             _state_relation_fault(f"{path}.{name}", "is malformed")
     targets = value.get("targets")
     if not isinstance(targets, list) or not targets:
@@ -1973,34 +1977,9 @@ def _native_relation_repository_identity(base_dir: str) -> tuple[str, str]:
     return tuple(lines)
 
 
-def _native_relation_branch_start(base_dir: str, branch: str) -> str:
-    """Return the branch-creation commit from its bounded native reflog."""
-    raw = _native_relation_git(
-        base_dir,
-        [
-            "reflog",
-            "show",
-            "--format=%H",
-            "--no-abbrev",
-            "--no-color",
-            "--no-show-signature",
-            "--end-of-options",
-            branch,
-        ],
-        "version relation run branch creation history cannot be read",
-    )
-    try:
-        lines = [line for line in raw.decode("ascii").splitlines() if line]
-    except UnicodeDecodeError:
-        lines = []
-    if not lines or any(not re.fullmatch(r"[0-9a-f]{40}", line) for line in lines):
-        die("version relation run branch creation history is malformed")
-    return lines[-1]
-
-
 def _native_relation_worktree_start(base_dir: str, branch: str) -> str:
     """Capture the exact commit checked out when ``init`` made the worktree."""
-    first = _native_relation_branch_start(base_dir, "HEAD")
+    first = _native_relation_commit(base_dir, "HEAD", "run starting commit")
     symbolic = _native_relation_git(
         base_dir,
         ["symbolic-ref", "--quiet", "HEAD"],
@@ -2011,7 +1990,7 @@ def _native_relation_worktree_start(base_dir: str, branch: str) -> str:
         ["show-ref", "--verify", "--hash", f"refs/heads/{branch}"],
         "run starting commit cannot be read",
     )
-    final = _native_relation_branch_start(base_dir, "HEAD")
+    final = _native_relation_commit(base_dir, "HEAD", "run starting commit")
     try:
         symbolic_name = symbolic.decode("utf-8").strip()
         current_sha = current.decode("ascii").strip()
@@ -2071,7 +2050,7 @@ def _relation_init_starting_commit(base_dir: str, state: dict) -> str:
         or data.get("base") != state.get("base")
         or data.get("run_branch") != run_branch_of(state)
         or not isinstance(starting_commit, str)
-        or not re.fullmatch(r"[0-9a-f]{40}", starting_commit)
+        or not COMMIT_RE.fullmatch(starting_commit)
     ):
         die("version relation init starting commit is missing or malformed", 1)
     return starting_commit
@@ -2156,7 +2135,6 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
     if not isinstance(run_branch, str) or not run_branch:
         die("version relations require the run's integration branch")
     base_branch = integration_base_of(state)
-    branch_start = _native_relation_branch_start(base_dir, run_branch)
     run_head = _native_relation_commit(
         base_dir, run_branch, "version relation run branch"
     )
@@ -2172,7 +2150,7 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
         candidates = [line for line in raw.decode("ascii").splitlines() if line]
     except UnicodeDecodeError:
         candidates = []
-    if len(candidates) != 1 or not re.fullmatch(r"[0-9a-f]{40}", candidates[0]):
+    if len(candidates) != 1 or not COMMIT_RE.fullmatch(candidates[0]):
         die("version relation starting commit is ambiguous or malformed")
     final_run = _native_relation_commit(
         base_dir, run_branch, "version relation run branch"
@@ -2180,20 +2158,12 @@ def relation_anchor_commit(base_dir: str, state: dict) -> str:
     final_base = _native_relation_commit(
         base_dir, base_branch, "version relation base branch"
     )
-    final_start = _native_relation_branch_start(base_dir, run_branch)
     if (run_head, base_head) != (final_run, final_base):
         die("version relation refs changed while deriving the starting commit")
-    if branch_start != final_start:
-        die("version relation run branch creation history changed during the read")
     _require_native_relation_history(base_dir)
     if _native_relation_repository_identity(base_dir) != repository:
         die("version relation repository changed while deriving the starting commit")
-    if candidates[0] != branch_start:
-        die(
-            "version relation branch point does not match the run branch "
-            "creation point"
-        )
-    if branch_start != init_start:
+    if candidates[0] != init_start:
         die("version relation branch point does not match the init starting commit")
     return candidates[0]
 
