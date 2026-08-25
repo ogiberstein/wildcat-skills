@@ -8,7 +8,7 @@ description: >-
   Fiat frontier loop, or for the ranking on its own without running anything.
   Do not use it for one ordinary Fiat delivery.
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # Kronos

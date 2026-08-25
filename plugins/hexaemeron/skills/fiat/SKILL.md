@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.21.1"
+  version: "5.24.1"
 ---
 
 # Fiat
@@ -240,15 +240,17 @@ state transition.
    the repository from the current directory and the user's named target;
    never substitute an organisation or clone a different repository merely
    because its name looks related.
-3. If `init` warns that this controller is older than a Fiat checked into the
-   target repository, act on it before the run gets going: update the plugin,
-   refresh through the host's own boundary, and re-resolve the paths, per
-   [plugin-currency.md](references/plugin-currency.md). Where the update cannot
-   happen, record the `controller_version` receipt that reference specifies and
-   say so out loud. Do not run the loop under a controller you have noticed is
-   behind and said nothing more about: the rules it does not enforce leave no
-   trace, because a flag it rejects is indistinguishable from a rule nobody
-   wrote.
+3. `init` observes this controller's own currency and refuses a proven-behind
+   pin by name, before any run state exists. On that refusal, re-pin through
+   the host's own installer, refresh, and re-resolve the paths, per
+   [plugin-currency.md](references/plugin-currency.md); where that cannot
+   happen, rerun init with `--controller-currency-waiver '<reason>'`, which
+   records the verdict and reason in the init receipt. Treat an `unknown`
+   currency warning, or the warning that this controller is older than a Fiat
+   checked into the target repository, the same way. Do not run the loop
+   under a controller you have noticed is behind and said nothing more about:
+   the rules it does not enforce leave no trace, because a flag it rejects is
+   indistinguishable from a rule nobody wrote.
 4. The prose masks ship inside this plugin: the `imprimatur` lint (a script
    at `$PLUGIN_ROOT/skills/imprimatur/scripts/imprimatur.py`) and the
    `vulgate` voice mask (rules at `$PLUGIN_ROOT/skills/vulgate/SKILL.md`).
