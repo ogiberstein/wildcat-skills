@@ -100,6 +100,28 @@ def sample_plan():
     }
 
 
+def sample_plan_v2(source_ids=("archive-a",)):
+    plan = sample_plan()
+    plan["schema_version"] = 2
+    plan["anchor_sources"] = [{"source_id": source_id} for source_id in source_ids]
+    return plan
+
+
+def sample_anchor_record(source_id="archive-a"):
+    return {
+        "schema_version": 1,
+        "source_id": source_id,
+        "observed_at": "2026-08-25T08:30:45.123456Z",
+        "method": "eth_getBlockByNumber",
+        "params": ["0x10", False],
+        "returned": {
+            "chain_id": "0x1",
+            "number": "0x10",
+            "hash": hash32("11"),
+        },
+    }
+
+
 def sample_header():
     return {
         "schema_version": 1,

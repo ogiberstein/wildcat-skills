@@ -10,7 +10,11 @@ import sys
 from lazarus_lib.canonical import load
 from lazarus_lib.errors import LazarusError
 from lazarus_lib.manifest import build_manifest, verify_manifest, write_manifest
-from lazarus_lib.records import read_proof_records, read_rpc_records
+from lazarus_lib.records import (
+    read_anchor_records,
+    read_proof_records,
+    read_rpc_records,
+)
 from lazarus_lib.schemas import validate_builtin_schemas, validate_document
 from lazarus_lib.verifier import verify_fixture
 
@@ -34,6 +38,7 @@ def parser() -> argparse.ArgumentParser:
             "header",
             "rpc-records",
             "proof-records",
+            "anchor-records",
             "manifest",
             "release",
         ),
@@ -106,6 +111,8 @@ def _validate(kind: str, path: Path | None) -> None:
         read_rpc_records(path)
     elif kind == "proof-records":
         read_proof_records(path)
+    elif kind == "anchor-records":
+        read_anchor_records(path)
     else:
         validate_document(kind, load(path))
 
