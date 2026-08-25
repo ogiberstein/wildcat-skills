@@ -2105,16 +2105,30 @@ def _skill_frontmatter_identity(text: str, skill: str) -> str:
         die(f"version relation target {skill} skill frontmatter is not closed")
     frontmatter = lines[1:closing]
 
-    names = []
-    for line in frontmatter:
-        match = re.fullmatch(r"name:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*", line)
-        if match is not None:
-            names.append(match.group(1))
-    if len(names) != 1 or names[0] != skill:
+    name_lines = [
+        line
+        for line in frontmatter
+        if re.match(r'''^(?:name|"name"|'name')\s*:''', line)
+    ]
+    if len(name_lines) != 1:
+        die(f"version relation target {skill} skill frontmatter name does not match")
+    name = re.fullmatch(
+        r"name:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*", name_lines[0]
+    )
+    if name is None or name.group(1) != skill:
         die(f"version relation target {skill} skill frontmatter name does not match")
 
-    metadata = [index for index, line in enumerate(frontmatter) if line == "metadata:"]
+    metadata = [
+        index
+        for index, line in enumerate(frontmatter)
+        if re.match(r'''^(?:metadata|"metadata"|'metadata')\s*:''', line)
+    ]
     if len(metadata) != 1:
+        die(
+            f"version relation target {skill} skill frontmatter metadata version "
+            "is missing or ambiguous"
+        )
+    if frontmatter[metadata[0]] != "metadata:":
         die(
             f"version relation target {skill} skill frontmatter metadata version "
             "is missing or ambiguous"
@@ -2124,17 +2138,25 @@ def _skill_frontmatter_identity(text: str, skill: str) -> str:
         if line and not line[0].isspace():
             break
         body.append(line)
-    versions = []
-    for line in body:
-        match = re.fullmatch(r'  version: "([0-9]+\.[0-9]+\.[0-9]+)"', line)
-        if match is not None:
-            versions.append(match.group(1))
-    if len(versions) != 1:
+    version_lines = [
+        line
+        for line in body
+        if re.match(r'''^  (?:version|"version"|'version')\s*:''', line)
+    ]
+    if len(version_lines) != 1:
         die(
             f"version relation target {skill} skill frontmatter metadata version "
             "is missing or ambiguous"
         )
-    return versions[0]
+    version = re.fullmatch(
+        r'  version: "([0-9]+\.[0-9]+\.[0-9]+)"', version_lines[0]
+    )
+    if version is None:
+        die(
+            f"version relation target {skill} skill frontmatter metadata version "
+            "is missing or ambiguous"
+        )
+    return version.group(1)
 
 
 def capture_version_relation_target(
@@ -4206,8 +4228,16 @@ def receipted_version_relations(base_dir: str, runbook: dict) -> dict | None:
     ]
     if source["source_sha256"] != stored["source_sha256"] or declarations != recorded:
         die("runbook version relations source does not match its receipt", 1)
+    _require_native_relation_history(base_dir)
+    anchor_commit = _native_relation_commit(
+        base_dir,
+        stored["anchor_commit"],
+        "runbook version relations anchor commit",
+    )
+    if anchor_commit != stored["anchor_commit"]:
+        die("runbook version relations anchor commit is not a direct commit object")
     reconstructed = capture_version_relations(
-        base_dir, source, stored["anchor_commit"]
+        base_dir, source, anchor_commit
     )
     if reconstructed != stored:
         die("runbook version relations anchor does not match its exact Git evidence", 1)

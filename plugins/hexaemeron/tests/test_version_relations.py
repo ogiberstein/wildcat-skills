@@ -469,6 +469,60 @@ class VersionRelationTests(HexctlCase):
         )
         self.assertIn("starting history is shallow", result.stderr)
 
+    def test_replay_refuses_tree_typed_anchor_commit(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.receipt_runbook("fiat")
+        anchor_tree = self.git("rev-parse", f"{anchor}^{{tree}}").stdout.strip()
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        state["receipts"]["runbook"]["version_relations"][
+            "anchor_commit"
+        ] = anchor_tree
+        with open(state_path, "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+
+        for command in (("status",), ("next",)):
+            with self.subTest(command=command):
+                result = self.run_ctl(*command, expect=2)
+                self.assertIn("anchor commit", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+
+    def test_replay_refuses_post_receipt_repository_alternate(self):
+        self.install_target("fiat")
+        self.commit_seed()
+        self.receipt_runbook("fiat")
+        alternates = self.git(
+            "rev-parse", "--path-format=absolute", "--git-path",
+            "objects/info/alternates",
+        ).stdout.strip()
+        os.makedirs(os.path.dirname(alternates), exist_ok=True)
+        with tempfile.TemporaryDirectory() as alternate:
+            with open(alternates, "w", encoding="utf-8") as handle:
+                handle.write(alternate + "\n")
+            for command in (("status",), ("next",)):
+                with self.subTest(command=command):
+                    result = self.run_ctl(*command, expect=2)
+                    self.assertIn("uses an alternate object store", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_replay_refuses_post_receipt_shallow_history(self):
+        self.install_target("fiat")
+        anchor = self.commit_seed()
+        self.receipt_runbook("fiat")
+        shallow = self.git(
+            "rev-parse", "--path-format=absolute", "--git-path", "shallow"
+        ).stdout.strip()
+        with open(shallow, "w", encoding="ascii") as handle:
+            handle.write(anchor + "\n")
+
+        for command in (("status",), ("next",)):
+            with self.subTest(command=command):
+                result = self.run_ctl(*command, expect=2)
+                self.assertIn("starting history is shallow", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+
     def test_no_block_preserves_the_legacy_receipt_and_packet_shape(self):
         _, state = self.receipt_runbook()
         self.assertEqual(
@@ -558,6 +612,8 @@ class VersionRelationTests(HexctlCase):
             self.run_ctl(
                 "done", "runbook", "--artifact", runbook, "--steps-file", steps
             )
+            self.run_ctl("status")
+            self.run_ctl("next")
         finally:
             self.env["PATH"] = prior_path
             self.env.pop("VERSION_GIT_SENTINEL", None)
@@ -714,6 +770,55 @@ class VersionRelationTests(HexctlCase):
             expect=2,
         )
         self.assertIn("frontmatter name", result.stderr)
+
+    def test_quoted_duplicate_frontmatter_name_is_ambiguous(self):
+        self.write(self.ledger_path("fiat"), self.ledger("fiat"))
+        self.write(
+            self.skill_path("fiat"),
+            self.skill("fiat").replace(
+                "name: fiat\n", 'name: fiat\n"name": other\n'
+            ),
+        )
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook,
+            "--steps-file", steps, expect=2,
+        )
+        self.assertIn("frontmatter name", result.stderr)
+
+    def test_quoted_duplicate_metadata_version_is_ambiguous(self):
+        self.write(self.ledger_path("fiat"), self.ledger("fiat"))
+        self.write(
+            self.skill_path("fiat"),
+            self.skill("fiat").replace(
+                '  version: "1.2.3"\n',
+                '  version: "1.2.3"\n  "version": "9.9.9"\n',
+            ),
+        )
+        self.commit_seed()
+        self.init()
+        study = self.write("study.md", "# Study\n")
+        self.run_ctl("done", "study", "--artifact", study)
+        runbook = self.write(
+            "runbook.md",
+            self.relation_block("fiat")
+            + "\n## Step 1: Build\n\n**Goal.** Build.\n",
+        )
+        steps = self.write("steps.json", '["Build"]')
+        result = self.run_ctl(
+            "done", "runbook", "--artifact", runbook,
+            "--steps-file", steps, expect=2,
+        )
+        self.assertIn("frontmatter metadata version", result.stderr)
 
     def test_unbounded_decimal_label_refuses_instead_of_raising(self):
         label = "fiat-v" + ("9" * 5000) + ".0.0"

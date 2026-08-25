@@ -268,3 +268,83 @@ Steps 3 and 4 and receive no claim here.
 Lead not pursued: recomputing every native Git object identity after direct
 object-store corruption. This round refuses the observed substitution paths;
 native object-store integrity remains Git's repository boundary.
+
+## Step 2, round 3 -- 2026-08-25
+
+Non-Solidity correctness audit over signed Warden tip
+`f9d6cac2d33e25ce4ae1cea845b4c0aef493956c`. Three residual findings were
+fixed on the exact Step 2 audit branch.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R3-01 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | Receipt replay accepted a tree SHA in `anchor_commit`. `status` and `next` read target blobs from that tree and returned success even though the stored object did not establish the promised starting commit. | fixed in this round: replay resolves the stored SHA through `^{commit}`, requires the stored SHA to name that commit object directly, and refuses before reading either target blob |
+| S2-R3-02 | high | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | After a valid receipt, adding a populated repository-local alternate or a shallow boundary left `status` and `next` green. Initial capture checked full-history repository state, but replay did not re-establish it. | fixed in this round: every relation-bearing replay repeats the native graft, alternate, and shallow checks before exact commit and blob reads; inherited `GIT_*` scrubbing and `--no-replace-objects` remain in force |
+| S2-R3-03 | medium | `plugins/hexaemeron/skills/fiat/scripts/hexctl.py` | A `SKILL.md` with canonical `name` or nested `metadata.version` plus the same protected key in quoted YAML spelling was receipted. The parser selected the canonical line while the real frontmatter identity remained duplicate and ambiguous. | fixed in this round: the accepted subset counts plain, single-quoted, and double-quoted spellings of `name`, `metadata`, and nested `version`, then requires one canonical occurrence with the matching skill and numeric version |
+
+### Evidence
+
+The causal pre-fix report is
+`tmp/elenchus/fiat-556-step-2-warden-round-3-red.json`, SHA-256
+`ee8e5032530b7ed3024545b305348a984cffcd3c5fac607b937b43ef9763dafc`.
+It records `elenchus.unittest.v1`, 1,095 tests, eight assertion failures, zero
+errors, and zero skips. The five new guard methods and no Warden product fix
+were present. The failures are the two quoted-key receipts and the `status`
+and `next` acceptance of a tree anchor, a post-receipt alternate, and a
+post-receipt shallow boundary.
+
+The repaired-tree report is
+`.elenchus/fiat-556-step-2-warden-round3-precommit-green.json`, SHA-256
+`47fd37514f781eaa6f57b97bc60618be7cd3508baef66a541a6d89d95eaff8c9`.
+It records `elenchus.unittest.v1`, 1,095 tests with zero failures, errors, or
+skips. The fixed tree passes 37 focused relation tests, the 434-test controller
+and Fiat companion gate, and all 350 root tests. All 16 non-Solidity suite
+commands in `AGENTS.md` are green; Lazarus contributes 364 tests under its
+pinned Python 3.13 lockfile runtime.
+
+Mason's causal matrix remains
+`tmp/elenchus/fiat-556-step-2-red-matrix.json`, SHA-256
+`38805d0e89fdceb632b7fa54860dec9a990770606a6bec08932f5e04f128adc9`:
+1,073 tests, nine assertion failures, six errors, and zero skips. The canonical
+green remains `tmp/elenchus/fiat-556-step-2.json`, SHA-256
+`3fe2ea15aea672bb4deaae16a85c18f80260a10c2ef697ee5fef8ffc08a2be72`:
+1,076 tests with zero failures, errors, or skips.
+
+Promise Machine reports 14 clean plugin copies and 71 of 71 covered promises.
+Phylax, Ephoros, and Hypomnema each exit 0 on the complete repository paths.
+Horos reports that the boundary matches the tree. Python compilation and
+`git diff --check` are clean. The receipted study remains at SHA-256
+`4f379dac26ed32af4310bcd55ebaef7ca91774da7ca53f69f2d3a6401e8942c7`;
+the receipted and tracked runbook bytes remain at SHA-256
+`593ce6e4faa9598c475475e931f66c28e6d2ecaff116232299a7085e47ee89d2`.
+All three product paths are admitted by Step 2's Files field, and
+`audit/AUDIT.md` remains unchanged.
+
+The prior 17,402-byte audit record is the exact prefix of this round, SHA-256
+`872da975ff1fab131d52cafec58c57776f9951ca5ed1c79fdda94e2928ba522f`.
+The bounded Sapheneia comparison preserves every finding, severity,
+counterexample, path, hash, count, qualification, status, scope exclusion,
+and unpursued lead. Imprimatur and Brevitas accept the new append; the
+complete file retains only its inherited B011 at the two-row Step 1 table.
+
+### Risk register
+
+`anchor-substitution`, `git-object-shape`, `metadata-mismatch`,
+`receipt-replay`, `diagnostic-leak`, `legacy-state`, and
+`literal-compatibility` surfaced S2-R3-01 through S2-R3-03 or received new
+adjacent guards. One, two, partial, reordered, and one-bad-target capture;
+counter arithmetic and non-SemVer treatment; every anchored ledger, skill,
+evolution, epoch, and frontier field; all-or-nothing multi-target refusal;
+state and ledger receipt matching; malformed and tampered anchors; explicit
+`resolution: null`; Promise declarations; and legacy v1 replay remain green.
+The no-block specimen now runs `done runbook`, `status`, and `next` behind a
+refusing Git wrapper without a call, while its directive stays byte-identical.
+
+Live integration snapshots, frontier and ledger drift, remote failures, sync
+carriage, resolution receipt recovery, stale or capped resolution history,
+terminal parent races, and the self-hosted collision remain Steps 3 and 4 and
+receive no Step 2 claim.
+
+Leads not pursued: recomputing every native Git object identity after direct
+object-store corruption. The guarded substitutions, stored object type, and
+full-history state now refuse or reconstruct from native objects; physical
+object-store integrity remains Git's repository boundary.
