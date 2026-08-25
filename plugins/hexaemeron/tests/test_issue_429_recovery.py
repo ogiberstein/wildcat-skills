@@ -45,6 +45,9 @@ PRODUCT_SUFFIX = (
     / "rounds"
     / "fiat-429-audit-record-schema-timestamp-synopsis.md"
 )
+RECOVERY_LOG_SOURCE = (
+    "audit/rounds/fiat-429-recover-issue-429-from-pull-request-552.md"
+)
 PRODUCT_SUFFIX_SHA256 = (
     "51891eaf4a387acb79ab65c9508c09cb84828cb40c475a3b363fddcecd74fe8d"
 )
@@ -835,8 +838,23 @@ if PROOF_MODE:
                             "leads": source_bytes.count(b"Leads not pursued:"),
                         }
                     )
-                self.assertEqual(sum(row["v1"] for row in release_rows), 29)
-                self.assertEqual(sum(row["v2"] for row in release_rows), 2)
+                release_by_source = {
+                    row["source"]: row for row in release_rows
+                }
+                product_source = PRODUCT_SUFFIX.relative_to(ROOT).as_posix()
+                self.assertEqual(
+                    (
+                        release_by_source[product_source]["v1"],
+                        release_by_source[product_source]["v2"],
+                    ),
+                    (29, 0),
+                )
+                recovery_row = release_by_source[RECOVERY_LOG_SOURCE]
+                self.assertEqual(recovery_row["v1"], 0)
+                self.assertGreaterEqual(recovery_row["v2"], 2)
+                for source, row in release_by_source.items():
+                    if source not in {product_source, RECOVERY_LOG_SOURCE}:
+                        self.assertEqual((row["v1"], row["v2"]), (0, 0))
 
                 specification = importlib.util.spec_from_file_location(
                     "issue_429_checked_generator", GENERATOR
