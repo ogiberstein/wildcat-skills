@@ -2996,9 +2996,9 @@
         "scope": "captured method and parameters with loopback-only service",
         "subject": "verified fixture identity and exact request key",
         "transition": "verified replay binding joined to the canonical Authorises field",
-        "unknowns": "uncaptured requests and recorded-only RPC relations"
+        "unknowns": "uncaptured requests, recorded-only RPC relations and chain-anchor canonicality or independence"
       },
-      "sha256": "0ae280084dd2934e902b11826c12aff8247989616126c1771ae6af65e38307b2",
+      "sha256": "2088a8949896d672b18d4e7a79611cd32dc98da5d0057520015b0e432407e83c",
       "source": "plugins/lazarus/scripts/lazarus.py"
     },
     "lazarus-fixture-capture": {
