@@ -6,6 +6,7 @@ while saying something the records do not support.
 """
 
 import copy
+import traceback
 import unicodedata
 import unittest
 
@@ -157,6 +158,26 @@ def sample_statement_v2():
     document["predicate"]["fixture_subjects"].append(component)
     document["subject"].append(
         {"name": component["name"], "digest": component["digest"]}
+    )
+    document["predicate"].update(
+        {
+            "capture": {
+                "tool": "lazarus",
+                "tool_version": "0.1.0",
+                "command": ["lazarus", "capture", "fixture-v2"],
+                "parameters_digest": {"sha256": "f" * 64},
+            },
+            "deltas": {
+                "baseline": None,
+                "current": {
+                    "name": "fixture-v2",
+                    "digest": {"sha256": "d" * 64},
+                },
+                "reason": "first receipt-aware fixture",
+            },
+            "claims": [],
+            "commands": [],
+        }
     )
     return document
 
@@ -584,6 +605,115 @@ class ShapeTests(unittest.TestCase):
         with self.assertRaises(IntegrityError) as caught:
             bound(statement)
         self.assertIn("different capture", str(caught.exception))
+
+
+class VersionTwoVocabularyTests(unittest.TestCase):
+    def test_a_structured_transaction_hash_proof_claim_is_refused(self):
+        statement = sample_statement_v2()
+        statement["predicate"]["transaction_hash_proved"] = True
+        with self.assertRaisesRegex(IntegrityError, "outside its vocabulary"):
+            bound_v2(statement=statement)
+
+    def test_each_required_v2_block_must_be_present(self):
+        for field in ("capture", "deltas", "claims", "commands"):
+            statement = sample_statement_v2()
+            del statement["predicate"][field]
+            with self.subTest(field=field), self.assertRaises(FormatError):
+                bound_v2(statement=statement)
+
+    def test_v2_capture_delta_claim_and_command_shapes_are_closed(self):
+        mutations = (
+            lambda document: document.__setitem__("unchecked", True),
+            lambda document: document["subject"][0].__setitem__(
+                "unchecked", True
+            ),
+            lambda document: document["predicate"]["capture"].__setitem__(
+                "unchecked", True
+            ),
+            lambda document: document["predicate"]["fixture_subjects"][0].__setitem__(
+                "unchecked", True
+            ),
+            lambda document: document["predicate"]["deltas"]["current"].__setitem__(
+                "unchecked", True
+            ),
+            lambda document: document["predicate"]["deltas"].__setitem__(
+                "unchecked", True
+            ),
+            lambda document: document["predicate"].__setitem__(
+                "claims",
+                [
+                    {
+                        "name": "unchecked",
+                        "subject": {"sha256": "d" * 64},
+                        "disposition": "passed",
+                        "unchecked": True,
+                    }
+                ],
+            ),
+            lambda document: document["predicate"].__setitem__(
+                "claims",
+                [
+                    {
+                        "name": "unchecked",
+                        "subject": {"sha256": "d" * 64},
+                        "disposition": {"unexpected": True},
+                    }
+                ],
+            ),
+            lambda document: document["predicate"].__setitem__(
+                "commands",
+                [
+                    {
+                        "name": "network",
+                        "argv": ["curl", "https://example.invalid"],
+                        "determinism": "exact",
+                    }
+                ],
+            ),
+        )
+        for mutate in mutations:
+            statement = sample_statement_v2()
+            mutate(statement)
+            with self.subTest(mutate=mutate), self.assertRaises(
+                (FormatError, IntegrityError)
+            ):
+                bound_v2(statement=statement)
+
+    def test_unknown_v2_fields_do_not_cross_exception_surfaces(self):
+        prefix = "PRIVATE_PROVIDER_VALUE_"
+        keys = (prefix + "SECRET", prefix + "x" * 200_000)
+        locations = (
+            lambda body, key: body.__setitem__(key, True),
+            lambda body, key: body["chain"].__setitem__(key, True),
+            lambda body, key: body["evidence"].__setitem__(key, True),
+            lambda body, key: body["replay"].__setitem__(key, True),
+        )
+        for key in keys:
+            for locate in locations:
+                statement = sample_statement_v2()
+                locate(statement["predicate"], key)
+                with self.subTest(key_bytes=len(key), locate=locate):
+                    with self.assertRaises(IntegrityError) as raised:
+                        bound_v2(statement=statement)
+                    error = raised.exception
+                    surfaces = {
+                        "message": str(error),
+                        "args": repr(error.args),
+                        "repr": repr(error),
+                        "cause": repr(error.__cause__),
+                        "context": repr(error.__context__),
+                        "traceback": "".join(
+                            traceback.format_exception(
+                                type(error), error, error.__traceback__
+                            )
+                        ),
+                    }
+                    self.assertIsNone(error.__cause__)
+                    self.assertIsNone(error.__context__)
+                    for name, rendered in surfaces.items():
+                        with self.subTest(surface=name):
+                            self.assertNotIn(prefix, rendered)
+                            self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
 
 
 

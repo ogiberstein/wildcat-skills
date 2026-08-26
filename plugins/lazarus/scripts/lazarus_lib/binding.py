@@ -115,6 +115,251 @@ The names go into the release document, so a reader knows which questions were
 asked rather than inferring them from the release existing.
 """
 
+STATEMENT_FIELDS = frozenset({"_type", "subject", "predicateType", "predicate"})
+RESOURCE_DESCRIPTOR_FIELDS = frozenset(
+    {
+        "name",
+        "uri",
+        "digest",
+        "content",
+        "downloadLocation",
+        "mediaType",
+        "annotations",
+    }
+)
+V2_PREDICATE_FIELDS = frozenset(
+    {
+        "chain",
+        "capture",
+        "fixture_subjects",
+        "evidence",
+        "replay",
+        "deltas",
+        "claims",
+        "commands",
+    }
+)
+V2_CAPTURE_FIELDS = frozenset(
+    {"tool", "tool_version", "command", "parameters_digest"}
+)
+V2_FIXTURE_SUBJECT_FIELDS = frozenset({"name", "path", "digest", "bytes"})
+V2_DELTA_FIELDS = frozenset(
+    {"baseline", "current", "reason", "components"}
+)
+V2_DELTA_SIDE_FIELDS = frozenset({"name", "digest"})
+V2_COMPONENT_DELTA_FIELDS = frozenset({"added", "removed", "changed"})
+V2_CHANGED_FIELDS = frozenset({"baseline", "current"})
+V2_CLAIM_FIELDS = frozenset(
+    {"name", "subject", "disposition", "reason", "detail"}
+)
+V2_DISPOSITIONS = frozenset(
+    {"passed", "failed", "skipped", "timed_out", "redacted"}
+)
+DIGEST_LENGTHS = {"sha256": 64, "sha384": 96, "sha512": 128}
+
+
+def _closed(
+    node: dict[str, Any],
+    fields: frozenset[str],
+    what: str,
+    *,
+    required: frozenset[str] | None = None,
+) -> None:
+    """Hold one v2 object to its published vocabulary without echoing input keys."""
+    unknown = set(node) - fields
+    if unknown:
+        raise IntegrityError(
+            f"{what} carries {len(unknown)} field(s) outside its vocabulary"
+        )
+    missing = (required if required is not None else fields) - set(node)
+    if missing:
+        raise FormatError(f"{what} is missing {len(missing)} required field(s)")
+
+
+def _digest_set(value: Any, what: str) -> dict[str, Any]:
+    """The digest grammar published by state-fixture/v2, without value echo."""
+    value = _object(value, what)
+    if not value:
+        raise FormatError(f"{what} is empty")
+    supported = 0
+    for algorithm, digest in value.items():
+        if not isinstance(algorithm, str) or not algorithm:
+            raise FormatError(f"{what} has an invalid algorithm name")
+        if (
+            not isinstance(digest, str)
+            or not digest
+            or digest != digest.lower()
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise FormatError(f"{what} has a digest value outside lowercase hex")
+        expected = DIGEST_LENGTHS.get(algorithm)
+        if expected is not None:
+            supported += 1
+            if len(digest) != expected:
+                raise FormatError(
+                    f"{what} has a {algorithm} value of the wrong length"
+                )
+    if not supported:
+        raise FormatError(f"{what} carries no supported digest algorithm")
+    return value
+
+
+def _v2_side(value: Any, what: str) -> None:
+    side = _object(value, what)
+    _closed(side, V2_DELTA_SIDE_FIELDS, what)
+    if not isinstance(side["name"], str) or not side["name"].strip():
+        raise FormatError(f"{what} has no name")
+    _digest_set(side["digest"], f"{what} digest")
+
+
+def _check_v2_deltas(predicate: dict[str, Any]) -> None:
+    deltas = _object(_member(predicate, "deltas", "statement predicate"), "deltas")
+    _closed(
+        deltas,
+        V2_DELTA_FIELDS,
+        "state-fixture/v2 deltas",
+        required=frozenset({"baseline", "current"}),
+    )
+    _v2_side(deltas["current"], "state-fixture/v2 current side")
+    baseline = deltas["baseline"]
+    if baseline is None:
+        reason = deltas.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise FormatError("state-fixture/v2 null baseline has no reason")
+        if "components" in deltas:
+            raise IntegrityError(
+                "state-fixture/v2 deltas carry components against a null baseline"
+            )
+    else:
+        _v2_side(baseline, "state-fixture/v2 baseline side")
+        if "reason" in deltas and not isinstance(deltas["reason"], str):
+            raise FormatError("state-fixture/v2 deltas reason must be a string")
+
+    if "components" not in deltas:
+        return
+    components = _object(
+        deltas["components"], "state-fixture/v2 component deltas"
+    )
+    _closed(
+        components,
+        V2_COMPONENT_DELTA_FIELDS,
+        "state-fixture/v2 component deltas",
+        required=frozenset(),
+    )
+    for field in ("added", "removed"):
+        if field not in components:
+            continue
+        entries = components[field]
+        if not isinstance(entries, list) or not all(
+            isinstance(entry, str) and entry.strip() for entry in entries
+        ):
+            raise FormatError(
+                f"state-fixture/v2 component deltas {field} must name components"
+            )
+    if "changed" in components:
+        changed = components["changed"]
+        if not isinstance(changed, list):
+            raise FormatError("state-fixture/v2 changed components must be an array")
+        for index, entry in enumerate(changed):
+            what = f"state-fixture/v2 changed component {index + 1}"
+            entry = _object(entry, what)
+            _closed(entry, V2_CHANGED_FIELDS, what)
+            if not all(
+                isinstance(entry[field], str) and entry[field].strip()
+                for field in V2_CHANGED_FIELDS
+            ):
+                raise FormatError(f"{what} does not name both sides")
+
+
+def _check_v2_claims(predicate: dict[str, Any]) -> None:
+    claims = _member(predicate, "claims", "statement predicate")
+    if not isinstance(claims, list):
+        raise FormatError("state-fixture/v2 claims must be an array")
+    for index, claim in enumerate(claims):
+        what = f"state-fixture/v2 claim {index + 1}"
+        claim = _object(claim, what)
+        _closed(
+            claim,
+            V2_CLAIM_FIELDS,
+            what,
+            required=frozenset({"name", "subject", "disposition"}),
+        )
+        if not isinstance(claim["name"], str):
+            raise FormatError(f"{what} name must be a string")
+        _digest_set(claim["subject"], f"{what} subject")
+        disposition = claim["disposition"]
+        if not isinstance(disposition, str) or disposition not in V2_DISPOSITIONS:
+            raise FormatError(f"{what} disposition is outside the vocabulary")
+        if "reason" in claim and not isinstance(claim["reason"], str):
+            raise FormatError(f"{what} reason must be a string")
+        if disposition != "passed" and (
+            not isinstance(claim.get("reason"), str)
+            or not claim["reason"].strip()
+        ):
+            raise FormatError(f"{what} has no reason for its disposition")
+        if "detail" in claim and not isinstance(claim["detail"], dict):
+            raise FormatError(f"{what} detail must be an object")
+
+
+def _check_v2_vocabulary(
+    statement: dict[str, Any], predicate: dict[str, Any]
+) -> None:
+    """Refuse a type label whose document does not implement that v2 type.
+
+    Release cannot import Ariadne at runtime, so it carries the public structural
+    vocabulary it claims to understand. Version 1 retains its historical binding;
+    version 2 is new and may fail closed before a release publishes its exact bytes.
+    """
+    _closed(statement, STATEMENT_FIELDS, "state-fixture/v2 statement")
+    _closed(predicate, V2_PREDICATE_FIELDS, "state-fixture/v2 predicate")
+
+    capture = _object(predicate["capture"], "state-fixture/v2 capture")
+    _closed(capture, V2_CAPTURE_FIELDS, "state-fixture/v2 capture")
+    for field in ("tool", "tool_version"):
+        if not isinstance(capture[field], str) or not visible(capture[field]):
+            raise FormatError(f"state-fixture/v2 capture {field} names nothing")
+    command = capture["command"]
+    if (
+        not isinstance(command, list)
+        or not command
+        or not all(isinstance(word, str) and visible(word) for word in command)
+    ):
+        raise FormatError("state-fixture/v2 capture command is not a non-empty argv")
+    _digest_set(
+        capture["parameters_digest"],
+        "state-fixture/v2 capture parameters_digest",
+    )
+
+    fixture_subjects = predicate["fixture_subjects"]
+    if isinstance(fixture_subjects, list):
+        for index, entry in enumerate(fixture_subjects):
+            what = f"state-fixture/v2 fixture subject {index + 1}"
+            entry = _object(entry, what)
+            _closed(entry, V2_FIXTURE_SUBJECT_FIELDS, what)
+            _digest_set(entry["digest"], f"{what} digest")
+
+    subjects = statement["subject"]
+    if isinstance(subjects, list):
+        for index, entry in enumerate(subjects):
+            what = f"state-fixture/v2 subject {index + 1}"
+            entry = _object(entry, what)
+            _closed(
+                entry,
+                RESOURCE_DESCRIPTOR_FIELDS,
+                what,
+                required=frozenset({"digest"}),
+            )
+            _digest_set(entry["digest"], f"{what} digest")
+
+    _check_v2_deltas(predicate)
+    _check_v2_claims(predicate)
+    commands = predicate["commands"]
+    if not isinstance(commands, list) or commands:
+        raise IntegrityError(
+            "state-fixture/v2 replay is local-file verification only and carries "
+            "no executable commands"
+        )
+
 
 def _object(value: Any, what: str) -> dict[str, Any]:
     if not isinstance(value, dict):
@@ -289,8 +534,15 @@ def _check_chain_and_block(
         allowed.add("receipts_root")
     unknown = sorted(set(chain) - allowed)
     if unknown:
+        if version == 2:
+            _closed(
+                chain,
+                frozenset(allowed),
+                "state-fixture/v2 chain",
+                required=frozenset(),
+            )
         raise IntegrityError(
-            f"state-fixture/v{version} chain carries fields outside its vocabulary: "
+            "state-fixture/v1 chain carries fields outside its vocabulary: "
             + listed(unknown)
         )
 
@@ -356,6 +608,13 @@ def _check_evidence_counts(
     classes = EVIDENCE_CLASSES_BY_VERSION[version]
     unknown = sorted(set(evidence) - set(classes))
     if unknown:
+        if version == 2:
+            _closed(
+                evidence,
+                frozenset(classes),
+                "state-fixture/v2 evidence",
+                required=frozenset(),
+            )
         raise IntegrityError(
             "statement counts evidence in classes this fixture does not have: "
             + listed(unknown)
@@ -396,8 +655,15 @@ def _check_replay_claims(
     claims = REPLAY_CLAIMS_BY_VERSION[version]
     unknown = sorted(set(replay) - set(claims))
     if unknown:
+        if version == 2:
+            _closed(
+                replay,
+                frozenset(claims),
+                "state-fixture/v2 replay",
+                required=frozenset(),
+            )
         raise IntegrityError(
-            f"state-fixture/v{version} replay carries fields outside its vocabulary: "
+            "state-fixture/v1 replay carries fields outside its vocabulary: "
             + listed(unknown)
         )
     for field in claims:
@@ -555,6 +821,8 @@ def bind(
     )
     _check_statement_type(statement)
     _check_predicate_type(statement, STATE_FIXTURE_TYPES[version])
+    if version == 2:
+        _check_v2_vocabulary(statement, predicate)
     _check_chain_and_block(predicate, manifest, report, version)
     _check_evidence_counts(predicate, report, version)
     _check_replay_claims(predicate, report, version)

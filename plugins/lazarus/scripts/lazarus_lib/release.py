@@ -367,22 +367,46 @@ def _refuse_statement_inside(source: Path, statement_path: str | Path) -> None:
 
 
 def _read_statement(path: str | Path) -> bytes:
-    """The statement's bytes, read once, capped, and never re-encoded."""
+    """The statement's bytes, read once, capped, and never re-encoded.
+
+    Every named path segment is opened relative to the descriptor above it.
+    `O_NOFOLLOW` on the final file alone still follows a symlinked parent, which
+    lets a path checked by `_refuse_statement_inside` name different bytes by the
+    time this read begins.
+    """
     handed = Path(path)
-    flags = (
+    absolute = Path(os.path.abspath(os.fspath(handed)))
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    file_flags = (
         os.O_RDONLY
         | getattr(os, "O_NOFOLLOW", 0)
         | getattr(os, "O_NONBLOCK", 0)
     )
+    current: int | None = None
     descriptor: int | None = None
     failure = None
     try:
-        descriptor = os.open(handed, flags)
+        current = os.open(os.sep, directory_flags)
+        for part in absolute.parts[1:-1]:
+            following = os.open(part, directory_flags, dir_fd=current)
+            os.close(current)
+            current = following
+        if absolute.name:
+            descriptor = os.open(absolute.name, file_flags, dir_fd=current)
     except OSError as exc:
         failure = exc.errno
+    finally:
+        if current is not None:
+            os.close(current)
     if descriptor is None:
-        if failure == errno.ELOOP:
-            raise PathError(f"statement is a symlink: {handed}")
+        if failure in (errno.ELOOP, errno.ENOTDIR):
+            raise PathError(
+                f"statement path contains a symlink or non-directory: {handed}"
+            )
         raise PathError(f"statement is not a regular file: {handed}")
 
     problem: Exception | None = None

@@ -120,6 +120,33 @@ def statement_for(root: Path):
         predicate_type = STATE_FIXTURE_TYPE_V2
         chain["receipts_root"] = report["receipts_root"]
         replay["provider_independence_claim"] = False
+    predicate = {
+        "chain": chain,
+        "evidence": dict(report["evidence_counts"]),
+        "replay": replay,
+        "fixture_subjects": subjects,
+    }
+    if version == 2:
+        predicate.update(
+            {
+                "capture": {
+                    "tool": "lazarus",
+                    "tool_version": manifest["tool_version"],
+                    "command": ["lazarus", "capture", str(root)],
+                    "parameters_digest": {"sha256": "f" * 64},
+                },
+                "deltas": {
+                    "baseline": None,
+                    "current": {
+                        "name": "synthetic-v0",
+                        "digest": {"sha256": report["fixture_digest"]},
+                    },
+                    "reason": "first receipt-aware fixture",
+                },
+                "claims": [],
+                "commands": [],
+            }
+        )
     return {
         "_type": "https://in-toto.io/Statement/v1",
         "predicateType": predicate_type,
@@ -127,12 +154,7 @@ def statement_for(root: Path):
             {"name": entry["name"], "digest": entry["digest"]} for entry in subjects
         ]
         + [{"name": "synthetic-v0", "digest": {"sha256": report["fixture_digest"]}}],
-        "predicate": {
-            "chain": chain,
-            "evidence": dict(report["evidence_counts"]),
-            "replay": replay,
-            "fixture_subjects": subjects,
-        },
+        "predicate": predicate,
     }
 
 
@@ -561,6 +583,20 @@ class RefusedReleaseTests(unittest.TestCase):
             link = prepared.root / "linked.json"
             link.symlink_to(prepared.statement)
             error = self.refuse(prepared, PathError, statement=link)
+            self.assertIn("symlink", str(error))
+
+    def test_a_statement_below_a_symlinked_parent_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            real = prepared.root / "statement-parent"
+            real.mkdir()
+            (real / "statement.json").write_bytes(prepared.statement.read_bytes())
+            link = prepared.root / "statement-link"
+            link.symlink_to(real, target_is_directory=True)
+
+            error = self.refuse(
+                prepared, PathError, statement=link / "statement.json"
+            )
             self.assertIn("symlink", str(error))
 
     def test_a_checked_statement_cannot_be_swapped_to_a_symlink_before_read(self):
