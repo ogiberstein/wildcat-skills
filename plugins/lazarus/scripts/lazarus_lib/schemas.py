@@ -27,7 +27,7 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
     ),
     ("plan", 3): (
         "plan-v3.json",
-        "3b0133eb18b98c0a3b3bb6e9ab736391fadf603b5295905ad6d84d9719f475c9",
+        "3df68d061929d20127e930aa1211172dcef6f6acc8f83b5af74c3b6b6b1481ed",
     ),
     ("header", 1): (
         "header-v1.json",
@@ -47,7 +47,7 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
     ),
     ("receipt-witness", 1): (
         "receipt-witness-v1.json",
-        "8c390e3b1861acbef92efe3dc4060eadfec147f619a5aa2fa6e2bc686a029efd",
+        "27e64f17eb87ee2546c5df14e51f31c9bd7dafb2edd4851f34a5a993dada28a1",
     ),
     ("manifest", 1): (
         "manifest-v1.json",
@@ -119,7 +119,17 @@ def validate_document(kind: str, document: Any) -> Any:
 def _schema_failure(kind: str, error: ValidationError) -> str:
     """Render one bounded schema refusal without copying the rejected value."""
 
-    location = "/".join(str(part) for part in error.absolute_path) or "<root>"
+    # The instance path can contain attacker-chosen object keys. The schema path
+    # is pinned repository data and still identifies the failed field or rule.
+    schema_path = list(error.absolute_schema_path)
+    location = ".".join(
+        part
+        for index, part in enumerate(schema_path)
+        if isinstance(part, str)
+        and index > 0
+        and schema_path[index - 1] == "properties"
+    ) or "<root>"
+    location = location[:1024]
     validator = error.validator
     if not isinstance(validator, str) or re.fullmatch(
         r"[A-Za-z][A-Za-z0-9_-]{0,63}", validator
@@ -139,16 +149,6 @@ def _schema_failure(kind: str, error: ValidationError) -> str:
             ]
             if missing:
                 detail = "missing required field: " + ", ".join(missing)
-    elif validator == "additionalProperties" and isinstance(error.instance, dict):
-        properties = error.schema.get("properties", {})
-        if isinstance(properties, dict):
-            extras = set(error.instance) - set(properties)
-            if len(extras) == 1:
-                extra = next(iter(extras))
-                if isinstance(extra, str) and re.fullmatch(
-                    r"[A-Za-z][A-Za-z0-9_]{0,63}", extra
-                ):
-                    detail = f"unexpected field: {extra}"
     return f"invalid {kind} at {location}: {detail}"
 
 
@@ -237,7 +237,9 @@ def _validate_receipt_plan(plan: dict[str, Any]) -> None:
         )
 
     target = _named_receipt_request(
-        requests, relation["target_receipt_request"], "eth_getTransactionReceipt"
+        requests,
+        relation["target_receipt_lookup_request"],
+        "eth_getTransactionReceipt",
     )
     if (
         not isinstance(target["params"], list)
@@ -328,75 +330,29 @@ def _validate_log_filter(value: Any, *, expected_block_hash: str) -> None:
 
 
 def _validate_receipt_witness(witness: dict[str, Any]) -> None:
-    """Reject identities that a closed schema cannot relate across arrays."""
+    """Keep the proof witness to trie keys and consensus receipt payloads."""
 
     header = witness["header"]
     block_hash = header["hash"]
-    block_number = header["number"]
-    transactions = header["transactions"]
     receipts = witness["receipts"]
 
-    if witness["block_receipts"]["params"] != [block_hash]:
-        raise FormatError("receipt witness request does not name its header hash")
-    if len({value.lower() for value in transactions}) != len(transactions):
-        raise FormatError("receipt witness has duplicate transaction hashes")
-    if len(receipts) != len(transactions):
-        raise FormatError(
-            "receipt witness receipt count does not match header transactions"
-        )
-
-    next_log_index = 0
-    for index, (transaction_hash, receipt) in enumerate(zip(transactions, receipts)):
+    for index, receipt in enumerate(receipts):
         expected_index = hex(index)
         if receipt["transaction_index"] != expected_index:
             raise FormatError(
                 f"receipt witness index {index} is not contiguous from zero"
             )
-        if receipt["transaction_hash"].lower() != transaction_hash.lower():
-            raise FormatError(
-                f"receipt witness transaction identity disagrees at index {index}"
-            )
-        if (
-            receipt["block_hash"].lower() != block_hash.lower()
-            or receipt["block_number"] != block_number
-        ):
-            raise FormatError(f"receipt witness block identity disagrees at index {index}")
         if "root" in receipt and receipt["receipt_type"] != "legacy":
             raise FormatError("typed receipt cannot carry a pre-Byzantium root")
-        for log in receipt["logs"]:
-            if (
-                log["block_hash"].lower() != block_hash.lower()
-                or log["block_number"] != block_number
-                or log["transaction_hash"].lower() != transaction_hash.lower()
-                or log["transaction_index"] != expected_index
-            ):
-                raise FormatError(
-                    f"receipt witness log identity disagrees at transaction {index}"
-                )
-            if log["log_index"] != hex(next_log_index):
-                raise FormatError("receipt witness log indices are not contiguous")
-            next_log_index += 1
 
     target = witness["target_receipt"]
     target_index = int(target["transaction_index"], 16)
     if target_index >= len(receipts):
         raise FormatError("receipt witness target index is outside the receipt set")
-    if (
-        receipts[target_index]["transaction_hash"].lower()
-        != target["transaction_hash"].lower()
-    ):
-        raise FormatError("receipt witness target transaction identity disagrees")
 
     _validate_log_filter(
         witness["filtered_logs"]["filter"], expected_block_hash=block_hash
     )
-    names = (
-        witness["block_receipts"]["request_name"],
-        target["request_name"],
-        witness["filtered_logs"]["request_name"],
-    )
-    if len(set(names)) != len(names):
-        raise FormatError("receipt witness relation request names must be distinct")
 
 
 def _validate_header(header: dict[str, Any]) -> None:

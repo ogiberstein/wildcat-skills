@@ -165,11 +165,11 @@ class ScaffoldTests(unittest.TestCase):
         source_study = study.replace("](../../", "](../")
         self.assertEqual(
             hashlib.sha256(source_study.encode("utf-8")).hexdigest(),
-            "c2c1d1b7551f75aea7c993aeb2f68bf376375bb863a4291fe677dbe2b0d06ea2",
+            "f8dd4bad531e8dbc236fec0bf0580d4a6a3a6284ce293a57a4d37af8555f9b79",
         )
         self.assertEqual(
             hashlib.sha256((root / "runbook.md").read_bytes()).hexdigest(),
-            "c53f67dc288222d10ec5fde42493b33a33150c4032020ce00c86041079a21cd5",
+            "198d6d2e5c400d0af12cc5a0248839a6761a7085931c2149c74dc0ad31c5f607",
         )
 
     def test_receipt_proof_decision_is_discoverable(self):
@@ -186,6 +186,8 @@ class ScaffoldTests(unittest.TestCase):
             "Receipt-witness-v1",
             "filtered-log relation",
             "recorded_rpc",
+            "recorded lookup label",
+            "transaction trie",
             "## Alternatives",
             "Capture only the target receipt",
             "debug_getRawReceipts",

@@ -175,7 +175,7 @@
       "additionalProperties": false,
       "required": [
         "block_receipts_request",
-        "target_receipt_request",
+        "target_receipt_lookup_request",
         "target_transaction_index",
         "filtered_logs_request"
       ],
@@ -184,7 +184,7 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
         },
-        "target_receipt_request": {
+        "target_receipt_lookup_request": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
         },

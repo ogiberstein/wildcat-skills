@@ -198,7 +198,7 @@ class SchemaTests(unittest.TestCase):
 
         legacy = support.sample_plan()
         legacy["anchor_sources"] = [{"source_id": "a"}]
-        with self.assertRaisesRegex(FormatError, "anchor_sources"):
+        with self.assertRaisesRegex(FormatError, "additionalProperties"):
             validate_document("plan", legacy)
 
     def test_plan_v2_copies_every_plan_v1_contract_field(self):
@@ -274,7 +274,7 @@ class SchemaTests(unittest.TestCase):
     def test_plan_v3_relation_is_closed_complete_and_canonical(self):
         for field in (
             "block_receipts_request",
-            "target_receipt_request",
+            "target_receipt_lookup_request",
             "target_transaction_index",
             "filtered_logs_request",
         ):
@@ -292,6 +292,24 @@ class SchemaTests(unittest.TestCase):
             with self.subTest(index=value), self.assertRaises(FormatError):
                 validate_document("plan", plan)
 
+    def test_plan_target_hash_is_only_a_recorded_lookup_label(self):
+        plan = support.sample_plan_v3()
+        lookup_name = plan["receipt_witness"]["target_receipt_lookup_request"]
+        lookup = next(item for item in plan["requests"] if item["name"] == lookup_name)
+        self.assertEqual(lookup["method"], "eth_getTransactionReceipt")
+        self.assertEqual(lookup["evidence"], "recorded-rpc")
+        self.assertRegex(lookup["params"][0], r"^0x[0-9a-fA-F]{64}$")
+
+        promoted = copy.deepcopy(plan)
+        promoted["requests"][2]["evidence"] = "proof-backed"
+        with self.assertRaisesRegex(FormatError, "required recorded-rpc"):
+            validate_document("plan", promoted)
+
+        witness_before = support.sample_receipt_witness()
+        plan["requests"][2]["params"] = [support.hash32("ff")]
+        validate_document("plan", plan)
+        self.assertEqual(support.sample_receipt_witness(), witness_before)
+
     def test_receipt_witness_is_closed_complete_and_supports_named_types(self):
         witness = support.sample_receipt_witness()
         validate_document("receipt-witness", witness)
@@ -302,7 +320,6 @@ class SchemaTests(unittest.TestCase):
 
         for field in (
             "schema_version",
-            "block_receipts",
             "header",
             "receipts",
             "target_receipt",
@@ -386,13 +403,16 @@ class SchemaTests(unittest.TestCase):
     def test_schema_refusals_do_not_echo_hostile_keys_or_values(self):
         prefix = "PRIVATE_PROVIDER_VALUE_"
         marker = prefix + "x" * 200_000
-        witness = support.sample_receipt_witness()
-        witness[marker] = True
-        with self.assertRaises(FormatError) as raised:
-            validate_document("receipt-witness", witness)
-        message = str(raised.exception)
-        self.assertNotIn(prefix, message)
-        self.assertLessEqual(len(message.encode("utf-8")), 4096)
+        for hostile_key in (prefix + "SECRET", marker):
+            witness = support.sample_receipt_witness()
+            witness[hostile_key] = True
+            with self.subTest(hostile_key=len(hostile_key)), self.assertRaises(
+                FormatError
+            ) as raised:
+                validate_document("receipt-witness", witness)
+            message = str(raised.exception)
+            self.assertNotIn(prefix, message)
+            self.assertLessEqual(len(message.encode("utf-8")), 4096)
 
         witness = support.sample_receipt_witness()
         witness["receipts"][0]["receipt_type"] = marker
@@ -402,7 +422,7 @@ class SchemaTests(unittest.TestCase):
         self.assertNotIn(prefix, message)
         self.assertLessEqual(len(message.encode("utf-8")), 4096)
 
-    def test_receipt_witness_rejects_index_count_and_identity_disagreement(self):
+    def test_receipt_witness_rejects_index_target_and_filter_disagreement(self):
         mutations = (
             (
                 "index",
@@ -412,44 +432,11 @@ class SchemaTests(unittest.TestCase):
                 "not contiguous",
             ),
             (
-                "count",
-                lambda witness: witness["receipts"].pop(),
-                "receipt count",
-            ),
-            (
-                "transaction",
-                lambda witness: witness["receipts"][1].__setitem__(
-                    "transaction_hash", support.hash32("ff")
-                ),
-                "transaction identity",
-            ),
-            (
-                "receipt block",
-                lambda witness: witness["receipts"][0].__setitem__(
-                    "block_hash", support.hash32("ff")
-                ),
-                "block identity",
-            ),
-            (
-                "log transaction",
-                lambda witness: witness["receipts"][1]["logs"][0].__setitem__(
-                    "transaction_hash", support.hash32("ff")
-                ),
-                "log identity",
-            ),
-            (
-                "log index",
-                lambda witness: witness["receipts"][1]["logs"][0].__setitem__(
-                    "log_index", "0x1"
-                ),
-                "log indices",
-            ),
-            (
                 "target",
                 lambda witness: witness["target_receipt"].__setitem__(
-                    "transaction_hash", support.hash32("ff")
+                    "transaction_index", "0x2"
                 ),
-                "target transaction",
+                "target index",
             ),
             (
                 "filter block",
@@ -466,6 +453,26 @@ class SchemaTests(unittest.TestCase):
                 FormatError, message
             ):
                 validate_document("receipt-witness", witness)
+
+    def test_receipt_witness_refuses_transaction_hashes_and_rpc_decorations(self):
+        witness = support.sample_receipt_witness()
+        self.assertNotIn("transaction_hash", str(witness))
+        mutations = (
+            (lambda value: value["header"].__setitem__("chain_id", "0x1")),
+            (lambda value: value["header"].__setitem__("transactions", [support.hash32()])),
+            (lambda value: value["receipts"][0].__setitem__("transaction_hash", support.hash32())),
+            (lambda value: value["receipts"][0].__setitem__("block_hash", support.hash32())),
+            (lambda value: value["receipts"][0].__setitem__("block_number", "0x10")),
+            (lambda value: value["receipts"][1]["logs"][0].__setitem__("transaction_hash", support.hash32())),
+            (lambda value: value["receipts"][1]["logs"][0].__setitem__("transaction_index", "0x1")),
+            (lambda value: value["receipts"][1]["logs"][0].__setitem__("log_index", "0x0")),
+            (lambda value: value["target_receipt"].__setitem__("transaction_hash", support.hash32())),
+        )
+        for mutate in mutations:
+            changed = copy.deepcopy(witness)
+            mutate(changed)
+            with self.subTest(changed=changed), self.assertRaises(FormatError):
+                validate_document("receipt-witness", changed)
 
     def test_source_ids_keep_the_public_grammar(self):
         invalid = ("", "A", "-source", "source/name", "a" * 129)
