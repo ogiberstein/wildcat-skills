@@ -33,17 +33,18 @@ producer-owned launch state. It contains the schema, intent kind, producer,
 observation time, and SHA-256 digest of the exact request bytes. After selection
 or refusal, the producer stores the exact sealed JSON handoff beside that
 receipt. The sealed handoff binds the request digest, evidence source and
-class, candidate evidence, selected subject or refusal, claim state, consumer,
-and `promise-machine/v1` boundary. Raw prompts, issue bodies, comments, and
-model reasoning are excluded.
+class, candidate evidence, selected subject or refusal, immutable claim
+requirement, consumer, and `promise-machine/v1` boundary. A selected issue uses
+`required`; issue-free maintenance uses `none`. This field never asserts that a
+claim already exists. Raw prompts, issue bodies, comments, and model reasoning
+are excluded.
 
 Fiat accepts only a sealed handoff addressed to `hexaemeron:fiat`. Before
-creating run state, it validates the packet, copies the exact bytes to
-`.hexaemeron/volunteer-intent.json`, and binds their SHA-256 digest into
-controller state. The producer copy records why a universe was searched. The
-Fiat copy records what the delivery consumed. Missing bytes, changed request
-digests, copy mismatches, or later replacement refuse before state creation.
-Fiat binds the selected subject; it never selects one.
+creating run state, it validates the packet and selected subject. An
+issue-backed handoff remains insufficient until the separate claim evidence
+below is present and current. Missing bytes, changed request digests, copy
+mismatches, or later replacement refuse before state creation. Fiat binds the
+selected subject; it never selects one.
 
 The selector and evidence depend on the intent kind:
 
@@ -66,20 +67,33 @@ titles, including `5b` and `9b`, remain opaque metadata and supply no ordering.
 This record creates no periodic, age-based, or count-based census trigger;
 Atlas freshness and exclusion evidence remain with issue #505.
 
-An issue-backed handoff requires a public claim before Fiat starts. The
-canonical early claim is a contributor-authored issue comment containing a
-`wildcat-volunteer-claim/v1` marker, the intent-handoff SHA-256 digest, the
-authenticated comment author as claimant, and `state: active`. Exact authority
-to publish that comment and the repository's publication gates are
+An issue-backed handoff requires a public claim before Fiat starts. After the
+intent handoff is sealed, the authorised contributor publishes the canonical
+early claim: an issue comment whose body contains a
+`wildcat-volunteer-claim/v1` marker, the intent-handoff SHA-256 digest, and
+`state: active`. GitHub's authenticated comment author is the claimant. Exact
+authority to publish the comment and the repository's publication gates are
 preconditions; selection grants neither.
+
+After exact comment readback, the producer seals a separate
+`wildcat-volunteer-claim-evidence/v1` record. It binds the handoff digest,
+comment URL and id, authenticated author, exact comment-body digest, observed
+active state, and observation time. Fiat validates the handoff and claim
+evidence together, rechecks the live comment, copies the records separately to
+`.hexaemeron/volunteer-intent.json` and `.hexaemeron/volunteer-claim.json`, and
+binds both SHA-256 digests before creating run state. Missing evidence, a
+changed comment, an author or digest mismatch, or a live release refuses
+without changing either retained input.
 
 Claims do not expire on a timer. A release is a second structured comment by
 the claimant or a maintainer. It carries a
 `wildcat-volunteer-claim-release/v1` marker, the original comment URL, the same
 intent digest, and `state: released`. The original claim remains active until
-that release exists. Edited, malformed, or conflicting claim records require
-maintainer resolution. Assignment, issue-number branches, and linked pull
-requests remain independent safety refusals and corroborate a valid claim.
+that release exists. The release is a later external record and never mutates
+the retained intent or claim-evidence bytes. Edited, malformed, or conflicting
+claim records require maintainer resolution. Assignment, issue-number branches,
+and linked pull requests remain independent safety refusals and corroborate a
+valid claim.
 
 Issue-free maintenance is limited to a local, read-only report with one named
 repository and output. It need not invoke Fiat or publish a claim. Maintenance
@@ -93,16 +107,19 @@ These are design cases, not claims that an executable selector exists.
 1. **`named-issue`.** The caller supplies
    `https://github.com/wildcat-finance/skills/issues/447`. The launcher records
    `named-issue` before reading the singleton snapshot, seals that snapshot's
-   digest and the same URL, obtains the structured claim comment, and gives
-   Fiat the packet. Fiat accepts only when its task-issue receipt is #447.
+   digest, the same URL and `claim requirement: required`, then obtains the
+   structured claim comment and seals its separate readback evidence. Fiat
+   accepts both records only when its task-issue receipt is #447.
 2. **`wave`.** The documented contributor front door receives a bare volunteer
    offer and records `wave`. Atlas reads one dependency-clear set, stores that
    set's digest, selects one member of it, and seals the member and same-read
-   evidence. It neither chooses nor orders a milestone title.
+   evidence. The selected issue then follows the claim and evidence sequence
+   above. Atlas neither chooses nor orders a milestone title.
 3. **`frontier`.** The caller supplies `frontier` and one governed skill.
    Kronos records the intent, builds its current scoreboard, and may seal one
    held job only when the ledger says the frontier is neither mature nor
-   parked. Fiat consumes that selected job without reranking the scoreboard.
+   parked. An issue-backed held job follows the same claim and evidence
+   sequence. Fiat consumes that selected job without reranking the scoreboard.
 4. **`maintenance`.** The caller names one repository, one read-only report
    path, and a scope digest. The bounded caller seals those values and writes
    only that local report. No issue, public claim, or Fiat run is implied. A
@@ -115,7 +132,8 @@ These are design cases, not claims that an executable selector exists.
 | Unknown or absent intent kind | request receipt | Stop before candidate search; never fall through to another lane. |
 | Empty Wave set | Atlas selection | Return no selection and create no Fiat state. |
 | Stale, mismatched, or split-read Wave evidence | handoff validation | Refuse until Atlas supplies current same-read evidence whose digest contains the selected issue. |
-| Active or conflicting claim | claim validation | Refuse until a valid digest-bound release or maintainer resolution exists. |
+| Pre-existing active or conflicting claim | before claim publication | Refuse until a valid digest-bound release or maintainer resolution exists. |
+| Missing, stale, or mismatched claim evidence | Fiat validation | Refuse until a current `wildcat-volunteer-claim-evidence/v1` record and live comment agree. |
 | Mature or parked frontier | Kronos selection | Refuse dispatch; this ADR grants no reopening authority. |
 | Unbounded maintenance request | request receipt | Refuse until one repository, output, and scope digest bound the work. |
 | Missing publication authority | claim publication | Do not post a comment or start Fiat; selection confers no GitHub write authority. |
@@ -138,14 +156,15 @@ These are design cases, not claims that an executable selector exists.
 Selection remains with the component that already owns each candidate
 universe, and Fiat receives replayable evidence without becoming a fourth
 selector. Named issues have deterministic precedence. Candidate evidence,
-selected subject, public claim, and controller binding remain separate facts.
+selected subject, immutable claim requirement, observed claim evidence, and
+controller binding remain separate facts.
 
-The design adds one small protocol and two retained copies. Atlas will need to
-emit a same-read digest, Kronos will need an adapter, and Fiat will need a
-validator before any command is live. A contributor or maintainer must release
-abandoned claims explicitly. That recovery is slower than automatic expiry,
-but it cannot silently authorize duplicate work while a long Fiat run remains
-active.
+The design adds two small record schemas and separate producer and Fiat copies
+for intent and claim evidence. Atlas will need to emit a same-read digest,
+Kronos will need an adapter, and Fiat will need validators before any command is
+live. A contributor or maintainer must release abandoned claims explicitly.
+That recovery is slower than automatic expiry, but it cannot silently authorize
+duplicate work while a long Fiat run remains active.
 
 Issue #505 remains the decision home for Atlas freshness and dropped-issue
 evidence. Any executable selector, GitHub writer, or controller integration
