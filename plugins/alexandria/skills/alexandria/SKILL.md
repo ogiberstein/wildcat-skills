@@ -102,6 +102,9 @@ subject per manifest component, exact component metadata, and every capture's
 declared scope, coverage status and counts, unsupported collections and gaps.
 It includes one passed Alexandria offline-verification claim bound to the
 release digest and an empty command list.
+Canonical statement bytes above Ariadne's default 8 MiB bounded-input limit are
+refused before the output path is prepared. A successful output therefore stays
+inside Ariadne's default reader bound.
 
 The statement is not a DSSE envelope and Alexandria does not run cosign. It
 does not authenticate a publisher or prove provider completeness, consensus
@@ -248,7 +251,7 @@ reported block is canonical. Those claims require separate evidence.
 - Boundary: The output has no DSSE envelope or signature check, the Alexandria predicate is unregistered in Ariadne, and the result does not establish publisher identity, provider completeness, consensus finality or canonical-chain membership.
 - Authorises: Hand-off of the unsigned statement bytes for Ariadne core-gate inspection or downstream signing without upgrading their evidence claims.
 - Consequence: 1
-- Refuses: Emitting from a release that does not verify, writing inside or through an alias of that release, omitting or changing a subject or predicate field, or describing unchecked signatures or predicate-owned gates as passed.
+- Refuses: Emitting from a release that does not verify, emitting bytes above Ariadne's default bounded-input limit, writing inside or through an alias of that release, omitting or changing a subject or predicate field, or describing unchecked signatures or predicate-owned gates as passed.
 - Recovery: Inspect the verification, projection or output-confinement failure, repair the release or choose a safe external output, rerun `statement` and retain only the successful replacement.
 - Exceptions: none
 

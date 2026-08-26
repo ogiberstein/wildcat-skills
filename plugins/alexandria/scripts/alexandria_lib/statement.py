@@ -18,6 +18,7 @@ STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
 PREDICATE_TYPE = "https://ariadne.wildcat.finance/alexandria-release/v1"
 VERIFICATION_CLAIM = "alexandria release offline verification"
 DIGEST_PREFIX = "sha256:"
+MAX_STATEMENT_BYTES = MAX_CONTROL_BYTES
 
 PREDICATE_FIELDS = frozenset(
     {"release", "components", "captures", "claims", "commands"}
@@ -139,6 +140,11 @@ def emit_statement(release_root: Path, output: Path) -> dict:
     statement = statement_for(manifest)
     validate_projection(manifest, statement)
     body = canonical_bytes(statement)
+    if len(body) > MAX_STATEMENT_BYTES:
+        raise AlexandriaError(
+            "release statement exceeds Ariadne's "
+            f"{MAX_STATEMENT_BYTES}-byte input limit"
+        )
     output = _write_statement(release_root, manifest, output, body, release_id)
     return {
         "release_id": release_id,

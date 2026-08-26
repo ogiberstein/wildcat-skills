@@ -14,6 +14,9 @@ newline through a fresh sibling temporary regular file and atomically replaces
 the target. The target must be outside and must not alias the release. A failed
 verification, projection or write installs no new result; an existing regular
 target remains unchanged unless the final replacement succeeds.
+Canonical statement bytes above Ariadne's default 8 MiB bounded-input limit are
+refused before the output path is prepared, so an existing target remains
+unchanged and every successful output stays directly readable by Ariadne.
 
 ## Wire contract
 
