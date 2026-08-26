@@ -98,8 +98,7 @@ def validate_document(kind: str, document: Any) -> Any:
     try:
         Draft202012Validator(schema).validate(document)
     except ValidationError as exc:
-        location = "/".join(str(part) for part in exc.absolute_path) or "<root>"
-        raise FormatError(f"invalid {kind} at {location}: {exc.message}") from exc
+        raise FormatError(_schema_failure(kind, exc)) from exc
     # Canonical encoding also rejects floats and unsupported Python values that
     # JSON Schema deliberately permits as generic JSON instances.
     dumps(document)
@@ -115,6 +114,42 @@ def validate_document(kind: str, document: Any) -> Any:
     }[kind]
     semantic(document)
     return document
+
+
+def _schema_failure(kind: str, error: ValidationError) -> str:
+    """Render one bounded schema refusal without copying the rejected value."""
+
+    location = "/".join(str(part) for part in error.absolute_path) or "<root>"
+    validator = error.validator
+    if not isinstance(validator, str) or re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_-]{0,63}", validator
+    ) is None:
+        validator = "schema"
+
+    detail = f"{validator} check failed"
+    if validator == "required" and isinstance(error.instance, dict):
+        required = error.validator_value
+        if isinstance(required, list):
+            missing = [
+                field
+                for field in required
+                if isinstance(field, str)
+                and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", field)
+                and field not in error.instance
+            ]
+            if missing:
+                detail = "missing required field: " + ", ".join(missing)
+    elif validator == "additionalProperties" and isinstance(error.instance, dict):
+        properties = error.schema.get("properties", {})
+        if isinstance(properties, dict):
+            extras = set(error.instance) - set(properties)
+            if len(extras) == 1:
+                extra = next(iter(extras))
+                if isinstance(extra, str) and re.fullmatch(
+                    r"[A-Za-z][A-Za-z0-9_]{0,63}", extra
+                ):
+                    detail = f"unexpected field: {extra}"
+    return f"invalid {kind} at {location}: {detail}"
 
 
 def _validate_release(release: dict[str, Any]) -> None:

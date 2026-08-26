@@ -383,6 +383,25 @@ class SchemaTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaisesRegex(error, message):
                 validate_document("receipt-witness", witness)
 
+    def test_schema_refusals_do_not_echo_hostile_keys_or_values(self):
+        prefix = "PRIVATE_PROVIDER_VALUE_"
+        marker = prefix + "x" * 200_000
+        witness = support.sample_receipt_witness()
+        witness[marker] = True
+        with self.assertRaises(FormatError) as raised:
+            validate_document("receipt-witness", witness)
+        message = str(raised.exception)
+        self.assertNotIn(prefix, message)
+        self.assertLessEqual(len(message.encode("utf-8")), 4096)
+
+        witness = support.sample_receipt_witness()
+        witness["receipts"][0]["receipt_type"] = marker
+        with self.assertRaises(FormatError) as raised:
+            validate_document("receipt-witness", witness)
+        message = str(raised.exception)
+        self.assertNotIn(prefix, message)
+        self.assertLessEqual(len(message.encode("utf-8")), 4096)
+
     def test_receipt_witness_rejects_index_count_and_identity_disagreement(self):
         mutations = (
             (
