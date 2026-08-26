@@ -1023,6 +1023,38 @@ class ReceiptCaptureTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertEqual(list(root.glob(f".{output.name}.lazarus-*")), [])
 
+    def test_short_query_credential_is_refused_before_receipt_capture(self):
+        material = self.material()
+        base = receipt_material_dispatch(material)
+
+        def primary_dispatch(method, params, server):
+            result = base(method, params, server)
+            if method == "eth_getBlockByNumber" and isinstance(result, dict):
+                result = copy.deepcopy(result)
+                result["providerNote"] = "abc"
+            return result
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            root = Path(directory)
+            primary = stack.enter_context(FakeRpc(primary_dispatch))
+            anchor = stack.enter_context(FakeRpc(base))
+            plan = root / "receipt-plan.json"
+            dump(plan, material["plan"])
+            output = root / "fixture"
+            source_id = material["plan"]["anchor_sources"][0]["source_id"]
+            with self.assertRaisesRegex(ResourceLimitError, "provider mapping"):
+                capture_fixture(
+                    plan,
+                    primary.url + "?token=abc",
+                    output,
+                    anchor_rpc_env=(f"{source_id}=ANCHOR_RPC",),
+                    environment={"ANCHOR_RPC": anchor.url},
+                    wall_clock=lambda: self.observed_at(material),
+                )
+            self.assertEqual(primary.requests, [])
+            self.assertEqual(anchor.requests, [])
+            self.assert_no_capture_artifacts(root, output)
+
     def test_plan_v3_recaptures_the_fixed_consensus_witness(self):
         material = support.receipt_capture_material()
         with tempfile.TemporaryDirectory() as directory:

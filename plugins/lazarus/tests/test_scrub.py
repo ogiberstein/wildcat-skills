@@ -167,6 +167,22 @@ class ScrubTests(unittest.TestCase):
         for value in ("bearer-secret", "cookie-secret", "dark", "custom-header-secret"):
             self.assertIn(value, secrets)
 
+    def test_short_credential_values_are_refused_instead_of_dropped(self):
+        cases = (
+            ("https://u:p@rpc.example/", None),
+            ("https://rpc.example/?token=abc", None),
+            ("https://rpc.example/?token=%61bc", None),
+            ("https://rpc.example/", {"X-API-Key": "z"}),
+            (
+                "https://rpc.example/",
+                {"Authorization": "Basic dTpsb25nLXBhc3N3b3Jk"},
+            ),
+        )
+        for url, headers in cases:
+            with self.subTest(url=url, headers=headers):
+                with self.assertRaisesRegex(ResourceLimitError, "shorter"):
+                    provider_secrets(url, headers)
+
     def test_every_authorization_payload_is_secret_material(self):
         headers = {
             "Authorization": "Basic dXNlcjpiYXNpYy1jcmVkZW50aWFs",

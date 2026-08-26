@@ -44,13 +44,14 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
                 "provider headers exceed the secret-classifier character limit"
             )
     values: set[str] = {url}
+    credential_values: set[str] = set()
     parsed = urlsplit(url)
     _add_url_material(values, parsed.netloc)
     if parsed.hostname:
         _add_url_material(values, parsed.hostname)
     for value in (parsed.username, parsed.password):
         if value:
-            _add_url_material(values, value)
+            _add_credential_material(values, credential_values, value)
     _add_url_material(values, parsed.path)
     _add_url_material(values, parsed.query)
     _add_url_material(values, parsed.fragment)
@@ -59,15 +60,16 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
         if raw_key:
             _add_url_material(values, raw_key)
         if separator and raw_value:
-            _add_url_material(values, raw_value)
+            _add_credential_material(values, credential_values, raw_value)
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
         if key:
             _add_url_material(values, key)
         if value:
-            _add_url_material(values, value)
+            _add_credential_material(values, credential_values, value)
     for name, value in header_items:
         if value:
             values.add(value)
+            credential_values.add(value)
         lowered = name.lower()
         if lowered in {"authorization", "proxy-authorization", "cookie", "set-cookie"}:
             values.add(value)
@@ -75,13 +77,25 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
                 parts = value.split(None, 1)
                 if len(parts) == 2 and parts[1].strip():
                     payload = parts[1].strip()
-                    _add_url_material(values, payload)
+                    _add_credential_material(
+                        values, credential_values, payload
+                    )
                     if parts[0].lower() == "basic":
-                        _add_basic_authorization(values, payload)
+                        _add_basic_authorization(
+                            values, credential_values, payload
+                        )
             if "cookie" in lowered:
                 for part in value.split(";"):
                     if "=" in part:
-                        _add_url_material(values, part.split("=", 1)[1].strip())
+                        _add_credential_material(
+                            values,
+                            credential_values,
+                            part.split("=", 1)[1].strip(),
+                        )
+    if any(0 < len(value) < 4 for value in credential_values):
+        raise ResourceLimitError(
+            "provider credential is shorter than the secret-classifier minimum"
+        )
     secrets = {value for value in values if len(value) >= 4}
     if len(secrets) > MAX_PROVIDER_SECRET_VALUES:
         raise ResourceLimitError(
@@ -123,7 +137,20 @@ def _add_url_material(values: set[str], value: str) -> None:
             _add_url_spellings(values, component)
 
 
-def _add_basic_authorization(values: set[str], payload: str) -> None:
+def _add_credential_material(
+    values: set[str], credential_values: set[str], value: str
+) -> None:
+    """Retain complete spellings when their source is credential-bearing."""
+
+    spellings: set[str] = set()
+    _add_url_spellings(spellings, value)
+    credential_values.update(item for item in spellings if item)
+    _add_url_material(values, value)
+
+
+def _add_basic_authorization(
+    values: set[str], credential_values: set[str], payload: str
+) -> None:
     """Classify the decoded Basic user-password material when it is well formed."""
 
     try:
@@ -134,7 +161,12 @@ def _add_basic_authorization(values: set[str], payload: str) -> None:
         decoded = raw.decode("utf-8")
     except UnicodeDecodeError:
         decoded = raw.decode("latin-1")
-    _add_url_material(values, decoded)
+    _add_credential_material(values, credential_values, decoded)
+    username, separator, password = decoded.partition(":")
+    if separator:
+        for value in (username, password):
+            if value:
+                _add_credential_material(values, credential_values, value)
 
 
 def provider_secret_union(
