@@ -181,12 +181,17 @@ def _prepare_output(release_root: Path, output: Path):
         raise AlexandriaError("statement output must name a file")
 
     release_resolved = release_root.resolve(strict=True)
-    if _inside(output.resolve(strict=False), release_resolved):
+    try:
+        output_resolved = output.resolve(strict=False)
+        parent_resolved = output.parent.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise AlexandriaError(
+            "statement output parent must already exist and be inspectable"
+        ) from exc
+    if _inside(output_resolved, release_resolved):
         raise AlexandriaError("statement output must not be inside the release")
 
-    output.parent.mkdir(parents=True, exist_ok=True)
     parent_absolute = output.parent.absolute()
-    parent_resolved = output.parent.resolve(strict=True)
     if parent_absolute != parent_resolved:
         raise AlexandriaError("statement output must not pass through a symlink")
     if _inside(parent_resolved / output.name, release_resolved):
@@ -206,12 +211,34 @@ def _prepare_output(release_root: Path, output: Path):
         )
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
-        parent_fd = os.open(parent_resolved, flags)
-        opened = os.fstat(parent_fd)
-        current = parent_resolved.stat()
+        inspected = os.stat(parent_resolved, follow_symlinks=False)
     except OSError as exc:
         raise AlexandriaError(f"cannot inspect statement output parent: {exc}") from exc
-    if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
+    if not stat.S_ISDIR(inspected.st_mode):
+        raise AlexandriaError("statement output parent must be a directory")
+
+    parent_fd = None
+    try:
+        parent_fd = os.open(parent_resolved, flags)
+        opened = os.fstat(parent_fd)
+        current = os.stat(parent_resolved, follow_symlinks=False)
+    except OSError as exc:
+        if parent_fd is not None:
+            try:
+                os.close(parent_fd)
+            except OSError:
+                pass
+        raise AlexandriaError(f"cannot inspect statement output parent: {exc}") from exc
+    identities = {
+        (inspected.st_dev, inspected.st_ino),
+        (opened.st_dev, opened.st_ino),
+        (current.st_dev, current.st_ino),
+    }
+    if (
+        len(identities) != 1
+        or not stat.S_ISDIR(opened.st_mode)
+        or not stat.S_ISDIR(current.st_mode)
+    ):
         os.close(parent_fd)
         raise AlexandriaError("statement output parent changed during inspection")
     return output, parent_resolved, parent_fd, (opened.st_dev, opened.st_ino)

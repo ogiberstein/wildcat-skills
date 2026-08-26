@@ -297,6 +297,90 @@ class OutputBoundaryTests(StatementTestCase):
             emit_statement(self.release, linked / "statement.json")
         self.assertFalse((self.release / "statement.json").exists())
 
+    def test_symlinked_missing_parent_is_refused_without_creating_outside(self):
+        self.build()
+        outside = self.root / "outside"
+        outside.mkdir()
+        linked = self.root / "link"
+        linked.symlink_to(outside, target_is_directory=True)
+        output = linked / "new" / "statement.json"
+
+        result = run_command("statement", self.release, "--output", output)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("alexandria:", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse((outside / "new").exists())
+
+    def test_parent_swap_between_inspection_and_open_is_refused(self):
+        self.build()
+        parent = self.root / "output-parent"
+        parent.mkdir()
+        held_parent = self.root / "held-output-parent"
+        replacement = self.root / "replacement-parent"
+        replacement.mkdir()
+        output = parent / "statement.json"
+        original_open = os.open
+        swapped = False
+
+        def swapping_open(path, flags, mode=0o777, *, dir_fd=None):
+            nonlocal swapped
+            if not swapped and dir_fd is None and Path(path) == parent:
+                parent.rename(held_parent)
+                replacement.rename(parent)
+                swapped = True
+            return original_open(path, flags, mode, dir_fd=dir_fd)
+
+        with mock.patch.object(
+            statement_module.os, "open", side_effect=swapping_open
+        ) as patched_open, mock.patch.object(
+            statement_module.os,
+            "supports_dir_fd",
+            statement_module.os.supports_dir_fd | {patched_open},
+        ), self.assertRaisesRegex(AlexandriaError, "parent changed"):
+            emit_statement(self.release, output)
+        self.assertTrue(swapped)
+        self.assertFalse(output.exists())
+        self.assertFalse((held_parent / "statement.json").exists())
+
+    def test_post_open_inspection_failure_closes_parent_descriptor(self):
+        self.build()
+        parent = self.root / "output-parent"
+        parent.mkdir()
+        output = parent / "statement.json"
+        original_open = os.open
+        descriptors = []
+
+        def tracking_open(path, flags, mode=0o777, *, dir_fd=None):
+            descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+            if dir_fd is None and Path(path) == parent:
+                descriptors.append(descriptor)
+            return descriptor
+
+        with mock.patch.object(
+            statement_module.os, "open", side_effect=tracking_open
+        ) as patched_open, mock.patch.object(
+            statement_module.os,
+            "supports_dir_fd",
+            statement_module.os.supports_dir_fd | {patched_open},
+        ), mock.patch.object(
+            statement_module.os,
+            "fstat",
+            side_effect=OSError("inspection failed"),
+        ), self.assertRaisesRegex(AlexandriaError, "cannot inspect"):
+            statement_module._prepare_output(self.release, output)
+
+        self.assertEqual(len(descriptors), 1)
+        descriptor = descriptors[0]
+        try:
+            with self.assertRaises(OSError):
+                os.fstat(descriptor)
+        finally:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+
     def test_replaced_output_parent_is_refused_without_writing_through_symlink(self):
         self.build()
         parent = self.root / "output-parent"
