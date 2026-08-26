@@ -1,9 +1,9 @@
 # Plugin currency
 
-How a run gets the plugin it is supposed to be running, and what to do when it
-is not. Two callers share this: preflight, when the controller turns out to be
-older than the repository it is about to edit, and the marketplace pass, when an
-install has just landed and the host has not seen it yet.
+How a run gets the plugin it is supposed to be running, what the controller
+now enforces about that, and what to do when it cannot be current. Four
+callers share this: preflight, the `init` gate, the `hexctl currency` report,
+and the Kronos re-pin boundary.
 
 ## Refreshing, per host
 
@@ -25,12 +25,75 @@ After a refresh or a new session, re-resolve the paths from the newly active
 point of the refresh, and a stale `FIAT_SKILL_DIR` silently keeps the old
 controller alive.
 
+## What init observes and enforces
+
+`hexctl init` no longer relies on a warning alone. Before it creates anything,
+the controller resolves its own file to an install route, reads the pin the
+host registry records for that install, and, on the git-backed route only,
+reads the marketplace upstream head with one bounded `git ls-remote` run
+inside the marketplace clone: credential prompts disabled, time-capped,
+output-capped, and the remote named as `origin`, so only the clone's own
+configuration says where the read goes and no target-repository or environment
+value can steer it.
+
+The verdict vocabulary is closed: `current` (the pin matches the observed
+head), `behind` (the pin differs from the observed head), `no-pin` (the
+controller runs from a source checkout), `managed` (the install records no
+pin), and `unknown` (something the observation could not prove: a hostile
+registry, a missing clone, a timeout, a malformed answer). Only `behind`
+refuses. Init then stops with exit 1 before any worktree, state, ledger or
+breadcrumb exists, names the pin and the observed head, and offers the two
+exits: re-pin through this host's own installer, or rerun init with
+`--controller-currency-waiver '<reason>'`. An empty reason is refused.
+`unknown` warns on stderr with a named cause, proceeds, and is never promoted
+to either side.
+
+Whatever the verdict, the init transition and its receipt carry the
+controller's ledger version, route, pin or null, observed head or null,
+verdict, warning or null, and waiver reason or null, so "which controller
+drove this run" has an answer inside the run's own evidence. `hexctl record`
+refuses the `controller_currency` key: the observation cannot be rewritten
+after the fact.
+
+## The fleet report
+
+`hexctl currency` prints one row per installed plugin -- name, package
+version, route, pin or null, observed head or null, verdict -- and `--json`
+emits the same rows as JSON. It is read-only: no state, no lock, nothing under
+`.hexaemeron/`. The exit contract is 0 when nothing is behind, 3 while
+anything is, and 1 on a refusal, meaning a registry that cannot be read or a
+controller that does not run from an install cache; an empty report at exit 0
+would read as a fleet with nothing behind, which is the silent hole again.
+Each distinct marketplace origin is read at most once however many plugins
+share it, and text rows pass through a printability sanitizer so hostile
+registry bytes cannot forge a row.
+
+## The Kronos re-pin boundary
+
+The Kronos loop runs `hexctl currency` at its step 8 rescan boundary and,
+while the report exits 3, reinstalls every plugin it names behind through this
+host's own installer, refreshes, and re-resolves the paths before the next
+ranking. A chain that merges its own pull requests otherwise drives every
+later run with the pins the chain started on.
+
+## The two limits
+
+Stated plainly, because the receipt is honest only if its reader knows them:
+
+- The contract is currency at init, recorded -- not currency for the run's
+  duration. Upstream can advance mid-run and the receipt does not chase it.
+- The gate ships inside the artefact it gates, so it cannot govern the run
+  that writes it; it governs every run after the next re-pin. A Fiat change
+  that lands in this repository cannot take effect for the very run that made
+  it, so say that plainly in the final report rather than implying the run
+  enforced what it had just written.
+
 ## An out-of-date controller
 
-`hexctl init` compares its own ledger version against any Fiat checked into the
-target repository and warns when they differ. A marketplace plugin is installed
-from a published copy, so a repository that also holds Fiat's source can be a
-whole evolution ahead of the controller driving the run.
+`hexctl init` also compares its own ledger version against any Fiat checked
+into the target repository and warns when they differ. A marketplace plugin is
+installed from a published copy, so a repository that also holds Fiat's source
+can be a whole evolution ahead of the controller driving the run.
 
 This matters more than a version string. Every rule the newer controller
 enforces goes unenforced, and the receipt cannot show it: a flag the old
@@ -58,8 +121,11 @@ different during one run, at `fiat-v4.5.1`, `fiat-v4.4.1` and `fiat-v3.4.1`.
 
 ### Which route this host used
 
-Do not assume. The same plugin arrives by different routes, and they do not all
-let an agent update anything:
+Do not assume. The controller observes the route itself and records it in the
+init receipt and the `currency` rows: `git-backed`, `managed`, or
+`in-repo-source`. The by-hand check below remains for a human confirming what
+a receipt says. The same plugin arrives by different routes, and they do not
+all let an agent update anything:
 
 - **A git-backed marketplace.** The host holds a clone or a remote it can pull,
   and names a repository. The Claude Code CLI adds one with
@@ -96,12 +162,12 @@ configuration rather than inferring it from the two names above.
 cache is keyed the same way. A skill that changed without its plugin's version
 being bumped is therefore reported as `already at the latest version` and is
 never copied, at exit code zero. Read the recorded pin rather than the exit
-code, and reinstall whatever is behind the head:
+code -- `hexctl currency` reads every pin at once and exits 3 while any is
+behind -- and reinstall whatever is behind the head:
 
 ```text
+hexctl currency
 git -C ~/.claude/plugins/marketplaces/<marketplace> rev-parse HEAD
-jq -r '.plugins | to_entries[] | "\(.key) \(.value[0].gitCommitSha[0:7])"' \
-  ~/.claude/plugins/installed_plugins.json
 claude plugin uninstall <plugin>@<marketplace> --keep-data
 claude plugin install <plugin>@<marketplace> --yes
 ```
@@ -138,8 +204,8 @@ Do not carry on and mention it.
 3. Refresh through the host boundary above, then re-resolve the paths.
 4. Confirm the versions now agree, and on a git-backed install confirm the pin
    moved too, because a matching version string is exactly what the gate above
-   leaves behind. `hexctl init` warns only at init, so check the two ledgers
-   directly:
+   leaves behind. The repository-copy comparison warns only at init, so check
+   the two ledgers directly:
 
    ```text
    grep '^- Current version' "$FIAT_SKILL_DIR/EVOLUTION.md"
@@ -150,16 +216,13 @@ Do not carry on and mention it.
    a run that has done nothing. Continue the initialised run under the updated
    controller, which the durable state is designed for.
 
-A Fiat change that lands in this repository cannot take effect for the very run
-that made it. The controller driving a run is the one that was installed when it
-started, so a rule shipped at step 3 governs the next run and not this one. Say
-that plainly in the final report rather than implying the run enforced what it
-had just written.
-
 ## When it cannot be updated
 
-The gap goes on the ledger rather than into the conversation, the same way a
-security suite that cannot run is waived rather than skipped:
+Two distinct gaps take two distinct records. A proven-behind pin at init is
+waived with `--controller-currency-waiver '<reason>'`, which lands in the init
+receipt beside the verdict. A controller older than the Fiat checked into the
+target repository goes on the ledger the same way a security suite that cannot
+run is waived rather than skipped:
 
 ```text
 hexctl record controller_version '{"running":"fiat-vX.Y.Z","checked_in":"fiat-vA.B.C","reason":"<why the update could not happen>"}'
@@ -177,6 +240,7 @@ lint exits and concluding that rounds never did.
 ## The case that is not a problem
 
 A run whose target repository *is* the plugin's own source tree finds its own
-ledger and compares it against itself. `init` skips that by identity, so there
-is no warning and nothing to do. Developing Fiat inside this repository is the
-normal case, not a misconfiguration.
+ledger and compares it against itself. `init` skips that by identity, records
+route `in-repo-source` with verdict `no-pin` and null pin and head, and never
+refuses there. Developing Fiat inside this repository is the normal case, not
+a misconfiguration.

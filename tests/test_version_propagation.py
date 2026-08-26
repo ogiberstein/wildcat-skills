@@ -37,10 +37,10 @@ UNGOVERNED = {"fizz", "fizz-convert", "fizz-sync", "x-ray", "solidity-auditor"}
 DELIVERY_PACKAGE_VERSIONS = {
     "alexandria": "0.2.1",
     "ariadne": "1.2.1",
-    "berean": "0.1.1",
+    "berean": "0.1.2",
     "brevitas": "0.2.1",
     "hermes": "0.1.1",
-    "hexaemeron": "1.5.10",
+    "hexaemeron": "1.6.1",
     "horos": "0.1.1",
     "janus": "0.1.1",
     "lazarus": "1.1.1",
