@@ -967,6 +967,32 @@ def validate_plan(value: Any) -> dict[str, Any]:
         )
     if set(removed) & current_paths:
         _refuse("scope-mismatch", "plan.removed overlaps current scope")
+    if reason == "scope-unchanged" and (
+        mode != "incremental"
+        or changed
+        or dirty
+        or set(reusable) != current_paths
+        or removed
+        or reverse_invalidated
+    ):
+        _refuse(
+            "incomplete-plan",
+            "scope-unchanged requires the exact empty-drift incremental plan",
+        )
+    if reason == "source-drift":
+        closure = _reverse_closure(sources, changed)
+        if (
+            mode != "incremental"
+            or not changed
+            or set(dirty) != closure
+            or set(reusable) != current_paths - closure
+            or removed
+            or set(reverse_invalidated) != closure - set(changed)
+        ):
+            _refuse(
+                "incomplete-plan",
+                "source-drift requires the exact changed-source reverse closure",
+            )
     if reason in FULL_RECOMPUTE_REASONS and (
         mode != "full"
         or set(changed) != current_paths

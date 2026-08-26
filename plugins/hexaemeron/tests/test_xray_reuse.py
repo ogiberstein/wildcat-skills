@@ -270,6 +270,71 @@ class PlanningTests(ReuseFixture):
         self.assertEqual(plan["dirty"], [])
         self.assertEqual(plan["reusable"], cache["synthesis"]["source_inventory"])
 
+    def test_scope_unchanged_requires_the_exact_incremental_shape(self):
+        self.establish_cache()
+        correct = reuse.plan(self.project, self.scope, self.cache)
+        paths = [source["path"] for source in correct["sources"]]
+        variants = (
+            {
+                "mode": "full",
+                "changed": paths,
+                "dirty": paths,
+                "reusable": [],
+            },
+            {
+                "changed": ["src/Base.sol"],
+                "dirty": ["src/Base.sol"],
+                "reusable": ["src/Router.sol", "src/Vault.sol"],
+            },
+            {"removed": ["src/Old.sol"]},
+        )
+        for changes in variants:
+            with self.subTest(changes=changes):
+                spliced = copy.deepcopy(correct)
+                spliced.update(changes)
+                with self.assertRaises(reuse.ReuseError) as caught:
+                    reuse.validate_plan(spliced)
+                self.assertEqual(caught.exception.code, "incomplete-plan")
+
+    def test_source_drift_requires_the_exact_reverse_closure_shape(self):
+        self.establish_cache()
+        base = self.project / "src" / "Base.sol"
+        base.write_text(
+            base.read_text(encoding="utf-8") + "\n// dependency drift\n",
+            encoding="utf-8",
+        )
+        correct = reuse.plan(self.project, self.scope, self.cache)
+        paths = [source["path"] for source in correct["sources"]]
+        variants = (
+            {
+                "changed": [],
+                "dirty": [],
+                "reusable": paths,
+                "reverse_invalidated": [],
+            },
+            {
+                "dirty": ["src/Base.sol"],
+                "reusable": ["src/Router.sol", "src/Vault.sol"],
+                "reverse_invalidated": [],
+            },
+            {"reverse_invalidated": []},
+            {
+                "mode": "full",
+                "changed": paths,
+                "dirty": paths,
+                "reusable": [],
+                "reverse_invalidated": [],
+            },
+            {"removed": ["src/Old.sol"]},
+        )
+        for changes in variants:
+            with self.subTest(changes=changes):
+                spliced = copy.deepcopy(correct)
+                spliced.update(changes)
+                with self.assertRaises(reuse.ReuseError) as caught:
+                    reuse.validate_plan(spliced)
+                self.assertEqual(caught.exception.code, "incomplete-plan")
+
     def test_body_only_drift_dirties_that_source(self):
         self.establish_cache()
         router = self.project / "src" / "Router.sol"
@@ -506,7 +571,7 @@ class AssemblyAndPromotionTests(ReuseFixture):
             reuse.assemble(self.project, self.scope, plan, self.fresh(plan))
         self.assertEqual(caught.exception.code, "scope-drift")
 
-    def test_cache_splicing_cannot_reuse_old_transitive_dependency_facts(self):
+    def test_plan_splicing_cannot_omit_reverse_dependants(self):
         self.establish_cache()
         base = self.project / "src" / "Base.sol"
         base.write_text(base.read_text(encoding="utf-8") + "\n// changed dependency\n", encoding="utf-8")
@@ -525,6 +590,26 @@ class AssemblyAndPromotionTests(ReuseFixture):
                 self.scope,
                 spliced,
                 [self.entry(correct, "src/Base.sol")],
+                cache_path=self.cache,
+            )
+        self.assertEqual(caught.exception.code, "incomplete-plan")
+
+    def test_substituted_cache_cannot_change_transitive_dependency_binding(self):
+        self.establish_cache()
+        plan = reuse.plan(self.project, self.scope, self.cache)
+        cache = json.loads(self.cache.read_text(encoding="utf-8"))
+        vault = next(
+            entry for entry in cache["entries"] if entry["path"] == "src/Vault.sol"
+        )
+        vault["dependency_digests"][0]["source_sha256"] = "0" * 64
+        self.cache.write_text(json.dumps(cache), encoding="utf-8")
+
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(
+                self.project,
+                self.scope,
+                plan,
+                [],
                 cache_path=self.cache,
             )
         self.assertEqual(caught.exception.code, "entry-dependency-mismatch")
