@@ -240,6 +240,69 @@ class ReceiptFixtureTests(SkipUnlessReceiptFixture):
             with self.subTest(path=path):
                 self.assertEqual(observed[path], expected)
 
+    def test_manifest_shape_is_settled_before_component_reads(self):
+        def invalid_chain_id(manifest):
+            manifest["chain_id"] = "one"
+
+        def invalid_block_number(manifest):
+            manifest["block"]["number"] = "0x01"
+
+        def invalid_block_hash(manifest):
+            manifest["block"]["hash"] = "0xnot-a-block-hash"
+
+        def invalid_evidence_count(manifest):
+            manifest["evidence_counts"]["proof_backed"] = True
+
+        def invalid_component_digest(manifest):
+            manifest["components"][0]["sha256"] = "not-a-digest"
+
+        for label, mutate in (
+            ("chain id", invalid_chain_id),
+            ("block number", invalid_block_number),
+            ("block hash", invalid_block_hash),
+            ("evidence count", invalid_evidence_count),
+            ("component digest", invalid_component_digest),
+        ):
+            with self.subTest(field=label), tempfile.TemporaryDirectory() as directory:
+                fixture = os.path.join(directory, "receipt-fixture")
+                shutil.copytree(RECEIPT_FIXTURE, fixture)
+                path = os.path.join(fixture, "manifest.json")
+                manifest = read_json(path)
+                mutate(manifest)
+                with open(path, "w") as handle:
+                    json.dump(manifest, handle)
+
+                original = capture.read_component
+                component_reads = []
+
+                def observe(root, relative, what, max_bytes, keep_bytes=False):
+                    if relative != capture.MANIFEST:
+                        component_reads.append(relative)
+                    return original(root, relative, what, max_bytes, keep_bytes)
+
+                with mock.patch.object(
+                    capture, "read_component", side_effect=observe
+                ):
+                    with self.assertRaises(capture.CaptureError):
+                        taken(fixture)
+                self.assertEqual(component_reads, [])
+
+    def test_empty_directories_count_against_the_capture_tree_bound(self):
+        names = ["empty-%04d" % index for index in range(capture.tree.MAX_FILES + 1)]
+
+        def too_many_entries(root, onerror):
+            yield root, names, []
+            raise AssertionError("capture descended after crossing the entry cap")
+
+        with mock.patch.object(
+            capture.tree.os, "walk", side_effect=too_many_entries
+        ):
+            with self.assertRaisesRegex(
+                capture.CaptureError,
+                "more than %d entries" % capture.tree.MAX_FILES,
+            ):
+                capture.tree.files(RECEIPT_FIXTURE, "fixture")
+
 
 class TheShippedFixtureTests(SkipUnlessGoldfinch):
     def test_it_captures_and_verifies_clean(self):
@@ -758,7 +821,14 @@ class ArgumentTests(SkipUnlessGoldfinch):
                 self.assertIn("does not name the tool", str(caught.exception))
 
     def test_the_command_is_required_as_an_argv(self):
-        for value in (None, [], ["forge", ""], ["forge", "  "], [1]):
+        for value in (
+            None,
+            [],
+            "lazarus verify fixture",
+            ["forge", ""],
+            ["forge", "  "],
+            [1],
+        ):
             with self.subTest(command=value):
                 with self.assertRaises(capture.CaptureError):
                     taken(GOLDFINCH, capture_command=value)
@@ -777,9 +847,11 @@ class ArgumentTests(SkipUnlessGoldfinch):
                 self.assertIn("--first-capture-reason", str(caught.exception))
 
     def test_a_previous_needs_its_name(self):
-        with self.assertRaises(capture.CaptureError) as caught:
-            taken(GOLDFINCH, previous=GOLDFINCH, previous_name=None)
-        self.assertIn("--previous-name", str(caught.exception))
+        for value in (None, "", "   "):
+            with self.subTest(previous_name=value):
+                with self.assertRaises(capture.CaptureError) as caught:
+                    taken(GOLDFINCH, previous=GOLDFINCH, previous_name=value)
+                self.assertIn("--previous-name", str(caught.exception))
 
     def test_a_fixture_that_is_not_a_directory_is_refused(self):
         with self.assertRaises(capture.CaptureError):

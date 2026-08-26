@@ -473,10 +473,13 @@ def components_of(root, manifest):
                 "%s %s bytes must be a whole number from 0 to %d, got %r"
                 % (MANIFEST, label, predicate.MAX_BYTES, entry["bytes"])
             )
-        if not isinstance(entry["sha256"], str):
+        if (
+            not isinstance(entry["sha256"], str)
+            or not DIGEST.fullmatch(entry["sha256"])
+        ):
             raise CaptureError(
-                "%s %s sha256 must be a string, got %s"
-                % (MANIFEST, label, type(entry["sha256"]).__name__)
+                "%s %s sha256 must be a lowercase 32-byte digest"
+                % (MANIFEST, label)
             )
         declared[path] = entry
 
@@ -592,8 +595,10 @@ def capture(
             "name the tool that wrote it, and gate 2 reads this field as the thing "
             "that made the fixture"
         )
-    if not capture_command or not all(
-        isinstance(word, str) and word.strip() for word in capture_command
+    if (
+        not isinstance(capture_command, (list, tuple))
+        or not capture_command
+        or not all(isinstance(word, str) and word.strip() for word in capture_command)
     ):
         raise CaptureError(
             "--capture-command is required, as an argv nobody has to guess at"
@@ -603,6 +608,10 @@ def capture(
             "--name is required; it identifies the current side of the comparison "
             "and names the fixture among the statement's subjects"
         )
+    if previous and (
+        not isinstance(previous_name, str) or not previous_name.strip()
+    ):
+        raise CaptureError("--previous needs --previous-name to identify it")
 
     root = confined(fixture, "fixture")
     manifest = manifest_of(root)
@@ -612,18 +621,27 @@ def capture(
             "wrote" % (capture_version, MANIFEST, manifest["tool_version"])
         )
 
-    entries, documents = components_of(root, manifest)
-    current = bundle(entries)
-    state_root = state_root_of(root, documents.get(HEADER))
+    # Settle the manifest-only fields before traversing any component.  A
+    # malformed pin or evidence count cannot justify spending the declared
+    # component-read budget merely to reach the refusal later.
+    chain_id = quantity(manifest["chain_id"], "%s chain_id" % MANIFEST)
+    block_number = quantity(
+        manifest["block"]["number"], "%s block number" % MANIFEST
+    )
+    block_hash = hash32(
+        manifest["block"]["hash"], "%s block hash" % MANIFEST
+    )
     evidence = evidence_of(manifest)
     contract = predicate_for(manifest["schema_version"])
 
+    entries, documents = components_of(root, manifest)
+    current = bundle(entries)
+    state_root = state_root_of(root, documents.get(HEADER))
+
     chain = {
-        "chain_id": quantity(manifest["chain_id"], "%s chain_id" % MANIFEST),
-        "block_number": quantity(
-            manifest["block"]["number"], "%s block number" % MANIFEST
-        ),
-        "block_hash": hash32(manifest["block"]["hash"], "%s block hash" % MANIFEST),
+        "chain_id": chain_id,
+        "block_number": block_number,
+        "block_hash": block_hash,
     }
     if state_root is not None:
         chain["state_root"] = state_root
@@ -631,8 +649,6 @@ def capture(
         chain["receipts_root"] = manifest["receipts_root"]
 
     if previous:
-        if not previous_name:
-            raise CaptureError("--previous needs --previous-name to identify it")
         previous_root = confined(previous, "previous fixture")
         if previous_root == root:
             raise CaptureError(
