@@ -73,3 +73,19 @@ commit used. The runbook governed and the exit holds, but both artefacts are
 receipt-frozen, so the disagreement stands in the published bytes and no gate
 compares the two placements; a check belongs to Protasis and is outside this
 run.
+
+## Step 2, round 1 -- 2026-08-26T03:14:50Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: receipt-key-drift=reviewed; ledger-arithmetic=reviewed; version-propagation=not-applicable; state-compat=reviewed; bootstrap-limit=not-applicable; digest-pin-refresh=reviewed; test-cap=reviewed
+
+Not checked: Solidity (waived: no Solidity in scope; the change is one controller read path and its regression test); package-version propagation (step 3); run-level bootstrap recovery (integrate).
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: none
