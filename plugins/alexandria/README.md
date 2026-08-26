@@ -50,8 +50,9 @@ unharvested registry venues visible as gaps.
 ## What it ships
 
 - the standard-library [`alexandria.py`](./scripts/alexandria.py)
-  ingest, verify, derive, index and query command;
-- raw-release, coverage, credit-row, query and demonstration schemas;
+  ingest, verify, statement, derive, index and query command;
+- raw-release, release-statement, coverage, credit-row, query and
+  demonstration schemas;
 - registered Goldfinch and Clearpool mappings with exact source and context
   selectors;
 - the offline [`credit-history-v0`](./examples/credit-history-v0/README.md)
@@ -81,6 +82,7 @@ address index and query it:
 python3 scripts/alexandria.py --help
 python3 scripts/alexandria.py ingest --plan capture-plan.json --output release
 python3 scripts/alexandria.py verify release
+python3 scripts/alexandria.py statement release --output release-statement.json
 python3 scripts/alexandria.py derive release --output derived-release
 python3 scripts/alexandria.py verify derived-release
 python3 scripts/alexandria.py index derived-release --output alexandria.sqlite
@@ -94,6 +96,22 @@ capture source, scope, finality, evidence class, counted coverage, declared
 gaps, correction links and exact release-tree membership without using the
 network or changing the release. Repeating an ingest from fixed inputs
 produces the same objects, manifest and release ID.
+
+The `statement` command first performs that complete offline verification. It
+then projects the logical release and every manifest component into a
+canonical unsigned in-toto Statement v1 and writes it atomically outside the
+release. The predicate preserves component metadata and each capture's scope,
+coverage status and counts, unsupported collections and gaps. It contains one
+passed offline-verification claim bound to the release digest and an empty
+command list.
+
+The statement has no DSSE envelope, cosign result or publisher identity.
+Alexandria does not claim provider completeness, consensus finality or
+canonical-chain membership. Ariadne can inspect the statement and run its core
+gates, but the Alexandria predicate remains unregistered, signatures remain
+unchecked, and gates 2 and 5 remain unchecked. See
+[`docs/release-statements.md`](docs/release-statements.md) for the wire contract
+and the exact demonstration.
 
 Goldfinch and Clearpool releases can now produce deterministic Tabularium
 credit events and position observations. Verification rebuilds both views from
@@ -191,6 +209,12 @@ its reported block was canonical.
   records the method study, and
   [`docs/compound-v3-phase0-runbook.md`](../../docs/compound-v3-phase0-runbook.md)
   records the shipped atomic step.
+- [`docs/release-statement-study.md`](docs/release-statement-study.md) records
+  the selected unsigned predicate, and
+  [`docs/release-statement-runbook.md`](docs/release-statement-runbook.md)
+  records its source-bound delivery step.
+- [`docs/release-statements.md`](docs/release-statements.md) defines the
+  emitted statement and its Ariadne and signing boundaries.
 - [`docs/data-dictionary.md`](docs/data-dictionary.md) names the fields that
   cross raw releases, derived views, queries and Probitas.
 - [`schemas/README.md`](schemas/README.md) states when each machine-readable
@@ -203,10 +227,11 @@ its reported block was canonical.
 From the repository root:
 
 ```bash
-python3 -m unittest discover -s plugins/alexandria/tests -t plugins/alexandria
+python3 plugins/alexandria/tests/run_tests.py \
+  --elenchus-report .elenchus/alexandria-unittest.json
 ```
 
-The implementation uses Python's standard library. The five core Alexandria
+The implementation uses Python's standard library. The six core Alexandria
 commands, Compound build/check commands and checked-in demonstrations reach no
 network. Only the explicit Compound `capture` command performs network I/O.
 
