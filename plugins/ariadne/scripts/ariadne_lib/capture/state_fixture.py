@@ -348,6 +348,15 @@ def manifest_of(root):
     if not isinstance(found["components"], list) or not found["components"]:
         raise CaptureError("%s components must be a non-empty array" % MANIFEST)
     if version == 2:
+        if len(found["components"]) > predicate.V2.MAX_FIXTURE_SUBJECTS:
+            raise CaptureError(
+                "%s carries %d components and state-fixture/v2 records at most %d"
+                % (
+                    MANIFEST,
+                    len(found["components"]),
+                    predicate.V2.MAX_FIXTURE_SUBJECTS,
+                )
+            )
         if "receipts_root" not in found:
             raise CaptureError("%s is missing receipts_root" % MANIFEST)
         found["receipts_root"] = hash32(

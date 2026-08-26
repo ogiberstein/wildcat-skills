@@ -145,6 +145,30 @@ class ReceiptFixtureTests(SkipUnlessReceiptFixture):
                 first_capture_reason=None,
             )
 
+    def test_manifest_v2_component_count_is_bounded_before_file_reads(self):
+        maximum = 1024
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = os.path.join(directory, "receipt-fixture")
+            shutil.copytree(RECEIPT_FIXTURE, fixture)
+            path = os.path.join(fixture, "manifest.json")
+            manifest = read_json(path)
+            manifest["components"] = [
+                copy.deepcopy(manifest["components"][0])
+                for _ in range(maximum + 1)
+            ]
+            with open(path, "w") as handle:
+                json.dump(manifest, handle)
+            with mock.patch.object(
+                capture,
+                "components_of",
+                side_effect=AssertionError("components were read before the cap"),
+            ):
+                with self.assertRaisesRegex(
+                    capture.CaptureError,
+                    "records at most %d" % maximum,
+                ):
+                    taken(fixture)
+
 
 class TheShippedFixtureTests(SkipUnlessGoldfinch):
     def test_it_captures_and_verifies_clean(self):

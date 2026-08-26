@@ -228,6 +228,18 @@ class ScrubTests(unittest.TestCase):
         for public_component in ("a", "v3", "x"):
             self.assertNotIn(public_component, secrets)
 
+    def test_public_provider_port_is_not_a_secret_fragment(self):
+        url = "http://127.0.0.1:41119/rpc"
+        secrets = provider_secrets(url)
+        self.assertIn(url, secrets)
+        self.assertIn("127.0.0.1:41119", secrets)
+        self.assertNotIn("41119", secrets)
+        assert_no_secret_bytes(
+            b'{"ordinary_fixture_value":"41119"}',
+            secrets,
+            label="capture terminal result",
+        )
+
     def test_header_count_is_bounded_before_materialising_the_mapping(self):
         class StreamingHeaders:
             yielded = 0

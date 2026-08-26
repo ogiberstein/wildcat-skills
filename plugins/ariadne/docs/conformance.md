@@ -93,6 +93,7 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-check-replay-state-fixture-zero-is-not-false.json` | State fixture v1 | `0` where `false` belongs. The field records a decision and `0` is not in its vocabulary |
 | `pass-state-fixture-v2.json` | State fixture v2 | A manifest-v2 fixture with independent state and receipt roots, four evidence counts, a local-only replay boundary and no transaction-hash attribution |
 | `fail-gate2-state-fixture-v2-backslash-path.json` | State fixture v2 | A component path containing a backslash, which another host can interpret as a separator |
+| `fail-gate2-state-fixture-v2-dot-segment-path.json` | State fixture v2 | A non-canonical component path carrying a dot segment instead of one portable file name |
 | `fail-gate2-state-fixture-v2-malformed-receipts-root.json` | State fixture v2 | A malformed `receipts_root`; the zero receipt-proof count does not excuse a root that is present but invalid |
 | `fail-gate5-state-fixture-v2-empty-components-without-baseline.json` | State fixture v2 | An empty component-delta section beside an explicitly null baseline |
 | `fail-gate5-state-fixture-v2-missing-baseline.json` | State fixture v2 | A comparison that omits the required explicit baseline side |

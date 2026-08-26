@@ -889,13 +889,96 @@ class VersionTwoTests(unittest.TestCase):
         self.assertIn("components", found.detail)
 
     def test_v2_component_paths_match_the_published_portable_shape(self):
-        for path in ("a\\b", "x" * 1025):
+        for path in (
+            "a\\b",
+            ".",
+            "./header.json",
+            "a/./header.json",
+            "header.json/",
+            "C:header.json",
+            "x" * 1025,
+        ):
             body = predicate_v2()
             body["fixture_subjects"][0]["path"] = path
             found = gate_v2(2, body)
             with self.subTest(path=path[:40]):
                 self.assertFalse(found.passed)
                 self.assertIn("fixture-relative", found.detail)
+
+    def test_v2_refuses_more_components_than_its_schema_publishes(self):
+        maximum = 1024
+        body = predicate_v2()
+        body["fixture_subjects"] = [
+            copy.deepcopy(body["fixture_subjects"][0])
+            for _ in range(maximum + 1)
+        ]
+        found = gate_v2(2, body)
+        self.assertFalse(found.passed)
+        self.assertIn(
+            "at most %d" % maximum,
+            found.detail,
+        )
+
+    def test_v2_closes_the_nested_shapes_its_schema_closes(self):
+        cases = []
+
+        capture_extra = predicate_v2()
+        capture_extra["capture"]["extra_note"] = "unchecked"
+        cases.append((2, capture_extra, "extra_note"))
+
+        subject_extra = predicate_v2()
+        subject_extra["fixture_subjects"][0]["extra_note"] = "unchecked"
+        cases.append((2, subject_extra, "extra_note"))
+
+        delta_extra = predicate_v2()
+        delta_extra["deltas"]["current"]["extra_note"] = "unchecked"
+        cases.append((5, delta_extra, "extra_note"))
+
+        changed_extra = predicate_v2()
+        changed_extra["deltas"] = {
+            "baseline": {"name": "old", "digest": HEADER},
+            "current": {"name": "fixture-v2", "digest": HEADER},
+            "components": {
+                "changed": [
+                    {
+                        "baseline": "old-header.json",
+                        "current": "header.json",
+                        "extra_note": "unchecked",
+                    }
+                ]
+            },
+        }
+        cases.append((5, changed_extra, "extra_note"))
+
+        reason_type = predicate_v2()
+        reason_type["deltas"]["reason"] = 17
+        cases.append((5, reason_type, "reason must be a string"))
+
+        for number, body, detail in cases:
+            with self.subTest(gate=number, detail=detail):
+                found = gate_v2(number, body)
+                self.assertFalse(found.passed)
+                self.assertIn(detail, found.detail)
+
+    def test_v2_claim_shape_matches_the_published_schema(self):
+        for edit, detail in (
+            (lambda claim: claim.pop("name"), "name"),
+            (lambda claim: claim.update(detail="not an object"), "detail"),
+            (lambda claim: claim.update(reason=17), "reason"),
+        ):
+            body = predicate_v2()
+            body["claims"] = [
+                {
+                    "name": "component checked",
+                    "subject": HEADER,
+                    "disposition": "passed",
+                }
+            ]
+            edit(body["claims"][0])
+            found = named_v2("predicate-fields", body)
+            with self.subTest(detail=detail):
+                self.assertFalse(found.passed)
+                self.assertIn(detail, found.detail)
 
     def test_state_and_receipt_authority_are_independent(self):
         state_only = predicate_v2()

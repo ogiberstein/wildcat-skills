@@ -508,12 +508,41 @@ class StateFixtureV2SchemaDriftTests(unittest.TestCase):
                         bool(pattern.match(value)), state_fixture.hash32(value)
                     )
         component = self.properties["fixture_subjects"]["items"]["properties"]
+        self.assertEqual(
+            self.properties["fixture_subjects"]["maxItems"],
+            getattr(state_fixture.V2, "MAX_FIXTURE_SUBJECTS", None),
+        )
         self.assertEqual(component["bytes"]["maximum"], state_fixture.MAX_BYTES)
         self.assertEqual(component["path"]["maxLength"], 1024)
         path_check = getattr(state_fixture, "usable_path_v2", state_fixture.usable_path)
-        self.assertFalse(path_check("a\\b"))
-        self.assertFalse(
-            path_check("x" * 1025)
+        for path in (
+            "a\\b",
+            ".",
+            "./header.json",
+            "a/./header.json",
+            "header.json/",
+            "C:header.json",
+            "x" * 1025,
+        ):
+            with self.subTest(path=path[:40]):
+                self.assertFalse(path_check(path))
+
+    def test_v2_digest_sets_require_one_supported_full_length_algorithm(self):
+        digest = self.schema["$defs"]["digest"]
+        self.assertEqual(
+            {tuple(rule["required"]) for rule in digest.get("anyOf", [])},
+            {("sha256",), ("sha384",), ("sha512",)},
+        )
+        self.assertEqual(
+            {
+                name: shape["pattern"]
+                for name, shape in digest.get("properties", {}).items()
+            },
+            {
+                "sha256": "^[0-9a-f]{64}$",
+                "sha384": "^[0-9a-f]{96}$",
+                "sha512": "^[0-9a-f]{128}$",
+            },
         )
 
 

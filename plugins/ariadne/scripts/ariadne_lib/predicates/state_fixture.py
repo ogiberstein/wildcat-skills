@@ -145,6 +145,9 @@ sets. A larger number describes a file neither tool would have written."""
 MAX_PATH = 1024
 """The component-path ceiling published by the v2 schema."""
 
+MAX_FIXTURE_SUBJECTS_V2 = 1024
+"""The v2 component ceiling published by the schema and Lazarus manifest."""
+
 MAX_COUNT = 100000
 """One evidence class's count, matching the ceiling Lazarus's manifest schema sets.
 
@@ -189,7 +192,15 @@ def usable_path_v2(value):
     new contract and refuses a backslash, which another host can interpret as a
     separator, and paths beyond its explicit schema ceiling.
     """
-    return usable_path(value) and "\\" not in value and len(value) <= MAX_PATH
+    if not usable_path(value) or "\\" in value or len(value) > MAX_PATH:
+        return False
+    # `C:component.json` is drive-relative on Windows even though ntpath does
+    # not call it absolute. Dot segments likewise give multiple spellings of
+    # one component, and a trailing slash names a directory rather than a file.
+    # Version 2 is the portable contract, so refuse all three at this boundary.
+    drive, _ = ntpath.splitdrive(value)
+    parts = value.split("/")
+    return not drive and all(part not in ("", ".", "..") for part in parts)
 
 
 def stated(value):
@@ -232,7 +243,13 @@ def exactly_false(record, field):
     return field in record and record[field] is False
 
 
-def _gate_2_environment(statement, chain_fields, path_check=usable_path):
+def _gate_2_environment(
+    statement,
+    chain_fields,
+    path_check=usable_path,
+    max_subjects=None,
+    strict_shape=False,
+):
     """A block number is not a pin.
 
     Recoverable means somebody else can find the same state again: the chain, the
@@ -297,6 +314,13 @@ def _gate_2_environment(statement, chain_fields, path_check=usable_path):
     if absent:
         faults.append("capture is missing %s" % ", ".join(absent))
     else:
+        if strict_shape:
+            unknown = sorted(set(capture) - set(CAPTURE_REQUIRED))
+            if unknown:
+                faults.append(
+                    "capture carries fields this type does not define: %s"
+                    % ", ".join(unknown)
+                )
         for field in ("tool", "tool_version"):
             if not stated(capture.get(field)):
                 faults.append("capture %s must name something" % field)
@@ -314,6 +338,13 @@ def _gate_2_environment(statement, chain_fields, path_check=usable_path):
     subjects = predicate.get("fixture_subjects")
     if not isinstance(subjects, list) or not subjects:
         faults.append("fixture_subjects must be a non-empty array")
+    elif max_subjects is not None and len(subjects) > max_subjects:
+        # Refuse before walking a producer-sized list. Version 1 retains its
+        # historical behavior; version 2 publishes this exact schema ceiling.
+        faults.append(
+            "fixture_subjects lists %d components; this type reads at most %d"
+            % (len(subjects), max_subjects)
+        )
     else:
         seen = set()
         for entry in subjects:
@@ -337,6 +368,13 @@ def _gate_2_environment(statement, chain_fields, path_check=usable_path):
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
                 continue
+            if strict_shape:
+                unknown = sorted(set(entry) - set(FIXTURE_SUBJECT_REQUIRED))
+                if unknown:
+                    faults.append(
+                        "%s carries fields this type does not define: %s"
+                        % (label, ", ".join(unknown))
+                    )
             if not stated(entry["name"]):
                 faults.append("fixture subject %d has no name" % (index + 1))
             if not whole_number(entry["bytes"]) or not 0 <= entry["bytes"] <= MAX_BYTES:
@@ -380,7 +418,7 @@ def gate_2_environment(statement):
     return _gate_2_environment(statement, CHAIN_FIELDS)
 
 
-def section_faults(section, body):
+def section_faults(section, body, strict_shape=False):
     """Gate 5 inside a section: a listed change names both of its sides."""
     faults = []
     unknown = sorted(set(body) - set(COMPONENT_KEYS))
@@ -408,6 +446,13 @@ def section_faults(section, body):
                     "deltas %s.%s[%d] is not an object" % (section, key, index)
                 )
                 continue
+            if strict_shape:
+                unknown = sorted(set(entry) - {"baseline", "current"})
+                if unknown:
+                    faults.append(
+                        "deltas %s.%s[%d] carries unknown fields: %s"
+                        % (section, key, index, ", ".join(unknown))
+                    )
             absent = [side for side in ("baseline", "current") if side not in entry]
             if absent:
                 faults.append(
@@ -424,7 +469,9 @@ def section_faults(section, body):
     return faults
 
 
-def _gate_5_deltas(statement, require_complete_shape=False):
+def _gate_5_deltas(
+    statement, require_complete_shape=False, strict_shape=False
+):
     """A comparison fails when either end cannot be identified exactly.
 
     The absent case is a claim of its own. A first fixture carries
@@ -472,7 +519,22 @@ def _gate_5_deltas(statement, require_complete_shape=False):
         if not isinstance(deltas[section], dict):
             faults.append("deltas %s must be an object" % section)
             continue
-        faults.extend(section_faults(section, deltas[section]))
+        faults.extend(
+            section_faults(section, deltas[section], strict_shape=strict_shape)
+        )
+
+    if strict_shape:
+        for side in ("baseline", "current"):
+            value = deltas.get(side)
+            if isinstance(value, dict):
+                unknown = sorted(set(value) - {"name", "digest"})
+                if unknown:
+                    faults.append(
+                        "delta %s side carries unknown fields: %s"
+                        % (side, ", ".join(unknown))
+                    )
+        if "reason" in deltas and not isinstance(deltas["reason"], str):
+            faults.append("deltas reason must be a string")
 
     if "current" in deltas:
         check_side(deltas.get("current"), "current", faults)
@@ -697,7 +759,7 @@ def gate_replay(statement):
     return _gate_replay(statement, REPLAY_REQUIRED, REFUSALS)
 
 
-def gate_fields(statement):
+def gate_fields(statement, strict_shape=False):
     """Nothing outside the shape.
 
     Absence is left to the gate that owns each field: gate 2 for the pin, the
@@ -716,6 +778,22 @@ def gate_fields(statement):
             "predicate carries fields this type does not define: %s"
             % ", ".join(unknown),
         )
+    if strict_shape:
+        faults = []
+        claims = predicate.get("claims")
+        if isinstance(claims, list):
+            for index, claim in enumerate(claims):
+                if not isinstance(claim, dict):
+                    continue
+                label = "claim %d" % (index + 1)
+                if "name" not in claim or not isinstance(claim["name"], str):
+                    faults.append("%s name must be a string" % label)
+                if "reason" in claim and not isinstance(claim["reason"], str):
+                    faults.append("%s reason must be a string" % label)
+                if "detail" in claim and not isinstance(claim["detail"], dict):
+                    faults.append("%s detail must be an object" % label)
+        if faults:
+            return Gate(None, "predicate-fields", False, "; ".join(faults))
     return Gate(None, "predicate-fields", True, "no fields outside the shape")
 
 
@@ -749,15 +827,22 @@ class _StateFixtureV2(object):
     PREDICATE_FIELDS = PREDICATE_FIELDS
     REQUIRED_FIELDS = REQUIRED_FIELDS
     MAX_PATH = MAX_PATH
+    MAX_FIXTURE_SUBJECTS = MAX_FIXTURE_SUBJECTS_V2
 
     @staticmethod
     def check(statement):
         return [
             _gate_2_environment(
-                statement, CHAIN_FIELDS_V2, path_check=usable_path_v2
+                statement,
+                CHAIN_FIELDS_V2,
+                path_check=usable_path_v2,
+                max_subjects=MAX_FIXTURE_SUBJECTS_V2,
+                strict_shape=True,
             ),
-            _gate_5_deltas(statement, require_complete_shape=True),
-            gate_fields(statement),
+            _gate_5_deltas(
+                statement, require_complete_shape=True, strict_shape=True
+            ),
+            gate_fields(statement, strict_shape=True),
             _gate_evidence(
                 statement,
                 EVIDENCE_CLASSES_V2,

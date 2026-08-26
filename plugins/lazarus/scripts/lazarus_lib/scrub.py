@@ -60,7 +60,12 @@ def provider_secrets(
     parsed = urlsplit(url)
     if check_time is not None:
         check_time()
-    _add_url_material(values, parsed.netloc, check_time=check_time)
+    # Keep the complete authority, including its port, but do not split that
+    # public transport coordinate into a standalone numeric pattern. Ephemeral
+    # ports are four or five digits and collide readily with ordinary fixture
+    # bytes. The hostname is classified separately below, while user
+    # information remains credential-bearing and is split by its own path.
+    _add_url_spellings(values, parsed.netloc, check_time=check_time)
     if parsed.hostname:
         _add_url_material(values, parsed.hostname, check_time=check_time)
     for value in (parsed.username, parsed.password):

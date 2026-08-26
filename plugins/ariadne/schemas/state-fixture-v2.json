@@ -63,7 +63,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1024,
-            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)[^\\\\]+$"
+            "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
           },
           "digest": {"$ref": "#/$defs/digest"},
           "bytes": {
@@ -226,10 +226,21 @@
     "digest": {
       "type": "object",
       "minProperties": 1,
+      "propertyNames": {"type": "string", "minLength": 1},
+      "properties": {
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sha384": {"type": "string", "pattern": "^[0-9a-f]{96}$"},
+        "sha512": {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+      },
       "additionalProperties": {
         "type": "string",
         "pattern": "^[0-9a-f]+$"
-      }
+      },
+      "anyOf": [
+        {"required": ["sha256"]},
+        {"required": ["sha384"]},
+        {"required": ["sha512"]}
+      ]
     },
     "side": {
       "type": "object",
