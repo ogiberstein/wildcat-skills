@@ -98,7 +98,9 @@ def validate_document(kind: str, document: Any) -> Any:
     try:
         Draft202012Validator(schema).validate(document)
     except ValidationError as exc:
-        raise FormatError(_schema_failure(kind, exc)) from exc
+        # ValidationError retains the rejected instance and renders it in a
+        # traceback. Suppress that context after deriving the bounded refusal.
+        raise FormatError(_schema_failure(kind, exc)) from None
     # Canonical encoding also rejects floats and unsupported Python values that
     # JSON Schema deliberately permits as generic JSON instances.
     dumps(document)

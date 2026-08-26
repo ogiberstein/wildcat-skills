@@ -1,6 +1,7 @@
 """Versioned formats validate before they reach fixture logic."""
 
 import copy
+import traceback
 import unittest
 from unittest import mock
 
@@ -403,6 +404,17 @@ class SchemaTests(unittest.TestCase):
     def test_schema_refusals_do_not_echo_hostile_keys_or_values(self):
         prefix = "PRIVATE_PROVIDER_VALUE_"
         marker = prefix + "x" * 200_000
+
+        def assert_safe(error: FormatError) -> None:
+            message = str(error)
+            rendered = "".join(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            )
+            self.assertNotIn(prefix, message)
+            self.assertNotIn(prefix, rendered)
+            self.assertLessEqual(len(message.encode("utf-8")), 4096)
+            self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
+
         for hostile_key in (prefix + "SECRET", marker):
             witness = support.sample_receipt_witness()
             witness[hostile_key] = True
@@ -410,17 +422,16 @@ class SchemaTests(unittest.TestCase):
                 FormatError
             ) as raised:
                 validate_document("receipt-witness", witness)
-            message = str(raised.exception)
-            self.assertNotIn(prefix, message)
-            self.assertLessEqual(len(message.encode("utf-8")), 4096)
+            assert_safe(raised.exception)
 
-        witness = support.sample_receipt_witness()
-        witness["receipts"][0]["receipt_type"] = marker
-        with self.assertRaises(FormatError) as raised:
-            validate_document("receipt-witness", witness)
-        message = str(raised.exception)
-        self.assertNotIn(prefix, message)
-        self.assertLessEqual(len(message.encode("utf-8")), 4096)
+        for hostile_value in (prefix + "SECRET", marker):
+            witness = support.sample_receipt_witness()
+            witness["receipts"][0]["receipt_type"] = hostile_value
+            with self.subTest(hostile_value=len(hostile_value)), self.assertRaises(
+                FormatError
+            ) as raised:
+                validate_document("receipt-witness", witness)
+            assert_safe(raised.exception)
 
     def test_receipt_witness_rejects_index_target_and_filter_disagreement(self):
         mutations = (
