@@ -742,6 +742,9 @@ class SynopsisRepositoryTests(unittest.TestCase):
             chunk = real_read(descriptor, size)
             if not raced:
                 source.write_bytes(changed)
+                rewritten = source.stat()
+                advanced = rewritten.st_mtime_ns + 1_000_000_000
+                os.utime(source, ns=(advanced, advanced))
                 raced = True
             return chunk
 
