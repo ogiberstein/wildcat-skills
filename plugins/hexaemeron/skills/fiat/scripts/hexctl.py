@@ -161,6 +161,18 @@ whose first word is this, ignoring case and surrounding space. Preflight writes
 `"waived: <reason>"`, and a reason is the point of the string.
 """
 
+SYNC_BASE_HEAD_KEY = "base_head"
+"""Where the sync receipt records the exact base tip the run merged.
+
+Two consumers, one name: `done_sync_run` writes the verified remote base tip
+under this key, and `done_integrate` reads it back to subtract the ledger rows
+that base had already published. The sites named different keys once -- the
+writer stored `base_head` while the reader asked for `base_commit` -- so the
+published set was always empty and the fiat-v5.16.1 subtraction never engaged
+(skills#608). A receipt without the key still reads as the empty set, which is
+the older and stricter arithmetic.
+"""
+
 def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -3852,7 +3864,7 @@ def done_sync_run(args, state: dict) -> None:
         "commit": sync_tip,
         "base": integration_base,
         "starting_base": state["base"],
-        "base_head": base_tip,
+        SYNC_BASE_HEAD_KEY: base_tip,
         "parents": parents,
         "github_verified": github_verified,
         "product_evidence": product_evidence,
@@ -3922,7 +3934,7 @@ def done_integrate(args, state: dict) -> None:
         recorded_sync = as_dict(as_dict(state.get("integrate")).get("sync"))
         if recorded_sync:
             published = base_ledger_versions(
-                args.dir, recorded_sync.get("base_commit"), frontier["ledger"]
+                args.dir, recorded_sync.get(SYNC_BASE_HEAD_KEY), frontier["ledger"]
             )
         fault = frontier_close_fault(
             os.path.join(args.dir, frontier["ledger"]), frontier, published)
