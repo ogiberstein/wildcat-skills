@@ -405,9 +405,10 @@ def _filtered_projection(
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     global_index = 0
+    compiled_filter = _compile_filter(filter_value)
     for transaction_index, receipt in enumerate(receipts):
         for log in receipt["logs"]:
-            if _matches_filter(log, filter_value):
+            if _matches_compiled_filter(log, compiled_filter):
                 result.append(
                     {
                         # ephoros: allow consensus receipt field, not telemetry
@@ -425,28 +426,54 @@ def _filtered_projection(
 
 
 def _matches_filter(log: dict[str, Any], filter_value: dict[str, Any]) -> bool:
+    return _matches_compiled_filter(log, _compile_filter(filter_value))
+
+
+def _compile_filter(
+    filter_value: dict[str, Any],
+) -> tuple[frozenset[bytes] | None, tuple[frozenset[bytes] | None, ...]]:
     addresses = filter_value.get("address")
+    expected_addresses = None
     if addresses is not None:
         if isinstance(addresses, str):
             addresses = [addresses]
-        expected_addresses = {address_bytes(value) for value in addresses}
+        expected_addresses = frozenset(address_bytes(value) for value in addresses)
+
+    expected_topics: list[frozenset[bytes] | None] = []
+    for selector in filter_value.get("topics", []):
+        if selector is None:
+            expected_topics.append(None)
+            continue
+        choices = selector if isinstance(selector, list) else [selector]
+        expected_topics.append(
+            frozenset(
+                hash32_bytes(choice, label="receipt filter topic")
+                for choice in choices
+                if choice is not None
+            )
+        )
+    return expected_addresses, tuple(expected_topics)
+
+
+def _matches_compiled_filter(
+    log: dict[str, Any],
+    compiled_filter: tuple[
+        frozenset[bytes] | None,
+        tuple[frozenset[bytes] | None, ...],
+    ],
+) -> bool:
+    expected_addresses, expected_topics = compiled_filter
+    if expected_addresses is not None:
         # ephoros: allow consensus receipt field, not telemetry
         if address_bytes(log["address"]) not in expected_addresses:
             return False
-    selectors = filter_value.get("topics", [])
     topics = log["topics"]
-    for index, selector in enumerate(selectors):
-        if selector is None:
-            continue
+    for index, expected in enumerate(expected_topics):
         if index >= len(topics):
             return False
-        choices = selector if isinstance(selector, list) else [selector]
-        expected = {
-            hash32_bytes(choice, label="receipt filter topic")
-            for choice in choices
-            if choice is not None
-        }
-        if expected and hash32_bytes(topics[index], label="receipt log topic") not in expected:
+        if not expected:
+            continue
+        if hash32_bytes(topics[index], label="receipt log topic") not in expected:
             return False
     return True
 

@@ -11,9 +11,11 @@ from trie import HexaryTrie
 
 from lazarus_lib.canonical import load
 from lazarus_lib.errors import FormatError, IntegrityError, ResourceLimitError
-from lazarus_lib.hexvalue import encode_hex
+from lazarus_lib.hexvalue import address_bytes, encode_hex
 from lazarus_lib.manifest import build_manifest
 from lazarus_lib.receipts import (
+    _filtered_projection,
+    _matches_filter,
     encode_receipt,
     receipt_trie_root,
     verify_receipt_relation,
@@ -299,6 +301,30 @@ class ReceiptRelationTests(unittest.TestCase):
             )
             request["params"] = [filter_value]
             self.assertEqual(verify_material(material)["filtered_log_count"], 1)
+
+    def test_topic_wildcard_requires_the_log_position_to_exist(self):
+        log = {"address": support.address("55"), "topics": [], "data": "0x"}
+        self.assertFalse(_matches_filter(log, {"topics": [None]}))
+
+    def test_filtered_projection_parses_static_filter_values_once(self):
+        log = {
+            "address": support.address("55"),
+            "topics": [support.hash32("66")],
+            "data": "0x",
+        }
+        receipts = [{"logs": [log, log, log]}]
+        with mock.patch(
+            "lazarus_lib.receipts.address_bytes",
+            wraps=address_bytes,
+        ) as checked_address:
+            projection = _filtered_projection(
+                receipts,
+                {"address": support.address("55")},
+                block_number="0x10",
+                block_hash=support.hash32("11"),
+            )
+        self.assertEqual(len(projection), 3)
+        self.assertEqual(checked_address.call_count, 4)
 
     def test_coherent_hash_rewrite_changes_no_proved_relation(self):
         original = support.receipt_fixture_material()
