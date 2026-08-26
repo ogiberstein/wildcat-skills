@@ -967,6 +967,25 @@ class CompositionContractTests(unittest.TestCase):
         for output in reuse.FINAL_OUTPUTS:
             self.assertIn(f"`{output}`", self.reference)
 
+    def test_digest_preconditions_run_before_the_vendored_xray_instruction(self):
+        reference_link = "[X-Ray source-reuse protocol](xray-reuse.md)"
+        warden_reference = (
+            "`<plugin-root>/skills/fiat/references/xray-reuse.md`"
+        )
+        warden_xray = "`<plugin-root>/skills/x-ray/SKILL.md`"
+        self.assertLess(
+            self.audit_loop.index(reference_link),
+            self.audit_loop.index("`x-ray` pass first"),
+        )
+        self.assertLess(
+            self.warden.index(warden_reference),
+            self.warden.index(warden_xray),
+        )
+        for text in (self.audit_loop, self.warden):
+            self.assertIn(
+                "complete its digest preconditions", " ".join(text.split())
+            )
+
     def test_reference_keeps_cache_material_out_of_every_fiat_surface(self):
         text = " ".join(self.reference.split())
         for material in (
@@ -984,6 +1003,18 @@ class CompositionContractTests(unittest.TestCase):
             "any other Fiat receipt",
         ):
             self.assertIn(surface, text)
+
+    def test_fiat_boundary_does_not_suppress_audit_finding_evidence(self):
+        warden = " ".join(self.warden.split())
+        self.assertNotIn("audit directive and record", warden)
+        self.assertIn(
+            "The audit record may name this working material when a finding needs it",
+            warden,
+        )
+        self.assertIn("without giving it controller authority", warden)
+        for text in (warden, " ".join(self.audit_loop.split())):
+            self.assertIn("cache verdicts", text)
+            self.assertNotIn("manifests, and verdicts", text)
 
 
 class CommandTests(ReuseFixture):
