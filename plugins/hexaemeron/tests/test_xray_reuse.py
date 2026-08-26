@@ -213,6 +213,55 @@ class PlanningTests(ReuseFixture):
         self.assertEqual(plan["dirty"], [source["path"] for source in plan["sources"]])
         self.assertEqual(plan["reusable"], [])
 
+    def test_full_recompute_reasons_require_the_exact_full_shape(self):
+        plan = reuse.plan(self.project, self.scope)
+        paths = [source["path"] for source in plan["sources"]]
+        for reason in (
+            "cache-invalid",
+            "cache-missing",
+            "dependency-cycle",
+            "identity-drift",
+            "scope-mismatch",
+        ):
+            with self.subTest(reason=reason):
+                spliced = copy.deepcopy(plan)
+                spliced.update(
+                    {
+                        "mode": "incremental",
+                        "reason": reason,
+                        "changed": [],
+                        "dirty": [],
+                        "reusable": paths,
+                    }
+                )
+                with self.assertRaises(reuse.ReuseError) as caught:
+                    reuse.validate_plan(spliced)
+                self.assertEqual(caught.exception.code, "incomplete-plan")
+
+    def test_assembly_refuses_reuse_when_plan_declares_cache_missing(self):
+        self.establish_cache()
+        plan = reuse.plan(self.project, self.scope)
+        self.assertEqual((plan["mode"], plan["reason"]), ("full", "cache-missing"))
+
+        spliced = copy.deepcopy(plan)
+        spliced.update(
+            {
+                "mode": "incremental",
+                "changed": [],
+                "dirty": [],
+                "reusable": [source["path"] for source in plan["sources"]],
+            }
+        )
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(
+                self.project,
+                self.scope,
+                spliced,
+                [],
+                cache_path=self.cache,
+            )
+        self.assertEqual(caught.exception.code, "incomplete-plan")
+
     def test_unchanged_scope_reuses_every_entry(self):
         _old_plan, _candidate, cache = self.establish_cache()
         plan = reuse.plan(self.project, self.scope, self.cache)
@@ -311,7 +360,7 @@ class PlanningTests(ReuseFixture):
                 [],
                 cache_path=self.cache,
             )
-        self.assertEqual(caught.exception.code, "cache-drift")
+        self.assertEqual(caught.exception.code, "incomplete-plan")
 
     def test_assembly_refuses_reuse_after_a_source_is_added(self):
         self.establish_cache()
@@ -347,7 +396,7 @@ class PlanningTests(ReuseFixture):
                 [self.entry(plan, "src/Added.sol", writes=[])],
                 cache_path=self.cache,
             )
-        self.assertEqual(caught.exception.code, "cache-drift")
+        self.assertEqual(caught.exception.code, "incomplete-plan")
 
     def test_corrupt_or_mismatched_cache_falls_back_to_full(self):
         self.establish_cache()

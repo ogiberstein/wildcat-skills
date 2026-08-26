@@ -62,13 +62,17 @@ MAX_FACTS_PER_KIND = 4096
 MAX_TEXT_BYTES = 8192
 MAX_IDENTITY_BYTES = 256
 SHA256_HEX_LENGTH = 64
-PLAN_REASONS = frozenset(
+FULL_RECOMPUTE_REASONS = frozenset(
     {
         "cache-invalid",
         "cache-missing",
         "dependency-cycle",
         "identity-drift",
         "scope-mismatch",
+    }
+)
+PLAN_REASONS = FULL_RECOMPUTE_REASONS | frozenset(
+    {
         "scope-unchanged",
         "source-drift",
     }
@@ -963,6 +967,18 @@ def validate_plan(value: Any) -> dict[str, Any]:
         )
     if set(removed) & current_paths:
         _refuse("scope-mismatch", "plan.removed overlaps current scope")
+    if reason in FULL_RECOMPUTE_REASONS and (
+        mode != "full"
+        or set(changed) != current_paths
+        or set(dirty) != current_paths
+        or reusable
+        or reverse_invalidated
+        or (reason != "scope-mismatch" and removed)
+    ):
+        _refuse(
+            "incomplete-plan",
+            "a full-recompute reason requires the exact full plan",
+        )
     if mode == "full" and (set(dirty) != current_paths or reusable):
         _refuse("incomplete-plan", "a full plan must dirty the complete scope")
     if _has_cycle(sources) and (
