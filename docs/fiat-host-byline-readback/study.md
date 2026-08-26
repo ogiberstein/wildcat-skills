@@ -1116,3 +1116,26 @@ If implementation needs a new receipt field, a subcommand, a change to a
 `HOST_*` set, a settings key beyond `attribution`, a different package
 version or a CI change, amend this study before code. A generation row
 cannot silently widen the controller's claim or move the held frontier.
+
+### Amendment -- 2026-08-26
+
+**What changed.** The run also upgrades Hypomnema: H001 treats a relative
+link inside an inline code span as a quoted specimen and passes over it, the
+way H003 already treats a `runbook:` keyword there, recorded as generation
+`hypomnema-v4.5.0` retaining `design-bridge-check`, its digest, status `open`
+and the held job; the widened rule, its guards, the `SKILL.md` sentence and
+the ledger row land in step 1. Step 1 also places the host-identity guards in
+`plugins/hexaemeron/tests/host_identity_cases.py`, mixed into the two
+`test_hexctl.py` classes, because the promise-machine inventory reads
+`test_hexctl.py` under a 256 KiB bound, and re-pins the controller digest in
+`plugins/hexaemeron/tests/test_issue_429_recovery.py` beside the six
+bindings in `tests/promise_machine_coverage.json`.
+**Why.** Line 805 of this study quotes the ledger row's relative link in
+Markdown link syntax inside a code span. Committed at
+`docs/fiat-host-byline-readback/study.md`, H001 resolves it from that
+directory, reports `resolves to nothing`, and the two Hexaemeron tree-walk
+tests fail with the lint. The receipted bytes cannot change, the committed
+copy must stay exact, and a pragma is an edit; the one fix that makes both
+green is the code-span rule H003 already has.
+**Steps touched.** Step 1's Files and Tests. Step 2 is unchanged.
+**Still holding.** Step 1: entry holds; exit broken. Step 2: entry holds; exit holds.
