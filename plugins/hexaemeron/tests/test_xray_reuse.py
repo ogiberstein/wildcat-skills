@@ -26,6 +26,16 @@ from lib import xray_reuse as reuse  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "xray-reuse"
 SCRIPT = Path(reuse.__file__).resolve()
+PROMISES = PLUGIN_ROOT / "PROMISES.md"
+AUDIT_LOOP = PLUGIN_ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
+XRAY_REUSE_REFERENCE = (
+    PLUGIN_ROOT / "skills" / "fiat" / "references" / "xray-reuse.md"
+)
+WARDEN = PLUGIN_ROOT / "agents" / "warden.md"
+XRAY_SKILL = PLUGIN_ROOT / "skills" / "x-ray" / "SKILL.md"
+EXPECTED_XRAY_DIGEST = (
+    "b23bb94517805c1b8ce717d0e1e0282b0b5c14c7b16f4c32e73940292d3d4a41"
+)
 
 
 class ReuseFixture(unittest.TestCase):
@@ -888,6 +898,92 @@ class AssemblyAndPromotionTests(ReuseFixture):
                 candidate_path=self.candidate,
             )
         self.assertEqual(caught.exception.code, "unsafe-path")
+
+
+class CompositionContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.promises = PROMISES.read_text(encoding="utf-8")
+        cls.reference = XRAY_REUSE_REFERENCE.read_text(encoding="utf-8")
+        cls.audit_loop = AUDIT_LOOP.read_text(encoding="utf-8")
+        cls.warden = WARDEN.read_text(encoding="utf-8")
+
+    @classmethod
+    def overlay(cls):
+        marker = "### hexaemeron-x-ray-preaudit\n"
+        start = cls.promises.index(marker)
+        following = cls.promises.find("\n### ", start + len(marker))
+        return cls.promises[start : following if following >= 0 else None]
+
+    def test_overlay_binds_the_exact_xray_and_adapter_digests(self):
+        overlay = self.overlay()
+        xray_digest = hashlib.sha256(XRAY_SKILL.read_bytes()).hexdigest()
+        adapter_digest = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
+        self.assertEqual(xray_digest, EXPECTED_XRAY_DIGEST)
+        self.assertIn(
+            "- Path: `plugins/hexaemeron/skills/x-ray/SKILL.md`", overlay
+        )
+        self.assertIn(f"- SHA-256: `{xray_digest}`", overlay)
+        self.assertIn("`plugins/hexaemeron/lib/xray_reuse.py`", overlay)
+        self.assertIn(f"SHA-256 `{adapter_digest}`", overlay)
+
+    def test_overlay_keeps_reuse_inside_the_xray_preparation_boundary(self):
+        overlay = " ".join(self.overlay().split())
+        for clause in (
+            "preparation layer only",
+            "complete current logical scope",
+            "exact current union",
+            "fresh global synthesis",
+            "named full recomputation",
+        ):
+            self.assertIn(clause, overlay)
+        for output in reuse.FINAL_OUTPUTS:
+            self.assertIn(f"`{output}`", overlay)
+        self.assertIn(
+            "no global synthesis, final output, finding, or security conclusion is reusable",
+            overlay,
+        )
+
+    def test_audit_operation_requires_full_scope_fresh_synthesis_and_outputs(self):
+        surfaces = {
+            "reference": " ".join(self.reference.split()),
+            "audit-loop": " ".join(self.audit_loop.split()),
+            "warden": " ".join(self.warden.split()),
+        }
+        self.assertIn(
+            "[X-Ray source-reuse protocol](xray-reuse.md)", self.audit_loop
+        )
+        self.assertIn(
+            "`<plugin-root>/skills/fiat/references/xray-reuse.md`", self.warden
+        )
+        for name, text in surfaces.items():
+            with self.subTest(surface=name):
+                self.assertIn("preparation layer only", text)
+                self.assertIn("full logical scope", text)
+                self.assertIn("fresh global synthesis", text)
+                self.assertIn("all four final outputs", text)
+                self.assertIn("Any cache uncertainty", text)
+                self.assertIn("full recomputation", text)
+        for output in reuse.FINAL_OUTPUTS:
+            self.assertIn(f"`{output}`", self.reference)
+
+    def test_reference_keeps_cache_material_out_of_every_fiat_surface(self):
+        text = " ".join(self.reference.split())
+        for material in (
+            "cache paths",
+            "cache keys",
+            "cache payloads",
+            "cache verdicts",
+        ):
+            self.assertIn(material, text)
+        for surface in (
+            "`hexctl` state",
+            "its ledger",
+            "a Warden brief or audit directive",
+            "an audit-round receipt",
+            "any other Fiat receipt",
+        ):
+            self.assertIn(surface, text)
 
 
 class CommandTests(ReuseFixture):

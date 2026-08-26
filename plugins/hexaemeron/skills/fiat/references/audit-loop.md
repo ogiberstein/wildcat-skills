@@ -13,7 +13,15 @@ another pass.
    `$PLUGIN_ROOT/skills/<name>/` (as defined in the entry skill) -- read
    each SKILL.md and follow
    it. Give each the step's full diff and the contracts it touches, not a
-   summary. When the step ships Solidity under Foundry or Hardhat and
+   summary. Before X-Ray extraction, read the
+   [X-Ray source-reuse protocol](xray-reuse.md). Its adapter is a preparation
+   layer only: build the full logical scope from the current tree, use only an
+   exact validated current union, run fresh global synthesis, and regenerate
+   all four final outputs named there. Any cache uncertainty becomes named
+   full recomputation; unsafe or incomplete current scope stops the round.
+   Keep cache paths, keys, payloads, plans, entries, candidates, manifests, and
+   verdicts out of Fiat state, its ledger, the Warden brief and directive, and
+   every receipt. When the step ships Solidity under Foundry or Hardhat and
    `fizz` is in the suite, build or refresh the invariant fuzz suite on
    round 1 and re-run its campaigns on later rounds where contracts
    changed; campaign failures are findings like any other.
