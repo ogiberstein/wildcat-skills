@@ -158,11 +158,11 @@ replays it over loopback, so the guard runs with no provider at all.
    A state value the guard also wants proved goes under `proof_targets` as an
    address and its slots, beside the request rather than instead of it. Mark
    a request `required: true` when the test needs the provider's answer. Mark
-   it `required: false` when the provider's error is the thing to pin: a
-   required request's error ends the capture with no fixture, while an
-   optional request's error is kept as a sanitised record whose message is
-   `provider request failed` and whose code is the provider's integer code
-   when it sent one and `-32000` otherwise. Declare `limits`, including
+   it `required: false` when the provider's error is the thing to pin,
+   because a required request's error ends the capture with no fixture. An
+   optional request's error is kept as a sanitised record: its message is
+   `provider request failed` and its code is the provider's integer code when
+   it sent one, `-32000` otherwise. Declare `limits`, including
    `max_elapsed_seconds`.
 3. Capture with `python3 plugins/lazarus/scripts/lazarus.py capture --plan
    plan.json --rpc-url "$LAZARUS_RPC_URL" --out <fixture>`, adding one
