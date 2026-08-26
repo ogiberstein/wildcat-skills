@@ -92,6 +92,12 @@ capture asserting something nobody recorded.
 **`--capture-command`.** Required, one flag per argv word. The command that produced
 the fixture is not in the fixture.
 
+For manifest-v2, the tool, every command word, the current name and any previous
+name must contain at least one printable ASCII graphic. Unicode may surround it.
+The current name must also differ from every component subject name after Unicode
+normalisation. These checks keep capture from writing a statement that its own
+schema accepts but Lazarus release binding cannot identify unambiguously.
+
 **`--capture-version`.** Optional, and checked rather than used. Supplying one that
 disagrees with the manifest is refused, because the manifest is what the tool wrote.
 Supplying nothing takes the manifest's version, which is the same thing without the

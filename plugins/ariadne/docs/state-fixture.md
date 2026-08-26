@@ -48,11 +48,21 @@ grants no receipt-trie authority.
 is only as reproducible as the thing that wrote it, and a tool name with a version
 does not say what it was told to do.
 
+Version 2 requires one printable ASCII graphic in every machine-read name and
+command word. Unicode may surround that character. This gives the JSON Schema and
+Python predicate one exact visibility rule instead of letting an invisible format,
+control or private-use string pass one reader and fail another. Component names
+and in-toto subject names must also be unique after NFC normalisation, matching the
+release reader even when a statement did not come from Ariadne's capture command.
+All version-2 predicate gate lines are fixed and value-free on both success and
+failure, so an untrusted identifier cannot become an unbounded terminal or log line.
+
 **`fixture_subjects`** -- one per component file: `name`, `path`, `digest`,
 `bytes`. Each digest has to be a subject of the statement, so the predicate cannot
 describe files the statement does not cover. Paths are fixture-relative; an
 absolute one, or one carrying a `..` segment, describes a file the fixture does
-not hold.
+not hold. In version 2 every path segment also contains one printable ASCII
+graphic. A segment such as `\u200b` names a POSIX file but nothing a reader can see.
 
 **`evidence`** -- the versioned counts, spelled as Lazarus spells them in its
 manifest schemas:
@@ -163,16 +173,17 @@ in the module, so a field added to one and not the other fails the suite.
 The schema expresses more of the rules than an earlier draft of it did. Draft
 2020-12 has `if`/`then`, so the conditional state-root rule is in there: a
 `proof_backed` count above zero makes `state_root` required. A component path that
-would leave the fixture, or whose segment is only whitespace, is refused by a
-pattern rather than left to the verifier. Tests hold the schema and verifier to the
-same verdict over hand-written shapes and the shipped conformance fixtures.
+would leave the fixture, or whose segment contains no printable ASCII graphic, is
+refused by a pattern rather than left to the verifier. The same shared shape covers
+version-2 capture and delta names. Tests hold the schema and verifier to the same
+verdict over hand-written shapes and the shipped conformance fixtures.
 
-One rule is beyond any schema, rather than beyond this one. A schema describes the
-predicate body, and whether a component digest also appears in the statement's
-`subject` array is a fact about the document around the predicate. No keyword
-reaches it, so `fail-gate2-state-fixture-component-not-a-subject.json` is the single
-fixture the schema accepts and the verifier refuses. A test names it as the one
-allowed exception, so a second one cannot appear quietly.
+Two rules are beyond the predicate schema, rather than beyond this schema. It
+cannot see whether a component digest also appears in the statement's `subject`
+array, and it cannot compare the names in that outer array after NFC
+normalisation. The component-coverage and duplicate-subject-name fixtures record
+those two verifier refusals explicitly. Tests name both exceptions, so another
+schema/verifier disagreement cannot appear quietly.
 
 The other thing a schema cannot express is the reason. It can refuse an all-zero
 state root with a pattern and it cannot say that the value identifies nothing, and a

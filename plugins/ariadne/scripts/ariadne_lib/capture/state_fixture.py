@@ -38,6 +38,7 @@ import os
 import re
 import stat
 import tempfile
+import unicodedata
 
 from .. import digests, safejson
 from ..predicates import state_fixture as predicate
@@ -577,6 +578,25 @@ def claim(name, subject, disposition, reason=None, detail=None):
     return out
 
 
+def require_portable_v2(value, what):
+    """Refuse a v2 machine-read identifier no portable reader can display."""
+    if not predicate.portable_name_v2(value):
+        raise CaptureError("%s must contain a portable graphic" % what)
+
+
+def unique_subject_names_v2(entries, name):
+    """Hold capture output to release-v2's normalised subject-name rule."""
+    seen = set()
+    for value in [entry["name"] for entry in entries] + [name]:
+        settled = unicodedata.normalize("NFC", value)
+        if settled in seen:
+            raise CaptureError(
+                "state-fixture/v2 statement subject names must be unique after "
+                "Unicode normalisation"
+            )
+        seen.add(settled)
+
+
 def capture(
     fixture,
     name,
@@ -621,6 +641,15 @@ def capture(
             "wrote" % (capture_version, MANIFEST, manifest["tool_version"])
         )
 
+    if manifest["schema_version"] == 2:
+        require_portable_v2(capture_tool, "--capture-tool")
+        require_portable_v2(manifest["tool_version"], "%s tool_version" % MANIFEST)
+        for word in capture_command:
+            require_portable_v2(word, "--capture-command word")
+        require_portable_v2(name, "--name")
+        if previous:
+            require_portable_v2(previous_name, "--previous-name")
+
     # Settle the manifest-only fields before traversing any component.  A
     # malformed pin or evidence count cannot justify spending the declared
     # component-read budget merely to reach the refusal later.
@@ -635,6 +664,8 @@ def capture(
     contract = predicate_for(manifest["schema_version"])
 
     entries, documents = components_of(root, manifest)
+    if manifest["schema_version"] == 2:
+        unique_subject_names_v2(entries, name)
     current = bundle(entries)
     state_root = state_root_of(root, documents.get(HEADER))
 

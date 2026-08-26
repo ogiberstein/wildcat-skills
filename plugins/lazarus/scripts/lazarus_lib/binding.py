@@ -33,6 +33,7 @@ way to tell which half of a bound document was checked.
 
 from __future__ import annotations
 
+import ntpath
 import unicodedata
 from typing import Any
 
@@ -161,6 +162,29 @@ V2_DISPOSITIONS = frozenset(
     {"passed", "failed", "skipped", "timed_out", "redacted"}
 )
 DIGEST_LENGTHS = {"sha256": 64, "sha384": 96, "sha512": 128}
+MAX_V2_PATH = 1024
+
+
+def _portable_v2(value: Any) -> bool:
+    """The exact printable-name rule published by state-fixture/v2."""
+    return isinstance(value, str) and any("!" <= char <= "~" for char in value)
+
+
+def _portable_path_v2(value: Any) -> bool:
+    """The exact component-path grammar published by state-fixture/v2."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > MAX_V2_PATH
+        or "\\" in value
+        or "\x00" in value
+    ):
+        return False
+    drive, _ = ntpath.splitdrive(value)
+    parts = value.split("/")
+    return not drive and all(
+        part not in ("", ".", "..") and _portable_v2(part) for part in parts
+    )
 
 
 def _closed(
@@ -212,8 +236,8 @@ def _digest_set(value: Any, what: str) -> dict[str, Any]:
 def _v2_side(value: Any, what: str) -> dict[str, Any]:
     side = _object(value, what)
     _closed(side, V2_DELTA_SIDE_FIELDS, what)
-    if not isinstance(side["name"], str) or not side["name"].strip():
-        raise FormatError(f"{what} has no name")
+    if not _portable_v2(side["name"]):
+        raise FormatError(f"{what} has no portable name")
     return _digest_set(side["digest"], f"{what} digest")
 
 
@@ -277,7 +301,7 @@ def _check_v2_deltas(
             continue
         entries = components[field]
         if not isinstance(entries, list) or not all(
-            isinstance(entry, str) and entry.strip() for entry in entries
+            _portable_v2(entry) for entry in entries
         ):
             raise FormatError(
                 f"state-fixture/v2 component deltas {field} must name components"
@@ -291,7 +315,7 @@ def _check_v2_deltas(
             entry = _object(entry, what)
             _closed(entry, V2_CHANGED_FIELDS, what)
             if not all(
-                isinstance(entry[field], str) and entry[field].strip()
+                _portable_v2(entry[field])
                 for field in V2_CHANGED_FIELDS
             ):
                 raise FormatError(f"{what} does not name both sides")
@@ -312,8 +336,8 @@ def _check_v2_claims(
             what,
             required=frozenset({"name", "subject", "disposition"}),
         )
-        if not isinstance(claim["name"], str):
-            raise FormatError(f"{what} name must be a string")
+        if not _portable_v2(claim["name"]):
+            raise FormatError(f"{what} name has no portable graphic")
         subject = _digest_set(claim["subject"], f"{what} subject")
         if not _covered(subjects, subject):
             raise IntegrityError(
@@ -367,13 +391,15 @@ def _check_v2_vocabulary(
     capture = _object(predicate["capture"], "state-fixture/v2 capture")
     _closed(capture, V2_CAPTURE_FIELDS, "state-fixture/v2 capture")
     for field in ("tool", "tool_version"):
-        if not isinstance(capture[field], str) or not visible(capture[field]):
-            raise FormatError(f"state-fixture/v2 capture {field} names nothing")
+        if not _portable_v2(capture[field]):
+            raise FormatError(
+                f"state-fixture/v2 capture {field} has no portable name"
+            )
     command = capture["command"]
     if (
         not isinstance(command, list)
         or not command
-        or not all(isinstance(word, str) and visible(word) for word in command)
+        or not all(_portable_v2(word) for word in command)
     ):
         raise FormatError("state-fixture/v2 capture command is not a non-empty argv")
     _digest_set(
@@ -405,6 +431,10 @@ def _check_v2_vocabulary(
             what = f"state-fixture/v2 fixture subject {index + 1}"
             entry = _object(entry, what)
             _closed(entry, V2_FIXTURE_SUBJECT_FIELDS, what)
+            if not _portable_v2(entry["name"]):
+                raise FormatError(f"{what} has no portable name")
+            if not _portable_path_v2(entry["path"]):
+                raise IntegrityError(f"{what} has no portable component path")
             fixture_digests.append(
                 _digest_set(entry["digest"], f"{what} digest")
             )
@@ -423,6 +453,8 @@ def _check_v2_vocabulary(
             what,
             required=frozenset({"digest"}),
         )
+        if not _portable_v2(entry.get("name")):
+            raise FormatError(f"{what} has no portable name")
         subject_digests.append(_digest_set(entry["digest"], f"{what} digest"))
 
     if any(not _covered(subject_digests, digest) for digest in fixture_digests):

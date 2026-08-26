@@ -489,6 +489,47 @@ class StateFixtureV2SchemaDriftTests(unittest.TestCase):
             self.properties["deltas"].get("required"), ["baseline", "current"]
         )
 
+    def test_v2_machine_read_names_share_the_portable_graphic_shape(self):
+        self.assertIn("portableText", self.schema["$defs"])
+        portable = self.schema["$defs"]["portableText"]
+        self.assertEqual(portable["pattern"], "[!-~]")
+        self.assertEqual(
+            self.properties["capture"]["properties"]["tool"],
+            {"$ref": "#/$defs/portableText"},
+        )
+        self.assertEqual(
+            self.properties["capture"]["properties"]["command"]["items"],
+            {"$ref": "#/$defs/portableText"},
+        )
+        component = self.properties["fixture_subjects"]["items"]["properties"]
+        self.assertEqual(
+            component["name"], {"$ref": "#/$defs/portableText"}
+        )
+        self.assertEqual(
+            self.schema["$defs"]["side"]["properties"]["name"],
+            {"$ref": "#/$defs/portableText"},
+        )
+        self.assertEqual(
+            self.properties["claims"]["items"]["properties"]["name"],
+            {"$ref": "#/$defs/portableText"},
+        )
+
+        import re
+
+        pattern = re.compile(portable["pattern"])
+        for value, expected in (
+            ("fixture", True),
+            ("\u96ea.json", True),
+            ("\u96ea fixture", True),
+            ("\u200b", False),
+            ("\x00", False),
+            ("\ue000", False),
+            ("\u2060", False),
+        ):
+            with self.subTest(value=repr(value)):
+                self.assertEqual(bool(pattern.search(value)), expected)
+                self.assertEqual(state_fixture.portable_name_v2(value), expected)
+
     def test_v2_hashes_and_component_bounds_match_the_module(self):
         import re
 
@@ -520,8 +561,15 @@ class StateFixtureV2SchemaDriftTests(unittest.TestCase):
             ".",
             "./header.json",
             "a/./header.json",
+            "a/\u200b",
+            "a/\x00",
+            "a/\ue000",
+            "a/\u2060",
             "header.json/",
             "C:header.json",
+            "1:header.json",
+            "\u96ea:header.json",
+            "header\x00.json",
             "x" * 1025,
         ):
             with self.subTest(path=path[:40]):

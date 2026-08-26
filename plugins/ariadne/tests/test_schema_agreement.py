@@ -43,6 +43,9 @@ ACCEPTED_BY_THE_SCHEMA = {
     "fail-gate2-state-fixture-component-not-a-subject.json": (
         "a schema validates the predicate body and cannot see the subjects"
     ),
+    "fail-check-subject-names-state-fixture-v2-duplicate-name.json": (
+        "the predicate schema cannot see or compare outer subject names"
+    ),
     # Expressible and not yet expressed. `anyOf` over an input item would say
     # that a digest or a disposition has to be there.
     "fail-check-inputs-dataset-locator-only.json": (

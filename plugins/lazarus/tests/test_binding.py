@@ -610,6 +610,65 @@ class ShapeTests(unittest.TestCase):
 
 
 class VersionTwoVocabularyTests(unittest.TestCase):
+    def test_v2_release_uses_ariadnes_portable_identifier_contract(self):
+        invisible = ("\u200b", "\x00", "\ue000", "\u2060", "\u96ea")
+        for value in invisible:
+            cases = []
+
+            capture = sample_statement_v2()
+            capture["predicate"]["capture"]["tool"] = value
+            cases.append(("capture tool", capture))
+
+            command = sample_statement_v2()
+            command["predicate"]["capture"]["command"][0] = value
+            cases.append(("capture command", command))
+
+            component = sample_statement_v2()
+            component["predicate"]["fixture_subjects"][0]["name"] = value
+            cases.append(("component name", component))
+
+            current = sample_statement_v2()
+            current["predicate"]["deltas"]["current"]["name"] = value
+            cases.append(("current name", current))
+
+            subject = sample_statement_v2()
+            subject["subject"][0]["name"] = value
+            cases.append(("statement subject", subject))
+
+            claim = sample_statement_v2()
+            claim["predicate"]["claims"] = [
+                {
+                    "name": value,
+                    "subject": {"sha256": "a" * 64},
+                    "disposition": "passed",
+                }
+            ]
+            cases.append(("claim name", claim))
+
+            for field, statement in cases:
+                with self.subTest(field=field, value=repr(value)), self.assertRaises(
+                    (FormatError, IntegrityError)
+                ):
+                    bound_v2(statement=statement)
+
+        for path in (
+            "a/\u200b",
+            "a/\x00",
+            "a/\ue000",
+            "a/\u2060",
+            "a/\u96ea",
+            "1:header.json",
+            "\u96ea:header.json",
+        ):
+            statement = sample_statement_v2()
+            manifest = sample_manifest_v2()
+            statement["predicate"]["fixture_subjects"][0]["path"] = path
+            manifest["components"][0]["path"] = path
+            with self.subTest(path=repr(path)), self.assertRaises(
+                (FormatError, IntegrityError)
+            ):
+                bound_v2(statement=statement, manifest=manifest)
+
     def test_a_structured_transaction_hash_proof_claim_is_refused(self):
         statement = sample_statement_v2()
         statement["predicate"]["transaction_hash_proved"] = True

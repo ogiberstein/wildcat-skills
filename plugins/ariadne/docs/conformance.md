@@ -94,6 +94,7 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `pass-state-fixture-v2.json` | State fixture v2 | A manifest-v2 fixture with independent state and receipt roots, four evidence counts, a local-only replay boundary and no transaction-hash attribution |
 | `fail-gate2-state-fixture-v2-backslash-path.json` | State fixture v2 | A component path containing a backslash, which another host can interpret as a separator |
 | `fail-gate2-state-fixture-v2-dot-segment-path.json` | State fixture v2 | A non-canonical component path carrying a dot segment instead of one portable file name |
+| `fail-gate2-state-fixture-v2-invisible-segment-path.json` | State fixture v2 | A component path whose final segment is only U+200B, which names a POSIX file and displays nothing to a reader |
 | `fail-gate2-state-fixture-v2-whitespace-segment-path.json` | State fixture v2 | A component path with a whitespace-only segment, which names nothing a reader can see |
 | `fail-gate2-state-fixture-v2-malformed-receipts-root.json` | State fixture v2 | A malformed `receipts_root`; the zero receipt-proof count does not excuse a root that is present but invalid |
 | `fail-gate5-state-fixture-v2-empty-components-without-baseline.json` | State fixture v2 | An empty component-delta section beside an explicitly null baseline |
@@ -101,6 +102,7 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-gate5-state-fixture-v2-missing-current.json` | State fixture v2 | A comparison that omits the required current side |
 | `fail-gate5-state-fixture-v2-unnamed-current.json` | State fixture v2 | A version 2 first capture whose current side names no fixture |
 | `fail-check-evidence-state-fixture-v2-receipts-without-root.json` | State fixture v2 | A positive `receipt_trie_proved` count with no `receipts_root`; the state-proof rule remains independent |
+| `fail-check-subject-names-state-fixture-v2-duplicate-name.json` | State fixture v2 | Two in-toto subjects with one reader-visible name, leaving a name-based consumer unable to distinguish their digests |
 
 ## Running them
 

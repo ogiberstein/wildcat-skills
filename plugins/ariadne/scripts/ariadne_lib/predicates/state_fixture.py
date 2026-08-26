@@ -39,6 +39,7 @@ Solidity release predicate already carries as an integer.
 import ntpath
 import posixpath
 import re
+import unicodedata
 
 from .. import deltas as deltas_module
 from .. import digests
@@ -185,25 +186,87 @@ def usable_path(value):
     return ".." not in parts and "" not in parts[1:]
 
 
+def portable_name_v2(value):
+    """True when a v2 machine-read name contains one portable graphic.
+
+    JSON Schema regular expressions have no portable spelling for every Unicode
+    control, format, private-use and unassigned category.  Requiring one ASCII
+    graphic is exact in the schema and in Python, still permits surrounding
+    Unicode, and keeps a name made entirely of invisible code points from passing
+    one reader and failing another.
+    """
+    return isinstance(value, str) and any("!" <= char <= "~" for char in value)
+
+
+def subject_names_v2(statement):
+    """Refuse unreadable or normalisation-colliding v2 subject names.
+
+    Lazarus release binding identifies subjects for a reader as well as by
+    digest. Apply its name boundary to both the predicate's component list and
+    the in-toto subject list so a hand-authored statement cannot bypass the
+    capture adapter and reach a later release refusal.
+    """
+    groups = (
+        (
+            "fixture subject",
+            statement.predicate.get("fixture_subjects", [])
+            if isinstance(statement.predicate, dict)
+            else [],
+            lambda entry: entry.get("name") if isinstance(entry, dict) else None,
+        ),
+        ("statement subject", statement.subjects, lambda entry: entry.name),
+    )
+    faults = []
+    for label, entries, name_of in groups:
+        if not isinstance(entries, list):
+            continue
+        seen = set()
+        for index, entry in enumerate(entries):
+            name = name_of(entry)
+            if not portable_name_v2(name):
+                faults.append("%s %d has no portable name" % (label, index + 1))
+                continue
+            settled = unicodedata.normalize("NFC", name)
+            if settled in seen:
+                faults.append(
+                    "%s %d repeats a name after Unicode normalisation"
+                    % (label, index + 1)
+                )
+            seen.add(settled)
+    return Gate(
+        None,
+        "subject-names",
+        not faults,
+        "; ".join(faults) if faults else "subject names are portable and unique",
+    )
+
+
 def usable_path_v2(value):
     """The portable component path published by the v2 schema.
 
     Version 1 retains its historical POSIX backslash behaviour. Version 2 is a
     new contract and refuses a backslash, which another host can interpret as a
-    separator, paths beyond its explicit schema ceiling, and a segment that is
-    only whitespace and therefore names nothing a reader can see.
+    separator, paths beyond its explicit schema ceiling, and a segment with no
+    portable graphic and therefore no cross-reader visible name.
     """
-    if not usable_path(value) or "\\" in value or len(value) > MAX_PATH:
+    if (
+        not usable_path(value)
+        or "\\" in value
+        or "\x00" in value
+        or len(value) > MAX_PATH
+    ):
         return False
     # `C:component.json` is drive-relative on Windows even though ntpath does
     # not call it absolute. Dot segments likewise give multiple spellings of
     # one component, and a trailing slash names a directory rather than a file.
-    # Every segment must also contain a non-whitespace character. Version 2 is
-    # the portable contract, so refuse these forms at this boundary.
+    # Every segment must also contain one printable ASCII graphic. Surrounding
+    # Unicode is retained, while a segment made only of control, format or
+    # private-use code points cannot look empty to one reader and named to
+    # another. Version 2 is the portable contract, so refuse these forms here.
     drive, _ = ntpath.splitdrive(value)
     parts = value.split("/")
     return not drive and all(
-        part not in ("", ".", "..") and bool(part.strip()) for part in parts
+        part not in ("", ".", "..") and portable_name_v2(part) for part in parts
     )
 
 
@@ -253,6 +316,7 @@ def _gate_2_environment(
     path_check=usable_path,
     max_subjects=None,
     strict_shape=False,
+    name_check=stated,
 ):
     """A block number is not a pin.
 
@@ -326,10 +390,12 @@ def _gate_2_environment(
                     % ", ".join(unknown)
                 )
         for field in ("tool", "tool_version"):
-            if not stated(capture.get(field)):
+            if not name_check(capture.get(field)):
                 faults.append("capture %s must name something" % field)
         command = capture.get("command")
-        if not isinstance(command, list) or not all(stated(word) for word in command):
+        if not isinstance(command, list) or not all(
+            name_check(word) for word in command
+        ):
             faults.append(
                 "capture command must be an argv of non-empty strings; a word "
                 "that is empty or only whitespace is not what ran"
@@ -379,7 +445,7 @@ def _gate_2_environment(
                         "%s carries fields this type does not define: %s"
                         % (label, ", ".join(unknown))
                     )
-            if not stated(entry["name"]):
+            if not name_check(entry["name"]):
                 faults.append("fixture subject %d has no name" % (index + 1))
             if not whole_number(entry["bytes"]) or not 0 <= entry["bytes"] <= MAX_BYTES:
                 faults.append(
@@ -422,7 +488,7 @@ def gate_2_environment(statement):
     return _gate_2_environment(statement, CHAIN_FIELDS)
 
 
-def section_faults(section, body, strict_shape=False):
+def section_faults(section, body, strict_shape=False, name_check=stated):
     """Gate 5 inside a section: a listed change names both of its sides."""
     faults = []
     unknown = sorted(set(body) - set(COMPONENT_KEYS))
@@ -438,7 +504,7 @@ def section_faults(section, body, strict_shape=False):
             continue
         if key not in BOTH_SIDED:
             for index, entry in enumerate(entries):
-                if not stated(entry):
+                if not name_check(entry):
                     faults.append(
                         "deltas %s.%s[%d] identifies no component"
                         % (section, key, index)
@@ -465,7 +531,7 @@ def section_faults(section, body, strict_shape=False):
                 )
                 continue
             for side in ("baseline", "current"):
-                if not stated(entry[side]):
+                if not name_check(entry[side]):
                     faults.append(
                         "deltas %s.%s[%d] %s identifies no component"
                         % (section, key, index, side)
@@ -474,7 +540,10 @@ def section_faults(section, body, strict_shape=False):
 
 
 def _gate_5_deltas(
-    statement, require_complete_shape=False, strict_shape=False
+    statement,
+    require_complete_shape=False,
+    strict_shape=False,
+    name_check=stated,
 ):
     """A comparison fails when either end cannot be identified exactly.
 
@@ -524,7 +593,12 @@ def _gate_5_deltas(
             faults.append("deltas %s must be an object" % section)
             continue
         faults.extend(
-            section_faults(section, deltas[section], strict_shape=strict_shape)
+            section_faults(
+                section,
+                deltas[section],
+                strict_shape=strict_shape,
+                name_check=name_check,
+            )
         )
 
     if strict_shape:
@@ -542,6 +616,13 @@ def _gate_5_deltas(
 
     if "current" in deltas:
         check_side(deltas.get("current"), "current", faults)
+        current = deltas.get("current")
+        if (
+            isinstance(current, dict)
+            and stated(current.get("name"))
+            and not name_check(current["name"])
+        ):
+            faults.append("delta current side has no portable name")
         if not faults and not statement.covers(deltas["current"]["digest"]):
             faults.append("delta current side is not a subject of this statement")
 
@@ -565,6 +646,13 @@ def _gate_5_deltas(
         )
 
     check_side(deltas.get("baseline"), "baseline", faults)
+    baseline = deltas.get("baseline")
+    if (
+        isinstance(baseline, dict)
+        and stated(baseline.get("name"))
+        and not name_check(baseline["name"])
+    ):
+        faults.append("delta baseline side has no portable name")
     if "current" not in deltas:
         faults.append("a comparison against a baseline names a current side")
     if faults:
@@ -790,8 +878,8 @@ def gate_fields(statement, strict_shape=False):
                 if not isinstance(claim, dict):
                     continue
                 label = "claim %d" % (index + 1)
-                if "name" not in claim or not isinstance(claim["name"], str):
-                    faults.append("%s name must be a string" % label)
+                if "name" not in claim or not portable_name_v2(claim["name"]):
+                    faults.append("%s name must contain a portable graphic" % label)
                 if "reason" in claim and not isinstance(claim["reason"], str):
                     faults.append("%s reason must be a string" % label)
                 if "detail" in claim and not isinstance(claim["detail"], dict):
@@ -835,16 +923,20 @@ class _StateFixtureV2(object):
 
     @staticmethod
     def check(statement):
-        return [
+        found = [
             _gate_2_environment(
                 statement,
                 CHAIN_FIELDS_V2,
                 path_check=usable_path_v2,
                 max_subjects=MAX_FIXTURE_SUBJECTS_V2,
                 strict_shape=True,
+                name_check=portable_name_v2,
             ),
             _gate_5_deltas(
-                statement, require_complete_shape=True, strict_shape=True
+                statement,
+                require_complete_shape=True,
+                strict_shape=True,
+                name_check=portable_name_v2,
             ),
             gate_fields(statement, strict_shape=True),
             _gate_evidence(
@@ -855,12 +947,23 @@ class _StateFixtureV2(object):
                     RECEIPT_PROVED: ("receipts_root", "receipts root"),
                 },
             ),
+            subject_names_v2(statement),
             _gate_replay(
                 statement,
                 REPLAY_REQUIRED + ("provider_independence_claim",),
                 REFUSALS_V2,
                 local_only=True,
             ),
+        ]
+        return [
+            Gate(
+                gate.number,
+                gate.name,
+                gate.passed,
+                "state-fixture/v2 %s check %s"
+                % (gate.name, "passed" if gate.passed else "failed"),
+            )
+            for gate in found
         ]
 
 

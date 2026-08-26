@@ -220,6 +220,42 @@ class ReceiptFixtureTests(SkipUnlessReceiptFixture):
             with self.assertRaisesRegex(capture.CaptureError, "fixture-relative"):
                 taken(fixture)
 
+    def test_manifest_v2_refuses_an_invisible_component_segment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = os.path.join(directory, "receipt-fixture")
+            shutil.copytree(RECEIPT_FIXTURE, fixture)
+            source = os.path.join(fixture, "plan.json")
+            os.mkdir(os.path.join(fixture, "a"))
+            invisible = "\u200b"
+            os.rename(source, os.path.join(fixture, "a", invisible))
+            path = os.path.join(fixture, "manifest.json")
+            manifest = read_json(path)
+            for component in manifest["components"]:
+                if component["path"] == "plan.json":
+                    component["path"] = "a/" + invisible
+            with open(path, "w") as handle:
+                json.dump(manifest, handle)
+            with self.assertRaisesRegex(capture.CaptureError, "fixture-relative"):
+                taken(fixture)
+
+    def test_manifest_v2_refuses_release_invisible_capture_identifiers(self):
+        invisible = ("\u200b", "\x00", "\ue000", "\u2060")
+        for value in invisible:
+            for field, overrides in (
+                ("capture tool", {"capture_tool": value}),
+                ("capture command", {"capture_command": [value]}),
+                ("fixture name", {"name": value}),
+            ):
+                with self.subTest(field=field, value=repr(value)):
+                    with self.assertRaisesRegex(
+                        capture.CaptureError, "portable graphic"
+                    ):
+                        taken(RECEIPT_FIXTURE, **overrides)
+
+    def test_manifest_v2_refuses_a_current_name_colliding_with_a_component(self):
+        with self.assertRaisesRegex(capture.CaptureError, "subject names"):
+            taken(RECEIPT_FIXTURE, name="header.json")
+
     def test_each_component_read_is_bounded_by_its_declared_size(self):
         manifest = read_json(os.path.join(RECEIPT_FIXTURE, "manifest.json"))
         by_path = {entry["path"]: entry for entry in manifest["components"]}
@@ -869,6 +905,15 @@ class ArgumentTests(SkipUnlessGoldfinch):
                 with self.assertRaises(capture.CaptureError) as caught:
                     taken(GOLDFINCH, previous=GOLDFINCH, previous_name=value)
                 self.assertIn("--previous-name", str(caught.exception))
+
+    def test_v1_retains_its_historical_nonblank_identifier_contract(self):
+        statement = taken(
+            GOLDFINCH,
+            name="\u200b",
+            capture_tool="\u200b",
+            capture_command=["\u200b"],
+        )
+        self.assertTrue(report_for(statement).ok)
 
     def test_a_fixture_that_is_not_a_directory_is_refused(self):
         with self.assertRaises(capture.CaptureError):
