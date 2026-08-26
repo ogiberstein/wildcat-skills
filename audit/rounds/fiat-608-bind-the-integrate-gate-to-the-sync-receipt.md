@@ -89,3 +89,19 @@ Elenchus verdict: null
 | -- | -- | -- | none | -- |
 
 Leads not pursued: none
+
+## Step 3, round 1 -- 2026-08-26T10:02:57Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: receipt-key-drift=reviewed; ledger-arithmetic=reviewed; version-propagation=reviewed; state-compat=reviewed; bootstrap-limit=reviewed; digest-pin-refresh=reviewed; test-cap=reviewed
+
+Not checked: Solidity (waived: no Solidity in scope; the change is one controller read path and its regression test); signed live-main composition and bounded integration revalidation (integrate phase).
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: one integration composition condition, not a product finding. Live origin/main at 5489863196006d8e8b45799d74b56208cac65e4d already carries different fiat-v5.25.1 and fiat-v5.26.1 rows. The product remains valid as fiat-v5.25.1 against starting base c4650f02a979e859ce36374779eac9cd70744288; the signed product-first Fiat sync owns the collision, must resolve issue 608 to the then-next generation, and must cover every affected path with green integration revalidation.
