@@ -52,11 +52,85 @@ class RpcTests(unittest.TestCase):
             with self.assertRaisesRegex(FormatError, "duplicate"):
                 client.request_many([("one", []), ("two", [])])
 
+    def test_response_container_matches_request_cardinality(self):
+        singleton_batch = b'[{"jsonrpc":"2.0","id":1,"result":"0x1"}]'
+        with FakeRpc(lambda *args: None, raw_response=singleton_batch) as server:
+            with self.assertRaisesRegex(FormatError, "single response"):
+                JsonRpcClient(server.url, limits()).call("eth_chainId", [])
+
+        singleton_object = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
+        with FakeRpc(lambda *args: None, raw_response=singleton_object) as server:
+            with self.assertRaisesRegex(FormatError, "batch response"):
+                JsonRpcClient(server.url, limits()).request_many(
+                    [("one", []), ("two", [])]
+                )
+
     def test_response_body_is_bounded_before_json_parsing(self):
         with FakeRpc(lambda *args: None, raw_response=b" " * 65) as server:
             client = JsonRpcClient(server.url, limits(max_component_bytes=64))
             with self.assertRaisesRegex(ResourceLimitError, "RPC response"):
                 client.call("large", [])
+
+    def test_elapsed_budget_is_checked_during_streamed_response(self):
+        body = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
+
+        class Clock:
+            now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        clock = Clock()
+
+        class DripResponse:
+            headers = {"Content-Length": str(len(body))}
+            bytes_returned = 0
+            read_calls = 0
+            read1_calls = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def read(self, size):
+                self.read_calls += 1
+                self.bytes_returned = len(body)
+                clock.now = 3.0
+                return body
+
+            def read1(self, size):
+                self.read1_calls += 1
+                clock.now += 1.1
+                chunk = body[self.bytes_returned : self.bytes_returned + 1]
+                self.bytes_returned += len(chunk)
+                return chunk
+
+        response = DripResponse()
+
+        class DripOpener:
+            def open(self, request, timeout):
+                return response
+
+        bounded = CaptureLimits(
+            {
+                "max_requests": 20,
+                "max_component_bytes": 4096,
+                "max_total_bytes": 16384,
+                "max_elapsed_seconds": 2,
+            },
+            clock=clock,
+        )
+        with self.assertRaisesRegex(ResourceLimitError, "seconds"):
+            JsonRpcClient(
+                "https://rpc.example",
+                bounded,
+                opener=DripOpener(),
+            ).call("eth_chainId", [])
+        self.assertEqual(response.read_calls, 0)
+        self.assertEqual(response.read1_calls, 2)
+        self.assertLess(response.bytes_returned, len(body))
 
     def test_declared_response_size_is_validated_before_reading(self):
         valid = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
@@ -81,6 +155,78 @@ class RpcTests(unittest.TestCase):
         ) as server:
             with self.assertRaisesRegex(RpcTransportError, "content length"):
                 JsonRpcClient(server.url, limits()).call("incomplete-length", [])
+
+    def test_ambiguous_http_response_framing_is_refused(self):
+        body = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
+        cases = (
+            (
+                "duplicate-length",
+                (("Content-Length", str(len(body))), ("Content-Length", str(len(body) + 7))),
+                body,
+            ),
+            (
+                "transfer-and-length",
+                (("Transfer-Encoding", "chunked"), ("Content-Length", str(len(body)))),
+                f"{len(body):x}\r\n".encode() + body + b"\r\n0\r\n\r\n",
+            ),
+            (
+                "duplicate-transfer",
+                (("Transfer-Encoding", "chunked"), ("Transfer-Encoding", "identity")),
+                f"{len(body):x}\r\n".encode() + body + b"\r\n0\r\n\r\n",
+            ),
+        )
+
+        for name, headers, wire_body in cases:
+            with self.subTest(framing=name):
+                class AmbiguousResponse(BaseHTTPRequestHandler):
+                    def do_POST(self):
+                        self.send_response(200)
+                        for header, value in headers:
+                            self.send_header(header, value)
+                        self.end_headers()
+                        self.wfile.write(wire_body)
+
+                    def log_message(self, format, *args):
+                        return
+
+                server = ThreadingHTTPServer(("127.0.0.1", 0), AmbiguousResponse)
+                thread = Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    url = f"http://127.0.0.1:{server.server_address[1]}"
+                    with self.assertRaisesRegex(RpcTransportError, "framing"):
+                        JsonRpcClient(url, limits()).call("eth_chainId", [])
+                finally:
+                    server.shutdown()
+                    server.server_close()
+                    thread.join()
+
+    def test_chunked_response_without_content_length_is_accepted(self):
+        body = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
+
+        class ChunkedResponse(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.send_response(200)
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+                self.wfile.write(
+                    f"{len(body):x}\r\n".encode() + body + b"\r\n0\r\n\r\n"
+                )
+
+            def log_message(self, format, *args):
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), ChunkedResponse)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_address[1]}"
+            result = JsonRpcClient(url, limits()).call("eth_chainId", [])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+        self.assertEqual(result, "0x1")
 
     def test_invalid_content_length_retains_no_provider_value(self):
         marker = "PRIVATE_CONTENT_LENGTH_SECRET"
@@ -114,6 +260,23 @@ class RpcTests(unittest.TestCase):
         self.assertIsNone(raised.__context__)
         surfaces = (str(raised), repr(raised), "".join(traceback.format_exception(raised)))
         self.assertTrue(all(marker not in surface for surface in surfaces))
+
+    def test_non_http_provider_scheme_is_refused_before_opening(self):
+        class ForbiddenOpener:
+            opened = False
+
+            def open(self, request, timeout):
+                self.opened = True
+                raise AssertionError("a non-HTTP handler was reached")
+
+        opener = ForbiddenOpener()
+        with self.assertRaisesRegex(RpcTransportError, "HTTP or HTTPS"):
+            JsonRpcClient(
+                "file:///tmp/local-rpc-response.json",
+                limits(),
+                opener=opener,
+            ).call("eth_chainId", [])
+        self.assertFalse(opener.opened)
 
     def test_incomplete_http_body_retains_no_provider_bytes(self):
         marker = b"PRIVATE_PARTIAL_BODY_SECRET"

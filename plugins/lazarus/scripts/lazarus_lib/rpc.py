@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from .canonical import dumps, loads
@@ -15,6 +16,9 @@ from .scrub import sanitised_rpc_error
 
 class RpcTransportError(LazarusError):
     """A safe provider transport or protocol failure."""
+
+
+RESPONSE_READ_CHUNK_BYTES = 64 * 1024
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -41,7 +45,7 @@ class JsonRpcClient:
         headers: Mapping[str, str] | None = None,
         opener: Any = None,
     ) -> None:
-        self._url = url
+        self._url = _http_rpc_url(url)
         self._limits = limits
         self._headers = {"Content-Type": "application/json"}
         self._headers.update(headers or {})
@@ -72,7 +76,12 @@ class JsonRpcClient:
         self._limits.before_request(len(requests))
         payload: Any = requests[0] if len(requests) == 1 else requests
         parsed = self._post(dumps(payload))
-        responses = parsed if isinstance(parsed, list) else [parsed]
+        is_batch = len(requests) > 1
+        if is_batch and not isinstance(parsed, list):
+            raise FormatError("provider JSON-RPC batch response must be an array")
+        if not is_batch and not isinstance(parsed, dict):
+            raise FormatError("provider JSON-RPC single response must be an object")
+        responses = parsed if is_batch else [parsed]
         by_id: dict[int, RpcOutcome] = {}
         for response in responses:
             if not isinstance(response, dict):
@@ -117,7 +126,7 @@ class JsonRpcClient:
                         raise ResourceLimitError(
                             "RPC response exceeds the plan capture byte limit"
                         )
-                raw = response.read(limit + 1)
+                raw = _read_response(response, limit, self._limits)
         except HTTPError as exc:
             try:
                 exc.close()
@@ -144,9 +153,17 @@ class JsonRpcClient:
 
 
 def _declared_content_length(headers: Mapping[str, str]) -> int | None:
-    declared_size = headers.get("Content-Length")
-    if declared_size is None:
+    lengths = _header_values(headers, "Content-Length")
+    transfers = _header_values(headers, "Transfer-Encoding")
+    if len(lengths) > 1 or len(transfers) > 1 or (lengths and transfers):
+        raise RpcTransportError("provider returned ambiguous response framing")
+    if transfers:
+        if not isinstance(transfers[0], str) or transfers[0].strip().lower() != "chunked":
+            raise RpcTransportError("provider returned an unsupported transfer encoding")
         return None
+    if not lengths:
+        return None
+    declared_size = lengths[0]
     invalid = False
     try:
         value = int(declared_size, 10)
@@ -156,3 +173,65 @@ def _declared_content_length(headers: Mapping[str, str]) -> int | None:
     if invalid:
         raise RpcTransportError("provider returned an invalid content length")
     return value
+
+
+def _read_response(response: Any, limit: int, limits: CaptureLimits) -> bytes:
+    """Read at most one byte beyond the cap while rechecking the deadline."""
+
+    read_one = getattr(response, "read1", None)
+    if not callable(read_one):
+        return response.read(limit + 1)
+    raw = bytearray()
+    while len(raw) <= limit:
+        remaining_seconds = limits.remaining_seconds()
+        _set_response_timeout(response, remaining_seconds)
+        chunk = read_one(
+            min(RESPONSE_READ_CHUNK_BYTES, limit + 1 - len(raw))
+        )
+        limits.check_time()
+        if not isinstance(chunk, bytes):
+            raise RpcTransportError("provider returned an invalid response body")
+        if not chunk:
+            break
+        raw.extend(chunk)
+    return bytes(raw)
+
+
+def _set_response_timeout(response: Any, timeout: float) -> None:
+    """Refresh urllib's socket timeout to the remaining absolute budget."""
+
+    handle = getattr(response, "fp", None)
+    raw = getattr(handle, "raw", None)
+    sock = getattr(raw, "_sock", None)
+    settimeout = getattr(sock, "settimeout", None)
+    if callable(settimeout):
+        settimeout(timeout)
+
+
+def _header_values(headers: Mapping[str, str], name: str) -> list[Any]:
+    get_all = getattr(headers, "get_all", None)
+    if callable(get_all):
+        values = get_all(name)
+        if values is not None:
+            return list(values)
+    value = headers.get(name)
+    return [] if value is None else [value]
+
+
+def _http_rpc_url(url: str) -> str:
+    """Keep urllib's non-network handlers outside the capture boundary."""
+
+    valid = False
+    try:
+        if isinstance(url, str):
+            parsed = urlsplit(url)
+            valid = (
+                parsed.scheme.lower() in {"http", "https"}
+                and bool(parsed.netloc)
+                and parsed.hostname is not None
+            )
+    except Exception:
+        valid = False
+    if not valid:
+        raise RpcTransportError("provider URL must use HTTP or HTTPS")
+    return url

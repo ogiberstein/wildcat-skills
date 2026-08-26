@@ -592,8 +592,9 @@ def _set_terminal_safe_identities(
     )
 
 
-def _safe_terminal_text(value: str, secrets: set[str]) -> str:
-    return redact_text(value, secrets=secrets)
+def _safe_terminal_text(value: str, secrets: set[str]) -> str | None:
+    redacted = redact_text(value, secrets=secrets)
+    return value if redacted == value else None
 
 
 def _set_terminal_stage(

@@ -23,7 +23,11 @@ from lazarus_lib.capture import (
 from lazarus_lib.errors import FormatError, IntegrityError, PathError, ResourceLimitError
 from lazarus_lib.records import read_anchor_records, read_rpc_records
 from lazarus_lib.rpc import JsonRpcClient
-from lazarus_lib.scrub import assert_no_secrets as scan_fixture_secrets
+from lazarus_lib.scrub import (
+    assert_no_secret_bytes,
+    assert_no_secrets as scan_fixture_secrets,
+    provider_secret_union,
+)
 from lazarus_lib.verifier import verify_fixture
 
 from . import support
@@ -1126,7 +1130,7 @@ class ReceiptCaptureTests(unittest.TestCase):
     def test_failure_terminal_redacts_a_provider_secret_identity_collision(self):
         material = self.material()
         source_id = material["plan"]["anchor_sources"][0]["source_id"]
-        root_secret = material["header"]["rpc_result"]["receiptsRoot"]
+        identity_secret = material["plan"]["block"]["hash"]
         fallback = receipt_material_dispatch(material)
 
         def dispatch(method, params, server):
@@ -1144,10 +1148,14 @@ class ReceiptCaptureTests(unittest.TestCase):
                 FakeRpc(receipt_material_dispatch(material))
             )
             terminal_context = {}
+            primary_url = f"{primary.url}?redacted={identity_secret}"
+            secrets = provider_secret_union(
+                ((primary_url, None), (anchor.url, None))
+            )
             with self.assertRaisesRegex(IntegrityError, "not an array") as raised:
                 capture_fixture(
                     plan_path,
-                    f"{primary.url}?token={root_secret}",
+                    primary_url,
                     output,
                     anchor_rpc_env=(f"{source_id}=ANCHOR_RPC",),
                     environment={"ANCHOR_RPC": anchor.url},
@@ -1158,7 +1166,16 @@ class ReceiptCaptureTests(unittest.TestCase):
                 terminal_context, raised.exception
             )
             self.assertIsNotNone(event)
-            self.assertNotIn(root_secret.encode(), dumps(event))
+            try:
+                assert_no_secret_bytes(
+                    dumps(event), secrets, label="capture failure terminal result"
+                )
+            except IntegrityError as error:
+                secret_scan_error = error
+            else:
+                secret_scan_error = None
+            self.assertIsNone(secret_scan_error)
+            self.assertIsNone(event["block"]["hash"])
             self.assert_no_capture_artifacts(root, output)
 
     def test_provider_object_order_does_not_change_any_fixture_byte(self):
