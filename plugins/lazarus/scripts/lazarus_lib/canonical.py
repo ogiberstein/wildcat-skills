@@ -25,13 +25,13 @@ def _reject_duplicate_pairs(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise FormatError(f"duplicate JSON key: {key}")
+            raise FormatError("duplicate JSON key")
         result[key] = value
     return result
 
 
 def _reject_number(value: str) -> None:
-    raise FormatError(f"non-integer JSON number is not allowed: {value}")
+    raise FormatError("non-integer JSON number is not allowed")
 
 
 def _check_shape(value: Any, *, depth: int = 0) -> None:
@@ -61,16 +61,23 @@ def _check_shape(value: Any, *, depth: int = 0) -> None:
 def loads(data: bytes | str, *, max_bytes: int = MAX_JSON_BYTES) -> Any:
     """Parse strict UTF-8 JSON, rejecting duplicate keys and non-integers."""
 
+    encoding_failure = False
     try:
         raw = data.encode("utf-8") if isinstance(data, str) else data
-    except UnicodeEncodeError as exc:
-        raise FormatError("JSON input cannot be encoded as UTF-8") from exc
+    except UnicodeEncodeError:
+        encoding_failure = True
+    if encoding_failure:
+        raise FormatError("JSON input cannot be encoded as UTF-8")
     if len(raw) > max_bytes:
         raise ResourceLimitError(f"JSON input exceeds {max_bytes} bytes")
+    decoding_failure = False
     try:
         text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise FormatError("JSON input is not UTF-8") from exc
+    except UnicodeDecodeError:
+        decoding_failure = True
+    if decoding_failure:
+        raise FormatError("JSON input is not UTF-8")
+    parse_failure = None
     try:
         value = json.loads(
             text,
@@ -80,8 +87,12 @@ def loads(data: bytes | str, *, max_bytes: int = MAX_JSON_BYTES) -> Any:
         )
     except FormatError:
         raise
-    except (json.JSONDecodeError, RecursionError, ValueError) as exc:
-        raise FormatError(f"invalid JSON: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        parse_failure = f"invalid JSON at line {exc.lineno} column {exc.colno}"
+    except (RecursionError, ValueError):
+        parse_failure = "invalid JSON"
+    if parse_failure is not None:
+        raise FormatError(parse_failure)
     _check_shape(value)
     return value
 

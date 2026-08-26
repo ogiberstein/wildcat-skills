@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import traceback
 import unittest
 
 from lazarus_lib.canonical import dumps
@@ -190,6 +191,39 @@ class RecordTests(unittest.TestCase):
                 read_receipt_witness(link)
             with self.assertRaisesRegex(FormatError, "not a regular file"):
                 read_receipt_witness(root)
+
+    def test_receipt_witness_parse_refusals_are_value_free_and_bounded(self):
+        prefix = "PRIVATE_PROVIDER_VALUE_"
+        for marker in (prefix + "SECRET", prefix + "x" * 200_000):
+            cases = (
+                f'{{"{marker}":0,"{marker}":1}}'.encode("utf-8"),
+                f'{{"value":"{marker}'.encode("utf-8"),
+                b'{"value":"' + marker.encode("utf-8") + b'\xff"}',
+            )
+            for source in cases:
+                with self.subTest(size=len(marker), source_bytes=len(source)), self.assertRaises(
+                    FormatError
+                ) as raised:
+                    loads_receipt_witness(source)
+                error = raised.exception
+                surfaces = {
+                    "message": str(error),
+                    "args": repr(error.args),
+                    "repr": repr(error),
+                    "cause": repr(error.__cause__),
+                    "context": repr(error.__context__),
+                    "traceback": "".join(
+                        traceback.format_exception(
+                            type(error), error, error.__traceback__
+                        )
+                    ),
+                }
+                self.assertIsNone(error.__cause__)
+                self.assertIsNone(error.__context__)
+                for name, rendered in surfaces.items():
+                    with self.subTest(surface=name):
+                        self.assertNotIn(prefix, rendered)
+                        self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
 
     def test_cli_validates_one_receipt_witness(self):
         with tempfile.TemporaryDirectory() as directory:
