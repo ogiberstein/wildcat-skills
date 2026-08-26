@@ -13,7 +13,7 @@ REPO_ROOT = PLUGIN_ROOT.parents[1]
 COMMAND = PLUGIN_ROOT / "scripts" / "alexandria.py"
 COMPOUND_COMMAND = PLUGIN_ROOT / "scripts" / "compound_v3_phase0.py"
 SKILL = PLUGIN_ROOT / "skills" / "alexandria" / "SKILL.md"
-PLANNED = ("ingest", "verify", "derive", "index", "query")
+PLANNED = ("ingest", "verify", "statement", "derive", "index", "query")
 
 
 def run(*args):
@@ -60,7 +60,14 @@ class AlexandriaScaffoldTests(unittest.TestCase):
                 self.assertNotIn("not implemented", result.stderr)
 
     def test_implemented_operations_require_their_inputs(self):
-        for command in ("ingest", "verify", "derive", "index", "query"):
+        for command in (
+            "ingest",
+            "verify",
+            "statement",
+            "derive",
+            "index",
+            "query",
+        ):
             with self.subTest(command=command):
                 result = run(command)
                 self.assertEqual(result.returncode, 2)
@@ -83,6 +90,7 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match.group(1).strip(), SKILL.parent.name)
         self.assertIn("Raw release and registered", text)
+        self.assertIn("unsigned in-toto release statements", text)
 
     def test_package_metadata_agrees_and_points_at_the_skill(self):
         manifests = []
@@ -101,7 +109,7 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         )
         self.assertEqual([item["name"] for item in manifests], ["alexandria"] * 2)
         self.assertEqual([item["version"] for item in manifests], [package] * 2)
-        self.assertEqual(package, "0.2.1")
+        self.assertEqual(package, "0.3.0")
         self.assertEqual([item["skills"] for item in manifests], ["./skills/"] * 2)
         self.assertTrue(SKILL.is_file())
 
@@ -129,10 +137,31 @@ class AlexandriaScaffoldTests(unittest.TestCase):
     def test_design_records_are_committed(self):
         study = (PLUGIN_ROOT / "docs" / "study.md").read_text(encoding="utf-8")
         runbook = (PLUGIN_ROOT / "docs" / "runbook.md").read_text(encoding="utf-8")
+        statement_study = (
+            PLUGIN_ROOT / "docs" / "release-statement-study.md"
+        ).read_text(encoding="utf-8")
+        statement_runbook = (
+            PLUGIN_ROOT / "docs" / "release-statement-runbook.md"
+        ).read_text(encoding="utf-8")
+        statement_document = (
+            PLUGIN_ROOT / "docs" / "release-statements.md"
+        ).read_text(encoding="utf-8")
         self.assertTrue(study.startswith("# Alexandria study\n"))
         self.assertTrue(runbook.startswith("# Alexandria implementation runbook\n"))
         self.assertEqual(runbook.count("## Step "), 5)
         self.assertIn("83fef6634a560860b930a532861dbfff8cbb3442", runbook)
+        self.assertTrue(
+            statement_study.startswith("# Alexandria release-statement study\n")
+        )
+        self.assertTrue(
+            statement_runbook.startswith(
+                "# Runbook: emit an Ariadne-ready Alexandria release statement\n"
+            )
+        )
+        self.assertIn("### Amendment -- 2026-08-26", statement_runbook)
+        self.assertTrue(
+            statement_document.startswith("# Alexandria release statements\n")
+        )
 
     def test_scaffold_directories_and_licence_are_present(self):
         for relative in (
