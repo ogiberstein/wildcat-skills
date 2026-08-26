@@ -5,6 +5,7 @@ rule no other predicate has: a count of proved records is refused when there was
 nothing to prove them against.
 """
 
+import copy
 import hashlib
 import json
 import os
@@ -22,6 +23,7 @@ ELSEWHERE = {"sha256": hashlib.sha256(b"some other fixture").hexdigest()}
 PARAMETERS = {"sha256": hashlib.sha256(b"parameters").hexdigest()}
 BLOCK_HASH = "0x" + hashlib.sha256(b"block").hexdigest()
 STATE_ROOT = "0x" + hashlib.sha256(b"root").hexdigest()
+RECEIPTS_ROOT = "0x" + hashlib.sha256(b"receipts").hexdigest()
 
 LAZARUS_MANIFEST_SCHEMA = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -90,6 +92,45 @@ def built(body, subject=None):
             "predicate": body,
         }
     )
+
+
+def predicate_v2(**overrides):
+    out = copy.deepcopy(predicate())
+    out["chain"]["receipts_root"] = RECEIPTS_ROOT
+    out["evidence"]["receipt_trie_proved"] = 2
+    out["replay"]["provider_independence_claim"] = False
+    out["deltas"]["current"] = {"name": "fixture-v2", "digest": HEADER}
+    out.update(overrides)
+    return out
+
+
+def built_v2(body, subject=None):
+    return statement.Statement.from_dict(
+        {
+            "_type": statement.STATEMENT_TYPE,
+            "subject": subject
+            or [
+                {"name": "header.json", "digest": HEADER},
+                {"name": "proofs.jsonl", "digest": PROOFS},
+            ],
+            "predicateType": fixture.V2.TYPE,
+            "predicate": body,
+        }
+    )
+
+
+def gate_v2(number, body, subject=None):
+    for found in fixture.V2.check(built_v2(body, subject)):
+        if found.number == number:
+            return found
+    raise AssertionError("no gate %r" % number)
+
+
+def named_v2(name, body, subject=None):
+    for found in fixture.V2.check(built_v2(body, subject)):
+        if found.name == name:
+            return found
+    raise AssertionError("no check named %r" % name)
 
 
 def gate(number, body, subject=None):
@@ -820,6 +861,93 @@ class LazarusAgreementTests(unittest.TestCase):
         for name in fixture.EVIDENCE_CLASSES:
             with self.subTest(evidence_class=name):
                 self.assertEqual(counts[name]["maximum"], fixture.MAX_COUNT)
+
+
+class VersionTwoTests(unittest.TestCase):
+    def test_the_complete_v2_predicate_passes_its_checks(self):
+        failed = [
+            gate
+            for gate in fixture.V2.check(built_v2(predicate_v2()))
+            if not gate.passed
+        ]
+        self.assertEqual(failed, [], [gate.line() for gate in failed])
+
+    def test_state_and_receipt_authority_are_independent(self):
+        state_only = predicate_v2()
+        state_only["evidence"]["receipt_trie_proved"] = 0
+        del state_only["chain"]["receipts_root"]
+        self.assertTrue(named_v2("evidence", state_only).passed)
+
+        receipts_only = predicate_v2()
+        receipts_only["evidence"]["proof_backed"] = 0
+        del receipts_only["chain"]["state_root"]
+        self.assertTrue(named_v2("evidence", receipts_only).passed)
+
+    def test_each_positive_count_needs_its_own_root(self):
+        for evidence_class, root in (
+            ("proof_backed", "state_root"),
+            ("receipt_trie_proved", "receipts_root"),
+        ):
+            body = predicate_v2()
+            del body["chain"][root]
+            found = named_v2("evidence", body)
+            with self.subTest(evidence=evidence_class, root=root):
+                self.assertFalse(found.passed)
+                self.assertIn(evidence_class, found.detail)
+                self.assertIn(root.replace("_", " "), found.detail)
+
+    def test_zero_counts_need_neither_root(self):
+        body = predicate_v2()
+        body["evidence"]["proof_backed"] = 0
+        body["evidence"]["receipt_trie_proved"] = 0
+        del body["chain"]["state_root"]
+        del body["chain"]["receipts_root"]
+        self.assertTrue(gate_v2(2, body).passed)
+        self.assertTrue(named_v2("evidence", body).passed)
+
+    def test_boolean_or_missing_receipt_counts_are_refused(self):
+        for value in (None, True):
+            body = predicate_v2()
+            if value is None:
+                del body["evidence"]["receipt_trie_proved"]
+            else:
+                body["evidence"]["receipt_trie_proved"] = value
+            with self.subTest(value=value):
+                self.assertFalse(named_v2("evidence", body).passed)
+
+    def test_malformed_or_zero_roots_are_refused_when_present(self):
+        for root in ("state_root", "receipts_root"):
+            for value in ("0x1234", "0x" + "0" * 64):
+                body = predicate_v2()
+                body["chain"][root] = value
+                with self.subTest(root=root, value=value):
+                    self.assertFalse(gate_v2(2, body).passed)
+
+    def test_v2_records_no_network_chain_or_provider_claim(self):
+        for field in fixture.V2.REPLAY_REQUIRED:
+            body = predicate_v2()
+            body["replay"][field] = True
+            with self.subTest(field=field):
+                self.assertFalse(named_v2("replay", body).passed)
+
+    def test_v2_replay_carries_no_executable_command(self):
+        body = predicate_v2()
+        body["commands"] = [
+            {
+                "name": "network",
+                "argv": ["curl", "https://example.invalid"],
+                "determinism": "exact",
+            }
+        ]
+        found = named_v2("replay", body)
+        self.assertFalse(found.passed)
+        self.assertIn("local-file", found.detail)
+
+    def test_transaction_hashes_are_outside_the_v2_predicate_shape(self):
+        body = predicate_v2(transaction_hash="0x" + "99" * 32)
+        found = named_v2("predicate-fields", body)
+        self.assertFalse(found.passed)
+        self.assertIn("transaction_hash", found.detail)
 
 
 if __name__ == "__main__":

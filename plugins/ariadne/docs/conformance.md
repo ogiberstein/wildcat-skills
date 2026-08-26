@@ -15,11 +15,11 @@ nowhere on purpose. A verifier meeting it should check the core gates, report
 that gates 2 and 5 belong to a predicate it does not know, and not describe the
 run as clean.
 
-The `solidity`, `dataset` and `state-fixture` fixtures use the three types this
-build registers, so they exercise each predicate's own gates as well as the core
-ones. Gates 2 and 5 mean different things for a state fixture than for a dataset
-release or a contract release, so each type carries its own breaching fixtures for
-them.
+The `solidity`, `dataset` and versioned `state-fixture` fixtures use the four types
+this build registers, so they exercise each predicate's own gates as well as the
+core ones. Gates 2 and 5 mean different things for a state fixture than for a
+dataset release or a contract release, so each type carries its own breaching
+fixtures for them.
 
 ## The naming convention
 
@@ -44,53 +44,57 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 
 ## What is here
 
-| Fixture | What it shows |
-| --- | --- |
-| `pass-minimal.json` | The smallest statement that holds: one subject, an empty claims block and an empty commands block. Empty is a record; absent is not |
-| `pass-absence-recorded.json` | A passed claim, a skipped one with its reason, a timed-out one with its reason, and both determinism classes |
-| `pass-in-an-unsigned-envelope.json` | The same shape inside a DSSE envelope with no signatures, verified and reported unsigned |
-| `fail-gate1-claim-names-a-branch.json` | A claim naming `refs/heads/main` instead of a digest |
-| `fail-gate1-digest-not-in-subject.json` | A claim naming a digest the statement does not cover |
-| `fail-gate3-no-claims-block.json` | A predicate with no claims block at all |
-| `fail-gate3-no-disposition.json` | A claim that does not say what happened to it |
-| `fail-gate3-skipped-without-reason.json` | Work marked skipped with no reason given |
-| `fail-gate4-conclusion-key.json` | A verdict smuggled in as `summary.verdict` |
-| `fail-gate6-no-determinism.json` | A recorded command with no determinism class |
-| `fail-gate6-exact-without-output-digest.json` | An exact command with nothing for a replay to compare against |
-| `fail-gate7-self-asserted-verification.json` | A payload asserting inside the signed bytes that it was verified |
-| `pass-solidity-release.json` | A complete Solidity release: a skipped fuzz campaign, an audit naming its revision, an unconfirmed deployment |
-| `pass-solidity-first-release.json` | The same shape with a null baseline and a reason |
-| `fail-gate2-compiler-version-only.json` | A build described by a compiler version and nothing else |
-| `fail-gate2-source-without-commit.json` | A source record with a tree digest and no commit |
-| `fail-gate5-baseline-without-digest.json` | A comparison against a release named but not identified |
-| `fail-gate5-content-against-null-baseline.json` | Added functions listed against a baseline the statement says does not exist |
-| `fail-gate5-solidity-first-release-unnamed-current.json` | A first release carrying a current side with no name and a digest the statement does not cover, which gate 5 skipped before this fixture existed |
-| `fail-check-audits-solidity-without-covered-revision.json` | An audit report attached to a release without naming the revision it covered |
-| `fail-check-deployments-solidity-without-confirmation.json` | A deployment address printed without saying whether anything confirmed it against a chain |
-| `fail-check-deployments-solidity-confirmation-is-not-a-boolean.json` | `"null"` where the confirmation belongs. The field records a decision, and a value read for truthiness turned a deployment nobody checked into one the report counted as confirmed |
-| `pass-dataset-release.json` | A complete dataset release: two released files with record counts, one input digested and one recorded absent with its reason, a coverage interval with a gap, and a comparison against the previous release |
-| `pass-dataset-first-release.json` | The same shape with a null baseline, its reason, and an empty gap list that asserts the producer looked |
-| `fail-gate2-dataset-producer-without-parameters.json` | A producer named with a version but no digest over the parameters it was given |
-| `fail-gate5-dataset-baseline-without-digest.json` | A dataset comparison against a release named but not identified |
-| `fail-check-coverage-dataset-no-gaps-block.json` | A coverage interval with no gaps block, which reads as complete without saying so |
-| `fail-check-inputs-dataset-locator-only.json` | An input with a locator and neither a digest nor a reason for not having one |
-| `fail-check-predicate-fields-dataset-unknown-field.json` | A dataset predicate carrying a field the type does not define |
-| `pass-state-fixture.json` | A Lazarus state fixture published as a statement: the pinned block with its state root, four components, the three evidence counts, and a replay that reaches no network. The digests, byte counts and counts are the ones Lazarus wrote for `plugins/lazarus/examples/goldfinch-v0` |
-| `fail-gate2-state-fixture-hex-block-number.json` | A block number written as the hex quantity string a Lazarus manifest carries, which is right on the wire and orders as text |
-| `fail-gate5-state-fixture-unnamed-current.json` | A first capture whose current side has no name and a digest the statement does not cover |
-| `fail-check-evidence-state-fixture-proved-without-a-state-root.json` | Two proof-backed records counted with no state root to have proved them against. Gate 2 passes, which is the point: the rule reaches statements the pin check accepts |
-| `fail-check-replay-state-fixture-reaches-network.json` | A replay recorded as reaching a network, which is not the boundary a fixture exists to be |
-| `pass-state-fixture-proved-nothing.json` | A capture that recorded a header and some responses and proved nothing. It carries no state root, because there was nothing to prove against, and says so with a zero proof-backed count and a skipped claim rather than leaving the field quietly absent |
-| `fail-gate2-state-fixture-no-block-hash.json` | A pin with a chain and a height and no hash, which does not say which of two blocks at that height |
-| `fail-gate2-state-fixture-component-not-a-subject.json` | A component the predicate describes and the statement does not cover |
-| `fail-gate5-state-fixture-baseline-without-digest.json` | A comparison against an earlier capture named but not identified |
-| `fail-check-evidence-state-fixture-class-absent.json` | An evidence class left out, which reads as nothing of that kind having been captured rather than as nobody having said |
-| `fail-check-evidence-state-fixture-count-is-a-boolean.json` | A count of `true`, which is an integer in Python and would read as one record |
-| `fail-check-replay-state-fixture-canonical-chain-claim.json` | A fixture claiming its pinned block is on the canonical chain, which nothing in either tool establishes |
-| `fail-gate2-state-fixture-unset-block-hash.json` | The all-zero hash, which matches the shape and identifies nothing |
-| `fail-gate2-state-fixture-component-path-leaves-the-fixture.json` | A component path with a `..` segment, which resolves outside the fixture a reader has |
-| `fail-check-evidence-state-fixture-count-over-the-ceiling.json` | A count above the ceiling Lazarus's own manifest schema sets |
-| `fail-check-replay-state-fixture-zero-is-not-false.json` | `0` where `false` belongs. The field records a decision and `0` is not in its vocabulary |
+| Fixture | Contract | What it shows |
+| --- | --- | --- |
+| `pass-minimal.json` | Core | The smallest statement that holds: one subject, an empty claims block and an empty commands block. Empty is a record; absent is not |
+| `pass-absence-recorded.json` | Core | A passed claim, a skipped one with its reason, a timed-out one with its reason, and both determinism classes |
+| `pass-in-an-unsigned-envelope.json` | Core | The same shape inside a DSSE envelope with no signatures, verified and reported unsigned |
+| `fail-gate1-claim-names-a-branch.json` | Core | A claim naming `refs/heads/main` instead of a digest |
+| `fail-gate1-digest-not-in-subject.json` | Core | A claim naming a digest the statement does not cover |
+| `fail-gate3-no-claims-block.json` | Core | A predicate with no claims block at all |
+| `fail-gate3-no-disposition.json` | Core | A claim that does not say what happened to it |
+| `fail-gate3-skipped-without-reason.json` | Core | Work marked skipped with no reason given |
+| `fail-gate4-conclusion-key.json` | Core | A verdict smuggled in as `summary.verdict` |
+| `fail-gate6-no-determinism.json` | Core | A recorded command with no determinism class |
+| `fail-gate6-exact-without-output-digest.json` | Core | An exact command with nothing for a replay to compare against |
+| `fail-gate7-self-asserted-verification.json` | Core | A payload asserting inside the signed bytes that it was verified |
+| `pass-solidity-release.json` | Solidity v1 | A complete Solidity release: a skipped fuzz campaign, an audit naming its revision, an unconfirmed deployment |
+| `pass-solidity-first-release.json` | Solidity v1 | The same shape with a null baseline and a reason |
+| `fail-gate2-compiler-version-only.json` | Solidity v1 | A build described by a compiler version and nothing else |
+| `fail-gate2-source-without-commit.json` | Solidity v1 | A source record with a tree digest and no commit |
+| `fail-gate5-baseline-without-digest.json` | Solidity v1 | A comparison against a release named but not identified |
+| `fail-gate5-content-against-null-baseline.json` | Solidity v1 | Added functions listed against a baseline the statement says does not exist |
+| `fail-gate5-solidity-first-release-unnamed-current.json` | Solidity v1 | A first release carrying a current side with no name and a digest the statement does not cover, which gate 5 skipped before this fixture existed |
+| `fail-check-audits-solidity-without-covered-revision.json` | Solidity v1 | An audit report attached to a release without naming the revision it covered |
+| `fail-check-deployments-solidity-without-confirmation.json` | Solidity v1 | A deployment address printed without saying whether anything confirmed it against a chain |
+| `fail-check-deployments-solidity-confirmation-is-not-a-boolean.json` | Solidity v1 | `"null"` where the confirmation belongs. The field records a decision, and a value read for truthiness turned a deployment nobody checked into one the report counted as confirmed |
+| `pass-dataset-release.json` | Dataset v1 | A complete dataset release: two released files with record counts, one input digested and one recorded absent with its reason, a coverage interval with a gap, and a comparison against the previous release |
+| `pass-dataset-first-release.json` | Dataset v1 | The same shape with a null baseline, its reason, and an empty gap list that asserts the producer looked |
+| `fail-gate2-dataset-producer-without-parameters.json` | Dataset v1 | A producer named with a version but no digest over the parameters it was given |
+| `fail-gate5-dataset-baseline-without-digest.json` | Dataset v1 | A dataset comparison against a release named but not identified |
+| `fail-check-coverage-dataset-no-gaps-block.json` | Dataset v1 | A coverage interval with no gaps block, which reads as complete without saying so |
+| `fail-check-inputs-dataset-locator-only.json` | Dataset v1 | An input with a locator and neither a digest nor a reason for not having one |
+| `fail-check-predicate-fields-dataset-unknown-field.json` | Dataset v1 | A dataset predicate carrying a field the type does not define |
+| `pass-state-fixture.json` | State fixture v1 | A Lazarus state fixture published as a statement: the pinned block with its state root, four components, the three evidence counts, and a replay that reaches no network. The digests, byte counts and counts are the ones Lazarus wrote for `plugins/lazarus/examples/goldfinch-v0` |
+| `fail-gate2-state-fixture-hex-block-number.json` | State fixture v1 | A block number written as the hex quantity string a Lazarus manifest carries, which is right on the wire and orders as text |
+| `fail-gate5-state-fixture-unnamed-current.json` | State fixture v1 | A first capture whose current side has no name and a digest the statement does not cover |
+| `fail-check-evidence-state-fixture-proved-without-a-state-root.json` | State fixture v1 | Two proof-backed records counted with no state root to have proved them against. Gate 2 passes, which is the point: the rule reaches statements the pin check accepts |
+| `fail-check-replay-state-fixture-reaches-network.json` | State fixture v1 | A replay recorded as reaching a network, which is not the boundary a fixture exists to be |
+| `pass-state-fixture-proved-nothing.json` | State fixture v1 | A capture that recorded a header and some responses and proved nothing. It carries no state root, because there was nothing to prove against, and says so with a zero proof-backed count and a skipped claim rather than leaving the field quietly absent |
+| `fail-gate2-state-fixture-no-block-hash.json` | State fixture v1 | A pin with a chain and a height and no hash, which does not say which of two blocks at that height |
+| `fail-gate2-state-fixture-component-not-a-subject.json` | State fixture v1 | A component the predicate describes and the statement does not cover |
+| `fail-gate5-state-fixture-baseline-without-digest.json` | State fixture v1 | A comparison against an earlier capture named but not identified |
+| `fail-check-evidence-state-fixture-class-absent.json` | State fixture v1 | An evidence class left out, which reads as nothing of that kind having been captured rather than as nobody having said |
+| `fail-check-evidence-state-fixture-count-is-a-boolean.json` | State fixture v1 | A count of `true`, which is an integer in Python and would read as one record |
+| `fail-check-replay-state-fixture-canonical-chain-claim.json` | State fixture v1 | A fixture claiming its pinned block is on the canonical chain, which nothing in either tool establishes |
+| `fail-gate2-state-fixture-unset-block-hash.json` | State fixture v1 | The all-zero hash, which matches the shape and identifies nothing |
+| `fail-gate2-state-fixture-component-path-leaves-the-fixture.json` | State fixture v1 | A component path with a `..` segment, which resolves outside the fixture a reader has |
+| `fail-check-evidence-state-fixture-count-over-the-ceiling.json` | State fixture v1 | A count above the ceiling Lazarus's own manifest schema sets |
+| `fail-check-replay-state-fixture-zero-is-not-false.json` | State fixture v1 | `0` where `false` belongs. The field records a decision and `0` is not in its vocabulary |
+| `pass-state-fixture-v2.json` | State fixture v2 | A manifest-v2 fixture with independent state and receipt roots, four evidence counts, a local-only replay boundary and no transaction-hash attribution |
+| `fail-gate2-state-fixture-v2-malformed-receipts-root.json` | State fixture v2 | A malformed `receipts_root`; the zero receipt-proof count does not excuse a root that is present but invalid |
+| `fail-gate5-state-fixture-v2-unnamed-current.json` | State fixture v2 | A version 2 first capture whose current side names no fixture |
+| `fail-check-evidence-state-fixture-v2-receipts-without-root.json` | State fixture v2 | A positive `receipt_trie_proved` count with no `receipts_root`; the state-proof rule remains independent |
 
 ## Running them
 
@@ -115,9 +119,9 @@ statement does not cover, a path that resolves outside the tree, a field the typ
 not define, and each numbered gate and named check breached on its own.
 
 It has not been shown every field. The state-fixture predicate refuses far more
-distinct things than the fourteen its breaching fixtures cover, and the fourteen were
-chosen so that each family appears and the rules distinctive to the type appear on
-their own: the unset hash, the count ceiling taken from Lazarus, `0` in place of
+distinct things than the fourteen its breaching fixtures cover. The fourteen cover
+every family. Rules distinctive to the type appear on their own: the unset hash,
+the count ceiling taken from Lazarus, `0` in place of
 `false`, and a proof-backed count with no state root. An implementation that checked
 `block_number` and forgot `chain_id` would pass everything here.
 

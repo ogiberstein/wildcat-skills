@@ -25,6 +25,7 @@ GOLDFINCH = os.path.join(
         os.path.abspath(__file__))))),
     "plugins", "lazarus", "examples", "goldfinch-v0",
 )
+RECEIPT_FIXTURE = support.LAZARUS_RECEIPT_FIXTURE
 
 COMMAND = ["python3", "scripts/lazarus.py", "verify", "examples/goldfinch-v0"]
 REASON = "first capture of this block; nothing earlier to compare against"
@@ -56,6 +57,92 @@ class SkipUnlessGoldfinch(unittest.TestCase):
     def setUp(self):
         if not os.path.isdir(GOLDFINCH):
             self.skipTest("Lazarus is not beside this plugin in this checkout")
+
+
+class SkipUnlessReceiptFixture(unittest.TestCase):
+    def setUp(self):
+        if not os.path.isdir(RECEIPT_FIXTURE):
+            self.skipTest("the Lazarus receipt fixture is not beside Ariadne")
+
+
+class ReceiptFixtureTests(SkipUnlessReceiptFixture):
+    def test_manifest_v2_emits_and_verifies_state_fixture_v2(self):
+        statement = taken(RECEIPT_FIXTURE)
+        manifest = read_json(os.path.join(RECEIPT_FIXTURE, "manifest.json"))
+        report = report_for(statement)
+
+        self.assertTrue(report.ok, "\n".join(g.line() for g in report.gates))
+        self.assertEqual(statement["predicateType"], predicate.V2.TYPE)
+        self.assertEqual(
+            statement["predicate"]["chain"]["receipts_root"],
+            manifest["receipts_root"],
+        )
+        self.assertEqual(
+            statement["predicate"]["evidence"], manifest["evidence_counts"]
+        )
+        self.assertEqual(
+            statement["predicate"]["replay"],
+            {
+                "reaches_network": False,
+                "canonical_chain_claim": False,
+                "provider_independence_claim": False,
+            },
+        )
+        self.assertEqual(statement["predicate"]["commands"], [])
+
+    def test_capture_claims_no_chain_provider_or_transaction_hash_authority(self):
+        claims = taken(RECEIPT_FIXTURE)["predicate"]["claims"]
+        names = (
+            "canonical",
+            "independent providers",
+            "transaction hash attributed",
+        )
+        for phrase in names:
+            matching = [claim for claim in claims if phrase in claim["name"]]
+            with self.subTest(phrase=phrase):
+                self.assertTrue(matching)
+                self.assertTrue(
+                    all(claim["disposition"] == "skipped" for claim in matching)
+                )
+
+    def test_a_source_mutation_after_capture_does_not_rewrite_the_statement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = os.path.join(directory, "receipt-fixture")
+            shutil.copytree(RECEIPT_FIXTURE, fixture)
+            statement = taken(fixture)
+            before = json.dumps(statement, sort_keys=True)
+            witness = os.path.join(fixture, "receipt-witness.json")
+            with open(witness, "ab") as handle:
+                handle.write(b" ")
+            self.assertEqual(json.dumps(statement, sort_keys=True), before)
+            self.assertTrue(report_for(statement).ok)
+            with self.assertRaises(capture.CaptureError):
+                taken(fixture)
+
+    def test_an_unlisted_consensus_witness_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = os.path.join(directory, "receipt-fixture")
+            shutil.copytree(RECEIPT_FIXTURE, fixture)
+            path = os.path.join(fixture, "manifest.json")
+            manifest = read_json(path)
+            manifest["components"] = [
+                component
+                for component in manifest["components"]
+                if component["path"] != "receipt-witness.json"
+            ]
+            with open(path, "w") as handle:
+                json.dump(manifest, handle)
+            with self.assertRaisesRegex(capture.CaptureError, "receipt-witness.json"):
+                taken(fixture)
+
+    def test_cross_version_baselines_are_refused(self):
+        with self.assertRaisesRegex(capture.CaptureError, "cross-version"):
+            taken(
+                RECEIPT_FIXTURE,
+                previous=GOLDFINCH,
+                previous_name="goldfinch-v0",
+                first_capture_reason=None,
+            )
 
 
 class TheShippedFixtureTests(SkipUnlessGoldfinch):
@@ -167,6 +254,12 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
             handle.write("{not json")
         self.assertIn("is not JSON", self.refused())
 
+    def test_a_symlinked_manifest_is_refused_before_its_target_is_read(self):
+        target = os.path.join(self.root, "manifest.json")
+        shutil.move(os.path.join(self.fixture, "manifest.json"), target)
+        os.symlink(target, os.path.join(self.fixture, "manifest.json"))
+        self.assertIn("manifest.json is a symlink", self.refused())
+
     def test_a_manifest_that_is_a_list_is_refused(self):
         with open(os.path.join(self.fixture, "manifest.json"), "w") as handle:
             handle.write("[]")
@@ -192,9 +285,9 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
 
     def test_a_later_schema_version_is_refused(self):
         manifest = self.manifest()
-        manifest["schema_version"] = 2
+        manifest["schema_version"] = 3
         self.rewrite(manifest)
-        self.assertIn("this capture reads 1", self.refused())
+        self.assertIn("reads only 1 or 2", self.refused())
 
     def test_a_boolean_schema_version_is_refused(self):
         """`True == 1` in Python, so a plain inequality let `true` through the one
@@ -339,6 +432,12 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
                 entry["bytes"] = len(raw)
         self.rewrite(manifest)
         self.assertIn("is not JSON", self.refused())
+
+    def test_a_symlinked_header_is_refused_before_its_target_is_read(self):
+        target = os.path.join(self.root, "header.json")
+        shutil.move(os.path.join(self.fixture, "header.json"), target)
+        os.symlink(target, os.path.join(self.fixture, "header.json"))
+        self.assertIn("header.json is a symlink", self.refused())
 
     def test_a_component_the_directory_lacks_is_refused(self):
         os.unlink(os.path.join(self.fixture, "plan.json"))

@@ -80,8 +80,16 @@ def build_release(
     checks: list[str],
 ) -> dict[str, Any]:
     """The release document for a fixture that verified and a statement that bound."""
+    version = report["manifest"]["schema_version"]
+    verified = {
+        "block_hash": report["block_hash"],
+        "evidence_counts": dict(report["evidence_counts"]),
+        "canonical_chain_claim": False,
+    }
+    if version == 2:
+        verified["receipts_root"] = report["receipts_root"]
     release: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": version,
         "tool_version": __version__,
         "fixture": {
             "path": FIXTURE_DIRECTORY,
@@ -92,11 +100,7 @@ def build_release(
             "sha256": hashlib.sha256(statement_bytes).hexdigest(),
             "predicate_type": predicate_type_of(statement),
         },
-        "verified": {
-            "block_hash": report["block_hash"],
-            "evidence_counts": dict(report["evidence_counts"]),
-            "canonical_chain_claim": False,
-        },
+        "verified": verified,
         "binding": {"checks": list(checks)},
         "release_digest": "0" * 64,
     }
@@ -204,6 +208,12 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
 
     fixture = confined_directory(root, release["fixture"]["path"])
     report = verify_fixture(fixture)
+    fixture_version = report["manifest"]["schema_version"]
+    if release["schema_version"] != fixture_version:
+        raise IntegrityError(
+            f"release-v{release['schema_version']} holds a manifest-v{fixture_version} "
+            "fixture; preservation formats are never upgraded implicitly"
+        )
     if report["fixture_digest"] != release["fixture"]["fixture_digest"]:
         raise IntegrityError(
             f"the fixture verifies to {report['fixture_digest']} and the release "
@@ -237,11 +247,18 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
             f"recorded {verified['evidence_counts']}, verified "
             f"{report['evidence_counts']}"
         )
+    if release["schema_version"] == 2:
+        if verified["receipts_root"] != report["receipts_root"]:
+            raise IntegrityError(
+                "the release records receipts root "
+                f"{verified['receipts_root']} and the fixture reconstructs "
+                f"{report['receipts_root']}"
+            )
     # `verified.canonical_chain_claim` is not checked here. The schema pins it to
     # false, so a document claiming it does not get this far, and the binding
     # already refuses a report that claims it. A third check would be a third
     # authority on one question.
-    return {
+    result = {
         "release_digest": release["release_digest"],
         "fixture_digest": report["fixture_digest"],
         "block_hash": report["block_hash"],
@@ -250,6 +267,9 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
         "statement_sha256": held,
         "checks": list(checks),
     }
+    if release["schema_version"] == 2:
+        result["receipts_root"] = report["receipts_root"]
+    return result
 
 
 def _read_inside(root: Path, relative: str, what: str) -> bytes:

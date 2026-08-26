@@ -32,12 +32,25 @@ DEMONSTRATION = (
     support.PLUGIN_ROOT / "examples" / "preservation-release-demo.py"
 )
 
+LEGACY_DIGESTS = {
+    FIXTURE / "manifest.json": "c37cd789e5386a1347abd4dff24c8b1db96cdab771df4eb4d63056ba56145fa9",
+    SHIPPED / STATEMENT_NAME: "d8b262278ffd4db76e449a2bfce4629903a70e7f4ad7c1f3a6ebbfb1f112555e",
+    SHIPPED / RELEASE_NAME: "ec5c9b8091286de8713b6daf6cfdeaa7e9cfa6177b96c10a2ed20ffd6654bcff",
+}
+
 
 def document():
     return loads((SHIPPED / RELEASE_NAME).read_bytes())
 
 
 class ShippedReleaseTests(unittest.TestCase):
+    def test_the_legacy_manifest_statement_and_release_bytes_are_unchanged(self):
+        for path, expected in LEGACY_DIGESTS.items():
+            with self.subTest(path=path.name):
+                self.assertEqual(
+                    hashlib.sha256(path.read_bytes()).hexdigest(), expected
+                )
+
     def test_the_legacy_fixture_has_no_anchor_records_or_new_release_fields(self):
         report = verify_fixture(FIXTURE)
         self.assertIn("chain_anchors", report)

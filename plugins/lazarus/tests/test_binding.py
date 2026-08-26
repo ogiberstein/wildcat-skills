@@ -17,6 +17,7 @@ from lazarus_lib.binding import (
     MAX_SUBJECTS,
     REPLAY_CLAIMS,
     STATE_FIXTURE_TYPE,
+    STATE_FIXTURE_TYPE_V2,
     bind,
 )
 from lazarus_lib.errors import (
@@ -28,11 +29,13 @@ from lazarus_lib.errors import (
 BLOCK_HASH = "0x" + "41" * 32
 BLOCK_NUMBER = 13097494
 STATE_ROOT = "0x" + "0f" * 32
+RECEIPTS_ROOT = "0x" + "22" * 32
 CHAIN_ID = 1
 
 
 def sample_manifest():
     return {
+        "schema_version": 1,
         "chain_id": hex(CHAIN_ID),
         "block": {"number": hex(BLOCK_NUMBER), "hash": BLOCK_HASH},
         "components": [
@@ -109,6 +112,55 @@ def sample_statement():
     }
 
 
+def sample_manifest_v2():
+    manifest = copy.deepcopy(sample_manifest())
+    manifest["schema_version"] = 2
+    manifest["receipts_root"] = RECEIPTS_ROOT
+    manifest["components"].append(
+        {
+            "path": "receipt-witness.json",
+            "bytes": 4096,
+            "sha256": "e" * 64,
+        }
+    )
+    return manifest
+
+
+def sample_report_v2():
+    report = copy.deepcopy(sample_report())
+    report["receipts_root"] = RECEIPTS_ROOT
+    report["evidence_counts"]["receipt_trie_proved"] = 2
+    report["receipt_trie_proved"] = {
+        "relations": 2,
+        "transaction_hash_attribution": "recorded_rpc",
+    }
+    report["chain_anchors"] = {
+        "records": 0,
+        "canonical_chain_claim": False,
+        "provider_independence_claim": False,
+    }
+    return report
+
+
+def sample_statement_v2():
+    document = copy.deepcopy(sample_statement())
+    document["predicateType"] = STATE_FIXTURE_TYPE_V2
+    document["predicate"]["chain"]["receipts_root"] = RECEIPTS_ROOT
+    document["predicate"]["evidence"]["receipt_trie_proved"] = 2
+    document["predicate"]["replay"]["provider_independence_claim"] = False
+    component = {
+        "name": "receipt-witness.json",
+        "path": "receipt-witness.json",
+        "digest": {"sha256": "e" * 64},
+        "bytes": 4096,
+    }
+    document["predicate"]["fixture_subjects"].append(component)
+    document["subject"].append(
+        {"name": component["name"], "digest": component["digest"]}
+    )
+    return document
+
+
 def bound(statement=None, manifest=None, report=None):
     return bind(
         statement if statement is not None else sample_statement(),
@@ -117,9 +169,24 @@ def bound(statement=None, manifest=None, report=None):
     )
 
 
+def bound_v2(statement=None, manifest=None, report=None):
+    return bind(
+        statement if statement is not None else sample_statement_v2(),
+        manifest if manifest is not None else sample_manifest_v2(),
+        report if report is not None else sample_report_v2(),
+    )
+
+
 class CleanBindingTests(unittest.TestCase):
     def test_a_statement_over_this_fixture_binds(self):
         self.assertEqual(bound(), list(CHECKS))
+
+    def test_a_v2_statement_binds_only_to_a_v2_fixture(self):
+        self.assertEqual(bound_v2(), list(CHECKS))
+        with self.assertRaisesRegex(IntegrityError, "v1"):
+            bound(statement=sample_statement_v2())
+        with self.assertRaisesRegex(IntegrityError, "v2"):
+            bound_v2(statement=sample_statement())
 
     def test_the_checks_it_returns_are_the_ones_it_names(self):
         """The names go into the release document, so a reader learns which
@@ -185,6 +252,24 @@ class EvidenceTests(unittest.TestCase):
             IntegrityError, "outside its vocabulary"
         ):
             bound(report=report)
+
+    def test_v2_receipt_count_is_the_scoped_relation_count(self):
+        for value in (None, True, 0, 3):
+            statement = sample_statement_v2()
+            if value is None:
+                del statement["predicate"]["evidence"]["receipt_trie_proved"]
+            else:
+                statement["predicate"]["evidence"]["receipt_trie_proved"] = value
+            with self.subTest(value=value), self.assertRaises(
+                (FormatError, IntegrityError)
+            ):
+                bound_v2(statement=statement)
+
+    def test_v2_report_relation_count_must_match_its_evidence_count(self):
+        report = sample_report_v2()
+        report["receipt_trie_proved"]["relations"] = 3
+        with self.assertRaisesRegex(IntegrityError, "relation count"):
+            bound_v2(report=report)
 
     def test_a_statement_claiming_more_proved_records_is_refused(self):
         """The study's case, and the one the held job names. Four recorded RPC
@@ -289,6 +374,12 @@ class PredicateTypeTests(unittest.TestCase):
             bound(statement)
         self.assertIn("has not read", str(caught.exception))
 
+    def test_versions_are_not_implicitly_upgraded(self):
+        with self.assertRaises(IntegrityError):
+            bound(statement=sample_statement_v2())
+        with self.assertRaises(IntegrityError):
+            bound_v2(statement=sample_statement())
+
     def test_a_type_that_names_nothing_is_refused(self):
         for value in (None, "", "   ", 12345, [], "​"):
             statement = sample_statement()
@@ -356,6 +447,17 @@ class ReplayClaimTests(unittest.TestCase):
         del statement["predicate"]["replay"]
         with self.assertRaises(FormatError):
             bound(statement)
+
+    def test_v2_refuses_provider_independence_on_either_side(self):
+        statement = sample_statement_v2()
+        statement["predicate"]["replay"]["provider_independence_claim"] = True
+        with self.assertRaisesRegex(IntegrityError, "provider_independence"):
+            bound_v2(statement=statement)
+
+        report = sample_report_v2()
+        report["chain_anchors"]["provider_independence_claim"] = True
+        with self.assertRaisesRegex(IntegrityError, "provider independence"):
+            bound_v2(report=report)
 
 
 class ComponentTests(unittest.TestCase):
@@ -550,6 +652,23 @@ class ChainTests(unittest.TestCase):
         with self.assertRaises(IntegrityError) as caught:
             bound(statement)
         self.assertIn("state root", str(caught.exception))
+
+    def test_v2_receipts_root_is_independent_of_the_state_root(self):
+        statement = sample_statement_v2()
+        del statement["predicate"]["chain"]["receipts_root"]
+        with self.assertRaises(FormatError):
+            bound_v2(statement=statement)
+
+        statement = sample_statement_v2()
+        statement["predicate"]["chain"]["receipts_root"] = STATE_ROOT
+        with self.assertRaisesRegex(IntegrityError, "receipts root"):
+            bound_v2(statement=statement)
+
+    def test_v2_chain_has_no_transaction_hash_authority(self):
+        statement = sample_statement_v2()
+        statement["predicate"]["chain"]["transaction_hash"] = "0x" + "99" * 32
+        with self.assertRaisesRegex(IntegrityError, "outside its vocabulary"):
+            bound_v2(statement=statement)
 
     def test_a_state_root_in_the_other_case_still_binds(self):
         statement = sample_statement()

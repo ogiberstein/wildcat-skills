@@ -219,6 +219,21 @@ class FixtureTests(unittest.TestCase):
                 json.loads(raw.decode("utf-8"))
                 self.assertTrue(raw.endswith(b"\n"), "%s has no trailing newline" % name)
 
+    def test_state_fixture_v2_has_paired_release_proof_vectors(self):
+        expected = {
+            "pass-state-fixture-v2.json",
+            "fail-gate2-state-fixture-v2-malformed-receipts-root.json",
+            "fail-gate5-state-fixture-v2-unnamed-current.json",
+            "fail-check-evidence-state-fixture-v2-receipts-without-root.json",
+        }
+        self.assertTrue(expected.issubset(set(fixtures())))
+        for name in expected:
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    statement_of(name).predicate_type,
+                    "https://ariadne.wildcat.finance/state-fixture/v2",
+                )
+
 
 
 class MinimalityTests(unittest.TestCase):

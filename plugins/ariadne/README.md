@@ -168,9 +168,10 @@ field by field, the conformance set, and the capture flags.
 
 ## Where it stops
 
-The registry holds three predicates. The grounded-agent predicate is specified and
-not implemented here, so a statement of that type verifies its core gates and is
-told which gates went unchecked.
+The registry holds four predicates: Solidity release, dataset, and versions 1 and
+2 of state fixture. The grounded-agent predicate is specified and not implemented
+here, so a statement of that type verifies its core gates and is told which gates
+went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each is a deliberate boundary: the first needs a node, the

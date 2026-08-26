@@ -4,9 +4,11 @@
 > **Marketplace context: Ariadne.** Ariadne binds an artefact digest to the build, test, review and deployment evidence behind a release. Use an external Sigstore or cosign verifier for signature identity; use Lazarus for historical fixtures and Pandects for executable credit-law evidence. **Current frontier:** The grounded-agent predicate remains unimplemented; the state-fixture predicate now ships with its schema, gates, conformance fixtures and a capture path that reads a Lazarus fixture's evidence counts rather than recomputing them.
 <!-- marketplace-context:end -->
 
-`capture-state-fixture` reads a Lazarus fixture directory that already exists and
-writes a statement of type `https://ariadne.wildcat.finance/state-fixture/v1`. It
-runs no capture, reaches no network, and re-derives nothing.
+`capture-state-fixture` reads a Lazarus fixture directory that already exists. A
+verified manifest-v1 produces
+`https://ariadne.wildcat.finance/state-fixture/v1`; a verified manifest-v2
+produces `https://ariadne.wildcat.finance/state-fixture/v2`. The command runs no
+capture, reaches no network, and does not turn one version into the other.
 
 ```bash
 python3 scripts/ariadne.py capture-state-fixture \
@@ -29,10 +31,12 @@ Exit 0, with seven gate lines and three further checks.
 
 This is the rule the capture exists for.
 
-Lazarus separates what was proved against the state root from what an endpoint
-merely said, and it writes the three counts into its manifest. This capture copies
-them across. It does not open `proofs.jsonl` and count the records, and it does not
-decide which of them were checked.
+Manifest-v1 separates what was proved against the state root from what an endpoint
+merely said and writes three counts. Manifest-v2 adds
+`receipt_trie_proved`, the count of scoped consensus receipt and log-projection
+relations proved against its `receipts_root`. This capture copies the exact
+versioned counts. It does not count proof files or decide which records were
+checked.
 
 The reason is not convenience. Deciding that means reimplementing Lazarus's judgement
 from its files, and a capture that reimplemented it and arrived at a larger number
@@ -72,6 +76,11 @@ for one. The predicate's evidence check is what refuses a proof-backed count wit
 it, and when that combination appears the capture writes a failed claim beside it
 saying why, so a reader sees the reason before running `verify`.
 
+**The receipts root, for manifest-v2.** It comes from the verified manifest. A
+positive `receipt_trie_proved` count needs it. This rule is independent of the
+state-root rule: `state_root` grants no receipt-trie authority, and
+`receipts_root` grants no state-trie authority.
+
 ## What you supply, and why
 
 **`--capture-tool`.** Required, no default. The manifest carries a `tool_version` and
@@ -91,7 +100,8 @@ opportunity to disagree.
 carries a null baseline and says why, as every predicate here does. A comparison
 identifies both sides by a digest over the component listing and records no
 per-component difference, because naming one needs a component identity across two
-captures that this tool does not have. A skipped claim says so.
+captures that this tool does not have. A skipped claim says so. Both sides must use
+the same manifest version; a cross-version comparison is refused.
 
 **`--parameter`.** Optional, repeatable, `key=value`. They are digested into
 `parameters_digest`, sorted, so the same parameters give the same digest whatever
@@ -100,11 +110,13 @@ order they arrived in.
 ## What you cannot supply
 
 `reaches_network` and `canonical_chain_claim` are written false and are not flags.
+Version 2 also writes `provider_independence_claim` false and an empty `commands`
+array.
 
 Ariadne reaches no network, and neither tool re-derives a chain, so false is the only
 honest value for either. A flag would imply a producer could set them, and a producer
 who could set `canonical_chain_claim` to true would be recording something nothing
-established.
+established. Operator-chosen source labels do not establish independent providers.
 
 ## What it does not establish
 
@@ -123,14 +135,20 @@ section is about.
 It does not establish that the pinned block is canonical. Nothing in either tool
 re-derives a chain.
 
+For version 2, it does not establish provider independence or transaction-hash
+attribution. `receipt_trie_proved` is limited to the scoped consensus receipt and
+log-projection relations. Transaction hashes and RPC decorations stay outside that
+proof.
+
 ## Refusals you may meet
 
-| Message | What to do |
-| --- | --- |
-| `fixture <dir> has no manifest.json` | Name a Lazarus fixture directory, not its parent |
-| `manifest.json declares <path>, which the fixture does not hold` | The fixture is incomplete; re-run the Lazarus capture |
-| `fixture holds <path>, which manifest.json does not declare` | Remove the stray file, or re-run the capture so the manifest covers it |
-| `manifest.json says <path> digests to <a> and it digests to <b>` | The file changed after the manifest was written |
-| `manifest.json is schema_version <n> and this capture reads 1` | A later manifest may spell the counts differently; this build will not guess |
-| `--capture-version says <a> and manifest.json says <b>` | Drop the flag, or correct it |
-| `<path> is a symlink` | Its target is outside what the fixture digest covers |
+| Message | Stage | What to do |
+| --- | --- | --- |
+| `fixture <dir> has no manifest.json` | Discovery | Name a Lazarus fixture directory, not its parent |
+| `manifest.json declares <path>, which the fixture does not hold` | Inventory | The fixture is incomplete; re-run the Lazarus capture |
+| `fixture holds <path>, which manifest.json does not declare` | Inventory | Remove the stray file, or re-run the capture so the manifest covers it |
+| `manifest.json says <path> digests to <a> and it digests to <b>` | Integrity | The file changed after the manifest was written |
+| `manifest.json is schema_version <n> and this capture reads only 1 or 2` | Version | A later manifest may spell the counts differently; this build will not guess |
+| `--previous is manifest-v<a> and --fixture is manifest-v<b>` | Comparison | Compare fixtures of the same version; cross-version evidence is not upgraded |
+| `--capture-version says <a> and manifest.json says <b>` | Metadata | Drop the flag, or correct it |
+| `<path> is a symlink` | Filesystem | Its target is outside what the fixture digest covers |

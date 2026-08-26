@@ -9,8 +9,11 @@ table somebody has to remember to update.
 from .. import registry
 from . import dataset, solidity_release, state_fixture
 
+state_fixture_v2 = state_fixture.V2
+
 registry.DEFAULT.register(solidity_release)
 registry.DEFAULT.register(dataset)
 registry.DEFAULT.register(state_fixture)
+registry.DEFAULT.register(state_fixture_v2)
 
-__all__ = ["dataset", "solidity_release", "state_fixture"]
+__all__ = ["dataset", "solidity_release", "state_fixture", "state_fixture_v2"]

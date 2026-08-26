@@ -25,15 +25,16 @@ What the caller supplies, and why the files cannot answer it:
 
 What the caller cannot supply:
 
-- **`reaches_network` and `canonical_chain_claim`.** Both are written false and
-  neither is a parameter. Ariadne reaches no network, and neither tool re-derives a
-  chain, so the honest value is the only value and offering a flag would imply
-  otherwise.
+- **Replay authority.** `reaches_network` and `canonical_chain_claim` are written
+  false for both versions. Version 2 also writes `provider_independence_claim`
+  false. Ariadne reaches no network, neither tool re-derives a chain, and source
+  labels do not establish independent providers.
 """
 
 import json
 import os
 import re
+import stat
 import tempfile
 
 from .. import digests
@@ -64,10 +65,25 @@ MANIFEST_REQUIRED = (
 schema requires. `optional_failures` is required there and not read here, because
 nothing in this predicate carries it."""
 
-SCHEMA_VERSION = 1
-"""The one manifest version this capture understands. A later one may spell the
-evidence counts differently, and reading it as though it did not would be the
-upgrade this capture exists to refuse."""
+SCHEMA_VERSIONS = (1, 2)
+"""The manifest versions with an exact, separately versioned predicate mapping."""
+
+
+def predicate_for(version):
+    """The exact statement contract for one supported manifest version."""
+    if version == 1:
+        return {
+            "type": predicate.TYPE,
+            "evidence_classes": predicate.EVIDENCE_CLASSES,
+            "replay_fields": predicate.REPLAY_REQUIRED,
+        }
+    if version == 2:
+        return {
+            "type": predicate.V2.TYPE,
+            "evidence_classes": predicate.V2.EVIDENCE_CLASSES,
+            "replay_fields": predicate.V2.REPLAY_REQUIRED,
+        }
+    return None
 
 
 def refuse_constant(token):
@@ -84,21 +100,42 @@ def refuse_constant(token):
 
 
 def read_json(path, what):
-    """One document from the fixture, read with a cap and no extensions."""
-    try:
-        size = os.path.getsize(path)
-    except OSError as error:
-        raise CaptureError("cannot read %s: %s" % (what, error))
-    if size > MAX_MANIFEST_BYTES:
+    """One regular document from the fixture, bounded and not link-followed."""
+    if os.path.islink(path):
         raise CaptureError(
-            "%s is %d bytes, over the %d this capture will read"
-            % (what, size, MAX_MANIFEST_BYTES)
+            "%s is a symlink; a fixture document must be read from the tree" % what
         )
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
-        with open(path, "rb") as handle:
-            raw = handle.read()
+        descriptor = os.open(path, flags)
     except OSError as error:
         raise CaptureError("cannot read %s: %s" % (what, error))
+    try:
+        details = os.fstat(descriptor)
+        if not stat.S_ISREG(details.st_mode):
+            raise CaptureError(
+                "%s is not a regular file; a fixture document is read from one"
+                % what
+            )
+        if details.st_size > MAX_MANIFEST_BYTES:
+            raise CaptureError(
+                "%s is %d bytes, over the %d this capture will read"
+                % (what, details.st_size, MAX_MANIFEST_BYTES)
+            )
+        try:
+            with os.fdopen(descriptor, "rb") as handle:
+                descriptor = None
+                raw = handle.read(MAX_MANIFEST_BYTES + 1)
+        except OSError as error:
+            raise CaptureError("cannot read %s: %s" % (what, error))
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+    if len(raw) > MAX_MANIFEST_BYTES:
+        raise CaptureError(
+            "%s grew past the %d byte cap while being read"
+            % (what, MAX_MANIFEST_BYTES)
+        )
     try:
         found = json.loads(raw.decode("utf-8"), parse_constant=refuse_constant)
     except UnicodeDecodeError as error:
@@ -158,7 +195,7 @@ def hash32(value, what):
 def manifest_of(root):
     """The manifest, checked for the fields this capture reads."""
     path = os.path.join(root, MANIFEST)
-    if not os.path.isfile(path):
+    if not os.path.lexists(path):
         raise CaptureError(
             "fixture %s has no %s; a fixture directory is one Lazarus wrote"
             % (root, MANIFEST)
@@ -171,11 +208,12 @@ def manifest_of(root):
     # through the one check that refuses a manifest this capture cannot read. The
     # type is tested before the value.
     version = found["schema_version"]
-    if not predicate.whole_number(version) or version != SCHEMA_VERSION:
+    contract = predicate_for(version) if predicate.whole_number(version) else None
+    if contract is None:
         raise CaptureError(
-            "%s is schema_version %r and this capture reads %d; a later manifest may "
-            "spell the evidence counts differently"
-            % (MANIFEST, version, SCHEMA_VERSION)
+            "%s is schema_version %r and this capture reads only %s; an unknown "
+            "manifest may spell evidence differently and is never upgraded"
+            % (MANIFEST, version, " or ".join(str(item) for item in SCHEMA_VERSIONS))
         )
     if not isinstance(found["tool_version"], str) or not found["tool_version"].strip():
         raise CaptureError("%s tool_version names no version" % MANIFEST)
@@ -200,6 +238,12 @@ def manifest_of(root):
             raise CaptureError("%s block is missing %s" % (MANIFEST, field))
     if not isinstance(found["components"], list) or not found["components"]:
         raise CaptureError("%s components must be a non-empty array" % MANIFEST)
+    if version == 2:
+        if "receipts_root" not in found:
+            raise CaptureError("%s is missing receipts_root" % MANIFEST)
+        found["receipts_root"] = hash32(
+            found["receipts_root"], "%s receipts_root" % MANIFEST
+        )
     return found
 
 
@@ -211,7 +255,7 @@ def state_root_of(root):
     count without one. Refusing here would refuse an honest fixture.
     """
     path = os.path.join(root, HEADER)
-    if not os.path.isfile(path):
+    if not os.path.lexists(path):
         return None
     header = read_json(path, HEADER)
     if "state_root" not in header:
@@ -220,7 +264,7 @@ def state_root_of(root):
 
 
 def evidence_of(manifest):
-    """The three counts, read from the manifest and not recomputed.
+    """The versioned counts, read from the manifest and not recomputed.
 
     Recomputing one would mean deciding for Lazarus which of its records were checked
     against the state root, and a capture that decided a larger number would upgrade
@@ -231,7 +275,9 @@ def evidence_of(manifest):
     counts = manifest["evidence_counts"]
     if not isinstance(counts, dict):
         raise CaptureError("%s evidence_counts must be an object" % MANIFEST)
-    unknown = sorted(set(counts) - set(predicate.EVIDENCE_CLASSES))
+    contract = predicate_for(manifest["schema_version"])
+    classes = contract["evidence_classes"]
+    unknown = sorted(set(counts) - set(classes))
     if unknown:
         raise CaptureError(
             "%s evidence_counts carries %s, which is not a class this predicate "
@@ -239,7 +285,7 @@ def evidence_of(manifest):
             % (MANIFEST, ", ".join(unknown))
         )
     out = {}
-    for name in predicate.EVIDENCE_CLASSES:
+    for name in classes:
         if name not in counts:
             raise CaptureError(
                 "%s evidence_counts has no %s; a class left out reads as nothing of "
@@ -407,6 +453,7 @@ def capture(
     current = bundle(entries)
     state_root = state_root_of(root)
     evidence = evidence_of(manifest)
+    contract = predicate_for(manifest["schema_version"])
 
     chain = {
         "chain_id": quantity(manifest["chain_id"], "%s chain_id" % MANIFEST),
@@ -417,6 +464,8 @@ def capture(
     }
     if state_root is not None:
         chain["state_root"] = state_root
+    if manifest["schema_version"] == 2:
+        chain["receipts_root"] = manifest["receipts_root"]
 
     if previous:
         if not previous_name:
@@ -428,6 +477,15 @@ def capture(
                 "itself records nothing"
             )
         previous_manifest = manifest_of(previous_root)
+        if previous_manifest["schema_version"] != manifest["schema_version"]:
+            raise CaptureError(
+                "--previous is manifest-v%d and --fixture is manifest-v%d; "
+                "cross-version comparisons are never upgraded implicitly"
+                % (
+                    previous_manifest["schema_version"],
+                    manifest["schema_version"],
+                )
+            )
         deltas = {
             "baseline": {
                 "name": previous_name,
@@ -464,6 +522,38 @@ def capture(
             detail=dict(evidence),
         )
     )
+    if manifest["schema_version"] == 2:
+        claims.extend(
+            [
+                claim(
+                    "receipt-trie relations re-checked by this capture",
+                    current,
+                    "skipped",
+                    reason=(
+                        "this capture reads local manifest evidence and component "
+                        "bytes; Lazarus verification owns receipt-trie proof"
+                    ),
+                ),
+                claim(
+                    "independent providers established",
+                    current,
+                    "skipped",
+                    reason=(
+                        "operator-chosen source labels do not establish provider "
+                        "independence"
+                    ),
+                ),
+                claim(
+                    "transaction hash attributed by the receipt trie",
+                    current,
+                    "skipped",
+                    reason=(
+                        "transaction hashes are recorded RPC decorations outside "
+                        "the consensus receipt and log-projection proof"
+                    ),
+                ),
+            ]
+        )
     if evidence[predicate.PROVED] and state_root is None:
         # Unreachable through the predicate, which refuses the statement, but the
         # claim is written before the statement is verified and a reader of the
@@ -518,6 +608,7 @@ def capture(
             )
         )
 
+    replay = {field: False for field in contract["replay_fields"]}
     body = {
         "chain": chain,
         "capture": {
@@ -528,7 +619,7 @@ def capture(
         },
         "fixture_subjects": entries,
         "evidence": evidence,
-        "replay": {"reaches_network": False, "canonical_chain_claim": False},
+        "replay": replay,
         "deltas": deltas,
         "claims": claims,
         "commands": [],
@@ -540,7 +631,7 @@ def capture(
             {"name": entry["name"], "digest": entry["digest"]} for entry in entries
         ]
         + [{"name": name, "digest": current}],
-        "predicateType": predicate.TYPE,
+        "predicateType": contract["type"],
         "predicate": body,
     }
 

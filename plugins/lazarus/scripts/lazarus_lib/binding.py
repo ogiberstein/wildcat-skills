@@ -56,11 +56,34 @@ whichever type it was handed would bind a fixture to a document making claims in
 a vocabulary nothing here has read.
 """
 
+STATE_FIXTURE_TYPE_V2 = "https://ariadne.wildcat.finance/state-fixture/v2"
+"""The receipt-trie-aware predicate understood by release-v2."""
+
+STATE_FIXTURE_TYPES = {
+    1: STATE_FIXTURE_TYPE,
+    2: STATE_FIXTURE_TYPE_V2,
+}
+"""Manifest/release versions map explicitly to predicate versions."""
+
 EVIDENCE_CLASSES = ("proof_backed", "header_bound", "recorded_rpc")
 """The three classes, spelled as this plugin spells them everywhere else."""
 
+EVIDENCE_CLASSES_V2 = EVIDENCE_CLASSES + ("receipt_trie_proved",)
+"""The fourth class is limited to the receipt and log-projection relations."""
+
+EVIDENCE_CLASSES_BY_VERSION = {
+    1: EVIDENCE_CLASSES,
+    2: EVIDENCE_CLASSES_V2,
+}
+
 REPLAY_CLAIMS = ("reaches_network", "canonical_chain_claim")
 """The two things verification does not do, which the statement must not say it does."""
+
+REPLAY_CLAIMS_V2 = REPLAY_CLAIMS + ("provider_independence_claim",)
+REPLAY_CLAIMS_BY_VERSION = {
+    1: REPLAY_CLAIMS,
+    2: REPLAY_CLAIMS_V2,
+}
 
 MAX_FIXTURE_SUBJECTS = MAX_COMPONENTS
 """A statement cannot describe more components than a fixture can hold.
@@ -149,6 +172,11 @@ def _verified_manifest(manifest: Any) -> dict[str, Any]:
     handed over the manifest read off disk rather than the verified one.
     """
     manifest = _object(manifest, "manifest")
+    version = _member(manifest, "schema_version", "manifest")
+    if not _whole_number(version) or version not in STATE_FIXTURE_TYPES:
+        raise FormatError(
+            f"manifest schema_version {version!r} has no preservation binding"
+        )
     _member(manifest, "chain_id", "manifest")
     components = _member(manifest, "components", "manifest")
     if not isinstance(components, list) or not components:
@@ -165,10 +193,16 @@ def _verified_manifest(manifest: Any) -> dict[str, Any]:
         size = _member(entry, "bytes", what)
         if not _whole_number(size) or size < 0:
             raise FormatError(f"{what} bytes is {size!r} rather than a byte count")
+    if version == 2:
+        receipts_root = _member(manifest, "receipts_root", "manifest")
+        if not isinstance(receipts_root, str) or not visible(receipts_root):
+            raise FormatError(
+                f"manifest receipts_root names nothing: {receipts_root!r}"
+            )
     return manifest
 
 
-def _verified_report(report: Any) -> dict[str, Any]:
+def _verified_report(report: Any, version: int) -> dict[str, Any]:
     """The fields this binding reads out of a verified report, present and shaped."""
     report = _object(report, "report")
     for field in ("block_hash", "block_number", "state_root"):
@@ -178,18 +212,33 @@ def _verified_report(report: Any) -> dict[str, Any]:
     counts = _object(
         _member(report, "evidence_counts", "report"), "report evidence_counts"
     )
-    for name in EVIDENCE_CLASSES:
+    classes = EVIDENCE_CLASSES_BY_VERSION[version]
+    for name in classes:
         value = _member(counts, name, "report evidence_counts")
         if not _whole_number(value) or value < 0:
             raise FormatError(
                 f"report {name} count is {value!r} rather than a number of records"
             )
-    if set(counts) != set(EVIDENCE_CLASSES):
+    if set(counts) != set(classes):
         raise IntegrityError(
-            "state-fixture/v1 binding refuses evidence classes outside its vocabulary"
+            f"state-fixture/v{version} binding refuses evidence classes outside "
+            "its vocabulary"
         )
     header = _object(_member(report, "header_bound", "report"), "report header_bound")
     _member(header, "canonical_chain_claim", "report header_bound")
+    if version == 2:
+        receipts_root = _member(report, "receipts_root", "report")
+        if not isinstance(receipts_root, str) or not visible(receipts_root):
+            raise FormatError(f"report receipts_root names nothing: {receipts_root!r}")
+        relation = _object(
+            _member(report, "receipt_trie_proved", "report"),
+            "report receipt_trie_proved",
+        )
+        relations = _member(relation, "relations", "report receipt_trie_proved")
+        if not _whole_number(relations) or relations != counts["receipt_trie_proved"]:
+            raise IntegrityError(
+                "report receipt-trie relation count disagrees with evidence_counts"
+            )
     return report
 
 
@@ -213,17 +262,20 @@ def _check_statement_type(statement: dict[str, Any]) -> None:
         )
 
 
-def _check_predicate_type(statement: dict[str, Any]) -> None:
+def _check_predicate_type(statement: dict[str, Any], expected: str) -> None:
     found = predicate_type_of(statement)
-    if found != STATE_FIXTURE_TYPE:
+    if found != expected:
         raise IntegrityError(
-            f"statement is a {found} and this binds {STATE_FIXTURE_TYPE}; a "
+            f"statement is a {found} and this binds {expected}; a "
             "binding cannot speak for claims in a vocabulary it has not read"
         )
 
 
 def _check_chain_and_block(
-    predicate: dict[str, Any], manifest: dict[str, Any], report: dict[str, Any]
+    predicate: dict[str, Any],
+    manifest: dict[str, Any],
+    report: dict[str, Any],
+    version: int,
 ) -> None:
     """The four fields naming which capture the statement is about.
 
@@ -232,6 +284,15 @@ def _check_chain_and_block(
     reads as though all four were corroborated, and one of them was.
     """
     chain = _object(_member(predicate, "chain", "statement predicate"), "statement chain")
+    allowed = {"chain_id", "block_number", "block_hash", "state_root"}
+    if version == 2:
+        allowed.add("receipts_root")
+    unknown = sorted(set(chain) - allowed)
+    if unknown:
+        raise IntegrityError(
+            f"state-fixture/v{version} chain carries fields outside its vocabulary: "
+            + listed(unknown)
+        )
 
     found = _member(chain, "block_hash", "statement chain")
     expected = report["block_hash"]
@@ -266,8 +327,23 @@ def _check_chain_and_block(
             "against the header's root, not the statement's"
         )
 
+    if version == 2:
+        receipts_root = _member(chain, "receipts_root", "statement chain")
+        expected_receipts_root = report["receipts_root"]
+        if (
+            not isinstance(receipts_root, str)
+            or receipts_root.lower() != expected_receipts_root
+        ):
+            raise IntegrityError(
+                f"statement names receipts root {receipts_root!r} and the verified "
+                f"receipt witness reconstructs {expected_receipts_root}; the state "
+                "root grants no receipt-trie authority"
+            )
 
-def _check_evidence_counts(predicate: dict[str, Any], report: dict[str, Any]) -> None:
+
+def _check_evidence_counts(
+    predicate: dict[str, Any], report: dict[str, Any], version: int
+) -> None:
     """The rule this module exists for.
 
     Compared against the recomputed counts rather than the manifest's, and in
@@ -277,13 +353,14 @@ def _check_evidence_counts(predicate: dict[str, Any], report: dict[str, Any]) ->
     """
     evidence = _object(_member(predicate, "evidence", "statement predicate"), "evidence")
     verified = report["evidence_counts"]
-    unknown = sorted(set(evidence) - set(EVIDENCE_CLASSES))
+    classes = EVIDENCE_CLASSES_BY_VERSION[version]
+    unknown = sorted(set(evidence) - set(classes))
     if unknown:
         raise IntegrityError(
             "statement counts evidence in classes this fixture does not have: "
             + listed(unknown)
         )
-    for name in EVIDENCE_CLASSES:
+    for name in classes:
         if name not in evidence:
             raise IntegrityError(
                 f"statement has no {name} count; a class left out reads as "
@@ -304,7 +381,9 @@ def _check_evidence_counts(predicate: dict[str, Any], report: dict[str, Any]) ->
             )
 
 
-def _check_replay_claims(predicate: dict[str, Any], report: dict[str, Any]) -> None:
+def _check_replay_claims(
+    predicate: dict[str, Any], report: dict[str, Any], version: int
+) -> None:
     """Both of the two things a replay does not establish.
 
     `canonical_chain_claim` is the one that matters most: a self-consistent header
@@ -314,7 +393,14 @@ def _check_replay_claims(predicate: dict[str, Any], report: dict[str, Any]) -> N
     corroborated live. Neither happened, so neither may be said.
     """
     replay = _object(_member(predicate, "replay", "statement predicate"), "statement replay")
-    for field in REPLAY_CLAIMS:
+    claims = REPLAY_CLAIMS_BY_VERSION[version]
+    unknown = sorted(set(replay) - set(claims))
+    if unknown:
+        raise IntegrityError(
+            f"state-fixture/v{version} replay carries fields outside its vocabulary: "
+            + listed(unknown)
+        )
+    for field in claims:
         claimed = _member(replay, field, "statement replay")
         if claimed is not False:
             raise IntegrityError(
@@ -326,6 +412,15 @@ def _check_replay_claims(predicate: dict[str, Any], report: dict[str, Any]) -> N
             "the verified report claims the canonical chain, which no Lazarus "
             "build establishes"
         )
+    if version == 2:
+        anchors = _object(
+            _member(report, "chain_anchors", "report"), "report chain_anchors"
+        )
+        if anchors.get("provider_independence_claim") is not False:
+            raise IntegrityError(
+                "the verified report claims provider independence, which matching "
+                "operator-chosen source labels do not establish"
+            )
 
 
 def _declared_components(predicate: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -453,15 +548,16 @@ def bind(
     """
     statement = _object(statement, "statement")
     manifest = _verified_manifest(manifest)
-    report = _verified_report(report)
+    version = manifest["schema_version"]
+    report = _verified_report(report, version)
     predicate = _object(
         _member(statement, "predicate", "statement"), "statement predicate"
     )
     _check_statement_type(statement)
-    _check_predicate_type(statement)
-    _check_chain_and_block(predicate, manifest, report)
-    _check_evidence_counts(predicate, report)
-    _check_replay_claims(predicate, report)
+    _check_predicate_type(statement, STATE_FIXTURE_TYPES[version])
+    _check_chain_and_block(predicate, manifest, report, version)
+    _check_evidence_counts(predicate, report, version)
+    _check_replay_claims(predicate, report, version)
     _check_components(predicate, manifest)
     _check_subjects(statement, manifest)
     return list(CHECKS)

@@ -48,6 +48,11 @@ from ..gates import Gate
 TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
 SUMMARY = "a state fixture: the pinned block, its components, and what was proved"
 
+TYPE_V2 = "https://ariadne.wildcat.finance/state-fixture/v2"
+SUMMARY_V2 = (
+    "a state fixture: independently proved state and consensus-receipt evidence"
+)
+
 EVIDENCE_CLASSES = ("proof_backed", "header_bound", "recorded_rpc")
 """The three classes, spelled as Lazarus spells them in its manifest schema.
 
@@ -82,6 +87,9 @@ its schema accepts, so every fixture it produces still carries one.
 
 CHAIN_FIELDS = CHAIN_REQUIRED + ("state_root",)
 """Every key the pin may carry."""
+RECEIPT_PROVED = "receipt_trie_proved"
+EVIDENCE_CLASSES_V2 = EVIDENCE_CLASSES + (RECEIPT_PROVED,)
+CHAIN_FIELDS_V2 = CHAIN_FIELDS + ("receipts_root",)
 CAPTURE_REQUIRED = ("tool", "tool_version", "command", "parameters_digest")
 FIXTURE_SUBJECT_REQUIRED = ("name", "path", "digest", "bytes")
 REPLAY_REQUIRED = ("reaches_network", "canonical_chain_claim")
@@ -211,7 +219,7 @@ def exactly_false(record, field):
     return field in record and record[field] is False
 
 
-def gate_2_environment(statement):
+def _gate_2_environment(statement, chain_fields):
     """A block number is not a pin.
 
     Recoverable means somebody else can find the same state again: the chain, the
@@ -254,15 +262,17 @@ def gate_2_environment(statement):
                 "block_hash must be a lowercase 0x-prefixed 32-byte hash, not %r"
                 % (chain["block_hash"],)
             )
-        # Present is checked; absent is the evidence check's question, because
-        # whether a fixture needs a state root depends on what it claims.
-        if "state_root" in chain and not hash32(chain["state_root"]):
-            faults.append(
-                "state_root must be a lowercase 0x-prefixed 32-byte hash, not %r"
-                % (chain["state_root"],)
-            )
+        # Present roots are checked here; absence is the evidence check's
+        # question, because whether a fixture needs either root depends on the
+        # independently counted class that claims its authority.
+        for root_field in sorted(set(chain_fields) - set(CHAIN_REQUIRED)):
+            if root_field in chain and not hash32(chain[root_field]):
+                faults.append(
+                    "%s must be a lowercase 0x-prefixed 32-byte hash, not %r"
+                    % (root_field, chain[root_field])
+                )
     if isinstance(chain, dict):
-        unknown = sorted(set(chain) - set(CHAIN_FIELDS))
+        unknown = sorted(set(chain) - set(chain_fields))
         if unknown:
             faults.append(
                 "chain carries fields this type does not define: %s"
@@ -350,6 +360,11 @@ def gate_2_environment(statement):
             len(predicate["fixture_subjects"]),
         ),
     )
+
+
+def gate_2_environment(statement):
+    """Gate 2 for the stable state-fixture/v1 vocabulary."""
+    return _gate_2_environment(statement, CHAIN_FIELDS)
 
 
 def section_faults(section, body):
@@ -483,7 +498,7 @@ def gate_5_deltas(statement):
     )
 
 
-def gate_evidence(statement):
+def _gate_evidence(statement, evidence_classes, roots):
     """Every class counted, and nothing counted as proved without a proof.
 
     The three classes are not interchangeable and this is the check that says so.
@@ -515,13 +530,13 @@ def gate_evidence(statement):
         return Gate(None, "evidence", False, "evidence must be an object")
 
     faults = []
-    unknown = sorted(set(evidence) - set(EVIDENCE_CLASSES))
+    unknown = sorted(set(evidence) - set(evidence_classes))
     if unknown:
         faults.append(
             "evidence carries classes this type does not define: %s"
             % ", ".join(unknown)
         )
-    for name in EVIDENCE_CLASSES:
+    for name in evidence_classes:
         if name not in evidence:
             faults.append(
                 "evidence has no %s count; a class left out reads as nothing of "
@@ -539,12 +554,14 @@ def gate_evidence(statement):
         return Gate(None, "evidence", False, "; ".join(faults))
 
     chain = predicate.get("chain")
-    root = chain.get("state_root") if isinstance(chain, dict) else None
-    if evidence[PROVED] > 0 and not hash32(root):
-        faults.append(
-            "evidence counts %d %s record(s) with no state root to have proved "
-            "them against" % (evidence[PROVED], PROVED)
-        )
+    chain = chain if isinstance(chain, dict) else {}
+    for evidence_class, (root_field, root_label) in roots.items():
+        if evidence[evidence_class] > 0 and not hash32(chain.get(root_field)):
+            faults.append(
+                "evidence counts %d %s record(s) with no %s to have proved "
+                "them against"
+                % (evidence[evidence_class], evidence_class, root_label)
+            )
 
     if faults:
         return Gate(None, "evidence", False, "; ".join(faults))
@@ -552,7 +569,16 @@ def gate_evidence(statement):
         None,
         "evidence",
         True,
-        ", ".join("%d %s" % (evidence[name], name) for name in EVIDENCE_CLASSES),
+        ", ".join("%d %s" % (evidence[name], name) for name in evidence_classes),
+    )
+
+
+def gate_evidence(statement):
+    """The v1 evidence split: only state proofs require a root."""
+    return _gate_evidence(
+        statement,
+        EVIDENCE_CLASSES,
+        {PROVED: ("state_root", "state root")},
     )
 
 
@@ -570,7 +596,16 @@ REFUSALS = {
 than the rule."""
 
 
-def gate_replay(statement):
+REFUSALS_V2 = dict(
+    REFUSALS,
+    provider_independence_claim=(
+        "matching operator-chosen source labels do not establish independent "
+        "providers"
+    ),
+)
+
+
+def _gate_replay(statement, replay_required, refusals, local_only=False):
     """A closed boundary, and no claim about the canonical chain.
 
     Both fields are required and both must be false. `reaches_network` records
@@ -597,19 +632,19 @@ def gate_replay(statement):
         return Gate(None, "replay", False, "replay must be an object")
 
     faults = []
-    unknown = sorted(set(replay) - set(REPLAY_REQUIRED))
+    unknown = sorted(set(replay) - set(replay_required))
     if unknown:
         faults.append(
             "replay carries fields this type does not define: %s"
             % ", ".join(unknown)
         )
-    for field in REPLAY_REQUIRED:
+    for field in replay_required:
         if field not in replay:
             faults.append("replay does not record %s" % field)
             continue
         if replay[field] is True:
             faults.append(
-                "replay %s is true; %s" % (field, REFUSALS[field])
+                "replay %s is true; %s" % (field, refusals[field])
             )
             continue
         if not exactly_false(replay, field):
@@ -618,15 +653,26 @@ def gate_replay(statement):
                 "and %r is not in its vocabulary"
                 % (field, replay[field], replay[field])
             )
+    commands = predicate.get("commands") if isinstance(predicate, dict) else None
+    if local_only and isinstance(commands, list) and commands:
+        faults.append(
+            "state-fixture/v2 replay is local-file verification only and records "
+            "no executable commands"
+        )
 
     if faults:
         return Gate(None, "replay", False, "; ".join(faults))
-    return Gate(
-        None,
-        "replay",
-        True,
-        "replay reaches no network and claims nothing about the canonical chain",
-    )
+    detail = "replay reaches no network and claims nothing about the canonical chain"
+    if "provider_independence_claim" in replay_required:
+        detail += " or provider independence"
+    return Gate(None, "replay", True, detail)
+
+
+def gate_replay(statement):
+    """The stable v1 replay boundary."""
+    return _gate_replay(statement, REPLAY_REQUIRED, REFUSALS)
+
+
 def gate_fields(statement):
     """Nothing outside the shape.
 
@@ -657,3 +703,49 @@ def check(statement):
         gate_evidence(statement),
         gate_replay(statement),
     ]
+
+
+class _StateFixtureV2(object):
+    """The separately registered receipt-aware predicate interface.
+
+    The implementation shares the stable v1 shape machinery, but the URI,
+    accepted fields and root-to-evidence rules are explicit here. Registering a
+    distinct object prevents a v1 statement from acquiring v2 meaning through
+    an implicit upgrade.
+    """
+
+    TYPE = TYPE_V2
+    SUMMARY = SUMMARY_V2
+    EVIDENCE_CLASSES = EVIDENCE_CLASSES_V2
+    PROVED = PROVED
+    RECEIPT_PROVED = RECEIPT_PROVED
+    CHAIN_REQUIRED = CHAIN_REQUIRED
+    CHAIN_FIELDS = CHAIN_FIELDS_V2
+    REPLAY_REQUIRED = REPLAY_REQUIRED + ("provider_independence_claim",)
+    PREDICATE_FIELDS = PREDICATE_FIELDS
+    REQUIRED_FIELDS = REQUIRED_FIELDS
+
+    @staticmethod
+    def check(statement):
+        return [
+            _gate_2_environment(statement, CHAIN_FIELDS_V2),
+            gate_5_deltas(statement),
+            gate_fields(statement),
+            _gate_evidence(
+                statement,
+                EVIDENCE_CLASSES_V2,
+                {
+                    PROVED: ("state_root", "state root"),
+                    RECEIPT_PROVED: ("receipts_root", "receipts root"),
+                },
+            ),
+            _gate_replay(
+                statement,
+                REPLAY_REQUIRED + ("provider_independence_claim",),
+                REFUSALS_V2,
+                local_only=True,
+            ),
+        ]
+
+
+V2 = _StateFixtureV2()

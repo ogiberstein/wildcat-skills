@@ -45,6 +45,12 @@ class PredicatesTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("https://ariadne.wildcat.finance/dataset/v1", out)
 
+    def test_predicates_lists_both_state_fixture_versions(self):
+        code, out, _ = run(["predicates"])
+        self.assertEqual(code, 0)
+        self.assertIn("https://ariadne.wildcat.finance/state-fixture/v1", out)
+        self.assertIn("https://ariadne.wildcat.finance/state-fixture/v2", out)
+
     def test_predicates_json_carries_the_type_and_summary(self):
         code, out, _ = run(["predicates", "--json"])
         self.assertEqual(code, 0)
@@ -55,9 +61,19 @@ class PredicatesTests(unittest.TestCase):
                 "https://ariadne.wildcat.finance/dataset/v1",
                 "https://ariadne.wildcat.finance/solidity-release/v1",
                 "https://ariadne.wildcat.finance/state-fixture/v1",
+                "https://ariadne.wildcat.finance/state-fixture/v2",
             ],
         )
         self.assertTrue(all(entry["summary"] for entry in found))
+
+    def test_capture_state_fixture_help_names_version_dispatch(self):
+        parser = ariadne.build_parser()
+        for action in parser._subparsers._group_actions:  # noqa: SLF001
+            fixture_parser = action.choices["capture-state-fixture"]
+            break
+        else:
+            self.fail("capture-state-fixture is not registered")
+        self.assertIn("v1 or v2 fixture", fixture_parser.format_help())
 
 
 class InspectTests(unittest.TestCase):

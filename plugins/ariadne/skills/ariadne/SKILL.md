@@ -91,11 +91,12 @@ python3 scripts/ariadne.py verify <statement-or-envelope.json>
 python3 scripts/ariadne.py replay <statement.json> [--allow-execution --project <dir>]
 ```
 
-`predicates` lists the predicate types this build understands. Three are
-registered, `https://ariadne.wildcat.finance/solidity-release/v1`,
-`https://ariadne.wildcat.finance/dataset/v1` and
-`https://ariadne.wildcat.finance/state-fixture/v1`, and a statement of any other
-type still parses and still gets its core gates.
+`predicates` lists the predicate types this build understands. Four are registered:
+`https://ariadne.wildcat.finance/solidity-release/v1`,
+`https://ariadne.wildcat.finance/dataset/v1`,
+`https://ariadne.wildcat.finance/state-fixture/v1`, and
+`https://ariadne.wildcat.finance/state-fixture/v2`. A statement of any other type
+still parses and still gets its core gates.
 
 `capture` reads a Foundry project's build output into a release statement that
 `verify` accepts unedited. It does not decide whether your tests passed: a
@@ -252,29 +253,36 @@ Type URI: `https://ariadne.wildcat.finance/dataset/v1`.
 
 ## The state-fixture predicate
 
-The third shape. Its subject is a component of a captured Lazarus fixture, and it
-carries the pin -- chain, block number, block hash and state root -- the tool that
-captured it, every component with its digest and byte count, the three evidence
-counts, and whether replay reaches a network.
+The third shape has two explicit versions. Its subject is a component of a captured
+Lazarus fixture. Both carry the block pin, capture tool, every component with its
+digest and byte count, evidence counts, and replay boundary. Version 1 carries the
+three legacy evidence classes. Version 2 adds `receipts_root`,
+`receipt_trie_proved`, and `provider_independence_claim`.
 
-Two checks are its own. Evidence requires all three class keys, refuses a count
-that is not a non-negative whole number, and refuses a `proof_backed` count above
-zero when there is no `state_root` to have proved it against. Replay requires
-`reaches_network` and `canonical_chain_claim` and refuses either being true.
+Two checks are its own. Evidence requires every class key and a non-negative whole
+number for each. A positive `proof_backed` count independently requires
+`state_root`; a positive `receipt_trie_proved` count in version 2 independently
+requires `receipts_root`. Neither root or count grants the other proof class.
+Replay requires its versioned fields to be exactly false. Version 2 also requires
+an empty `commands` array, because its verification boundary reads local files
+only.
 
 The evidence check is the point of the type. Lazarus distinguishes what was proved
-against the state root from what an endpoint merely said, and nothing here shifts
-a count between those columns.
+against the state root, what was proved against the receipt trie, and what an
+endpoint merely said. `receipt_trie_proved` covers only the scoped consensus
+receipt and log-projection relations. It does not prove a transaction-hash
+attribution; transaction hashes and RPC decorations remain recorded data.
 
 Numbers are integers. A Lazarus manifest writes the chain id and the block number
 as hex quantity strings, which order as text, so this type refuses the wire form
 rather than comparing it.
 
-[`docs/state-fixture.md`](../../docs/state-fixture.md) describes it field by
-field, and `schemas/state-fixture-v1.json` ships for producers that are not this
-tool.
+[`docs/state-fixture.md`](../../docs/state-fixture.md) describes both versions
+field by field. `schemas/state-fixture-v1.json` and
+`schemas/state-fixture-v2.json` ship for producers that are not this tool.
 
-Type URI: `https://ariadne.wildcat.finance/state-fixture/v1`.
+Type URIs: `https://ariadne.wildcat.finance/state-fixture/v1` and
+`https://ariadne.wildcat.finance/state-fixture/v2`.
 
 ## Examples
 
@@ -291,9 +299,9 @@ fails a named gate.
 
 Named so the edge is visible rather than implied.
 
-The registry holds three predicates. The grounded-agent predicate is specified
-and not implemented here, so a statement of that type verifies its core gates and
-is told which gates went unchecked.
+The registry holds four predicates. The grounded-agent predicate is specified and
+not implemented here, so a statement of that type verifies its core gates and is
+told which gates went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each of those is a deliberate boundary rather than an

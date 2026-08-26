@@ -42,6 +42,7 @@ from . import support
 COMPONENTS = ("header.json", "plan.json", "proofs.jsonl", "rpc.jsonl")
 ANCHORED_COMPONENTS = (*COMPONENTS, "anchors.jsonl")
 STATE_FIXTURE_TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
+STATE_FIXTURE_TYPE_V2 = "https://ariadne.wildcat.finance/state-fixture/v2"
 CLI = support.PLUGIN_ROOT / "scripts" / "lazarus.py"
 
 
@@ -105,22 +106,30 @@ def statement_for(root: Path):
         }
         for entry in manifest["components"]
     ]
+    version = manifest["schema_version"]
+    chain = {
+        "chain_id": int(manifest["chain_id"], 16),
+        "block_number": int(report["block_number"], 16),
+        "block_hash": report["block_hash"],
+        "state_root": report["state_root"],
+    }
+    replay = {"reaches_network": False, "canonical_chain_claim": False}
+    predicate_type = STATE_FIXTURE_TYPE
+    if version == 2:
+        predicate_type = STATE_FIXTURE_TYPE_V2
+        chain["receipts_root"] = report["receipts_root"]
+        replay["provider_independence_claim"] = False
     return {
         "_type": "https://in-toto.io/Statement/v1",
-        "predicateType": STATE_FIXTURE_TYPE,
+        "predicateType": predicate_type,
         "subject": [
             {"name": entry["name"], "digest": entry["digest"]} for entry in subjects
         ]
         + [{"name": "synthetic-v0", "digest": {"sha256": report["fixture_digest"]}}],
         "predicate": {
-            "chain": {
-                "chain_id": int(manifest["chain_id"], 16),
-                "block_number": int(report["block_number"], 16),
-                "block_hash": report["block_hash"],
-                "state_root": report["state_root"],
-            },
+            "chain": chain,
             "evidence": dict(report["evidence_counts"]),
-            "replay": {"reaches_network": False, "canonical_chain_claim": False},
+            "replay": replay,
             "fixture_subjects": subjects,
         },
     }
@@ -153,6 +162,19 @@ class Prepared:
         return sorted(
             path.name for path in self.out.parent.glob(".*") if path.is_dir()
         )
+
+
+class PreparedV2(Prepared):
+    """The checked receipt-proof fixture with its matching v2 statement."""
+
+    def __init__(self, directory):
+        self.root = Path(directory)
+        self.fixture = self.root / "fixture-source"
+        shutil.copytree(support.RECEIPT_PROOF_FIXTURE, self.fixture)
+        self.statement = self.root / "statement.json"
+        self.document = statement_for(self.fixture)
+        self.write_statement(self.document)
+        self.out = self.root / "release"
 
 
 class WrittenReleaseTests(unittest.TestCase):
@@ -272,6 +294,101 @@ class WrittenReleaseTests(unittest.TestCase):
             prepared = Prepared(directory)
             prepared.release()
             self.assertEqual(prepared.staged(), [])
+
+
+class ReceiptAwareReleaseTests(unittest.TestCase):
+    def test_v2_records_the_recomputed_root_four_counts_and_witness(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            report = verify_fixture(prepared.fixture)
+            document = prepared.release()
+
+            self.assertEqual(document["schema_version"], 2)
+            self.assertEqual(
+                document["statement"]["predicate_type"], STATE_FIXTURE_TYPE_V2
+            )
+            self.assertEqual(
+                document["verified"]["receipts_root"], report["receipts_root"]
+            )
+            self.assertEqual(
+                document["verified"]["evidence_counts"], report["evidence_counts"]
+            )
+            self.assertEqual(
+                set(document["verified"]["evidence_counts"]),
+                {
+                    "proof_backed",
+                    "header_bound",
+                    "recorded_rpc",
+                    "receipt_trie_proved",
+                },
+            )
+            self.assertTrue(
+                (prepared.out / FIXTURE_DIRECTORY / "receipt-witness.json").is_file()
+            )
+            self.assertNotIn("transaction_hash", json.dumps(document).lower())
+
+    def test_v2_verifies_after_its_source_fixture_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            document = prepared.release()
+            shutil.rmtree(prepared.fixture)
+            report = verify_release(prepared.out)
+            self.assertEqual(
+                report["receipts_root"], document["verified"]["receipts_root"]
+            )
+
+    def test_v1_and_v2_statements_are_not_cross_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            statement = copy.deepcopy(prepared.document)
+            statement["predicateType"] = STATE_FIXTURE_TYPE
+            prepared.write_statement(statement)
+            with self.assertRaisesRegex(IntegrityError, "state-fixture/v2"):
+                prepared.release()
+            self.assertFalse(prepared.out.exists())
+            self.assertEqual(prepared.staged(), [])
+
+    def test_release_and_fixture_versions_are_not_cross_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            prepared.release()
+            document = loads((prepared.out / RELEASE_NAME).read_bytes())
+            document["schema_version"] = 1
+            del document["verified"]["receipts_root"]
+            del document["verified"]["evidence_counts"]["receipt_trie_proved"]
+            document["statement"]["predicate_type"] = STATE_FIXTURE_TYPE
+            document["release_digest"] = release_digest(document)
+            (prepared.out / RELEASE_NAME).write_bytes(dumps(document) + b"\n")
+            with self.assertRaisesRegex(IntegrityError, "never upgraded implicitly"):
+                verify_release(prepared.out)
+
+    def test_restamped_v2_root_count_statement_and_release_drift_are_refused(self):
+        edits = (
+            ("root", lambda document: document["verified"].__setitem__(
+                "receipts_root", "0x" + "99" * 32
+            )),
+            ("count", lambda document: document["verified"]["evidence_counts"].__setitem__(
+                "receipt_trie_proved", 3
+            )),
+        )
+        for name, edit in edits:
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = PreparedV2(directory)
+                prepared.release()
+                document = loads((prepared.out / RELEASE_NAME).read_bytes())
+                edit(document)
+                document["release_digest"] = release_digest(document)
+                (prepared.out / RELEASE_NAME).write_bytes(dumps(document) + b"\n")
+                with self.subTest(field=name), self.assertRaises(IntegrityError):
+                    verify_release(prepared.out)
+
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            prepared.release()
+            statement = prepared.out / STATEMENT_NAME
+            statement.write_bytes(statement.read_bytes() + b" ")
+            with self.assertRaisesRegex(IntegrityError, "statement digests"):
+                verify_release(prepared.out)
 
 
 class RefusedReleaseTests(unittest.TestCase):

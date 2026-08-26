@@ -22,12 +22,12 @@ EXAMPLES = os.path.join(
 )
 
 
-def built(commands):
+def built(commands, predicate_type=TYPE):
     return statement.Statement.from_dict(
         {
             "_type": statement.STATEMENT_TYPE,
             "subject": [{"name": "a", "digest": ART}],
-            "predicateType": TYPE,
+            "predicateType": predicate_type,
             "predicate": {"claims": [], "commands": commands},
         }
     )
@@ -119,6 +119,21 @@ class ExecutionTests(unittest.TestCase):
         self.assertFalse(found.executed)
         self.assertFalse(os.path.exists(marker))
         self.assertIn("pass --allow-execution", "\n".join(found.lines()))
+
+    def test_state_fixture_v2_commands_never_execute_even_if_called_directly(self):
+        marker = os.path.join(self.root, "v2-ran")
+        found = replay.replay(
+            built(
+                [command(argv=["touch", marker])],
+                predicate_type=replay.STATE_FIXTURE_V2,
+            ),
+            allow_execution=True,
+            cwd=self.root,
+        )
+        self.assertTrue(found.executed)
+        self.assertFalse(found.steps[0].runnable)
+        self.assertIn("local-file", found.steps[0].action)
+        self.assertFalse(os.path.exists(marker))
 
     def test_an_exact_command_runs_and_reports_its_exit_status(self):
         found = replay.replay(

@@ -75,6 +75,18 @@ def sample_release():
     }
 
 
+def sample_release_v2():
+    """A receipt-aware release whose extra authority is explicit and closed."""
+    release = sample_release()
+    release["schema_version"] = 2
+    release["statement"]["predicate_type"] = (
+        "https://ariadne.wildcat.finance/state-fixture/v2"
+    )
+    release["verified"]["receipts_root"] = hash32("22")
+    release["verified"]["evidence_counts"]["receipt_trie_proved"] = 2
+    return release
+
+
 def sample_plan():
     return {
         "schema_version": 1,

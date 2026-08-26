@@ -28,11 +28,13 @@ SCHEMAS = os.path.join(
 SCHEMA = os.path.join(SCHEMAS, "solidity-release-v1.json")
 DATASET_SCHEMA = os.path.join(SCHEMAS, "dataset-v1.json")
 STATE_FIXTURE_SCHEMA = os.path.join(SCHEMAS, "state-fixture-v1.json")
+STATE_FIXTURE_V2_SCHEMA = os.path.join(SCHEMAS, "state-fixture-v2.json")
 
 SHIPPED = (
     (release, SCHEMA),
     (dataset, DATASET_SCHEMA),
     (state_fixture, STATE_FIXTURE_SCHEMA),
+    (state_fixture.V2, STATE_FIXTURE_V2_SCHEMA),
 )
 """Each shipped predicate and its published schema."""
 
@@ -407,6 +409,104 @@ class StateFixtureSchemaDriftTests(unittest.TestCase):
         self.assertFalse(state_fixture.usable_path("schemas/../../outside.json"))
         self.assertTrue(state_fixture.usable_path("manifest.json"))
         self.assertTrue(state_fixture.usable_path("schemas/header-v1.json"))
+
+
+class StateFixtureV2SchemaDriftTests(unittest.TestCase):
+    def setUp(self):
+        self.schema = read_schema(STATE_FIXTURE_V2_SCHEMA)
+        self.properties = self.schema["properties"]
+
+    def test_the_schema_names_the_v2_predicate_type(self):
+        self.assertIn(state_fixture.V2.TYPE, self.schema["$id"])
+
+    def test_the_top_level_and_pin_fields_match_v2(self):
+        self.assertEqual(
+            sorted(self.properties), sorted(state_fixture.V2.PREDICATE_FIELDS)
+        )
+        self.assertEqual(
+            self.schema["required"], list(state_fixture.V2.REQUIRED_FIELDS)
+        )
+        chain = self.properties["chain"]
+        self.assertEqual(chain["required"], list(state_fixture.V2.CHAIN_REQUIRED))
+        self.assertEqual(
+            sorted(chain["properties"]), sorted(state_fixture.V2.CHAIN_FIELDS)
+        )
+
+    def test_each_proved_class_requires_only_its_own_root(self):
+        found = {}
+        for rule in self.schema["allOf"]:
+            evidence = (
+                rule.get("if", {})
+                .get("properties", {})
+                .get("evidence", {})
+                .get("properties", {})
+            )
+            for evidence_class, condition in evidence.items():
+                if condition.get("minimum") == 1:
+                    found[evidence_class] = rule["then"]["properties"]["chain"][
+                        "required"
+                    ]
+        self.assertEqual(
+            found,
+            {
+                state_fixture.V2.PROVED: ["state_root"],
+                state_fixture.V2.RECEIPT_PROVED: ["receipts_root"],
+            },
+        )
+
+    def test_the_four_evidence_classes_and_bounds_match_v2(self):
+        evidence = self.properties["evidence"]
+        self.assertEqual(evidence["required"], list(state_fixture.V2.EVIDENCE_CLASSES))
+        self.assertEqual(
+            sorted(evidence["properties"]),
+            sorted(state_fixture.V2.EVIDENCE_CLASSES),
+        )
+        for name in state_fixture.V2.EVIDENCE_CLASSES:
+            with self.subTest(evidence_class=name):
+                self.assertEqual(
+                    evidence["properties"][name]["$ref"], "#/$defs/count"
+                )
+        count = self.schema["$defs"]["count"]
+        self.assertEqual(count["minimum"], 0)
+        self.assertEqual(count["maximum"], state_fixture.MAX_COUNT)
+
+    def test_the_three_replay_claims_are_required_and_pinned_false(self):
+        replay = self.properties["replay"]
+        self.assertEqual(replay["required"], list(state_fixture.V2.REPLAY_REQUIRED))
+        self.assertEqual(
+            sorted(replay["properties"]),
+            sorted(state_fixture.V2.REPLAY_REQUIRED),
+        )
+        for field in state_fixture.V2.REPLAY_REQUIRED:
+            with self.subTest(field=field):
+                self.assertIs(replay["properties"][field]["const"], False)
+
+    def test_v2_replay_has_no_executable_commands(self):
+        self.assertEqual(self.properties["commands"]["maxItems"], 0)
+
+    def test_v2_deltas_do_not_require_a_current_side_on_a_first_capture(self):
+        self.assertNotIn("required", self.properties["deltas"])
+
+    def test_v2_hashes_and_component_bounds_match_the_module(self):
+        import re
+
+        chain = self.properties["chain"]["properties"]
+        pattern = re.compile(self.schema["$defs"]["hash32"]["pattern"])
+        candidates = (
+            "0x" + "f" * 64,
+            state_fixture.ZERO_HASH,
+            "0x" + "f" * 63,
+            "0x" + "F" * 64,
+        )
+        for field in ("block_hash", "state_root", "receipts_root"):
+            self.assertEqual(chain[field]["$ref"], "#/$defs/hash32")
+            for value in candidates:
+                with self.subTest(field=field, value=value):
+                    self.assertEqual(
+                        bool(pattern.match(value)), state_fixture.hash32(value)
+                    )
+        component = self.properties["fixture_subjects"]["items"]["properties"]
+        self.assertEqual(component["bytes"]["maximum"], state_fixture.MAX_BYTES)
 
 
 class CompletenessTests(unittest.TestCase):
