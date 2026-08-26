@@ -110,6 +110,7 @@
     "deltas": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["baseline", "current"],
       "properties": {
         "baseline": {
           "oneOf": [

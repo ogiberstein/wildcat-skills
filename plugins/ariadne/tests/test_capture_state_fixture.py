@@ -12,6 +12,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 from . import support  # noqa: F401  (sets sys.path)
 
@@ -254,6 +255,26 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
             handle.write("{not json")
         self.assertIn("is not JSON", self.refused())
 
+    def test_a_manifest_naming_one_key_twice_is_refused(self):
+        path = os.path.join(self.fixture, "manifest.json")
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        with open(path, "wb") as handle:
+            handle.write(b'{"schema_version": 1,' + raw.lstrip()[1:])
+        self.assertIn("duplicate key", self.refused())
+
+    def test_a_parse_refusal_retains_none_of_the_hostile_document(self):
+        marker = "PRIVATE_PROVIDER_VALUE_"
+        path = os.path.join(self.fixture, "manifest.json")
+        with open(path, "w") as handle:
+            handle.write('{"%s%s": ' % (marker, "x" * 100000))
+        with self.assertRaises(capture.CaptureError) as caught:
+            taken(self.fixture)
+        error = caught.exception
+        self.assertNotIn(marker, str(error))
+        self.assertIsNone(error.__cause__)
+        self.assertIsNone(error.__context__)
+
     def test_a_symlinked_manifest_is_refused_before_its_target_is_read(self):
         target = os.path.join(self.root, "manifest.json")
         shutil.move(os.path.join(self.fixture, "manifest.json"), target)
@@ -438,6 +459,64 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
         shutil.move(os.path.join(self.fixture, "header.json"), target)
         os.symlink(target, os.path.join(self.fixture, "header.json"))
         self.assertIn("header.json is a symlink", self.refused())
+
+    def test_the_state_root_comes_from_the_header_bytes_that_were_digested(self):
+        before = self.header()["state_root"].lower()
+        original = capture.components_of
+
+        def mutate_after_components(*arguments, **keywords):
+            result = original(*arguments, **keywords)
+            header = self.header()
+            header["state_root"] = "0x" + "77" * 32
+            with open(os.path.join(self.fixture, "header.json"), "w") as handle:
+                json.dump(header, handle)
+            return result
+
+        with mock.patch.object(
+            capture, "components_of", side_effect=mutate_after_components
+        ):
+            statement = taken(self.fixture)
+        self.assertEqual(statement["predicate"]["chain"]["state_root"], before)
+
+    def test_a_component_swap_to_a_symlink_after_the_check_is_refused(self):
+        target = os.path.join(self.fixture, "plan.json")
+        outside = os.path.join(self.root, "outside-plan.json")
+        with open(target, "rb") as handle:
+            replacement = handle.read() + b" "
+        with open(outside, "wb") as handle:
+            handle.write(replacement)
+        manifest = self.manifest()
+        for entry in manifest["components"]:
+            if entry["path"] == "plan.json":
+                entry["sha256"] = hashlib.sha256(replacement).hexdigest()
+                entry["bytes"] = len(replacement)
+        self.rewrite(manifest)
+
+        original_is_file = os.path.isfile
+        calls = {"target": 0}
+
+        def swap_after_check(path):
+            result = original_is_file(path)
+            if path == target:
+                calls["target"] += 1
+                if calls["target"] == 2 and result:
+                    os.unlink(target)
+                    os.symlink(outside, target)
+            return result
+
+        with mock.patch.object(os.path, "isfile", side_effect=swap_after_check):
+            self.assertIn("digests to", self.refused())
+
+    def test_an_over_limit_declared_component_is_refused_before_digesting(self):
+        manifest = self.manifest()
+        manifest["components"][0]["bytes"] = predicate.MAX_BYTES + 1
+        self.rewrite(manifest)
+        with mock.patch.object(
+            capture.digests,
+            "of_file",
+            side_effect=AssertionError("component bytes were read before the cap"),
+        ):
+            self.assertIn(str(predicate.MAX_BYTES), self.refused())
 
     def test_a_component_the_directory_lacks_is_refused(self):
         os.unlink(os.path.join(self.fixture, "plan.json"))

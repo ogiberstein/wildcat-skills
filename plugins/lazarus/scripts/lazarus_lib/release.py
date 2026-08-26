@@ -26,9 +26,11 @@ fixture nobody has verified is the thing this exists to prevent.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import shutil
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -367,13 +369,57 @@ def _refuse_statement_inside(source: Path, statement_path: str | Path) -> None:
 def _read_statement(path: str | Path) -> bytes:
     """The statement's bytes, read once, capped, and never re-encoded."""
     handed = Path(path)
-    if handed.is_symlink():
-        raise PathError(f"statement is a symlink: {handed}")
-    if not handed.is_file():
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+    )
+    descriptor: int | None = None
+    failure = None
+    try:
+        descriptor = os.open(handed, flags)
+    except OSError as exc:
+        failure = exc.errno
+    if descriptor is None:
+        if failure == errno.ELOOP:
+            raise PathError(f"statement is a symlink: {handed}")
         raise PathError(f"statement is not a regular file: {handed}")
-    data = handed.read_bytes()
-    if len(data) > MAX_JSON_BYTES:
-        raise FormatError(f"statement exceeds {MAX_JSON_BYTES} bytes: {len(data)}")
+
+    problem: Exception | None = None
+    data = b""
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            problem = PathError(f"statement is not a regular file: {handed}")
+        elif before.st_size > MAX_JSON_BYTES:
+            problem = FormatError(
+                f"statement exceeds {MAX_JSON_BYTES} bytes: {before.st_size}"
+            )
+        else:
+            with os.fdopen(descriptor, "rb", closefd=False) as handle:
+                data = handle.read(MAX_JSON_BYTES + 1)
+            if len(data) > MAX_JSON_BYTES:
+                problem = FormatError(
+                    f"statement exceeds {MAX_JSON_BYTES} bytes: {len(data)}"
+                )
+            else:
+                after = os.fstat(descriptor)
+                if (
+                    before.st_size,
+                    before.st_mtime_ns,
+                    before.st_ctime_ns,
+                ) != (
+                    after.st_size,
+                    after.st_mtime_ns,
+                    after.st_ctime_ns,
+                ) or len(data) != before.st_size:
+                    problem = PathError(f"statement changed while it was read: {handed}")
+    except OSError:
+        problem = PathError(f"cannot read statement: {handed}")
+    finally:
+        os.close(descriptor)
+    if problem is not None:
+        raise problem
     return data
 
 

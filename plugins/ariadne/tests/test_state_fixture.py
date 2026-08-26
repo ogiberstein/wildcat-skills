@@ -872,6 +872,31 @@ class VersionTwoTests(unittest.TestCase):
         ]
         self.assertEqual(failed, [], [gate.line() for gate in failed])
 
+    def test_v2_requires_both_delta_endpoints_even_on_a_first_capture(self):
+        for side in ("baseline", "current"):
+            body = predicate_v2()
+            del body["deltas"][side]
+            found = gate_v2(5, body)
+            with self.subTest(side=side):
+                self.assertFalse(found.passed)
+                self.assertIn(side, found.detail)
+
+    def test_v2_refuses_even_an_empty_delta_section_against_a_null_baseline(self):
+        body = predicate_v2()
+        body["deltas"]["components"] = {}
+        found = gate_v2(5, body)
+        self.assertFalse(found.passed)
+        self.assertIn("components", found.detail)
+
+    def test_v2_component_paths_match_the_published_portable_shape(self):
+        for path in ("a\\b", "x" * 1025):
+            body = predicate_v2()
+            body["fixture_subjects"][0]["path"] = path
+            found = gate_v2(2, body)
+            with self.subTest(path=path[:40]):
+                self.assertFalse(found.passed)
+                self.assertIn("fixture-relative", found.detail)
+
     def test_state_and_receipt_authority_are_independent(self):
         state_only = predicate_v2()
         state_only["evidence"]["receipt_trie_proved"] = 0

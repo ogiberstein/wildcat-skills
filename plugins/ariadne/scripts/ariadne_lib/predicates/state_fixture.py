@@ -142,6 +142,9 @@ MAX_BYTES = 536870912
 """One component's byte count, matching the ceiling Lazarus's manifest schema
 sets. A larger number describes a file neither tool would have written."""
 
+MAX_PATH = 1024
+"""The component-path ceiling published by the v2 schema."""
+
 MAX_COUNT = 100000
 """One evidence class's count, matching the ceiling Lazarus's manifest schema sets.
 
@@ -177,6 +180,16 @@ def usable_path(value):
         return False
     parts = normalised.split("/")
     return ".." not in parts and "" not in parts[1:]
+
+
+def usable_path_v2(value):
+    """The portable component path published by the v2 schema.
+
+    Version 1 retains its historical POSIX backslash behaviour. Version 2 is a
+    new contract and refuses a backslash, which another host can interpret as a
+    separator, and paths beyond its explicit schema ceiling.
+    """
+    return usable_path(value) and "\\" not in value and len(value) <= MAX_PATH
 
 
 def stated(value):
@@ -219,7 +232,7 @@ def exactly_false(record, field):
     return field in record and record[field] is False
 
 
-def _gate_2_environment(statement, chain_fields):
+def _gate_2_environment(statement, chain_fields, path_check=usable_path):
     """A block number is not a pin.
 
     Recoverable means somebody else can find the same state again: the chain, the
@@ -331,7 +344,7 @@ def _gate_2_environment(statement, chain_fields):
                     "%s bytes must be a whole number of bytes up to %d, not %r"
                     % (label, MAX_BYTES, entry["bytes"])
                 )
-            if not usable_path(entry["path"]):
+            if not path_check(entry["path"]):
                 faults.append(
                     "%s path %r is not a fixture-relative path; a reader "
                     "resolving it against the fixture would land outside it"
@@ -411,7 +424,7 @@ def section_faults(section, body):
     return faults
 
 
-def gate_5_deltas(statement):
+def _gate_5_deltas(statement, require_complete_shape=False):
     """A comparison fails when either end cannot be identified exactly.
 
     The absent case is a claim of its own. A first fixture carries
@@ -439,6 +452,10 @@ def gate_5_deltas(statement):
         return Gate(5, "deltas", False, "deltas must be an object")
 
     faults = []
+    if require_complete_shape:
+        for side in ("baseline", "current"):
+            if side not in deltas:
+                faults.append("deltas names no %s side" % side)
     content = {
         section: deltas.get(section)
         for section in DELTA_SECTIONS
@@ -470,6 +487,8 @@ def gate_5_deltas(statement):
             faults.append(
                 "deltas record %s against a null baseline" % ", ".join(sorted(content))
             )
+        elif require_complete_shape and "components" in deltas:
+            faults.append("deltas carries a components section against a null baseline")
         if faults:
             return Gate(5, "deltas", False, "; ".join(faults))
         named = ""
@@ -496,6 +515,11 @@ def gate_5_deltas(statement):
             ", ".join(sorted(content)) if content else "no differences recorded",
         ),
     )
+
+
+def gate_5_deltas(statement):
+    """Gate 5 for the stable state-fixture/v1 vocabulary."""
+    return _gate_5_deltas(statement)
 
 
 def _gate_evidence(statement, evidence_classes, roots):
@@ -724,12 +748,15 @@ class _StateFixtureV2(object):
     REPLAY_REQUIRED = REPLAY_REQUIRED + ("provider_independence_claim",)
     PREDICATE_FIELDS = PREDICATE_FIELDS
     REQUIRED_FIELDS = REQUIRED_FIELDS
+    MAX_PATH = MAX_PATH
 
     @staticmethod
     def check(statement):
         return [
-            _gate_2_environment(statement, CHAIN_FIELDS_V2),
-            gate_5_deltas(statement),
+            _gate_2_environment(
+                statement, CHAIN_FIELDS_V2, path_check=usable_path_v2
+            ),
+            _gate_5_deltas(statement, require_complete_shape=True),
             gate_fields(statement),
             _gate_evidence(
                 statement,

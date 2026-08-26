@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from lazarus_lib.binding import CHECKS
 from lazarus_lib.canonical import dump, dumps, loads
@@ -562,6 +563,30 @@ class RefusedReleaseTests(unittest.TestCase):
             error = self.refuse(prepared, PathError, statement=link)
             self.assertIn("symlink", str(error))
 
+    def test_a_checked_statement_cannot_be_swapped_to_a_symlink_before_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            outside = prepared.root / "matching-statement.json"
+            outside.write_bytes(prepared.statement.read_bytes())
+            mismatching = copy.deepcopy(prepared.document)
+            mismatching["predicate"]["chain"]["block_hash"] = "0x" + "99" * 32
+            prepared.write_statement(mismatching)
+
+            original_is_file = Path.is_file
+            swapped = {"done": False}
+
+            def swap_after_check(path):
+                result = original_is_file(path)
+                if path == prepared.statement and result and not swapped["done"]:
+                    swapped["done"] = True
+                    path.unlink()
+                    path.symlink_to(outside)
+                return result
+
+            with mock.patch.object(Path, "is_file", swap_after_check):
+                self.refuse(prepared, IntegrityError)
+            self.assertFalse(swapped["done"])
+
     def test_a_statement_larger_than_the_read_cap_is_refused(self):
         from lazarus_lib.canonical import MAX_JSON_BYTES
 
@@ -569,6 +594,21 @@ class RefusedReleaseTests(unittest.TestCase):
             prepared = Prepared(directory)
             prepared.statement.write_bytes(b'{"a": "' + b"x" * MAX_JSON_BYTES + b'"}')
             error = self.refuse(prepared, FormatError)
+            self.assertIn(str(MAX_JSON_BYTES), str(error))
+
+    def test_an_oversized_statement_is_refused_before_its_body_is_read(self):
+        from lazarus_lib.canonical import MAX_JSON_BYTES
+
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Prepared(directory)
+            with prepared.statement.open("wb") as handle:
+                handle.truncate(MAX_JSON_BYTES + 1)
+            with mock.patch.object(
+                Path,
+                "read_bytes",
+                side_effect=AssertionError("oversized statement body was read"),
+            ):
+                error = self.refuse(prepared, FormatError)
             self.assertIn(str(MAX_JSON_BYTES), str(error))
 
     def test_a_staged_directory_already_in_the_way_is_refused(self):

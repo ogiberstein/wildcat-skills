@@ -31,13 +31,15 @@ What the caller cannot supply:
   labels do not establish independent providers.
 """
 
+import errno
+import hashlib
 import json
 import os
 import re
 import stat
 import tempfile
 
-from .. import digests
+from .. import digests, safejson
 from ..predicates import state_fixture as predicate
 from . import tree
 from .tree import CaptureError, confined
@@ -67,6 +69,17 @@ nothing in this predicate carries it."""
 
 SCHEMA_VERSIONS = (1, 2)
 """The manifest versions with an exact, separately versioned predicate mapping."""
+
+MAX_JSON_DEPTH = 64
+"""Fixture JSON uses shallow objects and arrays. Refuse pathological nesting
+before handing bytes to Python's recursive parser."""
+
+
+class _DuplicateJSONKey(ValueError):
+    """Internal marker that deliberately retains no attacker-chosen key."""
+
+
+_HEADER_NOT_READ = object()
 
 
 def predicate_for(version):
@@ -99,54 +112,150 @@ def refuse_constant(token):
     )
 
 
-def read_json(path, what):
-    """One regular document from the fixture, bounded and not link-followed."""
-    if os.path.islink(path):
-        raise CaptureError(
-            "%s is a symlink; a fixture document must be read from the tree" % what
+def refuse_duplicate_keys(pairs):
+    """Build one object only when every key occurs once."""
+    seen = set()
+    for key, _ in pairs:
+        if key in seen:
+            raise _DuplicateJSONKey()
+        seen.add(key)
+    return dict(pairs)
+
+
+def parse_json(raw, what):
+    """Parse bounded bytes without ambiguous keys or retained hostile context."""
+    problem = None
+    try:
+        safejson.check_depth(raw, MAX_JSON_DEPTH)
+        found = json.loads(
+            raw.decode("utf-8"),
+            parse_constant=refuse_constant,
+            object_pairs_hook=refuse_duplicate_keys,
         )
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-    try:
-        descriptor = os.open(path, flags)
-    except OSError as error:
-        raise CaptureError("cannot read %s: %s" % (what, error))
-    try:
-        details = os.fstat(descriptor)
-        if not stat.S_ISREG(details.st_mode):
-            raise CaptureError(
-                "%s is not a regular file; a fixture document is read from one"
-                % what
-            )
-        if details.st_size > MAX_MANIFEST_BYTES:
-            raise CaptureError(
-                "%s is %d bytes, over the %d this capture will read"
-                % (what, details.st_size, MAX_MANIFEST_BYTES)
-            )
-        try:
-            with os.fdopen(descriptor, "rb") as handle:
-                descriptor = None
-                raw = handle.read(MAX_MANIFEST_BYTES + 1)
-        except OSError as error:
-            raise CaptureError("cannot read %s: %s" % (what, error))
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
-    if len(raw) > MAX_MANIFEST_BYTES:
-        raise CaptureError(
-            "%s grew past the %d byte cap while being read"
-            % (what, MAX_MANIFEST_BYTES)
-        )
-    try:
-        found = json.loads(raw.decode("utf-8"), parse_constant=refuse_constant)
+    except _DuplicateJSONKey:
+        problem = "has a duplicate key; two readers could choose different values"
     except UnicodeDecodeError as error:
-        raise CaptureError("%s is not UTF-8: %s" % (what, error))
+        problem = "is not UTF-8 at byte %d" % error.start
+    except CaptureError as error:
+        # `refuse_constant` emits only one of JSON's three fixed extension names.
+        problem = str(error)
+    except safejson.InputError:
+        problem = "is nested deeper than %d levels" % MAX_JSON_DEPTH
     except ValueError as error:
-        raise CaptureError("%s is not JSON: %s" % (what, error))
+        line = getattr(error, "lineno", None)
+        column = getattr(error, "colno", None)
+        if isinstance(line, int) and isinstance(column, int):
+            problem = "is not JSON at line %d column %d" % (line, column)
+        else:
+            problem = "is not JSON"
+    if problem is not None:
+        # Raised after every parser handler has ended. The rejected document is
+        # not retained as an implicit exception context for a caller to log.
+        raise CaptureError("%s %s" % (what, problem))
     if not isinstance(found, dict):
         raise CaptureError(
             "%s is a %s rather than an object" % (what, type(found).__name__)
         )
     return found
+
+
+def _open_component(root, relative, what):
+    """Open one fixture-relative file without following any path segment."""
+    parts = relative.split("/")
+    directory_flags = (
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    )
+    current = None
+    descriptor = None
+    failure = None
+    try:
+        current = os.open(root, directory_flags)
+        for part in parts[:-1]:
+            following = os.open(part, directory_flags, dir_fd=current)
+            os.close(current)
+            current = following
+        file_flags = (
+            os.O_RDONLY
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        descriptor = os.open(parts[-1], file_flags, dir_fd=current)
+    except OSError as error:
+        failure = error.errno
+    finally:
+        if current is not None:
+            os.close(current)
+    if descriptor is None:
+        if failure in (errno.ELOOP, errno.ENOTDIR):
+            raise CaptureError(
+                "%s is a symlink or has a non-directory parent" % what
+            )
+        raise CaptureError("cannot read %s" % what)
+    return descriptor
+
+
+def read_component(root, relative, what, max_bytes, keep_bytes=False):
+    """Digest one stable regular-file descriptor under a pre-read byte cap."""
+    descriptor = _open_component(root, relative, what)
+    problem = None
+    raw = bytearray() if keep_bytes else None
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            problem = "%s is not a regular file" % what
+        elif before.st_size > max_bytes:
+            problem = "%s is %d bytes, over the %d this capture will read" % (
+                what,
+                before.st_size,
+                max_bytes,
+            )
+        else:
+            with os.fdopen(descriptor, "rb", closefd=False) as handle:
+                while size <= max_bytes:
+                    block = handle.read(min(65536, max_bytes + 1 - size))
+                    if not block:
+                        break
+                    size += len(block)
+                    digest.update(block)
+                    if raw is not None:
+                        raw.extend(block)
+            if size > max_bytes:
+                problem = "%s grew past the %d byte cap while being read" % (
+                    what,
+                    max_bytes,
+                )
+            else:
+                after = os.fstat(descriptor)
+                before_state = (
+                    before.st_size,
+                    before.st_mtime_ns,
+                    before.st_ctime_ns,
+                )
+                after_state = (
+                    after.st_size,
+                    after.st_mtime_ns,
+                    after.st_ctime_ns,
+                )
+                if before_state != after_state or size != before.st_size:
+                    problem = "%s changed while it was read" % what
+    except OSError:
+        problem = "cannot read %s" % what
+    finally:
+        os.close(descriptor)
+    if problem is not None:
+        raise CaptureError(problem)
+    return {"sha256": digest.hexdigest()}, size, bytes(raw) if raw is not None else None
+
+
+def read_json(path, what):
+    """One root-level fixture document, read through a stable descriptor."""
+    root, relative = os.path.split(path)
+    _, _, raw = read_component(
+        root or ".", relative, what, MAX_MANIFEST_BYTES, keep_bytes=True
+    )
+    return parse_json(raw, what)
 
 
 def quantity(value, what):
@@ -247,17 +356,22 @@ def manifest_of(root):
     return found
 
 
-def state_root_of(root):
+def state_root_of(root, header_bytes=_HEADER_NOT_READ):
     """The state root, from the header Lazarus captured.
 
     Absent is not fatal here. A capture that proved nothing against the trie has no
     use for a root, and the predicate's evidence check is what refuses a proof-backed
     count without one. Refusing here would refuse an honest fixture.
     """
-    path = os.path.join(root, HEADER)
-    if not os.path.lexists(path):
+    if header_bytes is _HEADER_NOT_READ:
+        path = os.path.join(root, HEADER)
+        if not os.path.lexists(path):
+            return None
+        header = read_json(path, HEADER)
+    elif header_bytes is None:
         return None
-    header = read_json(path, HEADER)
+    else:
+        header = parse_json(header_bytes, HEADER)
     if "state_root" not in header:
         return None
     return hash32(header["state_root"], "%s state_root" % HEADER)
@@ -310,6 +424,11 @@ def components_of(root, manifest):
     the silent absence every other refusal here exists for.
     """
     declared = {}
+    path_check = (
+        predicate.usable_path_v2
+        if manifest["schema_version"] == 2
+        else predicate.usable_path
+    )
     for index, entry in enumerate(manifest["components"]):
         label = "component %d" % (index + 1)
         if not isinstance(entry, dict):
@@ -318,20 +437,23 @@ def components_of(root, manifest):
             if field not in entry:
                 raise CaptureError("%s %s is missing %s" % (MANIFEST, label, field))
         path = entry["path"]
-        if not predicate.usable_path(path):
+        if not path_check(path):
             raise CaptureError(
-                "%s %s path %r is not a fixture-relative path; a reader resolving it "
-                "against the fixture would land outside it" % (MANIFEST, label, path)
+                "%s %s path is not a fixture-relative path accepted by this "
+                "manifest version" % (MANIFEST, label)
             )
         if path in declared:
             raise CaptureError(
                 "%s declares %s twice; one file cannot carry two digests, and the "
                 "fixture digest is over this listing" % (MANIFEST, path)
             )
-        if not predicate.whole_number(entry["bytes"]) or entry["bytes"] < 0:
+        if (
+            not predicate.whole_number(entry["bytes"])
+            or not 0 <= entry["bytes"] <= predicate.MAX_BYTES
+        ):
             raise CaptureError(
-                "%s %s bytes must be a whole number of bytes, got %r"
-                % (MANIFEST, label, entry["bytes"])
+                "%s %s bytes must be a whole number from 0 to %d, got %r"
+                % (MANIFEST, label, predicate.MAX_BYTES, entry["bytes"])
             )
         if not isinstance(entry["sha256"], str):
             raise CaptureError(
@@ -357,24 +479,32 @@ def components_of(root, manifest):
         )
 
     out = []
+    documents = {}
     for path in sorted(declared):
         entry = declared[path]
-        absolute = present[path]
-        found = digests.of_file(absolute)
+        limit = MAX_MANIFEST_BYTES if path == HEADER else predicate.MAX_BYTES
+        found, size, raw = read_component(
+            root,
+            path,
+            "fixture component %s" % path,
+            limit,
+            keep_bytes=path == HEADER,
+        )
         if found["sha256"] != entry["sha256"]:
             raise CaptureError(
                 "%s says %s digests to %s and it digests to %s; a manifest that "
                 "disagrees with its own directory is not a fixture this will "
                 "describe" % (MANIFEST, path, entry["sha256"], found["sha256"])
             )
-        size = os.path.getsize(absolute)
         if size != entry["bytes"]:
             raise CaptureError(
                 "%s says %s is %d bytes and it is %d"
                 % (MANIFEST, path, entry["bytes"], size)
             )
         out.append({"name": path, "path": path, "digest": found, "bytes": size})
-    return out
+        if raw is not None:
+            documents[path] = raw
+    return out, documents
 
 
 def parameters_digest(parameters):
@@ -449,9 +579,9 @@ def capture(
             "wrote" % (capture_version, MANIFEST, manifest["tool_version"])
         )
 
-    entries = components_of(root, manifest)
+    entries, documents = components_of(root, manifest)
     current = bundle(entries)
-    state_root = state_root_of(root)
+    state_root = state_root_of(root, documents.get(HEADER))
     evidence = evidence_of(manifest)
     contract = predicate_for(manifest["schema_version"])
 
@@ -486,10 +616,11 @@ def capture(
                     manifest["schema_version"],
                 )
             )
+        previous_entries, _ = components_of(previous_root, previous_manifest)
         deltas = {
             "baseline": {
                 "name": previous_name,
-                "digest": bundle(components_of(previous_root, previous_manifest)),
+                "digest": bundle(previous_entries),
             },
             "current": {"name": name, "digest": current},
         }

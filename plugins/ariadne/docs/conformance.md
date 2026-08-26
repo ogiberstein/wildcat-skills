@@ -92,7 +92,11 @@ a fixture that breaks two things at once and would pass for the wrong reason.
 | `fail-check-evidence-state-fixture-count-over-the-ceiling.json` | State fixture v1 | A count above the ceiling Lazarus's own manifest schema sets |
 | `fail-check-replay-state-fixture-zero-is-not-false.json` | State fixture v1 | `0` where `false` belongs. The field records a decision and `0` is not in its vocabulary |
 | `pass-state-fixture-v2.json` | State fixture v2 | A manifest-v2 fixture with independent state and receipt roots, four evidence counts, a local-only replay boundary and no transaction-hash attribution |
+| `fail-gate2-state-fixture-v2-backslash-path.json` | State fixture v2 | A component path containing a backslash, which another host can interpret as a separator |
 | `fail-gate2-state-fixture-v2-malformed-receipts-root.json` | State fixture v2 | A malformed `receipts_root`; the zero receipt-proof count does not excuse a root that is present but invalid |
+| `fail-gate5-state-fixture-v2-empty-components-without-baseline.json` | State fixture v2 | An empty component-delta section beside an explicitly null baseline |
+| `fail-gate5-state-fixture-v2-missing-baseline.json` | State fixture v2 | A comparison that omits the required explicit baseline side |
+| `fail-gate5-state-fixture-v2-missing-current.json` | State fixture v2 | A comparison that omits the required current side |
 | `fail-gate5-state-fixture-v2-unnamed-current.json` | State fixture v2 | A version 2 first capture whose current side names no fixture |
 | `fail-check-evidence-state-fixture-v2-receipts-without-root.json` | State fixture v2 | A positive `receipt_trie_proved` count with no `receipts_root`; the state-proof rule remains independent |
 

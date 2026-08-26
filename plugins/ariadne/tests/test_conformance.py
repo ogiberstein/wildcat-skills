@@ -223,7 +223,11 @@ class FixtureTests(unittest.TestCase):
         expected = {
             "pass-state-fixture-v2.json",
             "fail-gate2-state-fixture-v2-malformed-receipts-root.json",
+            "fail-gate2-state-fixture-v2-backslash-path.json",
             "fail-gate5-state-fixture-v2-unnamed-current.json",
+            "fail-gate5-state-fixture-v2-missing-baseline.json",
+            "fail-gate5-state-fixture-v2-missing-current.json",
+            "fail-gate5-state-fixture-v2-empty-components-without-baseline.json",
             "fail-check-evidence-state-fixture-v2-receipts-without-root.json",
         }
         self.assertTrue(expected.issubset(set(fixtures())))

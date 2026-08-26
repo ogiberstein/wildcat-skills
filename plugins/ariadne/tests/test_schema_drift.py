@@ -484,8 +484,10 @@ class StateFixtureV2SchemaDriftTests(unittest.TestCase):
     def test_v2_replay_has_no_executable_commands(self):
         self.assertEqual(self.properties["commands"]["maxItems"], 0)
 
-    def test_v2_deltas_do_not_require_a_current_side_on_a_first_capture(self):
-        self.assertNotIn("required", self.properties["deltas"])
+    def test_v2_deltas_require_the_explicit_absent_and_current_sides(self):
+        self.assertEqual(
+            self.properties["deltas"].get("required"), ["baseline", "current"]
+        )
 
     def test_v2_hashes_and_component_bounds_match_the_module(self):
         import re
@@ -507,6 +509,12 @@ class StateFixtureV2SchemaDriftTests(unittest.TestCase):
                     )
         component = self.properties["fixture_subjects"]["items"]["properties"]
         self.assertEqual(component["bytes"]["maximum"], state_fixture.MAX_BYTES)
+        self.assertEqual(component["path"]["maxLength"], 1024)
+        path_check = getattr(state_fixture, "usable_path_v2", state_fixture.usable_path)
+        self.assertFalse(path_check("a\\b"))
+        self.assertFalse(
+            path_check("x" * 1025)
+        )
 
 
 class CompletenessTests(unittest.TestCase):
