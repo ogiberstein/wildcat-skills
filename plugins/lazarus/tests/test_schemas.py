@@ -406,14 +406,22 @@ class SchemaTests(unittest.TestCase):
         marker = prefix + "x" * 200_000
 
         def assert_safe(error: FormatError) -> None:
-            message = str(error)
-            rendered = "".join(
-                traceback.format_exception(type(error), error, error.__traceback__)
-            )
-            self.assertNotIn(prefix, message)
-            self.assertNotIn(prefix, rendered)
-            self.assertLessEqual(len(message.encode("utf-8")), 4096)
-            self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
+            surfaces = {
+                "message": str(error),
+                "args": repr(error.args),
+                "repr": repr(error),
+                "cause": repr(error.__cause__),
+                "context": repr(error.__context__),
+                "traceback": "".join(
+                    traceback.format_exception(type(error), error, error.__traceback__)
+                ),
+            }
+            self.assertIsNone(error.__cause__)
+            self.assertIsNone(error.__context__)
+            for name, rendered in surfaces.items():
+                with self.subTest(surface=name):
+                    self.assertNotIn(prefix, rendered)
+                    self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
 
         for hostile_key in (prefix + "SECRET", marker):
             witness = support.sample_receipt_witness()

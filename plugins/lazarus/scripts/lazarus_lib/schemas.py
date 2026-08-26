@@ -95,12 +95,16 @@ def validate_document(kind: str, document: Any) -> Any:
     if not isinstance(version, int) or isinstance(version, bool):
         raise FormatError(f"{kind} schema_version must be an integer")
     schema = _schema(kind, version)
+    schema_failure = None
     try:
         Draft202012Validator(schema).validate(document)
     except ValidationError as exc:
         # ValidationError retains the rejected instance and renders it in a
-        # traceback. Suppress that context after deriving the bounded refusal.
-        raise FormatError(_schema_failure(kind, exc)) from None
+        # traceback. Derive the bounded refusal here, then raise it after the
+        # handler has ended so the hostile exception is not retained as context.
+        schema_failure = _schema_failure(kind, exc)
+    if schema_failure is not None:
+        raise FormatError(schema_failure)
     # Canonical encoding also rejects floats and unsupported Python values that
     # JSON Schema deliberately permits as generic JSON instances.
     dumps(document)
