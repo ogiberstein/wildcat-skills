@@ -449,6 +449,61 @@ class OriginLabelTests(unittest.TestCase):
         self.assertIn("Check the exit status separately from the match", self.flat)
 
 
+class BodyReadBackTests(unittest.TestCase):
+    """A host can rewrite the pull-request body after `gh pr create` returns.
+
+    Pull request #615 was drafted without a byline and came back from GitHub
+    carrying the host's session-link footer; a body edit removed it and the
+    removal held. Nothing in the loop said to read the body back, and a Fiat
+    receipt over that body would have refused it with no word about where the
+    line came from (skills#617). Flattened, like the label pins above, so a
+    reflow of the same sentence is not a removed rule.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.flat = " ".join(PUSH_DISCIPLINE.read_text(encoding="utf-8").split())
+        cls.fiat = " ".join(FIAT.read_text(encoding="utf-8").split())
+
+    def test_the_body_is_read_back_over_rest_after_creation(self):
+        self.assertIn("## Read the body back", self.flat)
+        self.assertIn("The body is the second thing to read back, after the label.", self.flat)
+        self.assertIn("after `gh pr create` returns", self.flat)
+        self.assertIn("gh api repos/<owner>/<repo>/pulls/<n> --jq .body", self.flat)
+        self.assertIn("rather than `gh pr view --json body`", self.flat)
+
+    def test_the_section_sits_between_the_label_read_back_and_the_url_check(self):
+        self.assertLess(
+            self.flat.index("A failed query is not an answer"),
+            self.flat.index("## Read the body back"),
+        )
+        self.assertLess(
+            self.flat.index("## Read the body back"),
+            self.flat.index("Verify the pull request URL after creation"),
+        )
+
+    def test_a_failed_read_is_not_a_clean_body(self):
+        self.assertIn("A failed read is not a clean body", self.flat)
+
+    def test_the_recovery_edits_the_stashed_body_and_reads_it_again(self):
+        self.assertIn("gh pr edit <url> --body-file .hexaemeron/steps/<n>/pr.md", self.flat)
+        self.assertIn("read it back again", self.flat)
+        self.assertIn("`done push`, `done merge-step` and `done integrate`", self.flat)
+
+    def test_the_repository_rule_wins_over_the_host_trailer_instruction(self):
+        self.assertIn("cannot both be satisfied, and the repository rule wins", self.flat)
+
+    def test_the_settings_file_is_named_and_is_not_evidence(self):
+        self.assertIn("`.claude/settings.json`", self.flat)
+        self.assertIn("a setting is not evidence", self.flat)
+
+    def test_the_skill_push_note_points_at_the_section(self):
+        self.assertIn(
+            "`Read the body back` section of [push-discipline.md](references/push-discipline.md)",
+            self.fiat,
+        )
+
+
 class BaseSyncTests(unittest.TestCase):
     """A run inherits every mistake in the ref it was cut from.
 
