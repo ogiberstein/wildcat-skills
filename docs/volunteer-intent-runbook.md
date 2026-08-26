@@ -23,3 +23,13 @@
 **Steps touched.** Step 1's Tests field.
 
 **Still holding.** Step 1: entry holds; exit holds.
+
+### Amendment -- 2026-08-25
+
+**What changed.** Complete replacement Tests: Add no runtime test because no executable selector ships. Validate that the ADR contains one worked case for `named-issue`, `wave`, `frontier` and `maintenance`, plus explicit refusals for unknown intent, empty or stale Wave evidence, an active claim, mature or parked frontier, unbounded maintenance, missing publication authority and Wave-suffix ordering. The pinned root suite has 396 tests and must remain green. Elenchus runner contract for this step: test command `python3 plugins/hexaemeron/tests/run_tests.py --elenchus-report {report}`, report format `unittest-json-v1`, report file `.elenchus/volunteer-intent-step-1.json`.
+
+**Why.** The study amendment for `S1-R1-01` changed the current study digest, so Fiat correctly stopped applying the prior runbook amendment bound to the superseded study receipt. The exact entry suite remains 396 tests.
+
+**Steps touched.** Step 1's Tests field.
+
+**Still holding.** Step 1: entry holds; exit holds.

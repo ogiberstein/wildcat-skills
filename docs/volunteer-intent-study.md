@@ -212,3 +212,13 @@ For this design-only run, a failed Protasis, Hypomnema, Imprimatur, Brevitas or 
 [Hypomnema](../plugins/hexaemeron/skills/hypomnema/SKILL.md) owns record placement. The expensive-to-reverse choice is the boundary between lane-owned selection and Fiat consumption, including named-issue precedence, exact snapshot evidence and explicit claim recovery. It cuts across the repository, Atlas and Interceptor, so its standing home is the next unused numbered ADR under `docs/decisions/`. The ADR carries the rejected unified-Fiat, GitHub-only and natural-language designs and the worked cases. It resolves the open design home that `SCG-S1-R1-01` created in #447; the issue may close only after the ADR merges.
 
 The committed `docs/volunteer-intent-study.md` and `docs/volunteer-intent-runbook.md` remain source and delivery records, not a second standing decision. A future Fiat consumer change records its implementation reason in Fiat's `EVOLUTION.md`; a Kronos handoff adapter records its generation in Kronos's ledger without reopening or advancing its mature frontier. Atlas and Interceptor changes belong in their own repositories and records. ADR-014 remains authoritative for Wave allocation, and #505 remains the separate home for Atlas freshness and dropped-issue evidence.
+
+### Amendment -- 2026-08-25
+
+**What changed.** The sealed `wildcat-volunteer-intent/v1` handoff binds an immutable claim requirement, not mutable claim state. After an issue-backed handoff is sealed, the authorised contributor publishes the active claim comment citing that handoff's SHA-256. The producer then emits a separate `wildcat-volunteer-claim-evidence/v1` record that binds the handoff digest, comment URL and id, authenticated author, exact comment-body digest, observed active state and observation time. Fiat validates the handoff and claim-evidence bytes together, rechecks the live comment, copies them separately to `.hexaemeron/volunteer-intent.json` and `.hexaemeron/volunteer-claim.json`, and binds both SHA-256 digests before creating run state. A release remains a later external record and never mutates either retained input.
+
+**Why.** Audit finding `S1-R1-01` in `audit/rounds/fiat-447-distinguish-wave-frontier-and-maintenance-vo.md` showed that putting claim state inside the sealed handoff made the active comment either impossible to digest-bind or immediately stale, because that comment must cite the already sealed handoff digest.
+
+**Steps touched.** Step 1's ADR decision and committed study copy.
+
+**Still holding.** Step 1: entry holds; exit holds.
