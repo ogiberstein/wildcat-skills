@@ -179,3 +179,49 @@ End-to-end issue specimen exit 1 at 2:17; focused shared-lexer and source-extrac
 ### Leads not pursued
 
 Full parser equivalence remains outside the source-comment extraction contract. Babel parser 7.29.2 and Solidity 0.8.34 were audit oracles, not repository dependencies. Hosts without `O_NOFOLLOW` retain the named fail-closed refusal; this round adds no less-safe fallback. No external parser or new runtime dependency was added.
+
+## Step 2, round 1 -- 2026-08-26
+
+Review basis: full Step 2 diff `10b4d7f04ca52abfe6aeafa0e8c2c0db5dcdf566..536d8d25dae60888fc2ec55d3715d47a1546adfe`; Step 2 runbook SHA-256 `358277220c93b25639944a2ec11b9d3ae9324685a3e0895f64cc37a61450eb1b`; baseline/effective block SHA-256 `081fc96a3a0f5967e9261b898e43907dbed06663e279c3df24501d70412eef6d`; risk-register SHA-256 `4615d31de2b45cb9798ff14d0ca76e93c462ed7c7b0429a750ca1c9ba2e3f28b`; security suite `waived: issue 503 changes Imprimatur source-comment extraction and Python tests; it produces no Solidity`.
+
+Findings: 0.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| none | none | package metadata | No version-propagation finding. | clean |
+| none | none | `plugins/hexaemeron/docs/imprimatur-source-prose-extraction/proof.md` | No proof-accuracy finding. | clean |
+| none | none | full Step 2 diff | No risk-register finding. | clean |
+
+### Risk-register review
+
+| lane | evidence | status |
+| --- | --- | --- |
+| `false-clean-comment` | Recreated `.sol`, `.py`, `.ts`, and `.tsx` fixtures reported only retained comments and Python docstrings at `2:17`; `1:4`, `4:8`, `5:7`; `2:4`; and `2:5`. | passed |
+| `literal-false-hit` | The recreated string controls added no finding; the 112-test focused suite also covered TypeScript templates, regular expressions, and URLs. | passed |
+| `docstring-misclassification` | The recreated module and function docstrings were retained while the assigned string was ignored; focused guards also covered class docstrings and later standalone strings. | passed |
+| `coordinate-drift` | Recreated coordinates matched the proof, and focused guards checked source-length masks and language-owned line terminators. | passed |
+| `malformed-source-clean` | The recreated unterminated Solidity comment exited `2` at `2:5` with no partial report; focused guards covered invalid Python and unterminated Solidity, TypeScript template, TSX, and regular-expression input. | passed |
+| `markdown-regression` | The recreated indented Markdown fixture exited `0` with `0` defects; focused guards retained Markdown and `--include-code` behavior. | passed |
+| `shared-lexer-regression` | The pinned Node `v26.6.0` Hexaemeron suite passed `1161/1161`; Phylax and Ephoros both exited `0`. | passed |
+| `version-drift` | Hexaemeron is `1.5.10` in both manifests, both marketplace listings, and `tests/test_version_propagation.py`; Promise Machine and root propagation tests passed while `imprimatur-v2.3.0`, `labelled-prose-v2`, and frontier SHA-256 `092addc4bcae8cd93d34df41146b3a3bbd3fd24a529cd84b1d16e0399d7affb4` stayed unchanged. | passed |
+
+### Package, proof, and gates
+
+All six fixture SHA-256 values in `plugins/hexaemeron/docs/imprimatur-source-prose-extraction/proof.md` matched recreated LF-terminated bytes. The recorded CLI exits, findings, coordinates, exclusions, cadence count `3`, and malformed-input refusal matched. The signed entry commit `10b4d7f04ca52abfe6aeafa0e8c2c0db5dcdf566` and signed Step 2 commit `536d8d25dae60888fc2ec55d3715d47a1546adfe` both verified against `/tmp/fiat-503-allowed-signers`.
+
+| command | exit | result |
+| --- | ---: | --- |
+| `python3 scripts/promise_machine.py check` | `0` | `14` plugins and `14` copies |
+| `python3 -m unittest discover -s tests` | `0` | `350/350`; `1258` inoculation cases, `0` crashes, `0` unexpected clean |
+| `PATH=/home/kethcode/.local/share/mise/installs/node/26.6.0/bin:$PATH python3 plugins/hexaemeron/tests/run_tests.py` | `0` | `1161/1161` |
+| `python3 plugins/hexaemeron/skills/imprimatur/tests/run_tests.py` | `0` | `112/112` |
+| `python3 plugins/hexaemeron/skills/phylax/scripts/phylax.py plugins tests` | `0` | clean |
+| `python3 plugins/hexaemeron/skills/ephoros/scripts/ephoros.py plugins tests` | `0` | clean |
+| `python3 plugins/hexaemeron/skills/hypomnema/scripts/hypomnema.py README.md AGENTS.md .agents plugins docs` | `0` | clean |
+| `python3 plugins/hexaemeron/skills/imprimatur/scripts/imprimatur.py plugins/hexaemeron/docs/imprimatur-source-prose-extraction/study.md plugins/hexaemeron/docs/imprimatur-source-prose-extraction/runbook.md plugins/hexaemeron/docs/imprimatur-source-prose-extraction/proof.md --max-defects 0` | `0` | `0` defects in all three files |
+| `python3 plugins/brevitas/skills/brevitas/scripts/brevitas.py plugins/hexaemeron/docs/imprimatur-source-prose-extraction/proof.md --mode report` | `0` | clean |
+| `git diff --check` | `0` | no whitespace errors |
+
+Audit filter: `--audit-filter sapheneia:sapheneia`. Fixes commit: none. Elenchus verdict: none.
+
+Leads not pursued: full parser equivalence for TypeScript and Solidity remains outside the source-comment extraction contract; no package or proof lead remains open.
