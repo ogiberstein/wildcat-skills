@@ -142,6 +142,11 @@ V2_PREDICATE_FIELDS = frozenset(
 V2_CAPTURE_FIELDS = frozenset(
     {"tool", "tool_version", "command", "parameters_digest"}
 )
+V2_CHAIN_FIELDS = frozenset(
+    {"chain_id", "block_number", "block_hash", "state_root", "receipts_root"}
+)
+V2_EVIDENCE_FIELDS = frozenset(EVIDENCE_CLASSES_V2)
+V2_REPLAY_FIELDS = frozenset(REPLAY_CLAIMS_V2)
 V2_FIXTURE_SUBJECT_FIELDS = frozenset({"name", "path", "digest", "bytes"})
 V2_DELTA_FIELDS = frozenset(
     {"baseline", "current", "reason", "components"}
@@ -204,15 +209,31 @@ def _digest_set(value: Any, what: str) -> dict[str, Any]:
     return value
 
 
-def _v2_side(value: Any, what: str) -> None:
+def _v2_side(value: Any, what: str) -> dict[str, Any]:
     side = _object(value, what)
     _closed(side, V2_DELTA_SIDE_FIELDS, what)
     if not isinstance(side["name"], str) or not side["name"].strip():
         raise FormatError(f"{what} has no name")
-    _digest_set(side["digest"], f"{what} digest")
+    return _digest_set(side["digest"], f"{what} digest")
 
 
-def _check_v2_deltas(predicate: dict[str, Any]) -> None:
+def _digests_agree(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    """The state-fixture/v2 digest-set identity rule Ariadne publishes."""
+    shared = set(left) & set(right)
+    return bool(shared & set(DIGEST_LENGTHS)) and all(
+        left[algorithm] == right[algorithm] for algorithm in shared
+    )
+
+
+def _covered(
+    subjects: list[dict[str, Any]], digest: dict[str, Any]
+) -> bool:
+    return any(_digests_agree(subject, digest) for subject in subjects)
+
+
+def _check_v2_deltas(
+    predicate: dict[str, Any], subjects: list[dict[str, Any]]
+) -> None:
     deltas = _object(_member(predicate, "deltas", "statement predicate"), "deltas")
     _closed(
         deltas,
@@ -220,7 +241,12 @@ def _check_v2_deltas(predicate: dict[str, Any]) -> None:
         "state-fixture/v2 deltas",
         required=frozenset({"baseline", "current"}),
     )
-    _v2_side(deltas["current"], "state-fixture/v2 current side")
+    current = _v2_side(deltas["current"], "state-fixture/v2 current side")
+    if not _covered(subjects, current):
+        raise IntegrityError(
+            "state-fixture/v2 current side is not covered by the statement "
+            "subject list"
+        )
     baseline = deltas["baseline"]
     if baseline is None:
         reason = deltas.get("reason")
@@ -271,7 +297,9 @@ def _check_v2_deltas(predicate: dict[str, Any]) -> None:
                 raise FormatError(f"{what} does not name both sides")
 
 
-def _check_v2_claims(predicate: dict[str, Any]) -> None:
+def _check_v2_claims(
+    predicate: dict[str, Any], subjects: list[dict[str, Any]]
+) -> None:
     claims = _member(predicate, "claims", "statement predicate")
     if not isinstance(claims, list):
         raise FormatError("state-fixture/v2 claims must be an array")
@@ -286,7 +314,11 @@ def _check_v2_claims(predicate: dict[str, Any]) -> None:
         )
         if not isinstance(claim["name"], str):
             raise FormatError(f"{what} name must be a string")
-        _digest_set(claim["subject"], f"{what} subject")
+        subject = _digest_set(claim["subject"], f"{what} subject")
+        if not _covered(subjects, subject):
+            raise IntegrityError(
+                f"{what} is not covered by the statement subject list"
+            )
         disposition = claim["disposition"]
         if not isinstance(disposition, str) or disposition not in V2_DISPOSITIONS:
             raise FormatError(f"{what} disposition is outside the vocabulary")
@@ -329,30 +361,60 @@ def _check_v2_vocabulary(
         capture["parameters_digest"],
         "state-fixture/v2 capture parameters_digest",
     )
+    _closed(
+        _object(predicate["chain"], "state-fixture/v2 chain"),
+        V2_CHAIN_FIELDS,
+        "state-fixture/v2 chain",
+        required=frozenset(),
+    )
+    _closed(
+        _object(predicate["evidence"], "state-fixture/v2 evidence"),
+        V2_EVIDENCE_FIELDS,
+        "state-fixture/v2 evidence",
+        required=frozenset(),
+    )
+    _closed(
+        _object(predicate["replay"], "state-fixture/v2 replay"),
+        V2_REPLAY_FIELDS,
+        "state-fixture/v2 replay",
+        required=frozenset(),
+    )
 
     fixture_subjects = predicate["fixture_subjects"]
+    fixture_digests = []
     if isinstance(fixture_subjects, list):
         for index, entry in enumerate(fixture_subjects):
             what = f"state-fixture/v2 fixture subject {index + 1}"
             entry = _object(entry, what)
             _closed(entry, V2_FIXTURE_SUBJECT_FIELDS, what)
-            _digest_set(entry["digest"], f"{what} digest")
+            fixture_digests.append(
+                _digest_set(entry["digest"], f"{what} digest")
+            )
 
     subjects = statement["subject"]
-    if isinstance(subjects, list):
-        for index, entry in enumerate(subjects):
-            what = f"state-fixture/v2 subject {index + 1}"
-            entry = _object(entry, what)
-            _closed(
-                entry,
-                RESOURCE_DESCRIPTOR_FIELDS,
-                what,
-                required=frozenset({"digest"}),
-            )
-            _digest_set(entry["digest"], f"{what} digest")
+    if not isinstance(subjects, list) or not subjects:
+        raise FormatError(
+            "state-fixture/v2 subject must be a non-empty array"
+        )
+    subject_digests = []
+    for index, entry in enumerate(subjects):
+        what = f"state-fixture/v2 subject {index + 1}"
+        entry = _object(entry, what)
+        _closed(
+            entry,
+            RESOURCE_DESCRIPTOR_FIELDS,
+            what,
+            required=frozenset({"digest"}),
+        )
+        subject_digests.append(_digest_set(entry["digest"], f"{what} digest"))
 
-    _check_v2_deltas(predicate)
-    _check_v2_claims(predicate)
+    if any(not _covered(subject_digests, digest) for digest in fixture_digests):
+        raise IntegrityError(
+            "state-fixture/v2 fixture subjects are not all covered by the "
+            "statement subject list"
+        )
+    _check_v2_deltas(predicate, subject_digests)
+    _check_v2_claims(predicate, subject_digests)
     commands = predicate["commands"]
     if not isinstance(commands, list) or commands:
         raise IntegrityError(
@@ -365,6 +427,22 @@ def _object(value: Any, what: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise FormatError(f"{what} must be an object, got {type(value).__name__}")
     return value
+
+
+def _checked_v2(what: str, check: Any, *arguments: Any) -> None:
+    """Run one semantic bind without retaining rejected statement values.
+
+    The structural v2 checker above emits value-free diagnostics itself.  The
+    shared semantic checks retain v1's historical, value-rich messages, so v2
+    calls cross this small boundary before they reach a terminal or log.
+    """
+    failure = None
+    try:
+        check(*arguments)
+    except (FormatError, IntegrityError, ResourceLimitError) as error:
+        failure = type(error)
+    if failure is not None:
+        raise failure(f"state-fixture/v2 {what} check failed")
 
 
 def _member(node: dict[str, Any], key: str, what: str) -> Any:
@@ -819,13 +897,41 @@ def bind(
     predicate = _object(
         _member(statement, "predicate", "statement"), "statement predicate"
     )
-    _check_statement_type(statement)
-    _check_predicate_type(statement, STATE_FIXTURE_TYPES[version])
     if version == 2:
+        _checked_v2("statement type", _check_statement_type, statement)
+        _checked_v2(
+            "predicate type",
+            _check_predicate_type,
+            statement,
+            STATE_FIXTURE_TYPES[version],
+        )
         _check_v2_vocabulary(statement, predicate)
-    _check_chain_and_block(predicate, manifest, report, version)
-    _check_evidence_counts(predicate, report, version)
-    _check_replay_claims(predicate, report, version)
-    _check_components(predicate, manifest)
-    _check_subjects(statement, manifest)
+        _checked_v2(
+            "chain and receipts root",
+            _check_chain_and_block,
+            predicate,
+            manifest,
+            report,
+            version,
+        )
+        _checked_v2(
+            "evidence counts", _check_evidence_counts, predicate, report, version
+        )
+        _checked_v2(
+            "replay provider_independence (provider independence) claims",
+            _check_replay_claims,
+            predicate,
+            report,
+            version,
+        )
+        _checked_v2("fixture components", _check_components, predicate, manifest)
+        _checked_v2("statement subjects", _check_subjects, statement, manifest)
+    else:
+        _check_statement_type(statement)
+        _check_predicate_type(statement, STATE_FIXTURE_TYPES[version])
+        _check_chain_and_block(predicate, manifest, report, version)
+        _check_evidence_counts(predicate, report, version)
+        _check_replay_claims(predicate, report, version)
+        _check_components(predicate, manifest)
+        _check_subjects(statement, manifest)
     return list(CHECKS)

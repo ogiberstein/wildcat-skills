@@ -37,7 +37,7 @@ from typing import Any
 from .binding import bind, predicate_type_of
 from .canonical import MAX_JSON_BYTES, dumps, loads
 from .errors import FormatError, IntegrityError, PathError
-from .manifest import MANIFEST_NAME, MAX_COMPONENT_BYTES
+from .manifest import MANIFEST_NAME
 from .paths import (
     confined_directory,
     read_confined_bytes,
@@ -455,14 +455,30 @@ def _copy_fixture(source: Path, target: Path, manifest: dict[str, Any]) -> None:
     of the source already refused any such file, and this keeps the copy honest
     even if that ever stops being true.
     """
+    manifest_bytes = dumps(manifest) + b"\n"
+    expected = [
+        (
+            MANIFEST_NAME,
+            len(manifest_bytes),
+            hashlib.sha256(manifest_bytes).hexdigest(),
+        )
+    ] + [
+        (entry["path"], entry["bytes"], entry["sha256"])
+        for entry in manifest["components"]
+    ]
     target.mkdir(mode=0o700, parents=True)
-    for relative in [MANIFEST_NAME] + [
-        entry["path"] for entry in manifest["components"]
-    ]:
+    for relative, expected_bytes, expected_digest in expected:
         normalised = validate_relative_path(relative)
         data = read_confined_bytes(
-            source, normalised, max_bytes=MAX_COMPONENT_BYTES
+            source, normalised, max_bytes=expected_bytes
         )
+        if (
+            len(data) != expected_bytes
+            or hashlib.sha256(data).hexdigest() != expected_digest
+        ):
+            raise IntegrityError(
+                f"fixture component changed after verification: {normalised}"
+            )
         written = target / normalised
         written.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         _write_owner_only(written, data)

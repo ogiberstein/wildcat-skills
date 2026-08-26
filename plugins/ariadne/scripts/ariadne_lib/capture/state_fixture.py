@@ -54,6 +54,15 @@ MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 """A manifest listing a thousand components is a few hundred kilobytes. A cap keeps
 a mistaken path from reading a multi-gigabyte file into memory to parse it."""
 
+MAX_FIXTURE_BYTES_V2 = 2 * 1024 * 1024 * 1024
+"""The aggregate component ceiling enforced by Lazarus manifest-v2.
+
+The capture does not import Lazarus at runtime, so it repeats the public bound
+beside the version mapping it consumes.  Checking the declared sum before a tree
+walk keeps 1,024 individually valid components from expanding one capture into
+as much as 512 GiB of reads.
+"""
+
 MANIFEST_REQUIRED = (
     "schema_version",
     "tool_version",
@@ -470,6 +479,15 @@ def components_of(root, manifest):
                 % (MANIFEST, label, type(entry["sha256"]).__name__)
             )
         declared[path] = entry
+
+    if manifest["schema_version"] == 2:
+        total_bytes = sum(entry["bytes"] for entry in declared.values())
+        if total_bytes > MAX_FIXTURE_BYTES_V2:
+            raise CaptureError(
+                "%s declares %d component bytes, over the %d-byte "
+                "state-fixture/v2 capture limit"
+                % (MANIFEST, total_bytes, MAX_FIXTURE_BYTES_V2)
+            )
 
     present = dict(tree.files(root, "fixture"))
     missing = sorted(set(declared) - set(present))

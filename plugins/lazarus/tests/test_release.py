@@ -20,7 +20,13 @@ from unittest import mock
 
 from lazarus_lib.binding import CHECKS
 from lazarus_lib.canonical import dump, dumps, loads
-from lazarus_lib.errors import FormatError, IntegrityError, LazarusError, PathError
+from lazarus_lib.errors import (
+    FormatError,
+    IntegrityError,
+    LazarusError,
+    PathError,
+    ResourceLimitError,
+)
 from lazarus_lib.manifest import build_manifest, write_manifest
 from lazarus_lib.records import (
     write_anchor_records,
@@ -435,6 +441,32 @@ class RefusedReleaseTests(unittest.TestCase):
             error = self.refuse(prepared, IntegrityError)
             self.assertIn("proof_backed", str(error))
             self.assertIn("more than the records support", str(error))
+
+    def test_v2_refuses_subject_references_ariadne_would_reject(self):
+        def uncover_current(document):
+            document["predicate"]["deltas"]["current"]["digest"] = {
+                "sha256": "9" * 64
+            }
+
+        def uncover_claim(document):
+            document["predicate"]["claims"] = [
+                {
+                    "name": "receipt membership",
+                    "subject": {"sha256": "9" * 64},
+                    "disposition": "passed",
+                }
+            ]
+
+        for name, mutate in (
+            ("current delta", uncover_current),
+            ("claim", uncover_claim),
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = PreparedV2(directory)
+                mutate(prepared.document)
+                prepared.write_statement(prepared.document)
+                with self.subTest(reference=name):
+                    self.refuse(prepared, IntegrityError)
 
     def test_a_statement_about_another_fixture_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -941,6 +973,59 @@ class CopyTests(unittest.TestCase):
             target = prepared.root / "copy"
             _copy_fixture(prepared.fixture, target, report["manifest"])
             self.assertFalse((target / "stowaway.txt").exists())
+
+    def test_a_component_grown_after_verification_is_not_copied(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            report = verify_fixture(prepared.fixture)
+            target = prepared.root / "copy"
+            victim = "plan.json"
+            grown = (prepared.fixture / victim).read_bytes() + b"x"
+            from lazarus_lib import release as module
+
+            original = module.read_confined_bytes
+
+            def changed(root, relative, *, max_bytes):
+                if relative == victim:
+                    if len(grown) > max_bytes:
+                        raise ResourceLimitError("simulated post-verification growth")
+                    return grown
+                return original(root, relative, max_bytes=max_bytes)
+
+            with mock.patch.object(
+                module, "read_confined_bytes", side_effect=changed
+            ):
+                with self.assertRaises(ResourceLimitError):
+                    module._copy_fixture(
+                        prepared.fixture, target, report["manifest"]
+                    )
+            self.assertFalse((target / victim).exists())
+
+    def test_a_same_size_component_change_is_refused_before_copying(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            report = verify_fixture(prepared.fixture)
+            target = prepared.root / "copy"
+            victim = "plan.json"
+            original_bytes = (prepared.fixture / victim).read_bytes()
+            changed_bytes = bytes([original_bytes[0] ^ 1]) + original_bytes[1:]
+            from lazarus_lib import release as module
+
+            original = module.read_confined_bytes
+
+            def changed(root, relative, *, max_bytes):
+                if relative == victim:
+                    return changed_bytes
+                return original(root, relative, max_bytes=max_bytes)
+
+            with mock.patch.object(
+                module, "read_confined_bytes", side_effect=changed
+            ):
+                with self.assertRaisesRegex(IntegrityError, "after verification"):
+                    module._copy_fixture(
+                        prepared.fixture, target, report["manifest"]
+                    )
+            self.assertFalse((target / victim).exists())
 
     def test_the_copy_is_not_writable_by_anybody_else(self):
         with tempfile.TemporaryDirectory() as directory:

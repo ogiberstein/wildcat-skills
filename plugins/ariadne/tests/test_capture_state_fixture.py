@@ -169,6 +169,40 @@ class ReceiptFixtureTests(SkipUnlessReceiptFixture):
                 ):
                     taken(fixture)
 
+    def test_manifest_v2_total_bytes_are_bounded_before_file_reads(self):
+        manifest = read_json(os.path.join(RECEIPT_FIXTURE, "manifest.json"))
+        for entry in manifest["components"][:5]:
+            entry["bytes"] = predicate.MAX_BYTES
+        by_path = {entry["path"]: entry for entry in manifest["components"]}
+        present = [
+            (relative, os.path.join(RECEIPT_FIXTURE, relative))
+            for relative in by_path
+        ] + [
+            (
+                capture.MANIFEST,
+                os.path.join(RECEIPT_FIXTURE, capture.MANIFEST),
+            )
+        ]
+
+        def pretend_read(root, relative, what, max_bytes, keep_bytes=False):
+            entry = by_path[relative]
+            return (
+                {"sha256": entry["sha256"]},
+                entry["bytes"],
+                b"{}" if keep_bytes else None,
+            )
+
+        maximum_bytes = 2 * 1024 * 1024 * 1024
+        with mock.patch.object(
+            capture.tree, "files", return_value=present
+        ) as walked, mock.patch.object(
+            capture, "read_component", side_effect=pretend_read
+        ) as reader:
+            with self.assertRaisesRegex(capture.CaptureError, str(maximum_bytes)):
+                capture.components_of(RECEIPT_FIXTURE, manifest)
+        walked.assert_not_called()
+        reader.assert_not_called()
+
 
 class TheShippedFixtureTests(SkipUnlessGoldfinch):
     def test_it_captures_and_verifies_clean(self):

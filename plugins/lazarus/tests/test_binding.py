@@ -621,6 +621,39 @@ class VersionTwoVocabularyTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(FormatError):
                 bound_v2(statement=statement)
 
+    def test_v2_subject_references_use_ariadnes_digest_identity(self):
+        def uncover_current(document):
+            document["predicate"]["deltas"]["current"]["digest"] = {
+                "sha256": "9" * 64
+            }
+
+        def uncover_claim(document):
+            document["predicate"]["claims"] = [
+                {
+                    "name": "receipt membership",
+                    "subject": {"sha256": "9" * 64},
+                    "disposition": "passed",
+                }
+            ]
+
+        def disagree_on_a_shared_algorithm(document):
+            document["predicate"]["fixture_subjects"][0]["digest"]["sha512"] = (
+                "1" * 128
+            )
+            document["subject"][0]["digest"]["sha512"] = "2" * 128
+
+        for name, mutate in (
+            ("current delta", uncover_current),
+            ("claim", uncover_claim),
+            ("fixture subject", disagree_on_a_shared_algorithm),
+        ):
+            statement = sample_statement_v2()
+            mutate(statement)
+            with self.subTest(reference=name), self.assertRaisesRegex(
+                IntegrityError, "subject"
+            ):
+                bound_v2(statement=statement)
+
     def test_v2_capture_delta_claim_and_command_shapes_are_closed(self):
         mutations = (
             lambda document: document.__setitem__("unchecked", True),
@@ -693,6 +726,63 @@ class VersionTwoVocabularyTests(unittest.TestCase):
                 statement = sample_statement_v2()
                 locate(statement["predicate"], key)
                 with self.subTest(key_bytes=len(key), locate=locate):
+                    with self.assertRaises(IntegrityError) as raised:
+                        bound_v2(statement=statement)
+                    error = raised.exception
+                    surfaces = {
+                        "message": str(error),
+                        "args": repr(error.args),
+                        "repr": repr(error),
+                        "cause": repr(error.__cause__),
+                        "context": repr(error.__context__),
+                        "traceback": "".join(
+                            traceback.format_exception(
+                                type(error), error, error.__traceback__
+                            )
+                        ),
+                    }
+                    self.assertIsNone(error.__cause__)
+                    self.assertIsNone(error.__context__)
+                    for name, rendered in surfaces.items():
+                        with self.subTest(surface=name):
+                            self.assertNotIn(prefix, rendered)
+                            self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
+
+    def test_rejected_v2_values_do_not_cross_exception_surfaces(self):
+        prefix = "PRIVATE_PROVIDER_VALUE_"
+        values = (prefix + "SECRET", prefix + "x" * 200_000)
+
+        def duplicate_fixture_name(document, value):
+            document["predicate"]["fixture_subjects"][0]["name"] = value
+            document["predicate"]["fixture_subjects"][1]["name"] = value
+
+        def duplicate_subject_name(document, value):
+            document["subject"][0]["name"] = value
+            document["subject"][1]["name"] = value
+
+        locations = (
+            lambda document, value: document.__setitem__("_type", value),
+            lambda document, value: document.__setitem__("predicateType", value),
+            lambda document, value: document["predicate"]["chain"].__setitem__(
+                "state_root", value
+            ),
+            lambda document, value: document["predicate"]["evidence"].__setitem__(
+                "proof_backed", value
+            ),
+            lambda document, value: document["predicate"]["replay"].__setitem__(
+                "reaches_network", value
+            ),
+            lambda document, value: document["predicate"]["fixture_subjects"][
+                0
+            ].__setitem__("path", value),
+            duplicate_fixture_name,
+            duplicate_subject_name,
+        )
+        for value in values:
+            for locate in locations:
+                statement = sample_statement_v2()
+                locate(statement, value)
+                with self.subTest(value_bytes=len(value), locate=locate):
                     with self.assertRaises(IntegrityError) as raised:
                         bound_v2(statement=statement)
                     error = raised.exception

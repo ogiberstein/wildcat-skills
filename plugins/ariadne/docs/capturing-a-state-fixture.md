@@ -57,7 +57,8 @@ one exception, because it cannot list its own digest.
 
 **Every declared digest and byte count.** Each component is re-digested from disk and
 compared against what the manifest claims. A disagreement is refused with both values
-in the message.
+in the message. Version 2 also refuses a declared component total above 2 GiB before
+walking the fixture or reading a component.
 
 **The pin.** The chain id and the block number arrive as hex quantity strings, which
 is right on the wire and wrong to compare: `"0xc7da16" < "0x2"` is true, because that
