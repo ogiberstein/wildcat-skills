@@ -203,6 +203,23 @@ class ReceiptFixtureTests(SkipUnlessReceiptFixture):
         walked.assert_not_called()
         reader.assert_not_called()
 
+    def test_manifest_v2_refuses_a_component_segment_that_names_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = os.path.join(directory, "receipt-fixture")
+            shutil.copytree(RECEIPT_FIXTURE, fixture)
+            source = os.path.join(fixture, "plan.json")
+            os.mkdir(os.path.join(fixture, "a"))
+            os.rename(source, os.path.join(fixture, "a", " "))
+            path = os.path.join(fixture, "manifest.json")
+            manifest = read_json(path)
+            for component in manifest["components"]:
+                if component["path"] == "plan.json":
+                    component["path"] = "a/ "
+            with open(path, "w") as handle:
+                json.dump(manifest, handle)
+            with self.assertRaisesRegex(capture.CaptureError, "fixture-relative"):
+                taken(fixture)
+
     def test_each_component_read_is_bounded_by_its_declared_size(self):
         manifest = read_json(os.path.join(RECEIPT_FIXTURE, "manifest.json"))
         by_path = {entry["path"]: entry for entry in manifest["components"]}

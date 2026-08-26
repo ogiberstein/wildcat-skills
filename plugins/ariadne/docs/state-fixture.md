@@ -163,9 +163,9 @@ in the module, so a field added to one and not the other fails the suite.
 The schema expresses more of the rules than an earlier draft of it did. Draft
 2020-12 has `if`/`then`, so the conditional state-root rule is in there: a
 `proof_backed` count above zero makes `state_root` required. A component path that
-would leave the fixture is refused by a pattern rather than left to the verifier.
-Round 2 of the step that added this type found both by comparing the two on the
-same documents, and a test now holds them to the same verdict on fifteen shapes.
+would leave the fixture, or whose segment is only whitespace, is refused by a
+pattern rather than left to the verifier. Tests hold the schema and verifier to the
+same verdict over hand-written shapes and the shipped conformance fixtures.
 
 One rule is beyond any schema, rather than beyond this one. A schema describes the
 predicate body, and whether a component digest also appears in the statement's

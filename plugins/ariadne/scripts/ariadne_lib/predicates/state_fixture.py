@@ -190,17 +190,21 @@ def usable_path_v2(value):
 
     Version 1 retains its historical POSIX backslash behaviour. Version 2 is a
     new contract and refuses a backslash, which another host can interpret as a
-    separator, and paths beyond its explicit schema ceiling.
+    separator, paths beyond its explicit schema ceiling, and a segment that is
+    only whitespace and therefore names nothing a reader can see.
     """
     if not usable_path(value) or "\\" in value or len(value) > MAX_PATH:
         return False
     # `C:component.json` is drive-relative on Windows even though ntpath does
     # not call it absolute. Dot segments likewise give multiple spellings of
     # one component, and a trailing slash names a directory rather than a file.
-    # Version 2 is the portable contract, so refuse all three at this boundary.
+    # Every segment must also contain a non-whitespace character. Version 2 is
+    # the portable contract, so refuse these forms at this boundary.
     drive, _ = ntpath.splitdrive(value)
     parts = value.split("/")
-    return not drive and all(part not in ("", ".", "..") for part in parts)
+    return not drive and all(
+        part not in ("", ".", "..") and bool(part.strip()) for part in parts
+    )
 
 
 def stated(value):

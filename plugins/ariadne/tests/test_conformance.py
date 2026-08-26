@@ -225,6 +225,7 @@ class FixtureTests(unittest.TestCase):
             "fail-gate2-state-fixture-v2-malformed-receipts-root.json",
             "fail-gate2-state-fixture-v2-backslash-path.json",
             "fail-gate2-state-fixture-v2-dot-segment-path.json",
+            "fail-gate2-state-fixture-v2-whitespace-segment-path.json",
             "fail-gate5-state-fixture-v2-unnamed-current.json",
             "fail-gate5-state-fixture-v2-missing-baseline.json",
             "fail-gate5-state-fixture-v2-missing-current.json",

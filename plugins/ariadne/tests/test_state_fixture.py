@@ -894,6 +894,7 @@ class VersionTwoTests(unittest.TestCase):
             ".",
             "./header.json",
             "a/./header.json",
+            "a/ ",
             "header.json/",
             "C:header.json",
             "x" * 1025,

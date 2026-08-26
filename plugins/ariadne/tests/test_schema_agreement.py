@@ -131,6 +131,26 @@ class AgreementTests(unittest.TestCase):
                     errors, [], [error.message for error in errors[:3]]
                 )
 
+    def test_named_failures_are_refused_by_their_schema_when_expressible(self):
+        validators = {uri: validator_for(uri) for uri in FOR_TYPE}
+        for name in sorted(os.listdir(FIXTURES)):
+            if (
+                not name.startswith("fail-")
+                or not name.endswith(".json")
+                or name in ACCEPTED_BY_THE_SCHEMA
+            ):
+                continue
+            with open(os.path.join(FIXTURES, name), "rb") as handle:
+                document = envelope.read(handle.read())
+            type_uri = document.statement.predicate_type
+            if type_uri not in validators:
+                continue
+            errors = list(
+                validators[type_uri].iter_errors(document.statement.predicate)
+            )
+            with self.subTest(fixture=name):
+                self.assertTrue(errors, "%s passed its published schema" % name)
+
     def test_every_exception_names_a_fixture_that_exists(self):
         """A stale entry would hide a disagreement that came back."""
         for name in ACCEPTED_BY_THE_SCHEMA:
