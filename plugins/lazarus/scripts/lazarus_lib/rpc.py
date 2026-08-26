@@ -102,6 +102,7 @@ class JsonRpcClient:
     def _post(self, body: bytes) -> Any:
         request = Request(self._url, data=body, headers=self._headers, method="POST")
         limit = self._limits.response_read_limit()
+        declared_size_value: int | None = None
         try:
             with self._opener.open(
                 request,
@@ -126,6 +127,10 @@ class JsonRpcClient:
         except (URLError, OSError, TimeoutError):
             raise RpcTransportError("provider transport failed") from None
         self._limits.after_response(len(raw))
+        if declared_size_value is not None and len(raw) != declared_size_value:
+            raise RpcTransportError(
+                "provider response did not match its content length"
+            )
         if len(raw) > limit:
             raise RpcTransportError("provider response exceeded the capture byte limit")
         try:

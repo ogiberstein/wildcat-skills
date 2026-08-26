@@ -72,6 +72,13 @@ class RpcTests(unittest.TestCase):
         ) as server:
             with self.assertRaisesRegex(ResourceLimitError, "RPC response"):
                 JsonRpcClient(server.url, limits()).call("oversized-length", [])
+        with FakeRpc(
+            lambda *args: None,
+            raw_response=valid,
+            declared_length=str(len(valid) + 7),
+        ) as server:
+            with self.assertRaisesRegex(RpcTransportError, "content length"):
+                JsonRpcClient(server.url, limits()).call("incomplete-length", [])
 
     def test_hostile_response_nesting_is_bounded(self):
         nested = b'{"jsonrpc":"2.0","id":1,"result":' + b'{"x":' * 65

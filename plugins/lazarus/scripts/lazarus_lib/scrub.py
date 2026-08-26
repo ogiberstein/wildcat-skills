@@ -21,7 +21,14 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
     parsed = urlsplit(url)
     for value in (parsed.username, parsed.password):
         if value:
+            values.add(value)
             values.add(unquote(value))
+    for pair in parsed.query.split("&"):
+        raw_key, separator, raw_value = pair.partition("=")
+        if raw_key:
+            values.add(raw_key)
+        if separator and raw_value:
+            values.add(raw_value)
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
         if key:
             values.add(unquote(key))

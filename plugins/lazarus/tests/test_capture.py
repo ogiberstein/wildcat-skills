@@ -3,6 +3,7 @@
 import copy
 from contextlib import ExitStack
 from datetime import datetime, timezone
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -12,7 +13,12 @@ import unittest
 from unittest import mock
 
 from lazarus_lib.canonical import dump, dumps, loads
-from lazarus_lib.capture import CaptureError, _atomic_no_replace, capture_fixture
+from lazarus_lib.capture import (
+    CaptureError,
+    _atomic_no_replace,
+    _validate_capture_plan,
+    capture_fixture,
+)
 from lazarus_lib.errors import FormatError, IntegrityError, PathError, ResourceLimitError
 from lazarus_lib.records import read_anchor_records, read_rpc_records
 from lazarus_lib.rpc import JsonRpcClient
@@ -939,6 +945,34 @@ class ReceiptCaptureTests(unittest.TestCase):
                 all(isinstance(request["params"][-1], dict) for request in proof_calls)
             )
 
+    def test_only_plan_v3_can_make_exactly_one_block_receipts_call(self):
+        extra = self.material()["plan"]
+        extra["requests"].append(
+            {
+                "name": "second-block-receipts",
+                "method": "eth_getBlockReceipts",
+                "params": [extra["block"]["number"]],
+                "required": True,
+                "evidence": "recorded-rpc",
+            }
+        )
+        with self.assertRaisesRegex(FormatError, "exactly one"):
+            _validate_capture_plan(extra)
+
+        legacy = support.anchored_fixture_material(("archive-a",))["plan"]
+        legacy["limits"]["max_elapsed_seconds"] = 10
+        legacy["requests"].append(
+            {
+                "name": "legacy-block-receipts",
+                "method": "eth_getBlockReceipts",
+                "params": [legacy["block"]["hash"]],
+                "required": True,
+                "evidence": "recorded-rpc",
+            }
+        )
+        with self.assertRaisesRegex(FormatError, "requires plan-v3"):
+            _validate_capture_plan(legacy)
+
     def test_cli_emits_one_safe_terminal_result_and_offline_output(self):
         material = support.receipt_capture_material()
         temporary = tempfile.TemporaryDirectory()
@@ -989,7 +1023,8 @@ class ReceiptCaptureTests(unittest.TestCase):
         self.assertEqual(event["stage"], "fixture-finalised")
         self.assertEqual(event["fixture_digest"], report["fixture_digest"])
         self.assertEqual(
-            event["correlation_id"], f"lazarus-fixture:{report['fixture_digest']}"
+            event["correlation_id"],
+            "lazarus-capture:" + hashlib.sha256(dumps(material["plan"])).hexdigest(),
         )
         self.assertEqual(event["block"]["hash"], material["plan"]["block"]["hash"])
         self.assertEqual(
@@ -1005,6 +1040,9 @@ class ReceiptCaptureTests(unittest.TestCase):
         self.assertEqual(event["counts"]["receipts"], 224)
         self.assertEqual(event["counts"]["selected_logs"], 5)
         self.assertEqual(event["counts"]["receipt_trie_proved"], 2)
+        self.assertEqual(event["counts"]["header_transactions"], 224)
+        self.assertEqual(event["counts"]["returned_receipts"], 224)
+        self.assertEqual(event["counts"]["encoded_receipts"], 224)
         self.assertEqual(event["versions"]["plan"], 3)
         self.assertEqual(event["versions"]["manifest"], 2)
         self.assertEqual(event["versions"]["receipt_witness"], 1)
@@ -1041,6 +1079,47 @@ class ReceiptCaptureTests(unittest.TestCase):
                 terminal_keys
             )
         )
+
+    def test_cli_emits_one_correlated_safe_failure_result(self):
+        environment = dict(os.environ)
+        environment.pop("LAZARUS_STEP3_MISSING_ANCHOR", None)
+        marker = "primary-failure-terminal-secret"
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "fixture"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(support.SCRIPTS / "lazarus.py"),
+                    "capture",
+                    "--plan",
+                    str(support.RECEIPT_CAPTURE_FIXTURE / "plan.json"),
+                    "--rpc-url",
+                    f"https://primary.invalid/?token={marker}",
+                    "--anchor-rpc-env",
+                    "publicnode=LAZARUS_STEP3_MISSING_ANCHOR",
+                    "--out",
+                    str(output),
+                ],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(len(result.stderr.splitlines()), 1)
+        self.assertTrue(result.stderr.startswith("{"), result.stderr)
+        event = loads(result.stderr)
+        self.assertEqual(event["schema"], "lazarus-capture-terminal/v1")
+        self.assertEqual(event["event"], "lazarus.capture.failed")
+        self.assertEqual(event["stage"], "anchor-mapping")
+        self.assertEqual(event["failure"], "format")
+        self.assertEqual(event["counts"]["rpc_requests"], 0)
+        self.assertEqual(event["counts"]["receipt_trie_proved"], 0)
+        self.assertEqual(
+            event["recorded_target_selector"]["evidence"], "recorded_rpc"
+        )
+        self.assertNotIn(marker, result.stderr)
 
     def test_provider_object_order_does_not_change_any_fixture_byte(self):
         material = self.material()

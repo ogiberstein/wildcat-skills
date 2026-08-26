@@ -39,6 +39,18 @@ class ScrubTests(unittest.TestCase):
         for value in (url, "alice", "p@ss", "apiKey", "shh-secret", "project", "wildcat"):
             self.assertIn(value, secrets)
 
+    def test_encoded_url_credentials_are_scanned_in_their_raw_form(self):
+        url = "https://alice%40rpc:p%2Fss@rpc.example/?token=alpha%2Fencoded-secret"
+        secrets = provider_secrets(url)
+        for value in ("alice%40rpc", "p%2Fss", "alpha%2Fencoded-secret"):
+            self.assertIn(value, secrets)
+            with self.assertRaisesRegex(IntegrityError, "secret"):
+                assert_no_secret_bytes(
+                    f'{{"result":"{value}"}}'.encode(),
+                    secrets,
+                    label="capture terminal result",
+                )
+
     def test_bearer_and_cookie_values_are_secret_material(self):
         headers = {
             "Authorization": "Bearer bearer-secret",
