@@ -91,6 +91,23 @@ def _refuse(code: str, message: str) -> None:
     raise ReuseError(code, message)
 
 
+def _filesystem_path(
+    value: os.PathLike[str] | str,
+    label: str,
+    *,
+    code: str = "unsafe-path",
+) -> Path:
+    """Return one representable, NUL-free filesystem path."""
+    try:
+        found = Path(value)
+        encoded = os.fsencode(found)
+    except (OSError, TypeError, UnicodeError, ValueError) as exc:
+        _refuse(code, f"{label} is not a valid filesystem path: {exc}")
+    if b"\x00" in encoded:
+        _refuse(code, f"{label} contains a NUL byte")
+    return found
+
+
 def _reject_constant(token: str) -> None:
     _refuse("invalid-json", f"non-standard JSON constant {token!r} is not permitted")
 
@@ -175,7 +192,14 @@ def _decode_json(raw: bytes, label: str) -> Any:
 
 def load_json(path: os.PathLike[str] | str, label: str = "JSON") -> Any:
     """Load one bounded JSON document with duplicate-key rejection."""
-    return _decode_json(_read_regular(Path(path), MAX_JSON_BYTES, label), label)
+    return _decode_json(
+        _read_regular(
+            _filesystem_path(path, f"{label} path"),
+            MAX_JSON_BYTES,
+            label,
+        ),
+        label,
+    )
 
 
 def _closed_object(
@@ -185,6 +209,8 @@ def _closed_object(
 ) -> Mapping[str, Any]:
     if not isinstance(value, dict):
         _refuse("invalid-schema", f"{label} must be an object")
+    if any(not isinstance(key, str) for key in value):
+        _refuse("invalid-schema", f"{label} field names must be strings")
     expected = set(required)
     actual = set(value)
     missing = sorted(expected - actual)
@@ -219,7 +245,7 @@ def _assert_distinct_paths(
     for label, raw in roles:
         if raw is None:
             continue
-        supplied = Path(raw)
+        supplied = _filesystem_path(raw, f"{label} path")
         if not supplied.name or supplied.name in (".", ".."):
             _refuse("unsafe-path", f"{label} path must name a file")
         try:
@@ -392,7 +418,11 @@ def validate_scope(value: Any) -> dict[str, Any]:
 
 
 def _safe_project_root(project_root: os.PathLike[str] | str) -> Path:
-    supplied = Path(project_root)
+    supplied = _filesystem_path(
+        project_root,
+        "project root",
+        code="unsafe-project-root",
+    )
     try:
         info = supplied.lstat()
     except OSError as exc:
@@ -870,10 +900,13 @@ def plan(
     current = materialize_scope(project_root, scope)
     if _has_cycle(current["sources"]):
         return _full_plan(current, "dependency-cycle")
-    if cache_path is None or not Path(cache_path).exists():
+    if cache_path is None:
+        return _full_plan(current, "cache-missing")
+    cache_file = _filesystem_path(cache_path, "cache path")
+    if not cache_file.exists():
         return _full_plan(current, "cache-missing")
     try:
-        cache = validate_cache(load_json(cache_path, "X-Ray reuse cache"))
+        cache = validate_cache(load_json(cache_file, "X-Ray reuse cache"))
     except ReuseError:
         return _full_plan(current, "cache-invalid")
 
@@ -1081,7 +1114,7 @@ def _fresh_entries(
 
 def _atomic_write_json(path: os.PathLike[str] | str, value: Any) -> None:
     """Atomically replace one operator-selected JSON file without symlink use."""
-    target = Path(path)
+    target = _filesystem_path(path, "output path")
     if not target.name or target.name in (".", ".."):
         _refuse("unsafe-path", "output path must name a file")
     try:
@@ -1133,7 +1166,10 @@ def _atomic_write_json(path: os.PathLike[str] | str, value: Any) -> None:
         _refuse("atomic-write-failed", f"atomic replacement failed: {exc}")
     finally:
         if descriptor >= 0:
-            os.close(descriptor)
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
         try:
             temporary.unlink()
         except FileNotFoundError:
@@ -1210,7 +1246,7 @@ def assemble(
 
 
 def _output_digests(output_dir: os.PathLike[str] | str) -> dict[str, str]:
-    root = Path(output_dir)
+    root = _filesystem_path(output_dir, "output directory")
     try:
         info = root.lstat()
     except OSError as exc:
@@ -1296,20 +1332,21 @@ def bind_outputs(
     manifest_path: os.PathLike[str] | str | None = None,
 ) -> dict[str, Any]:
     """Bind the exact candidate inventory to the current four output digests."""
+    root = _filesystem_path(output_dir, "output directory")
     target = (
-        Path(output_dir) / OUTPUT_MANIFEST_NAME
+        root / OUTPUT_MANIFEST_NAME
         if manifest_path is None
-        else manifest_path
+        else _filesystem_path(manifest_path, "output manifest path")
     )
     _assert_distinct_paths(
         (
             ("candidate", candidate_path),
             ("output manifest", target),
-            *((f"X-Ray output {name}", Path(output_dir) / name) for name in FINAL_OUTPUTS),
+            *((f"X-Ray output {name}", root / name) for name in FINAL_OUTPUTS),
         )
     )
     candidate = validate_candidate(load_json(candidate_path, "X-Ray candidate"))
-    outputs = _output_digests(output_dir)
+    outputs = _output_digests(root)
     manifest = {
         "schema": OUTPUT_MANIFEST_SCHEMA,
         "candidate_sha256": canonical_digest(candidate),
@@ -1327,21 +1364,22 @@ def promote(
     manifest_path: os.PathLike[str] | str | None = None,
 ) -> dict[str, Any]:
     """Digest-bind all four outputs, then atomically replace the reusable cache."""
+    root = _filesystem_path(output_dir, "output directory")
     manifest_path = (
-        Path(output_dir) / OUTPUT_MANIFEST_NAME
+        root / OUTPUT_MANIFEST_NAME
         if manifest_path is None
-        else manifest_path
+        else _filesystem_path(manifest_path, "output manifest path")
     )
     _assert_distinct_paths(
         (
             ("candidate", candidate_path),
             ("output manifest", manifest_path),
             ("cache", cache_path),
-            *((f"X-Ray output {name}", Path(output_dir) / name) for name in FINAL_OUTPUTS),
+            *((f"X-Ray output {name}", root / name) for name in FINAL_OUTPUTS),
         )
     )
     candidate = validate_candidate(load_json(candidate_path, "X-Ray candidate"))
-    outputs = _output_digests(output_dir)
+    outputs = _output_digests(root)
     manifest = validate_output_manifest(
         load_json(manifest_path, "X-Ray output manifest"),
         candidate,
@@ -1367,7 +1405,11 @@ def _load_fresh(paths: Sequence[str]) -> list[Any]:
     documents: list[Any] = []
     for path in paths:
         label = f"fresh entry {path}"
-        raw = _read_regular(Path(path), MAX_JSON_BYTES, label)
+        raw = _read_regular(
+            _filesystem_path(path, f"{label} path"),
+            MAX_JSON_BYTES,
+            label,
+        )
         total += len(raw)
         if total > MAX_TOTAL_FRESH_JSON_BYTES:
             _refuse(

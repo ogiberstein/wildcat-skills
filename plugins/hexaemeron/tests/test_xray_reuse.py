@@ -204,6 +204,86 @@ class ScopeAndEntryTests(ReuseFixture):
             reuse.plan(self.project, scope)
         self.assertEqual(caught.exception.code, "invalid-unicode")
 
+    def test_non_string_object_keys_are_bounded_schema_refusals(self):
+        plan, candidate, cache = self.establish_cache()
+        manifest = json.loads(
+            (self.outputs / reuse.OUTPUT_MANIFEST_NAME).read_text(encoding="utf-8")
+        )
+        cases = (
+            ("scope", self.scope, reuse.validate_scope),
+            ("plan", plan, reuse.validate_plan),
+            ("facts", candidate["entries"][0]["facts"], reuse.validate_facts),
+            ("entry", candidate["entries"][0], reuse.validate_entry),
+            ("candidate", candidate, reuse.validate_candidate),
+            ("cache", cache, reuse.validate_cache),
+            (
+                "output manifest",
+                manifest,
+                lambda value: reuse.validate_output_manifest(
+                    value,
+                    candidate,
+                    manifest["outputs"],
+                ),
+            ),
+        )
+        for label, document, validator in cases:
+            with self.subTest(label=label):
+                hostile = copy.deepcopy(document)
+                hostile[1] = True
+                with self.assertRaises(reuse.ReuseError) as caught:
+                    validator(hostile)
+                self.assertEqual(caught.exception.code, "invalid-schema")
+
+    def test_invalid_paths_are_bounded_at_public_filesystem_boundaries(self):
+        plan = reuse.plan(self.project, self.scope)
+        reuse.assemble(
+            self.project,
+            self.scope,
+            plan,
+            self.fresh(plan),
+            candidate_path=self.candidate,
+        )
+        for hostile in ("\0", "\ud800"):
+            cases = (
+                ("JSON input", lambda: reuse.load_json(hostile), "unsafe-path"),
+                (
+                    "project root",
+                    lambda: reuse.plan(hostile, self.scope),
+                    "unsafe-project-root",
+                ),
+                (
+                    "cache input",
+                    lambda: reuse.plan(self.project, self.scope, hostile),
+                    "unsafe-path",
+                ),
+                (
+                    "candidate output",
+                    lambda: reuse.assemble(
+                        self.project,
+                        self.scope,
+                        plan,
+                        self.fresh(plan),
+                        candidate_path=hostile,
+                    ),
+                    "unsafe-path",
+                ),
+                (
+                    "candidate input",
+                    lambda: reuse.bind_outputs(hostile, self.outputs),
+                    "unsafe-path",
+                ),
+                (
+                    "output directory",
+                    lambda: reuse.bind_outputs(self.candidate, hostile),
+                    "unsafe-path",
+                ),
+            )
+            for label, operation, code in cases:
+                with self.subTest(value=ascii(hostile), label=label):
+                    with self.assertRaises(reuse.ReuseError) as caught:
+                        operation()
+                    self.assertEqual(caught.exception.code, code)
+
 
 class PlanningTests(ReuseFixture):
     def test_missing_cache_requests_full_recomputation(self):
@@ -775,6 +855,24 @@ class AssemblyAndPromotionTests(ReuseFixture):
         self.assertEqual(caught.exception.code, "atomic-write-failed")
         self.assertEqual(self.cache.read_bytes(), before)
         self.assertEqual(list(self.root.glob(".cache.json.*.tmp")), [])
+
+    def test_atomic_staging_cleanup_preserves_the_structured_refusal(self):
+        target = self.root / "target.json"
+        close = reuse.os.close
+
+        def close_then_fail(descriptor):
+            close(descriptor)
+            raise OSError("close failed")
+
+        with mock.patch.object(
+            reuse.os,
+            "fchmod",
+            side_effect=OSError("fchmod failed"),
+        ), mock.patch.object(reuse.os, "close", side_effect=close_then_fail):
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse._atomic_write_json(target, {"status": "candidate"})
+        self.assertEqual(caught.exception.code, "atomic-write-failed")
+        self.assertFalse(target.exists())
 
     def test_candidate_and_cache_targets_must_not_be_symlinks(self):
         target = self.root / "target.json"
