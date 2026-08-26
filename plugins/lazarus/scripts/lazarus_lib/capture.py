@@ -134,13 +134,15 @@ def capture_fixture(
     secret_mapping_failed = False
     try:
         secrets = provider_secret_union(
-            ((rpc_url, headers), *((url, None) for url in anchor_urls.values()))
+            ((rpc_url, headers), *((url, None) for url in anchor_urls.values())),
+            check_time=limits.check_time,
         )
     except ResourceLimitError:
         secret_mapping_limit = True
     except Exception:
         secret_mapping_failed = True
     if secret_mapping_limit:
+        limits.check_time()
         raise ResourceLimitError("provider mapping exceeds capture resource limits")
     if secret_mapping_failed:
         raise CaptureError("provider secrets failed at mapping")
@@ -190,7 +192,10 @@ def capture_fixture(
             terminal = report.get("terminal_result")
             if terminal is not None:
                 assert_no_secret_bytes(
-                    dumps(terminal), secrets, label="capture terminal result"
+                    dumps(terminal),
+                    secrets,
+                    label="capture terminal result",
+                    check_time=limits.check_time,
                 )
         except IntegrityError:
             raise IntegrityError("capture failed at secret scan") from None

@@ -36,9 +36,20 @@ class ScrubTests(unittest.TestCase):
             self.assertIn(value, secrets)
 
     def test_url_userinfo_and_query_keys_are_secret_material(self):
-        url = "https://alice:p%40ss@rpc.example/v1?apiKey=shh-secret&project=wildcat"
+        url = (
+            "https://alice:pass%40word@rpc.example/v1"
+            "?apiKey=shh-secret&project=wildcat"
+        )
         secrets = provider_secrets(url)
-        for value in (url, "alice", "p@ss", "apiKey", "shh-secret", "project", "wildcat"):
+        for value in (
+            url,
+            "alice",
+            "pass@word",
+            "apiKey",
+            "shh-secret",
+            "project",
+            "wildcat",
+        ):
             self.assertIn(value, secrets)
 
     def test_url_path_credentials_and_percent_case_variants_are_secret_material(self):
@@ -123,9 +134,16 @@ class ScrubTests(unittest.TestCase):
             )
 
     def test_encoded_url_credentials_are_scanned_in_their_raw_form(self):
-        url = "https://alice%40rpc:p%2Fss@rpc.example/?token=alpha%2Fencoded-secret"
+        url = (
+            "https://alice%40account:pass%2Fword@rpc.example/"
+            "?token=alpha%2Fencoded-secret"
+        )
         secrets = provider_secrets(url)
-        for value in ("alice%40rpc", "p%2Fss", "alpha%2Fencoded-secret"):
+        for value in (
+            "alice%40account",
+            "pass%2Fword",
+            "alpha%2Fencoded-secret",
+        ):
             self.assertIn(value, secrets)
             with self.assertRaisesRegex(IntegrityError, "secret"):
                 assert_no_secret_bytes(
@@ -182,6 +200,72 @@ class ScrubTests(unittest.TestCase):
             with self.subTest(url=url, headers=headers):
                 with self.assertRaisesRegex(ResourceLimitError, "shorter"):
                     provider_secrets(url, headers)
+
+    def test_short_delimited_credential_components_are_refused(self):
+        cases = (
+            (
+                "https://rpc.example/",
+                {"Authorization": 'Digest nonce="abc", realm="longrealm"'},
+            ),
+            (
+                "https://rpc.example/?token=prefix%3Aabc",
+                None,
+            ),
+            (
+                "https://rpc.example/",
+                {"X-API-Key": "prefix=abc; scope=longscope"},
+            ),
+        )
+        for url, headers in cases:
+            with self.subTest(url=url, headers=headers):
+                with self.assertRaisesRegex(ResourceLimitError, "shorter"):
+                    provider_secrets(url, headers)
+
+    def test_short_public_url_structure_is_not_a_credential_false_positive(self):
+        url = "https://a.rpc.example/v3?x="
+        secrets = provider_secrets(url)
+        self.assertIn(url, secrets)
+        for public_component in ("a", "v3", "x"):
+            self.assertNotIn(public_component, secrets)
+
+    def test_header_count_is_bounded_before_materialising_the_mapping(self):
+        class StreamingHeaders:
+            yielded = 0
+
+            def __bool__(self):
+                return True
+
+            def items(self):
+                for index in range(1_000):
+                    self.yielded += 1
+                    yield f"X-Header-{index}", "long-header-value"
+
+        headers = StreamingHeaders()
+        with self.assertRaisesRegex(ResourceLimitError, "headers"):
+            provider_secrets("https://rpc.example", headers)
+        self.assertEqual(headers.yielded, 65)
+
+    def test_provider_classifier_rechecks_the_elapsed_budget(self):
+        self.assertIn(
+            "check_time", inspect.signature(provider_secrets).parameters
+        )
+        self.assertIn(
+            "check_time", inspect.signature(provider_secret_union).parameters
+        )
+        checks = 0
+
+        def check_time():
+            nonlocal checks
+            checks += 1
+            if checks == 3:
+                raise ResourceLimitError("elapsed")
+
+        with self.assertRaisesRegex(ResourceLimitError, "elapsed"):
+            provider_secret_union(
+                (("https://rpc.example/path/credential", None),),
+                check_time=check_time,
+            )
+        self.assertEqual(checks, 3)
 
     def test_every_authorization_payload_is_secret_material(self):
         headers = {
@@ -290,6 +374,22 @@ class ScrubTests(unittest.TestCase):
                 b'{"correlation_id":"anchor-terminal-secret"}',
                 {"primary-terminal-secret", "anchor-terminal-secret"},
                 label="capture terminal result",
+            )
+
+    def test_terminal_byte_scan_rechecks_the_elapsed_budget(self):
+        self.assertIn(
+            "check_time", inspect.signature(assert_no_secret_bytes).parameters
+        )
+
+        def check_time():
+            raise ResourceLimitError("elapsed")
+
+        with self.assertRaisesRegex(ResourceLimitError, "elapsed"):
+            assert_no_secret_bytes(
+                b'{"result":"public"}',
+                {"absent-secret"},
+                label="capture terminal result",
+                check_time=check_time,
             )
 
 

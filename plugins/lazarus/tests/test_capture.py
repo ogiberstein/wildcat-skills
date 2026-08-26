@@ -509,6 +509,34 @@ class CaptureTests(unittest.TestCase):
                 )
             self.assert_no_capture_artifacts(root, output)
 
+    def test_provider_mapping_receives_the_shared_elapsed_callback(self):
+        material = self.anchored_material(("archive-a",))
+        observed_callbacks = []
+
+        def bounded_mapping(*args, **kwargs):
+            observed_callbacks.append(kwargs.get("check_time"))
+            raise ResourceLimitError("bounded mapping refusal")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.write_plan(root, material["plan"])
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture.provider_secret_union",
+                side_effect=bounded_mapping,
+            ):
+                with self.assertRaisesRegex(ResourceLimitError, "provider mapping"):
+                    capture_fixture(
+                        plan,
+                        "https://primary.invalid",
+                        output,
+                        anchor_rpc_env=("archive-a=ANCHOR_A",),
+                        environment={"ANCHOR_A": "https://anchor.invalid"},
+                    )
+            self.assertEqual(len(observed_callbacks), 1)
+            self.assertTrue(callable(observed_callbacks[0]))
+            self.assert_no_capture_artifacts(root, output)
+
     def test_anchor_schema_clock_fails_before_finalisation(self):
         material = self.anchored_material(("archive-a",))
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
@@ -1055,6 +1083,48 @@ class ReceiptCaptureTests(unittest.TestCase):
             self.assertEqual(anchor.requests, [])
             self.assert_no_capture_artifacts(root, output)
 
+    def test_short_digest_component_is_refused_before_receipt_capture(self):
+        material = self.material()
+        base = receipt_material_dispatch(material)
+
+        def primary_dispatch(method, params, server):
+            result = base(method, params, server)
+            if method == "eth_getBlockByNumber" and isinstance(result, dict):
+                result = copy.deepcopy(result)
+                result["providerNote"] = "abc"
+            return result
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            root = Path(directory)
+            primary = stack.enter_context(FakeRpc(primary_dispatch))
+            anchor = stack.enter_context(FakeRpc(base))
+            plan = root / "receipt-plan.json"
+            dump(plan, material["plan"])
+            output = root / "fixture"
+            source_id = material["plan"]["anchor_sources"][0]["source_id"]
+            observed_error = None
+            try:
+                capture_fixture(
+                    plan,
+                    primary.url,
+                    output,
+                    headers={
+                        "Authorization": (
+                            'Digest nonce="abc", realm="longrealm"'
+                        )
+                    },
+                    anchor_rpc_env=(f"{source_id}=ANCHOR_RPC",),
+                    environment={"ANCHOR_RPC": anchor.url},
+                    wall_clock=lambda: self.observed_at(material),
+                )
+            except Exception as error:
+                observed_error = error
+            self.assertIsInstance(observed_error, ResourceLimitError)
+            self.assertRegex(str(observed_error), "provider mapping")
+            self.assertEqual(primary.requests, [])
+            self.assertEqual(anchor.requests, [])
+            self.assert_no_capture_artifacts(root, output)
+
     def test_plan_v3_recaptures_the_fixed_consensus_witness(self):
         material = support.receipt_capture_material()
         with tempfile.TemporaryDirectory() as directory:
@@ -1529,6 +1599,24 @@ class ReceiptCaptureTests(unittest.TestCase):
                         clock=clock,
                     )
             self.assert_no_capture_artifacts(root, output)
+
+    def test_terminal_secret_scan_receives_the_shared_elapsed_callback(self):
+        material = self.material()
+        observed_callbacks = []
+
+        def terminal_scan(data, secrets, *, label, check_time=None):
+            observed_callbacks.append(check_time)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture.assert_no_secret_bytes",
+                side_effect=terminal_scan,
+            ):
+                self.capture_material(material, root, output)
+            self.assertEqual(len(observed_callbacks), 1)
+            self.assertTrue(callable(observed_callbacks[0]))
 
     def test_plan_v3_preserves_an_existing_destination_before_network(self):
         material = self.material()

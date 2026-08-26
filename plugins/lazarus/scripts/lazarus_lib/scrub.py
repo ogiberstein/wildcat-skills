@@ -28,14 +28,25 @@ SCAN_CHUNK_BYTES = 64 * 1024
 REDACTION = "[x]"
 
 
-def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[str]:
+def provider_secrets(
+    url: str,
+    headers: Mapping[str, str] | None = None,
+    *,
+    check_time: Callable[[], None] | None = None,
+) -> set[str]:
+    if check_time is not None:
+        check_time()
     if not isinstance(url, str) or len(url) > MAX_PROVIDER_URL_CHARS:
         raise ResourceLimitError("provider URL exceeds the secret-classifier limit")
-    header_items = list((headers or {}).items())
-    if len(header_items) > MAX_PROVIDER_HEADER_COUNT:
-        raise ResourceLimitError("provider headers exceed the secret-classifier limit")
+    header_items: list[tuple[str, str]] = []
     header_chars = 0
-    for name, value in header_items:
+    for name, value in (() if headers is None else headers.items()):
+        if check_time is not None:
+            check_time()
+        if len(header_items) >= MAX_PROVIDER_HEADER_COUNT:
+            raise ResourceLimitError(
+                "provider headers exceed the secret-classifier limit"
+            )
         if not isinstance(name, str) or not isinstance(value, str):
             raise FormatError("provider headers must contain text names and values")
         header_chars += len(name) + len(value)
@@ -43,54 +54,80 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
             raise ResourceLimitError(
                 "provider headers exceed the secret-classifier character limit"
             )
+        header_items.append((name, value))
     values: set[str] = {url}
     credential_values: set[str] = set()
     parsed = urlsplit(url)
-    _add_url_material(values, parsed.netloc)
+    if check_time is not None:
+        check_time()
+    _add_url_material(values, parsed.netloc, check_time=check_time)
     if parsed.hostname:
-        _add_url_material(values, parsed.hostname)
+        _add_url_material(values, parsed.hostname, check_time=check_time)
     for value in (parsed.username, parsed.password):
         if value:
-            _add_credential_material(values, credential_values, value)
-    _add_url_material(values, parsed.path)
-    _add_url_material(values, parsed.query)
-    _add_url_material(values, parsed.fragment)
+            _add_credential_material(
+                values, credential_values, value, check_time=check_time
+            )
+    _add_url_material(values, parsed.path, check_time=check_time)
+    _add_url_material(values, parsed.query, check_time=check_time)
+    _add_url_material(values, parsed.fragment, check_time=check_time)
     for pair in parsed.query.split("&"):
+        if check_time is not None:
+            check_time()
         raw_key, separator, raw_value = pair.partition("=")
         if raw_key:
-            _add_url_material(values, raw_key)
+            _add_url_material(values, raw_key, check_time=check_time)
         if separator and raw_value:
-            _add_credential_material(values, credential_values, raw_value)
+            _add_credential_material(
+                values, credential_values, raw_value, check_time=check_time
+            )
+    if check_time is not None:
+        check_time()
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        if check_time is not None:
+            check_time()
         if key:
-            _add_url_material(values, key)
+            _add_url_material(values, key, check_time=check_time)
         if value:
-            _add_credential_material(values, credential_values, value)
+            _add_credential_material(
+                values, credential_values, value, check_time=check_time
+            )
     for name, value in header_items:
+        if check_time is not None:
+            check_time()
         if value:
-            values.add(value)
-            credential_values.add(value)
+            _add_credential_material(
+                values, credential_values, value, check_time=check_time
+            )
         lowered = name.lower()
         if lowered in {"authorization", "proxy-authorization", "cookie", "set-cookie"}:
-            values.add(value)
             if lowered.endswith("authorization"):
                 parts = value.split(None, 1)
                 if len(parts) == 2 and parts[1].strip():
                     payload = parts[1].strip()
                     _add_credential_material(
-                        values, credential_values, payload
+                        values,
+                        credential_values,
+                        payload,
+                        check_time=check_time,
                     )
                     if parts[0].lower() == "basic":
                         _add_basic_authorization(
-                            values, credential_values, payload
+                            values,
+                            credential_values,
+                            payload,
+                            check_time=check_time,
                         )
             if "cookie" in lowered:
                 for part in value.split(";"):
+                    if check_time is not None:
+                        check_time()
                     if "=" in part:
                         _add_credential_material(
                             values,
                             credential_values,
                             part.split("=", 1)[1].strip(),
+                            check_time=check_time,
                         )
     if any(0 < len(value) < 4 for value in credential_values):
         raise ResourceLimitError(
@@ -104,13 +141,20 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
     return secrets
 
 
-def _add_url_spellings(values: set[str], value: str) -> None:
+def _add_url_spellings(
+    values: set[str],
+    value: str,
+    *,
+    check_time: Callable[[], None] | None = None,
+) -> None:
     """Classify raw, decoded, and normalised percent spellings of URL material."""
 
     if not value:
         return
     current = value
     for _ in range(MAX_PERCENT_DECODE_ROUNDS + 1):
+        if check_time is not None:
+            check_time()
         values.add(current)
         if PERCENT_ESCAPE.search(current) is not None:
             values.add(
@@ -126,30 +170,58 @@ def _add_url_spellings(values: set[str], value: str) -> None:
     raise ValueError("URL percent encoding exceeds the supported nesting limit")
 
 
-def _add_url_material(values: set[str], value: str) -> None:
+def _add_url_material(
+    values: set[str],
+    value: str,
+    *,
+    credential_values: set[str] | None = None,
+    check_time: Callable[[], None] | None = None,
+) -> None:
     """Classify a URL component and delimiter-separated material within it."""
 
     spellings: set[str] = set()
-    _add_url_spellings(spellings, value)
+    _add_url_spellings(spellings, value, check_time=check_time)
     values.update(spellings)
+    if credential_values is not None:
+        credential_values.update(item for item in spellings if item)
     for spelling in spellings:
+        if check_time is not None:
+            check_time()
         for component in URL_MATERIAL_SEPARATOR.split(spelling):
-            _add_url_spellings(values, component)
+            component_spellings: set[str] = set()
+            _add_url_spellings(
+                component_spellings, component, check_time=check_time
+            )
+            values.update(component_spellings)
+            if credential_values is not None:
+                credential_values.update(
+                    item for item in component_spellings if item
+                )
 
 
 def _add_credential_material(
-    values: set[str], credential_values: set[str], value: str
+    values: set[str],
+    credential_values: set[str],
+    value: str,
+    *,
+    check_time: Callable[[], None] | None = None,
 ) -> None:
-    """Retain complete spellings when their source is credential-bearing."""
+    """Retain every spelling when its source is credential-bearing."""
 
-    spellings: set[str] = set()
-    _add_url_spellings(spellings, value)
-    credential_values.update(item for item in spellings if item)
-    _add_url_material(values, value)
+    _add_url_material(
+        values,
+        value,
+        credential_values=credential_values,
+        check_time=check_time,
+    )
 
 
 def _add_basic_authorization(
-    values: set[str], credential_values: set[str], payload: str
+    values: set[str],
+    credential_values: set[str],
+    payload: str,
+    *,
+    check_time: Callable[[], None] | None = None,
 ) -> None:
     """Classify the decoded Basic user-password material when it is well formed."""
 
@@ -161,20 +233,28 @@ def _add_basic_authorization(
         decoded = raw.decode("utf-8")
     except UnicodeDecodeError:
         decoded = raw.decode("latin-1")
-    _add_credential_material(values, credential_values, decoded)
+    _add_credential_material(
+        values, credential_values, decoded, check_time=check_time
+    )
     username, separator, password = decoded.partition(":")
     if separator:
         for value in (username, password):
             if value:
-                _add_credential_material(values, credential_values, value)
+                _add_credential_material(
+                    values, credential_values, value, check_time=check_time
+                )
 
 
 def provider_secret_union(
     providers: Iterable[tuple[str, Mapping[str, str] | None]],
+    *,
+    check_time: Callable[[], None] | None = None,
 ) -> set[str]:
     secrets: set[str] = set()
     for url, headers in providers:
-        secrets.update(provider_secrets(url, headers))
+        if check_time is not None:
+            check_time()
+        secrets.update(provider_secrets(url, headers, check_time=check_time))
         if len(secrets) > MAX_PROVIDER_SECRET_VALUES:
             raise ResourceLimitError(
                 "provider mappings have too many secret-classifier components"
@@ -233,7 +313,7 @@ def assert_no_secrets(
     *,
     check_time: Callable[[], None] | None = None,
 ) -> None:
-    encoded = _secret_byte_patterns(secrets)
+    encoded = _secret_byte_patterns(secrets, check_time=check_time)
     if not encoded:
         return
     for path in sorted(Path(root).rglob("*")):
@@ -256,18 +336,34 @@ def assert_no_secrets(
             check_time()
 
 
-def assert_no_secret_bytes(data: bytes, secrets: set[str], *, label: str) -> None:
+def assert_no_secret_bytes(
+    data: bytes,
+    secrets: set[str],
+    *,
+    label: str,
+    check_time: Callable[[], None] | None = None,
+) -> None:
     """Apply the provider-secret union to bytes emitted outside the fixture."""
 
-    if _contains_secret_bytes(data, _secret_byte_patterns(secrets)):
+    if _contains_secret_bytes(
+        data,
+        _secret_byte_patterns(secrets, check_time=check_time),
+        check_time=check_time,
+    ):
         raise IntegrityError(f"provider secret reached {label}")
 
 
-def _secret_byte_patterns(secrets: set[str]) -> list[bytes]:
+def _secret_byte_patterns(
+    secrets: set[str],
+    *,
+    check_time: Callable[[], None] | None = None,
+) -> list[bytes]:
     """Return raw and canonical-JSON spellings of every scannable secret."""
 
     patterns: set[bytes] = set()
     for secret in secrets:
+        if check_time is not None:
+            check_time()
         if not secret:
             continue
         try:
@@ -275,7 +371,10 @@ def _secret_byte_patterns(secrets: set[str]) -> list[bytes]:
             patterns.add(_normalise_percent_bytes(dumps(secret)[1:-1]))
         except (FormatError, UnicodeEncodeError):
             continue
-    return sorted(patterns, key=len, reverse=True)
+    result = sorted(patterns, key=len, reverse=True)
+    if check_time is not None:
+        check_time()
+    return result
 
 
 def _normalise_percent_bytes(data: bytes) -> bytes:
@@ -284,8 +383,13 @@ def _normalise_percent_bytes(data: bytes) -> bytes:
     return PERCENT_ESCAPE_BYTES.sub(lambda match: match.group(0).upper(), data)
 
 
-def _contains_secret_bytes(data: bytes, patterns: list[bytes]) -> bool:
-    scanner = _SecretByteScanner(patterns)
+def _contains_secret_bytes(
+    data: bytes,
+    patterns: list[bytes],
+    *,
+    check_time: Callable[[], None] | None = None,
+) -> bool:
+    scanner = _SecretByteScanner(patterns, check_time=check_time)
     return scanner.feed(data) or scanner.finish()
 
 
