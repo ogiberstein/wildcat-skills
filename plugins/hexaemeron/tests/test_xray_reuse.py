@@ -8,6 +8,7 @@ the whole current scope before promotion may touch the previous cache.
 
 import copy
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import shutil
@@ -26,6 +27,8 @@ from lib import xray_reuse as reuse  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "xray-reuse"
 SCRIPT = Path(reuse.__file__).resolve()
+DEMO = FIXTURES / "run_demo.py"
+PROOF = PLUGIN_ROOT / "docs" / "xray-source-reuse" / "proof.md"
 PROMISES = PLUGIN_ROOT / "PROMISES.md"
 AUDIT_LOOP = PLUGIN_ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
 XRAY_REUSE_REFERENCE = (
@@ -36,6 +39,15 @@ XRAY_SKILL = PLUGIN_ROOT / "skills" / "x-ray" / "SKILL.md"
 EXPECTED_XRAY_DIGEST = (
     "b23bb94517805c1b8ce717d0e1e0282b0b5c14c7b16f4c32e73940292d3d4a41"
 )
+
+
+def load_demo_module():
+    spec = importlib.util.spec_from_file_location("xray_reuse_demo", DEMO)
+    if spec is None or spec.loader is None:
+        raise AssertionError("fixture demonstration module cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 SOURCE_BOUND_FACT_KEYS = frozenset(
     {
         "access",
@@ -1189,6 +1201,280 @@ class CompositionContractTests(unittest.TestCase):
         for text in (warden, " ".join(self.audit_loop.split())):
             self.assertIn("cache verdicts", text)
             self.assertNotIn("manifests, and verdicts", text)
+
+
+class FixtureDemonstrationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.demo = load_demo_module()
+        process = subprocess.run(
+            [sys.executable, str(DEMO), "--samples", "3"],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        if process.returncode:
+            raise AssertionError(process.stderr)
+        cls.proof = json.loads(process.stdout)
+
+    def test_reported_source_reads_are_observed_adapter_reads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project, scope, cache = self.demo.workspace(root)
+            observed = []
+            read_source = self.demo.reuse._read_source
+
+            def counted(project_root, relative):
+                observed.append(relative)
+                return read_source(project_root, relative)
+
+            self.demo.reuse._read_source = counted
+            try:
+                evidence, _duration = self.demo.execute(
+                    project, scope, cache, root, "read-count"
+                )
+            finally:
+                self.demo.reuse._read_source = read_source
+
+        self.assertEqual(evidence["source_reads"], len(observed))
+        self.assertEqual(
+            evidence["source_read_paths"],
+            [
+                "src/Base.sol",
+                "src/Router.sol",
+                "src/Vault.sol",
+                "src/Base.sol",
+                "src/Router.sol",
+                "src/Vault.sol",
+            ],
+        )
+
+    def test_every_scenario_matches_an_independent_full_recompute(self):
+        for name, scenario in self.proof["scenarios"].items():
+            with self.subTest(scenario=name):
+                self.assertIn("full_recompute", scenario)
+                self.assertIn("matches_full_recompute", scenario)
+                reference = scenario["full_recompute"]
+                matches = scenario["matches_full_recompute"]
+                self.assertEqual(
+                    (reference["plan"]["mode"], reference["plan"]["reason"]),
+                    ("full", "cache-missing"),
+                )
+                self.assertEqual(reference["fresh_extractions"], len(scenario["source_inventory"]))
+                self.assertEqual(reference["reused_entries"], 0)
+                self.assertEqual(
+                    matches,
+                    {"candidate": True, "fact_union": True, "outputs": True},
+                )
+                self.assertEqual(scenario["outputs"], reference["outputs"])
+                self.assertEqual(
+                    scenario["fact_union_sha256"], reference["fact_union_sha256"]
+                )
+                self.assertEqual(
+                    scenario["candidate_sha256"], reference["candidate_sha256"]
+                )
+
+    def test_body_only_case_changes_executable_body_without_interface_drift(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project, scope, cache = self.demo.workspace(root)
+            router = project / "src" / "Router.sol"
+            before = router.read_text(encoding="utf-8")
+            variants = self.demo.body_only(project, scope, cache)
+            after = router.read_text(encoding="utf-8")
+
+        def executable_lines(source):
+            return [
+                line.strip()
+                for line in source.splitlines()
+                if line.strip() and not line.strip().startswith("//")
+            ]
+
+        self.assertEqual(variants, {"src/Router.sol": "body-v2"})
+        self.assertNotEqual(executable_lines(before), executable_lines(after))
+        self.assertIn("Vault public immutable vault;", before)
+        self.assertIn("Vault public immutable vault;", after)
+        self.assertIn("function route(uint256 amount) external", before)
+        self.assertIn("function route(uint256 amount) external", after)
+
+    def test_exactly_three_paired_samples_preserve_all_four_outputs(self):
+        timing = self.proof["timing"]
+        self.assertEqual(len(timing["samples"]), 3)
+        for sample in timing["samples"]:
+            self.assertGreater(sample["full_wall_time_ns"], 0)
+            self.assertGreater(sample["unchanged_wall_time_ns"], 0)
+            self.assertTrue(sample["outputs_equal"])
+            self.assertEqual(sample["full_outputs"], sample["unchanged_outputs"])
+            self.assertEqual(set(sample["full_outputs"]), set(reuse.FINAL_OUTPUTS))
+        for mode in ("full", "unchanged"):
+            values = [
+                sample[f"{mode}_wall_time_ns"] for sample in timing["samples"]
+            ]
+            self.assertEqual(timing[f"{mode}_spread_ns"], max(values) - min(values))
+
+    def test_full_and_unchanged_have_exact_extraction_and_reuse_counts(self):
+        full = self.proof["scenarios"]["full"]
+        unchanged = self.proof["scenarios"]["unchanged"]
+        self.assertEqual(
+            (full["plan"]["mode"], full["plan"]["reason"]),
+            ("full", "cache-missing"),
+        )
+        self.assertEqual(
+            (full["source_reads"], full["fresh_extractions"], full["reused_entries"]),
+            (6, 3, 0),
+        )
+        self.assertEqual(
+            (unchanged["plan"]["mode"], unchanged["plan"]["reason"]),
+            ("incremental", "scope-unchanged"),
+        )
+        self.assertEqual(
+            (
+                unchanged["source_reads"],
+                unchanged["fresh_extractions"],
+                unchanged["reused_entries"],
+            ),
+            (6, 0, 3),
+        )
+        self.assertEqual(full["outputs"], unchanged["outputs"])
+        self.assertEqual(full["fact_union_sha256"], unchanged["fact_union_sha256"])
+
+    def test_drift_removal_and_corrupt_cache_have_exact_safe_plans(self):
+        scenarios = self.proof["scenarios"]
+        expected = {
+            "body-only": {
+                "mode": "incremental",
+                "reason": "source-drift",
+                "dirty": ["src/Router.sol"],
+                "reusable": ["src/Base.sol", "src/Vault.sol"],
+                "removed": [],
+                "reverse_invalidated": [],
+            },
+            "dependency-drift": {
+                "mode": "incremental",
+                "reason": "source-drift",
+                "dirty": ["src/Base.sol", "src/Router.sol", "src/Vault.sol"],
+                "reusable": [],
+                "removed": [],
+                "reverse_invalidated": ["src/Router.sol", "src/Vault.sol"],
+            },
+            "write-site-drift": {
+                "mode": "incremental",
+                "reason": "source-drift",
+                "dirty": ["src/Router.sol", "src/Vault.sol"],
+                "reusable": ["src/Base.sol"],
+                "removed": [],
+                "reverse_invalidated": ["src/Router.sol"],
+            },
+            "source-removal": {
+                "mode": "full",
+                "reason": "scope-mismatch",
+                "dirty": ["src/Base.sol", "src/Vault.sol"],
+                "reusable": [],
+                "removed": ["src/Router.sol"],
+                "reverse_invalidated": [],
+            },
+            "corrupt-cache": {
+                "mode": "full",
+                "reason": "cache-invalid",
+                "dirty": ["src/Base.sol", "src/Router.sol", "src/Vault.sol"],
+                "reusable": [],
+                "removed": [],
+                "reverse_invalidated": [],
+            },
+        }
+        for name, plan in expected.items():
+            with self.subTest(scenario=name):
+                actual = scenarios[name]["plan"]
+                for key, value in plan.items():
+                    self.assertEqual(actual[key], value)
+                self.assertEqual(
+                    scenarios[name]["fresh_extractions"], len(plan["dirty"])
+                )
+                self.assertEqual(
+                    scenarios[name]["reused_entries"], len(plan["reusable"])
+                )
+                self.assertEqual(scenarios[name]["stale_removed_rows"], [])
+                self.assertEqual(
+                    set(scenarios[name]["outputs"]), set(reuse.FINAL_OUTPUTS)
+                )
+        removal = scenarios["source-removal"]
+        self.assertEqual(
+            removal["source_inventory"], ["src/Base.sol", "src/Vault.sol"]
+        )
+        self.assertNotIn("src/Router.sol", removal["source_digests"])
+        self.assertNotIn(
+            "src/Router.sol", json.dumps(removal["write_sites"], sort_keys=True)
+        )
+
+    def test_write_site_drift_rebuilds_the_complete_current_write_map(self):
+        writes = self.proof["scenarios"]["write-site-drift"]["write_sites"]
+        total = next(item for item in writes if item["variable"] == "total")
+        self.assertEqual(
+            total["sites"],
+            [
+                {"path": "src/Base.sol", "site": "Base.sol:8", "delta": "=next"},
+                {
+                    "path": "src/Vault.sol",
+                    "site": "Vault.sol:8",
+                    "delta": "+amount+1",
+                },
+            ],
+        )
+
+    def test_environment_and_limits_keep_the_claim_bounded(self):
+        self.assertEqual(
+            self.proof["schema"], "hexaemeron.xray.reuse-fixture-proof.v1"
+        )
+        self.assertFalse(self.proof["environment"]["network"])
+        self.assertEqual(self.proof["limits"]["samples_per_mode"], 3)
+        self.assertEqual(self.proof["limits"]["warmups_discarded"], 0)
+        self.assertNotIn("speedup", self.proof)
+        self.assertEqual(
+            self.proof["environment"]["xray_skill_sha256"], EXPECTED_XRAY_DIGEST
+        )
+        self.assertEqual(
+            self.proof["environment"]["adapter_sha256"],
+            hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
+        )
+
+    def test_durable_proof_embeds_parseable_recorded_evidence(self):
+        document = PROOF.read_text(encoding="utf-8")
+        raw_section = document.split("## raw stdout\n", 1)[1]
+        raw = raw_section.split("```json\n", 1)[1].split("\n```", 1)[0]
+        recorded = json.loads(raw)
+        self.assertEqual(
+            recorded["schema"], "hexaemeron.xray.reuse-fixture-proof.v1"
+        )
+        self.assertEqual(set(recorded["scenarios"]), set(self.proof["scenarios"]))
+        self.assertEqual(recorded["scenarios"], self.proof["scenarios"])
+        self.assertEqual(recorded["limits"], self.proof["limits"])
+        self.assertEqual(len(recorded["timing"]["samples"]), 3)
+        self.assertEqual(
+            recorded["scenarios"]["full"]["outputs"],
+            recorded["scenarios"]["unchanged"]["outputs"],
+        )
+        self.assertEqual(
+            recorded["environment"]["adapter_sha256"],
+            hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            recorded["environment"]["xray_skill_sha256"], EXPECTED_XRAY_DIGEST
+        )
+        for sample in recorded["timing"]["samples"]:
+            row = (
+                f'| {sample["sample"]} | {sample["full_wall_time_ns"]} | '
+                f'{sample["unchanged_wall_time_ns"]} | yes |'
+            )
+            self.assertIn(row, document)
+        self.assertIn(
+            f'Full spread: {recorded["timing"]["full_spread_ns"]} ns.',
+            document,
+        )
+        self.assertIn(
+            f'Unchanged spread: {recorded["timing"]["unchanged_spread_ns"]} ns.',
+            document,
+        )
 
 
 class CommandTests(ReuseFixture):
