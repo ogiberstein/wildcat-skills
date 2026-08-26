@@ -1,7 +1,9 @@
 """The capture transport bounds and reorders JSON-RPC without leaking errors."""
 
+from http.client import IncompleteRead
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
+import traceback
 import unittest
 
 from lazarus_lib.errors import FormatError, ResourceLimitError
@@ -79,6 +81,76 @@ class RpcTests(unittest.TestCase):
         ) as server:
             with self.assertRaisesRegex(RpcTransportError, "content length"):
                 JsonRpcClient(server.url, limits()).call("incomplete-length", [])
+
+    def test_invalid_content_length_retains_no_provider_value(self):
+        marker = "PRIVATE_CONTENT_LENGTH_SECRET"
+        with FakeRpc(
+            lambda *args: None,
+            raw_response=b'{}',
+            declared_length=marker,
+        ) as server:
+            try:
+                JsonRpcClient(server.url, limits()).call("invalid-length", [])
+            except Exception as exc:
+                raised = exc
+            else:
+                self.fail("invalid content length was accepted")
+        self.assertIsInstance(raised, RpcTransportError)
+        self.assertIsNone(raised.__cause__)
+        self.assertIsNone(raised.__context__)
+        surfaces = (str(raised), repr(raised), "".join(traceback.format_exception(raised)))
+        self.assertTrue(all(marker not in surface for surface in surfaces))
+
+    def test_invalid_provider_url_is_a_cause_free_transport_refusal(self):
+        marker = "PRIVATE_PROVIDER_URL_SECRET"
+        try:
+            JsonRpcClient(marker, limits()).call("eth_chainId", [])
+        except Exception as exc:
+            raised = exc
+        else:
+            self.fail("invalid provider URL was accepted")
+        self.assertIsInstance(raised, RpcTransportError)
+        self.assertIsNone(raised.__cause__)
+        self.assertIsNone(raised.__context__)
+        surfaces = (str(raised), repr(raised), "".join(traceback.format_exception(raised)))
+        self.assertTrue(all(marker not in surface for surface in surfaces))
+
+    def test_incomplete_http_body_retains_no_provider_bytes(self):
+        marker = b"PRIVATE_PARTIAL_BODY_SECRET"
+
+        class BrokenResponse:
+            headers = {}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def read(self, size):
+                raise IncompleteRead(marker, size)
+
+        class BrokenOpener:
+            def open(self, request, timeout):
+                return BrokenResponse()
+
+        try:
+            JsonRpcClient(
+                "https://rpc.example",
+                limits(),
+                opener=BrokenOpener(),
+            ).call("eth_chainId", [])
+        except Exception as exc:
+            raised = exc
+        else:
+            self.fail("incomplete HTTP body was accepted")
+        self.assertIsInstance(raised, RpcTransportError)
+        self.assertIsNone(raised.__cause__)
+        self.assertIsNone(raised.__context__)
+        surfaces = (str(raised), repr(raised), "".join(traceback.format_exception(raised)))
+        self.assertTrue(
+            all(marker.decode() not in surface for surface in surfaces)
+        )
 
     def test_hostile_response_nesting_is_bounded(self):
         nested = b'{"jsonrpc":"2.0","id":1,"result":' + b'{"x":' * 65

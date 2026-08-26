@@ -17,11 +17,13 @@ from lazarus_lib.capture import (
     CaptureError,
     _atomic_no_replace,
     _validate_capture_plan,
+    capture_failure_terminal_result,
     capture_fixture,
 )
 from lazarus_lib.errors import FormatError, IntegrityError, PathError, ResourceLimitError
 from lazarus_lib.records import read_anchor_records, read_rpc_records
 from lazarus_lib.rpc import JsonRpcClient
+from lazarus_lib.scrub import assert_no_secrets as scan_fixture_secrets
 from lazarus_lib.verifier import verify_fixture
 
 from . import support
@@ -1121,6 +1123,44 @@ class ReceiptCaptureTests(unittest.TestCase):
         )
         self.assertNotIn(marker, result.stderr)
 
+    def test_failure_terminal_redacts_a_provider_secret_identity_collision(self):
+        material = self.material()
+        source_id = material["plan"]["anchor_sources"][0]["source_id"]
+        root_secret = material["header"]["rpc_result"]["receiptsRoot"]
+        fallback = receipt_material_dispatch(material)
+
+        def dispatch(method, params, server):
+            if method == "eth_getBlockReceipts":
+                return None
+            return fallback(method, params, server)
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            root = Path(directory)
+            plan_path = root / "receipt-plan.json"
+            dump(plan_path, material["plan"])
+            output = root / "fixture"
+            primary = stack.enter_context(FakeRpc(dispatch))
+            anchor = stack.enter_context(
+                FakeRpc(receipt_material_dispatch(material))
+            )
+            terminal_context = {}
+            with self.assertRaisesRegex(IntegrityError, "not an array") as raised:
+                capture_fixture(
+                    plan_path,
+                    f"{primary.url}?token={root_secret}",
+                    output,
+                    anchor_rpc_env=(f"{source_id}=ANCHOR_RPC",),
+                    environment={"ANCHOR_RPC": anchor.url},
+                    wall_clock=lambda: self.observed_at(material),
+                    terminal_context=terminal_context,
+                )
+            event = capture_failure_terminal_result(
+                terminal_context, raised.exception
+            )
+            self.assertIsNotNone(event)
+            self.assertNotIn(root_secret.encode(), dumps(event))
+            self.assert_no_capture_artifacts(root, output)
+
     def test_provider_object_order_does_not_change_any_fixture_byte(self):
         material = self.material()
         with tempfile.TemporaryDirectory() as directory:
@@ -1283,6 +1323,36 @@ class ReceiptCaptureTests(unittest.TestCase):
                         material, root, output, clock=clock
                     )
                 self.assert_no_capture_artifacts(root, output)
+
+    def test_elapsed_budget_is_rechecked_after_secret_scan(self):
+        class ControlledClock:
+            value = 0
+
+            def __call__(self):
+                return self.value
+
+        clock = ControlledClock()
+        material = self.material()
+        material["plan"]["limits"]["max_elapsed_seconds"] = 1
+
+        def slow_scan(*args, **kwargs):
+            scan_fixture_secrets(*args, **kwargs)
+            clock.value = 2
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture.assert_no_secrets", side_effect=slow_scan
+            ):
+                with self.assertRaisesRegex(ResourceLimitError, "seconds"):
+                    self.capture_material(
+                        material,
+                        root,
+                        output,
+                        clock=clock,
+                    )
+            self.assert_no_capture_artifacts(root, output)
 
     def test_plan_v3_preserves_an_existing_destination_before_network(self):
         material = self.material()

@@ -47,7 +47,12 @@ from .receipts import (
 )
 from .rpc import JsonRpcClient
 from .schemas import validate_document
-from .scrub import assert_no_secret_bytes, assert_no_secrets, provider_secret_union
+from .scrub import (
+    assert_no_secret_bytes,
+    assert_no_secrets,
+    provider_secret_union,
+    redact_text,
+)
 from .verifier import verify_fixture
 
 
@@ -124,6 +129,13 @@ def capture_fixture(
         raise ResourceLimitError("capture plan exceeds its max_component_bytes limit")
     if plan_bytes > plan["limits"]["max_total_bytes"]:
         raise ResourceLimitError("capture plan exceeds its max_total_bytes limit")
+    try:
+        secrets = provider_secret_union(
+            ((rpc_url, headers), *((url, None) for url in anchor_urls.values()))
+        )
+    except Exception:
+        raise CaptureError("provider secrets failed at mapping") from None
+    _set_terminal_safe_identities(terminal_context, plan, secrets)
     _set_terminal_stage(terminal_context, "output-check")
     destination = Path(output)
     if destination.exists() or destination.is_symlink():
@@ -141,12 +153,6 @@ def capture_fixture(
             raise CaptureError(
                 f"anchor source {source_id} failed at mapping"
             ) from None
-    try:
-        secrets = provider_secret_union(
-            ((rpc_url, headers), *((url, None) for url in anchor_urls.values()))
-        )
-    except Exception:
-        raise CaptureError("provider secrets failed at mapping") from None
     _set_terminal_stage(terminal_context, "staging")
     try:
         stage = Path(
@@ -164,6 +170,7 @@ def capture_fixture(
             anchor_clients=anchor_clients,
             wall_clock=wall_clock or _utc_now,
             terminal_context=terminal_context,
+            terminal_secrets=secrets,
         )
         try:
             _set_terminal_stage(terminal_context, "secret-scan")
@@ -176,6 +183,7 @@ def capture_fixture(
         except IntegrityError:
             raise IntegrityError("capture failed at secret scan") from None
         _set_terminal_stage(terminal_context, "finalisation")
+        limits.check_time()
         (finalizer or _atomic_no_replace)(stage, destination)
         finalised = True
         return report
@@ -198,6 +206,7 @@ def _capture_into(
     anchor_clients: Mapping[str, JsonRpcClient],
     wall_clock: Callable[[], datetime],
     terminal_context: dict[str, Any] | None = None,
+    terminal_secrets: set[str] | None = None,
 ) -> dict[str, Any]:
     expected_number = plan["block"]["number"]
     expected_hash = plan["block"]["hash"]
@@ -207,9 +216,11 @@ def _capture_into(
         raise IntegrityError("provider chain ID does not match the capture plan")
     first_header = _fetch_header(client, expected_number, expected_hash)
     if terminal_context:
-        terminal_context["expected_receipts_root"] = first_header["rpc_result"].get(
-            "receiptsRoot"
-        )
+        expected_root = first_header["rpc_result"].get("receiptsRoot")
+        if isinstance(expected_root, str):
+            terminal_context["expected_receipts_root"] = _safe_terminal_text(
+                expected_root, terminal_secrets or set()
+            )
     _set_terminal_stage(terminal_context, "rpc-capture")
     rpc_records = _capture_requests(client, plan, expected_number, expected_hash)
     receipt_witness = None
@@ -523,24 +534,18 @@ def _receipt_terminal_context(plan: dict[str, Any]) -> dict[str, Any] | None:
 
     if plan["schema_version"] != 3:
         return None
-    relation = plan["receipt_witness"]
-    target_request = next(
-        item
-        for item in plan["requests"]
-        if item["name"] == relation["target_receipt_lookup_request"]
-    )
     return {
         "correlation_id": "lazarus-capture:"
         + hashlib.sha256(dumps(plan)).hexdigest(),
         "stage": "plan-validation",
         "block": {
-            "number": plan["block"]["number"],
-            "hash": plan["block"]["hash"],
+            "number": None,
+            "hash": None,
         },
         "recorded_target_selector": {
-            "value": target_request["params"][0],
+            "value": None,
             "evidence": "recorded_rpc",
-            "transaction_index": relation["target_transaction_index"],
+            "transaction_index": None,
         },
         "counts": {
             "rpc_requests": 0,
@@ -558,6 +563,37 @@ def _receipt_terminal_context(plan: dict[str, Any]) -> dict[str, Any] | None:
             "receipt_witness": 1,
         },
     }
+
+
+def _set_terminal_safe_identities(
+    terminal_context: dict[str, Any] | None,
+    plan: dict[str, Any],
+    secrets: set[str],
+) -> None:
+    if terminal_context is None or not terminal_context:
+        return
+    relation = plan["receipt_witness"]
+    target_request = next(
+        item
+        for item in plan["requests"]
+        if item["name"] == relation["target_receipt_lookup_request"]
+    )
+    terminal_context["block"] = {
+        "number": _safe_terminal_text(plan["block"]["number"], secrets),
+        "hash": _safe_terminal_text(plan["block"]["hash"], secrets),
+    }
+    terminal_context["recorded_target_selector"].update(
+        {
+            "value": _safe_terminal_text(target_request["params"][0], secrets),
+            "transaction_index": _safe_terminal_text(
+                relation["target_transaction_index"], secrets
+            ),
+        }
+    )
+
+
+def _safe_terminal_text(value: str, secrets: set[str]) -> str:
+    return redact_text(value, secrets=secrets)
 
 
 def _set_terminal_stage(

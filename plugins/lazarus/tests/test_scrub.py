@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from lazarus_lib.canonical import dumps
 from lazarus_lib.errors import IntegrityError
 from lazarus_lib.scrub import (
     SCAN_CHUNK_BYTES,
@@ -50,6 +51,29 @@ class ScrubTests(unittest.TestCase):
                     secrets,
                     label="capture terminal result",
                 )
+
+    def test_json_escaped_secret_is_refused_in_terminal_bytes(self):
+        marker = 'alpha"escaped-secret'
+        secrets = provider_secrets(
+            "https://rpc.example/?token=alpha%22escaped-secret"
+        )
+        with self.assertRaisesRegex(IntegrityError, "terminal result"):
+            assert_no_secret_bytes(
+                dumps({"result": marker}),
+                secrets,
+                label="capture terminal result",
+            )
+
+    def test_json_escaped_secret_is_refused_in_staged_files(self):
+        marker = 'alpha"escaped-secret'
+        secrets = provider_secrets(
+            "https://rpc.example/?token=alpha%22escaped-secret"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "rpc.jsonl"
+            path.write_bytes(dumps({"result": marker}) + b"\n")
+            with self.assertRaisesRegex(IntegrityError, "secret"):
+                assert_no_secrets(directory, secrets)
 
     def test_bearer_and_cookie_values_are_secret_material(self):
         headers = {

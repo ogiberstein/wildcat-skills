@@ -7,7 +7,8 @@ import re
 from typing import Any, Iterable, Mapping
 from urllib.parse import parse_qsl, unquote, urlsplit
 
-from .errors import IntegrityError
+from .canonical import dumps
+from .errors import FormatError, IntegrityError
 
 
 URL = re.compile(r"(?i)https?://[^\s\"'<>]+")
@@ -77,7 +78,7 @@ def sanitised_rpc_error(error: Any) -> dict[str, Any]:
 
 
 def assert_no_secrets(root: str | Path, secrets: set[str]) -> None:
-    encoded = [secret.encode("utf-8") for secret in secrets if secret]
+    encoded = _secret_byte_patterns(secrets)
     if not encoded:
         return
     overlap = max(len(secret) for secret in encoded) - 1
@@ -98,6 +99,21 @@ def assert_no_secrets(root: str | Path, secrets: set[str]) -> None:
 def assert_no_secret_bytes(data: bytes, secrets: set[str], *, label: str) -> None:
     """Apply the provider-secret union to bytes emitted outside the fixture."""
 
-    for secret in secrets:
-        if secret and secret.encode("utf-8") in data:
+    for secret in _secret_byte_patterns(secrets):
+        if secret in data:
             raise IntegrityError(f"provider secret reached {label}")
+
+
+def _secret_byte_patterns(secrets: set[str]) -> list[bytes]:
+    """Return raw and canonical-JSON spellings of every scannable secret."""
+
+    patterns: set[bytes] = set()
+    for secret in secrets:
+        if not secret:
+            continue
+        try:
+            patterns.add(secret.encode("utf-8"))
+            patterns.add(dumps(secret)[1:-1])
+        except (FormatError, UnicodeEncodeError):
+            continue
+    return sorted(patterns, key=len, reverse=True)

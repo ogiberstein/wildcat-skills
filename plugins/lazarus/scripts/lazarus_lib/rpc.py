@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Mapping
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from .canonical import dumps, loads
@@ -100,32 +100,36 @@ class JsonRpcClient:
         return [by_id[identifier] for identifier in identifiers]
 
     def _post(self, body: bytes) -> Any:
-        request = Request(self._url, data=body, headers=self._headers, method="POST")
         limit = self._limits.response_read_limit()
         declared_size_value: int | None = None
+        transport_failed = False
         try:
+            request = Request(
+                self._url, data=body, headers=self._headers, method="POST"
+            )
             with self._opener.open(
                 request,
                 timeout=self._limits.remaining_seconds(),
             ) as response:
-                declared_size = response.headers.get("Content-Length")
-                if declared_size is not None:
-                    try:
-                        declared_size_value = int(declared_size, 10)
-                    except (TypeError, ValueError):
-                        raise RpcTransportError(
-                            "provider returned an invalid content length"
-                        ) from None
+                declared_size_value = _declared_content_length(response.headers)
+                if declared_size_value is not None:
                     if declared_size_value < 0 or declared_size_value > limit:
                         raise ResourceLimitError(
                             "RPC response exceeds the plan capture byte limit"
                         )
                 raw = response.read(limit + 1)
         except HTTPError as exc:
-            exc.close()
-            raise RpcTransportError("provider transport failed") from None
-        except (URLError, OSError, TimeoutError):
-            raise RpcTransportError("provider transport failed") from None
+            try:
+                exc.close()
+            except Exception:
+                pass
+            transport_failed = True
+        except (ResourceLimitError, RpcTransportError):
+            raise
+        except Exception:
+            transport_failed = True
+        if transport_failed:
+            raise RpcTransportError("provider transport failed")
         self._limits.after_response(len(raw))
         if declared_size_value is not None and len(raw) != declared_size_value:
             raise RpcTransportError(
@@ -137,3 +141,18 @@ class JsonRpcClient:
             return loads(raw, max_bytes=limit)
         except FormatError:
             raise RpcTransportError("provider returned invalid JSON") from None
+
+
+def _declared_content_length(headers: Mapping[str, str]) -> int | None:
+    declared_size = headers.get("Content-Length")
+    if declared_size is None:
+        return None
+    invalid = False
+    try:
+        value = int(declared_size, 10)
+    except (TypeError, ValueError):
+        invalid = True
+        value = 0
+    if invalid:
+        raise RpcTransportError("provider returned an invalid content length")
+    return value
