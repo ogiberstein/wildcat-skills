@@ -44,6 +44,8 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
     plan = validate_document(
         "plan", loads(_read_bound(root, "plan.json", claims, MAX_JSON_BYTES))
     )
+    if plan["schema_version"] == 3:
+        raise FormatError("whole-fixture verification refuses unsupported plan-v3")
     header = validate_document(
         "header", loads(_read_bound(root, "header.json", claims, MAX_JSON_BYTES))
     )

@@ -107,6 +107,113 @@ def sample_plan_v2(source_ids=("archive-a",)):
     return plan
 
 
+def sample_plan_v3():
+    plan = sample_plan_v2()
+    plan["schema_version"] = 3
+    plan["requests"].extend(
+        [
+            {
+                "name": "block-receipts",
+                "method": "eth_getBlockReceipts",
+                "params": [plan["block"]["hash"]],
+                "required": True,
+                "evidence": "recorded-rpc",
+            },
+            {
+                "name": "target-receipt",
+                "method": "eth_getTransactionReceipt",
+                "params": [hash32("44")],
+                "required": True,
+                "evidence": "recorded-rpc",
+            },
+            {
+                "name": "filtered-logs",
+                "method": "eth_getLogs",
+                "params": [
+                    {
+                        "blockHash": plan["block"]["hash"],
+                        "address": address("55"),
+                    }
+                ],
+                "required": True,
+                "evidence": "recorded-rpc",
+            },
+        ]
+    )
+    plan["receipt_witness"] = {
+        "block_receipts_request": "block-receipts",
+        "target_receipt_request": "target-receipt",
+        "target_transaction_index": "0x1",
+        "filtered_logs_request": "filtered-logs",
+    }
+    return plan
+
+
+def sample_receipt_witness():
+    block_hash = hash32("11")
+    block_number = "0x10"
+    transaction_hashes = [hash32("33"), hash32("44")]
+    return {
+        "schema_version": 1,
+        "block_receipts": {
+            "request_name": "block-receipts",
+            "method": "eth_getBlockReceipts",
+            "params": [block_hash],
+        },
+        "header": {
+            "chain_id": "0x1",
+            "number": block_number,
+            "hash": block_hash,
+            "receipts_root": hash32("22"),
+            "transactions": transaction_hashes,
+        },
+        "receipts": [
+            {
+                "block_number": block_number,
+                "block_hash": block_hash,
+                "transaction_index": "0x0",
+                "transaction_hash": transaction_hashes[0],
+                "receipt_type": "legacy",
+                "status": "0x1",
+                "cumulative_gas_used": "0x1",
+                "logs_bloom": "0x" + "00" * 256,
+                "logs": [],
+            },
+            {
+                "block_number": block_number,
+                "block_hash": block_hash,
+                "transaction_index": "0x1",
+                "transaction_hash": transaction_hashes[1],
+                "receipt_type": "0x2",
+                "status": "0x1",
+                "cumulative_gas_used": "0x2",
+                "logs_bloom": "0x" + "00" * 256,
+                "logs": [
+                    {
+                        "block_number": block_number,
+                        "block_hash": block_hash,
+                        "transaction_index": "0x1",
+                        "transaction_hash": transaction_hashes[1],
+                        "log_index": "0x0",
+                        "address": address("55"),
+                        "topics": [hash32("66")],
+                        "data": "0x1234",
+                    }
+                ],
+            },
+        ],
+        "target_receipt": {
+            "request_name": "target-receipt",
+            "transaction_index": "0x1",
+            "transaction_hash": transaction_hashes[1],
+        },
+        "filtered_logs": {
+            "request_name": "filtered-logs",
+            "filter": {"blockHash": block_hash, "address": address("55")},
+        },
+    }
+
+
 def sample_anchor_record(
     source_id="archive-a",
     *,

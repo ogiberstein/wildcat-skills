@@ -25,6 +25,10 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
         "plan-v2.json",
         "4130d0349c4bf91041757fb2d36854e54a6a97af7a9f1eefa5d812e792c9b9c3",
     ),
+    ("plan", 3): (
+        "plan-v3.json",
+        "3b0133eb18b98c0a3b3bb6e9ab736391fadf603b5295905ad6d84d9719f475c9",
+    ),
     ("header", 1): (
         "header-v1.json",
         "222e16df19169ae545e49ea423928ef63400ed078972e24734ac0697296fc9ac",
@@ -40,6 +44,10 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
     ("anchor-record", 1): (
         "anchor-record-v1.json",
         "f22459e10e0e7f3736eafeb44224b92debee30daece8c12deab37e58ee76fb8e",
+    ),
+    ("receipt-witness", 1): (
+        "receipt-witness-v1.json",
+        "8c390e3b1861acbef92efe3dc4060eadfec147f619a5aa2fa6e2bc686a029efd",
     ),
     ("manifest", 1): (
         "manifest-v1.json",
@@ -101,6 +109,7 @@ def validate_document(kind: str, document: Any) -> Any:
         "rpc-record": _validate_rpc_record,
         "proof-record": _validate_proof_record,
         "anchor-record": _validate_anchor_record,
+        "receipt-witness": _validate_receipt_witness,
         "manifest": _validate_manifest,
         "release": _validate_release,
     }[kind]
@@ -164,12 +173,195 @@ def _validate_plan(plan: dict[str, Any]) -> None:
         slots = [slot.lower() for slot in target["slots"]]
         if slots != sorted(slots) or len(slots) != len(set(slots)):
             raise FormatError(f"proof slots must be sorted and unique: {target['address']}")
-    if plan["schema_version"] == 2:
+    if plan["schema_version"] in (2, 3):
         source_ids = [source["source_id"] for source in plan["anchor_sources"]]
         if source_ids != sorted(source_ids) or len(source_ids) != len(
             set(source_ids)
         ):
             raise FormatError("anchor sources must be sorted and unique")
+    if plan["schema_version"] == 3:
+        _validate_receipt_plan(plan)
+
+
+_HASH32 = re.compile(r"^0x[0-9a-fA-F]{64}$")
+_ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
+
+
+def _validate_receipt_plan(plan: dict[str, Any]) -> None:
+    """Bind plan-v3 relation names to exact standard JSON-RPC requests."""
+
+    requests = {item["name"]: item for item in plan["requests"]}
+    relation = plan["receipt_witness"]
+
+    block_receipts = _named_receipt_request(
+        requests, relation["block_receipts_request"], "eth_getBlockReceipts"
+    )
+    if block_receipts["params"] != [plan["block"]["hash"]]:
+        raise FormatError(
+            "plan-v3 eth_getBlockReceipts params must contain the fixed block hash"
+        )
+
+    target = _named_receipt_request(
+        requests, relation["target_receipt_request"], "eth_getTransactionReceipt"
+    )
+    if (
+        not isinstance(target["params"], list)
+        or len(target["params"]) != 1
+        or not isinstance(target["params"][0], str)
+        or _HASH32.fullmatch(target["params"][0]) is None
+    ):
+        raise FormatError(
+            "plan-v3 target receipt request must name one transaction hash"
+        )
+
+    filtered = _named_receipt_request(
+        requests, relation["filtered_logs_request"], "eth_getLogs"
+    )
+    if not isinstance(filtered["params"], list) or len(filtered["params"]) != 1:
+        raise FormatError("plan-v3 filtered log request must contain one filter")
+    _validate_log_filter(
+        filtered["params"][0], expected_block_hash=plan["block"]["hash"]
+    )
+
+
+def _named_receipt_request(
+    requests: dict[str, dict[str, Any]], name: str, method: str
+) -> dict[str, Any]:
+    request = requests.get(name)
+    if request is None:
+        raise FormatError(f"plan-v3 receipt relation names absent request: {name}")
+    if request["method"] != method:
+        raise FormatError(f"plan-v3 request {name} must use {method}")
+    if request["required"] is not True or request["evidence"] != "recorded-rpc":
+        raise FormatError(
+            f"plan-v3 request {name} must be required recorded-rpc evidence"
+        )
+    return request
+
+
+def _validate_log_filter(value: Any, *, expected_block_hash: str) -> None:
+    if not isinstance(value, dict):
+        raise FormatError("receipt log filter must be an object")
+    allowed = {"blockHash", "address", "topics"}
+    if set(value) - allowed:
+        raise FormatError("receipt log filter has unsupported fields")
+    if value.get("blockHash") != expected_block_hash:
+        raise FormatError("receipt log filter must name the fixed block hash")
+
+    if "address" in value:
+        addresses = value["address"]
+        if isinstance(addresses, str):
+            addresses = [addresses]
+        if (
+            not isinstance(addresses, list)
+            or not 1 <= len(addresses) <= 1000
+            or any(
+                not isinstance(address, str)
+                or _ADDRESS.fullmatch(address) is None
+                for address in addresses
+            )
+            or len({address.lower() for address in addresses}) != len(addresses)
+        ):
+            raise FormatError("receipt log filter has invalid addresses")
+
+    if "topics" in value:
+        topics = value["topics"]
+        if not isinstance(topics, list) or len(topics) > 4:
+            raise FormatError("receipt log filter has invalid topics")
+        for selector in topics:
+            choices = selector if isinstance(selector, list) else [selector]
+            if (
+                not choices
+                or len(choices) > 1000
+                or any(
+                    choice is not None
+                    and (
+                        not isinstance(choice, str)
+                        or _HASH32.fullmatch(choice) is None
+                    )
+                    for choice in choices
+                )
+                or len(
+                    {
+                        choice.lower() if isinstance(choice, str) else choice
+                        for choice in choices
+                    }
+                )
+                != len(choices)
+            ):
+                raise FormatError("receipt log filter has invalid topics")
+
+
+def _validate_receipt_witness(witness: dict[str, Any]) -> None:
+    """Reject identities that a closed schema cannot relate across arrays."""
+
+    header = witness["header"]
+    block_hash = header["hash"]
+    block_number = header["number"]
+    transactions = header["transactions"]
+    receipts = witness["receipts"]
+
+    if witness["block_receipts"]["params"] != [block_hash]:
+        raise FormatError("receipt witness request does not name its header hash")
+    if len({value.lower() for value in transactions}) != len(transactions):
+        raise FormatError("receipt witness has duplicate transaction hashes")
+    if len(receipts) != len(transactions):
+        raise FormatError(
+            "receipt witness receipt count does not match header transactions"
+        )
+
+    next_log_index = 0
+    for index, (transaction_hash, receipt) in enumerate(zip(transactions, receipts)):
+        expected_index = hex(index)
+        if receipt["transaction_index"] != expected_index:
+            raise FormatError(
+                f"receipt witness index {index} is not contiguous from zero"
+            )
+        if receipt["transaction_hash"].lower() != transaction_hash.lower():
+            raise FormatError(
+                f"receipt witness transaction identity disagrees at index {index}"
+            )
+        if (
+            receipt["block_hash"].lower() != block_hash.lower()
+            or receipt["block_number"] != block_number
+        ):
+            raise FormatError(f"receipt witness block identity disagrees at index {index}")
+        if "root" in receipt and receipt["receipt_type"] != "legacy":
+            raise FormatError("typed receipt cannot carry a pre-Byzantium root")
+        for log in receipt["logs"]:
+            if (
+                log["block_hash"].lower() != block_hash.lower()
+                or log["block_number"] != block_number
+                or log["transaction_hash"].lower() != transaction_hash.lower()
+                or log["transaction_index"] != expected_index
+            ):
+                raise FormatError(
+                    f"receipt witness log identity disagrees at transaction {index}"
+                )
+            if log["log_index"] != hex(next_log_index):
+                raise FormatError("receipt witness log indices are not contiguous")
+            next_log_index += 1
+
+    target = witness["target_receipt"]
+    target_index = int(target["transaction_index"], 16)
+    if target_index >= len(receipts):
+        raise FormatError("receipt witness target index is outside the receipt set")
+    if (
+        receipts[target_index]["transaction_hash"].lower()
+        != target["transaction_hash"].lower()
+    ):
+        raise FormatError("receipt witness target transaction identity disagrees")
+
+    _validate_log_filter(
+        witness["filtered_logs"]["filter"], expected_block_hash=block_hash
+    )
+    names = (
+        witness["block_receipts"]["request_name"],
+        target["request_name"],
+        witness["filtered_logs"]["request_name"],
+    )
+    if len(set(names)) != len(names):
+        raise FormatError("receipt witness relation request names must be distinct")
 
 
 def _validate_header(header: dict[str, Any]) -> None:

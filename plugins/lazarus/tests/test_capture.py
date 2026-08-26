@@ -42,6 +42,23 @@ class CaptureTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertEqual(list(root.glob(f".{output.name}.lazarus-*")), [])
 
+    def test_plan_v3_refuses_by_name_before_mapping_or_network(self):
+        def forbidden_client(*args, **kwargs):
+            raise AssertionError("plan-v3 refusal must precede client creation")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.write_plan(root, support.sample_plan_v3())
+            output = root / "fixture"
+            with self.assertRaisesRegex(FormatError, "plan-v3"):
+                capture_fixture(
+                    plan,
+                    "https://primary.example",
+                    output,
+                    client_factory=forbidden_client,
+                )
+            self.assert_no_capture_artifacts(root, output)
+
     def test_cli_captures_and_verifies_one_deterministic_fixture(self):
         material = self.material()
         with tempfile.TemporaryDirectory() as directory, FakeRpc(

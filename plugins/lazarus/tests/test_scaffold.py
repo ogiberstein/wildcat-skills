@@ -159,9 +159,58 @@ class ScaffoldTests(unittest.TestCase):
                     hashlib.sha256((root / name).read_bytes()).hexdigest(), digest
                 )
 
+    def test_receipt_proof_source_documents_are_preserved(self):
+        root = support.REPO_ROOT / "docs" / "lazarus-receipt-inclusion-proofs"
+        study = (root / "study.md").read_text(encoding="utf-8")
+        source_study = study.replace("](../../", "](../")
+        self.assertEqual(
+            hashlib.sha256(source_study.encode("utf-8")).hexdigest(),
+            "c2c1d1b7551f75aea7c993aeb2f68bf376375bb863a4291fe677dbe2b0d06ea2",
+        )
+        self.assertEqual(
+            hashlib.sha256((root / "runbook.md").read_bytes()).hexdigest(),
+            "c53f67dc288222d10ec5fde42493b33a33150c4032020ce00c86041079a21cd5",
+        )
+
+    def test_receipt_proof_decision_is_discoverable(self):
+        path = (
+            support.REPO_ROOT
+            / "docs"
+            / "decisions"
+            / "ADR-036-prove-receipts-with-a-full-ordered-witness.md"
+        )
+        text = path.read_text(encoding="utf-8")
+        for term in (
+            "## Decision",
+            "eth_getBlockReceipts",
+            "Receipt-witness-v1",
+            "filtered-log relation",
+            "recorded_rpc",
+            "## Alternatives",
+            "Capture only the target receipt",
+            "debug_getRawReceipts",
+            "Re-execute every transaction",
+        ):
+            self.assertIn(term, text)
+
+    def test_fixed_shell_ci_toolchain_and_licence_remain_in_place(self):
+        workflow = (support.REPO_ROOT / ".github/workflows/lazarus.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('python-version: ["3.11", "3.13"]', workflow)
+        self.assertIn(
+            "python3 -m pip install --requirement plugins/lazarus/requirements.lock",
+            workflow,
+        )
+        self.assertEqual(
+            (support.PLUGIN_ROOT / "LICENSE").read_bytes(),
+            (support.REPO_ROOT / "LICENSE").read_bytes(),
+        )
+
     def test_lazarus_owns_its_structured_unittest_runner(self):
         tests = support.PLUGIN_ROOT / "tests"
         self.assertTrue((tests / "run_tests.py").is_file())
+        self.assertTrue((tests / "run_receipt_delivery_tests.py").is_file())
         self.assertTrue((tests / "test_runner.py").is_file())
 
     def test_cli_and_step_five_modules_exist(self):

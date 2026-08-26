@@ -9,10 +9,97 @@ import tempfile
 import unittest
 from unittest import mock
 
+from . import run_receipt_delivery_tests as delivery_runner
 from . import run_tests as runner
 
 
 class RunnerTests(unittest.TestCase):
+    def test_receipt_delivery_runner_discovers_both_plugin_suites(self):
+        class RecordingLoader:
+            def __init__(self):
+                self.calls = []
+
+            def discover(self, start, *, pattern, top_level_dir):
+                self.calls.append((start, pattern, top_level_dir))
+                return unittest.TestSuite(
+                    [unittest.FunctionTestCase(lambda: None)]
+                )
+
+        loader = RecordingLoader()
+        root = Path("/tmp/receipt-delivery-worktree")
+        with mock.patch.object(delivery_runner, "worktree_root", return_value=root):
+            suite = delivery_runner.combined_suite(loader)
+        self.assertEqual(suite.countTestCases(), 2)
+        self.assertEqual(
+            loader.calls,
+            [
+                (
+                    str(root / "plugins" / "lazarus" / "tests"),
+                    "test_*.py",
+                    str(root),
+                ),
+                (
+                    str(root / "plugins" / "ariadne" / "tests"),
+                    "test_*.py",
+                    str(root),
+                ),
+            ],
+        )
+
+    def test_receipt_delivery_runner_writes_one_complete_fresh_report(self):
+        suite = unittest.TestSuite(
+            [
+                unittest.FunctionTestCase(lambda: None),
+                unittest.FunctionTestCase(lambda: None),
+            ]
+        )
+        with tempfile.TemporaryDirectory(prefix="receipt-delivery-") as directory:
+            root = Path(directory).resolve()
+            report = root / "tmp" / "elenchus" / "combined.json"
+            with mock.patch.object(
+                delivery_runner, "combined_suite", return_value=suite
+            ), mock.patch.object(
+                runner, "worktree_root", return_value=root
+            ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
+                io.StringIO()
+            ):
+                self.assertEqual(
+                    delivery_runner.main(["--elenchus-report", str(report)]), 0
+                )
+            self.assertEqual(
+                json.loads(report.read_text(encoding="utf-8")),
+                {
+                    "schema": "elenchus.unittest.v1",
+                    "complete": True,
+                    "testsRun": 2,
+                    "failures": 0,
+                    "errors": 0,
+                    "skipped": 0,
+                    "expectedFailures": 0,
+                    "unexpectedSuccesses": 0,
+                },
+            )
+            self.assertEqual(report.stat().st_mode & 0o777, 0o600)
+            with mock.patch.object(
+                runner, "worktree_root", return_value=root
+            ), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(
+                SystemExit
+            ) as raised:
+                delivery_runner.main(["--elenchus-report", str(report)])
+            self.assertEqual(raised.exception.code, 2)
+
+    def test_receipt_delivery_runner_preserves_joint_failure(self):
+        def fail():
+            raise AssertionError("joint failure")
+
+        suite = unittest.TestSuite([unittest.FunctionTestCase(fail)])
+        with mock.patch.object(
+            delivery_runner, "combined_suite", return_value=suite
+        ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
+            io.StringIO()
+        ):
+            self.assertEqual(delivery_runner.main([]), 1)
+
     def test_bad_report_arguments_are_refused_before_a_suite_runs(self):
         cases = (
             ["--elenchus-report"],

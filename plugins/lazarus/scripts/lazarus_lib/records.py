@@ -7,7 +7,16 @@ from itertools import islice
 from pathlib import Path
 from typing import Any, Iterable
 
-from .canonical import dumps, dump_jsonl, load_jsonl, loads_jsonl
+from .canonical import (
+    MAX_JSON_BYTES,
+    dump,
+    dumps,
+    dump_jsonl,
+    load,
+    load_jsonl,
+    loads,
+    loads_jsonl,
+)
 from .errors import FormatError, ResourceLimitError
 from .schemas import validate_document
 
@@ -109,6 +118,32 @@ def _check_anchor_records(records: list[Any]) -> list[dict[str, Any]]:
     if checked != sorted(checked, key=lambda item: item["source_id"]):
         raise FormatError("anchor records are not sorted by source_id")
     return checked
+
+
+MAX_RECEIPT_WITNESS_BYTES = MAX_JSON_BYTES
+
+
+def write_receipt_witness(path: str | Path, witness: dict[str, Any]) -> bytes:
+    """Validate and atomically write one canonical receipt witness."""
+
+    checked = validate_document("receipt-witness", witness)
+    return dump(path, checked, max_bytes=MAX_RECEIPT_WITNESS_BYTES)
+
+
+def read_receipt_witness(path: str | Path) -> dict[str, Any]:
+    """Read one regular, no-follow receipt witness within the format cap."""
+
+    return validate_document(
+        "receipt-witness", load(path, max_bytes=MAX_RECEIPT_WITNESS_BYTES)
+    )
+
+
+def loads_receipt_witness(data: bytes | str) -> dict[str, Any]:
+    """Parse one bounded in-memory receipt witness."""
+
+    return validate_document(
+        "receipt-witness", loads(data, max_bytes=MAX_RECEIPT_WITNESS_BYTES)
+    )
 
 
 def write_proof_records(path: str | Path, records: Iterable[dict[str, Any]]) -> bytes:

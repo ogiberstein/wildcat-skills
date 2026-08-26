@@ -91,6 +91,8 @@ def capture_fixture(
     finalizer: Callable[[str | Path, str | Path], Any] | None = None,
 ) -> dict[str, Any]:
     plan = validate_document("plan", load(plan_path))
+    if plan["schema_version"] == 3:
+        raise FormatError("capture refuses unsupported plan-v3")
     _validate_capture_plan(plan)
     anchor_urls = _resolve_anchor_urls(
         plan,
