@@ -181,6 +181,13 @@ class ScopeAndEntryTests(ReuseFixture):
             reuse.load_json(constant)
         self.assertEqual(caught.exception.code, "invalid-json")
 
+    def test_lone_surrogate_text_is_a_bounded_refusal(self):
+        scope = copy.deepcopy(self.scope)
+        scope["analyzer"] = "\ud800"
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.plan(self.project, scope)
+        self.assertEqual(caught.exception.code, "invalid-unicode")
+
 
 class PlanningTests(ReuseFixture):
     def test_missing_cache_requests_full_recomputation(self):
@@ -283,6 +290,39 @@ class PlanningTests(ReuseFixture):
 
 
 class AssemblyAndPromotionTests(ReuseFixture):
+    def test_candidate_target_cannot_alias_the_live_cache(self):
+        self.establish_cache()
+        before = self.cache.read_bytes()
+        plan = reuse.plan(self.project, self.scope, self.cache)
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(
+                self.project,
+                self.scope,
+                plan,
+                [],
+                cache_path=self.cache,
+                candidate_path=self.cache,
+            )
+        self.assertEqual(caught.exception.code, "path-alias")
+        self.assertEqual(self.cache.read_bytes(), before)
+
+    def test_candidate_target_cannot_alias_an_in_scope_source(self):
+        plan = reuse.plan(self.project, self.scope)
+        source = self.project / "src" / "Base.sol"
+        before = source.read_bytes()
+        try:
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse.assemble(
+                    self.project,
+                    self.scope,
+                    plan,
+                    self.fresh(plan),
+                    candidate_path=source,
+                )
+        finally:
+            source.write_bytes(before)
+        self.assertEqual(caught.exception.code, "path-alias")
+
     def test_assembly_refuses_partial_or_extra_fresh_entries(self):
         plan = reuse.plan(self.project, self.scope)
         fresh = self.fresh(plan)
@@ -294,6 +334,13 @@ class AssemblyAndPromotionTests(ReuseFixture):
         with self.assertRaises(reuse.ReuseError) as caught:
             reuse.assemble(self.project, self.scope, plan, duplicate)
         self.assertEqual(caught.exception.code, "duplicate-source")
+
+    def test_assembly_caps_programmatic_fresh_entries_aggregate(self):
+        plan = reuse.plan(self.project, self.scope)
+        with mock.patch.object(reuse, "MAX_TOTAL_FRESH_JSON_BYTES", 1):
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse.assemble(self.project, self.scope, plan, self.fresh(plan))
+        self.assertEqual(caught.exception.code, "size-limit")
 
     def test_assembly_refuses_source_drift_after_the_plan(self):
         plan = reuse.plan(self.project, self.scope)
@@ -371,6 +418,28 @@ class AssemblyAndPromotionTests(ReuseFixture):
         for name in reuse.FINAL_OUTPUTS:
             expected = hashlib.sha256((self.outputs / name).read_bytes()).hexdigest()
             self.assertEqual(cache["outputs"][name], expected)
+
+    def test_cache_target_cannot_alias_a_required_output(self):
+        plan = reuse.plan(self.project, self.scope)
+        reuse.assemble(
+            self.project,
+            self.scope,
+            plan,
+            self.fresh(plan),
+            candidate_path=self.candidate,
+        )
+        self.write_outputs()
+        reuse.bind_outputs(self.candidate, self.outputs)
+        xray_output = self.outputs / "x-ray.md"
+        before = xray_output.read_bytes()
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.promote(
+                self.candidate,
+                self.outputs,
+                xray_output,
+            )
+        self.assertEqual(caught.exception.code, "path-alias")
+        self.assertEqual(xray_output.read_bytes(), before)
 
     def test_promotion_accepts_the_explicit_manifest_path_that_binding_exposes(self):
         plan = reuse.plan(self.project, self.scope)
@@ -472,6 +541,105 @@ class AssemblyAndPromotionTests(ReuseFixture):
 
 
 class CommandTests(ReuseFixture):
+    def test_assemble_cli_refuses_candidate_aliases_consumed_inputs(self):
+        plan = reuse.plan(self.project, self.scope)
+        plan_path = self.root / "plan.json"
+        plan_path.write_text(
+            json.dumps(plan, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        fresh_paths = []
+        for index, entry in enumerate(self.fresh(plan)):
+            path = self.root / f"fresh-{index}.json"
+            path.write_text(
+                json.dumps(entry, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            fresh_paths.append(path)
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "assemble",
+            "--project-root",
+            str(self.project),
+            "--scope",
+            str(self.scope_path),
+            "--plan",
+            str(plan_path),
+        ]
+        for path in fresh_paths:
+            command.extend(("--fresh-entry", str(path)))
+
+        aliases = (
+            ("scope", self.scope_path),
+            ("plan", plan_path),
+            ("fresh entry", fresh_paths[0]),
+            ("source", self.project / "src" / "Base.sol"),
+        )
+        for label, target in aliases:
+            with self.subTest(label=label):
+                before = target.read_bytes()
+                process = subprocess.run(
+                    [*command, "--candidate", str(target)],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                if target.read_bytes() != before:
+                    target.write_bytes(before)
+                self.assertEqual(process.returncode, 2, process.stderr)
+                refusal = json.loads(process.stderr)
+                self.assertEqual(refusal["code"], "path-alias")
+
+    def test_plan_cli_refuses_output_aliases_consumed_inputs(self):
+        self.establish_cache()
+        aliases = (
+            ("scope", self.scope_path),
+            ("cache", self.cache),
+            ("source", self.project / "src" / "Base.sol"),
+        )
+        for label, target in aliases:
+            with self.subTest(label=label):
+                before = target.read_bytes()
+                process = subprocess.run(
+                    [
+                        sys.executable,
+                        str(SCRIPT),
+                        "plan",
+                        "--project-root",
+                        str(self.project),
+                        "--scope",
+                        str(self.scope_path),
+                        "--cache",
+                        str(self.cache),
+                        "--write-plan",
+                        str(target),
+                    ],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                if target.read_bytes() != before:
+                    target.write_bytes(before)
+                self.assertEqual(process.returncode, 2, process.stderr)
+                refusal = json.loads(process.stderr)
+                self.assertEqual(refusal["code"], "path-alias")
+
+    def test_fresh_entry_loader_caps_aggregate_json_bytes(self):
+        first = self.root / "first-entry.json"
+        second = self.root / "second-entry.json"
+        first.write_text("{}\n", encoding="utf-8")
+        second.write_text("{}\n", encoding="utf-8")
+        with mock.patch.object(
+            reuse,
+            "MAX_TOTAL_FRESH_JSON_BYTES",
+            5,
+            create=True,
+        ):
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse._load_fresh([str(first), str(second)])
+        self.assertEqual(caught.exception.code, "size-limit")
+
     def test_plan_cli_emits_stable_json_and_writes_the_full_plan(self):
         plan_path = self.root / "plan.json"
         process = subprocess.run(

@@ -52,6 +52,7 @@ FACT_KEYS = (
 )
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
+MAX_TOTAL_FRESH_JSON_BYTES = MAX_JSON_BYTES
 MAX_SOURCE_BYTES = 2 * 1024 * 1024
 MAX_TOTAL_SOURCE_BYTES = 32 * 1024 * 1024
 MAX_OUTPUT_BYTES = 16 * 1024 * 1024
@@ -144,9 +145,7 @@ def _read_regular(path: Path, limit: int, label: str) -> bytes:
         os.close(descriptor)
 
 
-def load_json(path: os.PathLike[str] | str, label: str = "JSON") -> Any:
-    """Load one bounded JSON document with duplicate-key rejection."""
-    raw = _read_regular(Path(path), MAX_JSON_BYTES, label)
+def _decode_json(raw: bytes, label: str) -> Any:
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
@@ -161,6 +160,11 @@ def load_json(path: os.PathLike[str] | str, label: str = "JSON") -> Any:
         raise
     except (json.JSONDecodeError, RecursionError) as exc:
         _refuse("invalid-json", f"{label} is not readable JSON: {exc}")
+
+
+def load_json(path: os.PathLike[str] | str, label: str = "JSON") -> Any:
+    """Load one bounded JSON document with duplicate-key rejection."""
+    return _decode_json(_read_regular(Path(path), MAX_JSON_BYTES, label), label)
 
 
 def _closed_object(
@@ -186,9 +190,61 @@ def _text(value: Any, label: str, *, maximum: int = MAX_TEXT_BYTES) -> str:
         _refuse("invalid-schema", f"{label} must be a non-empty string")
     if "\x00" in value:
         _refuse("invalid-schema", f"{label} contains a NUL byte")
-    if len(value.encode("utf-8")) > maximum:
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeEncodeError:
+        _refuse("invalid-unicode", f"{label} is not valid Unicode text")
+    if len(encoded) > maximum:
         _refuse("size-limit", f"{label} exceeds {maximum} UTF-8 bytes")
     return value
+
+
+def _assert_distinct_paths(
+    roles: Sequence[tuple[str, os.PathLike[str] | str | None]],
+) -> None:
+    """Refuse one pathname or existing file identity serving two artefact roles."""
+    by_path: dict[str, str] = {}
+    by_inode: dict[tuple[int, int], str] = {}
+    for label, raw in roles:
+        if raw is None:
+            continue
+        supplied = Path(raw)
+        if not supplied.name or supplied.name in (".", ".."):
+            _refuse("unsafe-path", f"{label} path must name a file")
+        try:
+            resolved = supplied.resolve(strict=False)
+        except (OSError, RuntimeError) as exc:
+            _refuse("unsafe-path", f"{label} path cannot be resolved: {exc}")
+        key = os.path.normcase(str(resolved))
+        previous = by_path.get(key)
+        if previous is not None:
+            _refuse("path-alias", f"{label} path aliases {previous} path")
+        by_path[key] = label
+        try:
+            info = resolved.stat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            _refuse("unsafe-path", f"{label} path cannot be inspected: {exc}")
+        inode = (info.st_dev, info.st_ino)
+        previous = by_inode.get(inode)
+        if previous is not None:
+            _refuse("path-alias", f"{label} path aliases {previous} file")
+        by_inode[inode] = label
+
+
+def _source_path_roles(
+    project_root: os.PathLike[str] | str,
+    sources: Sequence[Mapping[str, Any]],
+) -> tuple[tuple[str, Path], ...]:
+    root = _safe_project_root(project_root)
+    return tuple(
+        (
+            f"source {source['path']}",
+            root.joinpath(*PurePosixPath(source["path"]).parts),
+        )
+        for source in sources
+    )
 
 
 def _digest(value: Any, label: str) -> str:
@@ -925,6 +981,7 @@ def _fresh_entries(
     if len(values) > MAX_SOURCES:
         _refuse("size-limit", f"fresh entries exceed {MAX_SOURCES}")
     found: dict[str, dict[str, Any]] = {}
+    total = 0
     for index, raw in enumerate(values):
         entry = validate_entry(
             raw,
@@ -932,6 +989,15 @@ def _fresh_entries(
             None,
             f"fresh_entries[{index}]",
         )
+        total += len(
+            json.dumps(entry, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        )
+        if total > MAX_TOTAL_FRESH_JSON_BYTES:
+            _refuse(
+                "size-limit",
+                "fresh entries exceed "
+                f"{MAX_TOTAL_FRESH_JSON_BYTES} aggregate bytes",
+            )
         path = entry["path"]
         if path in found:
             _refuse("duplicate-source", f"fresh entry appears twice: {path}")
@@ -1024,6 +1090,14 @@ def assemble(
 ) -> dict[str, Any]:
     """Assemble the exact current union and rebuild every synthesis input."""
     current = materialize_scope(project_root, scope)
+    if candidate_path is not None:
+        _assert_distinct_paths(
+            (
+                ("candidate", candidate_path),
+                ("cache", cache_path),
+                *_source_path_roles(project_root, current["sources"]),
+            )
+        )
     accepted_plan = validate_plan(plan_document)
     if (
         accepted_plan["identity"] != current["identity"]
@@ -1156,6 +1230,18 @@ def bind_outputs(
     manifest_path: os.PathLike[str] | str | None = None,
 ) -> dict[str, Any]:
     """Bind the exact candidate inventory to the current four output digests."""
+    target = (
+        Path(output_dir) / OUTPUT_MANIFEST_NAME
+        if manifest_path is None
+        else manifest_path
+    )
+    _assert_distinct_paths(
+        (
+            ("candidate", candidate_path),
+            ("output manifest", target),
+            *((f"X-Ray output {name}", Path(output_dir) / name) for name in FINAL_OUTPUTS),
+        )
+    )
     candidate = validate_candidate(load_json(candidate_path, "X-Ray candidate"))
     outputs = _output_digests(output_dir)
     manifest = {
@@ -1164,7 +1250,6 @@ def bind_outputs(
         "source_inventory": candidate["synthesis"]["source_inventory"],
         "outputs": outputs,
     }
-    target = Path(output_dir) / OUTPUT_MANIFEST_NAME if manifest_path is None else manifest_path
     _atomic_write_json(target, manifest)
     return manifest
 
@@ -1176,13 +1261,21 @@ def promote(
     manifest_path: os.PathLike[str] | str | None = None,
 ) -> dict[str, Any]:
     """Digest-bind all four outputs, then atomically replace the reusable cache."""
-    candidate = validate_candidate(load_json(candidate_path, "X-Ray candidate"))
-    outputs = _output_digests(output_dir)
     manifest_path = (
         Path(output_dir) / OUTPUT_MANIFEST_NAME
         if manifest_path is None
         else manifest_path
     )
+    _assert_distinct_paths(
+        (
+            ("candidate", candidate_path),
+            ("output manifest", manifest_path),
+            ("cache", cache_path),
+            *((f"X-Ray output {name}", Path(output_dir) / name) for name in FINAL_OUTPUTS),
+        )
+    )
+    candidate = validate_candidate(load_json(candidate_path, "X-Ray candidate"))
+    outputs = _output_digests(output_dir)
     manifest = validate_output_manifest(
         load_json(manifest_path, "X-Ray output manifest"),
         candidate,
@@ -1204,7 +1297,20 @@ def promote(
 def _load_fresh(paths: Sequence[str]) -> list[Any]:
     if len(paths) > MAX_SOURCES:
         _refuse("size-limit", f"fresh entry paths exceed {MAX_SOURCES}")
-    return [load_json(path, f"fresh entry {path}") for path in paths]
+    total = 0
+    documents: list[Any] = []
+    for path in paths:
+        label = f"fresh entry {path}"
+        raw = _read_regular(Path(path), MAX_JSON_BYTES, label)
+        total += len(raw)
+        if total > MAX_TOTAL_FRESH_JSON_BYTES:
+            _refuse(
+                "size-limit",
+                "fresh entry JSON exceeds "
+                f"{MAX_TOTAL_FRESH_JSON_BYTES} aggregate bytes",
+            )
+        documents.append(_decode_json(raw, label))
+    return documents
 
 
 def _result(operation: str, document: Mapping[str, Any], path: str | None = None) -> dict[str, Any]:
@@ -1278,11 +1384,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             scope = load_json(arguments.scope, "scope manifest")
             document = plan(arguments.project_root, scope, arguments.cache)
             if arguments.write_plan:
+                _assert_distinct_paths(
+                    (
+                        ("plan output", arguments.write_plan),
+                        ("scope manifest", arguments.scope),
+                        ("cache", arguments.cache),
+                        *_source_path_roles(arguments.project_root, document["sources"]),
+                    )
+                )
                 _atomic_write_json(arguments.write_plan, document)
             payload = _result("plan", document, arguments.write_plan)
         elif arguments.command == "assemble":
             scope = load_json(arguments.scope, "scope manifest")
             plan_document = load_json(arguments.plan, "reuse plan")
+            _assert_distinct_paths(
+                (
+                    ("candidate", arguments.candidate),
+                    ("scope manifest", arguments.scope),
+                    ("reuse plan", arguments.plan),
+                    ("cache", arguments.cache),
+                    *(
+                        (f"fresh entry {index}", path)
+                        for index, path in enumerate(arguments.fresh_entry)
+                    ),
+                )
+            )
             document = assemble(
                 arguments.project_root,
                 scope,
