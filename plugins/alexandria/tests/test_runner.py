@@ -57,6 +57,37 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(existing.read_text(encoding="utf-8"), "keep\n")
             self.assertEqual(target.read_text(encoding="utf-8"), "keep\n")
 
+    def test_absolute_report_below_worktree_path_alias_is_bound_to_the_root(self):
+        with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
+            parent = Path(directory).resolve()
+            root = parent / "worktree"
+            root.mkdir()
+            alias = parent / "worktree-alias"
+            alias.symlink_to(root, target_is_directory=True)
+            report = alias / "reports" / "result.json"
+
+            with mock.patch.object(runner, "worktree_root", return_value=root):
+                target = runner.report_target(["--elenchus-report", str(report)])
+
+            self.assertEqual(target[0], root)
+            self.assertEqual(target[2], ("reports", "result.json"))
+
+    def test_symlink_below_the_worktree_root_remains_refused(self):
+        with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
+            root = Path(directory).resolve()
+            self_link = root / "self-link"
+            self_link.symlink_to(root, target_is_directory=True)
+            report = self_link / "report.json"
+
+            with mock.patch.object(
+                runner, "worktree_root", return_value=root
+            ), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(
+                SystemExit
+            ) as raised:
+                runner.report_target(["--elenchus-report", str(report)])
+
+            self.assertEqual(raised.exception.code, 2)
+
     def test_safe_report_is_exclusive_complete_and_mode_0600(self):
         with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
             root = Path(directory).resolve()
@@ -188,6 +219,50 @@ class RunnerTests(unittest.TestCase):
                 exit_code = runner.main(["--elenchus-report", str(report)])
             self.assertEqual(exit_code, 2)
             self.assertFalse(report.exists())
+
+    def test_report_inspection_failure_closes_and_removes_created_file(self):
+        with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
+            root = Path(directory).resolve()
+            report = root / "report.json"
+            root_fd = runner.os.open(
+                root,
+                runner.os.O_RDONLY
+                | runner.os.O_DIRECTORY
+                | runner.os.O_NOFOLLOW,
+            )
+            descriptors = []
+            original_open = runner.os.open
+
+            def tracking_open(path, flags, mode=0o777, *, dir_fd=None):
+                descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+                descriptors.append(descriptor)
+                return descriptor
+
+            with mock.patch.object(
+                runner, "report_root", return_value=root_fd
+            ), mock.patch.object(
+                runner.os, "open", side_effect=tracking_open
+            ), mock.patch.object(
+                runner.os, "fstat", side_effect=OSError("inspection failed")
+            ), self.assertRaises(OSError):
+                runner.write_report(
+                    (root, (root.stat().st_dev, root.stat().st_ino), (report.name,)),
+                    runner.result_payload(
+                        SimpleNamespace(
+                            testsRun=1,
+                            failures=[],
+                            errors=[],
+                            skipped=[],
+                            expectedFailures=[],
+                            unexpectedSuccesses=[],
+                        )
+                    ),
+                )
+
+            self.assertEqual(len(descriptors), 1)
+            self.assertFalse(report.exists())
+            with self.assertRaises(OSError):
+                runner.os.fstat(descriptors[0])
 
     def test_runner_discovers_tests_from_the_plugin_root(self):
         suite = unittest.TestSuite()

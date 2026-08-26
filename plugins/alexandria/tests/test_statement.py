@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 import os
 from pathlib import Path
+import runpy
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,9 @@ FIXTURES = PLUGIN_ROOT / "tests" / "fixtures"
 DERIVATION_FIXTURE = FIXTURES / "credit-view-sources.json"
 COMMAND = PLUGIN_ROOT / "scripts" / "alexandria.py"
 ARIADNE = REPO_ROOT / "plugins" / "ariadne" / "scripts" / "ariadne.py"
+ARIADNE_SAFEJSON = (
+    REPO_ROOT / "plugins" / "ariadne" / "scripts" / "ariadne_lib" / "safejson.py"
+)
 SCHEMA = PLUGIN_ROOT / "schemas" / "release-statement-v1.schema.json"
 sys.path.insert(0, str(PLUGIN_ROOT / "scripts"))
 
@@ -34,6 +38,10 @@ def run_command(*args):
         text=True,
         check=False,
     )
+
+
+def ariadne_input_limit():
+    return runpy.run_path(str(ARIADNE_SAFEJSON))["DEFAULT_MAX_BYTES"]
 
 
 class StatementTestCase(unittest.TestCase):
@@ -255,6 +263,74 @@ class ProjectionTests(StatementTestCase):
 
 
 class OutputBoundaryTests(StatementTestCase):
+    def near_limit_release(self):
+        data = b"{}\n"
+        digest = statement_module.sha256(data)
+        hexadecimal = digest.removeprefix("sha256:")
+        object_path = f"objects/sha256/{hexadecimal[:2]}/{hexadecimal}"
+        destination = self.release / object_path
+        destination.parent.mkdir(parents=True)
+        destination.write_bytes(data)
+        components = [
+            {
+                "access": "public",
+                "bytes": len(data),
+                "media_type": "application/json",
+                "name": f"c{index:03d}",
+                "object_path": object_path,
+                "redistribution": "permitted",
+                "role": "raw",
+                "sha256": digest,
+            }
+            for index in range(128)
+        ]
+        captures = [
+            {
+                "chain": "eip155:1",
+                "component": "c000",
+                "component_sha256": digest,
+                "coverage": {
+                    "collections": [],
+                    "gaps": ["x" * 983] * 256,
+                    "record_count": 0,
+                    "status": "partial",
+                    "unsupported_collections": [],
+                },
+                "evidence_class": "archive-log",
+                "id": f"x{index:03d}",
+                "scope": {
+                    "deployment": "d",
+                    "finality": "unknown",
+                    "interval": {
+                        "kind": "snapshot",
+                        "observed_at": "2026-08-26T00:00:00Z",
+                    },
+                    "kind": "full-dataset",
+                },
+                "source": {
+                    "kind": "local",
+                    "locator_class": "local-fixture",
+                    "reference": "x",
+                },
+                "venue": "v",
+            }
+            for index in range(33)
+        ]
+        unsigned = {
+            "captures": captures,
+            "components": components,
+            "format": "alexandria-release/v1",
+            "release": {
+                "created_at": "2026-08-26T00:00:00Z",
+                "name": "r",
+            },
+        }
+        manifest = dict(unsigned)
+        manifest["release_id"] = statement_module.sha256(canonical_bytes(unsigned))
+        body = canonical_bytes(manifest)
+        self.release.joinpath("manifest.json").write_bytes(body)
+        return manifest, body
+
     def test_tampered_release_emits_nothing(self):
         self.build()
         manifest = self.manifest()
@@ -270,6 +346,25 @@ class OutputBoundaryTests(StatementTestCase):
         with self.assertRaises(AlexandriaError):
             emit_statement(self.release, self.output)
         self.assertFalse(self.output.exists())
+
+    def test_oversized_statement_is_refused_before_replacing_output(self):
+        manifest, manifest_bytes = self.near_limit_release()
+        limit = ariadne_input_limit()
+        self.assertLessEqual(len(manifest_bytes), limit)
+        statement_bytes = canonical_bytes(statement_module.statement_for(manifest))
+        self.assertGreater(len(statement_bytes), limit)
+        self.output.write_bytes(b"keep\n")
+
+        with self.assertRaisesRegex(AlexandriaError, "Ariadne's .* input limit"):
+            emit_statement(self.release, self.output)
+
+        self.assertEqual(self.output.read_bytes(), b"keep\n")
+
+    def test_statement_limit_tracks_ariadne_bounded_reader(self):
+        self.assertEqual(
+            getattr(statement_module, "MAX_STATEMENT_BYTES", None),
+            ariadne_input_limit(),
+        )
 
     def test_output_inside_release_is_refused_without_mutating_the_release(self):
         self.build()
@@ -438,6 +533,33 @@ class OutputBoundaryTests(StatementTestCase):
             emit_statement(self.release, self.output)
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.root.glob(".statement.json.tmp-*")), [])
+
+    def test_temporary_inspection_failure_closes_and_removes_created_file(self):
+        parent_fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY)
+        descriptors = []
+        original_open = os.open
+
+        def tracking_open(path, flags, mode=0o777, *, dir_fd=None):
+            descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+            descriptors.append(descriptor)
+            return descriptor
+
+        try:
+            with mock.patch.object(
+                statement_module.os, "open", side_effect=tracking_open
+            ), mock.patch.object(
+                statement_module.os,
+                "fstat",
+                side_effect=OSError("inspection failed"),
+            ), self.assertRaisesRegex(AlexandriaError, "cannot inspect"):
+                statement_module._temporary(parent_fd, "statement.json")
+
+            self.assertEqual(len(descriptors), 1)
+            self.assertEqual(list(self.root.glob(".statement.json.tmp-*")), [])
+            with self.assertRaises(OSError):
+                os.fstat(descriptors[0])
+        finally:
+            os.close(parent_fd)
 
     def test_interrupted_replacement_preserves_existing_output(self):
         self.build()
