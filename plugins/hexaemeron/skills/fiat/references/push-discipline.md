@@ -185,7 +185,7 @@ Only then run `hexctl done push`. The controller reads the same body at
 `done push`, `done merge-step` and `done integrate`, so a footer that reappears
 later is refused there with the usual cause named, and the same edit clears it.
 
-The same host instructs the model to end every commit message with a
+Claude Code also instructs the model to end every commit message with a
 `Co-Authored-By` trailer naming itself. That instruction and the two-trailer
 rule above cannot both be satisfied, and the repository rule wins: the message
 ends with the two exact provenance trailers and nothing else.

@@ -41,8 +41,8 @@ instruction to end every commit with its own `Co-Authored-By` trailer and this
 repository's rule that a Fiat commit ends with exactly two provenance trailers
 cannot both be followed, and the repository rule wins. For Claude Code the
 switch is checked in: `.claude/settings.json` turns the three defaults off for
-sessions opened in this repository, though its effect on the cloud session link
-is documented and not observed, so Fiat reads the pull-request body back and
+sessions opened in this repository. Its effect on the cloud session link is
+documented and not observed, so Fiat reads the pull-request body back and
 refuses the lines whether or not the setting held. No documented switch was
 found for Codex, GitHub Copilot, Cursor, Gemini CLI or Windsurf; on those
 harnesses, remove the lines before the receipt.
