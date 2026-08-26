@@ -6,10 +6,10 @@ description: >
   user names Alexandria or asks to archive lending data for reproducible,
   address-scoped credit research. Raw release and registered Goldfinch and
   Clearpool derivation, disposable indexing, address queries and a checked-in
-  offline demonstration and bounded Compound v3 Phase 0 method proof are
-  available.
+  offline demonstration, unsigned in-toto release statements and a bounded
+  Compound v3 Phase 0 method proof are available.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Alexandria
@@ -88,6 +88,26 @@ redistribution classes, capture source, scope, evidence and finality classes,
 collection counts, declared gaps, correction links and exact release-tree
 membership. It does not establish publisher identity, source completeness or
 chain finality.
+
+Emit a deterministic statement only after verification:
+
+```bash
+python3 "$SKILL_DIR/../../scripts/alexandria.py" statement release \
+  --output release-statement.json
+```
+
+The output must be outside and must not alias the release. The command emits a
+canonical unsigned in-toto Statement v1 with one logical release subject, one
+subject per manifest component, exact component metadata, and every capture's
+declared scope, coverage status and counts, unsupported collections and gaps.
+It includes one passed Alexandria offline-verification claim bound to the
+release digest and an empty command list.
+
+The statement is not a DSSE envelope and Alexandria does not run cosign. It
+does not authenticate a publisher or prove provider completeness, consensus
+finality or canonical-chain membership. Ariadne can inspect the statement and
+run its core gates, but this predicate is unregistered, signatures remain
+unchecked, and gates 2 and 5 remain unchecked.
 
 Derive the narrow Tabularium view into a new release:
 
@@ -218,6 +238,18 @@ reported block is canonical. Those claims require separate evidence.
 - Consequence: 2
 - Refuses: Using rows whose source selectors do not resolve, whose counts conflict, whose mapping is unknown or whose raw release did not verify.
 - Recovery: Inspect the failed selector, mapping or count, correct the adapter or source release without changing published evidence, derive a new release and verify it.
+- Exceptions: none
+
+### alexandria-release-statement
+
+- Promise: A successful `statement` emits a canonical unsigned in-toto Statement v1 that exactly projects a verified Alexandria release, every component digest and every capture's declared scope, coverage and gaps.
+- Evidence: The verified release, canonical statement bytes, exact release and component subject set, Alexandria predicate projection and successful command receipt for the same logical release digest.
+- Evidence classes: recorded, checked, recomputed
+- Boundary: The output has no DSSE envelope or signature check, the Alexandria predicate is unregistered in Ariadne, and the result does not establish publisher identity, provider completeness, consensus finality or canonical-chain membership.
+- Authorises: Hand-off of the unsigned statement bytes for Ariadne core-gate inspection or downstream signing without upgrading their evidence claims.
+- Consequence: 1
+- Refuses: Emitting from a release that does not verify, writing inside or through an alias of that release, omitting or changing a subject or predicate field, or describing unchecked signatures or predicate-owned gates as passed.
+- Recovery: Inspect the verification, projection or output-confinement failure, repair the release or choose a safe external output, rerun `statement` and retain only the successful replacement.
 - Exceptions: none
 
 ### alexandria-address-query
