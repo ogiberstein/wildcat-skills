@@ -284,6 +284,71 @@ class PlanningTests(ReuseFixture):
         self.assertEqual((plan["mode"], plan["reason"]), ("full", "scope-mismatch"))
         self.assertEqual(plan["reusable"], [])
 
+    def test_assembly_refuses_reuse_after_a_source_is_removed(self):
+        self.establish_cache()
+        self.scope["sources"] = [
+            source
+            for source in self.scope["sources"]
+            if source["path"] != "src/Router.sol"
+        ]
+        plan = reuse.plan(self.project, self.scope, self.cache)
+        self.assertEqual((plan["mode"], plan["reason"]), ("full", "scope-mismatch"))
+
+        spliced = copy.deepcopy(plan)
+        spliced.update(
+            {
+                "mode": "incremental",
+                "changed": [],
+                "dirty": [],
+                "reusable": [source["path"] for source in plan["sources"]],
+            }
+        )
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(
+                self.project,
+                self.scope,
+                spliced,
+                [],
+                cache_path=self.cache,
+            )
+        self.assertEqual(caught.exception.code, "cache-drift")
+
+    def test_assembly_refuses_reuse_after_a_source_is_added(self):
+        self.establish_cache()
+        added = self.project / "src" / "Added.sol"
+        added.write_text(
+            "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\ncontract Added {}\n",
+            encoding="utf-8",
+        )
+        self.scope["sources"].append(
+            {"path": "src/Added.sol", "dependencies": []}
+        )
+        plan = reuse.plan(self.project, self.scope, self.cache)
+        self.assertEqual((plan["mode"], plan["reason"]), ("full", "scope-mismatch"))
+
+        spliced = copy.deepcopy(plan)
+        spliced.update(
+            {
+                "mode": "incremental",
+                "changed": ["src/Added.sol"],
+                "dirty": ["src/Added.sol"],
+                "reusable": [
+                    source["path"]
+                    for source in plan["sources"]
+                    if source["path"] != "src/Added.sol"
+                ],
+            }
+        )
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(
+                self.project,
+                self.scope,
+                spliced,
+                [self.entry(plan, "src/Added.sol", writes=[])],
+                cache_path=self.cache,
+            )
+        self.assertEqual(caught.exception.code, "cache-drift")
+
     def test_corrupt_or_mismatched_cache_falls_back_to_full(self):
         self.establish_cache()
         self.cache.write_text("{not-json", encoding="utf-8")

@@ -1132,6 +1132,10 @@ def assemble(
         cache = validate_cache(load_json(cache_path, "X-Ray reuse cache"))
         if cache["identity"] != current["identity"]:
             _refuse("cache-drift", "cache identity changed after planning")
+        cache_paths = {source["path"] for source in cache["sources"]}
+        current_paths = {source["path"] for source in current["sources"]}
+        if cache_paths != current_paths:
+            _refuse("cache-drift", "cache source inventory changed after planning")
         cache_entries = {entry["path"]: entry for entry in cache["entries"]}
         sources = {source["path"]: source for source in current["sources"]}
         for path in accepted_plan["reusable"]:
