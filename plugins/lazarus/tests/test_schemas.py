@@ -190,10 +190,15 @@ class SchemaTests(unittest.TestCase):
     def test_a_statement_inside_the_fixture_fails(self):
         """The fixture digest would otherwise cover the statement made about
         it, which makes the statement part of its own subject."""
-        document = support.sample_release()
-        document["statement"]["path"] = "fixture/statement.json"
-        with self.assertRaises(FormatError):
-            validate_document("release", document)
+        for fixture, statement in (
+            ("fixture", "fixture/statement.json"),
+            ("inner/fixture", "inner/fixture/statement.json"),
+        ):
+            document = support.sample_release()
+            document["fixture"]["path"] = fixture
+            document["statement"]["path"] = statement
+            with self.subTest(fixture=fixture), self.assertRaises(FormatError):
+                validate_document("release", document)
 
     def test_valid_plan_header_rpc_and_proof_documents_pass(self):
         validate_document("plan", support.sample_plan())

@@ -203,6 +203,43 @@ class ReceiptFixtureTests(SkipUnlessReceiptFixture):
         walked.assert_not_called()
         reader.assert_not_called()
 
+    def test_each_component_read_is_bounded_by_its_declared_size(self):
+        manifest = read_json(os.path.join(RECEIPT_FIXTURE, "manifest.json"))
+        by_path = {entry["path"]: entry for entry in manifest["components"]}
+        present = [
+            (relative, os.path.join(RECEIPT_FIXTURE, relative))
+            for relative in by_path
+        ] + [
+            (
+                capture.MANIFEST,
+                os.path.join(RECEIPT_FIXTURE, capture.MANIFEST),
+            )
+        ]
+        observed = {}
+
+        def pretend_read(root, relative, what, max_bytes, keep_bytes=False):
+            observed[relative] = max_bytes
+            entry = by_path[relative]
+            return (
+                {"sha256": entry["sha256"]},
+                entry["bytes"],
+                b"{}" if keep_bytes else None,
+            )
+
+        with mock.patch.object(
+            capture.tree, "files", return_value=present
+        ), mock.patch.object(
+            capture, "read_component", side_effect=pretend_read
+        ):
+            capture.components_of(RECEIPT_FIXTURE, manifest)
+
+        for path, entry in by_path.items():
+            expected = entry["bytes"]
+            if path == capture.HEADER:
+                expected = min(expected, capture.MAX_MANIFEST_BYTES)
+            with self.subTest(path=path):
+                self.assertEqual(observed[path], expected)
+
 
 class TheShippedFixtureTests(SkipUnlessGoldfinch):
     def test_it_captures_and_verifies_clean(self):
@@ -588,8 +625,12 @@ class CopiedFixtureTests(SkipUnlessGoldfinch):
         self.assertIn("does not declare", message)
 
     def test_a_digest_that_disagrees_is_refused(self):
-        with open(os.path.join(self.fixture, "plan.json"), "ab") as handle:
-            handle.write(b"\n")
+        path = os.path.join(self.fixture, "plan.json")
+        with open(path, "rb") as handle:
+            changed = bytearray(handle.read())
+        changed[-1] ^= 1
+        with open(path, "wb") as handle:
+            handle.write(changed)
         self.assertIn("and it digests to", self.refused())
 
     def test_a_byte_count_that_disagrees_is_refused(self):

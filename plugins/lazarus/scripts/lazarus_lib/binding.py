@@ -345,6 +345,25 @@ def _check_v2_vocabulary(
     _closed(statement, STATEMENT_FIELDS, "state-fixture/v2 statement")
     _closed(predicate, V2_PREDICATE_FIELDS, "state-fixture/v2 predicate")
 
+    # These are work limits, so enforce them before digest validation or
+    # cross-list coverage.  Applying the same caps later in the semantic checks
+    # still bounded what was accepted, but not the work spent reaching refusal.
+    fixture_subjects = predicate["fixture_subjects"]
+    if (
+        isinstance(fixture_subjects, list)
+        and len(fixture_subjects) > MAX_FIXTURE_SUBJECTS
+    ):
+        raise ResourceLimitError(
+            f"statement describes {len(fixture_subjects)} components and a "
+            f"fixture holds at most {MAX_FIXTURE_SUBJECTS}"
+        )
+    subjects = statement["subject"]
+    if isinstance(subjects, list) and len(subjects) > MAX_SUBJECTS:
+        raise ResourceLimitError(
+            f"statement lists {len(subjects)} subjects and this reads at most "
+            f"{MAX_SUBJECTS}"
+        )
+
     capture = _object(predicate["capture"], "state-fixture/v2 capture")
     _closed(capture, V2_CAPTURE_FIELDS, "state-fixture/v2 capture")
     for field in ("tool", "tool_version"):
@@ -380,7 +399,6 @@ def _check_v2_vocabulary(
         required=frozenset(),
     )
 
-    fixture_subjects = predicate["fixture_subjects"]
     fixture_digests = []
     if isinstance(fixture_subjects, list):
         for index, entry in enumerate(fixture_subjects):
@@ -391,7 +409,6 @@ def _check_v2_vocabulary(
                 _digest_set(entry["digest"], f"{what} digest")
             )
 
-    subjects = statement["subject"]
     if not isinstance(subjects, list) or not subjects:
         raise FormatError(
             "state-fixture/v2 subject must be a non-empty array"
@@ -624,9 +641,18 @@ def _check_chain_and_block(
             + listed(unknown)
         )
 
+    def hash_agrees(found: Any, expected: str) -> bool:
+        if not isinstance(found, str):
+            return False
+        if version == 2:
+            # State-fixture/v2 publishes one lowercase spelling.  Version 1's
+            # historical binding remains case-insensitive.
+            return found == found.lower() and found == expected
+        return found.lower() == expected
+
     found = _member(chain, "block_hash", "statement chain")
     expected = report["block_hash"]
-    if not isinstance(found, str) or found.lower() != expected:
+    if not hash_agrees(found, expected):
         raise IntegrityError(
             f"statement pins block {found!r} and the fixture verifies to "
             f"{expected}; the statement describes a different capture"
@@ -650,7 +676,7 @@ def _check_chain_and_block(
 
     state_root = _member(chain, "state_root", "statement chain")
     expected_root = report["state_root"]
-    if not isinstance(state_root, str) or state_root.lower() != expected_root:
+    if not hash_agrees(state_root, expected_root):
         raise IntegrityError(
             f"statement names state root {state_root!r} and the verified header "
             f"has {expected_root}; every proof in this fixture was checked "
@@ -660,10 +686,7 @@ def _check_chain_and_block(
     if version == 2:
         receipts_root = _member(chain, "receipts_root", "statement chain")
         expected_receipts_root = report["receipts_root"]
-        if (
-            not isinstance(receipts_root, str)
-            or receipts_root.lower() != expected_receipts_root
-        ):
+        if not hash_agrees(receipts_root, expected_receipts_root):
             raise IntegrityError(
                 f"statement names receipts root {receipts_root!r} and the verified "
                 f"receipt witness reconstructs {expected_receipts_root}; the state "

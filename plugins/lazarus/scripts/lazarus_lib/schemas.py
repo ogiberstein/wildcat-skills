@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Any
 
@@ -194,7 +194,7 @@ def _validate_release(release: dict[str, Any]) -> None:
     statement = validate_relative_path(release["statement"]["path"])
     if fixture == statement:
         raise FormatError("release fixture and statement are the same path")
-    if statement.split("/")[0] == fixture:
+    if PurePosixPath(statement).is_relative_to(PurePosixPath(fixture)):
         raise FormatError(
             "release statement sits inside the fixture it describes; the fixture "
             "digest would cover the statement made about it"

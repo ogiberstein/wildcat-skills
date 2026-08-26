@@ -9,7 +9,9 @@ import copy
 import traceback
 import unicodedata
 import unittest
+from unittest import mock
 
+from lazarus_lib import binding as binding_module
 from lazarus_lib.binding import (
     CHECKS,
     EVIDENCE_CLASSES,
@@ -884,6 +886,27 @@ class ChainTests(unittest.TestCase):
         with self.assertRaisesRegex(IntegrityError, "receipts root"):
             bound_v2(statement=statement)
 
+    def test_v2_chain_hashes_use_the_canonical_lowercase_spelling(self):
+        fields = ("block_hash", "state_root", "receipts_root")
+        for field in fields:
+            statement = sample_statement_v2()
+            manifest = sample_manifest_v2()
+            report = sample_report_v2()
+            canonical = "0x" + "ab" * 32
+            statement["predicate"]["chain"][field] = canonical.upper().replace(
+                "0X", "0x"
+            )
+            if field == "block_hash":
+                report["block_hash"] = canonical
+                manifest["block"]["hash"] = canonical
+            elif field == "state_root":
+                report["state_root"] = canonical
+            else:
+                report["receipts_root"] = canonical
+                manifest["receipts_root"] = canonical
+            with self.subTest(field=field), self.assertRaises(IntegrityError):
+                bound_v2(statement=statement, manifest=manifest, report=report)
+
     def test_v2_chain_has_no_transaction_hash_authority(self):
         statement = sample_statement_v2()
         statement["predicate"]["chain"]["transaction_hash"] = "0x" + "99" * 32
@@ -1242,6 +1265,44 @@ class LimitTests(unittest.TestCase):
         with self.assertRaises(ResourceLimitError) as caught:
             bound(statement)
         self.assertIn(str(MAX_SUBJECTS), str(caught.exception))
+
+    def test_v2_component_cap_precedes_digest_and_coverage_work(self):
+        statement = sample_statement_v2()
+        components = self.components(MAX_FIXTURE_SUBJECTS + 1)
+        statement["predicate"]["fixture_subjects"] = components
+        statement["subject"] = [
+            {"name": entry["name"], "digest": entry["digest"]}
+            for entry in components
+        ] + [
+            {"name": "fixture-v2", "digest": {"sha256": "d" * 64}}
+        ]
+        with mock.patch.object(
+            binding_module,
+            "_digest_set",
+            wraps=binding_module._digest_set,
+        ) as digest_check:
+            with self.assertRaises(ResourceLimitError):
+                bound_v2(statement=statement)
+        self.assertEqual(digest_check.call_count, 0)
+
+    def test_v2_subject_cap_precedes_digest_and_coverage_work(self):
+        statement = sample_statement_v2()
+        while len(statement["subject"]) <= MAX_SUBJECTS:
+            index = len(statement["subject"])
+            statement["subject"].append(
+                {
+                    "name": "s%d" % index,
+                    "digest": {"sha256": "%064x" % index},
+                }
+            )
+        with mock.patch.object(
+            binding_module,
+            "_digest_set",
+            wraps=binding_module._digest_set,
+        ) as digest_check:
+            with self.assertRaises(ResourceLimitError):
+                bound_v2(statement=statement)
+        self.assertEqual(digest_check.call_count, 0)
 
     def test_a_refusal_counts_the_names_it_does_not_spell_out(self):
         statement = sample_statement()

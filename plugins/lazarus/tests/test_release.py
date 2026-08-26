@@ -468,6 +468,18 @@ class RefusedReleaseTests(unittest.TestCase):
                 with self.subTest(reference=name):
                     self.refuse(prepared, IntegrityError)
 
+    def test_v2_refuses_noncanonical_chain_hash_spellings(self):
+        for field in ("block_hash", "state_root", "receipts_root"):
+            with tempfile.TemporaryDirectory() as directory:
+                prepared = PreparedV2(directory)
+                value = prepared.document["predicate"]["chain"][field]
+                prepared.document["predicate"]["chain"][field] = (
+                    value.upper().replace("0X", "0x")
+                )
+                prepared.write_statement(prepared.document)
+                with self.subTest(field=field):
+                    self.refuse(prepared, IntegrityError)
+
     def test_a_statement_about_another_fixture_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:
             prepared = Prepared(directory)
@@ -1637,6 +1649,19 @@ class OtherLayoutTests(unittest.TestCase):
             with self.assertRaises(IntegrityError) as caught:
                 verify_release(nested)
             self.assertIn("unaccounted.txt", str(caught.exception))
+
+    def test_a_file_beside_a_nested_v2_fixture_is_unaccounted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = PreparedV2(directory)
+            prepared.release()
+            nested = self.laid_out(
+                prepared, prepared.root / "nested-v2", "inner/state", "note.json"
+            )
+            stowaway = nested / "inner" / "unaccounted.txt"
+            stowaway.write_bytes(b"neither the release nor the fixture lists this")
+            with self.assertRaises(IntegrityError) as caught:
+                verify_release(nested)
+            self.assertIn("inner/unaccounted.txt", str(caught.exception))
 
 
 class TwoReleasesTests(unittest.TestCase):

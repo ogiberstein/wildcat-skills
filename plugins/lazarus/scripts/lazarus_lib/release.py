@@ -294,16 +294,40 @@ def _refuse_unlisted(root: Path, release: dict[str, Any]) -> None:
     no way to check, sitting inside something whose whole claim is that every
     part of it was checked.
     """
-    fixture = validate_relative_path(release["fixture"]["path"]).split("/")[0]
-    allowed = {RELEASE_NAME, validate_relative_path(release["statement"]["path"])}
-    found: set[str] = set()
-    for entry in sorted(Path(root).iterdir()):
-        if entry.is_symlink():
-            raise PathError(f"release holds a symlink: {entry.name}")
-        found.add(entry.name)
-    extra = sorted(found - allowed - {fixture})
-    if extra:
-        raise IntegrityError("release holds files it does not account for: " + ", ".join(extra))
+    fixture = validate_relative_path(release["fixture"]["path"])
+    statement = validate_relative_path(release["statement"]["path"])
+
+    # Only the fixture subtree is opaque here; verify_fixture inventories it.
+    # Every ancestor leading to that subtree or to the statement must itself be
+    # exact, otherwise `inner/state` would make an unrelated `inner/note` look
+    # accounted for merely because both share the first path segment.
+    directories = {""}
+    for relative in (fixture, statement):
+        parts = relative.split("/")
+        directories.update("/".join(parts[:index]) for index in range(1, len(parts)))
+    allowed = {RELEASE_NAME, fixture, statement} | (directories - {""})
+
+    for directory in sorted(
+        directories, key=lambda value: (value.count("/"), value)
+    ):
+        absolute = root / directory if directory else root
+        try:
+            with os.scandir(absolute) as entries:
+                for entry in entries:
+                    relative = "/".join(
+                        part for part in (directory, entry.name) if part
+                    )
+                    if entry.is_symlink():
+                        raise PathError(f"release holds a symlink: {relative}")
+                    if relative not in allowed:
+                        raise IntegrityError(
+                            "release holds an entry it does not account for: "
+                            f"{relative}"
+                        )
+        except OSError as error:
+            raise PathError(
+                f"cannot inventory release directory: {directory or '.'}"
+            ) from error
 
 
 def _resolved(path: Path, what: str) -> Path:

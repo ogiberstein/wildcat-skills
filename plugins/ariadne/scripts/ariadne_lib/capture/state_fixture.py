@@ -509,7 +509,13 @@ def components_of(root, manifest):
     documents = {}
     for path in sorted(declared):
         entry = declared[path]
-        limit = MAX_MANIFEST_BYTES if path == HEADER else predicate.MAX_BYTES
+        # The manifest's count is both an integrity claim and the tightest safe
+        # read bound.  Reading to the format-wide ceiling first would let a file
+        # grow by hundreds of megabytes before the later size mismatch refused
+        # it.  Header parsing keeps its smaller independent ceiling.
+        limit = entry["bytes"]
+        if path == HEADER:
+            limit = min(limit, MAX_MANIFEST_BYTES)
         found, size, raw = read_component(
             root,
             path,
