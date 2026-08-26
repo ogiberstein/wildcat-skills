@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.26.1"
+  version: "5.27.1"
 ---
 
 # Fiat
@@ -479,7 +479,11 @@ pull request and hand the exact branch or patch to an environment that can.
 Claude, Codex, another runtime host, or its generated-by footer is not
 authorship for either case. Then push the step branch,
 and open its pull request against the `pr_base` the directive names, using the
-prepared prose. Wait for its gates but leave it open: a step's work lands in the
+prepared prose. Once `gh pr create` returns, read the body back over REST before
+receipting, as the `Read the body back` section of
+[push-discipline.md](references/push-discipline.md) says, because a host can
+append its attribution line or session link after creation. Wait for its gates
+but leave it open: a step's work lands in the
 integrate phase, not here. Do not add an issue reference unless one was
 independently supplied or required by higher-priority repository policy. Receipt
 the head SHA, PR URL, and PR base.
