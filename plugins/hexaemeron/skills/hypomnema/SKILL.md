@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "4.4.0"
+  version: "4.5.0"
 ---
 
 # Hypomnema
@@ -178,6 +178,10 @@ resolved. Spans pair per line by backtick-run length; an unmatched run stays
 literal text, a backtick escaped by an odd number of backslashes opens
 nothing, and a span that opens on one line and closes on the next is not read
 as a span, so a pointer on that line stays checked.
+
+H001 gives a relative link inside an inline code span the same reading: a
+quoted link is a mention and earns no finding, while a link outside a span,
+after an unmatched backtick run or across a line break is still resolved.
 
 The bundled third-party skills are skipped, since they document files they
 generate in the target repository rather than files that live here. Pass
