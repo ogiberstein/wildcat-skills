@@ -14,6 +14,7 @@ from .errors import FormatError, IntegrityError
 URL = re.compile(r"(?i)https?://[^\s\"'<>]+")
 BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 COOKIE = re.compile(r"(?i)\b(?:set-cookie|cookie)\s*:\s*[^\r\n]+")
+PERCENT_ESCAPE = re.compile(r"%[0-9A-Fa-f]{2}")
 SCAN_CHUNK_BYTES = 64 * 1024
 
 
@@ -22,14 +23,16 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
     parsed = urlsplit(url)
     for value in (parsed.username, parsed.password):
         if value:
-            values.add(value)
-            values.add(unquote(value))
+            _add_url_spellings(values, value)
+    _add_url_spellings(values, parsed.path)
+    for segment in parsed.path.split("/"):
+        _add_url_spellings(values, segment)
     for pair in parsed.query.split("&"):
         raw_key, separator, raw_value = pair.partition("=")
         if raw_key:
-            values.add(raw_key)
+            _add_url_spellings(values, raw_key)
         if separator and raw_value:
-            values.add(raw_value)
+            _add_url_spellings(values, raw_value)
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
         if key:
             values.add(unquote(key))
@@ -48,6 +51,18 @@ def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[
                     if "=" in part:
                         values.add(part.split("=", 1)[1].strip())
     return {value for value in values if len(value) >= 4}
+
+
+def _add_url_spellings(values: set[str], value: str) -> None:
+    """Classify raw, decoded, and normalised percent spellings of URL material."""
+
+    if not value:
+        return
+    values.add(value)
+    values.add(unquote(value))
+    if PERCENT_ESCAPE.search(value) is not None:
+        values.add(PERCENT_ESCAPE.sub(lambda match: match.group(0).upper(), value))
+        values.add(PERCENT_ESCAPE.sub(lambda match: match.group(0).lower(), value))
 
 
 def provider_secret_union(

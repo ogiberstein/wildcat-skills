@@ -360,6 +360,22 @@ class RpcTests(unittest.TestCase):
         surfaces = (str(raised), repr(raised), "".join(traceback.format_exception(raised)))
         self.assertTrue(all(marker not in surface for surface in surfaces))
 
+    def test_invalid_json_is_a_context_free_transport_refusal(self):
+        marker = "PRIVATE_MALFORMED_JSON_SECRET"
+        raw = f'{{"jsonrpc":"2.0","id":1,"result":"{marker}"'.encode()
+        with FakeRpc(lambda *args: None, raw_response=raw) as server:
+            try:
+                JsonRpcClient(server.url, limits()).call("invalid-json", [])
+            except Exception as exc:
+                raised = exc
+            else:
+                self.fail("invalid provider JSON was accepted")
+        self.assertIsInstance(raised, RpcTransportError)
+        self.assertIsNone(raised.__cause__)
+        self.assertIsNone(raised.__context__)
+        surfaces = (str(raised), repr(raised), "".join(traceback.format_exception(raised)))
+        self.assertTrue(all(marker not in surface for surface in surfaces))
+
     def test_invalid_provider_url_is_a_cause_free_transport_refusal(self):
         marker = "PRIVATE_PROVIDER_URL_SECRET"
         try:

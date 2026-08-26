@@ -148,10 +148,14 @@ class JsonRpcClient:
                     raise RpcTransportError(
                         "provider response exceeded the capture byte limit"
                     )
+                parse_failed = False
                 try:
-                    return loads(raw, max_bytes=limit)
+                    parsed = loads(raw, max_bytes=limit)
                 except FormatError:
-                    raise RpcTransportError("provider returned invalid JSON") from None
+                    parse_failed = True
+                if parse_failed:
+                    raise RpcTransportError("provider returned invalid JSON")
+                return parsed
         except HTTPError as exc:
             try:
                 exc.close()

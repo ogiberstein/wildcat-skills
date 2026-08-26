@@ -40,6 +40,23 @@ class ScrubTests(unittest.TestCase):
         for value in (url, "alice", "p@ss", "apiKey", "shh-secret", "project", "wildcat"):
             self.assertIn(value, secrets)
 
+    def test_url_path_credentials_and_percent_case_variants_are_secret_material(self):
+        url = "https://rpc.example/v3/path%2Fcredential-value"
+        secrets = provider_secrets(url)
+        for value in (
+            "path%2Fcredential-value",
+            "path%2fcredential-value",
+            "path/credential-value",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value, secrets)
+                with self.assertRaisesRegex(IntegrityError, "secret"):
+                    assert_no_secret_bytes(
+                        f'{{"result":"{value}"}}'.encode(),
+                        secrets,
+                        label="capture terminal result",
+                    )
+
     def test_encoded_url_credentials_are_scanned_in_their_raw_form(self):
         url = "https://alice%40rpc:p%2Fss@rpc.example/?token=alpha%2Fencoded-secret"
         secrets = provider_secrets(url)
