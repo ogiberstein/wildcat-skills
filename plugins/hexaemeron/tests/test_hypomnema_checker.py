@@ -195,6 +195,27 @@ class Runbooks(unittest.TestCase):
         self.assertEqual([], codes(
             "  `[study and runbook](../../../../docs/fiat-host-byline-readback/)`, relative"))
 
+    def test_a_link_whose_text_is_a_code_span_is_still_read(self):
+        # The common documentation form: the span is the link text and the
+        # opening bracket sits before it, so the link is read and resolved
+        # like any other. A rule that skipped every link touching a span
+        # would drop these silently, with fewer findings and no red test.
+        self.assertEqual(["H001"], codes(
+            "See [`hexctl.py`](scripts/missing.py) for the gate."))
+        self.assertEqual([], codes(
+            "See [`hexctl.py`](scripts/hexctl.py) for the gate.",
+            siblings=("scripts/hexctl.py",)))
+        self.assertEqual(["H001"], codes(
+            "See [the `hexctl.py` gate](scripts/missing.py)."))
+
+    def test_a_span_holding_part_of_a_link_decides_by_its_bracket(self):
+        # CommonMark binds a code span before a link, so a bracket inside a
+        # span opens no link and the line is a specimen, while a bracket
+        # outside a span opens a link the lint still reads even when the
+        # span swallows the rest of it: the ambiguous case stays reported.
+        self.assertEqual([], codes("`[text`](missing.md)"))
+        self.assertEqual(["H001"], codes("[te`xt](missing.md)`"))
+
     def test_a_reasoned_pragma_still_suppresses_a_live_pointer(self):
         self.assertEqual([], codes(
             "runbook: runbooks/missing.md "
