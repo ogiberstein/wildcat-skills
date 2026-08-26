@@ -288,6 +288,32 @@ class PlanningTests(ReuseFixture):
         plan = reuse.plan(self.project, self.scope, self.cache)
         self.assertEqual((plan["mode"], plan["reason"]), ("full", "dependency-cycle"))
 
+    def test_assembly_refuses_incremental_reuse_for_dependency_cycle(self):
+        self.scope["sources"][0]["dependencies"] = ["src/Router.sol"]
+        self.establish_cache()
+        plan = reuse.plan(self.project, self.scope, self.cache)
+        self.assertEqual((plan["mode"], plan["reason"]), ("full", "dependency-cycle"))
+
+        spliced = copy.deepcopy(plan)
+        paths = [source["path"] for source in plan["sources"]]
+        spliced.update(
+            {
+                "mode": "incremental",
+                "changed": [],
+                "dirty": [],
+                "reusable": paths,
+            }
+        )
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(
+                self.project,
+                self.scope,
+                spliced,
+                [],
+                cache_path=self.cache,
+            )
+        self.assertEqual(caught.exception.code, "incomplete-plan")
+
 
 class AssemblyAndPromotionTests(ReuseFixture):
     def test_candidate_target_cannot_alias_the_live_cache(self):

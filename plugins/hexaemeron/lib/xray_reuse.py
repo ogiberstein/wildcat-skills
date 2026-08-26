@@ -958,6 +958,19 @@ def validate_plan(value: Any) -> dict[str, Any]:
         _refuse("scope-mismatch", "plan.removed overlaps current scope")
     if mode == "full" and (set(dirty) != current_paths or reusable):
         _refuse("incomplete-plan", "a full plan must dirty the complete scope")
+    if _has_cycle(sources) and (
+        mode != "full"
+        or reason != "dependency-cycle"
+        or set(changed) != current_paths
+        or set(dirty) != current_paths
+        or reusable
+        or removed
+        or reverse_invalidated
+    ):
+        _refuse(
+            "incomplete-plan",
+            "a cyclic scope requires the exact full-recomputation plan",
+        )
     return {
         "schema": PLAN_SCHEMA,
         "mode": mode,
