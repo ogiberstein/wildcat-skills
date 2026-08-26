@@ -1288,6 +1288,69 @@ class TestDelegationPackets(HexctlCase):
         self.assertIn("2097152-byte output cap", error.getvalue())
 
 
+class XRayReuseStateSeparationTests(HexctlCase):
+    FORBIDDEN_FIELDS = frozenset(
+        {
+            "cache",
+            "cache_key",
+            "cache_path",
+            "cache_payload",
+            "cache_verdict",
+            "preparation_entries",
+            "reuse_cache",
+            "reuse_candidate",
+            "reuse_plan",
+            "xray_reuse",
+        }
+    )
+    FORBIDDEN_PAYLOAD_MARKERS = (
+        "hexaemeron.xray.",
+        "candidate_sha256",
+        "dependency_digests",
+        "reverse_invalidated",
+        "source_sha256",
+    )
+
+    def field_names(self, value):
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                yield key
+                yield from self.field_names(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                yield from self.field_names(nested)
+
+    def assert_no_reuse_material(self, surface, value):
+        present = self.FORBIDDEN_FIELDS.intersection(self.field_names(value))
+        self.assertEqual(present, set(), f"{surface} gained reuse material")
+        encoded = json.dumps(value, sort_keys=True)
+        for marker in self.FORBIDDEN_PAYLOAD_MARKERS:
+            self.assertNotIn(marker, encoded, f"{surface} gained reuse payload")
+
+    def test_audit_directive_state_ledger_and_receipt_keep_existing_shapes(self):
+        self.to_audit()
+        self.run_ctl("record", "security_suite", SUITE)
+        directive = self.next_json()
+
+        self.run_ctl("audit-round", "--findings", "0")
+        state_path = os.path.join(self.target, ".hexaemeron", "state.json")
+        ledger_path = os.path.join(self.target, ".hexaemeron", "ledger.jsonl")
+        with open(state_path, encoding="utf-8") as handle:
+            state = json.load(handle)
+        with open(ledger_path, encoding="utf-8") as handle:
+            ledger = [json.loads(line) for line in handle if line.strip()]
+        receipt = state["steps"][0]["audit"]["rounds"][0]
+
+        for name, value in (
+            ("audit directive", directive),
+            ("state", state),
+            ("ledger", ledger),
+            ("audit receipt", receipt),
+        ):
+            with self.subTest(surface=name):
+                self.assert_no_reuse_material(name, value)
+
+
 class TestStudyAmendments(HexctlCase):
     def test_temporary_git_repositories_demonstrate_holding_and_broken_runs(self):
         original = self.to_amendable_steps()

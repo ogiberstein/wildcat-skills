@@ -26,6 +26,36 @@ from lib import xray_reuse as reuse  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "xray-reuse"
 SCRIPT = Path(reuse.__file__).resolve()
+PROMISES = PLUGIN_ROOT / "PROMISES.md"
+AUDIT_LOOP = PLUGIN_ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
+XRAY_REUSE_REFERENCE = (
+    PLUGIN_ROOT / "skills" / "fiat" / "references" / "xray-reuse.md"
+)
+WARDEN = PLUGIN_ROOT / "agents" / "warden.md"
+XRAY_SKILL = PLUGIN_ROOT / "skills" / "x-ray" / "SKILL.md"
+EXPECTED_XRAY_DIGEST = (
+    "b23bb94517805c1b8ce717d0e1e0282b0b5c14c7b16f4c32e73940292d3d4a41"
+)
+SOURCE_BOUND_FACT_KEYS = frozenset(
+    {
+        "access",
+        "calls",
+        "declarations",
+        "entry_points",
+        "fund_flows",
+        "guards",
+        "imports",
+        "inheritance",
+        "invariant_inputs",
+        "key_logic",
+        "roles",
+        "state_facts",
+        "transitions",
+        "types",
+        "value_facts",
+        "writes",
+    }
+)
 
 
 class ReuseFixture(unittest.TestCase):
@@ -55,18 +85,35 @@ class ReuseFixture(unittest.TestCase):
     def facts(self, path, *, writes=None):
         stem = Path(path).stem
         default_writes = {
-            "Base": [{"variable": "total", "site": "Base.sol:8"}],
-            "Vault": [{"variable": "total", "site": "Vault.sol:8"}],
-            "Router": [{"variable": "vault", "site": "Router.sol:constructor"}],
+            "Base": [self.write_fact("total", "Base.sol:8", "=next")],
+            "Vault": [self.write_fact("total", "Vault.sol:8", "+amount")],
+            "Router": [self.write_fact("vault", "Router.sol:constructor", "=target")],
         }
-        return {
+        catalog = {
+            "access": [f"{stem}.access"],
             "calls": [] if stem == "Base" else [f"{stem}.declared-call"],
+            "declarations": [f"{stem}.declaration"],
             "entry_points": [f"{stem}.entry"],
+            "fund_flows": [f"{stem}.fund-flow"],
             "guards": [f"{stem}.guard"],
+            "imports": [f"{stem}.import"],
+            "inheritance": [f"{stem}.inheritance"],
             "invariant_inputs": [f"{stem}.invariant-input"],
+            "key_logic": [f"{stem}.key-logic"],
+            "roles": [f"{stem}.role"],
+            "state_facts": [f"{stem}.state"],
             "transitions": [f"{stem}.transition"],
+            "types": [f"{stem}.type"],
+            "value_facts": [f"{stem}.value"],
             "writes": default_writes[stem] if writes is None else writes,
         }
+        return {key: catalog[key] for key in reuse.FACT_KEYS}
+
+    def write_fact(self, variable, site, delta):
+        fact = {"variable": variable, "site": site}
+        if set(reuse.FACT_KEYS) == SOURCE_BOUND_FACT_KEYS:
+            fact["delta"] = delta
+        return fact
 
     def entry(self, plan, path, *, writes=None):
         source = self.source(plan, path)
@@ -99,6 +146,25 @@ class ReuseFixture(unittest.TestCase):
         for name, body in documents.items():
             if name != omit:
                 (self.outputs / name).write_text(body, encoding="utf-8")
+
+    def write_fixture_outputs_from_synthesis(self, candidate, directory):
+        """Render deterministic fixture views without claiming model determinism."""
+        directory.mkdir()
+        synthesis = candidate["synthesis"]
+        compact = json.dumps(synthesis, sort_keys=True, separators=(",", ":"))
+        documents = {
+            "architecture.json": json.dumps(
+                synthesis,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            "entry-points.md": f"# fixture entry points\n\n```json\n{compact}\n```\n",
+            "invariants.md": f"# fixture invariants\n\n```json\n{compact}\n```\n",
+            "x-ray.md": f"# fixture x-ray\n\n```json\n{compact}\n```\n",
+        }
+        for name, body in documents.items():
+            (directory / name).write_text(body, encoding="utf-8")
 
     def establish_cache(self):
         plan = reuse.plan(self.project, self.scope)
@@ -349,6 +415,21 @@ class PlanningTests(ReuseFixture):
         self.assertEqual(plan["reason"], "scope-unchanged")
         self.assertEqual(plan["dirty"], [])
         self.assertEqual(plan["reusable"], cache["synthesis"]["source_inventory"])
+
+    def test_unchanged_planning_reads_and_digests_every_current_source(self):
+        self.establish_cache()
+        with mock.patch.object(
+            reuse,
+            "_read_source",
+            wraps=reuse._read_source,
+        ) as reader:
+            plan = reuse.plan(self.project, self.scope, self.cache)
+
+        self.assertEqual((plan["mode"], plan["reason"]), ("incremental", "scope-unchanged"))
+        self.assertEqual(
+            [call.args[1] for call in reader.call_args_list],
+            [source["path"] for source in plan["sources"]],
+        )
 
     def test_scope_unchanged_requires_the_exact_incremental_shape(self):
         self.establish_cache()
@@ -643,6 +724,77 @@ class AssemblyAndPromotionTests(ReuseFixture):
                 reuse.assemble(self.project, self.scope, plan, self.fresh(plan))
         self.assertEqual(caught.exception.code, "size-limit")
 
+    def test_incomplete_source_bound_facts_refuse_assembly(self):
+        plan = reuse.plan(self.project, self.scope)
+        fresh = self.fresh(plan)
+        self.assertIn("fund_flows", fresh[0]["facts"])
+        del fresh[0]["facts"]["fund_flows"]
+        with self.assertRaises(reuse.ReuseError) as caught:
+            reuse.assemble(self.project, self.scope, plan, fresh)
+        self.assertEqual(caught.exception.code, "invalid-schema")
+
+    def test_fresh_synthesis_consumes_the_exact_current_fact_union(self):
+        plan = reuse.plan(self.project, self.scope)
+        candidate = reuse.assemble(
+            self.project,
+            self.scope,
+            plan,
+            self.fresh(plan),
+        )
+        self.assertIn("source_inputs", candidate["synthesis"])
+        self.assertEqual(
+            candidate["synthesis"]["source_inputs"],
+            [
+                {"path": entry["path"], "facts": entry["facts"]}
+                for entry in candidate["entries"]
+            ],
+        )
+        self.assertTrue(
+            all(
+                set(source_input["facts"]) == set(reuse.FACT_KEYS)
+                for source_input in candidate["synthesis"]["source_inputs"]
+            )
+        )
+
+    def test_full_and_unchanged_reuse_have_equivalent_fixture_output_bytes(self):
+        full_plan = reuse.plan(self.project, self.scope)
+        full_candidate = reuse.assemble(
+            self.project,
+            self.scope,
+            full_plan,
+            self.fresh(full_plan),
+            candidate_path=self.candidate,
+        )
+        full_outputs = self.root / "full-outputs"
+        self.write_fixture_outputs_from_synthesis(full_candidate, full_outputs)
+        reuse.bind_outputs(self.candidate, full_outputs)
+        reuse.promote(self.candidate, full_outputs, self.cache)
+
+        unchanged_plan = reuse.plan(self.project, self.scope, self.cache)
+        self.assertEqual(
+            (unchanged_plan["mode"], unchanged_plan["reason"]),
+            ("incremental", "scope-unchanged"),
+        )
+        reused_candidate_path = self.root / "reused-candidate.json"
+        reused_candidate = reuse.assemble(
+            self.project,
+            self.scope,
+            unchanged_plan,
+            [],
+            cache_path=self.cache,
+            candidate_path=reused_candidate_path,
+        )
+        reuse_outputs = self.root / "reuse-outputs"
+        self.write_fixture_outputs_from_synthesis(reused_candidate, reuse_outputs)
+
+        self.assertEqual(reused_candidate, full_candidate)
+        for name in reuse.FINAL_OUTPUTS:
+            with self.subTest(output=name):
+                self.assertEqual(
+                    (reuse_outputs / name).read_bytes(),
+                    (full_outputs / name).read_bytes(),
+                )
+
     def test_assembly_refuses_source_drift_after_the_plan(self):
         plan = reuse.plan(self.project, self.scope)
         base = self.project / "src" / "Base.sol"
@@ -706,15 +858,22 @@ class AssemblyAndPromotionTests(ReuseFixture):
             self.fresh(
                 plan,
                 writes_by_path={
-                    "src/Vault.sol": [{"variable": "shares", "site": "Vault.sol:12"}]
+                    "src/Vault.sol": [
+                        self.write_fact("shares", "Vault.sol:12", "+amount")
+                    ]
                 },
             ),
             cache_path=self.cache,
         )
         write_sites = {item["variable"]: item["sites"] for item in candidate["synthesis"]["write_sites"]}
-        self.assertEqual(write_sites["shares"], [{"path": "src/Vault.sol", "site": "Vault.sol:12"}])
+        expected_share = {"path": "src/Vault.sol", "site": "Vault.sol:12"}
+        replaced_total = {"path": "src/Vault.sol", "site": "Vault.sol:8"}
+        if set(reuse.FACT_KEYS) == SOURCE_BOUND_FACT_KEYS:
+            expected_share["delta"] = "+amount"
+            replaced_total["delta"] = "+amount"
+        self.assertEqual(write_sites["shares"], [expected_share])
         self.assertNotIn(
-            {"path": "src/Vault.sol", "site": "Vault.sol:8"},
+            replaced_total,
             write_sites["total"],
         )
 
@@ -888,6 +1047,148 @@ class AssemblyAndPromotionTests(ReuseFixture):
                 candidate_path=self.candidate,
             )
         self.assertEqual(caught.exception.code, "unsafe-path")
+
+
+class CompositionContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.promises = PROMISES.read_text(encoding="utf-8")
+        cls.reference = XRAY_REUSE_REFERENCE.read_text(encoding="utf-8")
+        cls.audit_loop = AUDIT_LOOP.read_text(encoding="utf-8")
+        cls.warden = WARDEN.read_text(encoding="utf-8")
+
+    @classmethod
+    def overlay(cls):
+        marker = "### hexaemeron-x-ray-preaudit\n"
+        start = cls.promises.index(marker)
+        following = cls.promises.find("\n### ", start + len(marker))
+        return cls.promises[start : following if following >= 0 else None]
+
+    def test_overlay_binds_the_exact_xray_and_adapter_digests(self):
+        overlay = self.overlay()
+        xray_digest = hashlib.sha256(XRAY_SKILL.read_bytes()).hexdigest()
+        adapter_digest = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
+        self.assertEqual(xray_digest, EXPECTED_XRAY_DIGEST)
+        self.assertIn(
+            "- Path: `plugins/hexaemeron/skills/x-ray/SKILL.md`", overlay
+        )
+        self.assertIn(f"- SHA-256: `{xray_digest}`", overlay)
+        self.assertIn("`plugins/hexaemeron/lib/xray_reuse.py`", overlay)
+        self.assertIn(f"SHA-256 `{adapter_digest}`", overlay)
+
+    def test_overlay_keeps_reuse_inside_the_xray_preparation_boundary(self):
+        overlay = " ".join(self.overlay().split())
+        for clause in (
+            "preparation layer only",
+            "complete current logical scope",
+            "every current source was read and digested",
+            "exact current fact union",
+            "exact current union",
+            "fresh global synthesis",
+            "named full recomputation",
+        ):
+            self.assertIn(clause, overlay)
+        for output in reuse.FINAL_OUTPUTS:
+            self.assertIn(f"`{output}`", overlay)
+        self.assertIn(
+            "no global synthesis, final output, finding, or security conclusion is reusable",
+            overlay,
+        )
+
+    def test_audit_operation_requires_full_scope_fresh_synthesis_and_outputs(self):
+        surfaces = {
+            "reference": " ".join(self.reference.split()),
+            "audit-loop": " ".join(self.audit_loop.split()),
+            "warden": " ".join(self.warden.split()),
+        }
+        self.assertIn(
+            "[X-Ray source-reuse protocol](xray-reuse.md)", self.audit_loop
+        )
+        self.assertIn(
+            "`<plugin-root>/skills/fiat/references/xray-reuse.md`", self.warden
+        )
+        for name, text in surfaces.items():
+            with self.subTest(surface=name):
+                self.assertIn("preparation layer only", text)
+                self.assertIn("full logical scope", text)
+                self.assertIn("fresh global synthesis", text)
+                self.assertIn("all four final outputs", text)
+                self.assertIn("Any cache uncertainty", text)
+                self.assertIn("full recomputation", text)
+        for output in reuse.FINAL_OUTPUTS:
+            self.assertIn(f"`{output}`", self.reference)
+
+    def test_reuse_never_skips_the_pinned_full_scope_source_reads(self):
+        xray = XRAY_SKILL.read_text(encoding="utf-8")
+        self.assertIn("One Read call per file", xray)
+        self.assertIn("Read each file listed below", xray)
+        for text in (self.reference, self.audit_loop, self.warden):
+            normal = " ".join(text.split()).lower()
+            self.assertIn("read and digest every current source", normal)
+            self.assertIn(
+                "reuse replaces only preparation-fact regeneration", normal
+            )
+
+    def test_preparation_schema_covers_pinned_source_bound_inputs(self):
+        self.assertEqual(
+            set(reuse.FACT_KEYS),
+            SOURCE_BOUND_FACT_KEYS,
+        )
+        facts = {key: [] for key in reuse.FACT_KEYS}
+        facts["writes"] = [
+            {"delta": "+amount", "site": "Vault.sol:12", "variable": "shares"}
+        ]
+        facts = reuse.validate_facts(facts)
+        self.assertEqual(set(facts["writes"][0]), {"delta", "site", "variable"})
+
+    def test_digest_preconditions_run_before_the_vendored_xray_instruction(self):
+        reference_link = "[X-Ray source-reuse protocol](xray-reuse.md)"
+        warden_reference = (
+            "`<plugin-root>/skills/fiat/references/xray-reuse.md`"
+        )
+        warden_xray = "`<plugin-root>/skills/x-ray/SKILL.md`"
+        self.assertLess(
+            self.audit_loop.index(reference_link),
+            self.audit_loop.index("`x-ray` pass first"),
+        )
+        self.assertLess(
+            self.warden.index(warden_reference),
+            self.warden.index(warden_xray),
+        )
+        for text in (self.audit_loop, self.warden):
+            self.assertIn(
+                "complete its digest preconditions", " ".join(text.split())
+            )
+
+    def test_reference_keeps_cache_material_out_of_every_fiat_surface(self):
+        text = " ".join(self.reference.split())
+        for material in (
+            "cache paths",
+            "cache keys",
+            "cache payloads",
+            "cache verdicts",
+        ):
+            self.assertIn(material, text)
+        for surface in (
+            "`hexctl` state",
+            "its ledger",
+            "a Warden brief or audit directive",
+            "an audit-round receipt",
+            "any other Fiat receipt",
+        ):
+            self.assertIn(surface, text)
+
+    def test_fiat_boundary_does_not_suppress_audit_finding_evidence(self):
+        warden = " ".join(self.warden.split())
+        self.assertNotIn("audit directive and record", warden)
+        self.assertIn(
+            "The audit record may name this working material when a finding needs it",
+            warden,
+        )
+        self.assertIn("without giving it controller authority", warden)
+        for text in (warden, " ".join(self.audit_loop.split())):
+            self.assertIn("cache verdicts", text)
+            self.assertNotIn("manifests, and verdicts", text)
 
 
 class CommandTests(ReuseFixture):

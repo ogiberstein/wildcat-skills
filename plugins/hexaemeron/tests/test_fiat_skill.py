@@ -39,6 +39,7 @@ PUSH_DISCIPLINE = ROOT / "skills" / "fiat" / "references" / "push-discipline.md"
 PROSE_PASS = ROOT / "skills" / "fiat" / "references" / "prose-pass.md"
 PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
 AUDIT_LOOP = ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
+XRAY_REUSE = ROOT / "skills" / "fiat" / "references" / "xray-reuse.md"
 KRONOS = ROOT / "skills" / "kronos" / "SKILL.md"
 AGENTS = {
     name: (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
@@ -63,10 +64,27 @@ class FiatSkillContractTests(unittest.TestCase):
         cls.push_discipline = PUSH_DISCIPLINE.read_text(encoding="utf-8")
         cls.prose_pass = PROSE_PASS.read_text(encoding="utf-8")
         cls.audit_loop = AUDIT_LOOP.read_text(encoding="utf-8")
+        cls.xray_reuse = XRAY_REUSE.read_text(encoding="utf-8")
 
     def test_marketplace_reference_is_linked(self):
         self.assertIn("[wildcat-marketplace.md](references/wildcat-marketplace.md)", self.fiat)
         self.assertTrue(MARKETPLACE.is_file())
+
+    def test_xray_reuse_reference_is_bound_to_audit_and_warden_instructions(self):
+        audit = " ".join(self.audit_loop.split())
+        warden = " ".join(AGENTS["warden"].split())
+        self.assertTrue(XRAY_REUSE.is_file())
+        self.assertIn("[X-Ray source-reuse protocol](xray-reuse.md)", self.audit_loop)
+        self.assertIn(
+            "`<plugin-root>/skills/fiat/references/xray-reuse.md`", warden
+        )
+        for text in (audit, warden):
+            self.assertIn("preparation layer only", text)
+            self.assertIn("full logical scope", text)
+            self.assertIn("fresh global synthesis", text)
+            self.assertIn("all four final outputs", text)
+            self.assertIn("Any cache uncertainty", text)
+        self.assertIn("Do not add them to `hexctl` state", self.xray_reuse)
 
     def test_failed_identity_check_is_silent_and_non_persistent(self):
         self.assertIn("do not record a receipt", self.marketplace)
