@@ -181,6 +181,22 @@ class ScopeAndEntryTests(ReuseFixture):
             reuse.load_json(constant)
         self.assertEqual(caught.exception.code, "invalid-json")
 
+    def test_json_decoder_value_error_is_a_bounded_refusal(self):
+        with mock.patch.object(
+            reuse.json,
+            "loads",
+            side_effect=ValueError("integer conversion limit"),
+        ):
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse._decode_json(b"0", "hostile JSON")
+        self.assertEqual(caught.exception.code, "invalid-json")
+
+    def test_descriptor_read_error_is_a_bounded_refusal(self):
+        with mock.patch.object(reuse.os, "read", side_effect=OSError("read failed")):
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse.load_json(self.scope_path, "scope manifest")
+        self.assertEqual(caught.exception.code, "unreadable-file")
+
     def test_lone_surrogate_text_is_a_bounded_refusal(self):
         scope = copy.deepcopy(self.scope)
         scope["analyzer"] = "\ud800"
@@ -437,6 +453,17 @@ class AssemblyAndPromotionTests(ReuseFixture):
             reuse.promote(self.candidate, self.outputs, self.cache)
         self.assertEqual(caught.exception.code, "missing-file")
         self.assertFalse(self.cache.exists())
+
+    def test_architecture_decoder_value_error_is_a_bounded_refusal(self):
+        self.write_outputs()
+        with mock.patch.object(
+            reuse.json,
+            "loads",
+            side_effect=ValueError("integer conversion limit"),
+        ):
+            with self.assertRaises(reuse.ReuseError) as caught:
+                reuse._output_digests(self.outputs)
+        self.assertEqual(caught.exception.code, "invalid-output")
 
     def test_promotion_binds_each_output_digest(self):
         _plan, candidate, cache = self.establish_cache()

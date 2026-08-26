@@ -141,8 +141,15 @@ def _read_regular(path: Path, limit: int, label: str) -> bytes:
             if size > limit:
                 _refuse("size-limit", f"{label} exceeds {limit} bytes: {path}")
         return b"".join(chunks)
+    except ReuseError:
+        raise
+    except OSError as exc:
+        _refuse("unreadable-file", f"{label} cannot be read: {exc}")
     finally:
-        os.close(descriptor)
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
 
 
 def _decode_json(raw: bytes, label: str) -> Any:
@@ -158,7 +165,7 @@ def _decode_json(raw: bytes, label: str) -> Any:
         )
     except ReuseError:
         raise
-    except (json.JSONDecodeError, RecursionError) as exc:
+    except (ValueError, RecursionError) as exc:
         _refuse("invalid-json", f"{label} is not readable JSON: {exc}")
 
 
@@ -1179,7 +1186,7 @@ def _output_digests(output_dir: os.PathLike[str] | str) -> dict[str, str]:
                 )
             except ReuseError:
                 raise
-            except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
+            except (UnicodeDecodeError, ValueError, RecursionError) as exc:
                 _refuse("invalid-output", f"architecture.json is not valid JSON: {exc}")
         outputs[name] = hashlib.sha256(raw).hexdigest()
     return outputs
