@@ -10,7 +10,7 @@ description: >-
   and do not use it to decide what a study must contain, which belongs to
   protasis.
 metadata:
-  version: "4.4.0"
+  version: "4.5.0"
 ---
 
 # Hypomnema
@@ -179,6 +179,10 @@ literal text, a backtick escaped by an odd number of backslashes opens
 nothing, and a span that opens on one line and closes on the next is not read
 as a span, so a pointer on that line stays checked.
 
+H001 gives a relative link inside an inline code span the same reading: a
+quoted link is a mention and earns no finding, while a link outside a span,
+after an unmatched backtick run or across a line break is still resolved.
+
 The bundled third-party skills are skipped, since they document files they
 generate in the target repository rather than files that live here. Pass
 `--include-vendored` to check them anyway.
@@ -249,7 +253,7 @@ conflict somebody has to resolve, or the runbook an alert is waiting on.
 - Promise: A zero-exit Hypomnema lint establishes that the bounded checker found no unresolved relative links, absent superseding records, missing recognised Markdown or block-YAML runbook targets, or absent and empty required runbook answers in the selected first-party documents.
 - Evidence: The exact lint version, arguments, selected paths, structured findings and zero exit status.
 - Evidence classes: checked
-- Boundary: A clean lint proves only that recognised pointers resolve and recognised alert runbooks carry the three required answers at check time; the YAML pass does not classify alerts or establish annotation presence, a Markdown `runbook:` keyword inside an inline code span is not a recognised pointer so a clean result says nothing about a target quoted as a specimen, and the lint does not prove that records or operational answers are correct, complete, current or placed well.
+- Boundary: A clean lint proves only that recognised pointers resolve and recognised alert runbooks carry the three required answers at check time; the YAML pass does not classify alerts or establish annotation presence, a Markdown `runbook:` keyword or relative link inside an inline code span is not a recognised pointer so a clean result says nothing about a target quoted as a specimen, and the lint does not prove that records or operational answers are correct, complete, current or placed well.
 - Authorises: Passing the mechanical record and runbook-shape gate for the exact paths and checker version recorded.
 - Consequence: 1
 - Refuses: Unsafe, unreadable or oversized paths, unresolved recognised pointers, a missing or empty required runbook answer, an unexplained suppression or a claim about documents excluded from the run.

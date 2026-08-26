@@ -6138,10 +6138,62 @@ place to discover that.
 """
 
 HOST_BYLINE_RE = re.compile(
-    r"(?:generated|authored|co-authored)\s+by\s+"
+    r"(?:generated\s+(?:by|with)|(?:co-)?authored\s+by)\s+"
     r"(?:\[(?:claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)\]"
     r"\([^\)]+\)|claude(?: code)?|codex|chatgpt|copilot|gemini(?: code assist)?)",
     re.IGNORECASE,
+)
+
+# Why a refusal names a cause. ADR-016 makes a runtime host execution metadata,
+# never an author, co-author, byline or generated-by footer, and the hosts most
+# contributors run Fiat through add exactly those by default: their own git
+# identity, a Co-Authored-By trailer naming themselves, an attribution line or
+# a session link. A refusal that only names the gate sends the operator to
+# guess; one that names the usual host default and its recovery does not. The
+# clauses are module constants so that no byte of a commit message or
+# pull-request body can steer what a refusal says. The evidence for each
+# "usual cause" is the measurement table in the committed study,
+# docs/fiat-host-byline-readback/study.md (section 1); the texts are its
+# section 4 table.
+
+# verify_local_commit author and commit_attribution (ADR-016; the study's
+# section 4 table).
+CAUSE_HOST_AUTHOR = (
+    "The usual cause is the host's default git identity, such as "
+    "Claude <noreply@anthropic.com>; set git user.name and user.email to the "
+    "contributing actor and recreate the commit."
+)
+# verify_local_commit co-author and message_coauthors (ADR-016; the study's
+# section 4 table).
+CAUSE_HOST_COAUTHOR = (
+    "The usual cause is the host's standing instruction to end every commit "
+    "with a Co-Authored-By trailer naming itself; the repository rule wins: "
+    "end the message with the two exact provenance trailers and nothing else, "
+    "and recreate the commit."
+)
+# verify_local_commit byline (ADR-016; the study's section 4 table).
+CAUSE_HOST_BYLINE = (
+    "The usual cause is the host's default attribution line (Generated with "
+    "or by Claude Code, Codex or another host) or its session link in the "
+    "message; remove it and recreate the commit."
+)
+# inspect_pull_request author (ADR-016; the study's section 4 table).
+CAUSE_HOST_PR_AUTHOR = (
+    "The pull request was opened under the host app's GitHub identity, such "
+    "as claude[bot]; open it from the contributing actor's own account "
+    "instead."
+)
+# inspect_pull_request byline (ADR-016; the study's section 4 table).
+CAUSE_HOST_PR_BYLINE = (
+    "The usual cause is the host appending its attribution line or claude.ai "
+    "session link to the description after gh pr create returned; edit the "
+    "body without it (gh pr edit <url> --body-file <file>), read it back over "
+    "REST, and rerun this receipt."
+)
+# checked_login (ADR-016; the study's section 4 table).
+CAUSE_HOST_ACCOUNT = (
+    "The commit was pushed under the host app's account; hand off before "
+    "publication and push as the contributing actor."
 )
 
 
@@ -6190,7 +6242,7 @@ def checked_login(value: object, label: str) -> str | None:
     if not isinstance(login, str):
         die(f"{label} account login is not a string")
     if login.casefold() in HOST_PR_LOGINS:
-        die(f"{label} links the commit to a runtime host account")
+        die(f"{label} links the commit to a runtime host account. {CAUSE_HOST_ACCOUNT}")
     if not GITHUB_LOGIN_RE.fullmatch(login):
         die(f"{label} account login is malformed")
     return login
@@ -6235,7 +6287,7 @@ def message_coauthors(message: object, label: str) -> list[dict]:
             continue
         name, email = match.group("name"), match.group("email")
         if is_host_identity(name, email):
-            die(f"{label} names a runtime host as co-author")
+            die(f"{label} names a runtime host as co-author. {CAUSE_HOST_COAUTHOR}")
         if len(name) > ATTRIBUTION_NAME_MAX or len(email) > ATTRIBUTION_EMAIL_MAX:
             die(f"{label} co-author identity is malformed")
         found.append({"name": name, "email_sha256": identity_digest(email)})
@@ -6397,7 +6449,7 @@ def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
     if is_host_identity(author_name, author_email):
         die(
             f"{label} commit {commit_sha} uses a runtime host as author; "
-            "use Shoggoth or preserve the human contributor"
+            f"use Shoggoth or preserve the human contributor. {CAUSE_HOST_AUTHOR}"
         )
     body = tool_text(
         bounded_git(
@@ -6411,9 +6463,15 @@ def verify_local_commit(base_dir: str, commit_sha: str, label: str) -> str:
     for line in lines:
         match = COAUTHOR_RE.fullmatch(line)
         if match and is_host_identity(match.group("name"), match.group("email")):
-            die(f"{label} commit {commit_sha} uses a runtime host as co-author")
+            die(
+                f"{label} commit {commit_sha} uses a runtime host as co-author. "
+                f"{CAUSE_HOST_COAUTHOR}"
+            )
     if HOST_BYLINE_RE.search(body):
-        die(f"{label} commit {commit_sha} carries a runtime-host byline")
+        die(
+            f"{label} commit {commit_sha} carries a runtime-host byline. "
+            f"{CAUSE_HOST_BYLINE}"
+        )
     coauthors = lines.count(COAUTHOR_TRAILER)
     origins = lines.count(ORIGIN_TRAILER)
     if coauthors != 1:
@@ -6547,7 +6605,10 @@ def inspect_pull_request(
     if not isinstance(author_login, str):
         die("pull request topology is missing its author")
     if author_login.casefold() in HOST_PR_LOGINS:
-        die("pull request uses a runtime host as author; hand off before publication")
+        die(
+            "pull request uses a runtime host as author; hand off before "
+            f"publication. {CAUSE_HOST_PR_AUTHOR}"
+        )
     if "body" not in payload:
         die("pull request topology is missing its body")
     # REST spells an empty body as null rather than as an empty string. There
@@ -6556,7 +6617,7 @@ def inspect_pull_request(
     if not isinstance(body, str):
         die("pull request topology is missing its body")
     if HOST_BYLINE_RE.search(body):
-        die("pull request body carries a runtime-host byline")
+        die(f"pull request body carries a runtime-host byline. {CAUSE_HOST_PR_BYLINE}")
     returned_url = payload.get("html_url")
     if not isinstance(returned_url, str):
         die("pull request topology is missing its URL")
@@ -6640,7 +6701,7 @@ def commit_attribution(payload: dict, commit_sha: str) -> dict:
         die(f"{label} is missing its commit object")
     name, email = checked_identity(commit.get("author"), label)
     if is_host_identity(name, email):
-        die(f"{label} names a runtime host as author")
+        die(f"{label} names a runtime host as author. {CAUSE_HOST_AUTHOR}")
     return {
         "commit": commit_sha,
         "login": checked_login(payload.get("author"), label),

@@ -163,9 +163,58 @@ class Runbooks(unittest.TestCase):
             "more-indented `extra`."))
 
     def test_a_span_hides_no_other_code(self):
-        self.assertEqual(["H001"], codes("`[the ledger](EVOLUTION.md)`"))
         self.assertEqual(["H002"], codes(
             "## Status\n`Superseded by ADR-009`\n", adrs={"ADR-001"}))
+
+    # H001 reads a relative link the same way: quoted in a span it is a
+    # mention, and the same boundaries keep a live link read.
+
+    def test_a_relative_link_inside_a_code_span_is_a_specimen(self):
+        self.assertEqual([], codes(
+            "The row links `[study and runbook](../../docs/study/)` from the ledger."))
+
+    def test_a_bare_relative_link_on_the_same_kind_of_line_stays_live(self):
+        self.assertEqual(["H001"], codes(
+            "The row links [study and runbook](../../docs/study/) from the ledger."))
+        self.assertEqual(["H001"], codes(
+            "`[quoted](missing-a.md)` beside [live](missing-b.md)."))
+
+    def test_an_unmatched_backtick_run_leaves_a_link_read(self):
+        self.assertEqual(["H001"], codes(
+            "`the row said [study and runbook](../../docs/study/)"))
+
+    def test_a_span_crossing_a_line_break_leaves_a_link_read(self):
+        findings = hypomnema_findings(
+            "an opening `tick\n[study and runbook](../../docs/study/)`\n")
+        self.assertEqual([("H001", 2)], [(f.code, f.line) for f in findings])
+
+    def test_the_recorded_study_specimen_goes_clean(self):
+        # Line 805 of docs/fiat-host-byline-readback/study.md, byte for byte:
+        # a ledger-relative link quoted in a code span, which resolves from
+        # the ledger and not from the study.
+        self.assertEqual([], codes(
+            "  `[study and runbook](../../../../docs/fiat-host-byline-readback/)`, relative"))
+
+    def test_a_link_whose_text_is_a_code_span_is_still_read(self):
+        # The common documentation form: the span is the link text and the
+        # opening bracket sits before it, so the link is read and resolved
+        # like any other. A rule that skipped every link touching a span
+        # would drop these silently, with fewer findings and no red test.
+        self.assertEqual(["H001"], codes(
+            "See [`hexctl.py`](scripts/missing.py) for the gate."))
+        self.assertEqual([], codes(
+            "See [`hexctl.py`](scripts/hexctl.py) for the gate.",
+            siblings=("scripts/hexctl.py",)))
+        self.assertEqual(["H001"], codes(
+            "See [the `hexctl.py` gate](scripts/missing.py)."))
+
+    def test_a_span_holding_part_of_a_link_decides_by_its_bracket(self):
+        # CommonMark binds a code span before a link, so a bracket inside a
+        # span opens no link and the line is a specimen, while a bracket
+        # outside a span opens a link the lint still reads even when the
+        # span swallows the rest of it: the ambiguous case stays reported.
+        self.assertEqual([], codes("`[text`](missing.md)"))
+        self.assertEqual(["H001"], codes("[te`xt](missing.md)`"))
 
     def test_a_reasoned_pragma_still_suppresses_a_live_pointer(self):
         self.assertEqual([], codes(

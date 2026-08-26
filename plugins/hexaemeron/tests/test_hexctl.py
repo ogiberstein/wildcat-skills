@@ -1723,7 +1723,18 @@ class TestStudyAmendments(HexctlCase):
                 self.assertIn("study artefact digest changed", proc.stderr)
 
 
-class TestCommitVerification(HexctlCase):
+try:
+    from .host_identity_cases import build_host_identity_cases
+except ImportError:
+    from host_identity_cases import build_host_identity_cases
+
+
+HostIdentityRefusalCases, FooterReappearanceCases = build_host_identity_cases(
+    globals()
+)
+
+
+class TestCommitVerification(HostIdentityRefusalCases, HexctlCase):
     def test_local_fake_git_negative_matrix_is_fail_closed_and_secret_safe(self):
         module = hexctl_module()
         module.GIT_TIMEOUT = 0.05
@@ -2230,7 +2241,7 @@ class TestMergedState(HexctlCase):
         )
 
 
-class TestPublicationBindings(HexctlCase):
+class TestPublicationBindings(FooterReappearanceCases, HexctlCase):
     def to_push(self, base=None):
         self.to_steps(("Ship",), base=base)
         self.run_ctl(
