@@ -22,6 +22,17 @@ def encode(value: RLP) -> bytes:
     raise FormatError(f"RLP value must be bytes or list, not {type(value).__name__}")
 
 
+def encode_uint(value: int) -> bytes:
+    """Encode one unsigned 256-bit integer as a canonical RLP string."""
+
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise FormatError("RLP integer must be a non-negative whole number")
+    if value.bit_length() > 256:
+        raise FormatError("RLP integer exceeds 256 bits")
+    raw = b"" if value == 0 else value.to_bytes((value.bit_length() + 7) // 8, "big")
+    return encode(raw)
+
+
 def _prefix(short_base: int, long_base: int, length: int) -> bytes:
     if length < 56:
         return bytes([short_base + length])

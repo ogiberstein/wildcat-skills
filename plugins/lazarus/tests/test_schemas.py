@@ -30,6 +30,7 @@ class SchemaTests(unittest.TestCase):
         )
         self.assertIn(("plan", 2), SCHEMAS)
         self.assertIn(("plan", 3), SCHEMAS)
+        self.assertIn(("manifest", 2), SCHEMAS)
 
     def test_a_well_formed_release_document_passes(self):
         validate_document("release", support.sample_release())
@@ -261,6 +262,52 @@ class SchemaTests(unittest.TestCase):
         plan_v3["properties"].pop("receipt_witness")
         plan_v3["properties"]["schema_version"] = {"const": 2}
         self.assertEqual(plan_v3, plan_v2)
+
+    def test_manifest_v2_is_additive_over_manifest_v1(self):
+        manifest_v1 = support.load_json("schemas/manifest-v1.json")
+        manifest_v2 = support.load_json("schemas/manifest-v2.json")
+        manifest_v2["$id"] = manifest_v1["$id"]
+        manifest_v2["title"] = manifest_v1["title"]
+        manifest_v2["required"].remove("receipts_root")
+        manifest_v2["properties"].pop("receipts_root")
+        manifest_v2["properties"]["schema_version"] = {"const": 1}
+        counts = manifest_v2["properties"]["evidence_counts"]
+        counts["required"].remove("receipt_trie_proved")
+        counts["properties"].pop("receipt_trie_proved")
+        self.assertEqual(manifest_v2, manifest_v1)
+
+    def test_manifest_v2_requires_a_bound_witness_and_nonzero_proved_root(self):
+        manifest = support.sample_manifest_v2()
+        validate_document("manifest", manifest)
+
+        without_witness = copy.deepcopy(manifest)
+        without_witness["components"].pop()
+        with self.assertRaisesRegex(FormatError, "requires receipt-witness"):
+            validate_document("manifest", without_witness)
+
+        zero_root = copy.deepcopy(manifest)
+        zero_root["receipts_root"] = support.hash32("00")
+        with self.assertRaisesRegex(FormatError, "nonzero receipts root"):
+            validate_document("manifest", zero_root)
+
+        zero_count = copy.deepcopy(zero_root)
+        zero_count["evidence_counts"]["receipt_trie_proved"] = 0
+        validate_document("manifest", zero_count)
+
+        boolean_count = copy.deepcopy(manifest)
+        boolean_count["evidence_counts"]["receipt_trie_proved"] = True
+        with self.assertRaises(FormatError):
+            validate_document("manifest", boolean_count)
+
+    def test_manifest_v1_refuses_a_receipt_witness_or_new_evidence_class(self):
+        manifest = support.sample_manifest_v2()
+        manifest["schema_version"] = 1
+        manifest.pop("receipts_root")
+        with self.assertRaisesRegex(FormatError, "evidence_counts"):
+            validate_document("manifest", manifest)
+        manifest["evidence_counts"].pop("receipt_trie_proved")
+        with self.assertRaisesRegex(FormatError, "manifest-v1 refuses"):
+            validate_document("manifest", manifest)
 
     def test_plan_v3_relations_bind_exact_standard_requests(self):
         validate_document("plan", support.sample_plan_v3())

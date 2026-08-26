@@ -235,6 +235,7 @@ class ScaffoldTests(unittest.TestCase):
                 "manifest.py",
                 "paths.py",
                 "proofs.py",
+                "receipts.py",
                 "records.py",
                 "release.py",
                 "replay.py",

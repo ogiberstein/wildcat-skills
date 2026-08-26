@@ -20,6 +20,7 @@ from lazarus_lib.records import (
     make_rpc_record,
     write_anchor_records,
     write_proof_records,
+    write_receipt_witness,
     write_rpc_records,
 )
 from lazarus_lib.verifier import verify_fixture
@@ -29,6 +30,7 @@ from . import support
 
 COMPONENTS = ("header.json", "plan.json", "proofs.jsonl", "rpc.jsonl")
 ANCHORED_COMPONENTS = (*COMPONENTS, "anchors.jsonl")
+RECEIPT_COMPONENTS = (*ANCHORED_COMPONENTS, "receipt-witness.json")
 
 
 def write_fixture(
@@ -87,6 +89,32 @@ def rebind_component(root: Path, relative: str) -> None:
     dump(root / "manifest.json", manifest)
 
 
+def write_receipt_fixture(root: Path, material=None, *, counts=None):
+    material = material or support.receipt_fixture_material()
+    dump(root / "plan.json", material["plan"])
+    dump(root / "header.json", material["header"])
+    write_rpc_records(root / "rpc.jsonl", material["rpc_records"])
+    write_proof_records(root / "proofs.jsonl", material["proof_records"])
+    write_anchor_records(root / "anchors.jsonl", material["anchor_records"])
+    write_receipt_witness(root / "receipt-witness.json", material["receipt_witness"])
+    manifest = build_manifest(
+        root,
+        RECEIPT_COMPONENTS,
+        chain_id="0x1",
+        block_number=material["header"]["number"],
+        block_hash=material["header"]["hash"],
+        evidence_counts=counts
+        or {
+            "proof_backed": 3,
+            "header_bound": 1,
+            "recorded_rpc": 4,
+            "receipt_trie_proved": 2,
+        },
+    )
+    write_manifest(root, manifest)
+    return material
+
+
 def replace_anchor_records(root: Path, records) -> None:
     (root / "anchors.jsonl").write_bytes(
         b"".join(dumps(record) + b"\n" for record in records)
@@ -95,37 +123,90 @@ def replace_anchor_records(root: Path, records) -> None:
 
 
 class VerifierTests(unittest.TestCase):
-    def test_plan_v3_whole_fixture_refuses_by_name(self):
-        material = support.synthetic_fixture_material()
-        plan = support.sample_plan_v3()
-        plan["block"] = material["plan"]["block"]
-        plan["proof_targets"] = material["plan"]["proof_targets"]
-        plan["limits"] = material["plan"]["limits"]
-        plan["requests"][1]["params"] = [plan["block"]["hash"]]
-        plan["requests"][3]["params"][0]["blockHash"] = plan["block"]["hash"]
-        material["plan"] = plan
-        for request, result in zip(plan["requests"][1:], ([], {}, [])):
-            material["rpc_records"].append(
-                make_rpc_record(
-                    request["method"],
-                    request["params"],
-                    required=True,
-                    evidence="recorded-rpc",
-                    result=result,
-                    name=request["name"],
-                )
-            )
+    def test_plan_v3_whole_fixture_reports_scoped_receipt_relations(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write_fixture(
-                root,
-                material,
-                counts={"proof_backed": 3, "header_bound": 1, "recorded_rpc": 4},
-                anchor_source_ids=("archive-a",),
-                plan_version=3,
+            write_receipt_fixture(root)
+            report = verify_fixture(root)
+            self.assertEqual(
+                report["evidence_counts"],
+                {
+                    "proof_backed": 3,
+                    "header_bound": 1,
+                    "recorded_rpc": 4,
+                    "receipt_trie_proved": 2,
+                },
             )
-            with self.assertRaisesRegex(FormatError, "plan-v3"):
+            self.assertEqual(report["receipt_trie_proved"]["relations"], 2)
+            self.assertEqual(
+                report["receipt_trie_proved"]["transaction_hash_attribution"],
+                "recorded_rpc",
+            )
+
+    def test_receipt_component_is_read_once_after_manifest_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_receipt_fixture(root)
+            from lazarus_lib import verifier as verifier_module
+
+            original_read = verifier_module._read_bound
+            reads = []
+
+            def counted_read(fixture, relative, claims, max_bytes):
+                reads.append(relative)
+                return original_read(fixture, relative, claims, max_bytes)
+
+            with mock.patch(
+                "lazarus_lib.verifier._read_bound", side_effect=counted_read
+            ):
                 verify_fixture(root)
+            self.assertEqual(reads.count("receipt-witness.json"), 1)
+
+    def test_receipt_mutation_after_manifest_verification_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_receipt_fixture(root)
+            from lazarus_lib import verifier as verifier_module
+
+            original_verify = verifier_module.verify_manifest
+
+            def verify_then_mutate(fixture):
+                manifest = original_verify(fixture)
+                path = root / "receipt-witness.json"
+                path.write_bytes(path.read_bytes().replace(b'"status":"0x1"', b'"status":"0x0"', 1))
+                return manifest
+
+            with mock.patch(
+                "lazarus_lib.verifier.verify_manifest", side_effect=verify_then_mutate
+            ):
+                with self.assertRaisesRegex(
+                    IntegrityError,
+                    "component changed after manifest verification: receipt-witness.json",
+                ):
+                    verify_fixture(root)
+
+    def test_cli_prints_only_scoped_receipt_proof_coordinates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_receipt_fixture(root)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(support.SCRIPTS / "lazarus.py"),
+                    "verify",
+                    str(root),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("receipt-trie-proved: 2", result.stdout)
+            self.assertIn("receipts-root: 0x19d164", result.stdout)
+            self.assertIn("receipt-count: 2", result.stdout)
+            self.assertIn("target-transaction-index: 0x1", result.stdout)
+            self.assertIn("filtered-log-count: 1", result.stdout)
+            self.assertNotIn(support.hash32("44"), result.stdout)
 
     def test_anchor_reports_are_separate_counts_with_no_chain_claims(self):
         for count in (1, 32):

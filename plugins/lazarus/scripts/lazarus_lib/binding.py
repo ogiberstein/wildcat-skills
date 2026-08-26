@@ -184,6 +184,10 @@ def _verified_report(report: Any) -> dict[str, Any]:
             raise FormatError(
                 f"report {name} count is {value!r} rather than a number of records"
             )
+    if set(counts) != set(EVIDENCE_CLASSES):
+        raise IntegrityError(
+            "state-fixture/v1 binding refuses evidence classes outside its vocabulary"
+        )
     header = _object(_member(report, "header_bound", "report"), "report header_bound")
     _member(header, "canonical_chain_claim", "report header_bound")
     return report
