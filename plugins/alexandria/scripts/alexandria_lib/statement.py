@@ -295,9 +295,26 @@ def _temporary(parent_fd: int, output_name: str):
             descriptor = os.open(name, flags, 0o600, dir_fd=parent_fd)
         except FileExistsError:
             continue
-        created = os.fstat(descriptor)
+        try:
+            created = os.fstat(descriptor)
+        except OSError as exc:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+            try:
+                os.unlink(name, dir_fd=parent_fd)
+            except OSError:
+                pass
+            raise AlexandriaError(
+                f"cannot inspect statement temporary output: {exc}"
+            ) from exc
         if not stat.S_ISREG(created.st_mode):
-            os.close(descriptor)
+            _remove_temporary(parent_fd, name, created)
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
             raise AlexandriaError("statement temporary output is not a regular file")
         return name, descriptor, created
     raise AlexandriaError("cannot allocate a fresh statement temporary file")

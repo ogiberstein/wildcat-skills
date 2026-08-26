@@ -439,6 +439,33 @@ class OutputBoundaryTests(StatementTestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.root.glob(".statement.json.tmp-*")), [])
 
+    def test_temporary_inspection_failure_closes_and_removes_created_file(self):
+        parent_fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY)
+        descriptors = []
+        original_open = os.open
+
+        def tracking_open(path, flags, mode=0o777, *, dir_fd=None):
+            descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+            descriptors.append(descriptor)
+            return descriptor
+
+        try:
+            with mock.patch.object(
+                statement_module.os, "open", side_effect=tracking_open
+            ), mock.patch.object(
+                statement_module.os,
+                "fstat",
+                side_effect=OSError("inspection failed"),
+            ), self.assertRaisesRegex(AlexandriaError, "cannot inspect"):
+                statement_module._temporary(parent_fd, "statement.json")
+
+            self.assertEqual(len(descriptors), 1)
+            self.assertEqual(list(self.root.glob(".statement.json.tmp-*")), [])
+            with self.assertRaises(OSError):
+                os.fstat(descriptors[0])
+        finally:
+            os.close(parent_fd)
+
     def test_interrupted_replacement_preserves_existing_output(self):
         self.build()
         self.output.write_bytes(b"keep\n")

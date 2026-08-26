@@ -189,6 +189,50 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(exit_code, 2)
             self.assertFalse(report.exists())
 
+    def test_report_inspection_failure_closes_and_removes_created_file(self):
+        with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
+            root = Path(directory).resolve()
+            report = root / "report.json"
+            root_fd = runner.os.open(
+                root,
+                runner.os.O_RDONLY
+                | runner.os.O_DIRECTORY
+                | runner.os.O_NOFOLLOW,
+            )
+            descriptors = []
+            original_open = runner.os.open
+
+            def tracking_open(path, flags, mode=0o777, *, dir_fd=None):
+                descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+                descriptors.append(descriptor)
+                return descriptor
+
+            with mock.patch.object(
+                runner, "report_root", return_value=root_fd
+            ), mock.patch.object(
+                runner.os, "open", side_effect=tracking_open
+            ), mock.patch.object(
+                runner.os, "fstat", side_effect=OSError("inspection failed")
+            ), self.assertRaises(OSError):
+                runner.write_report(
+                    (root, (root.stat().st_dev, root.stat().st_ino), (report.name,)),
+                    runner.result_payload(
+                        SimpleNamespace(
+                            testsRun=1,
+                            failures=[],
+                            errors=[],
+                            skipped=[],
+                            expectedFailures=[],
+                            unexpectedSuccesses=[],
+                        )
+                    ),
+                )
+
+            self.assertEqual(len(descriptors), 1)
+            self.assertFalse(report.exists())
+            with self.assertRaises(OSError):
+                runner.os.fstat(descriptors[0])
+
     def test_runner_discovers_tests_from_the_plugin_root(self):
         suite = unittest.TestSuite()
         with mock.patch.object(
