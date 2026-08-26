@@ -57,6 +57,37 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(existing.read_text(encoding="utf-8"), "keep\n")
             self.assertEqual(target.read_text(encoding="utf-8"), "keep\n")
 
+    def test_absolute_report_below_worktree_path_alias_is_bound_to_the_root(self):
+        with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
+            parent = Path(directory).resolve()
+            root = parent / "worktree"
+            root.mkdir()
+            alias = parent / "worktree-alias"
+            alias.symlink_to(root, target_is_directory=True)
+            report = alias / "reports" / "result.json"
+
+            with mock.patch.object(runner, "worktree_root", return_value=root):
+                target = runner.report_target(["--elenchus-report", str(report)])
+
+            self.assertEqual(target[0], root)
+            self.assertEqual(target[2], ("reports", "result.json"))
+
+    def test_symlink_below_the_worktree_root_remains_refused(self):
+        with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
+            root = Path(directory).resolve()
+            self_link = root / "self-link"
+            self_link.symlink_to(root, target_is_directory=True)
+            report = self_link / "report.json"
+
+            with mock.patch.object(
+                runner, "worktree_root", return_value=root
+            ), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(
+                SystemExit
+            ) as raised:
+                runner.report_target(["--elenchus-report", str(report)])
+
+            self.assertEqual(raised.exception.code, 2)
+
     def test_safe_report_is_exclusive_complete_and_mode_0600(self):
         with tempfile.TemporaryDirectory(prefix="alexandria-runner-") as directory:
             root = Path(directory).resolve()
