@@ -40,7 +40,7 @@ DELIVERY_PACKAGE_VERSIONS = {
     "berean": "0.1.1",
     "brevitas": "0.2.1",
     "hermes": "0.1.1",
-    "hexaemeron": "1.5.9",
+    "hexaemeron": "1.5.10",
     "horos": "0.1.1",
     "janus": "0.1.1",
     "lazarus": "1.1.1",
