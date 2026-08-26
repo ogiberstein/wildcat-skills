@@ -180,6 +180,46 @@ class SchemaTests(unittest.TestCase):
             with self.subTest(kind=kind), self.assertRaisesRegex(FormatError, "unsupported"):
                 validate_document(kind, document)
 
+    def test_unknown_schema_versions_are_value_free_and_bounded(self):
+        for digits in ("3141592653589793", "314159" + "2" * 4000):
+            document = support.sample_receipt_witness()
+            document["schema_version"] = int(digits)
+            with self.subTest(digits=len(digits)), self.assertRaises(
+                FormatError
+            ) as raised:
+                validate_document("receipt-witness", document)
+            error = raised.exception
+            surfaces = {
+                "message": str(error),
+                "args": repr(error.args),
+                "repr": repr(error),
+                "cause": repr(error.__cause__),
+                "context": repr(error.__context__),
+                "traceback": "".join(
+                    traceback.format_exception(type(error), error, error.__traceback__)
+                ),
+            }
+            self.assertIsNone(error.__cause__)
+            self.assertIsNone(error.__context__)
+            for name, rendered in surfaces.items():
+                with self.subTest(surface=name):
+                    self.assertNotIn("314159", rendered)
+                    self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
+
+    def test_plan_v3_surrogates_fail_as_canonical_format_errors(self):
+        plan = support.sample_plan_v3()
+        plan["block"]["hash_source"] = "\ud800"
+        caught = None
+        try:
+            validate_document("plan", plan)
+        except Exception as error:  # The assertion below classifies the boundary.
+            caught = error
+        self.assertIsNotNone(caught)
+        self.assertIsInstance(caught, FormatError)
+        self.assertIn("surrogate code point", str(caught))
+        self.assertIsNone(caught.__cause__)
+        self.assertIsNone(caught.__context__)
+
     def test_plan_v2_requires_closed_bounded_source_declarations(self):
         validate_document("plan", support.sample_plan_v2(("a",)))
         validate_document(

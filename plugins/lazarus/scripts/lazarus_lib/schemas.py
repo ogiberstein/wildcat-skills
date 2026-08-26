@@ -63,7 +63,7 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
 def _schema(kind: str, version: int) -> dict[str, Any]:
     registered = SCHEMAS.get((kind, version))
     if registered is None:
-        raise FormatError(f"unsupported {kind} schema version: {version}")
+        raise FormatError(f"unsupported {kind} schema version")
     filename, expected_digest = registered
     path = SCHEMA_ROOT / filename
     try:

@@ -6,6 +6,7 @@ import json
 from itertools import islice
 import os
 from pathlib import Path
+import re
 import stat
 import tempfile
 from typing import Any, Callable, Iterable, Sequence
@@ -19,6 +20,7 @@ MAX_RECORD_BYTES = 16 * 1024 * 1024
 MAX_RECORDS = 100_000
 MAX_DEPTH = 64
 MAX_CONTAINER_ITEMS = 100_000
+_SURROGATE_CODE_POINT = re.compile(r"[\ud800-\udfff]")
 
 
 def _reject_duplicate_pairs(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
@@ -37,7 +39,11 @@ def _reject_number(value: str) -> None:
 def _check_shape(value: Any, *, depth: int = 0) -> None:
     if depth > MAX_DEPTH:
         raise ResourceLimitError(f"JSON nesting exceeds {MAX_DEPTH}")
-    if value is None or isinstance(value, (bool, int, str)):
+    if value is None or isinstance(value, (bool, int)):
+        return
+    if isinstance(value, str):
+        if _SURROGATE_CODE_POINT.search(value) is not None:
+            raise FormatError("JSON string contains a surrogate code point")
         return
     if isinstance(value, float):
         raise FormatError("floating-point values are not allowed")
@@ -47,6 +53,8 @@ def _check_shape(value: Any, *, depth: int = 0) -> None:
         for key, item in value.items():
             if not isinstance(key, str):
                 raise FormatError("JSON object keys must be strings")
+            if _SURROGATE_CODE_POINT.search(key) is not None:
+                raise FormatError("JSON object key contains a surrogate code point")
             _check_shape(item, depth=depth + 1)
         return
     if isinstance(value, (list, tuple)):

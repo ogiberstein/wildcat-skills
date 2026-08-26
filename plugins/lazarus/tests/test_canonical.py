@@ -75,6 +75,26 @@ class CanonicalTests(unittest.TestCase):
                     f'{{"value":{number}}}'.encode("utf-8"), "314159."
                 )
 
+    def test_json_strings_refuse_surrogate_code_points_as_format_errors(self):
+        cases = (
+            ("loaded value", lambda: loads(b'{"value":"\\ud800"}')),
+            ("loaded key", lambda: loads(b'{"\\udfff":0}')),
+            ("dumped value", lambda: dumps({"value": "\ud800"})),
+            ("dumped key", lambda: dumps({"\udfff": 0})),
+        )
+        for name, operation in cases:
+            caught = None
+            try:
+                operation()
+            except Exception as error:  # The assertion below classifies the boundary.
+                caught = error
+            with self.subTest(name=name):
+                self.assertIsNotNone(caught)
+                self.assertIsInstance(caught, FormatError)
+                self.assertIn("surrogate code point", str(caught))
+                self.assertIsNone(caught.__cause__)
+                self.assertIsNone(caught.__context__)
+
     def test_invalid_utf8_and_unsupported_values_fail(self):
         with self.assertRaisesRegex(FormatError, "not UTF-8"):
             loads(b'"\xff"')
