@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+import re
+import signal
+from threading import current_thread, main_thread
 from typing import Any, Mapping
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -16,6 +20,10 @@ from .scrub import sanitised_rpc_error
 
 class RpcTransportError(LazarusError):
     """A safe provider transport or protocol failure."""
+
+
+class _RpcDeadlineExpired(BaseException):
+    """Private cancellation signal normalised at the transport boundary."""
 
 
 RESPONSE_READ_CHUNK_BYTES = 64 * 1024
@@ -82,8 +90,10 @@ class JsonRpcClient:
         if not is_batch and not isinstance(parsed, dict):
             raise FormatError("provider JSON-RPC single response must be an object")
         responses = parsed if is_batch else [parsed]
+        identifier_set = set(identifiers)
         by_id: dict[int, RpcOutcome] = {}
         for response in responses:
+            self._limits.check_time()
             if not isinstance(response, dict):
                 raise FormatError("provider JSON-RPC response must be an object")
             if response.get("jsonrpc") != "2.0":
@@ -91,7 +101,7 @@ class JsonRpcClient:
             identifier = response.get("id")
             if not isinstance(identifier, int) or isinstance(identifier, bool):
                 raise FormatError("provider JSON-RPC response has an invalid id")
-            if identifier not in identifiers or identifier in by_id:
+            if identifier not in identifier_set or identifier in by_id:
                 raise FormatError(
                     "provider JSON-RPC response has an unknown or duplicate id"
                 )
@@ -104,52 +114,61 @@ class JsonRpcClient:
                 if has_result
                 else RpcOutcome(error=sanitised_rpc_error(response["error"]))
             )
-        if set(by_id) != set(identifiers):
+        if set(by_id) != identifier_set:
             raise FormatError("provider JSON-RPC batch response is incomplete")
+        self._limits.check_time()
         return [by_id[identifier] for identifier in identifiers]
 
     def _post(self, body: bytes) -> Any:
         limit = self._limits.response_read_limit()
         declared_size_value: int | None = None
-        transport_failed = False
+        deadline_expired = False
         try:
-            request = Request(
-                self._url, data=body, headers=self._headers, method="POST"
-            )
-            with self._opener.open(
-                request,
-                timeout=self._limits.remaining_seconds(),
-            ) as response:
-                declared_size_value = _declared_content_length(response.headers)
-                if declared_size_value is not None:
-                    if declared_size_value < 0 or declared_size_value > limit:
-                        raise ResourceLimitError(
-                            "RPC response exceeds the plan capture byte limit"
-                        )
-                raw = _read_response(response, limit, self._limits)
+            with _transport_deadline(self._limits):
+                request = Request(
+                    self._url, data=body, headers=self._headers, method="POST"
+                )
+                with self._opener.open(
+                    request,
+                    timeout=self._limits.remaining_seconds(),
+                ) as response:
+                    declared_size_value = _declared_content_length(response.headers)
+                    if declared_size_value is not None:
+                        if declared_size_value < 0 or declared_size_value > limit:
+                            raise ResourceLimitError(
+                                "RPC response exceeds the plan capture byte limit"
+                            )
+                    raw = _read_response(response, limit, self._limits)
+                self._limits.after_response(len(raw))
+                if declared_size_value is not None and len(raw) != declared_size_value:
+                    raise RpcTransportError(
+                        "provider response did not match its content length"
+                    )
+                if len(raw) > limit:
+                    raise RpcTransportError(
+                        "provider response exceeded the capture byte limit"
+                    )
+                try:
+                    return loads(raw, max_bytes=limit)
+                except FormatError:
+                    raise RpcTransportError("provider returned invalid JSON") from None
         except HTTPError as exc:
             try:
                 exc.close()
             except Exception:
                 pass
-            transport_failed = True
+        except _RpcDeadlineExpired:
+            deadline_expired = True
         except (ResourceLimitError, RpcTransportError):
             raise
         except Exception:
-            transport_failed = True
-        if transport_failed:
-            raise RpcTransportError("provider transport failed")
-        self._limits.after_response(len(raw))
-        if declared_size_value is not None and len(raw) != declared_size_value:
-            raise RpcTransportError(
-                "provider response did not match its content length"
+            pass
+        if deadline_expired:
+            raise ResourceLimitError(
+                f"capture exceeds the plan limit of "
+                f"{self._limits.max_elapsed_seconds} seconds"
             )
-        if len(raw) > limit:
-            raise RpcTransportError("provider response exceeded the capture byte limit")
-        try:
-            return loads(raw, max_bytes=limit)
-        except FormatError:
-            raise RpcTransportError("provider returned invalid JSON") from None
+        raise RpcTransportError("provider transport failed")
 
 
 def _declared_content_length(headers: Mapping[str, str]) -> int | None:
@@ -164,15 +183,57 @@ def _declared_content_length(headers: Mapping[str, str]) -> int | None:
     if not lengths:
         return None
     declared_size = lengths[0]
-    invalid = False
+    if not isinstance(declared_size, str):
+        raise RpcTransportError("provider returned an invalid content length")
+    digits = declared_size.strip(" \t")
+    if re.fullmatch(r"[0-9]+", digits) is None:
+        raise RpcTransportError("provider returned an invalid content length")
+    value = None
     try:
-        value = int(declared_size, 10)
-    except (TypeError, ValueError):
-        invalid = True
-        value = 0
-    if invalid:
+        value = int(digits, 10)
+    except ValueError:
+        pass
+    if value is None:
         raise RpcTransportError("provider returned an invalid content length")
     return value
+
+
+@contextmanager
+def _transport_deadline(limits: CaptureLimits):
+    """Enforce one absolute wall deadline across the whole blocking exchange."""
+
+    remaining = limits.remaining_seconds()
+    if (
+        current_thread() is not main_thread()
+        or not hasattr(signal, "setitimer")
+        or not hasattr(signal, "getitimer")
+    ):
+        raise RpcTransportError("absolute RPC deadline enforcement is unavailable")
+    try:
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        previous_timer = signal.getitimer(signal.ITIMER_REAL)
+    except Exception:
+        raise RpcTransportError(
+            "absolute RPC deadline enforcement is unavailable"
+        ) from None
+    if previous_handler not in {signal.SIG_DFL, signal.SIG_IGN} or any(
+        value > 0 for value in previous_timer
+    ):
+        raise RpcTransportError("absolute RPC deadline enforcement is unavailable")
+
+    def expired(signum, frame):
+        raise _RpcDeadlineExpired
+
+    handler_installed = False
+    try:
+        signal.signal(signal.SIGALRM, expired)
+        handler_installed = True
+        signal.setitimer(signal.ITIMER_REAL, remaining)
+        yield
+    finally:
+        if handler_installed:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous_handler)
 
 
 def _read_response(response: Any, limit: int, limits: CaptureLimits) -> bytes:

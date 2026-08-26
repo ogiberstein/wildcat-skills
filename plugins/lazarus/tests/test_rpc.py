@@ -2,9 +2,12 @@
 
 from http.client import IncompleteRead
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import signal
 from threading import Thread
+import time
 import traceback
 import unittest
+from unittest import mock
 
 from lazarus_lib.errors import FormatError, ResourceLimitError
 from lazarus_lib.limits import CaptureLimits
@@ -64,6 +67,30 @@ class RpcTests(unittest.TestCase):
                 JsonRpcClient(server.url, limits()).request_many(
                     [("one", []), ("two", [])]
                 )
+
+    def test_batch_id_validation_is_linear(self):
+        class CountingInt(int):
+            comparisons = 0
+
+            def __eq__(self, other):
+                type(self).comparisons += 1
+                return super().__eq__(other)
+
+            __hash__ = int.__hash__
+
+        count = 128
+        responses = [
+            {"jsonrpc": "2.0", "id": CountingInt(index), "result": index}
+            for index in range(1, count + 1)
+        ]
+        client = JsonRpcClient(
+            "https://rpc.example",
+            limits(max_requests=count),
+        )
+        with mock.patch.object(client, "_post", return_value=responses):
+            outcomes = client.request_many([("read", []) for _ in range(count)])
+        self.assertEqual(len(outcomes), count)
+        self.assertLess(CountingInt.comparisons, count * 4)
 
     def test_response_body_is_bounded_before_json_parsing(self):
         with FakeRpc(lambda *args: None, raw_response=b" " * 65) as server:
@@ -155,6 +182,92 @@ class RpcTests(unittest.TestCase):
         ) as server:
             with self.assertRaisesRegex(RpcTransportError, "content length"):
                 JsonRpcClient(server.url, limits()).call("incomplete-length", [])
+
+    def test_content_length_requires_ascii_decimal_digits(self):
+        body = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}   '
+        for value in (f"+{len(body)}", "4_2"):
+            with self.subTest(content_length=value), FakeRpc(
+                lambda *args: None,
+                raw_response=body,
+                declared_length=value,
+            ) as server:
+                with self.assertRaisesRegex(RpcTransportError, "content length"):
+                    JsonRpcClient(server.url, limits()).call("eth_chainId", [])
+
+    def test_absolute_deadline_interrupts_the_open_phase(self):
+        class Response:
+            headers = {}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def read1(self, size):
+                return b""
+
+        class SlowOpener:
+            completed = False
+
+            def open(self, request, timeout):
+                time.sleep(0.1)
+                self.completed = True
+                return Response()
+
+        opener = SlowOpener()
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        previous_timer = signal.getitimer(signal.ITIMER_REAL)
+        with self.assertRaisesRegex(ResourceLimitError, "seconds") as caught:
+            JsonRpcClient(
+                "https://rpc.example",
+                limits(max_elapsed_seconds=0.02),
+                opener=opener,
+            ).call("eth_chainId", [])
+        self.assertFalse(opener.completed)
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertIsNone(caught.exception.__context__)
+        self.assertEqual(signal.getsignal(signal.SIGALRM), previous_handler)
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL), previous_timer)
+
+    def test_absolute_deadline_interrupts_json_decode(self):
+        body = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
+        completed = False
+
+        def slow_loads(raw, *, max_bytes):
+            nonlocal completed
+            time.sleep(0.1)
+            completed = True
+            return {"jsonrpc": "2.0", "id": 1, "result": "0x1"}
+
+        with FakeRpc(lambda *args: None, raw_response=body) as server:
+            with mock.patch("lazarus_lib.rpc.loads", side_effect=slow_loads):
+                with self.assertRaisesRegex(ResourceLimitError, "seconds") as caught:
+                    JsonRpcClient(
+                        server.url,
+                        limits(max_elapsed_seconds=0.02),
+                    ).call("eth_chainId", [])
+        self.assertFalse(completed)
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertIsNone(caught.exception.__context__)
+
+    def test_absolute_deadline_does_not_replace_an_active_process_timer(self):
+        class ForbiddenOpener:
+            opened = False
+
+            def open(self, request, timeout):
+                self.opened = True
+                raise AssertionError("an occupied process timer was replaced")
+
+        opener = ForbiddenOpener()
+        with mock.patch.object(signal, "getitimer", return_value=(1.0, 0.0)):
+            with self.assertRaisesRegex(RpcTransportError, "deadline enforcement"):
+                JsonRpcClient(
+                    "https://rpc.example",
+                    limits(),
+                    opener=opener,
+                ).call("eth_chainId", [])
+        self.assertFalse(opener.opened)
 
     def test_ambiguous_http_response_framing_is_refused(self):
         body = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
