@@ -2,7 +2,7 @@
   "counts": {
     "bytes_asset": 138,
     "bytes_binary": 11,
-    "bytes_blob": 9998955,
+    "bytes_blob": 10111453,
     "bytes_generated": 98
   },
   "entries": [
@@ -26,6 +26,27 @@
       "evidence": "mean line length above 400 in the first 4096 bytes",
       "grade": "candidate",
       "path": "audit/rounds/fiat-429-audit-record-schema-timestamp-synopsis.synopsis.md"
+    },
+    {
+      "bytes": 23166,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "audit/rounds/fiat-503-imprimatur-1-read-comment-spans-in-source-fi.synopsis.md"
+    },
+    {
+      "bytes": 57473,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "audit/rounds/fiat-510-reuse-source-bound-x-ray-analysis-across-fia.synopsis.md"
+    },
+    {
+      "bytes": 31859,
+      "category": "blob",
+      "evidence": "mean line length above 400 in the first 4096 bytes",
+      "grade": "candidate",
+      "path": "audit/rounds/fiat-617-runtime-host-reinstates-the-byline-the-ident.synopsis.md"
     },
     {
       "bytes": 59394,

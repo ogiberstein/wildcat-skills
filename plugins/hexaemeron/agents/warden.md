@@ -42,10 +42,25 @@ already carries every step below it in the stack. `risk_register` carries the
 exact fenced study block, artefact path, and SHA-256. The exact source-bound
 `runbook_step` carries its Markdown, artefact path, SHA-256, number, and title.
 The Pashov suite is vendored but remains upstream-owned:
-read `<plugin-root>/skills/x-ray/SKILL.md`, then
+read `<plugin-root>/skills/fiat/references/xray-reuse.md` and complete its
+digest preconditions before reading or following
+`<plugin-root>/skills/x-ray/SKILL.md`, then read
 `<plugin-root>/skills/solidity-auditor/SKILL.md`, and follow each in that
 order against the step's full diff and every contract it touches -- not a
-summary. When the step ships Solidity under Foundry or Hardhat and `fizz`
+summary. Use the first-party adapter as an X-Ray preparation layer only. Build
+the full logical scope from the current tree; read and digest every current
+source as the pinned X-Ray operation requires. Reuse replaces only
+preparation-fact regeneration. Accept only a closed, complete, validated
+current fact union; run fresh coverage, history, integration and cross-source
+analysis, run fresh global synthesis, and regenerate all four final outputs
+named by the reuse reference. Any cache uncertainty becomes named full
+recomputation; unsafe or incomplete current scope stops the round. Keep scope
+manifests, reuse plans, preparation entries, candidates, output manifests,
+cache paths, cache keys, cache payloads, and cache verdicts out of the brief,
+audit directive, controller state, ledger, and every receipt. The audit record
+may name this working material when a finding needs it, without giving it
+controller authority. When the step ships Solidity under Foundry or Hardhat
+and `fizz`
 is in the suite, follow `<plugin-root>/skills/fizz/SKILL.md` to build or
 refresh the invariant fuzz suite (round 1) or re-run its campaigns
 (later rounds where contracts changed); campaign failures are findings.
