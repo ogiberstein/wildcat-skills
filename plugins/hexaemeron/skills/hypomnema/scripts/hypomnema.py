@@ -38,7 +38,8 @@ specimen rather than a live pointer, so H003 passes over it. The keyword's
 own position decides that: `runbook: ` followed by a backticked path is
 still read and still resolved. Spans are paired per line, an unmatched
 backtick run stays literal text, and a backtick escaped by an odd number of
-backslashes opens nothing.
+backslashes opens nothing. A relative link inside a span is read the same
+way, so H001 passes over it.
 
 An alert runbook is a Markdown file below a directory named `runbooks`.
 It carries non-empty `## What fired`, `## First check` and `## Who to wake`
@@ -509,7 +510,14 @@ def check(path: Path, adr_numbers: set[str] | None = None) -> list[Finding]:
         if in_fence:
             continue
 
-        for match in LINK.finditer(line):
+        links = list(LINK.finditer(line))
+        # A link inside an inline code span is a quoted specimen, the reading
+        # H003 gives a `runbook:` keyword there. Only a line carrying a link
+        # pays for the span scan.
+        link_spans = _code_spans(line) if links else ()
+        for match in links:
+            if _within(link_spans, match.start()):
+                continue
             target = match.group("target")
             if target.startswith("#") or _external(target):
                 continue
