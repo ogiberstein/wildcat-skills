@@ -8,6 +8,7 @@ the whole current scope before promotion may touch the previous cache.
 
 import copy
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import shutil
@@ -38,6 +39,15 @@ XRAY_SKILL = PLUGIN_ROOT / "skills" / "x-ray" / "SKILL.md"
 EXPECTED_XRAY_DIGEST = (
     "b23bb94517805c1b8ce717d0e1e0282b0b5c14c7b16f4c32e73940292d3d4a41"
 )
+
+
+def load_demo_module():
+    spec = importlib.util.spec_from_file_location("xray_reuse_demo", DEMO)
+    if spec is None or spec.loader is None:
+        raise AssertionError("fixture demonstration module cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 SOURCE_BOUND_FACT_KEYS = frozenset(
     {
         "access",
@@ -1196,6 +1206,7 @@ class CompositionContractTests(unittest.TestCase):
 class FixtureDemonstrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.demo = load_demo_module()
         process = subprocess.run(
             [sys.executable, str(DEMO), "--samples", "3"],
             text=True,
@@ -1206,6 +1217,86 @@ class FixtureDemonstrationTests(unittest.TestCase):
         if process.returncode:
             raise AssertionError(process.stderr)
         cls.proof = json.loads(process.stdout)
+
+    def test_reported_source_reads_are_observed_adapter_reads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project, scope, cache = self.demo.workspace(root)
+            observed = []
+            read_source = self.demo.reuse._read_source
+
+            def counted(project_root, relative):
+                observed.append(relative)
+                return read_source(project_root, relative)
+
+            self.demo.reuse._read_source = counted
+            try:
+                evidence, _duration = self.demo.execute(
+                    project, scope, cache, root, "read-count"
+                )
+            finally:
+                self.demo.reuse._read_source = read_source
+
+        self.assertEqual(evidence["source_reads"], len(observed))
+        self.assertEqual(
+            evidence["source_read_paths"],
+            [
+                "src/Base.sol",
+                "src/Router.sol",
+                "src/Vault.sol",
+                "src/Base.sol",
+                "src/Router.sol",
+                "src/Vault.sol",
+            ],
+        )
+
+    def test_every_scenario_matches_an_independent_full_recompute(self):
+        for name, scenario in self.proof["scenarios"].items():
+            with self.subTest(scenario=name):
+                self.assertIn("full_recompute", scenario)
+                self.assertIn("matches_full_recompute", scenario)
+                reference = scenario["full_recompute"]
+                matches = scenario["matches_full_recompute"]
+                self.assertEqual(
+                    (reference["plan"]["mode"], reference["plan"]["reason"]),
+                    ("full", "cache-missing"),
+                )
+                self.assertEqual(reference["fresh_extractions"], len(scenario["source_inventory"]))
+                self.assertEqual(reference["reused_entries"], 0)
+                self.assertEqual(
+                    matches,
+                    {"candidate": True, "fact_union": True, "outputs": True},
+                )
+                self.assertEqual(scenario["outputs"], reference["outputs"])
+                self.assertEqual(
+                    scenario["fact_union_sha256"], reference["fact_union_sha256"]
+                )
+                self.assertEqual(
+                    scenario["candidate_sha256"], reference["candidate_sha256"]
+                )
+
+    def test_body_only_case_changes_executable_body_without_interface_drift(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project, scope, cache = self.demo.workspace(root)
+            router = project / "src" / "Router.sol"
+            before = router.read_text(encoding="utf-8")
+            variants = self.demo.body_only(project, scope, cache)
+            after = router.read_text(encoding="utf-8")
+
+        def executable_lines(source):
+            return [
+                line.strip()
+                for line in source.splitlines()
+                if line.strip() and not line.strip().startswith("//")
+            ]
+
+        self.assertEqual(variants, {"src/Router.sol": "body-v2"})
+        self.assertNotEqual(executable_lines(before), executable_lines(after))
+        self.assertIn("Vault public immutable vault;", before)
+        self.assertIn("Vault public immutable vault;", after)
+        self.assertIn("function route(uint256 amount) external", before)
+        self.assertIn("function route(uint256 amount) external", after)
 
     def test_exactly_three_paired_samples_preserve_all_four_outputs(self):
         timing = self.proof["timing"]
@@ -1231,7 +1322,7 @@ class FixtureDemonstrationTests(unittest.TestCase):
         )
         self.assertEqual(
             (full["source_reads"], full["fresh_extractions"], full["reused_entries"]),
-            (3, 3, 0),
+            (6, 3, 0),
         )
         self.assertEqual(
             (unchanged["plan"]["mode"], unchanged["plan"]["reason"]),
@@ -1243,7 +1334,7 @@ class FixtureDemonstrationTests(unittest.TestCase):
                 unchanged["fresh_extractions"],
                 unchanged["reused_entries"],
             ),
-            (3, 0, 3),
+            (6, 0, 3),
         )
         self.assertEqual(full["outputs"], unchanged["outputs"])
         self.assertEqual(full["fact_union_sha256"], unchanged["fact_union_sha256"])
@@ -1356,6 +1447,8 @@ class FixtureDemonstrationTests(unittest.TestCase):
             recorded["schema"], "hexaemeron.xray.reuse-fixture-proof.v1"
         )
         self.assertEqual(set(recorded["scenarios"]), set(self.proof["scenarios"]))
+        self.assertEqual(recorded["scenarios"], self.proof["scenarios"])
+        self.assertEqual(recorded["limits"], self.proof["limits"])
         self.assertEqual(len(recorded["timing"]["samples"]), 3)
         self.assertEqual(
             recorded["scenarios"]["full"]["outputs"],

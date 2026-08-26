@@ -120,17 +120,29 @@ def execute(
     variants = variants or {}
     candidate_path = run_root / f"{label}-candidate.json"
     output_dir = run_root / f"{label}-outputs"
+    source_read_paths: list[str] = []
+    read_source = reuse._read_source
+
+    def observed_read(root: Path, relative: str) -> bytes:
+        source_read_paths.append(relative)
+        return read_source(root, relative)
+
+    reuse._read_source = observed_read
     started = time.perf_counter_ns() if measure else None
-    plan = reuse.plan(project, scope, cache)
-    fresh = [entry(plan, path, variants) for path in plan["dirty"]]
-    candidate = reuse.assemble(
-        project,
-        scope,
-        plan,
-        fresh,
-        cache_path=cache,
-        candidate_path=candidate_path,
-    )
+    try:
+        plan = reuse.plan(project, scope, cache)
+        fresh_extraction_paths = list(plan["dirty"])
+        fresh = [entry(plan, path, variants) for path in fresh_extraction_paths]
+        candidate = reuse.assemble(
+            project,
+            scope,
+            plan,
+            fresh,
+            cache_path=cache,
+            candidate_path=candidate_path,
+        )
+    finally:
+        reuse._read_source = read_source
     write_outputs(candidate, output_dir)
     manifest = reuse.bind_outputs(candidate_path, output_dir)
     promoted = reuse.promote(candidate_path, output_dir, cache)
@@ -154,11 +166,13 @@ def execute(
                 "reverse_invalidated",
             )
         },
-        "source_reads": len(source_paths),
+        "source_reads": len(source_read_paths),
+        "source_read_paths": source_read_paths,
         "source_digests": {
             source["path"]: source["source_sha256"] for source in plan["sources"]
         },
         "fresh_extractions": len(fresh),
+        "fresh_extraction_paths": fresh_extraction_paths,
         "reused_entries": len(plan["reusable"]),
         "source_inventory": candidate["synthesis"]["source_inventory"],
         "stale_removed_rows": stale_removed,
@@ -199,6 +213,55 @@ def scenario(
             name,
             variants,
         )
+        reference, _reference_duration = execute(
+            project,
+            scope,
+            root / f"{name}-full-cache.json",
+            root,
+            f"{name}-full-recompute",
+            variants,
+        )
+        return compare_with_full_recompute(evidence, reference)
+
+
+def compare_with_full_recompute(
+    evidence: Mapping[str, Any], reference: Mapping[str, Any]
+) -> dict[str, Any]:
+    matches = {
+        "candidate": evidence["candidate_sha256"] == reference["candidate_sha256"],
+        "fact_union": (
+            evidence["fact_union_sha256"] == reference["fact_union_sha256"]
+        ),
+        "outputs": evidence["outputs"] == reference["outputs"],
+    }
+    if not all(matches.values()):
+        failed = ", ".join(key for key, matched in matches.items() if not matched)
+        raise RuntimeError(f"reuse result differs from full recomputation: {failed}")
+    result = dict(evidence)
+    result["full_recompute"] = {
+        key: reference[key]
+        for key in (
+            "plan",
+            "source_reads",
+            "source_read_paths",
+            "fresh_extractions",
+            "fresh_extraction_paths",
+            "reused_entries",
+            "source_inventory",
+            "fact_union_sha256",
+            "candidate_sha256",
+            "outputs",
+        )
+    }
+    result["matches_full_recompute"] = matches
+    return result
+
+
+def independent_full() -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="xray-reuse-full-reference-") as temporary:
+        root = Path(temporary)
+        project, scope, cache = workspace(root)
+        evidence, _duration = execute(project, scope, cache, root, "full-reference")
         return evidence
 
 
@@ -210,7 +273,12 @@ def append_comment(path: Path, text: str) -> None:
 def body_only(
     project: Path, _scope: dict[str, Any], _cache: Path
 ) -> Mapping[str, str]:
-    append_comment(project / "src" / "Router.sol", "body-only drift")
+    router = project / "src" / "Router.sol"
+    source = router.read_text(encoding="utf-8")
+    changed = source.replace("vault.deposit(amount);", "vault.deposit(amount + 1);")
+    if changed == source:
+        raise RuntimeError("body-only fixture mutation found no route body")
+    router.write_text(changed, encoding="utf-8")
     return {"src/Router.sol": "body-v2"}
 
 
@@ -287,6 +355,9 @@ def measured_pairs(
 
 def proof(samples: int) -> dict[str, Any]:
     timing_samples, full, unchanged = measured_pairs(samples)
+    full_reference = independent_full()
+    full = compare_with_full_recompute(full, full_reference)
+    unchanged = compare_with_full_recompute(unchanged, full_reference)
     full_times = [sample["full_wall_time_ns"] for sample in timing_samples]
     unchanged_times = [
         sample["unchanged_wall_time_ns"] for sample in timing_samples
