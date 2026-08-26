@@ -2,55 +2,92 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from pathlib import Path
 import re
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from .canonical import dumps
-from .errors import FormatError, IntegrityError
+from .errors import FormatError, IntegrityError, ResourceLimitError
 
 
 URL = re.compile(r"(?i)https?://[^\s\"'<>]+")
 BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 COOKIE = re.compile(r"(?i)\b(?:set-cookie|cookie)\s*:\s*[^\r\n]+")
 PERCENT_ESCAPE = re.compile(r"%[0-9A-Fa-f]{2}")
+PERCENT_ESCAPE_BYTES = re.compile(rb"%[0-9A-Fa-f]{2}")
+URL_MATERIAL_SEPARATOR = re.compile(r"[\s/?:@&=;#.,'\"\\]+")
+MAX_PERCENT_DECODE_ROUNDS = 8
+MAX_PROVIDER_URL_CHARS = 65_536
+MAX_PROVIDER_HEADER_COUNT = 64
+MAX_PROVIDER_HEADER_CHARS = 65_536
+MAX_PROVIDER_SECRET_VALUES = 1_024
 SCAN_CHUNK_BYTES = 64 * 1024
+REDACTION = "[x]"
 
 
 def provider_secrets(url: str, headers: Mapping[str, str] | None = None) -> set[str]:
+    if not isinstance(url, str) or len(url) > MAX_PROVIDER_URL_CHARS:
+        raise ResourceLimitError("provider URL exceeds the secret-classifier limit")
+    header_items = list((headers or {}).items())
+    if len(header_items) > MAX_PROVIDER_HEADER_COUNT:
+        raise ResourceLimitError("provider headers exceed the secret-classifier limit")
+    header_chars = 0
+    for name, value in header_items:
+        if not isinstance(name, str) or not isinstance(value, str):
+            raise FormatError("provider headers must contain text names and values")
+        header_chars += len(name) + len(value)
+        if header_chars > MAX_PROVIDER_HEADER_CHARS:
+            raise ResourceLimitError(
+                "provider headers exceed the secret-classifier character limit"
+            )
     values: set[str] = {url}
     parsed = urlsplit(url)
+    _add_url_material(values, parsed.netloc)
+    if parsed.hostname:
+        _add_url_material(values, parsed.hostname)
     for value in (parsed.username, parsed.password):
         if value:
-            _add_url_spellings(values, value)
-    _add_url_spellings(values, parsed.path)
-    for segment in parsed.path.split("/"):
-        _add_url_spellings(values, segment)
+            _add_url_material(values, value)
+    _add_url_material(values, parsed.path)
+    _add_url_material(values, parsed.query)
+    _add_url_material(values, parsed.fragment)
     for pair in parsed.query.split("&"):
         raw_key, separator, raw_value = pair.partition("=")
         if raw_key:
-            _add_url_spellings(values, raw_key)
+            _add_url_material(values, raw_key)
         if separator and raw_value:
-            _add_url_spellings(values, raw_value)
+            _add_url_material(values, raw_value)
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
         if key:
-            values.add(unquote(key))
+            _add_url_material(values, key)
         if value:
-            values.add(unquote(value))
-    for name, value in (headers or {}).items():
+            _add_url_material(values, value)
+    for name, value in header_items:
         if value:
             values.add(value)
         lowered = name.lower()
         if lowered in {"authorization", "proxy-authorization", "cookie", "set-cookie"}:
             values.add(value)
-            if lowered.endswith("authorization") and value.lower().startswith("bearer "):
-                values.add(value[7:].strip())
+            if lowered.endswith("authorization"):
+                parts = value.split(None, 1)
+                if len(parts) == 2 and parts[1].strip():
+                    payload = parts[1].strip()
+                    _add_url_material(values, payload)
+                    if parts[0].lower() == "basic":
+                        _add_basic_authorization(values, payload)
             if "cookie" in lowered:
                 for part in value.split(";"):
                     if "=" in part:
-                        values.add(part.split("=", 1)[1].strip())
-    return {value for value in values if len(value) >= 4}
+                        _add_url_material(values, part.split("=", 1)[1].strip())
+    secrets = {value for value in values if len(value) >= 4}
+    if len(secrets) > MAX_PROVIDER_SECRET_VALUES:
+        raise ResourceLimitError(
+            "provider URL has too many secret-classifier components"
+        )
+    return secrets
 
 
 def _add_url_spellings(values: set[str], value: str) -> None:
@@ -58,11 +95,46 @@ def _add_url_spellings(values: set[str], value: str) -> None:
 
     if not value:
         return
-    values.add(value)
-    values.add(unquote(value))
-    if PERCENT_ESCAPE.search(value) is not None:
-        values.add(PERCENT_ESCAPE.sub(lambda match: match.group(0).upper(), value))
-        values.add(PERCENT_ESCAPE.sub(lambda match: match.group(0).lower(), value))
+    current = value
+    for _ in range(MAX_PERCENT_DECODE_ROUNDS + 1):
+        values.add(current)
+        if PERCENT_ESCAPE.search(current) is not None:
+            values.add(
+                PERCENT_ESCAPE.sub(lambda match: match.group(0).upper(), current)
+            )
+            values.add(
+                PERCENT_ESCAPE.sub(lambda match: match.group(0).lower(), current)
+            )
+        decoded = unquote(current)
+        if decoded == current:
+            return
+        current = decoded
+    raise ValueError("URL percent encoding exceeds the supported nesting limit")
+
+
+def _add_url_material(values: set[str], value: str) -> None:
+    """Classify a URL component and delimiter-separated material within it."""
+
+    spellings: set[str] = set()
+    _add_url_spellings(spellings, value)
+    values.update(spellings)
+    for spelling in spellings:
+        for component in URL_MATERIAL_SEPARATOR.split(spelling):
+            _add_url_spellings(values, component)
+
+
+def _add_basic_authorization(values: set[str], payload: str) -> None:
+    """Classify the decoded Basic user-password material when it is well formed."""
+
+    try:
+        raw = base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError):
+        return
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        decoded = raw.decode("latin-1")
+    _add_url_material(values, decoded)
 
 
 def provider_secret_union(
@@ -71,16 +143,47 @@ def provider_secret_union(
     secrets: set[str] = set()
     for url, headers in providers:
         secrets.update(provider_secrets(url, headers))
+        if len(secrets) > MAX_PROVIDER_SECRET_VALUES:
+            raise ResourceLimitError(
+                "provider mappings have too many secret-classifier components"
+            )
     return secrets
 
 
 def redact_text(text: str, *, secrets: set[str] | None = None) -> str:
-    result = URL.sub("[redacted-url]", text)
-    result = BEARER.sub("Bearer [redacted]", result)
-    result = COOKIE.sub("Cookie: [redacted]", result)
+    result = URL.sub(REDACTION, text)
+    result = BEARER.sub(REDACTION, result)
+    result = COOKIE.sub(REDACTION, result)
     for secret in sorted(secrets or (), key=len, reverse=True):
-        result = result.replace(secret, "[redacted]")
+        result = result.replace(secret, REDACTION)
+        if PERCENT_ESCAPE.search(secret) is not None:
+            result = _percent_equivalent_pattern(secret).sub(REDACTION, result)
+    try:
+        if secrets and _contains_secret_bytes(
+            result.encode("utf-8"), _secret_byte_patterns(secrets)
+        ):
+            return REDACTION
+    except UnicodeEncodeError:
+        return REDACTION
     return result
+
+
+def _percent_equivalent_pattern(value: str) -> re.Pattern[str]:
+    """Match a spelling while ignoring only percent-escape hex digit case."""
+
+    pieces: list[str] = []
+    offset = 0
+    for match in PERCENT_ESCAPE.finditer(value):
+        pieces.append(re.escape(value[offset : match.start()]))
+        escaped = match.group(0)
+        digits = "".join(
+            f"[{digit.lower()}{digit.upper()}]" if digit.isalpha() else digit
+            for digit in escaped[1:]
+        )
+        pieces.append("%" + digits)
+        offset = match.end()
+    pieces.append(re.escape(value[offset:]))
+    return re.compile("".join(pieces))
 
 
 def sanitised_rpc_error(error: Any) -> dict[str, Any]:
@@ -92,31 +195,40 @@ def sanitised_rpc_error(error: Any) -> dict[str, Any]:
     return {"code": code, "message": "provider request failed"}
 
 
-def assert_no_secrets(root: str | Path, secrets: set[str]) -> None:
+def assert_no_secrets(
+    root: str | Path,
+    secrets: set[str],
+    *,
+    check_time: Callable[[], None] | None = None,
+) -> None:
     encoded = _secret_byte_patterns(secrets)
     if not encoded:
         return
-    overlap = max(len(secret) for secret in encoded) - 1
     for path in sorted(Path(root).rglob("*")):
+        if check_time is not None:
+            check_time()
         if not path.is_file():
             continue
-        tail = b""
+        scanner = _SecretByteScanner(encoded, check_time=check_time)
         with path.open("rb") as handle:
             while chunk := handle.read(SCAN_CHUNK_BYTES):
-                window = tail + chunk
-                if any(secret in window for secret in encoded):
+                if scanner.feed(chunk):
                     raise IntegrityError(
                         f"provider secret reached fixture component {path.name}"
                     )
-                tail = window[-overlap:] if overlap else b""
+        if scanner.finish():
+            raise IntegrityError(
+                f"provider secret reached fixture component {path.name}"
+            )
+        if check_time is not None:
+            check_time()
 
 
 def assert_no_secret_bytes(data: bytes, secrets: set[str], *, label: str) -> None:
     """Apply the provider-secret union to bytes emitted outside the fixture."""
 
-    for secret in _secret_byte_patterns(secrets):
-        if secret in data:
-            raise IntegrityError(f"provider secret reached {label}")
+    if _contains_secret_bytes(data, _secret_byte_patterns(secrets)):
+        raise IntegrityError(f"provider secret reached {label}")
 
 
 def _secret_byte_patterns(secrets: set[str]) -> list[bytes]:
@@ -127,8 +239,93 @@ def _secret_byte_patterns(secrets: set[str]) -> list[bytes]:
         if not secret:
             continue
         try:
-            patterns.add(secret.encode("utf-8"))
-            patterns.add(dumps(secret)[1:-1])
+            patterns.add(_normalise_percent_bytes(secret.encode("utf-8")))
+            patterns.add(_normalise_percent_bytes(dumps(secret)[1:-1]))
         except (FormatError, UnicodeEncodeError):
             continue
     return sorted(patterns, key=len, reverse=True)
+
+
+def _normalise_percent_bytes(data: bytes) -> bytes:
+    """Canonicalise percent-escape case without changing byte offsets or length."""
+
+    return PERCENT_ESCAPE_BYTES.sub(lambda match: match.group(0).upper(), data)
+
+
+def _contains_secret_bytes(data: bytes, patterns: list[bytes]) -> bool:
+    scanner = _SecretByteScanner(patterns)
+    return scanner.feed(data) or scanner.finish()
+
+
+class _PercentDecoder:
+    """Incrementally decode one percent-encoding layer across chunk boundaries."""
+
+    def __init__(self) -> None:
+        self.pending = b""
+
+    def feed(self, data: bytes, *, final: bool) -> bytes:
+        source = self.pending + data
+        self.pending = b""
+        decoded = bytearray()
+        offset = 0
+        while offset < len(source):
+            if source[offset] != ord("%"):
+                decoded.append(source[offset])
+                offset += 1
+                continue
+            remaining = len(source) - offset
+            if remaining >= 3:
+                digits = source[offset + 1 : offset + 3]
+                if all(value in b"0123456789abcdefABCDEF" for value in digits):
+                    decoded.append(int(digits, 16))
+                    offset += 3
+                    continue
+                decoded.append(source[offset])
+                offset += 1
+                continue
+            suffix = source[offset:]
+            could_complete = all(
+                value in b"0123456789abcdefABCDEF" for value in suffix[1:]
+            )
+            if not final and could_complete:
+                self.pending = suffix
+                break
+            decoded.extend(suffix)
+            break
+        return bytes(decoded)
+
+
+class _SecretByteScanner:
+    """Scan raw and recursively percent-decoded streams with bounded state."""
+
+    def __init__(
+        self,
+        patterns: list[bytes],
+        *,
+        check_time: Callable[[], None] | None = None,
+    ) -> None:
+        self.patterns = patterns
+        self.overlap = max((len(pattern) for pattern in patterns), default=1) - 1
+        self.tails = [b""] * (MAX_PERCENT_DECODE_ROUNDS + 1)
+        self.decoders = [
+            _PercentDecoder() for _ in range(MAX_PERCENT_DECODE_ROUNDS)
+        ]
+        self.check_time = check_time
+
+    def feed(self, data: bytes, *, final: bool = False) -> bool:
+        level = data
+        for depth in range(MAX_PERCENT_DECODE_ROUNDS + 1):
+            if self.check_time is not None:
+                self.check_time()
+            window = self.tails[depth] + _normalise_percent_bytes(level)
+            if any(pattern in window for pattern in self.patterns):
+                return True
+            self.tails[depth] = window[-self.overlap :] if self.overlap else b""
+            if depth < MAX_PERCENT_DECODE_ROUNDS:
+                level = self.decoders[depth].feed(level, final=final)
+            elif PERCENT_ESCAPE_BYTES.search(window) is not None:
+                return True
+        return False
+
+    def finish(self) -> bool:
+        return self.feed(b"", final=True)

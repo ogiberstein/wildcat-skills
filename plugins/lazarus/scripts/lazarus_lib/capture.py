@@ -129,12 +129,22 @@ def capture_fixture(
         raise ResourceLimitError("capture plan exceeds its max_component_bytes limit")
     if plan_bytes > plan["limits"]["max_total_bytes"]:
         raise ResourceLimitError("capture plan exceeds its max_total_bytes limit")
+    limits = CaptureLimits(plan["limits"], clock=clock)
+    secret_mapping_limit = False
+    secret_mapping_failed = False
     try:
         secrets = provider_secret_union(
             ((rpc_url, headers), *((url, None) for url in anchor_urls.values()))
         )
+    except ResourceLimitError:
+        secret_mapping_limit = True
     except Exception:
-        raise CaptureError("provider secrets failed at mapping") from None
+        secret_mapping_failed = True
+    if secret_mapping_limit:
+        raise ResourceLimitError("provider mapping exceeds capture resource limits")
+    if secret_mapping_failed:
+        raise CaptureError("provider secrets failed at mapping")
+    limits.check_time()
     _set_terminal_safe_identities(terminal_context, plan, secrets)
     _set_terminal_stage(terminal_context, "output-check")
     destination = Path(output)
@@ -143,7 +153,6 @@ def capture_fixture(
     parent = destination.parent
     if not parent.is_dir() or parent.is_symlink():
         raise PathError("capture output parent must be an existing real directory")
-    limits = CaptureLimits(plan["limits"], clock=clock)
     client = client_factory(rpc_url, limits, headers=headers)
     anchor_clients: dict[str, JsonRpcClient] = {}
     for source_id, url in anchor_urls.items():
@@ -161,6 +170,9 @@ def capture_fixture(
     except OSError:
         raise CaptureError("capture failed at staging") from None
     finalised = False
+    unexpected_failure = False
+    captured_error_type: type[LazarusError] | None = None
+    captured_error_message: str | None = None
     try:
         report = _capture_into(
             stage,
@@ -174,7 +186,7 @@ def capture_fixture(
         )
         try:
             _set_terminal_stage(terminal_context, "secret-scan")
-            assert_no_secrets(stage, secrets)
+            assert_no_secrets(stage, secrets, check_time=limits.check_time)
             terminal = report.get("terminal_result")
             if terminal is not None:
                 assert_no_secret_bytes(
@@ -187,14 +199,19 @@ def capture_fixture(
         (finalizer or _atomic_no_replace)(stage, destination)
         finalised = True
         return report
-    except LazarusError:
-        raise
-    except Exception as exc:
-        raise CaptureError("capture failed before fixture finalisation") from exc
+    except LazarusError as error:
+        captured_error_type = type(error)
+        captured_error_message = redact_text(str(error), secrets=secrets)
+    except Exception:
+        unexpected_failure = True
     finally:
         _update_terminal_limit_counts(terminal_context, limits)
         if not finalised:
             shutil.rmtree(stage, ignore_errors=True)
+    if captured_error_type is not None:
+        raise captured_error_type(captured_error_message)
+    if unexpected_failure:
+        raise CaptureError("capture failed before fixture finalisation")
 
 
 def _capture_into(
@@ -325,10 +342,13 @@ def _capture_into(
     limits.check_fixture_bytes(sum(component_bytes) + manifest_size)
     write_manifest(stage, manifest)
     _set_terminal_stage(terminal_context, "final-verification")
+    verification_failed = False
     try:
         report = verify_fixture(stage)
     except LazarusError:
-        raise CaptureError("capture failed at final verification") from None
+        verification_failed = True
+    if verification_failed:
+        raise CaptureError("capture failed at final verification")
     limits.check_time()
     if receipt_report is not None:
         report["terminal_result"] = _receipt_terminal_result(
@@ -336,6 +356,7 @@ def _capture_into(
             report,
             limits,
             terminal_context=terminal_context,
+            terminal_secrets=terminal_secrets,
         )
     return report
 
@@ -535,8 +556,7 @@ def _receipt_terminal_context(plan: dict[str, Any]) -> dict[str, Any] | None:
     if plan["schema_version"] != 3:
         return None
     return {
-        "correlation_id": "lazarus-capture:"
-        + hashlib.sha256(dumps(plan)).hexdigest(),
+        "correlation_id": None,
         "stage": "plan-validation",
         "block": {
             "number": None,
@@ -573,6 +593,9 @@ def _set_terminal_safe_identities(
     if terminal_context is None or not terminal_context:
         return
     relation = plan["receipt_witness"]
+    terminal_context["correlation_id"] = _safe_terminal_text(
+        _receipt_correlation_id(plan), secrets
+    )
     target_request = next(
         item
         for item in plan["requests"]
@@ -595,6 +618,10 @@ def _set_terminal_safe_identities(
 def _safe_terminal_text(value: str, secrets: set[str]) -> str | None:
     redacted = redact_text(value, secrets=secrets)
     return value if redacted == value else None
+
+
+def _receipt_correlation_id(plan: dict[str, Any]) -> str:
+    return "lazarus-capture:" + hashlib.sha256(dumps(plan)).hexdigest()
 
 
 def _set_terminal_stage(
@@ -669,6 +696,7 @@ def _receipt_terminal_result(
     limits: CaptureLimits,
     *,
     terminal_context: Mapping[str, Any] | None = None,
+    terminal_secrets: set[str] | None = None,
 ) -> dict[str, Any]:
     relation = report["receipt_trie_proved"]
     relation_plan = plan["receipt_witness"]
@@ -677,12 +705,17 @@ def _receipt_terminal_result(
         for item in plan["requests"]
         if item["name"] == relation_plan["target_receipt_lookup_request"]
     )
+    correlation_id = (
+        terminal_context.get("correlation_id")
+        if terminal_context is not None
+        else _safe_terminal_text(
+            _receipt_correlation_id(plan), terminal_secrets or set()
+        )
+    )
     return {
         "schema": "lazarus-capture-terminal/v1",
         "event": "lazarus.capture.completed",
-        "correlation_id": (
-            terminal_context or _receipt_terminal_context(plan)
-        )["correlation_id"],
+        "correlation_id": correlation_id,
         "stage": "fixture-finalised",
         "block": {
             "number": report["block_number"],

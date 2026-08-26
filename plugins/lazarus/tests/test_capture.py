@@ -9,10 +9,11 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import traceback
 import unittest
 from unittest import mock
 
-from lazarus_lib.canonical import dump, dumps, loads
+from lazarus_lib.canonical import dump, dumps, load, loads
 from lazarus_lib.capture import (
     CaptureError,
     _atomic_no_replace,
@@ -449,6 +450,46 @@ class CaptureTests(unittest.TestCase):
                 self.assertIs(seen_limits[0], seen_limits[1])
                 self.assert_no_capture_artifacts(root, output)
 
+    def test_elapsed_budget_starts_before_provider_secret_mapping(self):
+        class ControlledClock:
+            value = 0.0
+
+            def __call__(self):
+                return self.value
+
+        clock = ControlledClock()
+        material = self.anchored_material(("archive-a",))
+        material["plan"]["limits"]["max_elapsed_seconds"] = 1
+        original_mapping = provider_secret_union
+
+        def delayed_mapping(*args, **kwargs):
+            secrets = original_mapping(*args, **kwargs)
+            clock.value = 2.0
+            return secrets
+
+        def forbidden_client(*args, **kwargs):
+            raise AssertionError("mapping must consume the shared elapsed budget")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.write_plan(root, material["plan"])
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture.provider_secret_union",
+                side_effect=delayed_mapping,
+            ):
+                with self.assertRaisesRegex(ResourceLimitError, "seconds"):
+                    capture_fixture(
+                        plan,
+                        "https://primary.invalid",
+                        output,
+                        anchor_rpc_env=("archive-a=ANCHOR_A",),
+                        environment={"ANCHOR_A": "https://anchor.invalid"},
+                        clock=clock,
+                        client_factory=forbidden_client,
+                    )
+            self.assert_no_capture_artifacts(root, output)
+
         material = self.anchored_material()
         material["plan"]["limits"]["max_requests"] = 9
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
@@ -507,6 +548,88 @@ class CaptureTests(unittest.TestCase):
                     environment={"ANCHOR_A": anchor.url},
                 )
             self.assertNotIn("provider-final-secret", str(raised.exception))
+            self.assertIsNone(raised.exception.__cause__)
+            self.assertIsNone(raised.exception.__context__)
+            surfaces = (
+                repr(raised.exception.args),
+                repr(raised.exception),
+                "".join(traceback.format_exception(raised.exception)),
+            )
+            self.assertTrue(
+                all("provider-final-secret" not in surface for surface in surfaces)
+            )
+            self.assert_no_capture_artifacts(root, output)
+
+    def test_unexpected_capture_failure_retains_no_nested_exception_material(self):
+        marker = "provider-unexpected-exception-secret"
+        material = self.anchored_material(("archive-a",))
+
+        class UnusedClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.write_plan(root, material["plan"])
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture._capture_into",
+                side_effect=RuntimeError(marker),
+            ):
+                with self.assertRaisesRegex(
+                    CaptureError, "before fixture finalisation"
+                ) as raised:
+                    capture_fixture(
+                        plan,
+                        "https://primary.invalid",
+                        output,
+                        anchor_rpc_env=("archive-a=ANCHOR_A",),
+                        environment={"ANCHOR_A": "https://anchor.invalid"},
+                        client_factory=UnusedClient,
+                    )
+            self.assertIsNone(raised.exception.__cause__)
+            self.assertIsNone(raised.exception.__context__)
+            surfaces = (
+                repr(raised.exception.args),
+                repr(raised.exception),
+                "".join(traceback.format_exception(raised.exception)),
+            )
+            self.assertTrue(all(marker not in surface for surface in surfaces))
+            self.assert_no_capture_artifacts(root, output)
+
+    def test_expected_capture_failure_redacts_every_exception_surface(self):
+        marker = "provider-expected-exception-secret"
+        material = self.anchored_material(("archive-a",))
+
+        class UnusedClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.write_plan(root, material["plan"])
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture._capture_into",
+                side_effect=IntegrityError(marker),
+            ):
+                with self.assertRaises(IntegrityError) as raised:
+                    capture_fixture(
+                        plan,
+                        f"https://primary.invalid/{marker}",
+                        output,
+                        anchor_rpc_env=("archive-a=ANCHOR_A",),
+                        environment={"ANCHOR_A": "https://anchor.invalid"},
+                        client_factory=UnusedClient,
+                    )
+            self.assertIsNone(raised.exception.__cause__)
+            self.assertIsNone(raised.exception.__context__)
+            surfaces = (
+                repr(raised.exception.args),
+                repr(raised.exception),
+                "".join(traceback.format_exception(raised.exception)),
+            )
+            self.assertTrue(all(marker not in surface for surface in surfaces))
             self.assert_no_capture_artifacts(root, output)
 
     def test_union_secret_scan_fails_before_finalisation(self):
@@ -1086,10 +1209,11 @@ class ReceiptCaptureTests(unittest.TestCase):
             )
         )
 
-    def test_cli_emits_one_correlated_safe_failure_result(self):
+    def test_cli_emits_one_safe_mapping_failure_result(self):
         environment = dict(os.environ)
         environment.pop("LAZARUS_STEP3_MISSING_ANCHOR", None)
-        marker = "primary-failure-terminal-secret"
+        plan = load(support.RECEIPT_CAPTURE_FIXTURE / "plan.json")
+        marker = hashlib.sha256(dumps(plan)).hexdigest()
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "fixture"
             result = subprocess.run(
@@ -1125,12 +1249,14 @@ class ReceiptCaptureTests(unittest.TestCase):
         self.assertEqual(
             event["recorded_target_selector"]["evidence"], "recorded_rpc"
         )
+        self.assertIsNone(event["correlation_id"])
         self.assertNotIn(marker, result.stderr)
 
     def test_failure_terminal_redacts_a_provider_secret_identity_collision(self):
         material = self.material()
         source_id = material["plan"]["anchor_sources"][0]["source_id"]
         identity_secret = material["plan"]["block"]["hash"]
+        correlation_secret = hashlib.sha256(dumps(material["plan"])).hexdigest()
         fallback = receipt_material_dispatch(material)
 
         def dispatch(method, params, server):
@@ -1148,7 +1274,7 @@ class ReceiptCaptureTests(unittest.TestCase):
                 FakeRpc(receipt_material_dispatch(material))
             )
             terminal_context = {}
-            primary_url = f"{primary.url}?redacted={identity_secret}"
+            primary_url = f"{primary.url}/{identity_secret}/{correlation_secret}"
             secrets = provider_secret_union(
                 ((primary_url, None), (anchor.url, None))
             )
@@ -1176,6 +1302,7 @@ class ReceiptCaptureTests(unittest.TestCase):
                 secret_scan_error = None
             self.assertIsNone(secret_scan_error)
             self.assertIsNone(event["block"]["hash"])
+            self.assertIsNone(event["correlation_id"])
             self.assert_no_capture_artifacts(root, output)
 
     def test_provider_object_order_does_not_change_any_fixture_byte(self):

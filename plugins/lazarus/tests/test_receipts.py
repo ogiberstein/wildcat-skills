@@ -20,6 +20,7 @@ from lazarus_lib.receipts import (
     receipt_trie_root,
     verify_receipt_relation,
 )
+from lazarus_lib.rlp import encode as rlp_encode
 from lazarus_lib.records import loads_rpc_records, request_key
 from lazarus_lib.rlp import encode_uint
 from lazarus_lib.trieproof import EMPTY_TRIE_ROOT, trie_root
@@ -160,6 +161,40 @@ class ReceiptEncodingTests(unittest.TestCase):
             trie_root([(b"a", b"x"), (b"a", b"y")])
         with self.assertRaisesRegex(FormatError, "must not be empty"):
             trie_root([(b"a", b"")])
+
+    def test_log_data_limit_is_checked_before_hex_allocation(self):
+        receipt = copy.deepcopy(support.sample_receipt_witness()["receipts"][1])
+
+        def guarded_hex(value, *, label="hex value", length=None):
+            if label == "receipt log data":
+                raise AssertionError("oversized log data reached hex decoding")
+            from lazarus_lib.hexvalue import hex_bytes
+
+            return hex_bytes(value, label=label, length=length)
+
+        with mock.patch(
+            "lazarus_lib.receipts.MAX_LOG_DATA_BYTES", 1
+        ), mock.patch(
+            "lazarus_lib.receipts.hex_bytes", side_effect=guarded_hex
+        ):
+            with self.assertRaisesRegex(ResourceLimitError, "log data"):
+                encode_receipt(receipt)
+
+    def test_receipt_size_limit_is_checked_before_full_rlp_allocation(self):
+        receipt = copy.deepcopy(support.sample_receipt_witness()["receipts"][1])
+
+        def guarded_encode(value):
+            if isinstance(value, list) and len(value) == 4:
+                raise AssertionError("oversized receipt reached full RLP allocation")
+            return rlp_encode(value)
+
+        with mock.patch(
+            "lazarus_lib.receipts.MAX_ENCODED_RECEIPT_BYTES", 1
+        ), mock.patch(
+            "lazarus_lib.receipts.encode", side_effect=guarded_encode
+        ):
+            with self.assertRaisesRegex(ResourceLimitError, "encoded receipt"):
+                encode_receipt(receipt)
 
 
 class ReceiptRelationTests(unittest.TestCase):

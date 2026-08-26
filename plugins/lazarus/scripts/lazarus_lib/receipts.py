@@ -61,7 +61,16 @@ def encode_receipt(receipt: dict[str, Any]) -> bytes:
         raise FormatError("receipt logs must be an array")
     if len(logs) > MAX_LOGS:
         raise ResourceLimitError(f"receipt log count exceeds {MAX_LOGS}")
-    encoded_logs = [_encode_log(log) for log in logs]
+    encoded_logs = []
+    encoded_log_bytes = 0
+    for log in logs:
+        encoded_log = _encode_log(log)
+        encoded_log_bytes += len(encode(encoded_log))
+        if encoded_log_bytes > MAX_ENCODED_RECEIPT_BYTES:
+            raise ResourceLimitError(
+                f"encoded receipt exceeds {MAX_ENCODED_RECEIPT_BYTES} bytes"
+            )
+        encoded_logs.append(encoded_log)
     payload = encode([outcome, cumulative_gas, bloom, encoded_logs])
     if len(payload) > MAX_ENCODED_RECEIPT_BYTES:
         raise ResourceLimitError(
@@ -248,7 +257,15 @@ def _encode_log(log: Any) -> list[Any]:
         raise FormatError("receipt log topics must be an array")
     if len(topics) > MAX_TOPICS:
         raise ResourceLimitError(f"receipt log topic count exceeds {MAX_TOPICS}")
-    data = hex_bytes(log.get("data"), label="receipt log data")
+    data_value = log.get("data")
+    if (
+        isinstance(data_value, str)
+        and len(data_value) > 2 + 2 * MAX_LOG_DATA_BYTES
+    ):
+        raise ResourceLimitError(
+            f"receipt log data exceeds {MAX_LOG_DATA_BYTES} bytes"
+        )
+    data = hex_bytes(data_value, label="receipt log data")
     if len(data) > MAX_LOG_DATA_BYTES:
         raise ResourceLimitError(
             f"receipt log data exceeds {MAX_LOG_DATA_BYTES} bytes"

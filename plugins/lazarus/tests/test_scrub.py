@@ -1,11 +1,12 @@
 """Provider credentials and prose never become fixture diagnostics."""
 
+import inspect
 from pathlib import Path
 import tempfile
 import unittest
 
 from lazarus_lib.canonical import dumps
-from lazarus_lib.errors import IntegrityError
+from lazarus_lib.errors import IntegrityError, ResourceLimitError
 from lazarus_lib.scrub import (
     SCAN_CHUNK_BYTES,
     assert_no_secret_bytes,
@@ -57,6 +58,70 @@ class ScrubTests(unittest.TestCase):
                         label="capture terminal result",
                     )
 
+    def test_url_authority_and_fragment_parts_are_secret_material(self):
+        url = (
+            "https://authority-credential.rpc.example/v3/public"
+            "#session=fragment-credential"
+        )
+        secrets = provider_secrets(url)
+        for value in (
+            "authority-credential.rpc.example",
+            "authority-credential",
+            "fragment-credential",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value, secrets)
+                with self.assertRaisesRegex(IntegrityError, "secret"):
+                    assert_no_secret_bytes(
+                        f'{{"result":"{value}"}}'.encode(),
+                        secrets,
+                        label="capture terminal result",
+                    )
+
+    def test_mixed_case_and_nested_percent_spellings_are_secret_material(self):
+        url = (
+            "https://rpc.example/v3/a%2Fb%3Acredential/"
+            "double%252Fcredential"
+        )
+        secrets = provider_secrets(url)
+        for value in (
+            "a%2fb%3Acredential",
+            "a/b:credential",
+            "double/credential",
+            "credential",
+            "cre%64ential",
+            "cre%2564ential",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(IntegrityError, "secret"):
+                    assert_no_secret_bytes(
+                        f'{{"result":"{value}"}}'.encode(),
+                        secrets,
+                        label="capture terminal result",
+                    )
+
+    def test_query_plus_and_percent_space_are_equivalent_secret_spellings(self):
+        secrets = provider_secrets(
+            "https://rpc.example/v3?token=space+credential"
+        )
+        with self.assertRaisesRegex(IntegrityError, "secret"):
+            assert_no_secret_bytes(
+                b'{"result":"space%20credential"}',
+                secrets,
+                label="capture terminal result",
+            )
+
+    def test_secret_scan_fails_closed_beyond_percent_decode_limit(self):
+        spelling = "cre%64ential"
+        for _ in range(8):
+            spelling = spelling.replace("%", "%25")
+        with self.assertRaisesRegex(IntegrityError, "secret"):
+            assert_no_secret_bytes(
+                spelling.encode(),
+                {"credential"},
+                label="capture terminal result",
+            )
+
     def test_encoded_url_credentials_are_scanned_in_their_raw_form(self):
         url = "https://alice%40rpc:p%2Fss@rpc.example/?token=alpha%2Fencoded-secret"
         secrets = provider_secrets(url)
@@ -102,6 +167,33 @@ class ScrubTests(unittest.TestCase):
         for value in ("bearer-secret", "cookie-secret", "dark", "custom-header-secret"):
             self.assertIn(value, secrets)
 
+    def test_every_authorization_payload_is_secret_material(self):
+        headers = {
+            "Authorization": "Basic dXNlcjpiYXNpYy1jcmVkZW50aWFs",
+            "Proxy-Authorization": 'Digest nonce="digest-credential"',
+        }
+        secrets = provider_secrets("https://rpc.example", headers)
+        for value in (
+            "dXNlcjpiYXNpYy1jcmVkZW50aWFs",
+            "basic-credential",
+            "digest-credential",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value, secrets)
+                with self.assertRaisesRegex(IntegrityError, "secret"):
+                    assert_no_secret_bytes(
+                        f'{{"result":"{value}"}}'.encode(),
+                        secrets,
+                        label="capture terminal result",
+                    )
+
+    def test_provider_secret_classifier_bounds_component_cardinality(self):
+        url = "https://rpc.example/" + "/".join(
+            f"credential-{index:04d}" for index in range(1_100)
+        )
+        with self.assertRaisesRegex(ResourceLimitError, "too many"):
+            provider_secrets(url)
+
     def test_provider_error_text_and_data_are_discarded(self):
         error = sanitised_rpc_error(
             {"code": -32001, "message": "bad bearer-secret", "data": {"url": "secret"}}
@@ -118,6 +210,15 @@ class ScrubTests(unittest.TestCase):
         for secret in ("user", "pass", "query-secret", "bearer-secret", "cookie-secret"):
             self.assertNotIn(secret, scrubbed)
 
+    def test_redaction_detects_mixed_percent_escape_case(self):
+        self.assertEqual(
+            redact_text("path%2fcredential", secrets={"path%2Fcredential"}),
+            "[x]",
+        )
+
+    def test_redaction_placeholder_does_not_repeat_the_secret(self):
+        self.assertNotIn("redacted", redact_text("redacted", secrets={"redacted"}))
+
     def test_final_output_scan_fails_on_a_secret(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "component.json"
@@ -132,6 +233,40 @@ class ScrubTests(unittest.TestCase):
             path.write_bytes(b"x" * (SCAN_CHUNK_BYTES - 5) + marker + b"\n")
             with self.assertRaisesRegex(IntegrityError, "secret"):
                 assert_no_secrets(directory, {marker.decode()})
+
+    def test_secret_scan_decodes_an_escape_split_across_streaming_chunks(self):
+        marker = b"raw-credential"
+        encoded = b"raw%2dcredential"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "component.jsonl"
+            path.write_bytes(
+                b"x" * (SCAN_CHUNK_BYTES - 5) + encoded + b"\n"
+            )
+            with self.assertRaisesRegex(IntegrityError, "secret"):
+                assert_no_secrets(directory, {marker.decode()})
+
+    def test_secret_scan_rechecks_the_elapsed_budget_between_chunks(self):
+        self.assertIn(
+            "check_time", inspect.signature(assert_no_secrets).parameters
+        )
+        checks = 0
+
+        def check_time():
+            nonlocal checks
+            checks += 1
+            if checks == 3:
+                raise ResourceLimitError("elapsed")
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "component.json"
+            path.write_bytes(b"x" * (SCAN_CHUNK_BYTES * 3))
+            with self.assertRaisesRegex(ResourceLimitError, "elapsed"):
+                assert_no_secrets(
+                    directory,
+                    {"absent-secret"},
+                    check_time=check_time,
+                )
+        self.assertEqual(checks, 3)
 
     def test_terminal_result_bytes_use_the_same_provider_secret_union(self):
         with self.assertRaisesRegex(IntegrityError, "terminal result"):
