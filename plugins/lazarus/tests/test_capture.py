@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from lazarus_lib.canonical import dump
+from lazarus_lib.canonical import dump, dumps, loads
 from lazarus_lib.capture import CaptureError, _atomic_no_replace, capture_fixture
 from lazarus_lib.errors import FormatError, IntegrityError, PathError, ResourceLimitError
 from lazarus_lib.records import read_anchor_records, read_rpc_records
@@ -19,7 +19,7 @@ from lazarus_lib.rpc import JsonRpcClient
 from lazarus_lib.verifier import verify_fixture
 
 from . import support
-from .fake_rpc import FakeRpc, RpcError, material_dispatch
+from .fake_rpc import FakeRpc, RpcError, material_dispatch, receipt_material_dispatch
 
 
 class CaptureTests(unittest.TestCase):
@@ -42,15 +42,17 @@ class CaptureTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertEqual(list(root.glob(f".{output.name}.lazarus-*")), [])
 
-    def test_plan_v3_refuses_by_name_before_mapping_or_network(self):
+    def test_plan_v3_requires_its_anchor_mapping_before_network(self):
         def forbidden_client(*args, **kwargs):
-            raise AssertionError("plan-v3 refusal must precede client creation")
+            raise AssertionError("plan-v3 mapping refusal must precede client creation")
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            plan = self.write_plan(root, support.sample_plan_v3())
+            candidate = support.sample_plan_v3()
+            candidate["limits"]["max_elapsed_seconds"] = 10
+            plan = self.write_plan(root, candidate)
             output = root / "fixture"
-            with self.assertRaisesRegex(FormatError, "plan-v3"):
+            with self.assertRaisesRegex(FormatError, "missing archive-a"):
                 capture_fixture(
                     plan,
                     "https://primary.example",
@@ -822,6 +824,466 @@ class CaptureTests(unittest.TestCase):
             self.assertTrue(output.is_dir())
             self.assertEqual(list(output.iterdir()), [])
             self.assertEqual(list(root.glob(".fixture.lazarus-*")), [])
+
+
+class ReceiptCaptureTests(unittest.TestCase):
+    def material(self):
+        material = support.receipt_fixture_material()
+        material["plan"]["limits"].update(
+            {
+                "max_requests": 16,
+                "max_component_bytes": 1_048_576,
+                "max_total_bytes": 4_194_304,
+                "max_elapsed_seconds": 10,
+            }
+        )
+        return material
+
+    def observed_at(self, material):
+        return datetime.fromisoformat(
+            material["anchor_records"][0]["observed_at"].replace("Z", "+00:00")
+        )
+
+    def capture_material(
+        self,
+        material,
+        root,
+        output,
+        *,
+        dispatch=None,
+        reverse_fields=False,
+        clock=None,
+    ):
+        source_id = material["plan"]["anchor_sources"][0]["source_id"]
+        plan_path = root / "receipt-plan.json"
+        dump(plan_path, material["plan"])
+        with ExitStack() as stack:
+            primary = stack.enter_context(
+                FakeRpc(
+                    dispatch or receipt_material_dispatch(material),
+                    reverse_fields=reverse_fields,
+                )
+            )
+            anchor = stack.enter_context(
+                FakeRpc(
+                    receipt_material_dispatch(material),
+                    reverse_fields=reverse_fields,
+                )
+            )
+            options = {}
+            if clock is not None:
+                options["clock"] = clock
+            report = capture_fixture(
+                plan_path,
+                primary.url,
+                output,
+                anchor_rpc_env=(f"{source_id}=ANCHOR_RPC",),
+                environment={"ANCHOR_RPC": anchor.url},
+                wall_clock=lambda: self.observed_at(material),
+                **options,
+            )
+            return report, tuple(primary.requests), tuple(anchor.requests)
+
+    def assert_no_capture_artifacts(self, root, output):
+        self.assertFalse(output.exists())
+        self.assertEqual(list(root.glob(f".{output.name}.lazarus-*")), [])
+
+    def test_plan_v3_recaptures_the_fixed_consensus_witness(self):
+        material = support.receipt_capture_material()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "fixture"
+            report, primary_requests, _ = self.capture_material(
+                material,
+                root,
+                output,
+            )
+            self.assertEqual(
+                report["fixture_digest"],
+                "cfffa16ed33c0c17bfa8552a03e7f7a3db670689f23a0fde1a337feb56a02d04",
+            )
+            expected_files = sorted(
+                path.name
+                for path in support.RECEIPT_PROOF_FIXTURE.iterdir()
+                if path.is_file()
+            )
+            self.assertEqual(sorted(path.name for path in output.iterdir()), expected_files)
+            for name in expected_files:
+                self.assertEqual(
+                    (output / name).read_bytes(),
+                    (support.RECEIPT_PROOF_FIXTURE / name).read_bytes(),
+                    name,
+                )
+            block_calls = [
+                request
+                for request in primary_requests
+                if request["method"] == "eth_getBlockReceipts"
+            ]
+            self.assertEqual(
+                [request["params"] for request in block_calls],
+                [[material["plan"]["block"]["hash"]]],
+            )
+            self.assertFalse(
+                any(
+                    request["method"].lower().startswith(("debug_", "trace_"))
+                    for request in primary_requests
+                )
+            )
+            proof_calls = [
+                request
+                for request in primary_requests
+                if request["method"] == "eth_getProof"
+            ]
+            self.assertTrue(proof_calls)
+            self.assertTrue(
+                all(isinstance(request["params"][-1], dict) for request in proof_calls)
+            )
+
+    def test_cli_emits_one_safe_terminal_result_and_offline_output(self):
+        material = support.receipt_capture_material()
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        with ExitStack() as stack:
+            root = Path(temporary.name)
+            output = root / "fixture"
+            primary = stack.enter_context(FakeRpc(receipt_material_dispatch(material)))
+            anchor = stack.enter_context(FakeRpc(receipt_material_dispatch(material)))
+            primary_marker = "primary-step3-marker"
+            anchor_marker = "anchor-step3-marker"
+            environment = dict(os.environ)
+            environment["STEP3_ANCHOR_RPC"] = f"{anchor.url}?token={anchor_marker}"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(support.SCRIPTS / "lazarus.py"),
+                    "capture",
+                    "--plan",
+                    str(support.RECEIPT_CAPTURE_FIXTURE / "plan.json"),
+                    "--rpc-url",
+                    f"{primary.url}?token={primary_marker}",
+                    "--anchor-rpc-env",
+                    "publicnode=STEP3_ANCHOR_RPC",
+                    "--out",
+                    str(output),
+                ],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(len(result.stdout.splitlines()), 1)
+            event = loads(result.stdout)
+            for secret in (
+                primary_marker,
+                anchor_marker,
+                primary.url,
+                anchor.url,
+            ):
+                self.assertNotIn(secret, result.stdout + result.stderr)
+        with mock.patch("socket.socket", side_effect=AssertionError("network forbidden")):
+            report = verify_fixture(output)
+        self.assertEqual(event["schema"], "lazarus-capture-terminal/v1")
+        self.assertEqual(event["event"], "lazarus.capture.completed")
+        self.assertEqual(event["stage"], "fixture-finalised")
+        self.assertEqual(event["fixture_digest"], report["fixture_digest"])
+        self.assertEqual(
+            event["correlation_id"], f"lazarus-fixture:{report['fixture_digest']}"
+        )
+        self.assertEqual(event["block"]["hash"], material["plan"]["block"]["hash"])
+        self.assertEqual(
+            event["recorded_target_selector"]["value"],
+            material["plan"]["requests"][2]["params"][0],
+        )
+        self.assertEqual(
+            event["recorded_target_selector"]["evidence"], "recorded_rpc"
+        )
+        self.assertEqual(event["recorded_target_selector"]["transaction_index"], "0xbf")
+        self.assertEqual(event["counts"]["recorded_rpc"], 5)
+        self.assertEqual(event["counts"]["anchor_records"], 1)
+        self.assertEqual(event["counts"]["receipts"], 224)
+        self.assertEqual(event["counts"]["selected_logs"], 5)
+        self.assertEqual(event["counts"]["receipt_trie_proved"], 2)
+        self.assertEqual(event["versions"]["plan"], 3)
+        self.assertEqual(event["versions"]["manifest"], 2)
+        self.assertEqual(event["versions"]["receipt_witness"], 1)
+        self.assertEqual(
+            event["roots"]["expected_receipts_root"],
+            event["roots"]["computed_receipts_root"],
+        )
+        proved = event["relation_scope"]["receipt_trie_proved"]
+        self.assertEqual(
+            proved,
+            [
+                "consensus_receipt_payload_at_trie_index",
+                "consensus_log_projection",
+            ],
+        )
+        self.assertFalse(any("transaction_hash" in claim for claim in proved))
+        self.assertEqual(
+            event["relation_scope"]["transaction_hash_attribution"], "recorded_rpc"
+        )
+        terminal_keys = set()
+
+        def collect_keys(value):
+            if isinstance(value, dict):
+                terminal_keys.update(value)
+                for item in value.values():
+                    collect_keys(item)
+            elif isinstance(value, list):
+                for item in value:
+                    collect_keys(item)
+
+        collect_keys(event)
+        self.assertTrue(
+            {"url", "params", "outcome", "result", "log_data"}.isdisjoint(
+                terminal_keys
+            )
+        )
+
+    def test_provider_object_order_does_not_change_any_fixture_byte(self):
+        material = self.material()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "first"
+            second = root / "second"
+            first_report, _, _ = self.capture_material(material, root, first)
+            second_report, _, _ = self.capture_material(
+                material, root, second, reverse_fields=True
+            )
+            self.assertEqual(first_report["fixture_digest"], second_report["fixture_digest"])
+            self.assertEqual(
+                sorted(path.name for path in first.iterdir()),
+                sorted(path.name for path in second.iterdir()),
+            )
+            for path in first.iterdir():
+                self.assertEqual(path.read_bytes(), (second / path.name).read_bytes())
+
+    def test_coherent_recorded_hash_rewrite_changes_only_recorded_identity(self):
+        original = self.material()
+        rewritten = copy.deepcopy(original)
+        replacement = support.hash32("99")
+        support.rewrite_recorded_target_hash(rewritten, replacement)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original_output = root / "original"
+            rewritten_output = root / "rewritten"
+            original_report, _, _ = self.capture_material(
+                original, root, original_output
+            )
+            rewritten_report, _, _ = self.capture_material(
+                rewritten, root, rewritten_output
+            )
+            self.assertNotEqual(
+                original_report["fixture_digest"], rewritten_report["fixture_digest"]
+            )
+            self.assertEqual(
+                (original_output / "receipt-witness.json").read_bytes(),
+                (rewritten_output / "receipt-witness.json").read_bytes(),
+            )
+            self.assertEqual(
+                original_report["receipt_trie_proved"]["computed_root"],
+                rewritten_report["receipt_trie_proved"]["computed_root"],
+            )
+            terminal = rewritten_report["terminal_result"]
+            self.assertEqual(terminal["recorded_target_selector"]["value"], replacement)
+            self.assertEqual(
+                terminal["relation_scope"]["transaction_hash_attribution"],
+                "recorded_rpc",
+            )
+
+    def test_one_source_hash_rewrite_refuses_without_proof_or_stage(self):
+        material = self.material()
+        relation = material["plan"]["receipt_witness"]
+        index = int(relation["target_transaction_index"], 16)
+        records = {record["name"]: record for record in material["rpc_records"]}
+        records[relation["block_receipts_request"]]["outcome"]["result"][index][
+            "transactionHash"
+        ] = support.hash32("99")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "fixture"
+            with self.assertRaisesRegex(IntegrityError, "transaction hash disagreement"):
+                self.capture_material(material, root, output)
+            self.assert_no_capture_artifacts(root, output)
+
+    def test_malformed_incomplete_and_failed_receipt_responses_leave_nothing(self):
+        cases = {}
+        base_material = self.material()
+        relation = base_material["plan"]["receipt_witness"]
+        block_name = relation["block_receipts_request"]
+        records = {record["name"]: record for record in base_material["rpc_records"]}
+        original = records[block_name]["outcome"]["result"]
+        cases["null"] = None
+        cases["rpc-error"] = RpcError(
+            -32000, "provider-body-secret", {"url": "provider-url-secret"}
+        )
+        cases["missing"] = copy.deepcopy(original[:-1])
+        cases["extra"] = copy.deepcopy(original + [original[-1]])
+        duplicate = copy.deepcopy(original)
+        duplicate[1] = copy.deepcopy(duplicate[0])
+        cases["duplicate"] = duplicate
+        cases["reordered"] = list(reversed(copy.deepcopy(original)))
+        non_object = copy.deepcopy(original)
+        non_object[0] = None
+        cases["non-object"] = non_object
+
+        for label, result in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                material = self.material()
+                fallback = receipt_material_dispatch(material)
+
+                def dispatch(method, params, server, *, result=result):
+                    if method == "eth_getBlockReceipts":
+                        return copy.deepcopy(result)
+                    return fallback(method, params, server)
+
+                root = Path(directory)
+                output = root / "fixture"
+                with self.assertRaises((CaptureError, IntegrityError, FormatError)) as raised:
+                    self.capture_material(
+                        material, root, output, dispatch=dispatch
+                    )
+                diagnostic = str(raised.exception)
+                self.assertNotIn("provider-body-secret", diagnostic)
+                self.assertNotIn("provider-url-secret", diagnostic)
+                self.assert_no_capture_artifacts(root, output)
+
+    def test_receipt_collection_field_log_and_topic_caps_leave_nothing(self):
+        patches = (
+            ("MAX_RECEIPTS", 1, "receipt count"),
+            ("MAX_RECEIPT_FIELDS", 1, "field count"),
+            ("MAX_LOGS", 0, "log count"),
+            ("MAX_RECEIPT_LOG_FIELDS", 1, "field count"),
+            ("MAX_TOPICS", 0, "topic count"),
+        )
+        for name, maximum, message in patches:
+            with self.subTest(cap=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                output = root / "fixture"
+                with mock.patch(f"lazarus_lib.capture.{name}", maximum):
+                    with self.assertRaisesRegex(ResourceLimitError, message):
+                        self.capture_material(self.material(), root, output)
+                self.assert_no_capture_artifacts(root, output)
+
+    def test_plan_v3_request_response_total_and_time_budgets_leave_nothing(self):
+        class AdvancingClock:
+            def __init__(self):
+                self.value = -1
+
+            def __call__(self):
+                self.value += 1
+                return self.value
+
+        cases = []
+        request_limited = self.material()
+        request_limited["plan"]["limits"]["max_requests"] = len(
+            request_limited["plan"]["requests"]
+        )
+        cases.append(("request", request_limited, None))
+        component_limited = self.material()
+        plan_size = len(dumps(component_limited["plan"])) + 1
+        component_limited["plan"]["limits"]["max_component_bytes"] = plan_size
+        cases.append(("component", component_limited, None))
+        total_limited = self.material()
+        total_limited["plan"]["limits"]["max_total_bytes"] = (
+            len(dumps(total_limited["plan"])) + 1
+        )
+        cases.append(("total", total_limited, None))
+        time_limited = self.material()
+        time_limited["plan"]["limits"]["max_elapsed_seconds"] = 1
+        cases.append(("time", time_limited, AdvancingClock()))
+
+        for label, material, clock in cases:
+            with self.subTest(limit=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                output = root / "fixture"
+                with self.assertRaises(ResourceLimitError):
+                    self.capture_material(
+                        material, root, output, clock=clock
+                    )
+                self.assert_no_capture_artifacts(root, output)
+
+    def test_plan_v3_preserves_an_existing_destination_before_network(self):
+        material = self.material()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_path = root / "receipt-plan.json"
+            dump(plan_path, material["plan"])
+            output = root / "fixture"
+            output.mkdir()
+            marker = output / "marker"
+            marker.write_text("preserve\n", encoding="utf-8")
+
+            def forbidden_client(*args, **kwargs):
+                raise AssertionError("existing output refusal must precede network setup")
+
+            with self.assertRaisesRegex(PathError, "already exists"):
+                capture_fixture(
+                    plan_path,
+                    "https://primary.invalid",
+                    output,
+                    anchor_rpc_env=("archive-a=ANCHOR_RPC",),
+                    environment={"ANCHOR_RPC": "https://anchor.invalid"},
+                    client_factory=forbidden_client,
+                )
+            self.assertEqual(marker.read_text(encoding="utf-8"), "preserve\n")
+            self.assertEqual(list(root.glob(".fixture.lazarus-*")), [])
+
+    def test_plan_v3_interruption_after_staging_removes_the_stage(self):
+        material = self.material()
+
+        class UnusedClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_path = root / "receipt-plan.json"
+            dump(plan_path, material["plan"])
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture._capture_into",
+                side_effect=KeyboardInterrupt("simulated interruption"),
+            ):
+                with self.assertRaises(KeyboardInterrupt):
+                    capture_fixture(
+                        plan_path,
+                        "https://primary.invalid",
+                        output,
+                        anchor_rpc_env=("archive-a=ANCHOR_RPC",),
+                        environment={"ANCHOR_RPC": "https://anchor.invalid"},
+                        client_factory=UnusedClient,
+                    )
+            self.assert_no_capture_artifacts(root, output)
+
+    def test_plan_v3_stage_creation_failure_creates_no_artifact(self):
+        material = self.material()
+
+        class UnusedClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_path = root / "receipt-plan.json"
+            dump(plan_path, material["plan"])
+            output = root / "fixture"
+            with mock.patch(
+                "lazarus_lib.capture.tempfile.mkdtemp",
+                side_effect=OSError("simulated staging interruption"),
+            ):
+                with self.assertRaisesRegex(CaptureError, "staging"):
+                    capture_fixture(
+                        plan_path,
+                        "https://primary.invalid",
+                        output,
+                        anchor_rpc_env=("archive-a=ANCHOR_RPC",),
+                        environment={"ANCHOR_RPC": "https://anchor.invalid"},
+                        client_factory=UnusedClient,
+                    )
+            self.assert_no_capture_artifacts(root, output)
 
 
 if __name__ == "__main__":

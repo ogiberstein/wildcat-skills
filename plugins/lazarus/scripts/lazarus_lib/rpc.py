@@ -8,7 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from .canonical import dumps, loads
-from .errors import FormatError, LazarusError
+from .errors import FormatError, LazarusError, ResourceLimitError
 from .limits import CaptureLimits
 from .scrub import sanitised_rpc_error
 
@@ -107,6 +107,18 @@ class JsonRpcClient:
                 request,
                 timeout=self._limits.remaining_seconds(),
             ) as response:
+                declared_size = response.headers.get("Content-Length")
+                if declared_size is not None:
+                    try:
+                        declared_size_value = int(declared_size, 10)
+                    except (TypeError, ValueError):
+                        raise RpcTransportError(
+                            "provider returned an invalid content length"
+                        ) from None
+                    if declared_size_value < 0 or declared_size_value > limit:
+                        raise ResourceLimitError(
+                            "RPC response exceeds the plan capture byte limit"
+                        )
                 raw = response.read(limit + 1)
         except HTTPError as exc:
             exc.close()

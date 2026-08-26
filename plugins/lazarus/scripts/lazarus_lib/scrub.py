@@ -86,3 +86,11 @@ def assert_no_secrets(root: str | Path, secrets: set[str]) -> None:
                         f"provider secret reached fixture component {path.name}"
                     )
                 tail = window[-overlap:] if overlap else b""
+
+
+def assert_no_secret_bytes(data: bytes, secrets: set[str], *, label: str) -> None:
+    """Apply the provider-secret union to bytes emitted outside the fixture."""
+
+    for secret in secrets:
+        if secret and secret.encode("utf-8") in data:
+            raise IntegrityError(f"provider secret reached {label}")

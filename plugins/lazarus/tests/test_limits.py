@@ -62,6 +62,20 @@ class LimitTests(unittest.TestCase):
         with self.assertRaisesRegex(ResourceLimitError, "response bytes"):
             anchor.after_response(6)
 
+    def test_derived_collection_and_output_sizes_are_checked_before_use(self):
+        limits = CaptureLimits(self.values(max_total_bytes=20))
+        limits.check_allocation(2, maximum=2, label="receipt count")
+        with self.assertRaisesRegex(ResourceLimitError, "receipt count"):
+            limits.check_allocation(3, maximum=2, label="receipt count")
+        with self.assertRaisesRegex(ResourceLimitError, "valid count"):
+            limits.check_allocation(True, maximum=2, label="receipt count")
+        limits.check_component_bytes(10, label="receipt-witness.json")
+        with self.assertRaisesRegex(ResourceLimitError, "receipt-witness.json"):
+            limits.check_component_bytes(11, label="receipt-witness.json")
+        limits.check_fixture_bytes(20)
+        with self.assertRaisesRegex(ResourceLimitError, "fixture"):
+            limits.check_fixture_bytes(21)
+
 
 if __name__ == "__main__":
     unittest.main()

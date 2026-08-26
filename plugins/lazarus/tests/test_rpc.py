@@ -56,6 +56,33 @@ class RpcTests(unittest.TestCase):
             with self.assertRaisesRegex(ResourceLimitError, "RPC response"):
                 client.call("large", [])
 
+    def test_declared_response_size_is_validated_before_reading(self):
+        valid = b'{"jsonrpc":"2.0","id":1,"result":"0x1"}'
+        with FakeRpc(
+            lambda *args: None,
+            raw_response=valid,
+            declared_length="not-a-number",
+        ) as server:
+            with self.assertRaisesRegex(RpcTransportError, "content length"):
+                JsonRpcClient(server.url, limits()).call("invalid-length", [])
+        with FakeRpc(
+            lambda *args: None,
+            raw_response=valid,
+            declared_length="4097",
+        ) as server:
+            with self.assertRaisesRegex(ResourceLimitError, "RPC response"):
+                JsonRpcClient(server.url, limits()).call("oversized-length", [])
+
+    def test_hostile_response_nesting_is_bounded(self):
+        nested = b'{"jsonrpc":"2.0","id":1,"result":' + b'{"x":' * 65
+        nested += b"0" + b"}" * 66
+        with FakeRpc(lambda *args: None, raw_response=nested) as server:
+            with self.assertRaisesRegex(ResourceLimitError, "nesting"):
+                JsonRpcClient(
+                    server.url,
+                    limits(max_component_bytes=16384, max_total_bytes=32768),
+                ).call("nested", [])
+
     def test_redirects_are_refused_before_credentials_reach_another_origin(self):
         received = []
 

@@ -7,6 +7,7 @@ import unittest
 from lazarus_lib.errors import IntegrityError
 from lazarus_lib.scrub import (
     SCAN_CHUNK_BYTES,
+    assert_no_secret_bytes,
     assert_no_secrets,
     provider_secrets,
     provider_secret_union,
@@ -78,6 +79,14 @@ class ScrubTests(unittest.TestCase):
             path.write_bytes(b"x" * (SCAN_CHUNK_BYTES - 5) + marker + b"\n")
             with self.assertRaisesRegex(IntegrityError, "secret"):
                 assert_no_secrets(directory, {marker.decode()})
+
+    def test_terminal_result_bytes_use_the_same_provider_secret_union(self):
+        with self.assertRaisesRegex(IntegrityError, "terminal result"):
+            assert_no_secret_bytes(
+                b'{"correlation_id":"anchor-terminal-secret"}',
+                {"primary-terminal-secret", "anchor-terminal-secret"},
+                label="capture terminal result",
+            )
 
 
 if __name__ == "__main__":

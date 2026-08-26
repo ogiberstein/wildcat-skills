@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from lazarus_lib.canonical import load
+from lazarus_lib.canonical import dumps, load
 from lazarus_lib.errors import LazarusError
 from lazarus_lib.manifest import build_manifest, verify_manifest, write_manifest
 from lazarus_lib.records import (
@@ -155,6 +155,9 @@ def run(argv: list[str] | None = None) -> int:
             args.out,
             anchor_rpc_env=args.anchor_rpc_env,
         )
+        if "terminal_result" in report:
+            print(dumps(report["terminal_result"]).decode("utf-8"))
+            return 0
         print(f"fixture: {report['fixture_digest']}")
         print(f"block: {report['block_hash']}")
         print(f"anchor-sources-declared: {len(args.anchor_rpc_env)}")

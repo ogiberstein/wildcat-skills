@@ -22,24 +22,37 @@ from .errors import (
     ResourceLimitError,
 )
 from .header import verify_header
-from .hexvalue import encode_hex, hex_bytes, quantity
-from .limits import CaptureLimits
+from .hexvalue import encode_hex, hash32_bytes, hex_bytes, quantity
+from .limits import (
+    MAX_RECEIPT_FIELDS,
+    MAX_RECEIPT_LOG_FIELDS,
+    CaptureLimits,
+)
 from .manifest import build_manifest, write_manifest
 from .proofs import verify_proof_record
 from .records import (
     make_rpc_record,
     write_anchor_records,
     write_proof_records,
+    write_receipt_witness,
     write_rpc_records,
+)
+from .receipts import (
+    MAX_LOGS,
+    MAX_RECEIPTS,
+    MAX_TOPICS,
+    _rpc_receipt,
+    verify_receipt_relation,
 )
 from .rpc import JsonRpcClient
 from .schemas import validate_document
-from .scrub import assert_no_secrets, provider_secret_union
+from .scrub import assert_no_secret_bytes, assert_no_secrets, provider_secret_union
 from .verifier import verify_fixture
 
 
 COMPONENTS = ("header.json", "plan.json", "proofs.jsonl", "rpc.jsonl")
 ANCHOR_COMPONENT = "anchors.jsonl"
+RECEIPT_COMPONENT = "receipt-witness.json"
 BLOCK_TAGS = {"earliest", "finalized", "latest", "pending", "safe"}
 SOURCE_ID = re.compile(r"^[a-z][a-z0-9_.-]{0,127}$")
 ENVIRONMENT_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
@@ -55,6 +68,7 @@ READ_ONLY_METHODS = {
     "eth_getbalance",
     "eth_getblockbyhash",
     "eth_getblockbynumber",
+    "eth_getblockreceipts",
     "eth_getcode",
     "eth_getlogs",
     "eth_getproof",
@@ -91,8 +105,6 @@ def capture_fixture(
     finalizer: Callable[[str | Path, str | Path], Any] | None = None,
 ) -> dict[str, Any]:
     plan = validate_document("plan", load(plan_path))
-    if plan["schema_version"] == 3:
-        raise FormatError("capture refuses unsupported plan-v3")
     _validate_capture_plan(plan)
     anchor_urls = _resolve_anchor_urls(
         plan,
@@ -126,7 +138,12 @@ def capture_fixture(
         )
     except Exception:
         raise CaptureError("provider secrets failed at mapping") from None
-    stage = Path(tempfile.mkdtemp(prefix=f".{destination.name}.lazarus-", dir=parent))
+    try:
+        stage = Path(
+            tempfile.mkdtemp(prefix=f".{destination.name}.lazarus-", dir=parent)
+        )
+    except OSError:
+        raise CaptureError("capture failed at staging") from None
     finalised = False
     try:
         report = _capture_into(
@@ -139,6 +156,11 @@ def capture_fixture(
         )
         try:
             assert_no_secrets(stage, secrets)
+            terminal = report.get("terminal_result")
+            if terminal is not None:
+                assert_no_secret_bytes(
+                    dumps(terminal), secrets, label="capture terminal result"
+                )
         except IntegrityError:
             raise IntegrityError("capture failed at secret scan") from None
         (finalizer or _atomic_no_replace)(stage, destination)
@@ -169,6 +191,15 @@ def _capture_into(
         raise IntegrityError("provider chain ID does not match the capture plan")
     first_header = _fetch_header(client, expected_number, expected_hash)
     rpc_records = _capture_requests(client, plan, expected_number, expected_hash)
+    receipt_witness = None
+    receipt_report = None
+    if plan["schema_version"] == 3:
+        receipt_witness, receipt_report = _derive_receipt_witness(
+            plan,
+            first_header,
+            rpc_records,
+            limits,
+        )
     proof_records = [
         _capture_proof(client, target, first_header, expected_number, expected_hash)
         for target in plan["proof_targets"]
@@ -188,14 +219,43 @@ def _capture_into(
         for source_id in sorted(anchor_clients)
     ]
     limits.check_time()
-    dump(stage / "plan.json", plan)
-    dump(stage / "header.json", first_header)
-    write_rpc_records(stage / "rpc.jsonl", rpc_records)
-    write_proof_records(stage / "proofs.jsonl", proof_records)
+    component_bytes = [
+        _checked_component(
+            limits, "plan.json", dump(stage / "plan.json", plan)
+        ),
+        _checked_component(
+            limits, "header.json", dump(stage / "header.json", first_header)
+        ),
+        _checked_component(
+            limits,
+            "rpc.jsonl",
+            write_rpc_records(stage / "rpc.jsonl", rpc_records),
+        ),
+        _checked_component(
+            limits,
+            "proofs.jsonl",
+            write_proof_records(stage / "proofs.jsonl", proof_records),
+        ),
+    ]
     components = COMPONENTS
-    if plan["schema_version"] == 2:
-        write_anchor_records(stage / ANCHOR_COMPONENT, anchor_records)
+    if plan["schema_version"] in (2, 3):
+        component_bytes.append(
+            _checked_component(
+                limits,
+                ANCHOR_COMPONENT,
+                write_anchor_records(stage / ANCHOR_COMPONENT, anchor_records),
+            )
+        )
         components = (*COMPONENTS, ANCHOR_COMPONENT)
+    if receipt_witness is not None:
+        component_bytes.append(
+            _checked_component(
+                limits,
+                RECEIPT_COMPONENT,
+                write_receipt_witness(stage / RECEIPT_COMPONENT, receipt_witness),
+            )
+        )
+        components = (*components, RECEIPT_COMPONENT)
     optional_failures = sorted(
         record["request_key"]
         for record in rpc_records
@@ -204,24 +264,255 @@ def _capture_into(
     proof_count = len(proof_records) + sum(
         len(record["storage_proof"]) for record in proof_records
     )
+    evidence_counts = {
+        "proof_backed": proof_count,
+        "header_bound": 1,
+        "recorded_rpc": len(rpc_records),
+    }
+    if receipt_report is not None:
+        evidence_counts["receipt_trie_proved"] = receipt_report["relations"]
     manifest = build_manifest(
         stage,
         components,
         chain_id=plan["chain"]["chain_id"],
         block_number=expected_number,
         block_hash=expected_hash,
-        evidence_counts={
-            "proof_backed": proof_count,
-            "header_bound": 1,
-            "recorded_rpc": len(rpc_records),
-        },
+        evidence_counts=evidence_counts,
         optional_failures=optional_failures,
     )
+    manifest_size = len(dumps(manifest)) + 1
+    limits.check_component_bytes(manifest_size, label="manifest.json")
+    limits.check_fixture_bytes(sum(component_bytes) + manifest_size)
     write_manifest(stage, manifest)
     try:
-        return verify_fixture(stage)
+        report = verify_fixture(stage)
     except LazarusError:
         raise CaptureError("capture failed at final verification") from None
+    limits.check_time()
+    if receipt_report is not None:
+        report["terminal_result"] = _receipt_terminal_result(
+            plan,
+            report,
+            limits,
+        )
+    return report
+
+
+def _checked_component(limits: CaptureLimits, label: str, data: bytes) -> int:
+    limits.check_component_bytes(len(data), label=label)
+    return len(data)
+
+
+def _derive_receipt_witness(
+    plan: dict[str, Any],
+    header: dict[str, Any],
+    rpc_records: list[dict[str, Any]],
+    limits: CaptureLimits,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Project one full recorded response into consensus-only witness bytes."""
+
+    relation = plan["receipt_witness"]
+    named_records = {
+        record.get("name"): record
+        for record in rpc_records
+        if isinstance(record.get("name"), str)
+    }
+    block_record = named_records.get(relation["block_receipts_request"])
+    if block_record is None:
+        raise IntegrityError("receipt capture has no recorded block receipts result")
+    outcome = block_record.get("outcome")
+    raw_receipts = outcome.get("result") if isinstance(outcome, dict) else None
+    if not isinstance(raw_receipts, list):
+        raise IntegrityError("recorded block receipts result is not an array")
+    limits.check_allocation(
+        len(raw_receipts), maximum=MAX_RECEIPTS, label="receipt count"
+    )
+    target_result = _recorded_result(
+        named_records,
+        relation["target_receipt_lookup_request"],
+        label="target receipt",
+    )
+    _check_raw_receipt_shape(target_result, limits, label="target receipt")
+    filtered_result = _recorded_result(
+        named_records,
+        relation["filtered_logs_request"],
+        label="filtered logs",
+    )
+    if not isinstance(filtered_result, list):
+        raise IntegrityError("recorded filtered logs result is not an array")
+    limits.check_allocation(
+        len(filtered_result), maximum=MAX_LOGS, label="filtered log count"
+    )
+    for raw_log in filtered_result:
+        _check_raw_log_shape(raw_log, limits, label="filtered log")
+
+    transaction_hashes = header["rpc_result"].get("transactions")
+    if not isinstance(transaction_hashes, list):
+        raise IntegrityError("recorded header transaction list is not an array")
+    limits.check_allocation(
+        len(transaction_hashes),
+        maximum=MAX_RECEIPTS,
+        label="header transaction count",
+    )
+    if len(raw_receipts) != len(transaction_hashes):
+        raise IntegrityError("recorded block receipts do not cover every header slot")
+
+    receipts: list[dict[str, Any]] = []
+    total_logs = 0
+    block_number = header["number"]
+    block_hash = header["hash"]
+    for index, raw_receipt in enumerate(raw_receipts):
+        raw_logs = _check_raw_receipt_shape(
+            raw_receipt, limits, label="block receipt"
+        )
+        if total_logs + len(raw_logs) > MAX_LOGS:
+            raise ResourceLimitError(f"block log count exceeds {MAX_LOGS}")
+        projected = _rpc_receipt(
+            raw_receipt,
+            index=index,
+            first_log_index=total_logs,
+            block_number=block_number,
+            block_hash=block_hash,
+            expected_transaction_hash=hash32_bytes(
+                transaction_hashes[index], label="recorded header transaction hash"
+            ),
+        )
+        total_logs += len(projected["logs"])
+        receipts.append(projected)
+
+    target_index = quantity(
+        relation["target_transaction_index"], label="target transaction index"
+    )
+    if target_index >= len(receipts):
+        raise IntegrityError("target receipt is absent from the recorded receipt set")
+    filtered_request = next(
+        item
+        for item in plan["requests"]
+        if item["name"] == relation["filtered_logs_request"]
+    )
+    witness = validate_document(
+        "receipt-witness",
+        {
+            "schema_version": 1,
+            "header": {
+                "number": block_number,
+                "hash": block_hash,
+                "receipts_root": header["rpc_result"].get("receiptsRoot"),
+            },
+            "receipts": receipts,
+            "target_receipt": {"transaction_index": hex(target_index)},
+            "filtered_logs": {"filter": filtered_request["params"][0]},
+        },
+    )
+    relation_report = verify_receipt_relation(
+        witness,
+        header=header,
+        plan=plan,
+        rpc_records=rpc_records,
+    )
+    return witness, relation_report
+
+
+def _recorded_result(
+    records: Mapping[str, dict[str, Any]], name: str, *, label: str
+) -> Any:
+    record = records.get(name)
+    outcome = record.get("outcome") if isinstance(record, dict) else None
+    if not isinstance(outcome, dict) or "result" not in outcome:
+        raise IntegrityError(f"recorded {label} result is absent")
+    return outcome["result"]
+
+
+def _check_raw_receipt_shape(
+    value: Any, limits: CaptureLimits, *, label: str
+) -> list[Any]:
+    if not isinstance(value, dict):
+        raise IntegrityError(f"recorded {label} is not an object")
+    limits.check_allocation(
+        len(value), maximum=MAX_RECEIPT_FIELDS, label=f"{label} field count"
+    )
+    logs = value.get("logs")
+    if not isinstance(logs, list):
+        raise IntegrityError(f"recorded {label} logs are not an array")
+    limits.check_allocation(
+        len(logs), maximum=MAX_LOGS, label=f"{label} log count"
+    )
+    for log in logs:
+        _check_raw_log_shape(log, limits, label=f"{label} log")
+    return logs
+
+
+def _check_raw_log_shape(
+    value: Any, limits: CaptureLimits, *, label: str
+) -> None:
+    if not isinstance(value, dict):
+        raise IntegrityError(f"recorded {label} is not an object")
+    limits.check_allocation(
+        len(value), maximum=MAX_RECEIPT_LOG_FIELDS, label=f"{label} field count"
+    )
+    topics = value.get("topics")
+    if not isinstance(topics, list):
+        raise IntegrityError(f"recorded {label} topics are not an array")
+    limits.check_allocation(
+        len(topics), maximum=MAX_TOPICS, label=f"{label} topic count"
+    )
+
+
+def _receipt_terminal_result(
+    plan: dict[str, Any],
+    report: dict[str, Any],
+    limits: CaptureLimits,
+) -> dict[str, Any]:
+    relation = report["receipt_trie_proved"]
+    relation_plan = plan["receipt_witness"]
+    target_request = next(
+        item
+        for item in plan["requests"]
+        if item["name"] == relation_plan["target_receipt_lookup_request"]
+    )
+    return {
+        "schema": "lazarus-capture-terminal/v1",
+        "event": "lazarus.capture.completed",
+        "correlation_id": f"lazarus-fixture:{report['fixture_digest']}",
+        "stage": "fixture-finalised",
+        "block": {
+            "number": report["block_number"],
+            "hash": report["block_hash"],
+        },
+        "recorded_target_selector": {
+            "value": target_request["params"][0],
+            "evidence": "recorded_rpc",
+            "transaction_index": relation["target_transaction_index"],
+        },
+        "counts": {
+            "rpc_requests": limits.requests,
+            "rpc_response_bytes": limits.response_bytes,
+            "recorded_rpc": report["recorded_rpc"]["records"],
+            "anchor_records": report["chain_anchors"]["records"],
+            "receipts": relation["receipt_count"],
+            "logs": relation["log_count"],
+            "selected_logs": relation["filtered_log_count"],
+            "receipt_trie_proved": relation["relations"],
+        },
+        "versions": {
+            "tool": report["manifest"]["tool_version"],
+            "plan": plan["schema_version"],
+            "manifest": report["manifest"]["schema_version"],
+            "receipt_witness": 1,
+        },
+        "roots": {
+            "expected_receipts_root": relation["expected_root"],
+            "computed_receipts_root": relation["computed_root"],
+        },
+        "relation_scope": {
+            "receipt_trie_proved": [
+                "consensus_receipt_payload_at_trie_index",
+                "consensus_log_projection",
+            ],
+            "transaction_hash_attribution": "recorded_rpc",
+        },
+        "fixture_digest": report["fixture_digest"],
+    }
 
 
 def _capture_anchor(

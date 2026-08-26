@@ -11,6 +11,8 @@ REPO_ROOT = PLUGIN_ROOT.parents[1]
 SCRIPTS = PLUGIN_ROOT / "scripts"
 SKILL = PLUGIN_ROOT / "skills" / "lazarus" / "SKILL.md"
 FIXTURES = PLUGIN_ROOT / "tests" / "fixtures"
+RECEIPT_CAPTURE_FIXTURE = FIXTURES / "receipt-capture-v1"
+RECEIPT_PROOF_FIXTURE = FIXTURES / "receipt-proof-v1"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -385,6 +387,65 @@ def anchored_fixture_material(source_ids=("archive-a", "archive-b")):
         {"source_id": source_id} for source_id in source_ids
     ]
     return material
+
+
+def receipt_capture_material():
+    """The fixed provider material used to recapture receipt-proof-v1."""
+
+    from lazarus_lib.canonical import load
+    from lazarus_lib.records import (
+        read_anchor_records,
+        read_proof_records,
+        read_receipt_witness,
+        read_rpc_records,
+    )
+
+    return {
+        "plan": load(RECEIPT_CAPTURE_FIXTURE / "plan.json"),
+        "header": load(RECEIPT_PROOF_FIXTURE / "header.json"),
+        "proof_records": read_proof_records(RECEIPT_PROOF_FIXTURE / "proofs.jsonl"),
+        "rpc_records": read_rpc_records(RECEIPT_PROOF_FIXTURE / "rpc.jsonl"),
+        "receipt_witness": read_receipt_witness(
+            RECEIPT_PROOF_FIXTURE / "receipt-witness.json"
+        ),
+        "anchor_records": read_anchor_records(
+            RECEIPT_PROOF_FIXTURE / "anchors.jsonl"
+        ),
+    }
+
+
+def rewrite_recorded_target_hash(material, transaction_hash):
+    """Rewrite recorded target identity without changing consensus receipt data."""
+
+    from lazarus_lib.records import request_key
+
+    relation = material["plan"]["receipt_witness"]
+    index = int(relation["target_transaction_index"], 16)
+    material["header"]["rpc_result"]["transactions"][index] = transaction_hash
+
+    target_request = next(
+        item
+        for item in material["plan"]["requests"]
+        if item["name"] == relation["target_receipt_lookup_request"]
+    )
+    target_request["params"] = [transaction_hash]
+
+    records = {record["name"]: record for record in material["rpc_records"]}
+    target_record = records[relation["target_receipt_lookup_request"]]
+    target_record["params"] = [transaction_hash]
+    target_record["request_key"] = request_key(
+        target_record["method"], target_record["params"]
+    )
+
+    block_receipts = records[relation["block_receipts_request"]]["outcome"]["result"]
+    for receipt in (block_receipts[index], target_record["outcome"]["result"]):
+        receipt["transactionHash"] = transaction_hash
+        for log in receipt["logs"]:
+            log["transactionHash"] = transaction_hash
+    filtered_logs = records[relation["filtered_logs_request"]]["outcome"]["result"]
+    for log in filtered_logs:
+        if int(log["transactionIndex"], 16) == index:
+            log["transactionHash"] = transaction_hash
 
 
 def receipt_fixture_material():
