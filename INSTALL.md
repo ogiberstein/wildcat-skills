@@ -85,6 +85,41 @@ See Anthropic's [skills](https://code.claude.com/docs/en/skills) and
 [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
 documentation for the underlying format.
 
+#### Attribution
+
+The repository carries `.claude/settings.json`, holding one object:
+
+```json
+{"attribution": {"commit": "", "pr": "", "sessionUrl": false}}
+```
+
+It is the shared project settings file Claude Code reads from a checkout, so it
+applies to Claude Code sessions opened in this repository: a terminal session,
+and a cloud session, which the documentation says reads committed settings
+files. The three values turn off the three attribution defaults the settings
+reference describes. `commit` set to an empty string hides the
+`Co-Authored-By: <model name> <noreply@anthropic.com>` trailer added to every
+commit. `pr` set to an empty string hides the
+`Generated with [Claude Code](https://claude.com/claude-code)` line added to
+every pull-request description. `sessionUrl` set to `false` omits the claude.ai
+session link a cloud or Remote Control session adds as a `Claude-Session`
+trailer on commits and as a link in pull-request descriptions.
+
+Two limits. The file's effect on the session link is documented and not
+observed: the footer that reached pull request #615 matches the documented
+session link and no other documented default, so `sessionUrl: false` is the
+documented switch, and whether it suppresses that footer in a live cloud
+session has not been checked from here. No documented switch was found for
+Codex, GitHub Copilot, Cursor, Gemini CLI or Windsurf; on those harnesses,
+remove the lines before the receipt. Either way, Fiat refuses the three
+defaults by name in every commit range and pull request it receipts: the
+trailer as a runtime-host co-author, and the attribution line and the
+description's session link as a runtime-host byline. A setting is not evidence
+that they are gone. The rule is
+[ADR-016](./docs/decisions/ADR-016-attribute-governed-agent-work-to-shoggoth.md);
+the keys are documented in Anthropic's
+[settings reference](https://code.claude.com/docs/en/settings-reference).
+
 ### Local agents
 
 Agents that support the open Agent Skills convention discover the single

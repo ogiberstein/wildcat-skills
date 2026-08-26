@@ -6,6 +6,7 @@ from pathlib import Path
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -40,6 +41,8 @@ PROSE_PASS = ROOT / "skills" / "fiat" / "references" / "prose-pass.md"
 PLUGIN_CURRENCY = ROOT / "skills" / "fiat" / "references" / "plugin-currency.md"
 AUDIT_LOOP = ROOT / "skills" / "fiat" / "references" / "audit-loop.md"
 KRONOS = ROOT / "skills" / "kronos" / "SKILL.md"
+REPO_ROOT = ROOT.parents[1]
+GUIDE = REPO_ROOT / "docs" / "how-to-help-shoggoth.md"
 AGENTS = {
     name: (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
     for name in ("surveyor", "mason", "warden", "scribe")
@@ -157,6 +160,25 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("checked-and-recorded", audit)
         self.assertIn("does not attest the Elenchus report bytes", audit)
         self.assertIn("issue 453", audit)
+
+    def test_future_audit_records_use_v2_while_v1_remains_readable(self):
+        audit = " ".join(self.audit_loop.split())
+        fiat = " ".join(self.fiat.split())
+        warden = " ".join(AGENTS["warden"].split())
+        for text in (audit, warden):
+            self.assertIn("fiat-audit-round/v2", text)
+            self.assertIn("fiat-audit-round/v1", text)
+            self.assertIn("Covered", text)
+            self.assertIn("Not checked", text)
+            self.assertIn("Leads not pursued", text)
+        self.assertIn("[audit-loop.md]", fiat)
+        self.assertIn("do not write a new one", warden)
+        self.assertIn("YYYY-MM-DDTHH:MM:SSZ", audit)
+        self.assertIn("one raw record in the grammar above at EOF", audit)
+        self.assertIn("Only the appended delta is decoded", audit)
+        self.assertIn("canonical log path", audit)
+        self.assertIn("entry SHA-256", audit)
+        self.assertIn("packet's risk register", warden)
 
     def test_warden_uses_the_source_bound_step_and_returns_the_exact_verdict(self):
         contract = " ".join(AGENTS["warden"].split())
@@ -301,6 +323,51 @@ class FiatSkillContractTests(unittest.TestCase):
         self.assertIn("ends the last baseline step before a real amendment heading", flat)
         self.assertIn("not that the new criterion is correct", flat)
 
+    def test_protasis_verified_audit_read_view_preserves_source_evidence(self):
+        passages = {
+            "study item 2": self.protasis.split("2. **Prior art.**", 1)[1].split(
+                "3. **Constraints and non-goals.**", 1
+            )[0],
+            "pre-receipt checklist": self.protasis.split(
+                "## Before the runbook is receipted", 1
+            )[1].split("## Hand back", 1)[0],
+        }
+        required = {
+            "source authority": "Every discovered audit source remains authoritative.",
+            "legacy mapping": (
+                "`**/audit/AUDIT.md` maps to its sibling `AUDIT_SYNOPSIS.md`."
+            ),
+            "per-run mapping": (
+                "A direct child `audit/rounds/<run>.md` maps to "
+                "`audit/rounds/<run>.synopsis.md`."
+            ),
+            "currency command": (
+                "`python3 plugins/hexaemeron/skills/fiat/scripts/"
+                "audit_synopsis.py --check <target-root>`"
+            ),
+            "whole-set gate": "whole-set currency check exits zero",
+            "unavailable view": "Missing, stale, unsupported, or unavailable view",
+            "source fallback": "read the authoritative source directly",
+            "fallback evidence": "record its source path and the reason",
+            "finding identity": "every finding id and status",
+            "covered evidence": "`Covered`",
+            "unchecked evidence": "`Not checked`",
+            "elenchus evidence": "`Elenchus verdict`",
+            "unfollowed leads": "`Leads not pursued`",
+            "legacy unknown": "`[missing legacy field: ...]` remains unknown",
+            "source inventory": "name every in-scope source",
+            "actual read mode": "which synopsis or source was actually read",
+            "read-mode evidence": "evidence for that choice",
+            "truthful source claim": (
+                "Do not claim the source was read when only its synopsis was read."
+            ),
+        }
+        for passage_name, passage in passages.items():
+            flat = " ".join(passage.split())
+            for rule, clause in required.items():
+                with self.subTest(passage=passage_name, rule=rule):
+                    self.assertIn(clause, flat)
+
     def test_observation_binding_is_optional_and_non_authorising(self):
         flat = " ".join(self.fiat.split())
         self.assertIn("Observation is never a phase gate", self.fiat)
@@ -383,6 +450,105 @@ class OriginLabelTests(unittest.TestCase):
     def test_a_failed_query_is_not_an_answer(self):
         self.assertIn("A failed query is not an answer", self.flat)
         self.assertIn("Check the exit status separately from the match", self.flat)
+
+
+class BodyReadBackTests(unittest.TestCase):
+    """A host can rewrite the pull-request body after `gh pr create` returns.
+
+    Pull request #615 was drafted without a byline and came back from GitHub
+    carrying the host's session-link footer; a body edit removed it and the
+    removal held. Nothing in the loop said to read the body back, and a Fiat
+    receipt over that body would have refused it with no word about where the
+    line came from (skills#617). Flattened, like the label pins above, so a
+    reflow of the same sentence is not a removed rule.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.flat = " ".join(PUSH_DISCIPLINE.read_text(encoding="utf-8").split())
+        cls.fiat = " ".join(FIAT.read_text(encoding="utf-8").split())
+
+    def test_the_body_is_read_back_over_rest_after_creation(self):
+        self.assertIn("## Read the body back", self.flat)
+        self.assertIn("The body is the second thing to read back, after the label.", self.flat)
+        self.assertIn("after `gh pr create` returns", self.flat)
+        self.assertIn("gh api repos/<owner>/<repo>/pulls/<n> --jq .body", self.flat)
+        self.assertIn("rather than `gh pr view --json body`", self.flat)
+
+    def test_the_section_sits_between_the_label_read_back_and_the_url_check(self):
+        self.assertLess(
+            self.flat.index("A failed query is not an answer"),
+            self.flat.index("## Read the body back"),
+        )
+        self.assertLess(
+            self.flat.index("## Read the body back"),
+            self.flat.index("Verify the pull request URL after creation"),
+        )
+
+    def test_a_failed_read_is_not_a_clean_body(self):
+        self.assertIn("A failed read is not a clean body", self.flat)
+
+    def test_the_recovery_edits_the_stashed_body_and_reads_it_again(self):
+        self.assertIn("gh pr edit <url> --body-file .hexaemeron/steps/<n>/pr.md", self.flat)
+        self.assertIn("read it back again", self.flat)
+        self.assertIn("`done push`, `done merge-step` and `done integrate`", self.flat)
+
+    def test_the_repository_rule_wins_over_the_host_trailer_instruction(self):
+        self.assertIn("cannot both be satisfied, and the repository rule wins", self.flat)
+
+    def test_the_settings_file_is_named_and_is_not_evidence(self):
+        self.assertIn("`.claude/settings.json`", self.flat)
+        self.assertIn("a setting is not evidence", self.flat)
+
+    def test_the_listed_footer_is_named_by_where_it_was_seen(self):
+        # The study records the #615 footer as having the documented session
+        # link's shape and declines to claim it is that link (skills#617 audit
+        # S2-R1-02); the list says the same rather than more.
+        self.assertIn("the footer that reached pull request #615", self.flat)
+        self.assertIn("it has the shape of the session link", self.flat)
+
+    def test_the_skill_push_note_points_at_the_section(self):
+        self.assertIn(
+            "`Read the body back` section of [push-discipline.md](references/push-discipline.md)",
+            self.fiat,
+        )
+
+
+class HostGuidanceTests(unittest.TestCase):
+    """The contributor guide promises no refusal the byline expression does not make.
+
+    The guide's attribution paragraph once said a `Generated with` or
+    `Generated by` line "naming Claude Code, Codex or another host" is refused,
+    in the paragraph that sends Cursor, Windsurf and GitHub Copilot contributors
+    to remove such lines by hand; `HOST_BYLINE_RE` names six hosts and passes a
+    line naming any other (skills#617 audit S2-R1-01). The guard reads the hosts
+    the sentence names and drives each through the expression the controller
+    applies, so the list can widen only together with the expression.
+    """
+
+    HOST_LIST_RE = re.compile(r"line naming (.+?), refused as a runtime-host byline")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.flat = " ".join(GUIDE.read_text(encoding="utf-8").split())
+        cls.byline = hexctl_module().HOST_BYLINE_RE
+
+    def test_every_host_the_guide_names_is_one_the_expression_reads(self):
+        match = self.HOST_LIST_RE.search(self.flat)
+        self.assertIsNotNone(match, "the guide no longer lists the hosts the byline gate reads")
+        hosts = re.split(r", | or ", match.group(1))
+        self.assertGreaterEqual(len(hosts), 2)
+        for host in hosts:
+            for verb in ("Generated with", "Generated by"):
+                with self.subTest(host=host, verb=verb):
+                    self.assertIsNotNone(self.byline.search(f"{verb} {host}"))
+
+    def test_the_guide_promises_no_refusal_for_an_unnamed_host(self):
+        self.assertNotIn("or another host, refused", self.flat)
+        self.assertIn(
+            "a line naming any other host passes the gate and still has to go",
+            self.flat,
+        )
 
 
 class BaseSyncTests(unittest.TestCase):
