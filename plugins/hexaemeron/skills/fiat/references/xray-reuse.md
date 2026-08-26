@@ -17,9 +17,10 @@ authorises an edit to the vendored X-Ray tree.
 Build a fresh `hexaemeron.xray.scope.v1` manifest from the full logical scope
 for the current step. It names every current source, every declared direct
 dependency, the analyser identity, the current X-Ray instruction digest, and
-the configuration digest. Read and hash every named source in the current
-tree. An unsafe, unreadable, incomplete, or internally inconsistent current
-scope is a refusal, not a cache fallback.
+the configuration digest. Preserve the pinned X-Ray operation: read and digest
+every current source before planning, even when its prior preparation entry
+could be reusable. An unsafe, unreadable, incomplete, or internally
+inconsistent current scope is a refusal, not a cache fallback.
 
 ## One run
 
@@ -29,18 +30,23 @@ scope is a refusal, not a cache fallback.
    named full-recomputation reason. A source addition or removal is a scope
    mismatch and also recomputes the full current scope. Never reuse common
    rows across a changed inventory.
-2. Give X-Ray every source in `dirty`. A fresh preparation entry is bounded
-   data: it binds the current source digest, the relevant transitive dependency
-   digests, analyser and configuration identity, and the closed fact schema.
-   It supplies neither a command nor an unchecked filesystem path.
+2. Keep the pinned full-scope source reads and verification calls. Reuse
+   replaces only preparation-fact regeneration. Regenerate an entry for every
+   source in `dirty`; accept a reusable entry only after the current source and
+   dependency digests validate. Each closed, capped entry carries declarations,
+   types, inheritance, imports, roles, access, state and value facts, fund
+   flows, entry points, calls, key logic, guards, symbolic deltas, transitions,
+   `invariant_inputs` facts, and write sites. It supplies neither a command nor
+   an unchecked filesystem path.
 3. Run `xray_reuse.py assemble` with every fresh entry and any validated
    reusable entry. The resulting union must equal the exact current source
-   inventory. Removed sources are absent. Rebuild the complete write-site,
-   property, call, and transition inputs from that union.
-4. Run X-Ray's fresh global synthesis over the complete current union and
-   regenerate all four final outputs: `architecture.json`, `x-ray.md`,
-   `entry-points.md`, and `invariants.md`. Do not reuse a global synthesis,
-   report fragment, finding, or security conclusion.
+   inventory. Removed sources are absent. Rebuild the complete source-fact,
+   write-site, property, call, and transition inputs from that union.
+4. Run fresh coverage, history, integration, and cross-source analysis over the
+   exact current union, then run fresh global synthesis. Regenerate all four
+   final outputs: `architecture.json`, `x-ray.md`, `entry-points.md`, and
+   `invariants.md`. Do not reuse a global synthesis, report fragment, finding,
+   or security conclusion.
 5. Run `xray_reuse.py bind-outputs`, then `xray_reuse.py promote`. Promotion
    requires an output manifest that binds the candidate digest, exact current
    source inventory, and current digests of all four outputs. A refusal or

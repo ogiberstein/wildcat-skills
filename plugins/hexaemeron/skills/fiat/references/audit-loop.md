@@ -17,10 +17,13 @@ another pass.
    each SKILL.md and follow
    it. Give each the step's full diff and the contracts it touches, not a
    summary. Its adapter is a preparation layer only: build the full logical
-   scope from the current tree, use only an exact validated current union, run
-   fresh global synthesis, and regenerate all four final outputs named there.
-   Any cache uncertainty becomes named full recomputation; unsafe or incomplete
-   current scope stops the round.
+   scope from the current tree, read and digest every current source, and
+   preserve every pinned X-Ray source-read and verification call. Reuse
+   replaces only preparation-fact regeneration. Use only an exact validated
+   current fact union, run fresh coverage, history, integration and cross-source
+   analysis, run fresh global synthesis, and regenerate all four final outputs
+   named there. Any cache uncertainty becomes named full recomputation; unsafe
+   or incomplete current scope stops the round.
    Keep scope manifests, reuse plans, preparation entries, candidates, output
    manifests, cache paths, cache keys, cache payloads, and cache verdicts out
    of Fiat state, its ledger, the Warden brief and directive, and every receipt.

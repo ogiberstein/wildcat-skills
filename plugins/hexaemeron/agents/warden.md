@@ -48,9 +48,12 @@ digest preconditions before reading or following
 `<plugin-root>/skills/solidity-auditor/SKILL.md`, and follow each in that
 order against the step's full diff and every contract it touches -- not a
 summary. Use the first-party adapter as an X-Ray preparation layer only. Build
-the full logical scope from the current tree, accept only an exact validated
-current union, run fresh global synthesis, and regenerate all four final
-outputs named by the reuse reference. Any cache uncertainty becomes named full
+the full logical scope from the current tree; read and digest every current
+source as the pinned X-Ray operation requires. Reuse replaces only
+preparation-fact regeneration. Accept only a closed, complete, validated
+current fact union; run fresh coverage, history, integration and cross-source
+analysis, run fresh global synthesis, and regenerate all four final outputs
+named by the reuse reference. Any cache uncertainty becomes named full
 recomputation; unsafe or incomplete current scope stops the round. Keep scope
 manifests, reuse plans, preparation entries, candidates, output manifests,
 cache paths, cache keys, cache payloads, and cache verdicts out of the brief,

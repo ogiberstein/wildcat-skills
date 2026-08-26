@@ -28,10 +28,10 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 SCOPE_SCHEMA = "hexaemeron.xray.scope.v1"
-ENTRY_SCHEMA = "hexaemeron.xray.preparation-entry.v1"
+ENTRY_SCHEMA = "hexaemeron.xray.preparation-entry.v2"
 PLAN_SCHEMA = "hexaemeron.xray.reuse-plan.v1"
-CANDIDATE_SCHEMA = "hexaemeron.xray.candidate.v1"
-CACHE_SCHEMA = "hexaemeron.xray.cache.v1"
+CANDIDATE_SCHEMA = "hexaemeron.xray.candidate.v2"
+CACHE_SCHEMA = "hexaemeron.xray.cache.v2"
 OUTPUT_MANIFEST_SCHEMA = "hexaemeron.xray.output-manifest.v1"
 RESULT_SCHEMA = "hexaemeron.xray.reuse-result.v1"
 
@@ -43,11 +43,21 @@ FINAL_OUTPUTS = (
 )
 OUTPUT_MANIFEST_NAME = "xray-output-manifest.json"
 FACT_KEYS = (
+    "access",
     "calls",
+    "declarations",
     "entry_points",
+    "fund_flows",
     "guards",
+    "imports",
+    "inheritance",
     "invariant_inputs",
+    "key_logic",
+    "roles",
+    "state_facts",
     "transitions",
+    "types",
+    "value_facts",
     "writes",
 )
 
@@ -547,7 +557,7 @@ def _string_list(value: Any, label: str) -> list[str]:
 
 
 def validate_facts(value: Any, label: str = "facts") -> dict[str, Any]:
-    """Validate the deliberately small model-produced preparation fact shape."""
+    """Validate every reusable source-bound input required by pinned X-Ray."""
     facts = _closed_object(value, FACT_KEYS, label)
     result: dict[str, Any] = {
         key: _string_list(facts[key], f"{label}.{key}")
@@ -560,19 +570,27 @@ def validate_facts(value: Any, label: str = "facts") -> dict[str, Any]:
     if len(writes) > MAX_FACTS_PER_KIND:
         _refuse("size-limit", f"{label}.writes exceeds {MAX_FACTS_PER_KIND} entries")
     normal_writes: list[dict[str, str]] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     for index, raw in enumerate(writes):
-        write = _closed_object(raw, ("site", "variable"), f"{label}.writes[{index}]")
+        write = _closed_object(
+            raw,
+            ("delta", "site", "variable"),
+            f"{label}.writes[{index}]",
+        )
         item = (
             _text(write["variable"], f"{label}.writes[{index}].variable"),
             _text(write["site"], f"{label}.writes[{index}].site"),
+            _text(write["delta"], f"{label}.writes[{index}].delta"),
         )
         if item in seen:
             _refuse("duplicate-fact", f"{label}.writes contains duplicate records")
         seen.add(item)
-        normal_writes.append({"variable": item[0], "site": item[1]})
+        normal_writes.append(
+            {"variable": item[0], "site": item[1], "delta": item[2]}
+        )
     result["writes"] = sorted(
-        normal_writes, key=lambda write: (write["variable"], write["site"])
+        normal_writes,
+        key=lambda write: (write["variable"], write["site"], write["delta"]),
     )
     return {key: result[key] for key in FACT_KEYS}
 
@@ -702,7 +720,7 @@ def dependency_digests_for(
 
 
 def rebuild_synthesis(entries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Rebuild complete write-site and property inputs from the current union."""
+    """Rebuild complete source-bound inputs from the exact current union."""
     ordered = sorted(entries, key=lambda entry: entry["path"])
     write_map: dict[str, list[dict[str, str]]] = {}
     property_inputs: list[dict[str, Any]] = []
@@ -711,7 +729,11 @@ def rebuild_synthesis(entries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     for entry in ordered:
         for write in entry["facts"]["writes"]:
             write_map.setdefault(write["variable"], []).append(
-                {"path": entry["path"], "site": write["site"]}
+                {
+                    "path": entry["path"],
+                    "site": write["site"],
+                    "delta": write["delta"],
+                }
             )
         property_inputs.append(
             {
@@ -730,10 +752,17 @@ def rebuild_synthesis(entries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         )
     return {
         "source_inventory": [entry["path"] for entry in ordered],
+        "source_inputs": [
+            {"path": entry["path"], "facts": entry["facts"]}
+            for entry in ordered
+        ],
         "write_sites": [
             {
                 "variable": variable,
-                "sites": sorted(sites, key=lambda site: (site["path"], site["site"])),
+                "sites": sorted(
+                    sites,
+                    key=lambda site: (site["path"], site["site"], site["delta"]),
+                ),
             }
             for variable, sites in sorted(write_map.items())
         ],
