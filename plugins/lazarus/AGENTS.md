@@ -1,7 +1,7 @@
 # Lazarus runtime contract
 
 <!-- marketplace-context:start -->
-> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
+> **Marketplace context: Lazarus.** Lazarus captures the finite fixed-block Ethereum state and RPC evidence an application test needs, verifies the proof-backed part and replays only exact recorded requests. Use Alexandria for a lending-data archive, Tabularium for event interpretation and Ariadne to bind a released fixture to its evidence. **Current frontier:** Receipt witnesses reconstruct receiptsRoot offline and prove one scoped receipt payload plus its consensus-log projection; transaction hashes and unrelated RPC results remain recorded evidence, while empty blocks still have no receipt-witness representation.
 <!-- marketplace-context:end -->
 
 ## Promise Machine binding
@@ -46,17 +46,17 @@ local tool. A non-zero exit means the requested operation did not succeed.
   implements format validation, finite capture, manifest construction, offline
   verification, exact loopback replay, and writing and reading back a
   preservation release.
-- A plan-v2 capture maps each declared anchor source at runtime with repeated
-  `--anchor-rpc-env SOURCE_ID=ENV_VAR` arguments. The argument names an
-  environment variable; its RPC URL value does not enter argv.
+- A plan-v2 or plan-v3 capture maps each declared anchor source at runtime with
+  repeated `--anchor-rpc-env SOURCE_ID=ENV_VAR` arguments. The argument names
+  an environment variable; its RPC URL value does not enter argv.
 - Names such as `lazarus:lazarus`, `/lazarus:lazarus` and `$lazarus` are
   logical aliases. Load the canonical path from the table above.
 
 ## Network and side effects
 
 `capture` is the only networked command. It uses the explicit primary RPC URL
-and, for plan v2, the exact declared source-to-environment mapping. Every
-anchor client shares the primary capture's request, response-byte,
+and, for plan v2 or plan v3, the exact declared source-to-environment mapping.
+Every anchor client shares the primary capture's request, response-byte,
 component-byte, total-byte and elapsed-time limits. Capture queries each source
 for the mainnet chain ID and fixed block, scans staged bytes against the union
 of all provider secrets, verifies the complete fixture and atomically finalises
@@ -65,8 +65,10 @@ validation, manifest construction and fixture verification reach no network.
 `build-manifest` writes only
 `manifest.json` beneath its explicit fixture root. `verify` checks schemas,
 safe paths, canonical manifest bytes, component sizes and SHA-256 digests,
-then verifies the header, EIP-1186 account and storage proofs, proved response
-fields and captured code. `replay` verifies before binding loopback.
+then verifies the header, EIP-1186 account and storage proofs, a declared full
+ordered receipt witness, the scoped receipt and log-projection relations,
+proved response fields and captured code. `replay` verifies before binding
+loopback.
 It has no provider, proxy or fallback. `release` verifies its fixture, holds the
 statement it is handed to what that verification recomputed, and writes its
 output whole or not at all, into a directory that must not exist and must not
@@ -77,8 +79,10 @@ nothing. Neither reaches a network, and neither signs anything.
 
 - No moving block in an effective plan. `latest` and `pending` are resolved or
   rejected before the stored plan is written.
-- No proof claim for an ordinary RPC result. Logs, receipts, calls and traces
-  remain recorded evidence.
+- No proof claim for an ordinary RPC result. Only the consensus receipt payload
+  and scoped consensus-log projection accepted through a reconstructed
+  `receiptsRoot` relation enter the receipt-trie-proved class. Transaction
+  hashes, calls, traces and unrelated fields remain recorded evidence.
 - No silent live fallback. An uncaptured replay request is a visible miss.
 - No secret persistence. Provider URLs, headers, credentials and raw provider
   errors do not enter a fixture or its diagnostics.
@@ -92,7 +96,9 @@ nothing. Neither reaches a network, and neither signs anything.
   environment values, provider failure, identity disagreement, exhausted
   limits, secret detection or failed final verification leaves no fixture.
 - No proof claim for an account, storage slot or code blob unless the current
-  `verify` command checked it against the captured header state root.
+  `verify` command checked it against the captured header state root; no
+  receipt or log relation unless it checked the ordered witness against the
+  captured header receipts root.
 - No release over a statement whose counts the fixture does not verify to, in
   either direction, and no release built on counts read from a manifest rather
   than recomputed from the records.

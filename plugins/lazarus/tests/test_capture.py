@@ -13,6 +13,7 @@ import traceback
 import unittest
 from unittest import mock
 
+from lazarus_lib import __version__
 from lazarus_lib.canonical import dump, dumps, load, loads
 from lazarus_lib.capture import (
     CaptureError,
@@ -100,6 +101,7 @@ class CaptureTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             report = verify_fixture(output)
+            self.assertEqual(report["manifest"]["tool_version"], __version__)
             self.assertIn(report["fixture_digest"], result.stdout)
             self.assertNotIn("query-secret", b"".join(
                 path.read_bytes() for path in output.rglob("*") if path.is_file()
@@ -1163,7 +1165,7 @@ class ReceiptCaptureTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["fixture_digest"],
-                "cfffa16ed33c0c17bfa8552a03e7f7a3db670689f23a0fde1a337feb56a02d04",
+                "a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec",
             )
             expected_files = sorted(
                 path.name

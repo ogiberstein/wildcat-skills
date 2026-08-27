@@ -161,7 +161,7 @@
       "displayName": "Lazarus",
       "source": "./plugins/lazarus",
       "description": "Proof-checked historical Ethereum fixtures with exact-request replay, no live fallback, and preservation releases a stranger can check.",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "author": {
         "name": "Wildcat Labs",
         "url": "https://wildcat.finance"
@@ -205,7 +205,7 @@
       "displayName": "Ariadne",
       "source": "./plugins/ariadne",
       "description": "Release evidence statements binding artefact digests to the record behind them.",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "author": {
         "name": "Wildcat Labs",
         "url": "https://wildcat.finance"

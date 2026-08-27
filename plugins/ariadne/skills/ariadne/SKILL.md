@@ -9,7 +9,7 @@ description: >
   new kind of artefact needs a predicate of its own. Ariadne neither signs nor
   verifies signatures; those operations belong to cosign.
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Ariadne
