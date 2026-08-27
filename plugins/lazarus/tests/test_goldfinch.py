@@ -165,7 +165,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         report = verify_fixture(RECEIPT_FIXTURE)
         self.assertEqual(
             report["fixture_digest"],
-            "861fcd5841ba7fa646ba904ae2c6dd41e0d7b169e4403d7de9db9002aea7149e",
+            "0eb8b0850c1bed7eca06e8eb545a2fbd92c7a19577a718b277116310e2032feb",
         )
         self.assertEqual(
             report["evidence_counts"],
@@ -330,6 +330,243 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
             self.assertNotIn("private host detail", error.getvalue())
             self.assertNotIn("Traceback", error.getvalue())
 
+    def test_builder_rejects_a_parent_swapped_to_a_source_symlink(self):
+        demo = load_receipt_demo()
+        real_mkdtemp = tempfile.mkdtemp
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            shutil.copytree(support.RECEIPT_PROOF_FIXTURE, source)
+            before = demo._tree_bytes(source)
+            parent = root / "output-parent"
+            parent.mkdir()
+            original_parent = root / "original-output-parent"
+            output = parent / "fixture"
+
+            def swap_parent(*, prefix, dir):
+                parent.rename(original_parent)
+                parent.symlink_to(source, target_is_directory=True)
+                return real_mkdtemp(prefix=prefix, dir=dir)
+
+            with mock.patch.dict(
+                demo.build_fixture.__globals__,
+                {
+                    "SOURCE_FIXTURE": source,
+                    "tempfile": SimpleNamespace(mkdtemp=swap_parent),
+                },
+            ):
+                with self.assertRaisesRegex(
+                    LazarusError, "fixture output parent changed during build"
+                ):
+                    demo.build_fixture(output)
+            self.assertEqual(demo._tree_bytes(source), before)
+            self.assertFalse((source / "fixture").exists())
+            self.assertEqual(list(source.glob(".*.stage-*")), [])
+
+    def test_builder_rechecks_the_parent_after_each_source_snapshot_read(self):
+        demo = load_receipt_demo()
+        real_read = demo.read_confined_bytes
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            shutil.copytree(support.RECEIPT_PROOF_FIXTURE, source)
+            before = demo._tree_bytes(source)
+            parent = root / "output-parent"
+            parent.mkdir()
+            original_parent = root / "original-output-parent"
+            output = parent / "fixture"
+
+            def swap_parent_after_read(*args, **kwargs):
+                data = real_read(*args, **kwargs)
+                if not parent.is_symlink():
+                    parent.rename(original_parent)
+                    parent.symlink_to(source, target_is_directory=True)
+                return data
+
+            with mock.patch.dict(
+                demo.build_fixture.__globals__,
+                {
+                    "SOURCE_FIXTURE": source,
+                    "read_confined_bytes": swap_parent_after_read,
+                },
+            ):
+                error = StringIO()
+                with mock.patch("sys.stderr", error):
+                    try:
+                        code = demo.main(["build-fixture", "--out", str(output)])
+                    except OSError as exception:
+                        self.fail(
+                            "builder CLI leaked an unhandled "
+                            f"{type(exception).__name__}"
+                        )
+            self.assertEqual(code, 1)
+            self.assertEqual(
+                error.getvalue(),
+                "refused: fixture output parent changed during build\n",
+            )
+            self.assertEqual(demo._tree_bytes(source), before)
+            self.assertFalse((source / "fixture").exists())
+            self.assertEqual(list(source.glob(".*.stage-*")), [])
+            self.assertFalse((original_parent / "fixture").exists())
+            self.assertEqual(list(original_parent.glob(".*.stage-*")), [])
+
+    def test_builder_anchors_the_atomic_publish_to_the_open_parent(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            shutil.copytree(support.RECEIPT_PROOF_FIXTURE, source)
+            before = demo._tree_bytes(source)
+            parent = root / "output-parent"
+            parent.mkdir()
+            original_parent = root / "original-output-parent"
+            output = parent / "fixture"
+
+            anchored = getattr(demo, "_atomic_no_replace_in_directory", None)
+            if anchored is None:
+                path_finalizer = demo._atomic_no_replace
+
+                def swap_during_path_finalisation(stage, destination):
+                    parent.rename(original_parent)
+                    parent.symlink_to(source, target_is_directory=True)
+                    (source / Path(stage).name).mkdir()
+                    return path_finalizer(stage, destination)
+
+                finalizer_patch = {
+                    "_atomic_no_replace": swap_during_path_finalisation
+                }
+            else:
+
+                def swap_during_anchored_finalisation(
+                    stage_directory_fd,
+                    stage_name,
+                    destination_directory_fd,
+                    destination_name,
+                ):
+                    parent.rename(original_parent)
+                    parent.symlink_to(source, target_is_directory=True)
+                    return anchored(
+                        stage_directory_fd,
+                        stage_name,
+                        destination_directory_fd,
+                        destination_name,
+                    )
+
+                finalizer_patch = {
+                    "_atomic_no_replace_in_directory": (
+                        swap_during_anchored_finalisation
+                    )
+                }
+
+            with mock.patch.dict(demo.build_fixture.__globals__, finalizer_patch):
+                with self.assertRaisesRegex(
+                    LazarusError, "fixture output parent changed during build"
+                ):
+                    demo.build_fixture(output)
+            self.assertEqual(demo._tree_bytes(source), before)
+            self.assertFalse((source / "fixture").exists())
+            self.assertEqual(list(source.glob(".*.stage-*")), [])
+            self.assertFalse((original_parent / "fixture").exists())
+            self.assertEqual(list(original_parent.glob(".*.stage-*")), [])
+
+    def test_builder_anchors_stage_writes_to_the_open_directory(self):
+        demo = load_receipt_demo()
+        real_write = Path.write_bytes
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            shutil.copytree(support.RECEIPT_PROOF_FIXTURE, source)
+            parent = root / "output-parent"
+            parent.mkdir()
+            original_parent = root / "original-output-parent"
+            output = parent / "fixture"
+            stage_name = ".fixture.stage-fixed"
+            source_shadow = source / stage_name
+            source_shadow.mkdir()
+            before = demo._tree_bytes(source)
+            swapped = False
+
+            def fixed_stage(*, prefix, dir):
+                self.assertTrue(stage_name.startswith(prefix))
+                stage = Path(dir) / stage_name
+                stage.mkdir(mode=0o700)
+                return str(stage)
+
+            def swap_before_first_write(path, data):
+                nonlocal swapped
+                if not swapped and path.name == "anchors.jsonl":
+                    swapped = True
+                    parent.rename(original_parent)
+                    parent.symlink_to(source, target_is_directory=True)
+                return real_write(path, data)
+
+            with mock.patch.dict(
+                demo.build_fixture.__globals__,
+                {"tempfile": SimpleNamespace(mkdtemp=fixed_stage)},
+            ), mock.patch.object(Path, "write_bytes", swap_before_first_write):
+                with self.assertRaisesRegex(
+                    LazarusError, "fixture output parent changed during build"
+                ):
+                    demo.build_fixture(output)
+            self.assertTrue(swapped)
+            self.assertEqual(demo._tree_bytes(source), before)
+            self.assertEqual(list(source_shadow.iterdir()), [])
+            self.assertFalse((source / "fixture").exists())
+            self.assertFalse((original_parent / "fixture").exists())
+            self.assertEqual(list(original_parent.glob(".*.stage-*")), [])
+
+    def test_builder_cleanup_failure_stays_inside_the_bounded_cli_surface(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "new-parent" / "fixture"
+            fake_shutil = SimpleNamespace(
+                rmtree=mock.Mock(side_effect=OSError("private cleanup detail"))
+            )
+            with mock.patch.dict(
+                demo.build_fixture.__globals__,
+                {
+                    "write_manifest": mock.Mock(
+                        side_effect=demo.IntegrityError("forced build failure")
+                    ),
+                    "shutil": fake_shutil,
+                },
+            ):
+                error = StringIO()
+                with mock.patch("sys.stderr", error):
+                    try:
+                        code = demo.main(["build-fixture", "--out", str(output)])
+                    except OSError as exception:
+                        self.fail(
+                            "builder CLI leaked an unhandled "
+                            f"{type(exception).__name__}"
+                        )
+            self.assertEqual(code, 1)
+            self.assertEqual(error.getvalue(), "refused: fixture stage cleanup failed\n")
+            self.assertFalse(output.exists())
+            self.assertTrue(output.parent.is_dir())
+            self.assertEqual(
+                len(list(output.parent.glob(f".{output.name}.stage-*"))), 1
+            )
+            self.assertNotIn("private cleanup detail", error.getvalue())
+            self.assertNotIn("Traceback", error.getvalue())
+
+    def test_recorded_producer_argv_builds_the_fixture_ariadne_captures(self):
+        demo = load_receipt_demo()
+        runner = getattr(demo, "_run_producer_command", None)
+        self.assertTrue(callable(runner))
+        with tempfile.TemporaryDirectory() as directory:
+            execution_root = Path(directory) / "execution-root"
+            rebuilt = runner(execution_root)
+            statement = Path(directory) / "statement.json"
+            demo._capture_statement(demo._ariadne_module(), rebuilt, statement)
+            recorded = load(statement)["predicate"]["capture"]["command"]
+            self.assertEqual(recorded, list(demo.PRODUCER_COMMAND))
+            self.assertEqual(
+                rebuilt.resolve(),
+                (execution_root / recorded[-1]).resolve(),
+            )
+            self.assertEqual(demo._tree_bytes(rebuilt), demo._tree_bytes(RECEIPT_FIXTURE))
+
     def test_every_fixture_mutation_materializes_before_verification(self):
         demo = load_receipt_demo()
         mutations = {
@@ -382,6 +619,16 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         self.assertEqual(report["stage"], "complete")
         self.assertEqual(report["network"], "denied")
         self.assertEqual(report.get("fixture_rebuild"), "identical")
+        self.assertEqual(
+            report.get("producer_command"),
+            [
+                "python3",
+                "plugins/lazarus/examples/goldfinch-v1/demo.py",
+                "build-fixture",
+                "--out",
+                "tmp/goldfinch-v1-rebuild",
+            ],
+        )
         self.assertEqual(
             report["mutations"],
             {

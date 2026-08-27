@@ -55,17 +55,21 @@ The public fixture copies the six captured source components from
 `rpc.jsonl`. Its own `demo.py` and manifest make the published demonstration a
 separate deterministic fixture. Its offline builder verifies the pinned source
 fixture, copies those six components and the current demo bytes into a private
-stage, builds and verifies the manifest, and atomically publishes only to a new
-destination. The internal manifest-v2 was restamped from writer 0.1.0 to 0.2.0
-without changing any raw source component.
+stage held beneath open directory descriptors, rechecks the output parent's
+directory identity, builds and verifies the manifest, and publishes by an
+fd-relative atomic no-replace rename only to a new destination. The demonstration
+runs the statement's exact five-word producer argv in a temporary execution
+root and captures the fixture at that argv's relative output path. The internal
+manifest-v2 was restamped from writer 0.1.0 to 0.2.0 without changing any raw
+source component.
 
 | Artefact identity | SHA-256 | Digest scope |
 | --- | --- | --- |
-| Goldfinch v1 fixture digest | `861fcd5841ba7fa646ba904ae2c6dd41e0d7b169e4403d7de9db9002aea7149e` | Semantic manifest identity |
-| Goldfinch v1 manifest file | `00440c82d5dc85a478dae33609059a5366941f01641ebe9e4e3141bd586d5cdf` | Raw file bytes |
-| Ariadne state-fixture/v2 statement file | `e0ad9e533ffd2aa3b0c3ae2e5bb92234fd062cddead6b38acbe4887845433db5` | Raw file bytes |
-| Goldfinch v1 release digest | `72f79d3b3f28edcb0d73db90670abba8b86c59a5a4d7884f4abe7db6c052e18f` | Semantic release identity |
-| Goldfinch v1 release file | `5ff3859e6a506a53c60bdfa049a8df99d0b48a1097b07213cdd10a8f0e5f5a14` | Raw file bytes |
+| Goldfinch v1 fixture digest | `0eb8b0850c1bed7eca06e8eb545a2fbd92c7a19577a718b277116310e2032feb` | Semantic manifest identity |
+| Goldfinch v1 manifest file | `b221f6429ea5ec49189cd10156f68bce48c7a42d59b934e8e336f3ca9cdebdad` | Raw file bytes |
+| Ariadne state-fixture/v2 statement file | `bbdc87c033df7f82ca7113492d85f4dbf989de39cb0e15876c9ef5fc0fc3426f` | Raw file bytes |
+| Goldfinch v1 release digest | `8454155693ef53e77e772e0aeb7af41c491a287c398fe0e543cc7db0c1335d62` | Semantic release identity |
+| Goldfinch v1 release file | `1a636d8ba11bbd70a6ff36ac9d85e40a44385840a197579d7c8345715aad1330` | Raw file bytes |
 | Restamped internal receipt manifest file | `f9bd4a3e9192ec4d472b4b9127fd66871f87d5b60f75b34a3f82c7d6e1213558` | Raw file bytes |
 | Restamped internal fixture digest | `a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec` | Semantic manifest identity |
 
@@ -91,7 +95,7 @@ Lazarus 1.1.2 and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` 
 
 ## Elenchus guards
 
-Thirteen observed failures were localised before the final run:
+Seventeen observed failures were localised before the final run:
 
 1. The index mutation failed while validated witness bytes were being written,
    before the helper's original verification-only exception boundary. That
@@ -156,6 +160,35 @@ Thirteen observed failures were localised before the final run:
 13. The offline guide introduced three verification and demonstration commands
     as “Neither command”. It now says none of those commands accepts an RPC URL
     or opens a connection, and the scaffold test refuses the old wording.
+14. The builder resolved its output parent before staging but kept using the
+    path after that check. Replacing the parent with a symlink during stage
+    creation published the complete fixture inside the pinned source fixture.
+    The builder now pins the parent's device and inode, resolves the stage,
+    checks both against the pinned parent before any component write, and
+    repeats the parent check before publication. The race guard proves the
+    source tree is byte- and entry-identical after refusal.
+15. The demonstration built an arbitrary temporary fixture in-process, then
+    told Ariadne that the fixed five-word command ending in
+    `tmp/goldfinch-v1-rebuild` had produced it. The command was runnable but was
+    not the producer of the captured path. The demonstration now executes that
+    exact argv in an isolated temporary root and hands Ariadne its named output;
+    the guard compares the recorded argv, execution root and captured path.
+16. A cleanup `OSError` from the private stage overrode the bounded build
+    failure, escaped the public command with host detail and left the new parent
+    and stage. Cleanup failure now becomes the fixed `fixture stage cleanup
+    failed` refusal. The guard proves the private marker and traceback stay out
+    of the command's diagnostic; an unremovable stage remains visible rather
+    than being reported as removed.
+17. Rebinding the output parent immediately after a bounded source read made
+    the next stage write raise raw `FileNotFoundError`; checks around reads did
+    not anchor the write or final rename. The builder now holds an outer stage
+    and its fixture beneath open directory descriptors, reaches stage files
+    through that anchored directory, performs the atomic no-replace rename
+    relative to the open source and destination parents, and rolls back a
+    completed rename if the requested parent changed. Guards swap the parent
+    after a source read, immediately before a stage write and during finalisation;
+    each gets a bounded refusal, leaves both source trees unchanged and removes
+    the private stage and any rolled-back destination.
 
 The end-to-end demonstration independently rejects a one-byte consensus
 receipt, index, consensus log, receipts root, evidence count and release
@@ -170,9 +203,11 @@ diagnostic.
 source captured under Step 3's request, byte, time, secret-union and atomic
 controls. The builder verifies that pinned source, rereads each component
 through a bounded no-follow descriptor, rechecks the copied claims, uses an
-adjacent private stage, refuses source-contained or existing destinations, and
-publishes with atomic no-replace. Fixture verification, statement capture,
-release build and release verification accept local paths only. The demo
+adjacent private stage, pins and rechecks the output parent, refuses
+source-contained or existing destinations, and publishes with atomic
+no-replace. A stage-cleanup failure produces a fixed refusal and does not claim
+removal. Fixture verification, statement capture, release build and release
+verification accept local paths only. The demo runs the recorded producer argv,
 patches both socket connection entry points to fail on use and reports
 `network=denied`. No dependency changed. An independent
 `strace -f -e trace=network` run observed no socket, connect, bind, listen,
@@ -258,15 +293,18 @@ after the final source bytes are fixed.
 | Round 2 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
 | Round 3 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
 | Round 4 Warden source-bound entry runner | exit 0, 1,273 tests, 90.554 seconds | Report SHA-256 `3623123f4b314d75adbbfa660fea87584127ca40df40d4d999f00c800c930108` |
-| New and legacy Goldfinch/release/scaffold focus | exit 0, 53 tests | Focused unittest output |
+| Round 5 Warden source-bound entry runner | exit 0, 1,275 tests, 91.002 seconds | Report SHA-256 `5507771aeedf8c7d4157260981da713df7476e52e62bac14aa39ea555429eaab` |
+| New and legacy Goldfinch/release/scaffold focus | exit 0, 59 tests | Focused unittest output |
 | Marketplace, version, evolution and portable-skill focus | exit 0, 41 tests | Focused unittest output |
 | Ariadne plugin suite | exit 0, 689 tests | Complete source-bound runner |
-| Lazarus plugin suite | exit 0, 586 tests | Complete source-bound runner |
+| Lazarus plugin suite | exit 0, 592 tests | Complete source-bound runner |
 | Canonical round-2 Elenchus parent comparison | guarded, 1,271 tests, 5 assertion failures, 0 errors, 0 skips | Candidate `f3568e6`; all three changed test files copied to signed parent `c861b49305c45829d0bd938b68e7083d857eaeb8` |
 | First round-3 Elenchus parent comparison | inconclusive, 1,273 tests, 9 assertion failures, 1 error, 0 skips | The parent lacked the new fixture-rebuild event key, so the guard indexed through the compatibility boundary |
 | Canonical round-3 Elenchus parent comparison | guarded, 1,273 tests, 10 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed entry `6f20c92aed7c07017f6a53f3195e42a159de0b57`; the compatibility guard uses `.get()` |
 | Canonical round-4 Elenchus parent comparison | guarded, 1,275 tests, 6 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `a5b3b068492a202a09ae00d62ae695a886ad3fb0` |
-| Final combined receipt-delivery runner | exit 0, 1,275 tests, 91.081 seconds | Complete report SHA-256 `5507771aeedf8c7d4157260981da713df7476e52e62bac14aa39ea555429eaab` |
+| First round-5 Elenchus parent comparison | guarded, 1,278 tests, 7 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `79bb7aa98b4b32135bf5ed0fc46bc40a70be69d6` before the final parent-rebind reduction |
+| Canonical round-5 Elenchus parent comparison | guarded, 1,281 tests, 10 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `4e06d93f9ac8856cbe7ca7e724c1ba3dba4defc5` |
+| Final combined receipt-delivery runner | exit 0, 1,281 tests, 93.810 seconds | Complete report SHA-256 `cfda950fd252d1bb9d054d408961415df452a54b13361c5e49b570ad568c26d1` |
 | Root suite | exit 0, 396 tests | Root unittest output; 1,258 inoculation cases, 0 crashes, 0 unexpected clean |
 | Promise Machine, demonstrations, source lints and currency checks | exit 0 | Command exits; audit-record structural diagnostics are preserved in the round record |
 

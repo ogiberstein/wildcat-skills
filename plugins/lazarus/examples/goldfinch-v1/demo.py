@@ -5,12 +5,17 @@ from __future__ import annotations
 
 import argparse
 from contextlib import redirect_stderr, redirect_stdout
+import ctypes
+import errno
 import hashlib
 import importlib.util
 from io import StringIO
+import os
 from pathlib import Path
 import shutil
 import socket
+import stat
+import subprocess
 import sys
 import tempfile
 from types import ModuleType
@@ -30,7 +35,6 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from lazarus_lib.canonical import dump, dumps, load
-from lazarus_lib.capture import _atomic_no_replace
 from lazarus_lib.errors import IntegrityError, LazarusError, PathError
 from lazarus_lib.manifest import (
     build_manifest,
@@ -140,6 +144,151 @@ def _tree_bytes(root: Path) -> dict[str, bytes]:
     }
 
 
+def _directory_identity(path: Path) -> tuple[int, int]:
+    try:
+        details = path.stat(follow_symlinks=False)
+    except OSError:
+        raise PathError("fixture output parent is unavailable") from None
+    if not stat.S_ISDIR(details.st_mode):
+        raise PathError("fixture output parent is not a directory")
+    return details.st_dev, details.st_ino
+
+
+def _require_same_parent(
+    requested_parent: Path,
+    resolved_parent: Path,
+    identity: tuple[int, int],
+) -> Path:
+    try:
+        current = requested_parent.resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise PathError("fixture output parent changed during build") from None
+    if current != resolved_parent or _directory_identity(current) != identity:
+        raise PathError("fixture output parent changed during build")
+    return current
+
+
+def _open_directory(path: Path) -> int:
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        return os.open(path, flags)
+    except OSError:
+        raise PathError("fixture stage is unavailable") from None
+
+
+def _open_directory_entry(directory_fd: int, name: str) -> int:
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        return os.open(name, flags, dir_fd=directory_fd)
+    except OSError:
+        raise PathError("fixture stage is unavailable") from None
+
+
+def _entry_identity(directory_fd: int, name: str) -> tuple[int, int] | None:
+    try:
+        details = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        raise PathError("fixture stage is unavailable") from None
+    if not stat.S_ISDIR(details.st_mode):
+        raise PathError("fixture stage is unavailable")
+    return details.st_dev, details.st_ino
+
+
+def _descriptor_directory(
+    directory_fd: int,
+    name: str,
+    identity: tuple[int, int],
+) -> Path:
+    for root in (Path("/proc/self/fd"), Path("/dev/fd")):
+        candidate = root / str(directory_fd) / name
+        try:
+            details = candidate.stat()
+        except OSError:
+            continue
+        if stat.S_ISDIR(details.st_mode) and (details.st_dev, details.st_ino) == identity:
+            return candidate
+    raise PathError("platform cannot anchor fixture stage")
+
+
+def _remove_anchored_tree(
+    directory_fd: int,
+    name: str,
+    identity: tuple[int, int],
+) -> None:
+    current_identity = _entry_identity(directory_fd, name)
+    if current_identity is None:
+        return
+    if current_identity != identity:
+        raise PathError("fixture stage identity changed during build")
+    try:
+        shutil.rmtree(name, dir_fd=directory_fd)
+    except OSError:
+        raise PathError("fixture stage cleanup failed") from None
+
+
+def _atomic_no_replace_in_directory(
+    source_directory_fd: int,
+    source_name: str,
+    destination_directory_fd: int,
+    destination_name: str,
+) -> None:
+    """Atomically publish entries held beneath open directories."""
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    source_bytes = os.fsencode(source_name)
+    destination_bytes = os.fsencode(destination_name)
+    if hasattr(libc, "renameat2"):
+        renameat2 = libc.renameat2
+        renameat2.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        result = renameat2(
+            source_directory_fd,
+            source_bytes,
+            destination_directory_fd,
+            destination_bytes,
+            1,
+        )
+    elif hasattr(libc, "renameatx_np"):
+        renameatx = libc.renameatx_np
+        renameatx.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameatx.restype = ctypes.c_int
+        result = renameatx(
+            source_directory_fd,
+            source_bytes,
+            destination_directory_fd,
+            destination_bytes,
+            0x00000004,
+        )
+    else:
+        raise PathError("platform has no atomic no-replace directory rename")
+    if result == 0:
+        return
+    error = ctypes.get_errno()
+    if error in (errno.EEXIST, errno.ENOTEMPTY):
+        raise PathError("fixture output appeared before finalisation")
+    raise PathError("fixture output cannot be finalised")
+
+
 def build_fixture(output: str | Path) -> dict[str, Any]:
     """Materialise the published fixture from its pinned source components."""
 
@@ -185,6 +334,7 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
         raise PathError("fixture output parent cannot be resolved") from None
     if not parent.is_dir():
         raise PathError("fixture output parent is not a directory")
+    parent_identity = _directory_identity(parent)
     destination = parent / requested.name
     if destination.exists() or destination.is_symlink():
         raise PathError("fixture output already exists")
@@ -198,14 +348,54 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
             raise PathError("fixture output cannot be inside a source fixture")
 
     stage: Path | None = None
+    stage_parent_fd: int | None = None
+    stage_fd: int | None = None
+    fixture_fd: int | None = None
+    stage_name: str | None = None
+    stage_identity: tuple[int, int] | None = None
+    fixture_identity: tuple[int, int] | None = None
+    anchored_stage: Path | None = None
     published = False
+    cleanup_failed = False
+    rollback_failed = False
     try:
         try:
             stage = Path(
                 tempfile.mkdtemp(prefix=f".{destination.name}.stage-", dir=parent)
-            )
-        except OSError:
+            ).resolve(strict=True)
+        except (OSError, RuntimeError):
             raise PathError("fixture stage cannot be created") from None
+        stage_parent_fd = _open_directory(stage.parent)
+        stage_name = stage.name
+        stage_identity = _entry_identity(stage_parent_fd, stage_name)
+        if stage_identity is None:
+            raise PathError("fixture stage is unavailable")
+        stage_fd = _open_directory_entry(stage_parent_fd, stage_name)
+        stage_details = os.fstat(stage_fd)
+        if (stage_details.st_dev, stage_details.st_ino) != stage_identity:
+            raise PathError("fixture stage identity changed during build")
+        try:
+            os.mkdir("fixture", mode=0o700, dir_fd=stage_fd)
+        except OSError:
+            raise PathError("fixture stage is unavailable") from None
+        fixture_identity = _entry_identity(stage_fd, "fixture")
+        if fixture_identity is None:
+            raise PathError("fixture stage is unavailable")
+        fixture_fd = _open_directory_entry(stage_fd, "fixture")
+        fixture_details = os.fstat(fixture_fd)
+        if (fixture_details.st_dev, fixture_details.st_ino) != fixture_identity:
+            raise PathError("fixture stage identity changed during build")
+        anchored_stage = _descriptor_directory(
+            stage_fd,
+            "fixture",
+            fixture_identity,
+        )
+        _require_same_parent(parent_path, parent, parent_identity)
+        if stage.parent != parent:
+            raise PathError("fixture output parent changed during build")
+        for source_root in source_roots:
+            if stage == source_root or source_root in stage.parents:
+                raise PathError("fixture stage cannot be inside a source fixture")
         for claim in source_claims:
             relative = claim["path"]
             data = read_confined_bytes(
@@ -219,35 +409,120 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
                 raise IntegrityError(
                     "pinned receipt-proof-v1 source changed during build"
                 )
-            (stage / relative).write_bytes(data)
+            _require_same_parent(parent_path, parent, parent_identity)
+            try:
+                (anchored_stage / relative).write_bytes(data)
+            except OSError:
+                raise PathError("fixture stage is unavailable") from None
+            _require_same_parent(parent_path, parent, parent_identity)
+        _require_same_parent(parent_path, parent, parent_identity)
         copied_claims = [
-            component_claim(stage, relative) for relative in SOURCE_COMPONENTS
+            component_claim(anchored_stage, relative) for relative in SOURCE_COMPONENTS
         ]
+        _require_same_parent(parent_path, parent, parent_identity)
         if copied_claims != source_claims:
             raise IntegrityError("pinned receipt-proof-v1 source changed during build")
         demo_bytes = read_confined_bytes(FIXTURE, "demo.py", max_bytes=1024 * 1024)
-        (stage / "demo.py").write_bytes(demo_bytes)
+        _require_same_parent(parent_path, parent, parent_identity)
+        try:
+            (anchored_stage / "demo.py").write_bytes(demo_bytes)
+        except OSError:
+            raise PathError("fixture stage is unavailable") from None
+        _require_same_parent(parent_path, parent, parent_identity)
 
         manifest = build_manifest(
-            stage,
+            anchored_stage,
             FIXTURE_COMPONENTS,
             chain_id="0x1",
             block_number=BLOCK_NUMBER,
             block_hash=BLOCK_HASH,
         )
-        write_manifest(stage, manifest)
-        report = verify_fixture(stage)
-        _atomic_no_replace(stage, destination)
+        _require_same_parent(parent_path, parent, parent_identity)
+        write_manifest(anchored_stage, manifest)
+        _require_same_parent(parent_path, parent, parent_identity)
+        report = verify_fixture(anchored_stage)
+        _require_same_parent(parent_path, parent, parent_identity)
+        destination = parent / requested.name
+        if destination.exists() or destination.is_symlink():
+            raise PathError("fixture output already exists")
+        _atomic_no_replace_in_directory(
+            stage_fd,
+            "fixture",
+            stage_parent_fd,
+            destination.name,
+        )
+        try:
+            _require_same_parent(parent_path, parent, parent_identity)
+        except PathError:
+            try:
+                _remove_anchored_tree(
+                    stage_parent_fd,
+                    destination.name,
+                    fixture_identity,
+                )
+            except PathError:
+                rollback_failed = True
+            raise
         published = True
         return report
     finally:
-        if not published and stage is not None and stage.exists():
-            shutil.rmtree(stage)
+        if fixture_fd is not None:
+            try:
+                os.close(fixture_fd)
+            except OSError:
+                pass
+        if stage_fd is not None:
+            try:
+                os.close(stage_fd)
+            except OSError:
+                pass
+        if (
+            stage_parent_fd is not None
+            and stage_name is not None
+            and stage_identity is not None
+        ):
+            try:
+                _remove_anchored_tree(stage_parent_fd, stage_name, stage_identity)
+            except PathError:
+                cleanup_failed = True
         if not published and created_parent:
             try:
                 parent.rmdir()
             except OSError:
                 pass
+        if stage_parent_fd is not None:
+            try:
+                os.close(stage_parent_fd)
+            except OSError:
+                pass
+        if rollback_failed:
+            raise PathError("fixture published output cleanup failed") from None
+        if cleanup_failed:
+            raise PathError("fixture stage cleanup failed") from None
+
+
+def _run_producer_command(execution_root: Path) -> Path:
+    """Run the exact argv recorded in the Ariadne statement."""
+
+    launcher = execution_root / PRODUCER_COMMAND[1]
+    launcher.parent.mkdir(parents=True)
+    launcher.symlink_to(Path(__file__).resolve())
+    fixture = execution_root / PRODUCER_COMMAND[-1]
+    try:
+        result = subprocess.run(
+            list(PRODUCER_COMMAND),
+            cwd=execution_root,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        raise AssertionError("recorded fixture producer command could not run") from None
+    if result.returncode != 0:
+        raise AssertionError("recorded fixture producer command failed")
+    return fixture
 
 
 def _flip_last_hex(value: str) -> str:
@@ -460,8 +735,8 @@ def run_demo() -> dict[str, Any]:
         ariadne = _ariadne_module()
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
-            rebuilt_fixture = workspace / "goldfinch-v1-rebuild"
-            build_fixture(rebuilt_fixture)
+            producer_root = workspace / "producer-root"
+            rebuilt_fixture = _run_producer_command(producer_root)
             if _tree_bytes(rebuilt_fixture) != _tree_bytes(FIXTURE):
                 raise AssertionError("shipped fixture differs from a fresh build")
             statement_a = workspace / "statement-a.json"
@@ -508,6 +783,7 @@ def run_demo() -> dict[str, Any]:
             "stage": "complete",
             "network": "denied",
             "fixture_rebuild": "identical",
+            "producer_command": list(PRODUCER_COMMAND),
             "block": {"number": BLOCK_NUMBER, "hash": BLOCK_HASH},
             "recorded_target_selector": TARGET_SELECTOR,
             "relation": {

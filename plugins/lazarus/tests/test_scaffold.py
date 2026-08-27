@@ -184,8 +184,8 @@ class ScaffoldTests(unittest.TestCase):
             "issue mutation ran in this step.",
             compact_proof,
         )
-        self.assertIn("Thirteen observed failures were localised", proof)
-        self.assertEqual(proof.count("\n13. "), 1)
+        self.assertIn("Seventeen observed failures were localised", proof)
+        self.assertEqual(proof.count("\n17. "), 1)
 
         delivery_runbook = (
             support.REPO_ROOT
