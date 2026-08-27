@@ -30,6 +30,11 @@ ASSETS = DOCS / "assets"
 PDFS = DOCS / "pdf"
 PRIMER = DOCS / "a-child-or-a-golden-retriever.md"
 SOURCE_NOTE = DOCS / "a-child-or-a-golden-retriever-source-note.md"
+STUDY = DOCS / "a-child-or-a-golden-retriever-study.md"
+HEX_PLUGIN_MANIFEST = (
+    ROOT / "plugins" / "hexaemeron" / ".codex-plugin" / "plugin.json"
+)
+FIAT_SKILL = ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md"
 COVER_ART = ASSETS / "a-child-or-a-golden-retriever-cover.png"
 ROLES_ART = ASSETS / "a-child-or-a-golden-retriever-mascot-roles.png"
 FIAT_ART = ASSETS / "a-child-or-a-golden-retriever-mascot-fiat.png"
@@ -74,6 +79,14 @@ EXPECTED_LIFECYCLE = (
 )
 EXPECTED_KIT_DIGEST = (
     "e09eb107921ab52e467bae54e3e605f2e01fa258df7c12529be44fc486d71218"
+)
+EXPECTED_HEX_VERSION = "1.6.5"
+EXPECTED_FIAT_VERSION = "5.30.1"
+STALE_CHECKPOINT_CLAIMS = (
+    "does not yet support checkpointing",
+    "before checkpointing exists",
+    "checkpoints do not exist",
+    "there are no checkpoints",
 )
 EXPECTED_SOURCE_ART = {
     ROLES_ART.relative_to(ROOT): {
@@ -1227,6 +1240,35 @@ def check_source_inventory() -> str:
     return "canonical markers, demo anchor, README link, source provenance, and no copied kit reference"
 
 
+def check_current_state() -> str:
+    ensure_regular(HEX_PLUGIN_MANIFEST, max_bytes=128 * 1024)
+    ensure_regular(FIAT_SKILL, max_bytes=256 * 1024)
+    ensure_regular(STUDY, max_bytes=256 * 1024)
+
+    manifest = json.loads(HEX_PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+    if manifest.get("version") != EXPECTED_HEX_VERSION:
+        raise ValueError("Hexaemeron version moved; review the beginner primer")
+
+    fiat_text = FIAT_SKILL.read_text(encoding="utf-8")
+    fiat_match = re.search(r'^  version: "([^"]+)"$', fiat_text, flags=re.MULTILINE)
+    if fiat_match is None or fiat_match.group(1) != EXPECTED_FIAT_VERSION:
+        raise ValueError("Fiat version moved; review the beginner primer")
+
+    study = STUDY.read_text(encoding="utf-8")
+    for version in (EXPECTED_HEX_VERSION, EXPECTED_FIAT_VERSION):
+        if version not in study:
+            raise ValueError(f"shipped study lost current version {version}")
+
+    primer = PRIMER.read_text(encoding="utf-8").lower()
+    stale = [claim for claim in STALE_CHECKPOINT_CLAIMS if claim in primer]
+    if stale:
+        raise ValueError(f"stale checkpoint claim returned: {stale}")
+    return (
+        f"Hexaemeron {EXPECTED_HEX_VERSION}, Fiat {EXPECTED_FIAT_VERSION}, "
+        "and no stale checkpoint claim"
+    )
+
+
 def compare_generated(stage_root: Path) -> str:
     mismatches = []
     for relative in GENERATED:
@@ -1297,6 +1339,7 @@ def run_check(stage_root: Path, report_path: Path) -> int:
         lambda: f"{len(read_primer_data()['definitions'])} definitions and 7 phases",
     )
     record("source-inventory", check_source_inventory)
+    record("current-state", check_current_state)
     record("supplied-cover", check_cover_art)
     record("source-art", check_source_art)
     record("deterministic-rebuild", lambda: compare_generated(stage_root))

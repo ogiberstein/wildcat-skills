@@ -21,10 +21,17 @@ BUILDER = ROOT / "scripts" / "build_child_or_golden_retriever_primer.py"
 REPORT = ROOT / "tmp" / "elenchus" / "child-or-golden-retriever-unit.json"
 PRIMER = ROOT / "docs" / "a-child-or-a-golden-retriever.md"
 SOURCE_NOTE = ROOT / "docs" / "a-child-or-a-golden-retriever-source-note.md"
+STUDY = ROOT / "docs" / "a-child-or-a-golden-retriever-study.md"
 COVER = ROOT / "docs" / "assets" / "a-child-or-a-golden-retriever-cover.png"
+HEX_PLUGIN_MANIFEST = (
+    ROOT / "plugins" / "hexaemeron" / ".codex-plugin" / "plugin.json"
+)
+FIAT_SKILL = ROOT / "plugins" / "hexaemeron" / "skills" / "fiat" / "SKILL.md"
 
 KIT_DIGEST = "e09eb107921ab52e467bae54e3e605f2e01fa258df7c12529be44fc486d71218"
 COVER_DIGEST = "5763ab9da93a3bd3420d2e905eef9525dbeb2e642f3121d8ad76c38d9f9cc32a"
+HEX_VERSION = "1.6.5"
+FIAT_VERSION = "5.30.1"
 PROMPT_DIGESTS = (
     "5e2c721d2ac5fb76106aa9047f0e3b887d6b66c0c14f44f287a6584b2022b157",
     "c721f3b2d600ea83fe36be3427396335c407c65c762cce2424cfab079d93f8e9",
@@ -234,6 +241,29 @@ class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
             "./docs/pdf/a-child-or-a-golden-retriever-quick-start.pdf",
         ):
             self.assertEqual(readme.count(link), 1, link)
+
+    def test_current_versions_and_checkpoint_boundary_are_pinned(self) -> None:
+        manifest = json.loads(HEX_PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["version"], HEX_VERSION)
+        fiat = FIAT_SKILL.read_text(encoding="utf-8")
+        match = re.search(r'^  version: "([^"]+)"$', fiat, flags=re.MULTILINE)
+        self.assertIsNotNone(match)
+        self.assertEqual(match.group(1), FIAT_VERSION)
+
+        study = STUDY.read_text(encoding="utf-8")
+        self.assertIn(f"Hexaemeron package `{HEX_VERSION}`", study)
+        self.assertIn(f"Fiat `{FIAT_VERSION}`", study)
+
+        primer = PRIMER.read_text(encoding="utf-8").lower()
+        for stale_claim in (
+            "does not yet support checkpointing",
+            "before checkpointing exists",
+            "checkpoints do not exist",
+            "there are no checkpoints",
+        ):
+            self.assertNotIn(stale_claim, primer)
+        checks = {item["name"]: item for item in self.report["checks"]}
+        self.assertEqual(checks["current-state"]["status"], "passed")
 
     def test_source_note_pins_archive_prompts_tool_and_cover(self) -> None:
         note = SOURCE_NOTE.read_text(encoding="utf-8")
