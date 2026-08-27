@@ -1,4 +1,4 @@
-# ADR-036: Prove receipts with a full ordered witness
+# ADR-037: Prove receipts with a full ordered witness
 
 ## Status
 

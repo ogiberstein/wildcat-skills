@@ -19,6 +19,13 @@ component access and redistribution classes, capture-source references,
 scope, finality and block-identifier semantics, JSON-pointer counts, gap
 semantics and correction self-reference.
 
+`release-statement-v1.schema.json` closes the unsigned in-toto Statement v1
+shape emitted after offline verification. It binds the logical release and
+component subjects to the Alexandria predicate's component metadata, capture
+scope, coverage and gaps. The schema does not describe a DSSE envelope,
+signature verification, publisher identity, provider completeness, consensus
+finality or canonical-chain membership.
+
 Step 3 adds `credit-event-v1.schema.json` and
 `position-observation-v1.schema.json` for the narrow Tabularium view. The
 `tabularium-view-v1.schema.json` manifest section binds both JSONL files,

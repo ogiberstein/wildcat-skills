@@ -262,7 +262,7 @@ bodies and log payloads are absent.
 only that the fixed offline checks completed in the locked environment; they do
 not promise provider speed, replay throughput or a performance budget.
 
-**Hypomnema.** ADR-036 holds the full ordered-witness decision and rejected
+**Hypomnema.** ADR-037 holds the full ordered-witness decision and rejected
 alternatives. `plugins/lazarus/docs/receipt-inclusion-proofs.md` holds the
 operator boundary. Ariadne's state-fixture guide holds the statement boundary.
 This proof holds the shipped evidence. The Lazarus and Ariadne evolution ledgers

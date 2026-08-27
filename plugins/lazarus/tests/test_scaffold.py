@@ -3,21 +3,29 @@
 import hashlib
 import json
 import re
+import sys
 import unittest
 
 from . import support
 from lazarus_lib import __version__
 
+sys.path.insert(0, str(support.REPO_ROOT))
+from repo_contract import (
+    assert_version_agreement,
+    assert_host_descriptions_agree,
+    assert_router_reaches,
+)
+
 
 class ScaffoldTests(unittest.TestCase):
     def test_host_manifests_parse_and_agree(self):
+        assert_version_agreement(self, "lazarus")
+        assert_host_descriptions_agree(self, "lazarus")
         claude = support.load_json(".claude-plugin/plugin.json")
         codex = support.load_json(".codex-plugin/plugin.json")
         for manifest in (claude, codex):
             self.assertEqual(manifest["name"], "lazarus")
             self.assertEqual(manifest["skills"], "./skills/")
-        self.assertEqual(claude["version"], codex["version"])
-        self.assertEqual(claude["description"], codex["description"])
         self.assertEqual(claude["license"], "Apache-2.0")
 
     def test_the_host_manifests_follow_the_package_and_not_the_skill_or_writer(self):
@@ -67,12 +75,9 @@ class ScaffoldTests(unittest.TestCase):
         self.assertFalse((support.SKILL.parent / "README.md").exists())
 
     def test_promise_machine_router_reaches_the_runtime_contract(self):
-        path = support.REPO_ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
-        text = path.read_text(encoding="utf-8")
-        links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
-        self.assertIn("../../../plugins/lazarus/AGENTS.md", links)
+        assert_router_reaches(self, "lazarus")
+        # Alias surface is lazarus-specific, not part of the repo-wide contract.
         contract = (support.PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("`skills/lazarus/SKILL.md`", contract)
         for alias in ("/lazarus:lazarus", "$lazarus"):
             self.assertIn(alias, contract)
 
@@ -269,7 +274,7 @@ class ScaffoldTests(unittest.TestCase):
         )
         self.assertEqual(
             hashlib.sha256((root / "runbook.md").read_bytes()).hexdigest(),
-            "7ffd2d1f13d69d473f1ea13862f4bef8a42c44c5b357de2cc03392d4cb919f03",
+            "8df93f70a40df951238dfa881d70638f88d2971043f04590eb7c8299aba0c459",
         )
 
     def test_receipt_proof_decision_is_discoverable(self):
@@ -277,7 +282,7 @@ class ScaffoldTests(unittest.TestCase):
             support.REPO_ROOT
             / "docs"
             / "decisions"
-            / "ADR-036-prove-receipts-with-a-full-ordered-witness.md"
+            / "ADR-037-prove-receipts-with-a-full-ordered-witness.md"
         )
         text = path.read_text(encoding="utf-8")
         for term in (

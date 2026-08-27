@@ -52,6 +52,13 @@ local tool.
   digest-keyed objects. For a derived release it also reads and rebuilds the
   two declared JSONL files. It refuses undeclared release entries, reaches no
   network and does not change the release.
+- `statement <release-directory> --output <file>` completes that same offline
+  verification before projecting the release and every component into a
+  canonical unsigned in-toto Statement v1. It refuses an output inside or
+  aliased into the release, writes through a fresh no-follow sibling temporary
+  file and atomically replaces only an absent or regular output. It reaches no
+  network and does not change the release. A result authorises only use of
+  those statement bytes; signing and publisher identity remain downstream.
 - `derive <raw-release> --output <directory>` first verifies and reads the raw
   release, then writes a new release through a temporary sibling directory.
   It does not change the input or reach the network. It reads components
@@ -83,6 +90,8 @@ local tool.
 - No claim that Alexandria archived, verified, indexed or queried data unless
   that exact operation ran successfully.
 - No publisher-authenticity claim from a digest check alone.
+- No claim that an Alexandria statement is signed, that Ariadne registered its
+  predicate, or that Ariadne checked the predicate-owned gates.
 - No claim that provider-reported or recorded data proves a canonical chain
   boundary.
 - No rewriting raw objects to fit a common schema.

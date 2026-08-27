@@ -52,14 +52,14 @@ is updated.
 
 - Path: `plugins/hexaemeron/skills/x-ray/SKILL.md`
 - SHA-256: `b23bb94517805c1b8ce717d0e1e0282b0b5c14c7b16f4c32e73940292d3d4a41`
-- Promise: A completed X-Ray run establishes that the required pre-audit views were produced for the named repository snapshot with their source boundary and unresolved gaps visible.
-- Evidence: The digest-matched instruction, repository commit, scoped source inventory and the four required pre-audit artefacts with their cited inputs and generation records.
-- Evidence classes: recorded, inferred
-- Boundary: The artefacts are preparation and analysis aids; they are not an audit, do not establish exploitability or absence of defects and inherit every omission in the inspected repository boundary.
+- Promise: A completed X-Ray run establishes that the required pre-audit views were produced for the named repository snapshot and complete current logical scope, with their source boundary and unresolved gaps visible; when source reuse is selected, it applies only to closed, complete, validated per-source preparation entries after every current source was read and digested.
+- Evidence: The digest-matched vendored instruction; the first-party adapter `plugins/hexaemeron/lib/xray_reuse.py` at SHA-256 `23e628b7ffc963000ace6b081c57de267267c37108527ef7d3a092dbf0fcab10`; the repository commit, complete current scope, every current source read and digest, current source and dependency digests, validated plan, exact current union and exact current fact union, fresh coverage, history, integration and cross-source analysis, fresh global synthesis, and output manifest; and current-run `architecture.json`, `x-ray.md`, `entry-points.md`, and `invariants.md` with their cited inputs and digests.
+- Evidence classes: checked, recorded, inferred
+- Boundary: The adapter is a preparation layer only. Cache validity does not establish that a reused fact was originally correct, and no global synthesis, final output, finding, or security conclusion is reusable. The four artefacts remain analysis aids, not an audit or evidence of exploitability or absence of defects, and inherit every omission in the inspected repository boundary.
 - Authorises: Beginning a human or agent audit with the four named pre-audit views as scoped orientation material.
 - Consequence: 1
-- Refuses: A stale overlay digest, an unnamed repository snapshot, a missing required artefact, uncited conclusions, hidden exclusions or language that presents pre-audit analysis as security sign-off.
-- Recovery: Reconcile the upstream instruction digest, fix the source boundary, regenerate the missing or stale views and leave every unresolved gap explicit.
+- Refuses: A stale X-Ray or adapter digest, an unnamed repository snapshot, a skipped current-source read or digest, an unsafe or incomplete current scope, a prior/current scope mismatch or other cache uncertainty that does not produce named full recomputation, a stale or incomplete preparation entry, a fact union that differs from the exact current inventory, missing fresh global synthesis, a missing or unbound required artefact, uncited conclusions, hidden exclusions, or language that presents pre-audit analysis as security sign-off.
+- Recovery: Reconcile both instruction digests, repair and reread the complete source boundary, discard uncertain cache material and run the named full recomputation, then regenerate fresh coverage, history, integration and cross-source analysis, fresh global synthesis, and all four views while leaving every unresolved gap explicit.
 - Exceptions: none
 
 ### hexaemeron-solidity-audit-report

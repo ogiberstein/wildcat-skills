@@ -34,7 +34,7 @@
     {
       "bytes": 63,
       "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
+      "evidence": "marker 'do not edit' on a comment-led line in the first 4096 bytes",
       "grade": "hard",
       "path": "gen/api.py"
     },
