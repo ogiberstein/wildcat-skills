@@ -14,16 +14,20 @@ The controlling evidence for the final Files boundary is:
 | Record | SHA-256 | Authority |
 | --- | --- | --- |
 | Study | `f8dd4bad531e8dbc236fec0bf0580d4a6a3a6284ce293a57a4d37af8555f9b79` | Design facts |
-| Canonical runbook after the three Step 5 Files repairs | `3aa71ae583033f4f1aed3a0e490afa042e37c441aa45082c62f552ffa5b164ab` | Step contract |
-| Effective Step 5 | `57670ea7de3709f170018bd63f6661c7a9526f962670a7d0bad54f48f71efb6d` | Implementation packet |
-| Controller state | `be7ece5732424cd67ab5a9cbc7bcd38a40c51fa71e16ed1b7f265aadae12b9eb` | Current receipt state |
+| Canonical runbook after the Step 5 Files amendments | `3177299cf04829a1de2586c08cc5398f554e988bf7bb0394e013674d366aff81` | Step contract |
+| Effective Step 5 | `2ab8efb073ed71d3a7d9c590f721c4756daabb546c76051f217d877210513e5f` | Implementation packet |
+| Implementation packet state | `be7ece5732424cd67ab5a9cbc7bcd38a40c51fa71e16ed1b7f265aadae12b9eb` | Implementation hand-off |
+| Audit directive state | `4dc757ae7b97cf2718f724a09efc14b17dc0a95f9f613d89fb49296dfed3343e` | Audit round packet |
 | Entry-repair amendment | `8df12aee81fc0b381793c659920314bb8124382fa8432c313e380c5607a8d015` | Entry repair |
 | Lazarus marketplace-copy Files amendment | `508be2c58135a2b0c6aeb180343c7f9a4b2e56e3efe8adec4e24ad1feb453cb5` | Two prose copies |
 | Manifest writer-selection Files amendment | `86ff0bd9c61febf3f087cb9da259902692f2805282afdbd8ea38150cbc8714d9` | Cause fix |
 | Receipt fixture restamp Files amendment | `7ca1ee04ab6910d5f19769bd249156c31d0f02239dc79655bcb7b4de8d6e3544` | Version propagation |
+| Preservation-guide Files amendment | `2423b45f020338cef35c7d6b234104ae7cb65a44a21533c10d4eadf820160880` | Governed context repair |
 
-Each repair added only the paths named by its receipt. No controller command,
-network capture, push, publication, merge or issue mutation ran in this step.
+Each repair added only the paths named by its receipt. The Step 5 implementation
+worker ran no controller command, network capture, push, publication, merge or
+issue mutation. The Fiat orchestrator separately receipted the amendments,
+implementation and this audit directive.
 
 ## Shipped artefacts and claims
 
@@ -74,9 +78,9 @@ The historical Goldfinch release remains byte-identical:
 | Goldfinch v0 statement file | `d8b262278ffd4db76e449a2bfce4629903a70e7f4ad7c1f3a6ebbfb1f112555e` | Raw file bytes |
 | Goldfinch v0 release file | `ec5c9b8091286de8713b6daf6cfdeaa7e9cfa6177b96c10a2ed20ffd6654bcff` | Raw file bytes |
 
-Writer 0.2.0 stamps new receipt-aware output. Deterministic manifest-v1
-rebuilds preserve writer 0.1.0. Installable package versions are Lazarus 1.1.2
-and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` and
+Writer 0.2.0 stamps new output. An exact deterministic rebuild of the existing
+historical manifest-v1 preserves writer 0.1.0. Installable package versions are
+Lazarus 1.1.2 and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` and
 `ariadne-v2.2.0`; those are separate version axes.
 
 ## Elenchus guards
@@ -89,9 +93,12 @@ Four observed failures were localised before the final run:
    the same expected fail-closed result. The index mutation test fails if that
    rejection disappears.
 2. Raising the writer to 0.2.0 caused the unchanged Goldfinch v0 demo's
-   byte-identical manifest rebuild to relabel manifest-v1. Manifest construction
-   now selects writer 0.1.0 for manifest-v1 and 0.2.0 for manifest-v2. Both
-   demonstrations and the v0/v1 coexistence tests guard the distinction.
+   byte-identical manifest rebuild to relabel manifest-v1. The first repair then
+   selected writer 0.1.0 by schema and mislabeled fresh plan-v1 captures made by
+   writer 0.2.0. Manifest construction now preserves writer 0.1.0 only for an
+   exact existing historical rebuild; fresh manifest-v1 and manifest-v2 output
+   use writer 0.2.0. Both demonstrations, a fresh plan-v1 capture and the v0/v1
+   coexistence tests guard the distinction.
 3. The first full Lazarus run found the Step 2/3 receipt fixture and capture
    digest still pinned to writer 0.1.0. The manifest-v2 and its exact capture
    digest pin moved together to 0.2.0; all six raw source components stayed
@@ -101,6 +108,11 @@ Four observed failures were localised before the final run:
    the new receipt hand-off prose. The prose now names the Lazarus paths and
    command boundary without creating links outside Ariadne's plugin root. The
    existing documentation-link suite guards that ownership boundary.
+5. The cold read omitted an unmarked marketplace context in the preservation
+   guide. Its stale frontier and receipt claims remained public while the proof
+   called a five-copy marker inventory complete. The guide now carries the
+   governed current block, describes both release versions and passes the
+   structural prose gate; the 165-file inventory includes its exact bytes.
 
 The end-to-end demonstration independently rejects a one-byte consensus
 receipt, index, consensus log, receipts root, evidence count and release
@@ -116,6 +128,8 @@ source captured under Step 3's request, byte, time, secret-union and atomic
 controls. Fixture verification, statement capture, release build and release
 verification accept local paths only. The demo patches both socket connection
 entry points to fail on use and reports `network=denied`. No dependency changed.
+An independent `strace -f -e trace=network` run observed no socket, connect,
+bind, listen, accept, endpoint send/receive or socket-option syscall.
 
 **Ephoros.** The demo emits one canonical JSON line with correlation ID
 `goldfinch-v1-offline-demo`. It includes the safe block identity, root, bounded
@@ -143,7 +157,7 @@ marketplace registries, every plugin's two host manifests, and every shipped
 `agents/openai.yaml`. For each sorted path, inventory digest material is
 `path`, a NUL byte, the file SHA-256 and a newline.
 
-The 110 context-bearing Markdown paths are:
+The 111 context-bearing Markdown paths are:
 
 | Plugin | Count | Exact path set |
 | --- | ---: | --- |
@@ -155,7 +169,7 @@ The 110 context-bearing Markdown paths are:
 | Hexaemeron | 6 | `plugins/hexaemeron/{AGENTS.md,README.md,agents/{mason.md,scribe.md,surveyor.md,warden.md}}` |
 | Horos | 2 | `plugins/horos/{AGENTS.md,README.md}` |
 | Janus | 3 | `plugins/janus/{AGENTS.md,README.md,skills/janus/SKILL.md}` |
-| Lazarus | 5 | `plugins/lazarus/{AGENTS.md,README.md,docs/{runbook.md,study.md},skills/lazarus/SKILL.md}` |
+| Lazarus | 6 | `plugins/lazarus/{AGENTS.md,README.md,docs/{preservation-release.md,runbook.md,study.md},skills/lazarus/SKILL.md}` |
 | Lemma | 15 | `plugins/lemma/{AGENTS.md,INVARIANTS.md,README.md,baseline/{README.md,docs/{README.md,SUMMARY.md,concepts/{entries.md,fixed-point.md},reference/{contracts.md,errors.md},user-guide/{day-to-day-usage/{README.md,creating.md,retiring.md},troubleshooting.md}}},skills/lemma/SKILL.md}` |
 | Pandects | 8 | `plugins/pandects/{AGENTS.md,README.md,adapters/medusa/README.md,docs/{applicability.md,design.md,writing-a-law.md},integrations/wildcat/APPLICABILITY.md,skills/pandects/SKILL.md}` |
 | Probitas | 8 | `plugins/probitas/{AGENTS.md,README.md,assets/dossier-template.md,docs/{adding-a-venue.md,example-dossier.md},skills/probitas/{SKILL.md,references/{gates.md,venues.md}}}` |
@@ -166,14 +180,14 @@ The remaining exact path sets are `README.md`,
 `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`,
 `plugins/*/{.claude-plugin/plugin.json,.codex-plugin/plugin.json}`, and the 23
 existing `plugins/*/skills/*/agents/openai.yaml` files. The complete inventory
-therefore contains 164 files. Its final aggregate digest is
-`25bbc0538dbca40593e6ecc1ab92659bbbf2ef89ffb3cecfc8fb57ae78ab3e6c`;
-the 113 context/root surfaces digest to
-`395af823e3f5fbda63770098865ad8b98ffad4d5f5ec29d42044e6d20b840024`,
+therefore contains 165 files. Its final aggregate digest is
+`5ab4e518211de5f4ae8b016dbb39ef1743595615c6c9ef2d7d100198e656cad7`;
+the 114 context/root surfaces digest to
+`30a559bd825b075f2153dad022e19faa30b65d46378032a5bc3a201d480dd1de`,
 and the 51 host prose files digest to
 `b643311cb5e533a50f9d662539b9770f974d219e3a0192483ad9abddebfb0d0b`.
 
-Lazarus's five mutable context copies now carry the same completed frontier and
+Lazarus's six mutable context copies now carry the same completed frontier and
 successor job. Ariadne retains its grounded-agent frontier text and digest byte
 for byte; only its receipt-aware hand-off explanation and generation metadata
 changed. Both host manifests and the Claude marketplace carry package versions
@@ -190,13 +204,15 @@ counts are recorded here after the final bytes are fixed.
 | Gate | Result | Evidence |
 | --- | --- | --- |
 | Exact Step 5 entry combined runner | exit 0, 1259 tests, 85.516 seconds | Entry report |
-| New and legacy Goldfinch/release/scaffold focus | exit 0, 48 tests | Focused unittest output |
+| Warden source-bound entry runner | exit 0, 1,270 tests, 96.324 seconds | Report SHA-256 `410f723d860c7c3ae5ecd9e738fe9797ed6898b83a1a3fc115ea12e5411976a7` |
+| New and legacy Goldfinch/release/scaffold focus | exit 0, 49 tests | Focused unittest output |
 | Marketplace, version and evolution focus | exit 0, 36 tests | Focused unittest output |
 | Ariadne plugin suite | exit 0, 689 tests | Combined-runner output |
-| Lazarus plugin suite | exit 0, 581 tests | Combined-runner output |
-| Final combined receipt-delivery runner | exit 0, 1,270 tests, 93.500 seconds | Structured report |
-| Root suite | exit 0, 396 tests | Root unittest output |
+| Lazarus plugin suite | exit 0, 582 tests | Combined-runner output |
+| Final combined receipt-delivery runner | exit 0, 1,271 tests, 93.171 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
+| Root suite | exit 0, 396 tests in 29.833 seconds | Root unittest output |
 | Promise Machine, demonstrations, repository lints and currency checks | exit 0 | Command exits |
 
-The signed implementation commit and clean-tree check are the final evidence
-items; no push, publication or controller transition belongs to this record.
+The signed implementation and Warden commits plus the final clean-tree check are
+the last evidence items; no push, publication or controller transition belongs
+to this record.

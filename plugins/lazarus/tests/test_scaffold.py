@@ -143,6 +143,46 @@ class ScaffoldTests(unittest.TestCase):
             with self.subTest(term=term):
                 self.assertIn(term, text)
 
+    def test_public_receipt_proof_claims_are_current_and_scoped(self):
+        contract = (support.PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        skill = support.SKILL.read_text(encoding="utf-8")
+        preservation = (
+            support.PLUGIN_ROOT / "docs" / "preservation-release.md"
+        ).read_text(encoding="utf-8")
+        proof = (
+            support.REPO_ROOT
+            / "docs"
+            / "lazarus-receipt-inclusion-proofs"
+            / "proof.md"
+        ).read_text(encoding="utf-8")
+
+        start = "<!-- marketplace-context:start -->"
+        end = "<!-- marketplace-context:end -->"
+        self.assertIn(start, preservation)
+        self.assertIn(end, preservation)
+        canonical_context = contract[
+            contract.index(start) : contract.index(end) + len(end)
+        ]
+        preservation_context = preservation[
+            preservation.index(start) : preservation.index(end) + len(end)
+        ]
+        compact_proof = " ".join(proof.split())
+        self.assertEqual(preservation_context, canonical_context)
+        self.assertIn("for plan v2 or plan v3", contract)
+        self.assertIn("Exact plan-v2 or plan-v3 anchor coverage", skill)
+        self.assertIn("release-v2 may carry the two", preservation)
+        self.assertNotIn("Nothing yet proves them", preservation)
+        self.assertIn("Implementation packet state", compact_proof)
+        self.assertIn(
+            "The Step 5 implementation worker ran no controller command",
+            compact_proof,
+        )
+        self.assertNotIn(
+            "No controller command, network capture, push, publication, merge or "
+            "issue mutation ran in this step.",
+            compact_proof,
+        )
+
     def test_requirements_are_exact_direct_pins(self):
         requirements = (support.PLUGIN_ROOT / "requirements.txt").read_text().splitlines()
         pins = [line for line in requirements if line and not line.startswith("#")]

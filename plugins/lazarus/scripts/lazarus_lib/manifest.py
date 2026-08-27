@@ -106,12 +106,9 @@ def build_manifest(
         if failures != observed_failures:
             raise IntegrityError("declared optional failures disagree with RPC records")
     schema_version = 2 if receipt_report is not None else 1
-    writer_version = (
-        __version__ if schema_version == 2 else MANIFEST_V1_WRITER_VERSION
-    )
     manifest: dict[str, Any] = {
         "schema_version": schema_version,
-        "tool_version": writer_version,
+        "tool_version": __version__,
         "chain_id": chain_id,
         "block": {"number": block_number, "hash": block_hash},
         "components": components,
@@ -129,6 +126,30 @@ def build_manifest(
     extra = sorted(actual - allowed)
     if extra:
         raise IntegrityError(f"unlisted fixture files: {', '.join(extra)}")
+    if schema_version == 1 and MANIFEST_NAME in actual:
+        manifest = _preserve_exact_manifest_v1_writer(root, manifest)
+    return manifest
+
+
+def _preserve_exact_manifest_v1_writer(
+    root: str | Path, manifest: dict[str, Any]
+) -> dict[str, Any]:
+    """Keep legacy provenance only when rebuilding those exact manifest bytes.
+
+    A fresh capture has no manifest in its staging directory and therefore uses
+    the current writer. An existing manifest-v1 may retain writer 0.1.0 only
+    when every other field and the canonical digest already match the inspected
+    components. Schema selection alone cannot establish which writer ran.
+    """
+
+    historical = dict(manifest)
+    historical["tool_version"] = MANIFEST_V1_WRITER_VERSION
+    historical["fixture_digest"] = "0" * 64
+    historical["fixture_digest"] = fixture_digest(historical)
+    existing = read_confined_bytes(root, MANIFEST_NAME, max_bytes=MAX_JSON_BYTES)
+    if existing == dumps(historical) + b"\n":
+        validate_document("manifest", historical)
+        return historical
     return manifest
 
 

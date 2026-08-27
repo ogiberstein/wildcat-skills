@@ -46,17 +46,17 @@ local tool. A non-zero exit means the requested operation did not succeed.
   implements format validation, finite capture, manifest construction, offline
   verification, exact loopback replay, and writing and reading back a
   preservation release.
-- A plan-v2 or plan-v3 capture maps each declared anchor source at runtime with repeated
-  `--anchor-rpc-env SOURCE_ID=ENV_VAR` arguments. The argument names an
-  environment variable; its RPC URL value does not enter argv.
+- A plan-v2 or plan-v3 capture maps each declared anchor source at runtime with
+  repeated `--anchor-rpc-env SOURCE_ID=ENV_VAR` arguments. The argument names
+  an environment variable; its RPC URL value does not enter argv.
 - Names such as `lazarus:lazarus`, `/lazarus:lazarus` and `$lazarus` are
   logical aliases. Load the canonical path from the table above.
 
 ## Network and side effects
 
 `capture` is the only networked command. It uses the explicit primary RPC URL
-and, for plan v2, the exact declared source-to-environment mapping. Every
-anchor client shares the primary capture's request, response-byte,
+and, for plan v2 or plan v3, the exact declared source-to-environment mapping.
+Every anchor client shares the primary capture's request, response-byte,
 component-byte, total-byte and elapsed-time limits. Capture queries each source
 for the mainnet chain ID and fixed block, scans staged bytes against the union
 of all provider secrets, verifies the complete fixture and atomically finalises

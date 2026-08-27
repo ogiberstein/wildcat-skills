@@ -185,8 +185,8 @@ or digest material.
   receipts root, the target consensus payload and exact filtered-log relation.
 - Separate counts for proof-backed, receipt-trie-proved, header-bound and
   recorded evidence.
-- Exact plan-v2 anchor coverage and agreement, reported separately without a
-  canonical-chain or provider independence claim.
+- Exact plan-v2 or plan-v3 anchor coverage and agreement, reported separately
+  without a canonical-chain or provider independence claim.
 
 A self-consistent header is not proof that it belongs to Ethereum's canonical
 chain. Report the expected hash and its external provenance without upgrading

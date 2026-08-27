@@ -13,6 +13,7 @@ import traceback
 import unittest
 from unittest import mock
 
+from lazarus_lib import __version__
 from lazarus_lib.canonical import dump, dumps, load, loads
 from lazarus_lib.capture import (
     CaptureError,
@@ -100,6 +101,7 @@ class CaptureTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             report = verify_fixture(output)
+            self.assertEqual(report["manifest"]["tool_version"], __version__)
             self.assertIn(report["fixture_digest"], result.stdout)
             self.assertNotIn("query-secret", b"".join(
                 path.read_bytes() for path in output.rglob("*") if path.is_file()
