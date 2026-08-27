@@ -200,6 +200,13 @@ def run(argv: list[str] | None = None) -> int:
     print(f"proof-backed: {report['evidence_counts']['proof_backed']}")
     print(f"header-bound: {report['evidence_counts']['header_bound']}")
     print(f"recorded-rpc: {report['evidence_counts']['recorded_rpc']}")
+    if "receipt_trie_proved" in report["evidence_counts"]:
+        receipt = report["receipt_trie_proved"]
+        print(f"receipt-trie-proved: {receipt['relations']}")
+        print(f"receipts-root: {receipt['computed_root']}")
+        print(f"receipt-count: {receipt['receipt_count']}")
+        print(f"target-transaction-index: {receipt['target_transaction_index']}")
+        print(f"filtered-log-count: {receipt['filtered_log_count']}")
     print(f"chain-anchor-records: {report['chain_anchors']['records']}")
     return 0
 

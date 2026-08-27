@@ -53,6 +53,10 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
         "manifest-v1.json",
         "53acaefd6ddaf5648dc9d16345fc13c64c3bd7786851271ef922b67b9f423c14",
     ),
+    ("manifest", 2): (
+        "manifest-v2.json",
+        "88250162b86f4e9e54b5f3e7b81611f46b71d8343c1ba221dc577294417ff61c",
+    ),
     ("release", 1): (
         "release-v1.json",
         "f7b8ce3eb37c40d79a23bdff1d88dd0e6e163c2d72ec67575b3b4e7023d5415d",
@@ -418,6 +422,17 @@ def _validate_manifest(manifest: dict[str, Any]) -> None:
         raise FormatError("manifest component paths must be sorted and unique")
     if "manifest.json" in paths:
         raise FormatError("manifest cannot list itself as a component")
+    has_witness = "receipt-witness.json" in paths
+    if manifest["schema_version"] == 1 and has_witness:
+        raise FormatError("manifest-v1 refuses receipt-witness.json")
+    if manifest["schema_version"] == 2:
+        if not has_witness:
+            raise FormatError("manifest-v2 requires receipt-witness.json")
+        count = manifest["evidence_counts"]["receipt_trie_proved"]
+        if count > 0 and manifest["receipts_root"] == "0x" + "00" * 32:
+            raise FormatError(
+                "positive receipt proof count requires a nonzero receipts root"
+            )
     failures = manifest["optional_failures"]
     if failures != sorted(failures) or len(failures) != len(set(failures)):
         raise FormatError("optional failures must be sorted and unique")

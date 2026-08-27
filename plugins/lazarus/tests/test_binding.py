@@ -174,6 +174,18 @@ class CleanBindingTests(unittest.TestCase):
 class EvidenceTests(unittest.TestCase):
     """The rule this module exists for."""
 
+    def test_state_fixture_v1_refuses_the_new_receipt_evidence_class(self):
+        report = sample_report()
+        report["evidence_counts"]["receipt_trie_proved"] = 2
+        report["receipt_trie_proved"] = {
+            "relations": 2,
+            "transaction_hash_attribution": "recorded_rpc",
+        }
+        with self.assertRaisesRegex(
+            IntegrityError, "outside its vocabulary"
+        ):
+            bound(report=report)
+
     def test_a_statement_claiming_more_proved_records_is_refused(self):
         """The study's case, and the one the held job names. Four recorded RPC
         responses moved into the proved column."""
