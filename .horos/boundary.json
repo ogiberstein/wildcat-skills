@@ -2,11 +2,11 @@
   "counts": {
     "bytes_binary": 36963472,
     "bytes_content_addressed": 7844971,
-    "bytes_generated": 135798,
+    "bytes_generated": 162400,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1650
+    "files_walked": 1654
   },
   "entries": [
     {
@@ -619,6 +619,13 @@
       "evidence": "marker 'do not edit' in the first 4096 bytes",
       "grade": "hard",
       "path": "plugins/horos/docs/evidence/wildcat-app-v2.boundary.v2.json"
+    },
+    {
+      "bytes": 26602,
+      "category": "generated",
+      "evidence": "marker 'do not edit' in the first 4096 bytes",
+      "grade": "hard",
+      "path": "plugins/horos/docs/marker-self-exclusion/study.md"
     },
     {
       "bytes": 53,
