@@ -6,6 +6,7 @@ import json
 from itertools import islice
 import os
 from pathlib import Path
+import re
 import stat
 import tempfile
 from typing import Any, Callable, Iterable, Sequence
@@ -19,25 +20,30 @@ MAX_RECORD_BYTES = 16 * 1024 * 1024
 MAX_RECORDS = 100_000
 MAX_DEPTH = 64
 MAX_CONTAINER_ITEMS = 100_000
+_SURROGATE_CODE_POINT = re.compile(r"[\ud800-\udfff]")
 
 
 def _reject_duplicate_pairs(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise FormatError(f"duplicate JSON key: {key}")
+            raise FormatError("duplicate JSON key")
         result[key] = value
     return result
 
 
 def _reject_number(value: str) -> None:
-    raise FormatError(f"non-integer JSON number is not allowed: {value}")
+    raise FormatError("non-integer JSON number is not allowed")
 
 
 def _check_shape(value: Any, *, depth: int = 0) -> None:
     if depth > MAX_DEPTH:
         raise ResourceLimitError(f"JSON nesting exceeds {MAX_DEPTH}")
-    if value is None or isinstance(value, (bool, int, str)):
+    if value is None or isinstance(value, (bool, int)):
+        return
+    if isinstance(value, str):
+        if _SURROGATE_CODE_POINT.search(value) is not None:
+            raise FormatError("JSON string contains a surrogate code point")
         return
     if isinstance(value, float):
         raise FormatError("floating-point values are not allowed")
@@ -47,6 +53,8 @@ def _check_shape(value: Any, *, depth: int = 0) -> None:
         for key, item in value.items():
             if not isinstance(key, str):
                 raise FormatError("JSON object keys must be strings")
+            if _SURROGATE_CODE_POINT.search(key) is not None:
+                raise FormatError("JSON object key contains a surrogate code point")
             _check_shape(item, depth=depth + 1)
         return
     if isinstance(value, (list, tuple)):
@@ -61,16 +69,23 @@ def _check_shape(value: Any, *, depth: int = 0) -> None:
 def loads(data: bytes | str, *, max_bytes: int = MAX_JSON_BYTES) -> Any:
     """Parse strict UTF-8 JSON, rejecting duplicate keys and non-integers."""
 
+    encoding_failure = False
     try:
         raw = data.encode("utf-8") if isinstance(data, str) else data
-    except UnicodeEncodeError as exc:
-        raise FormatError("JSON input cannot be encoded as UTF-8") from exc
+    except UnicodeEncodeError:
+        encoding_failure = True
+    if encoding_failure:
+        raise FormatError("JSON input cannot be encoded as UTF-8")
     if len(raw) > max_bytes:
         raise ResourceLimitError(f"JSON input exceeds {max_bytes} bytes")
+    decoding_failure = False
     try:
         text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise FormatError("JSON input is not UTF-8") from exc
+    except UnicodeDecodeError:
+        decoding_failure = True
+    if decoding_failure:
+        raise FormatError("JSON input is not UTF-8")
+    parse_failure = None
     try:
         value = json.loads(
             text,
@@ -80,8 +95,12 @@ def loads(data: bytes | str, *, max_bytes: int = MAX_JSON_BYTES) -> Any:
         )
     except FormatError:
         raise
-    except (json.JSONDecodeError, RecursionError, ValueError) as exc:
-        raise FormatError(f"invalid JSON: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        parse_failure = f"invalid JSON at line {exc.lineno} column {exc.colno}"
+    except (RecursionError, ValueError):
+        parse_failure = "invalid JSON"
+    if parse_failure is not None:
+        raise FormatError(parse_failure)
     _check_shape(value)
     return value
 

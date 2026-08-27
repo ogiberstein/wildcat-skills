@@ -13,6 +13,7 @@ from lazarus_lib.manifest import build_manifest, verify_manifest, write_manifest
 from lazarus_lib.records import (
     read_anchor_records,
     read_proof_records,
+    read_receipt_witness,
     read_rpc_records,
 )
 from lazarus_lib.schemas import validate_builtin_schemas, validate_document
@@ -39,6 +40,7 @@ def parser() -> argparse.ArgumentParser:
             "rpc-records",
             "proof-records",
             "anchor-records",
+            "receipt-witness",
             "manifest",
             "release",
         ),
@@ -120,6 +122,8 @@ def _validate(kind: str, path: Path | None) -> None:
         read_proof_records(path)
     elif kind == "anchor-records":
         read_anchor_records(path)
+    elif kind == "receipt-witness":
+        read_receipt_witness(path)
     else:
         validate_document(kind, load(path))
 

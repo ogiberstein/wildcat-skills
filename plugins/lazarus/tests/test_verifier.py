@@ -38,11 +38,12 @@ def write_fixture(
     counts=None,
     anchor_source_ids=None,
     anchor_records=None,
+    plan_version=None,
 ):
     material = material or support.synthetic_fixture_material()
     components = COMPONENTS
     if anchor_source_ids is not None:
-        material["plan"]["schema_version"] = 2
+        material["plan"]["schema_version"] = plan_version or 2
         material["plan"]["anchor_sources"] = [
             {"source_id": source_id} for source_id in anchor_source_ids
         ]
@@ -94,6 +95,38 @@ def replace_anchor_records(root: Path, records) -> None:
 
 
 class VerifierTests(unittest.TestCase):
+    def test_plan_v3_whole_fixture_refuses_by_name(self):
+        material = support.synthetic_fixture_material()
+        plan = support.sample_plan_v3()
+        plan["block"] = material["plan"]["block"]
+        plan["proof_targets"] = material["plan"]["proof_targets"]
+        plan["limits"] = material["plan"]["limits"]
+        plan["requests"][1]["params"] = [plan["block"]["hash"]]
+        plan["requests"][3]["params"][0]["blockHash"] = plan["block"]["hash"]
+        material["plan"] = plan
+        for request, result in zip(plan["requests"][1:], ([], {}, [])):
+            material["rpc_records"].append(
+                make_rpc_record(
+                    request["method"],
+                    request["params"],
+                    required=True,
+                    evidence="recorded-rpc",
+                    result=result,
+                    name=request["name"],
+                )
+            )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(
+                root,
+                material,
+                counts={"proof_backed": 3, "header_bound": 1, "recorded_rpc": 4},
+                anchor_source_ids=("archive-a",),
+                plan_version=3,
+            )
+            with self.assertRaisesRegex(FormatError, "plan-v3"):
+                verify_fixture(root)
+
     def test_anchor_reports_are_separate_counts_with_no_chain_claims(self):
         for count in (1, 32):
             source_ids = tuple(f"source-{index:02d}" for index in range(count))
