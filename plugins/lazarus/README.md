@@ -5,9 +5,9 @@
 
 Lazarus captures the finite historical Ethereum state and exact RPC evidence one application test needs, proves the state-backed part, and replays only recorded requests.
 
-**Current frontier.** Receipts and logs are recorded RPC evidence only; nothing proves them against the captured header's receiptsRoot.
+**Current frontier.** Receipt witnesses reconstruct receiptsRoot offline and prove one scoped receipt payload plus its consensus-log projection; transaction hashes and unrelated RPC results remain recorded evidence, while empty blocks still have no receipt-witness representation.
 
-**Next Fiat job.** Use /hexaemeron:fiat to prove the fixture's recorded transaction receipt and its logs against the captured header's receiptsRoot, so receipt evidence stops resting on the provider's word, and carry the resulting evidence class through the manifest, the verifier, the release and the Ariadne state-fixture predicate without moving any other recorded RPC response into a proved class. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
+**Next Fiat job.** Use /hexaemeron:fiat to accept an empty ordered receipt witness only when the verified header carries Ethereum's empty trie root, derive zero receipt-trie-proved relations without a target receipt or filtered-log request, and preserve the shipped non-empty Goldfinch relation plus every legacy format. Before the run finishes, cold-read and reconcile all mutable first-party marketplace prose. Change a skill's Next Fiat job only when that exact frontier job completed; otherwise leave it unchanged.
 <!-- marketplace-context:end -->
 
 ## Place in the collective
@@ -15,8 +15,9 @@ Lazarus captures the finite historical Ethereum state and exact RPC evidence one
 Lazarus preserves one test's finite chain boundary. Alexandria preserves wider
 lending-data captures, while Berean may consume fixed-block reads in a grounded
 agent release. Ariadne can bind a verified Lazarus preservation release to its
-state-fixture evidence. None of those hand-offs promotes receipts, logs, calls,
-or traces into state proofs; that distinction remains Lazarus's boundary.
+state-fixture evidence. Those hand-offs preserve Lazarus's evidence classes:
+the scoped consensus receipt and log projection can be receipt-trie proved,
+while transaction hashes, calls, traces and unrelated RPC fields cannot.
 
 Lazarus preserves the finite part of historical Ethereum state and RPC
 evidence that one application test needs. A fixture binds an explicit capture
@@ -30,34 +31,39 @@ verifies and the statement survives being held to what that verification
 recomputed. See [docs/preservation-release.md](docs/preservation-release.md).
 
 The current build implements finite capture and offline verification for the
-versioned plan, header, RPC record, proof record, chain-anchor record and
-manifest formats. It
+versioned plan, header, RPC record, proof record, receipt-witness record,
+chain-anchor record and manifest formats. It
 writes canonical JSON and JSONL, confines fixture paths, derives exact request
 keys, verifies component digests, recomputes the header hash, traverses
-EIP-1186 proofs, checks captured code and serves exact requests over loopback.
+EIP-1186 proofs, reconstructs a declared receipt trie, checks captured code and
+serves exact requests over loopback.
 
 ## How it works
 
 Capture fixes a block, records exact JSON-RPC requests and responses, and binds
 the fixture to a deterministic manifest. Account and storage claims must pass
 EIP-1186 trie-proof checks against the captured header; contract code must match
-the proved code hash. Receipts, log queries, calls and traces remain labelled as
-recorded RPC evidence. They are not promoted into state proofs.
+the proved code hash. A plan-v3 receipt witness can reconstruct `receiptsRoot`
+from every ordered consensus receipt and prove its target receipt payload plus
+the declared filtered-log projection. Transaction hashes, calls, traces and all
+other RPC result fields remain recorded evidence.
 
 Replay verifies the fixture before opening a loopback server. An uncaptured
 request returns a stable `-32070` error describing the missing plan entry, and
-there is no provider fallback. The checked-in Goldfinch example exercises
-proof-backed code and storage, a receipt, a log query, a deliberate miss, proof
-mutation rejection and byte-for-byte manifest rebuilding without a network.
+there is no provider fallback. The checked-in Goldfinch examples preserve the
+original recorded-RPC fixture and separately demonstrate the receipt-root
+relation, mutation rejection and deterministic release rebuilding without a
+network.
 
 ## What it ships
 
 - finite, bounded capture from one fixed historical block;
 - canonical JSON and JSONL formats with versioned, digest-pinned schemas;
-- offline header, account, storage, code and manifest verification;
+- offline header, account, storage, code, receipt-trie and manifest verification;
 - exact-request JSON-RPC replay over loopback, including batches and
   notifications; and
-- 414 tests plus a proof-checked Goldfinch demonstration.
+- fixed Goldfinch v0 and v1 demonstrations, including a preservation release
+  for each evidence boundary.
 
 ## Day to day
 
@@ -75,11 +81,15 @@ header and keep ordinary RPC evidence outside that proof boundary.
 - **Proof-backed state** is checked through an EIP-1186 proof against the
   captured header's `stateRoot`. Captured code is checked against the proved
   `codeHash`.
+- **Receipt-trie-proved relations** reconstruct the captured header's
+  `receiptsRoot` from the full ordered consensus receipt sequence, then prove
+  one scoped target receipt payload and its declared consensus-log projection.
+  Transaction hashes are not part of this proof.
 - **Header-bound data** is internally consistent with the named header. That
   does not prove on its own that the header belongs to Ethereum's canonical
   chain.
-- **Recorded RPC evidence** preserves an exact response, receipt, log query,
-  call or trace without describing it as a state proof.
+- **Recorded RPC evidence** preserves exact response decorations, unrelated
+  receipt and log fields, calls or traces without describing them as proved.
 
 Multi-provider anchors are a fourth, separately counted observation surface.
 Plan v2 declares opaque source IDs and runtime environment-variable mappings;
@@ -113,12 +123,12 @@ python3 scripts/lazarus.py replay <fixture>
 `capture` is the only command that receives provider URLs. The primary URL
 keeps its legacy argument; each anchor argument carries only a source ID and
 environment-variable name, never the URL value. Capture requires the mapping
-set to equal plan v2, shares one request, byte and elapsed-time budget across
+set to equal the plan-v2 or plan-v3 anchor declarations, shares one request, byte and elapsed-time budget across
 all clients, brackets one fixed block, verifies captured proofs and code,
 removes provider error prose, scans for every provider secret and atomically
 finalises a deterministic fixture. `verify` repeats all
-format, digest, header, trie and code checks without a network. `replay` is the
-local exact-request server: it verifies before binding, returns a
+format, digest, header, state-trie, receipt-trie and code checks without a
+network. `replay` is the local exact-request server: it verifies before binding, returns a
 stable capture-plan fragment for a miss and has no provider fallback.
 
 [`examples/multi-provider-anchor-v0`](./examples/multi-provider-anchor-v0) is a
@@ -147,6 +157,23 @@ python3 plugins/lazarus/examples/goldfinch-v0/demo.py
 The demo verifies before replay, reads the four committed results through
 ordinary loopback JSON-RPC, observes a `-32070` miss for slot `0x1`, rejects a
 one-nibble proof mutation and rebuilds the same manifest bytes.
+
+[`examples/goldfinch-v1`](./examples/goldfinch-v1) uses the same captured raw
+sources with a plan-v3 receipt witness. It reconstructs all 224 receipts at the
+same block, proves target index `0xbf` with 110 consensus logs, proves the exact
+five-log projection, and ships a state-fixture/v2 release. Run its fail-closed
+offline demonstration with:
+
+```bash
+python3 plugins/lazarus/examples/goldfinch-v1/demo.py
+```
+
+The demo verifies and deterministically rebuilds the statement and release,
+rejects one-byte receipt, index, log, root, count and release mutations, denies
+network access, and shows that a coherent transaction-hash rewrite changes
+neither `receiptsRoot` nor either proved relation. See the
+[receipt inclusion proof guide](./docs/receipt-inclusion-proofs.md) for the
+operator boundary and exact verification commands.
 
 ## Tests
 

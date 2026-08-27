@@ -1163,7 +1163,7 @@ class ReceiptCaptureTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["fixture_digest"],
-                "cfffa16ed33c0c17bfa8552a03e7f7a3db670689f23a0fde1a337feb56a02d04",
+                "a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec",
             )
             expected_files = sorted(
                 path.name

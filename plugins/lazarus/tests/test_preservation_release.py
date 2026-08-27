@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 from lazarus_lib.binding import CHECKS
@@ -21,6 +22,7 @@ from lazarus_lib.release import (
     STATEMENT_NAME,
     release_digest,
     verify_release,
+    write_release,
 )
 from lazarus_lib.verifier import verify_fixture
 
@@ -28,6 +30,8 @@ from . import support
 
 FIXTURE = support.PLUGIN_ROOT / "examples" / "goldfinch-v0"
 SHIPPED = support.PLUGIN_ROOT / "examples" / "goldfinch-v0-release"
+RECEIPT_FIXTURE = support.PLUGIN_ROOT / "examples" / "goldfinch-v1"
+RECEIPT_SHIPPED = support.PLUGIN_ROOT / "examples" / "goldfinch-v1-release"
 DEMONSTRATION = (
     support.PLUGIN_ROOT / "examples" / "preservation-release-demo.py"
 )
@@ -41,6 +45,18 @@ LEGACY_DIGESTS = {
 
 def document():
     return loads((SHIPPED / RELEASE_NAME).read_bytes())
+
+
+def receipt_document():
+    return loads((RECEIPT_SHIPPED / RELEASE_NAME).read_bytes())
+
+
+def tree_bytes(root):
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
 
 
 class ShippedReleaseTests(unittest.TestCase):
@@ -131,6 +147,91 @@ class ShippedReleaseTests(unittest.TestCase):
     def test_it_holds_nothing_but_the_three_parts(self):
         held = sorted(path.name for path in SHIPPED.iterdir())
         self.assertEqual(held, [FIXTURE_DIRECTORY, RELEASE_NAME, STATEMENT_NAME])
+
+
+class ShippedReceiptReleaseTests(unittest.TestCase):
+    def test_the_receipt_release_verifies_with_exact_pinned_digests(self):
+        report = verify_release(RECEIPT_SHIPPED)
+        self.assertEqual(
+            report["fixture_digest"],
+            "64c4fdb4ae977e5588f6ceb14e8ba42992d7cfa958ce46e66ecb8bacc885c0e5",
+        )
+        self.assertEqual(
+            report["statement_sha256"],
+            "076abcbefb1ada13d01c50d709584412e55e9ec32c72b2986ad7ebb53fb88e90",
+        )
+        self.assertEqual(
+            report["release_digest"],
+            "a374e87b6f9d082edfef2bf698c1a19330e67c756a1bd23601889a41b6c7a5f7",
+        )
+        self.assertEqual(
+            hashlib.sha256(
+                (RECEIPT_SHIPPED / STATEMENT_NAME).read_bytes()
+            ).hexdigest(),
+            report["statement_sha256"],
+        )
+        self.assertEqual(
+            receipt_document()["release_digest"], report["release_digest"]
+        )
+        self.assertEqual(
+            release_digest(receipt_document()), report["release_digest"]
+        )
+
+    def test_the_receipt_release_carries_only_the_scoped_v2_authority(self):
+        held = receipt_document()
+        report = verify_release(RECEIPT_SHIPPED)
+        self.assertEqual(held["schema_version"], 2)
+        self.assertEqual(held["tool_version"], "0.2.0")
+        self.assertEqual(
+            report["predicate_type"],
+            "https://ariadne.wildcat.finance/state-fixture/v2",
+        )
+        self.assertEqual(
+            report["receipts_root"],
+            "0xaf03b0508121deb9ed0282a8961dc0ea695a97244a42ed2b0af04cb9bbc6226e",
+        )
+        self.assertEqual(report["evidence_counts"]["receipt_trie_proved"], 2)
+        self.assertFalse(held["verified"]["canonical_chain_claim"])
+        self.assertNotIn("transaction_hash", held["verified"])
+        statement = loads((RECEIPT_SHIPPED / STATEMENT_NAME).read_bytes())
+        skipped = {
+            claim["name"]: claim.get("reason", "")
+            for claim in statement["predicate"]["claims"]
+            if claim["disposition"] == "skipped"
+        }
+        self.assertIn("transaction hash attributed by the receipt trie", skipped)
+        self.assertIn(
+            "recorded RPC decorations",
+            skipped["transaction hash attributed by the receipt trie"],
+        )
+
+    def test_the_receipt_release_fixture_copy_is_exact(self):
+        self.assertEqual(
+            tree_bytes(RECEIPT_SHIPPED / FIXTURE_DIRECTORY),
+            tree_bytes(RECEIPT_FIXTURE),
+        )
+
+    def test_the_receipt_release_rebuild_is_byte_identical(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rebuilt = Path(directory) / "release"
+            write_release(
+                RECEIPT_FIXTURE,
+                RECEIPT_SHIPPED / STATEMENT_NAME,
+                rebuilt,
+            )
+            self.assertEqual(tree_bytes(rebuilt), tree_bytes(RECEIPT_SHIPPED))
+
+    def test_the_legacy_and_receipt_formats_coexist(self):
+        self.assertEqual(document()["schema_version"], 1)
+        self.assertEqual(receipt_document()["schema_version"], 2)
+        self.assertNotIn("receipts_root", document()["verified"])
+        self.assertIn("receipts_root", receipt_document()["verified"])
+        self.assertEqual(
+            verify_fixture(FIXTURE)["manifest"]["tool_version"], "0.1.0"
+        )
+        self.assertEqual(
+            verify_fixture(RECEIPT_FIXTURE)["manifest"]["tool_version"], "0.2.0"
+        )
 
 
 class DemonstrationTests(unittest.TestCase):

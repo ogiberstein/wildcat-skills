@@ -23,7 +23,7 @@ from .records import (
 )
 from .receipts import verify_receipt_relation
 from .schemas import validate_document
-from .version import __version__
+from .version import MANIFEST_V1_WRITER_VERSION, __version__
 
 
 MANIFEST_NAME = "manifest.json"
@@ -105,9 +105,13 @@ def build_manifest(
             raise FormatError("duplicate optional failure request key")
         if failures != observed_failures:
             raise IntegrityError("declared optional failures disagree with RPC records")
+    schema_version = 2 if receipt_report is not None else 1
+    writer_version = (
+        __version__ if schema_version == 2 else MANIFEST_V1_WRITER_VERSION
+    )
     manifest: dict[str, Any] = {
-        "schema_version": 2 if receipt_report is not None else 1,
-        "tool_version": __version__,
+        "schema_version": schema_version,
+        "tool_version": writer_version,
         "chain_id": chain_id,
         "block": {"number": block_number, "hash": block_hash},
         "components": components,

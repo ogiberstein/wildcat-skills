@@ -33,7 +33,11 @@ class ScaffoldTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        entries = [entry for entry in marketplace["plugins"] if entry["name"] == "lazarus"]
+        entries = [
+            entry
+            for entry in marketplace["plugins"]
+            if entry["name"] == "lazarus"
+        ]
         self.assertEqual(len(entries), 1)
         package = entries[0]["version"]
         for host in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
@@ -42,14 +46,21 @@ class ScaffoldTests(unittest.TestCase):
         self.assertNotEqual(package, support.skill_version())
         self.assertNotEqual(package, __version__)
 
-    def test_the_writer_version_is_the_one_the_fixture_records(self):
-        """Pinned to the artefact it appears in rather than to a literal, so a
-        bump that would invalidate the checked-in fixture's provenance fails
-        here rather than in the demonstration."""
-        manifest = support.load_json("examples/goldfinch-v0/manifest.json")
-        self.assertEqual(manifest["tool_version"], __version__)
-        release = support.load_json("examples/goldfinch-v0-release/release.json")
-        self.assertEqual(release["tool_version"], __version__)
+    def test_writer_0_2_0_applies_only_to_new_artifacts(self):
+        """Historical provenance stays historical when the writer advances."""
+        self.assertEqual(__version__, "0.2.0")
+        legacy_manifest = support.load_json("examples/goldfinch-v0/manifest.json")
+        legacy_release = support.load_json(
+            "examples/goldfinch-v0-release/release.json"
+        )
+        self.assertEqual(legacy_manifest["tool_version"], "0.1.0")
+        self.assertEqual(legacy_release["tool_version"], "0.1.0")
+        receipt_manifest = support.load_json("examples/goldfinch-v1/manifest.json")
+        receipt_release = support.load_json(
+            "examples/goldfinch-v1-release/release.json"
+        )
+        self.assertEqual(receipt_manifest["tool_version"], __version__)
+        self.assertEqual(receipt_release["tool_version"], __version__)
 
     def test_skill_is_canonical_and_has_no_readme_shadow(self):
         self.assertTrue(support.SKILL.is_file())
@@ -102,16 +113,35 @@ class ScaffoldTests(unittest.TestCase):
             },
         )
 
-    def test_generation_1_2_0_remains_one_existing_ledger_row(self):
-        self.assertEqual(support.skill_version(), "1.2.0")
+    def test_evolution_2_2_0_advances_the_completed_receipt_frontier_once(self):
+        self.assertEqual(support.skill_version(), "2.2.0")
         ledger = (support.SKILL.parent / "EVOLUTION.md").read_text(encoding="utf-8")
         self.assertEqual(ledger.count("| `lazarus-v1.2.0` |"), 1)
+        self.assertEqual(ledger.count("| `lazarus-v2.2.0` |"), 1)
         for line in (
-            "- Current version: `lazarus-v1.2.0`",
+            "- Current version: `lazarus-v2.2.0`",
             "- Frontier status: `open`",
-            "- Frontier revision: `receipt-inclusion-proofs`",
+            "- Frontier revision: `empty-block-receipt-witnesses`",
         ):
             self.assertIn(line, ledger)
+        self.assertIn("Goldfinch v1 demonstration", ledger)
+        self.assertIn("empty block cannot yet be represented", ledger)
+
+    def test_receipt_inclusion_proof_guide_is_discoverable(self):
+        guide = support.PLUGIN_ROOT / "docs" / "receipt-inclusion-proofs.md"
+        text = guide.read_text(encoding="utf-8")
+        for term in (
+            "goldfinch-v1",
+            "224 consensus receipts",
+            "transaction index `0xbf`",
+            "110 consensus logs",
+            "five-log projection",
+            "receipt_trie_proved",
+            "Transaction hashes are RPC decorations",
+            "writer 0.2.0",
+        ):
+            with self.subTest(term=term):
+                self.assertIn(term, text)
 
     def test_requirements_are_exact_direct_pins(self):
         requirements = (support.PLUGIN_ROOT / "requirements.txt").read_text().splitlines()
