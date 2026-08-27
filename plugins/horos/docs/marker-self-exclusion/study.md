@@ -338,7 +338,7 @@ anywhere gains an exclusion from this change.
 ## 8. Signals, and the questions behind them
 
 Two questions get asked of a boundary after the fact, and both must be
-answerable from what the tool already emits; [ephoros](../ephoros/SKILL.md)
+answerable from what the tool already emits; [ephoros](../../../hexaemeron/skills/ephoros/SKILL.md)
 owns what a signal must carry.
 
 - "Why is this file excluded?" The entry's evidence string answers it, so the
@@ -356,7 +356,7 @@ evidence strings are the whole observable surface.
 
 ## 9. Boundaries, per capability
 
-[phylax](../phylax/SKILL.md) owns the boundary list and the controls; this
+[phylax](../../../hexaemeron/skills/phylax/SKILL.md) owns the boundary list and the controls; this
 change opens no new one and narrows an old one.
 
 - Untrusted repository bytes into the scanner: reads stay bounded (4096-byte
@@ -376,7 +376,7 @@ change opens no new one and narrows an old one.
 ## 10. The budget, or its absence
 
 The scan must stay approximately linear and this change must not move it
-measurably; [metron](../metron/SKILL.md) owns how a budget is checked. The
+measurably; [metron](../../../hexaemeron/skills/metron/SKILL.md) owns how a budget is checked. The
 recorded baseline at the starting ref: five runs of
 `python3 plugins/horos/skills/horos/scripts/horos.py scan . --json`
 from the repository root took a median 105.7 ms wall time (104.7-128.4 ms
@@ -388,7 +388,7 @@ decoded, so the expected movement is noise.
 
 ## 11. The fail-closed posture
 
-[elenchus](../elenchus/SKILL.md) owns the triage order and the guard rule;
+[elenchus](../../../hexaemeron/skills/elenchus/SKILL.md) owns the triage order and the guard rule;
 this run adopts them as follows. A red suite at either level stops the line:
 nothing merges over a failing root or horos suite, and a drifted committed
 boundary is a red suite by construction
@@ -404,7 +404,7 @@ the fix lands.
 
 ## 12. Decisions and their homes
 
-[hypomnema](../hypomnema/SKILL.md) owns which decisions earn a record and
+[hypomnema](../../../hexaemeron/skills/hypomnema/SKILL.md) owns which decisions earn a record and
 where each lives.
 
 - Narrowing the marker semantics to comment-led lines is expensive to
