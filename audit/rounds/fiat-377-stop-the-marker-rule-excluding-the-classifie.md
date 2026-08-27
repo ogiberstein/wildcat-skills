@@ -94,3 +94,15 @@ Elenchus verdict: null
 | -- | -- | -- | none | -- |
 
 Leads not pursued: the v9.2.3 epoch row's historical 7,844,877-byte object-store figure differs from the boundary's current 7,844,971 -- not pursued because the epoch row records the maintainer census of 2026-08-19 and history rows are immutable under the contract, while the new prose correctly carries the current figure; the same frontier paragraph is duplicated across three prose files -- not pursued because tests/test_marketplace_prose.py pins the cross-host agreement and the duplication is the marketplace convention this run inherits.
+
+## Step 4 demo -- 2026-08-27T07:23:10Z
+
+Demo of the fixed boundary at the run head, tree 9107ba51fc60fa705acd31aa0c07ef6d4ed17b7b (step 3's exit tree). The five exit commands ran in the runbook's order from the repository root; per the study's section 8, the exit codes and the evidence strings are the whole observable surface, and both are recorded here. Suite commands carry the GIT_CONFIG prefix (GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=false) because the suites make fixture commits.
+
+1. `python3 plugins/horos/skills/horos/scripts/horos.py scan . --json` -- exit 0. 95 entries; counts: files_walked 1656, files_skipped_unreadable 0, bytes_binary 36963472, bytes_content_addressed 7844971, bytes_generated 66736, bytes_lockfile 254, bytes_vendored 94. Spot-checks: no entry for plugins/horos/skills/horos/scripts/horos.py and no entry for plugins/horos/tests/test_classify.py (the two formerly self-excluded files stay readable); CONTRIBUTORS.md retained as category generated, grade hard, bytes 1151, evidence `marker 'do not edit' on a comment-led line in the first 4096 bytes`; plugins/horos/examples/fixture/gen/api.py retained as category generated, grade hard, bytes 63, evidence `marker 'do not edit' on a comment-led line in the first 4096 bytes`.
+2. `python3 -m unittest discover -s plugins/horos/tests -t plugins/horos` (GIT_CONFIG prefix) -- exit 0, Ran 228 tests, OK.
+3. `python3 -m unittest discover -s tests` (GIT_CONFIG prefix) -- exit 0, Ran 399 tests, OK.
+4. `python3 plugins/horos/skills/horos/scripts/horos.py check .` -- exit 0, output verbatim: `candidate drift: audit/rounds/fiat-377-stop-the-marker-rule-excluding-the-classifie.synopsis.md: evidenced by the tree but missing from the boundary` then `boundary matches the tree`. The candidate line is informational (candidate entries never gate the exit code) and pre-dates this demo; the hard boundary matches the tree.
+5. `python3 -m unittest tests.test_marketplace_prose` (GIT_CONFIG prefix) -- exit 0, Ran 20 tests, OK.
+
+All five commands green; no source file changed for this demo. Elenchus runner report at .hexaemeron/elenchus-step-4.txt (same horos suite invocation, stderr captured).
