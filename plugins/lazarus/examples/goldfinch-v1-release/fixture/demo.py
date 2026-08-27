@@ -12,6 +12,7 @@ import importlib.util
 from io import StringIO
 import os
 from pathlib import Path
+import secrets
 import shutil
 import socket
 import stat
@@ -218,6 +219,67 @@ def _descriptor_directory(
     raise PathError("platform cannot anchor fixture stage")
 
 
+def _make_directory_entry(
+    directory_fd: int,
+    prefix: str,
+) -> tuple[str, tuple[int, int]]:
+    """Create one private directory beneath an already pinned parent."""
+
+    for _ in range(128):
+        name = f"{prefix}{secrets.token_hex(8)}"
+        created = False
+        try:
+            os.mkdir(name, mode=0o700, dir_fd=directory_fd)
+            created = True
+        except FileExistsError:
+            continue
+        except OSError:
+            raise PathError("fixture stage cannot be created") from None
+        try:
+            descriptor = _open_directory_entry(directory_fd, name)
+            try:
+                details = os.fstat(descriptor)
+                identity = (details.st_dev, details.st_ino)
+            finally:
+                os.close(descriptor)
+            if _entry_identity(directory_fd, name) != identity:
+                raise PathError("fixture stage identity changed during build")
+            return name, identity
+        except (OSError, PathError):
+            if created:
+                try:
+                    os.rmdir(name, dir_fd=directory_fd)
+                except OSError:
+                    pass
+            raise PathError("fixture stage is unavailable") from None
+    raise PathError("fixture stage cannot be created")
+
+
+def _write_new_component(directory_fd: int, name: str, data: bytes) -> None:
+    """Write a new stage component without following or replacing an entry."""
+
+    if not name or "/" in name or "\\" in name or name in {".", ".."}:
+        raise PathError("fixture stage component name is unsafe")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(name, flags, 0o600, dir_fd=directory_fd)
+        with os.fdopen(descriptor, "wb") as handle:
+            descriptor = None
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        raise PathError("fixture stage is unavailable") from None
+
+
 def _remove_anchored_tree(
     directory_fd: int,
     name: str,
@@ -228,8 +290,30 @@ def _remove_anchored_tree(
         return
     if current_identity != identity:
         raise PathError("fixture stage identity changed during build")
+    quarantine = f"{name}.cleanup-{secrets.token_hex(8)}"
     try:
-        shutil.rmtree(name, dir_fd=directory_fd)
+        _atomic_no_replace_in_directory(
+            directory_fd,
+            name,
+            directory_fd,
+            quarantine,
+        )
+    except PathError:
+        raise PathError("fixture stage cleanup failed") from None
+    quarantined_identity = _entry_identity(directory_fd, quarantine)
+    if quarantined_identity != identity:
+        try:
+            _atomic_no_replace_in_directory(
+                directory_fd,
+                quarantine,
+                directory_fd,
+                name,
+            )
+        except PathError:
+            pass
+        raise PathError("fixture stage identity changed during build")
+    try:
+        shutil.rmtree(quarantine, dir_fd=directory_fd)
     except OSError:
         raise PathError("fixture stage cleanup failed") from None
 
@@ -347,7 +431,6 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
                     pass
             raise PathError("fixture output cannot be inside a source fixture")
 
-    stage: Path | None = None
     stage_parent_fd: int | None = None
     stage_fd: int | None = None
     fixture_fd: int | None = None
@@ -359,17 +442,15 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
     cleanup_failed = False
     rollback_failed = False
     try:
-        try:
-            stage = Path(
-                tempfile.mkdtemp(prefix=f".{destination.name}.stage-", dir=parent)
-            ).resolve(strict=True)
-        except (OSError, RuntimeError):
-            raise PathError("fixture stage cannot be created") from None
-        stage_parent_fd = _open_directory(stage.parent)
-        stage_name = stage.name
-        stage_identity = _entry_identity(stage_parent_fd, stage_name)
-        if stage_identity is None:
-            raise PathError("fixture stage is unavailable")
+        stage_parent_fd = _open_directory(parent)
+        stage_parent_details = os.fstat(stage_parent_fd)
+        if (stage_parent_details.st_dev, stage_parent_details.st_ino) != parent_identity:
+            raise PathError("fixture output parent changed during build")
+        _require_same_parent(parent_path, parent, parent_identity)
+        stage_name, stage_identity = _make_directory_entry(
+            stage_parent_fd,
+            f".{destination.name}.stage-",
+        )
         stage_fd = _open_directory_entry(stage_parent_fd, stage_name)
         stage_details = os.fstat(stage_fd)
         if (stage_details.st_dev, stage_details.st_ino) != stage_identity:
@@ -391,11 +472,6 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
             fixture_identity,
         )
         _require_same_parent(parent_path, parent, parent_identity)
-        if stage.parent != parent:
-            raise PathError("fixture output parent changed during build")
-        for source_root in source_roots:
-            if stage == source_root or source_root in stage.parents:
-                raise PathError("fixture stage cannot be inside a source fixture")
         for claim in source_claims:
             relative = claim["path"]
             data = read_confined_bytes(
@@ -410,10 +486,7 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
                     "pinned receipt-proof-v1 source changed during build"
                 )
             _require_same_parent(parent_path, parent, parent_identity)
-            try:
-                (anchored_stage / relative).write_bytes(data)
-            except OSError:
-                raise PathError("fixture stage is unavailable") from None
+            _write_new_component(fixture_fd, relative, data)
             _require_same_parent(parent_path, parent, parent_identity)
         _require_same_parent(parent_path, parent, parent_identity)
         copied_claims = [
@@ -424,10 +497,7 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
             raise IntegrityError("pinned receipt-proof-v1 source changed during build")
         demo_bytes = read_confined_bytes(FIXTURE, "demo.py", max_bytes=1024 * 1024)
         _require_same_parent(parent_path, parent, parent_identity)
-        try:
-            (anchored_stage / "demo.py").write_bytes(demo_bytes)
-        except OSError:
-            raise PathError("fixture stage is unavailable") from None
+        _write_new_component(fixture_fd, "demo.py", demo_bytes)
         _require_same_parent(parent_path, parent, parent_identity)
 
         manifest = build_manifest(

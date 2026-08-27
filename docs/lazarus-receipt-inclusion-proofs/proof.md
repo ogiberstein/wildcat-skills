@@ -54,10 +54,11 @@ The public fixture copies the six captured source components from
 `header.json`, `plan.json`, `proofs.jsonl`, `receipt-witness.json` and
 `rpc.jsonl`. Its own `demo.py` and manifest make the published demonstration a
 separate deterministic fixture. Its offline builder verifies the pinned source
-fixture, copies those six components and the current demo bytes into a private
-stage held beneath open directory descriptors, rechecks the output parent's
-directory identity, builds and verifies the manifest, and publishes by an
-fd-relative atomic no-replace rename only to a new destination. The demonstration
+fixture, creates its private stage beneath the already opened output-parent
+descriptor, writes those six components and the current demo bytes with
+exclusive no-follow file creation, rechecks the output parent's directory
+identity, builds and verifies the manifest, and publishes by an fd-relative
+atomic no-replace rename only to a new destination. The demonstration
 runs the statement's exact five-word producer argv in a temporary execution
 root and captures the fixture at that argv's relative output path. The internal
 manifest-v2 was restamped from writer 0.1.0 to 0.2.0 without changing any raw
@@ -65,11 +66,11 @@ source component.
 
 | Artefact identity | SHA-256 | Digest scope |
 | --- | --- | --- |
-| Goldfinch v1 fixture digest | `0eb8b0850c1bed7eca06e8eb545a2fbd92c7a19577a718b277116310e2032feb` | Semantic manifest identity |
-| Goldfinch v1 manifest file | `b221f6429ea5ec49189cd10156f68bce48c7a42d59b934e8e336f3ca9cdebdad` | Raw file bytes |
-| Ariadne state-fixture/v2 statement file | `bbdc87c033df7f82ca7113492d85f4dbf989de39cb0e15876c9ef5fc0fc3426f` | Raw file bytes |
-| Goldfinch v1 release digest | `8454155693ef53e77e772e0aeb7af41c491a287c398fe0e543cc7db0c1335d62` | Semantic release identity |
-| Goldfinch v1 release file | `1a636d8ba11bbd70a6ff36ac9d85e40a44385840a197579d7c8345715aad1330` | Raw file bytes |
+| Goldfinch v1 fixture digest | `e7e342648aa215fd24db0ba9d28d320b964825beb48df2b04abb07dbac6dde22` | Semantic manifest identity |
+| Goldfinch v1 manifest file | `26ab9bfad48f98f647b9b9445605b3452062a3f2521525407c1227d507af5a57` | Raw file bytes |
+| Ariadne state-fixture/v2 statement file | `2ee4b96833c019ac2b2327a83c90276f3a9ce6d60f2139babf9c3f3f0e259032` | Raw file bytes |
+| Goldfinch v1 release digest | `31552c7beb885836ba921c6fe3f0c0cc83c4e1f5926fe37d3140b1d22042b1cd` | Semantic release identity |
+| Goldfinch v1 release file | `f821d1687ce8201845d5b2d4050cffe7068253df9630e5dd0e08e70517efe09a` | Raw file bytes |
 | Restamped internal receipt manifest file | `f9bd4a3e9192ec4d472b4b9127fd66871f87d5b60f75b34a3f82c7d6e1213558` | Raw file bytes |
 | Restamped internal fixture digest | `a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec` | Semantic manifest identity |
 
@@ -95,7 +96,7 @@ Lazarus 1.1.2 and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` 
 
 ## Elenchus guards
 
-Seventeen observed failures were localised before the final run:
+Twenty observed failures were localised before the final run:
 
 1. The index mutation failed while validated witness bytes were being written,
    before the helper's original verification-only exception boundary. That
@@ -189,6 +190,23 @@ Seventeen observed failures were localised before the final run:
     after a source read, immediately before a stage write and during finalisation;
     each gets a bounded refusal, leaves both source trees unchanged and removes
     the private stage and any rolled-back destination.
+18. Renaming the output parent after path-based stage creation but before the
+    builder resolved that stage produced a bounded refusal but stranded the
+    private directory in the renamed parent. The builder now opens and checks
+    the output parent before it creates the stage relative to that descriptor.
+    The guard moves the parent at the creation boundary and proves the refusal
+    removes the private stage without publishing a fixture.
+19. A staged component symlink could redirect `Path.write_bytes` to an external
+    file before later no-follow verification rejected the fixture. Component
+    creation now uses exclusive no-follow opens relative to the pinned fixture
+    descriptor. The guard plants that symlink and proves the external target
+    stays byte-identical while the build refuses and cleans its stage.
+20. Cleanup checked the stage inode and then recursively removed the same
+    pathname. Replacing that name between the check and removal deleted an
+    unowned tree. Cleanup now atomically quarantines the named tree, verifies
+    the moved inode and restores an identity mismatch instead of deleting it.
+    The guard proves both the expected displaced tree and its replacement
+    survive the refusal.
 
 The end-to-end demonstration independently rejects a one-byte consensus
 receipt, index, consensus log, receipts root, evidence count and release
@@ -202,11 +220,13 @@ diagnostic.
 **Phylax.** Step 5 performed no provider capture. It reused the fixed bounded
 source captured under Step 3's request, byte, time, secret-union and atomic
 controls. The builder verifies that pinned source, rereads each component
-through a bounded no-follow descriptor, rechecks the copied claims, uses an
-adjacent private stage, pins and rechecks the output parent, refuses
-source-contained or existing destinations, and publishes with atomic
-no-replace. A stage-cleanup failure produces a fixed refusal and does not claim
-removal. Fixture verification, statement capture, release build and release
+through a bounded no-follow descriptor, rechecks the copied claims, creates its
+adjacent private stage relative to the pinned output-parent descriptor, writes
+new components through exclusive no-follow descriptors, refuses source-contained
+or existing destinations, and publishes with atomic no-replace. Cleanup first
+quarantines and verifies the expected inode; a cleanup failure produces a fixed
+refusal and does not claim removal. Fixture verification, statement capture,
+release build and release
 verification accept local paths only. The demo runs the recorded producer argv,
 patches both socket connection entry points to fail on use and reports
 `network=denied`. No dependency changed. An independent

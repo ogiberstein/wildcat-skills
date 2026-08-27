@@ -2,6 +2,7 @@
 
 import ipaddress
 from io import StringIO
+import os
 from pathlib import Path
 import runpy
 import shutil
@@ -165,7 +166,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         report = verify_fixture(RECEIPT_FIXTURE)
         self.assertEqual(
             report["fixture_digest"],
-            "0eb8b0850c1bed7eca06e8eb545a2fbd92c7a19577a718b277116310e2032feb",
+            "e7e342648aa215fd24db0ba9d28d320b964825beb48df2b04abb07dbac6dde22",
         )
         self.assertEqual(
             report["evidence_counts"],
@@ -307,14 +308,20 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         demo = load_receipt_demo()
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "new-parent" / "fixture"
-            with mock.patch.dict(
-                demo.build_fixture.__globals__,
-                {
+            creator = getattr(demo, "_make_directory_entry", None)
+            if callable(creator):
+                creation_patch = {
+                    "_make_directory_entry": mock.Mock(
+                        side_effect=demo.PathError("fixture stage cannot be created")
+                    )
+                }
+            else:
+                creation_patch = {
                     "tempfile": SimpleNamespace(
                         mkdtemp=mock.Mock(side_effect=OSError("private host detail"))
                     )
-                },
-            ):
+                }
+            with mock.patch.dict(demo.build_fixture.__globals__, creation_patch):
                 error = StringIO()
                 with mock.patch("sys.stderr", error):
                     try:
@@ -348,12 +355,26 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
                 parent.symlink_to(source, target_is_directory=True)
                 return real_mkdtemp(prefix=prefix, dir=dir)
 
-            with mock.patch.dict(
-                demo.build_fixture.__globals__,
-                {
+            creator = getattr(demo, "_make_directory_entry", None)
+            if callable(creator):
+                def swap_after_anchored_creation(directory_fd, prefix):
+                    made = creator(directory_fd, prefix)
+                    parent.rename(original_parent)
+                    parent.symlink_to(source, target_is_directory=True)
+                    return made
+
+                creation_patch = {
+                    "SOURCE_FIXTURE": source,
+                    "_make_directory_entry": swap_after_anchored_creation,
+                }
+            else:
+                creation_patch = {
                     "SOURCE_FIXTURE": source,
                     "tempfile": SimpleNamespace(mkdtemp=swap_parent),
-                },
+                }
+            with mock.patch.dict(
+                demo.build_fixture.__globals__,
+                creation_patch,
             ):
                 with self.assertRaisesRegex(
                     LazarusError, "fixture output parent changed during build"
@@ -436,6 +457,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
                     "_atomic_no_replace": swap_during_path_finalisation
                 }
             else:
+                swapped = False
 
                 def swap_during_anchored_finalisation(
                     stage_directory_fd,
@@ -443,8 +465,11 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
                     destination_directory_fd,
                     destination_name,
                 ):
-                    parent.rename(original_parent)
-                    parent.symlink_to(source, target_is_directory=True)
+                    nonlocal swapped
+                    if not swapped and destination_name == output.name:
+                        swapped = True
+                        parent.rename(original_parent)
+                        parent.symlink_to(source, target_is_directory=True)
                     return anchored(
                         stage_directory_fd,
                         stage_name,
@@ -500,10 +525,44 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
                     parent.symlink_to(source, target_is_directory=True)
                 return real_write(path, data)
 
+            creator = getattr(demo, "_make_directory_entry", None)
+            if callable(creator):
+                def fixed_anchored_stage(directory_fd, prefix):
+                    self.assertTrue(stage_name.startswith(prefix))
+                    os.mkdir(stage_name, mode=0o700, dir_fd=directory_fd)
+                    identity = demo._entry_identity(directory_fd, stage_name)
+                    self.assertIsNotNone(identity)
+                    return stage_name, identity
+
+                creation_patch = {
+                    "_make_directory_entry": fixed_anchored_stage,
+                }
+                anchored_write = demo._write_new_component
+
+                def swap_before_first_anchored_write(directory_fd, name, data):
+                    nonlocal swapped
+                    if not swapped and name == "anchors.jsonl":
+                        swapped = True
+                        parent.rename(original_parent)
+                        parent.symlink_to(source, target_is_directory=True)
+                    return anchored_write(directory_fd, name, data)
+
+                creation_patch["_write_new_component"] = (
+                    swap_before_first_anchored_write
+                )
+                write_context = mock.patch.object(Path, "write_bytes", real_write)
+            else:
+                creation_patch = {
+                    "tempfile": SimpleNamespace(mkdtemp=fixed_stage),
+                }
+                write_context = mock.patch.object(
+                    Path, "write_bytes", swap_before_first_write
+                )
+
             with mock.patch.dict(
                 demo.build_fixture.__globals__,
-                {"tempfile": SimpleNamespace(mkdtemp=fixed_stage)},
-            ), mock.patch.object(Path, "write_bytes", swap_before_first_write):
+                creation_patch,
+            ), write_context:
                 with self.assertRaisesRegex(
                     LazarusError, "fixture output parent changed during build"
                 ):
@@ -549,6 +608,136 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
             )
             self.assertNotIn("private cleanup detail", error.getvalue())
             self.assertNotIn("Traceback", error.getvalue())
+
+    def test_builder_cleans_a_stage_when_the_parent_moves_after_creation(self):
+        demo = load_receipt_demo()
+        real_mkdtemp = tempfile.mkdtemp
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parent = root / "output-parent"
+            parent.mkdir()
+            moved_parent = root / "moved-output-parent"
+            output = parent / "fixture"
+            creator = getattr(demo, "_make_directory_entry", None)
+
+            if callable(creator):
+                def move_after_anchored_creation(directory_fd, prefix):
+                    made = creator(directory_fd, prefix)
+                    parent.rename(moved_parent)
+                    return made
+
+                creation_patch = {
+                    "_make_directory_entry": move_after_anchored_creation,
+                }
+            else:
+                def move_after_path_creation(*, prefix, dir):
+                    stage = real_mkdtemp(prefix=prefix, dir=dir)
+                    parent.rename(moved_parent)
+                    return stage
+
+                creation_patch = {
+                    "tempfile": SimpleNamespace(mkdtemp=move_after_path_creation),
+                }
+
+            with mock.patch.dict(demo.build_fixture.__globals__, creation_patch):
+                with self.assertRaisesRegex(
+                    LazarusError, "fixture output parent changed during build|fixture stage cannot be created"
+                ):
+                    demo.build_fixture(output)
+            self.assertTrue(moved_parent.is_dir())
+            self.assertEqual(list(moved_parent.iterdir()), [])
+            self.assertFalse(output.exists())
+
+    def test_builder_refuses_a_staged_symlink_without_overwriting_its_target(self):
+        demo = load_receipt_demo()
+        real_write = Path.write_bytes
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parent = root / "output-parent"
+            parent.mkdir()
+            output = parent / "fixture"
+            protected = root / "protected.txt"
+            protected.write_bytes(b"private original bytes")
+            writer = getattr(demo, "_write_new_component", None)
+
+            if callable(writer):
+                planted = False
+
+                def plant_before_anchored_write(directory_fd, name, data):
+                    nonlocal planted
+                    if not planted and name == "anchors.jsonl":
+                        planted = True
+                        os.symlink(protected, name, dir_fd=directory_fd)
+                    return writer(directory_fd, name, data)
+
+                write_patch = {
+                    "_write_new_component": plant_before_anchored_write,
+                }
+                context = mock.patch.dict(demo.build_fixture.__globals__, write_patch)
+            else:
+                planted = False
+
+                def plant_before_path_write(path, data):
+                    nonlocal planted
+                    if not planted and path.name == "anchors.jsonl":
+                        planted = True
+                        path.symlink_to(protected)
+                    return real_write(path, data)
+
+                context = mock.patch.object(Path, "write_bytes", plant_before_path_write)
+
+            with context:
+                with self.assertRaises(LazarusError):
+                    demo.build_fixture(output)
+            self.assertTrue(planted)
+            self.assertEqual(protected.read_bytes(), b"private original bytes")
+            self.assertFalse(output.exists())
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_cleanup_does_not_delete_a_tree_replaced_after_the_inode_check(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            stage = root / "stage"
+            stage.mkdir()
+            (stage / "owned.txt").write_text("owned", encoding="utf-8")
+            displaced = root / "displaced-stage"
+            competitor_source = root / "competitor-source"
+            competitor_source.mkdir()
+            (competitor_source / "keep.txt").write_text("keep", encoding="utf-8")
+            parent_fd = demo._open_directory(root)
+            identity = demo._entry_identity(parent_fd, stage.name)
+            self.assertIsNotNone(identity)
+            real_identity = demo._entry_identity
+            swapped = False
+
+            def replace_after_check(directory_fd, name):
+                nonlocal swapped
+                observed = real_identity(directory_fd, name)
+                if name == stage.name and not swapped:
+                    swapped = True
+                    stage.rename(displaced)
+                    shutil.copytree(competitor_source, stage)
+                return observed
+
+            try:
+                with mock.patch.dict(
+                    demo._remove_anchored_tree.__globals__,
+                    {"_entry_identity": replace_after_check},
+                ):
+                    with self.assertRaisesRegex(
+                        LazarusError, "fixture stage identity changed during build"
+                    ):
+                        demo._remove_anchored_tree(parent_fd, stage.name, identity)
+            finally:
+                os.close(parent_fd)
+            self.assertTrue(swapped)
+            self.assertTrue(stage.is_dir())
+            self.assertEqual((stage / "keep.txt").read_text(encoding="utf-8"), "keep")
+            self.assertEqual(
+                (displaced / "owned.txt").read_text(encoding="utf-8"), "owned"
+            )
+            self.assertEqual(list(root.glob("stage.cleanup-*")), [])
 
     def test_recorded_producer_argv_builds_the_fixture_ariadne_captures(self):
         demo = load_receipt_demo()
