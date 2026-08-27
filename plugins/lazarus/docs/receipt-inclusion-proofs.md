@@ -13,8 +13,8 @@ reports exactly two `receipt_trie_proved` relations.
 
 ## Verify and demonstrate offline
 
-Use the repository's locked Lazarus environment. Neither command accepts an
-RPC URL or opens a network connection:
+Use the repository's locked Lazarus environment. None of these commands accepts
+an RPC URL or opens a network connection:
 
 ```bash
 python3 plugins/lazarus/scripts/lazarus.py verify \

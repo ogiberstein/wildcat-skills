@@ -142,6 +142,8 @@ class ScaffoldTests(unittest.TestCase):
         ):
             with self.subTest(term=term):
                 self.assertIn(term, text)
+        self.assertIn("None of these commands accepts", text)
+        self.assertNotIn("Neither command accepts", text)
 
     def test_public_receipt_proof_claims_are_current_and_scoped(self):
         contract = (support.PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -182,8 +184,8 @@ class ScaffoldTests(unittest.TestCase):
             "issue mutation ran in this step.",
             compact_proof,
         )
-        self.assertIn("Ten observed failures were localised", proof)
-        self.assertEqual(proof.count("\n10. "), 1)
+        self.assertIn("Thirteen observed failures were localised", proof)
+        self.assertEqual(proof.count("\n13. "), 1)
 
         delivery_runbook = (
             support.REPO_ROOT

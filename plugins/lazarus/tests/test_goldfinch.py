@@ -1,6 +1,7 @@
 """The checked-in Goldfinch fixture runs and remains offline reproducible."""
 
 import ipaddress
+from io import StringIO
 from pathlib import Path
 import runpy
 import shutil
@@ -164,7 +165,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         report = verify_fixture(RECEIPT_FIXTURE)
         self.assertEqual(
             report["fixture_digest"],
-            "484a474df79e2c28fde42069c55545432645c541abb86f72ec76bdf653858d6e",
+            "861fcd5841ba7fa646ba904ae2c6dd41e0d7b169e4403d7de9db9002aea7149e",
         )
         self.assertEqual(
             report["evidence_counts"],
@@ -288,6 +289,46 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
             with self.assertRaises(LazarusError):
                 load_receipt_demo().build_fixture(RECEIPT_FIXTURE / "nested")
             self.assertFalse((RECEIPT_FIXTURE / "nested").exists())
+
+    def test_builder_refuses_a_missing_parent_inside_source_without_creating_it(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source"
+            shutil.copytree(support.RECEIPT_PROOF_FIXTURE, source)
+            output = source / "created-before-refusal" / "fixture"
+            with mock.patch.dict(
+                demo.build_fixture.__globals__, {"SOURCE_FIXTURE": source}
+            ):
+                with self.assertRaises(LazarusError):
+                    demo.build_fixture(output)
+            self.assertFalse(output.parent.exists())
+
+    def test_builder_cli_refusal_is_bounded_and_removes_a_created_parent(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "new-parent" / "fixture"
+            with mock.patch.dict(
+                demo.build_fixture.__globals__,
+                {
+                    "tempfile": SimpleNamespace(
+                        mkdtemp=mock.Mock(side_effect=OSError("private host detail"))
+                    )
+                },
+            ):
+                error = StringIO()
+                with mock.patch("sys.stderr", error):
+                    try:
+                        code = demo.main(["build-fixture", "--out", str(output)])
+                    except OSError as exception:
+                        self.fail(
+                            "builder CLI leaked an unhandled "
+                            f"{type(exception).__name__}"
+                        )
+            self.assertEqual(code, 1)
+            self.assertEqual(error.getvalue(), "refused: fixture stage cannot be created\n")
+            self.assertFalse(output.parent.exists())
+            self.assertNotIn("private host detail", error.getvalue())
+            self.assertNotIn("Traceback", error.getvalue())
 
     def test_every_fixture_mutation_materializes_before_verification(self):
         demo = load_receipt_demo()

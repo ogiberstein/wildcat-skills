@@ -61,11 +61,11 @@ without changing any raw source component.
 
 | Artefact identity | SHA-256 | Digest scope |
 | --- | --- | --- |
-| Goldfinch v1 fixture digest | `484a474df79e2c28fde42069c55545432645c541abb86f72ec76bdf653858d6e` | Semantic manifest identity |
-| Goldfinch v1 manifest file | `77d115e807dc65a06f920ff6807276732afe9e47e869bd0f3ca74045968ad831` | Raw file bytes |
-| Ariadne state-fixture/v2 statement file | `d2364e3f2966143d8ffa49ef68250af544847c409f6bca67d2ba8f011979824c` | Raw file bytes |
-| Goldfinch v1 release digest | `fe601b843da5a3f20e02426370bc148b85d0b1beb2de7d5d4c3862f761675bf1` | Semantic release identity |
-| Goldfinch v1 release file | `9f52c417abe3cce9d33eb191b76ab58835e2f06f675a2c79b5a09c379eece59c` | Raw file bytes |
+| Goldfinch v1 fixture digest | `861fcd5841ba7fa646ba904ae2c6dd41e0d7b169e4403d7de9db9002aea7149e` | Semantic manifest identity |
+| Goldfinch v1 manifest file | `00440c82d5dc85a478dae33609059a5366941f01641ebe9e4e3141bd586d5cdf` | Raw file bytes |
+| Ariadne state-fixture/v2 statement file | `e0ad9e533ffd2aa3b0c3ae2e5bb92234fd062cddead6b38acbe4887845433db5` | Raw file bytes |
+| Goldfinch v1 release digest | `72f79d3b3f28edcb0d73db90670abba8b86c59a5a4d7884f4abe7db6c052e18f` | Semantic release identity |
+| Goldfinch v1 release file | `5ff3859e6a506a53c60bdfa049a8df99d0b48a1097b07213cdd10a8f0e5f5a14` | Raw file bytes |
 | Restamped internal receipt manifest file | `f9bd4a3e9192ec4d472b4b9127fd66871f87d5b60f75b34a3f82c7d6e1213558` | Raw file bytes |
 | Restamped internal fixture digest | `a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec` | Semantic manifest identity |
 
@@ -91,7 +91,7 @@ Lazarus 1.1.2 and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` 
 
 ## Elenchus guards
 
-Ten observed failures were localised before the final run:
+Thirteen observed failures were localised before the final run:
 
 1. The index mutation failed while validated witness bytes were being written,
    before the helper's original verification-only exception boundary. That
@@ -142,6 +142,20 @@ Ten observed failures were localised before the final run:
     telemetry. Reason-bearing exceptions state that boundary at each access,
     and the whole-tree gate now passes while the byte-level mutation guard
     remains intact.
+11. The fixture builder created a missing output parent before it checked
+    whether the destination was inside either source fixture. A refused build
+    could therefore leave a new directory in pinned source evidence. The
+    containment check now runs before any write and again after parent
+    resolution; a copied-source guard proves refusal leaves no parent behind.
+12. A staging `OSError` escaped the builder command as a traceback containing
+    host detail and left a parent that the command had created. Staging failure
+    now becomes a bounded `PathError`, failed builds remove their newly created
+    empty parent, and the CLI emits one fixed refusal line. The guard injects a
+    private error marker and proves it, the traceback, the destination and the
+    parent are absent.
+13. The offline guide introduced three verification and demonstration commands
+    as “Neither command”. It now says none of those commands accepts an RPC URL
+    or opens a connection, and the scaffold test refuses the old wording.
 
 The end-to-end demonstration independently rejects a one-byte consensus
 receipt, index, consensus log, receipts root, evidence count and release
@@ -243,16 +257,18 @@ after the final source bytes are fixed.
 | Round 1 Warden source-bound entry runner | exit 0, 1,270 tests, 96.324 seconds | Report SHA-256 `410f723d860c7c3ae5ecd9e738fe9797ed6898b83a1a3fc115ea12e5411976a7` |
 | Round 2 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
 | Round 3 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
-| New and legacy Goldfinch/release/scaffold focus | exit 0, 51 tests | Focused unittest output |
+| Round 4 Warden source-bound entry runner | exit 0, 1,273 tests, 90.554 seconds | Report SHA-256 `3623123f4b314d75adbbfa660fea87584127ca40df40d4d999f00c800c930108` |
+| New and legacy Goldfinch/release/scaffold focus | exit 0, 53 tests | Focused unittest output |
 | Marketplace, version, evolution and portable-skill focus | exit 0, 41 tests | Focused unittest output |
 | Ariadne plugin suite | exit 0, 689 tests | Complete source-bound runner |
-| Lazarus plugin suite | exit 0, 584 tests | Complete source-bound runner |
+| Lazarus plugin suite | exit 0, 586 tests | Complete source-bound runner |
 | Canonical round-2 Elenchus parent comparison | guarded, 1,271 tests, 5 assertion failures, 0 errors, 0 skips | Candidate `f3568e6`; all three changed test files copied to signed parent `c861b49305c45829d0bd938b68e7083d857eaeb8` |
 | First round-3 Elenchus parent comparison | inconclusive, 1,273 tests, 9 assertion failures, 1 error, 0 skips | The parent lacked the new fixture-rebuild event key, so the guard indexed through the compatibility boundary |
 | Canonical round-3 Elenchus parent comparison | guarded, 1,273 tests, 10 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed entry `6f20c92aed7c07017f6a53f3195e42a159de0b57`; the compatibility guard uses `.get()` |
-| Final combined receipt-delivery runner | exit 0, 1,273 tests, 92.879 seconds | Complete report SHA-256 `3623123f4b314d75adbbfa660fea87584127ca40df40d4d999f00c800c930108` |
+| Canonical round-4 Elenchus parent comparison | guarded, 1,275 tests, 6 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `a5b3b068492a202a09ae00d62ae695a886ad3fb0` |
+| Final combined receipt-delivery runner | exit 0, 1,275 tests, 91.081 seconds | Complete report SHA-256 `5507771aeedf8c7d4157260981da713df7476e52e62bac14aa39ea555429eaab` |
 | Root suite | exit 0, 396 tests | Root unittest output; 1,258 inoculation cases, 0 crashes, 0 unexpected clean |
-| Promise Machine, demonstrations, repository lints and currency checks | exit 0 | Command exits |
+| Promise Machine, demonstrations, source lints and currency checks | exit 0 | Command exits; audit-record structural diagnostics are preserved in the round record |
 
 The signed implementation and Warden commits plus the final clean-tree check are
 the last evidence items; no push, publication or controller transition belongs

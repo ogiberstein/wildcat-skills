@@ -153,14 +153,33 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
     requested = Path(output)
     if not requested.name or requested.name in {".", ".."}:
         raise PathError("fixture output must name a new directory")
+    try:
+        intended_destination = requested.resolve(strict=False)
+    except (OSError, RuntimeError):
+        raise PathError("fixture output cannot be resolved") from None
+    source_roots = (FIXTURE.resolve(), SOURCE_FIXTURE.resolve())
+    for source_root in source_roots:
+        if (
+            intended_destination == source_root
+            or source_root in intended_destination.parents
+        ):
+            raise PathError("fixture output cannot be inside a source fixture")
+
     parent_path = requested.parent
+    created_parent = False
     try:
         parent = parent_path.resolve(strict=True)
     except FileNotFoundError:
         try:
             parent_path.mkdir(mode=0o700)
+            created_parent = True
             parent = parent_path.resolve(strict=True)
         except OSError:
+            if created_parent:
+                try:
+                    parent_path.rmdir()
+                except OSError:
+                    pass
             raise PathError("fixture output parent cannot be created") from None
     except OSError:
         raise PathError("fixture output parent cannot be resolved") from None
@@ -169,15 +188,24 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
     destination = parent / requested.name
     if destination.exists() or destination.is_symlink():
         raise PathError("fixture output already exists")
-    for source_root in (FIXTURE.resolve(), SOURCE_FIXTURE.resolve()):
+    for source_root in source_roots:
         if destination == source_root or source_root in destination.parents:
+            if created_parent:
+                try:
+                    parent.rmdir()
+                except OSError:
+                    pass
             raise PathError("fixture output cannot be inside a source fixture")
 
-    stage = Path(
-        tempfile.mkdtemp(prefix=f".{destination.name}.stage-", dir=parent)
-    )
+    stage: Path | None = None
     published = False
     try:
+        try:
+            stage = Path(
+                tempfile.mkdtemp(prefix=f".{destination.name}.stage-", dir=parent)
+            )
+        except OSError:
+            raise PathError("fixture stage cannot be created") from None
         for claim in source_claims:
             relative = claim["path"]
             data = read_confined_bytes(
@@ -213,8 +241,13 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
         published = True
         return report
     finally:
-        if not published and stage.exists():
+        if not published and stage is not None and stage.exists():
             shutil.rmtree(stage)
+        if not published and created_parent:
+            try:
+                parent.rmdir()
+            except OSError:
+                pass
 
 
 def _flip_last_hex(value: str) -> str:
@@ -521,7 +554,11 @@ def main(arguments: list[str] | None = None) -> int:
         builder.add_argument("--out", required=True)
         parsed = parser.parse_args(words)
         if parsed.command == "build-fixture":
-            report = build_fixture(parsed.out)
+            try:
+                report = build_fixture(parsed.out)
+            except LazarusError as error:
+                print(f"refused: {error}", file=sys.stderr)
+                return 1
             print(
                 dumps(
                     {
