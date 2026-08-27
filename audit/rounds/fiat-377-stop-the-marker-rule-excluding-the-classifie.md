@@ -106,3 +106,19 @@ Demo of the fixed boundary at the run head, tree 9107ba51fc60fa705acd31aa0c07ef6
 5. `python3 -m unittest tests.test_marketplace_prose` (GIT_CONFIG prefix) -- exit 0, Ran 20 tests, OK.
 
 All five commands green; no source file changed for this demo. Elenchus runner report at .hexaemeron/elenchus-step-4.txt (same horos suite invocation, stderr captured).
+
+## Step 4, round 1 -- 2026-08-27T07:30:18Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: window-partial-lines=not-applicable; string-at-line-start=not-applicable; comment-invited-exclusion=not-applicable; monotone-narrowing=not-applicable; boundary-regeneration=not-applicable; recall-loss-docstring=not-applicable; evidence-wording=reviewed; prose-reconciliation=not-applicable; corroboration-flow=not-applicable
+
+Not checked: the classifier code was not re-derived beyond the reproductions below, because the step diff 9107ba51..9f91455d touches exactly two files (this audit log and its synopsis, +14/-1) and no source file, confirmed by git diff --name-only, so the eight code-behaviour register ids stay not-applicable; the vendored Solidity suite (x-ray, solidity-auditor, fizz) is waived for this run, which ships no Solidity artefacts, and this waiver does not excuse the mechanical lints, which all ran; no fixes commit exists, so the Elenchus runner was not invoked this round. Round 1 gates: phylax, ephoros and hypomnema all exit 0 on both changed files. The step-4 demo record re-verified claim by claim against a fresh read: `scan . --json` exits 0 with 95 entries and counts files_walked 1656, files_skipped_unreadable 0, bytes_binary 36963472, bytes_content_addressed 7844971, bytes_generated 66736, bytes_lockfile 254, bytes_vendored 94, identical to the committed .horos/boundary.json counts and to the record's figures; neither plugins/horos/skills/horos/scripts/horos.py nor plugins/horos/tests/test_classify.py appears in the committed boundary or the fresh scan; CONTRIBUTORS.md (generated, hard, 1151 bytes) and plugins/horos/examples/fixture/gen/api.py (generated, hard, 63 bytes) both carry evidence exactly `marker 'do not edit' on a comment-led line in the first 4096 bytes`, the wording plugins/horos/tests/test_classify.py asserts at lines 64 and 417 (evidence-wording reviewed); horos.py check . exits 0 and reproduces the record's two output lines verbatim (the informational candidate-drift line for the run synopsis, then `boundary matches the tree`); under the GIT_CONFIG prefix the horos suite ran 228 tests OK, the root suite 399 tests OK and tests.test_marketplace_prose 20 tests OK, matching the record's three counts; .hexaemeron/elenchus-step-4.txt exists and ends `Ran 228 tests`, OK; and audit_synopsis.py --check . exits 0 reporting committed=match on every synopsis including this run's. The demo record invents nothing: every figure and quoted evidence string traced to a fresh read of the tree.
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: the candidate-drift line horos.py check . prints for this run's synopsis (evidenced by the tree but missing from the boundary) -- not pursued because candidate entries are informational by design and never gate the exit code, the line pre-dates the demo, and regenerating the boundary is outside a demo-only step; the root suite prints an INOCULATION run-observation summary line to stdout after its OK -- not pursued because it is deliberate telemetry from another plugin's test suite, unrelated to this run's diff, and the suite exits 0.
