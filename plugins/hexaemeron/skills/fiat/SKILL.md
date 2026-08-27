@@ -7,7 +7,7 @@ description: >
   or report a Hexaemeron or Fiat delivery, including /hexaemeron:fiat forms.
   Do not infer activation from a similar task.
 metadata:
-  version: "5.28.1"
+  version: "5.29.1"
 ---
 
 # Fiat
@@ -137,7 +137,9 @@ the second.
    archive the completed run, then continue immediately as a new run at step
    4. Do not ask the user to remove, rename, or approve resetting completed
    state. If the phase is not `done`, this is a resume: enter the loop and
-   treat the validated state file as canonical.
+   treat the validated state file as canonical. A run arriving as a
+   checkpoint zip verifies first, per the `Step checkpoint` section of
+   [push-discipline.md](references/push-discipline.md).
 4. Otherwise: say exactly `Let there be light.` and nothing else before it,
    run the read-only preflight checks below, then bring the base up to date
    before anything is cut from it, then `hexctl init --topic "<topic>" --base
@@ -486,7 +488,9 @@ append its attribution line or session link after creation. Wait for its gates
 but leave it open: a step's work lands in the
 integrate phase, not here. Do not add an issue reference unless one was
 independently supplied or required by higher-priority repository policy. Receipt
-the head SHA, PR URL, and PR base.
+the head SHA, PR URL, and PR base. Then, before acting on the next directive,
+upload the step checkpoint the `Step checkpoint` section of
+[push-discipline.md](references/push-discipline.md) requires.
 
 **Integrate.** Once every step is pushed, the stack comes down in order.
 Before the run is recorded as integrated, every identity its push receipts
