@@ -337,8 +337,8 @@ started.
 - [x] lazarus routed; the one D case left intact (its own docstring is the tag).
 - [x] berean routed; docstring updated; D/inverse cases untouched.
 - [x] §7 test moves: pandects law-counts → `plugins/pandects/tests/test_prose_counts.py`; lazarus example digest → `plugins/lazarus/tests/test_example_readme_digest.py`; source-path invariant added to the root loop.
-- [ ] §7 remainder: path-gate the prose/metadata invariants (a CI-config change, folded into §8).
-- [ ] §6a hexaemeron whole-tree walks moved to one repo-wide job; hypomnema pair folded.
-- [ ] §6b cross-component re-verification relocated or digest-anchored.
-- [ ] §8 CI: repo-wide invariant workflow added; ungated-plugin gap closed; pandects corpus job path-gated.
+- [x] §7 remainder: the repo-wide invariant suite now lives in its own workflow (§8). Per-test-type path-gating within one unittest suite is not native to GitHub Actions and the suite is cheap, so it runs as a unit rather than being split further.
+- [x] §6a hexaemeron whole-tree walks moved to tests/test_shipped_tree_lints.py; hypomnema pair folded; fixture-skip proof rewritten as a tempdir. (PR #666)
+- [x] §6b lazarus's orphaned tabularium peek removed; tabularium/alexandria/berean/ariadne couplings determined inherent or skipTest-guarded and left, with reasoning. (PR #666)
+- [x] §8 CI: repo.yml runs the invariant suite on any plugin/tests/meta/docs change (closes the 10-plugin ungated gap and ends the janus/lazarus/pandects double-run); forge split into janus-forge.yml and pandects-forge.yml, each gated to Solidity paths.
 - [x] Verification green for the landed work; no bucket-C/D assertion lost (root 104→103, pandects 116→117, all touched suites pass; lazarus/berean pre-existing dependency failures confirmed unrelated).

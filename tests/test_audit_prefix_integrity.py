@@ -24,9 +24,9 @@ AUDIT_PATHS = (
     "plugins/tabularium/audit/AUDIT.md",
 )
 ROOT_SUITE_JOBS = (
-    (".github/workflows/janus.yml", "contracts"),
-    (".github/workflows/lazarus.yml", "tests"),
-    (".github/workflows/pandects.yml", "catalogue"),
+    # The root invariant suite runs once in its own workflow (see repo.yml),
+    # not as a side-effect of the per-plugin workflows.
+    (".github/workflows/repo.yml", "invariants"),
 )
 
 
