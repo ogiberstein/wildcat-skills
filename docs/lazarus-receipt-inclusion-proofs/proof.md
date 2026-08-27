@@ -66,11 +66,11 @@ source component.
 
 | Artefact identity | SHA-256 | Digest scope |
 | --- | --- | --- |
-| Goldfinch v1 fixture digest | `e7e342648aa215fd24db0ba9d28d320b964825beb48df2b04abb07dbac6dde22` | Semantic manifest identity |
-| Goldfinch v1 manifest file | `26ab9bfad48f98f647b9b9445605b3452062a3f2521525407c1227d507af5a57` | Raw file bytes |
-| Ariadne state-fixture/v2 statement file | `2ee4b96833c019ac2b2327a83c90276f3a9ce6d60f2139babf9c3f3f0e259032` | Raw file bytes |
-| Goldfinch v1 release digest | `31552c7beb885836ba921c6fe3f0c0cc83c4e1f5926fe37d3140b1d22042b1cd` | Semantic release identity |
-| Goldfinch v1 release file | `f821d1687ce8201845d5b2d4050cffe7068253df9630e5dd0e08e70517efe09a` | Raw file bytes |
+| Goldfinch v1 fixture digest | `1d2b6eab3d62ad57f9481e5c202efa83c8d423ccbd95b6086cef1f9b0c34cf1d` | Semantic manifest identity |
+| Goldfinch v1 manifest file | `5c1ffc35c816a93dd4b95ceb891c883bf5b455ed7435bea08fe08159653ac211` | Raw file bytes |
+| Ariadne state-fixture/v2 statement file | `67bf286eeebb03a3731f22f46bf35d6dcbc3d28bc8dcb060a3f0443080e515fd` | Raw file bytes |
+| Goldfinch v1 release digest | `fceee6d3611d9a008ce3c8db84df29a177dffa58b578b301ddd5ebb351e2a973` | Semantic release identity |
+| Goldfinch v1 release file | `dee99fcd27079f6c4636279f293d35607338f117e79c04642e49fda220e086fb` | Raw file bytes |
 | Restamped internal receipt manifest file | `f9bd4a3e9192ec4d472b4b9127fd66871f87d5b60f75b34a3f82c7d6e1213558` | Raw file bytes |
 | Restamped internal fixture digest | `a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec` | Semantic manifest identity |
 
@@ -96,7 +96,7 @@ Lazarus 1.1.2 and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` 
 
 ## Elenchus guards
 
-Twenty observed failures were localised before the final run:
+Twenty-three observed failures were localised before the final run:
 
 1. The index mutation failed while validated witness bytes were being written,
    before the helper's original verification-only exception boundary. That
@@ -207,6 +207,23 @@ Twenty observed failures were localised before the final run:
     the moved inode and restores an identity mismatch instead of deleting it.
     The guard proves both the expected displaced tree and its replacement
     survive the refusal.
+21. The quarantine repair still passed its pathname to recursive removal after
+    the last inode check. Replacing that name at the check boundary deleted a
+    non-owned replacement while the owned stage survived elsewhere. Cleanup
+    now opens the verified quarantine, clears its bounded contents through that
+    descriptor and limits the remaining pathname operation to removing an
+    empty directory. The guard substitutes a nonempty competitor and proves
+    both that tree and the displaced owned directory survive the refusal.
+22. Output-path inspection leaked raw `ValueError` for an embedded NUL and raw
+    `OSError` with an absolute host path for an oversized basename. Resolution
+    and existence checks now map those failures to fixed `PathError` messages.
+    The guard exercises both the direct builder and bounded CLI surfaces and
+    refuses a traceback or private path detail.
+23. This public final-source ledger stopped at round 5 even though round 6
+    changed source and completed a later final run. The cumulative ledger now
+    records the round-6 entry, parent comparison and repaired run as well as the
+    round-7 entry, parent comparison and final run. The scaffold test pins the
+    missing round-6 rows and this final numbered guard.
 
 The end-to-end demonstration independently rejects a one-byte consensus
 receipt, index, consensus log, receipts root, evidence count and release
@@ -224,9 +241,10 @@ through a bounded no-follow descriptor, rechecks the copied claims, creates its
 adjacent private stage relative to the pinned output-parent descriptor, writes
 new components through exclusive no-follow descriptors, refuses source-contained
 or existing destinations, and publishes with atomic no-replace. Cleanup first
-quarantines and verifies the expected inode; a cleanup failure produces a fixed
-refusal and does not claim removal. Fixture verification, statement capture,
-release build and release
+quarantines and opens the expected inode, clears its bounded contents through
+that descriptor and performs no recursive removal through the quarantine path;
+a cleanup failure produces a fixed refusal and does not claim removal. Fixture
+verification, statement capture, release build and release
 verification accept local paths only. The demo runs the recorded producer argv,
 patches both socket connection entry points to fail on use and reports
 `network=denied`. No dependency changed. An independent
@@ -314,17 +332,24 @@ after the final source bytes are fixed.
 | Round 3 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
 | Round 4 Warden source-bound entry runner | exit 0, 1,273 tests, 90.554 seconds | Report SHA-256 `3623123f4b314d75adbbfa660fea87584127ca40df40d4d999f00c800c930108` |
 | Round 5 Warden source-bound entry runner | exit 0, 1,275 tests, 91.002 seconds | Report SHA-256 `5507771aeedf8c7d4157260981da713df7476e52e62bac14aa39ea555429eaab` |
-| New and legacy Goldfinch/release/scaffold focus | exit 0, 59 tests | Focused unittest output |
+| Round 6 Warden source-bound entry runner | exit 0, 1,281 tests, 93.810 seconds | Report SHA-256 `cfda950fd252d1bb9d054d408961415df452a54b13361c5e49b570ad568c26d1` |
+| Round 7 Warden source-bound entry runner | exit 0, 1,284 tests, 95.083 seconds | Report SHA-256 `357b5a134a2da73b4b3a7fb2570dbb845796b9664975bf88cff97d4e3e83ff33` |
+| New and legacy Goldfinch/release/scaffold focus | exit 0, 64 tests | Focused unittest output |
 | Marketplace, version, evolution and portable-skill focus | exit 0, 41 tests | Focused unittest output |
 | Ariadne plugin suite | exit 0, 689 tests | Complete source-bound runner |
-| Lazarus plugin suite | exit 0, 592 tests | Complete source-bound runner |
+| Lazarus plugin suite | exit 0, 597 tests | Complete source-bound runner |
 | Canonical round-2 Elenchus parent comparison | guarded, 1,271 tests, 5 assertion failures, 0 errors, 0 skips | Candidate `f3568e6`; all three changed test files copied to signed parent `c861b49305c45829d0bd938b68e7083d857eaeb8` |
 | First round-3 Elenchus parent comparison | inconclusive, 1,273 tests, 9 assertion failures, 1 error, 0 skips | The parent lacked the new fixture-rebuild event key, so the guard indexed through the compatibility boundary |
 | Canonical round-3 Elenchus parent comparison | guarded, 1,273 tests, 10 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed entry `6f20c92aed7c07017f6a53f3195e42a159de0b57`; the compatibility guard uses `.get()` |
 | Canonical round-4 Elenchus parent comparison | guarded, 1,275 tests, 6 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `a5b3b068492a202a09ae00d62ae695a886ad3fb0` |
 | First round-5 Elenchus parent comparison | guarded, 1,278 tests, 7 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `79bb7aa98b4b32135bf5ed0fc46bc40a70be69d6` before the final parent-rebind reduction |
 | Canonical round-5 Elenchus parent comparison | guarded, 1,281 tests, 10 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `4e06d93f9ac8856cbe7ca7e724c1ba3dba4defc5` |
-| Final combined receipt-delivery runner | exit 0, 1,281 tests, 93.810 seconds | Complete report SHA-256 `cfda950fd252d1bb9d054d408961415df452a54b13361c5e49b570ad568c26d1` |
+| Round 5 final combined receipt-delivery runner | exit 0, 1,281 tests, 93.810 seconds | Complete report SHA-256 `cfda950fd252d1bb9d054d408961415df452a54b13361c5e49b570ad568c26d1` |
+| Canonical round-6 Elenchus parent comparison | guarded, 1,284 tests, 6 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `8c0d414f9346d82c84002b50d586c897be2fb3e0` |
+| Round 6 repaired combined receipt-delivery runner | exit 0, 1,284 tests, 94.280 seconds | Complete report SHA-256 `357b5a134a2da73b4b3a7fb2570dbb845796b9664975bf88cff97d4e3e83ff33` |
+| Round 7 repaired precommit combined runner | exit 0, 1,286 tests, 94.902 seconds | Complete report SHA-256 `47fe6f0418e216a5b2c08786bf8b37536fd8ebdb60b12270ff7f63b23a1fb64b` |
+| Canonical round-7 Elenchus parent comparison | guarded, 1,286 tests, 5 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed candidate `91f519ca07f477c887db42b7a9a46829c53e8423` |
+| Round 7 final combined receipt-delivery runner | exit 0, 1,286 tests | Complete report SHA-256 `47fe6f0418e216a5b2c08786bf8b37536fd8ebdb60b12270ff7f63b23a1fb64b` |
 | Root suite | exit 0, 396 tests | Root unittest output; 1,258 inoculation cases, 0 crashes, 0 unexpected clean |
 | Promise Machine, demonstrations, source lints and currency checks | exit 0 | Command exits; audit-record structural diagnostics are preserved in the round record |
 

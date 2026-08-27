@@ -154,15 +154,15 @@ class ShippedReceiptReleaseTests(unittest.TestCase):
         report = verify_release(RECEIPT_SHIPPED)
         self.assertEqual(
             report["fixture_digest"],
-            "e7e342648aa215fd24db0ba9d28d320b964825beb48df2b04abb07dbac6dde22",
+            "1d2b6eab3d62ad57f9481e5c202efa83c8d423ccbd95b6086cef1f9b0c34cf1d",
         )
         self.assertEqual(
             report["statement_sha256"],
-            "2ee4b96833c019ac2b2327a83c90276f3a9ce6d60f2139babf9c3f3f0e259032",
+            "67bf286eeebb03a3731f22f46bf35d6dcbc3d28bc8dcb060a3f0443080e515fd",
         )
         self.assertEqual(
             report["release_digest"],
-            "31552c7beb885836ba921c6fe3f0c0cc83c4e1f5926fe37d3140b1d22042b1cd",
+            "fceee6d3611d9a008ce3c8db84df29a177dffa58b578b301ddd5ebb351e2a973",
         )
         self.assertEqual(
             hashlib.sha256(

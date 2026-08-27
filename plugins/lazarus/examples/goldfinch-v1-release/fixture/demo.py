@@ -155,6 +155,13 @@ def _directory_identity(path: Path) -> tuple[int, int]:
     return details.st_dev, details.st_ino
 
 
+def _output_exists(path: Path) -> bool:
+    try:
+        return path.exists() or path.is_symlink()
+    except (OSError, ValueError):
+        raise PathError("fixture output cannot be inspected") from None
+
+
 def _require_same_parent(
     requested_parent: Path,
     resolved_parent: Path,
@@ -162,7 +169,7 @@ def _require_same_parent(
 ) -> Path:
     try:
         current = requested_parent.resolve(strict=True)
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError, ValueError):
         raise PathError("fixture output parent changed during build") from None
     if current != resolved_parent or _directory_identity(current) != identity:
         raise PathError("fixture output parent changed during build")
@@ -280,6 +287,47 @@ def _write_new_component(directory_fd: int, name: str, data: bytes) -> None:
         raise PathError("fixture stage is unavailable") from None
 
 
+def _clear_anchored_directory(
+    directory_fd: int,
+    *,
+    depth: int = 0,
+) -> None:
+    """Remove bounded stage contents through their already-open directory."""
+
+    if depth > 2:
+        raise PathError("fixture stage cleanup exceeded its depth bound")
+    try:
+        with os.scandir(directory_fd) as scanned:
+            names = sorted(entry.name for entry in scanned)
+    except OSError:
+        raise PathError("fixture stage cleanup failed") from None
+    if len(names) > 16:
+        raise PathError("fixture stage cleanup exceeded its entry bound")
+
+    for name in names:
+        try:
+            details = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            if stat.S_ISDIR(details.st_mode):
+                identity = (details.st_dev, details.st_ino)
+                child_fd = _open_directory_entry(directory_fd, name)
+                try:
+                    opened = os.fstat(child_fd)
+                    if (opened.st_dev, opened.st_ino) != identity:
+                        raise PathError("fixture stage identity changed during build")
+                    _clear_anchored_directory(child_fd, depth=depth + 1)
+                finally:
+                    os.close(child_fd)
+                if _entry_identity(directory_fd, name) != identity:
+                    raise PathError("fixture stage identity changed during build")
+                os.rmdir(name, dir_fd=directory_fd)
+            else:
+                os.unlink(name, dir_fd=directory_fd)
+        except PathError:
+            raise
+        except OSError:
+            raise PathError("fixture stage cleanup failed") from None
+
+
 def _remove_anchored_tree(
     directory_fd: int,
     name: str,
@@ -300,6 +348,28 @@ def _remove_anchored_tree(
         )
     except PathError:
         raise PathError("fixture stage cleanup failed") from None
+    quarantine_fd: int | None = None
+    try:
+        quarantine_fd = _open_directory_entry(directory_fd, quarantine)
+        quarantined = os.fstat(quarantine_fd)
+        if (quarantined.st_dev, quarantined.st_ino) != identity:
+            raise PathError("fixture stage identity changed during build")
+        _clear_anchored_directory(quarantine_fd)
+    except PathError:
+        try:
+            _atomic_no_replace_in_directory(
+                directory_fd,
+                quarantine,
+                directory_fd,
+                name,
+            )
+        except PathError:
+            pass
+        raise
+    finally:
+        if quarantine_fd is not None:
+            os.close(quarantine_fd)
+
     quarantined_identity = _entry_identity(directory_fd, quarantine)
     if quarantined_identity != identity:
         try:
@@ -313,7 +383,7 @@ def _remove_anchored_tree(
             pass
         raise PathError("fixture stage identity changed during build")
     try:
-        shutil.rmtree(quarantine, dir_fd=directory_fd)
+        os.rmdir(quarantine, dir_fd=directory_fd)
     except OSError:
         raise PathError("fixture stage cleanup failed") from None
 
@@ -388,7 +458,7 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
         raise PathError("fixture output must name a new directory")
     try:
         intended_destination = requested.resolve(strict=False)
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError, ValueError):
         raise PathError("fixture output cannot be resolved") from None
     source_roots = (FIXTURE.resolve(), SOURCE_FIXTURE.resolve())
     for source_root in source_roots:
@@ -420,7 +490,7 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
         raise PathError("fixture output parent is not a directory")
     parent_identity = _directory_identity(parent)
     destination = parent / requested.name
-    if destination.exists() or destination.is_symlink():
+    if _output_exists(destination):
         raise PathError("fixture output already exists")
     for source_root in source_roots:
         if destination == source_root or source_root in destination.parents:
@@ -513,7 +583,7 @@ def build_fixture(output: str | Path) -> dict[str, Any]:
         report = verify_fixture(anchored_stage)
         _require_same_parent(parent_path, parent, parent_identity)
         destination = parent / requested.name
-        if destination.exists() or destination.is_symlink():
+        if _output_exists(destination):
             raise PathError("fixture output already exists")
         _atomic_no_replace_in_directory(
             stage_fd,

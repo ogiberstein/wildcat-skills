@@ -166,7 +166,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         report = verify_fixture(RECEIPT_FIXTURE)
         self.assertEqual(
             report["fixture_digest"],
-            "e7e342648aa215fd24db0ba9d28d320b964825beb48df2b04abb07dbac6dde22",
+            "1d2b6eab3d62ad57f9481e5c202efa83c8d423ccbd95b6086cef1f9b0c34cf1d",
         )
         self.assertEqual(
             report["evidence_counts"],
@@ -336,6 +336,30 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
             self.assertFalse(output.parent.exists())
             self.assertNotIn("private host detail", error.getvalue())
             self.assertNotIn("Traceback", error.getvalue())
+
+    def test_builder_refuses_uninspectable_output_names_inside_its_bounded_surface(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            oversized = Path(directory) / ("x" * 500)
+            error = StringIO()
+            with mock.patch("sys.stderr", error):
+                try:
+                    code = demo.main(["build-fixture", "--out", str(oversized)])
+                except OSError as exception:
+                    self.fail(
+                        "builder CLI leaked an unhandled "
+                        f"{type(exception).__name__} for an oversized output name"
+                    )
+            self.assertEqual(code, 1)
+            self.assertEqual(error.getvalue(), "refused: fixture output cannot be inspected\n")
+
+            try:
+                demo.build_fixture("embedded\x00name")
+            except Exception as exception:
+                self.assertIsInstance(exception, demo.LazarusError)
+                self.assertEqual(str(exception), "fixture output cannot be resolved")
+            else:
+                self.fail("builder accepted an output name containing NUL")
 
     def test_builder_rejects_a_parent_swapped_to_a_source_symlink(self):
         demo = load_receipt_demo()
@@ -578,16 +602,26 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         demo = load_receipt_demo()
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "new-parent" / "fixture"
-            fake_shutil = SimpleNamespace(
-                rmtree=mock.Mock(side_effect=OSError("private cleanup detail"))
-            )
+            clearer = getattr(demo, "_clear_anchored_directory", None)
+            if callable(clearer):
+                cleanup_patch = {
+                    "_clear_anchored_directory": mock.Mock(
+                        side_effect=demo.PathError("private cleanup detail")
+                    )
+                }
+            else:
+                cleanup_patch = {
+                    "shutil": SimpleNamespace(
+                        rmtree=mock.Mock(side_effect=OSError("private cleanup detail"))
+                    )
+                }
             with mock.patch.dict(
                 demo.build_fixture.__globals__,
                 {
                     "write_manifest": mock.Mock(
                         side_effect=demo.IntegrityError("forced build failure")
                     ),
-                    "shutil": fake_shutil,
+                    **cleanup_patch,
                 },
             ):
                 error = StringIO()
@@ -608,6 +642,53 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
             )
             self.assertNotIn("private cleanup detail", error.getvalue())
             self.assertNotIn("Traceback", error.getvalue())
+
+    def test_cleanup_does_not_delete_a_quarantine_replaced_after_its_inode_check(self):
+        demo = load_receipt_demo()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            stage = root / "stage"
+            stage.mkdir()
+            (stage / "owned.txt").write_text("owned", encoding="utf-8")
+            displaced = root / "displaced-stage"
+            competitor_source = root / "competitor-source"
+            competitor_source.mkdir()
+            (competitor_source / "keep.txt").write_text("keep", encoding="utf-8")
+            parent_fd = demo._open_directory(root)
+            identity = demo._entry_identity(parent_fd, stage.name)
+            self.assertIsNotNone(identity)
+            real_identity = demo._entry_identity
+            swapped = False
+
+            def replace_after_quarantine_check(directory_fd, name):
+                nonlocal swapped
+                observed = real_identity(directory_fd, name)
+                if ".cleanup-" in name and observed == identity and not swapped:
+                    swapped = True
+                    (root / name).rename(displaced)
+                    shutil.copytree(competitor_source, root / name)
+                return observed
+
+            try:
+                with mock.patch.dict(
+                    demo._remove_anchored_tree.__globals__,
+                    {"_entry_identity": replace_after_quarantine_check},
+                ):
+                    with self.assertRaisesRegex(
+                        LazarusError,
+                        "fixture stage cleanup failed|fixture stage identity changed during build",
+                    ):
+                        demo._remove_anchored_tree(parent_fd, stage.name, identity)
+            finally:
+                os.close(parent_fd)
+            self.assertTrue(swapped)
+            quarantines = list(root.glob("stage.cleanup-*"))
+            self.assertEqual(len(quarantines), 1)
+            self.assertEqual(
+                (quarantines[0] / "keep.txt").read_text(encoding="utf-8"),
+                "keep",
+            )
+            self.assertTrue(displaced.is_dir())
 
     def test_builder_cleans_a_stage_when_the_parent_moves_after_creation(self):
         demo = load_receipt_demo()
