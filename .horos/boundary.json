@@ -2,7 +2,7 @@
   "counts": {
     "bytes_binary": 36963472,
     "bytes_content_addressed": 7844971,
-    "bytes_generated": 169232,
+    "bytes_generated": 66736,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
@@ -12,7 +12,7 @@
     {
       "bytes": 1151,
       "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
+      "evidence": "marker 'do not edit' on a comment-led line in the first 4096 bytes",
       "grade": "hard",
       "path": "CONTRIBUTORS.md"
     },
@@ -22,13 +22,6 @@
       "evidence": "file signature png",
       "grade": "hard",
       "path": "assets/characters/shoggoth.png"
-    },
-    {
-      "bytes": 6832,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "audit/rounds/fiat-377-stop-the-marker-rule-excluding-the-classifie.md"
     },
     {
       "bytes": 2168354,
@@ -602,37 +595,9 @@
     {
       "bytes": 949,
       "category": "generated",
-      "evidence": "marker 'auto-generated' in the first 4096 bytes",
+      "evidence": "marker 'auto-generated' on a comment-led line in the first 4096 bytes",
       "grade": "hard",
       "path": "plugins/hexaemeron/skills/fizz/templates/FoundryTester.sol"
-    },
-    {
-      "bytes": 3802,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "plugins/horos/docs/evidence/skills.boundary.json"
-    },
-    {
-      "bytes": 2991,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "plugins/horos/docs/evidence/wildcat-app-v2.boundary.json"
-    },
-    {
-      "bytes": 2737,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "plugins/horos/docs/evidence/wildcat-app-v2.boundary.v2.json"
-    },
-    {
-      "bytes": 26602,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "plugins/horos/docs/marker-self-exclusion/study.md"
     },
     {
       "bytes": 53,
@@ -659,7 +624,7 @@
     {
       "bytes": 63,
       "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
+      "evidence": "marker 'do not edit' on a comment-led line in the first 4096 bytes",
       "grade": "hard",
       "path": "plugins/horos/examples/fixture/gen/api.py"
     },
@@ -713,20 +678,6 @@
       "evidence": "lockfile name go.sum",
       "grade": "hard",
       "path": "plugins/horos/examples/scoped-entry/packages/two/go.sum"
-    },
-    {
-      "bytes": 42541,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "plugins/horos/skills/horos/scripts/horos.py"
-    },
-    {
-      "bytes": 16991,
-      "category": "generated",
-      "evidence": "marker 'do not edit' in the first 4096 bytes",
-      "grade": "hard",
-      "path": "plugins/horos/tests/test_classify.py"
     }
   ],
   "schema": 2,
