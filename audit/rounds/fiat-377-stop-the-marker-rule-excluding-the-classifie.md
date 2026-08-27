@@ -62,3 +62,19 @@ Elenchus verdict: passed
 | S2-R1-01 | low | plugins/horos/skills/horos/scripts/horos.py | contained_window_lines drops its first fragment even when the window offset lands exactly on a line's first byte, so a wholly contained comment-led banner at that position stays readable (probed: readable at offset size//2), while the docstring claimed every window past byte zero begins mid-line -- the safety argument overclaimed; the behaviour is conservative, bounded to one line per window and fail-open, so the fix corrects the docstring to state the blind first-fragment drop and its recall cost, with the promise-machine digest bumped alongside; fixed in commit 3bc7b2e1a8decbd3487453e88bdec2bab49acdb9 (signed, verify-commit good) | fixed |
 
 Leads not pursued: the window pass splits on the newline byte only while the prefix pass uses splitlines, so a CR-only late banner can never bind in a window -- not pursued because reaching a window requires the prefix to pass, a CR-only prefix is intercepted as a blob candidate first, and the miss is recall-only and fail-open; a banner in the unwindowed gap between the two windows stays readable -- the pre-existing two-window sampling, unchanged by this step; a census currency guard -- the pre-step committed census was stale (it lacked the .png and .pdf rows entirely) and this step's regeneration corrected that in passing, while the study already carries the counts-comparison guard as an open lead; reading one byte before the window offset so a line starting exactly at the offset is kept -- a mid-run recall expansion that is the controller's call, with S2-R1-01 fixing the docstring instead.
+
+## Step 2, round 2 -- 2026-08-27T05:20:21Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: window-partial-lines=reviewed; string-at-line-start=reviewed; comment-invited-exclusion=reviewed; monotone-narrowing=reviewed; boundary-regeneration=reviewed; recall-loss-docstring=reviewed; evidence-wording=reviewed; prose-reconciliation=not-applicable; corroboration-flow=reviewed
+
+Not checked: prose-reconciliation stays gated by its dedicated late step (tests/test_marketplace_prose.py again passed inside the root suite); the metron medians were not re-measured, and round 1 carries them on this log. Round 2 gates against the fixed tree at cb0d07b: phylax, ephoros and hypomnema all exit 0 on horos.py and test_classify.py; the horos suite ran 228 tests OK and the root suite 399 tests OK under the GIT_CONFIG prefix; horos.py check . exits 0. The round-1 fixes range a85380d..cb0d07b re-reviewed in full: horos.py carries exactly the contained-window docstring rewrite (behaviour untouched), the promise map exactly the matching one-line digest bump to baffc31c, and the log and synopsis exactly the round-1 record; no regressions, nothing else rode in. Both carried leads re-judged: the CR-only window split stays a lead because a window is only reached after the prefix passes, a CR-only prefix is intercepted as a blob candidate first, the miss is recall-only and fail-open, and widening line splitting mid-run would expand recall after the boundary was regenerated; the fall-through-to-another-rule nuance needs no action because a gated-out file that the sourcemap or blob rules catch was excluded under the old rule too, so the exclusion set still only shrinks and the geometry evidence is true of the bytes.
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: the CR-only window split (window pass splits on the newline byte only while the prefix pass uses splitlines), carried from round 1 and re-judged above; a census currency guard, carried from round 1 (the study already holds the counts-comparison guard as an open lead); reading one byte before the window offset so a line starting exactly at the offset is kept, carried from round 1 as the controller's call.
