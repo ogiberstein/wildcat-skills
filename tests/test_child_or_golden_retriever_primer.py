@@ -329,14 +329,20 @@ class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
         self.assertIn(f"Hexaemeron package `{HEX_VERSION}`", study)
         self.assertIn(f"Fiat `{FIAT_VERSION}`", study)
 
-        primer = PRIMER.read_text(encoding="utf-8").lower()
+        primer = " ".join(PRIMER.read_text(encoding="utf-8").lower().split())
         for stale_claim in (
             "does not yet support checkpointing",
             "before checkpointing exists",
             "checkpoints do not exist",
             "there are no checkpoints",
+            "move an unfinished run to another machine",
         ):
             self.assertNotIn(stale_claim, primer)
+        self.assertIn(
+            "after a completed step, another machine may resume from the portable "
+            "checkpoint, but it must verify that checkpoint before doing anything else.",
+            primer,
+        )
 
     def test_builder_runtime_discovery_is_host_neutral(self) -> None:
         module_source = Path(__file__).read_text(encoding="utf-8")

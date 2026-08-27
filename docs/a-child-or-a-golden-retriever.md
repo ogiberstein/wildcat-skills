@@ -87,9 +87,10 @@ someone Shog does not start it.
 Stop when: The target repository denies the action, the controller says `blocked` or `audit-verdict`, a gate fails, or the harness cannot sign and publish as the contributing actor. Keep the state and evidence; repair or ask before continuing.
 <!-- primer-stop-rule:end -->
 
-Do not skip a red gate, reconstruct progress from chat, move an unfinished run
-to another machine, or widen the publication target because the implementation
-looks finished.
+Do not skip a red gate, reconstruct progress from chat, move an in-progress
+step by hand, or widen the publication target because the implementation looks
+finished. After a completed step, another machine may resume from the portable
+checkpoint, but it must verify that checkpoint before doing anything else.
 
 ## The five-minute demo
 

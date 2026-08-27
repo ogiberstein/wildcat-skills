@@ -87,6 +87,11 @@ STALE_CHECKPOINT_CLAIMS = (
     "before checkpointing exists",
     "checkpoints do not exist",
     "there are no checkpoints",
+    "move an unfinished run to another machine",
+)
+EXPECTED_CHECKPOINT_TRANSFER = (
+    "after a completed step, another machine may resume from the portable "
+    "checkpoint, but it must verify that checkpoint before doing anything else."
 )
 EXPECTED_SOURCE_ART = {
     ROLES_ART.relative_to(ROOT): {
@@ -1259,13 +1264,15 @@ def check_current_state() -> str:
         if version not in study:
             raise ValueError(f"shipped study lost current version {version}")
 
-    primer = PRIMER.read_text(encoding="utf-8").lower()
+    primer = " ".join(PRIMER.read_text(encoding="utf-8").lower().split())
     stale = [claim for claim in STALE_CHECKPOINT_CLAIMS if claim in primer]
     if stale:
         raise ValueError(f"stale checkpoint claim returned: {stale}")
+    if EXPECTED_CHECKPOINT_TRANSFER not in primer:
+        raise ValueError("verified portable checkpoint transfer guidance missing")
     return (
         f"Hexaemeron {EXPECTED_HEX_VERSION}, Fiat {EXPECTED_FIAT_VERSION}, "
-        "and no stale checkpoint claim"
+        "no stale checkpoint claim, and verified portable transfer guidance"
     )
 
 
