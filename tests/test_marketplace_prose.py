@@ -5,6 +5,11 @@ import json
 import re
 import unittest
 
+from repo_contract import (
+    assert_host_descriptions_agree,
+    assert_marketplace_source_path,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
@@ -159,29 +164,14 @@ class MarketplaceProseTests(unittest.TestCase):
         self.assertEqual(set(marketplace_entries()), set(PLUGINS))
 
     def test_short_descriptions_agree_across_hosts(self):
-        entries = marketplace_entries()
         for name in PLUGINS:
-            expected = entries[name]["description"]
-            plugin = ROOT / "plugins" / name
-            for host in (".claude-plugin", ".codex-plugin"):
-                manifest = json.loads(
-                    (plugin / host / "plugin.json").read_text(encoding="utf-8")
-                )
-                with self.subTest(plugin=name, host=host):
-                    self.assertEqual(manifest["description"], expected)
-            codex = json.loads(
-                (plugin / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
-            )
-            self.assertEqual(codex["interface"]["shortDescription"], expected)
+            with self.subTest(plugin=name):
+                assert_host_descriptions_agree(self, name)
 
-            agent = plugin / "skills" / name / "agents" / "openai.yaml"
-            if agent.is_file():
-                match = re.search(
-                    r'(?m)^  short_description: ["\']?([^"\'\n]+)',
-                    agent.read_text(encoding="utf-8"),
-                )
-                self.assertIsNotNone(match, agent)
-                self.assertEqual(match.group(1), expected)
+    def test_marketplace_entries_use_the_local_source_path(self):
+        for name in PLUGINS:
+            with self.subTest(plugin=name):
+                assert_marketplace_source_path(self, name)
 
     def test_fiat_public_prose_names_the_state_container_gate(self):
         plugin = ROOT / "plugins" / "hexaemeron"
@@ -451,47 +441,12 @@ class MarketplaceProseTests(unittest.TestCase):
                     "canonical skills must not carry shadow README.md mirrors",
                 )
 
-    def test_pandects_prose_counts_the_laws_the_catalogue_holds(self):
-        """Two documents state the corpus size in prose and neither derives it.
-
-        The rendered catalogue derives both of its counts and the adapters are held
-        to theirs by the plugin's own suite. These two are hand-written sentences in
-        browsing prose, and a frontier run that adds a law has to remember them. The
-        withdrawal-batch-fee run corrected five such counts and missed a sixth, which
-        is the argument for anchoring them here.
-        """
-        words = [
-            "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
-            "Eight", "Nine", "Ten", "Eleven", "Twelve",
-        ]
-        catalogue = json.loads(
-            (ROOT / "plugins" / "pandects" / "catalogue" / "pandects.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        laws = catalogue["laws"]
-        total = words[len(laws)].lower()
-        exact = words[len([law for law in laws if law["bounds"] == "exact"])]
-        families = words[len({law["family"] for law in laws})].lower()
-
-        landing = (ROOT / "plugins" / "pandects" / "README.md").read_text(encoding="utf-8")
-        for claim in (
-            "%s laws in %s families." % (words[len(laws)], families),
-            "%s of the %s laws are exact." % (exact, total),
-            "`laws` prints %s laws with their applicability." % total,
-        ):
-            with self.subTest(document="plugins/pandects/README.md", claim=claim):
-                self.assertIn(claim, landing)
-
-    def test_lazarus_release_readme_remains_digest_bound(self):
-        manifest = json.loads(
-            (ROOT / "plugins" / "lazarus" / "examples" / "goldfinch-v0" / "manifest.json").read_text(encoding="utf-8")
-        )
-        files = {entry["path"]: entry["sha256"] for entry in manifest["components"]}
-        readme = ROOT / "plugins" / "lazarus" / "examples" / "goldfinch-v0" / "README.md"
-        import hashlib
-
-        self.assertEqual(hashlib.sha256(readme.read_bytes()).hexdigest(), files["README.md"])
+    # test_pandects_prose_counts_the_laws_the_catalogue_holds moved to
+    # plugins/pandects/tests/test_prose_counts.py and
+    # test_lazarus_release_readme_remains_digest_bound moved to
+    # plugins/lazarus/tests/test_example_readme_digest.py by the test-scoping
+    # de-duplication: a plugin-specific check runs in that plugin's suite, not on
+    # every unrelated gated change.
 
 
 if __name__ == "__main__":

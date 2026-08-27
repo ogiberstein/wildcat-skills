@@ -10,6 +10,13 @@ import unittest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+from repo_contract import (
+    assert_version_agreement,
+    assert_router_reaches,
+    assert_marketplace_source_path,
+)
+
 COMMAND = PLUGIN_ROOT / "scripts" / "alexandria.py"
 COMPOUND_COMMAND = PLUGIN_ROOT / "scripts" / "compound_v3_phase0.py"
 SKILL = PLUGIN_ROOT / "skills" / "alexandria" / "SKILL.md"
@@ -93,46 +100,20 @@ class AlexandriaScaffoldTests(unittest.TestCase):
         self.assertIn("unsigned in-toto release statements", text)
 
     def test_package_metadata_agrees_and_points_at_the_skill(self):
-        manifests = []
-        for host in (".claude-plugin", ".codex-plugin"):
-            path = PLUGIN_ROOT / host / "plugin.json"
-            manifests.append(json.loads(path.read_text(encoding="utf-8")))
-        marketplace = json.loads(
-            (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        package = next(
-            item["version"]
-            for item in marketplace["plugins"]
-            if item["name"] == "alexandria"
-        )
+        assert_version_agreement(self, "alexandria")
+        manifests = [
+            json.loads((PLUGIN_ROOT / host / "plugin.json").read_text(encoding="utf-8"))
+            for host in (".claude-plugin", ".codex-plugin")
+        ]
         self.assertEqual([item["name"] for item in manifests], ["alexandria"] * 2)
-        self.assertEqual([item["version"] for item in manifests], [package] * 2)
-        self.assertEqual(package, "0.3.0")
         self.assertEqual([item["skills"] for item in manifests], ["./skills/"] * 2)
         self.assertTrue(SKILL.is_file())
 
     def test_promise_machine_router_resolves_to_runtime_contract(self):
-        entrypoint = REPO_ROOT / ".agents" / "skills" / "promise-machine" / "SKILL.md"
-        text = entrypoint.read_text(encoding="utf-8")
-        self.assertIn("name: promise-machine", text)
-        links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
-        self.assertIn("../../../plugins/alexandria/AGENTS.md", links)
-        contract = (PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("`skills/alexandria/SKILL.md`", contract)
+        assert_router_reaches(self, "alexandria")
 
     def test_marketplaces_use_the_local_plugin_path(self):
-        claude = json.loads(
-            (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text()
-        )
-        codex = json.loads(
-            (REPO_ROOT / ".agents" / "plugins" / "marketplace.json").read_text()
-        )
-        claude_entry = next(p for p in claude["plugins"] if p["name"] == "alexandria")
-        codex_entry = next(p for p in codex["plugins"] if p["name"] == "alexandria")
-        self.assertEqual(claude_entry["source"], "./plugins/alexandria")
-        self.assertEqual(codex_entry["source"]["path"], "./plugins/alexandria")
+        assert_marketplace_source_path(self, "alexandria")
 
     def test_design_records_are_committed(self):
         study = (PLUGIN_ROOT / "docs" / "study.md").read_text(encoding="utf-8")

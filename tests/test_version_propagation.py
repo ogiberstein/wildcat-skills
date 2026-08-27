@@ -29,6 +29,8 @@ import json
 import re
 import unittest
 
+from repo_contract import assert_version_agreement
+
 ROOT = Path(__file__).resolve().parents[1]
 PLUGINS = ROOT / "plugins"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
@@ -93,22 +95,8 @@ class PluginVersionPropagationTests(unittest.TestCase):
 
     def test_the_three_manifests_agree(self):
         for name, directory in plugin_dirs():
-            claude = manifest_version(directory / ".claude-plugin" / "plugin.json")
-            listed = self.marketplace.get(name)
-            codex_path = directory / ".codex-plugin" / "plugin.json"
-            codex = manifest_version(codex_path) if codex_path.is_file() else None
             with self.subTest(plugin=name):
-                self.assertEqual(
-                    listed, claude,
-                    f"{name}: marketplace says {listed}, Claude manifest says {claude}",
-                )
-                if codex is not None:
-                    self.assertEqual(
-                        codex, claude,
-                        f"{name}: Codex manifest says {codex}, Claude manifest says "
-                        f"{claude}. A host that reads only one of these gets a "
-                        f"different answer from a host that reads the other.",
-                    )
+                assert_version_agreement(self, name)
 
     def test_promise_machine_delivery_versions_are_exact_and_current(self):
         self.assertEqual(set(self.marketplace), set(DELIVERY_PACKAGE_VERSIONS))
