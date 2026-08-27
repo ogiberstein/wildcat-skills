@@ -2,11 +2,11 @@
   "counts": {
     "bytes_binary": 36963472,
     "bytes_content_addressed": 7844971,
-    "bytes_generated": 162400,
+    "bytes_generated": 169232,
     "bytes_lockfile": 254,
     "bytes_vendored": 94,
     "files_skipped_unreadable": 0,
-    "files_walked": 1654
+    "files_walked": 1656
   },
   "entries": [
     {
@@ -22,6 +22,13 @@
       "evidence": "file signature png",
       "grade": "hard",
       "path": "assets/characters/shoggoth.png"
+    },
+    {
+      "bytes": 6832,
+      "category": "generated",
+      "evidence": "marker 'do not edit' in the first 4096 bytes",
+      "grade": "hard",
+      "path": "audit/rounds/fiat-377-stop-the-marker-rule-excluding-the-classifie.md"
     },
     {
       "bytes": 2168354,
