@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from lazarus_lib.canonical import load
+from lazarus_lib.canonical import dumps, load
 from lazarus_lib.errors import LazarusError
 from lazarus_lib.manifest import build_manifest, verify_manifest, write_manifest
 from lazarus_lib.records import (
@@ -147,14 +147,29 @@ def run(argv: list[str] | None = None) -> int:
         print(verified["fixture_digest"])
         return 0
     if args.command == "capture":
-        from lazarus_lib.capture import capture_fixture
-
-        report = capture_fixture(
-            args.plan,
-            args.rpc_url,
-            args.out,
-            anchor_rpc_env=args.anchor_rpc_env,
+        from lazarus_lib.capture import (
+            capture_failure_terminal_result,
+            capture_fixture,
         )
+
+        terminal_context = {}
+        try:
+            report = capture_fixture(
+                args.plan,
+                args.rpc_url,
+                args.out,
+                anchor_rpc_env=args.anchor_rpc_env,
+                terminal_context=terminal_context,
+            )
+        except LazarusError as exc:
+            failure = capture_failure_terminal_result(terminal_context, exc)
+            if failure is None:
+                raise
+            print(dumps(failure).decode("utf-8"), file=sys.stderr)
+            return 1
+        if "terminal_result" in report:
+            print(dumps(report["terminal_result"]).decode("utf-8"))
+            return 0
         print(f"fixture: {report['fixture_digest']}")
         print(f"block: {report['block_hash']}")
         print(f"anchor-sources-declared: {len(args.anchor_rpc_env)}")
