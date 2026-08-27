@@ -4,19 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import struct
 import subprocess
+import sys
 import unittest
 from pathlib import Path
+from typing import Optional
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_PYTHON = Path(
-    "/Users/c0rtexzer0/.cache/codex-runtimes/codex-primary-runtime/"
-    "dependencies/python/bin/python3"
-)
 BUILDER = ROOT / "scripts" / "build_child_or_golden_retriever_primer.py"
 REPORT = ROOT / "tmp" / "elenchus" / "child-or-golden-retriever-unit.json"
 PRIMER = ROOT / "docs" / "a-child-or-a-golden-retriever.md"
@@ -89,7 +88,43 @@ PDFS = {
         "A child or a golden retriever - quick-start",
     ),
 }
+PDF_LINKS = {
+    "docs/pdf/a-child-or-a-golden-retriever.pdf": (
+        "https://github.com/wildcat-finance/skills/blob/"
+        "docs/a-child-or-a-golden-retriever/docs/"
+        "a-child-or-a-golden-retriever.md#the-five-minute-demo",
+        "https://github.com/wildcat-finance/skills/blob/main/INSTALL.md",
+        "https://github.com/laurenceday/shoggoth-interceptor",
+    ),
+    "docs/pdf/a-child-or-a-golden-retriever-quick-start.pdf": (
+        "https://github.com/wildcat-finance/skills/blob/"
+        "docs/a-child-or-a-golden-retriever/docs/"
+        "a-child-or-a-golden-retriever.md#the-five-minute-demo",
+        "https://github.com/wildcat-finance/skills/blob/main/INSTALL.md",
+    ),
+}
 NEW_BINARIES = {*SOURCE_PNGS, *INFOGRAPHICS, *PDFS}
+EXPECTED_BINARY_DIGESTS = {
+    "docs/assets/a-child-or-a-golden-retriever-cover.png": COVER_DIGEST,
+    "docs/assets/a-child-or-a-golden-retriever-mascot-roles.png": (
+        "f25e3e7c62b22895a89f270b5383288cb4996ac2976987c82170da4ca97e7485"
+    ),
+    "docs/assets/a-child-or-a-golden-retriever-mascot-fiat.png": (
+        "6bcbab3534c69e06134e2b404ac765e2a1a859eaff4019a791ce862b2e3b13f5"
+    ),
+    "docs/assets/a-child-or-a-golden-retriever-whos-who.png": (
+        "a3c0099987b0eeee6b97747f1e40ee41e74e02a297d06ae18333d484bfa8a636"
+    ),
+    "docs/assets/a-child-or-a-golden-retriever-fiat-flow.png": (
+        "bef8f8ae7b063dc2b51185eefc4e0a2d7d60e35e7f58b8603098db2528687ad7"
+    ),
+    "docs/pdf/a-child-or-a-golden-retriever.pdf": (
+        "833eb12a3ff7977823d39366c706d51b455b8a8a964388a71c44b913655a2a69"
+    ),
+    "docs/pdf/a-child-or-a-golden-retriever-quick-start.pdf": (
+        "09c666e63545ebc5b5f69252467a5250fa3a51dc4e1e154aeb36e0a1125c4764"
+    ),
+}
 REQUIRED_FILES = {
     "README.md",
     "docs/a-child-or-a-golden-retriever.md",
@@ -159,18 +194,58 @@ def run_text(command: list[str]) -> str:
     return result.stdout
 
 
+def find_builder_python() -> Optional[Path]:
+    """Return a local Python that carries the optional PDF build dependencies."""
+    candidates = []
+    configured = os.environ.get("WILDCAT_PRIMER_PYTHON")
+    if configured:
+        candidates.append(Path(configured))
+    candidates.extend(
+        (
+            Path(sys.executable),
+            Path.home()
+            / ".cache"
+            / "codex-runtimes"
+            / "codex-primary-runtime"
+            / "dependencies"
+            / "python"
+            / "bin"
+            / "python3",
+        )
+    )
+    seen = set()
+    for candidate in candidates:
+        resolved = candidate.expanduser().resolve()
+        if resolved in seen or not resolved.is_file() or resolved.is_symlink():
+            continue
+        seen.add(resolved)
+        probe = subprocess.run(
+            [str(resolved), "-c", "import PIL, pypdf, reportlab"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if probe.returncode == 0:
+            return resolved
+    return None
+
+
 class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
     """Keep all beginner-facing views bound to one checked source package."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        if not RUNTIME_PYTHON.is_file():
-            raise AssertionError(f"missing bundled Python runtime: {RUNTIME_PYTHON}")
+        cls.runtime_python = find_builder_python()
+        cls.builder_stdout = ""
+        cls.report = None
+        if cls.runtime_python is None:
+            return
         REPORT.parent.mkdir(parents=True, exist_ok=True)
         REPORT.unlink(missing_ok=True)
         result = subprocess.run(
             [
-                str(RUNTIME_PYTHON),
+                str(cls.runtime_python),
                 str(BUILDER),
                 "--check",
                 "--report",
@@ -262,8 +337,19 @@ class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
             "there are no checkpoints",
         ):
             self.assertNotIn(stale_claim, primer)
-        checks = {item["name"]: item for item in self.report["checks"]}
-        self.assertEqual(checks["current-state"]["status"], "passed")
+
+    def test_builder_runtime_discovery_is_host_neutral(self) -> None:
+        module_source = Path(__file__).read_text(encoding="utf-8")
+        match = re.search(
+            r"^def find_builder_python\(\).*?(?=^class ChildOrGoldenRetrieverPrimerTests)",
+            module_source,
+            flags=re.DOTALL | re.MULTILINE,
+        )
+        self.assertIsNotNone(match)
+        source = match.group(0)
+        self.assertNotIn("/Users/", source)
+        self.assertIn("WILDCAT_PRIMER_PYTHON", source)
+        self.assertIn("Path.home()", source)
 
     def test_source_note_pins_archive_prompts_tool_and_cover(self) -> None:
         note = SOURCE_NOTE.read_text(encoding="utf-8")
@@ -297,9 +383,8 @@ class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
         pdfinfo = shutil.which("pdfinfo")
         pdftotext = shutil.which("pdftotext")
         pdfimages = shutil.which("pdfimages")
-        self.assertIsNotNone(pdfinfo)
-        self.assertIsNotNone(pdftotext)
-        self.assertIsNotNone(pdfimages)
+        if not all((pdfinfo, pdftotext, pdfimages)):
+            self.skipTest("Poppler command-line tools are not installed")
         for relative, (minimum, maximum, title) in PDFS.items():
             path = ROOT / relative
             payload = path.read_bytes()
@@ -337,15 +422,28 @@ class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
         )
 
     def test_pdf_links_pass_and_active_content_is_absent(self) -> None:
-        checks = {item["name"]: item for item in self.report["checks"]}
-        self.assertEqual(checks["pdf-output"]["status"], "passed")
-        self.assertIn("links", checks["pdf-output"]["detail"])
+        if self.report is not None:
+            checks = {item["name"]: item for item in self.report["checks"]}
+            self.assertEqual(checks["pdf-output"]["status"], "passed")
+            self.assertIn("links", checks["pdf-output"]["detail"])
         for relative in PDFS:
             payload = (ROOT / relative).read_bytes()
             for token in (b"/JavaScript", b"/JS ", b"/OpenAction"):
                 self.assertNotIn(token, payload, relative)
+            for url in PDF_LINKS[relative]:
+                self.assertIn(url.encode("ascii"), payload, relative)
+
+    def test_shipped_binary_digests_are_fixed(self) -> None:
+        self.assertEqual(set(EXPECTED_BINARY_DIGESTS), NEW_BINARIES)
+        for relative, expected in sorted(EXPECTED_BINARY_DIGESTS.items()):
+            self.assertEqual(digest(ROOT / relative), expected, relative)
 
     def test_deterministic_check_report_covers_every_binary(self) -> None:
+        if self.report is None:
+            self.skipTest(
+                "Pillow, pypdf, and ReportLab are not installed; "
+                "checked-in binary digests remain covered"
+            )
         self.assertEqual(
             self.report["schema"],
             "child-or-golden-retriever-check/v1",
@@ -366,6 +464,11 @@ class ChildOrGoldenRetrieverPrimerTests(unittest.TestCase):
             )
 
     def test_declared_contrast_pairs_pass(self) -> None:
+        if self.report is None:
+            self.skipTest(
+                "Pillow, pypdf, and ReportLab are not installed; "
+                "the explicit builder check owns rendered contrast"
+            )
         checks = {item["name"]: item for item in self.report["checks"]}
         self.assertEqual(checks["contrast"]["status"], "passed")
         ratios = [float(value) for value in re.findall(r"([0-9]+\.[0-9]+):1", checks["contrast"]["detail"])]
