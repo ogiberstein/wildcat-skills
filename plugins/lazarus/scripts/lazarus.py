@@ -7,12 +7,13 @@ import argparse
 from pathlib import Path
 import sys
 
-from lazarus_lib.canonical import load
+from lazarus_lib.canonical import dumps, load
 from lazarus_lib.errors import LazarusError
 from lazarus_lib.manifest import build_manifest, verify_manifest, write_manifest
 from lazarus_lib.records import (
     read_anchor_records,
     read_proof_records,
+    read_receipt_witness,
     read_rpc_records,
 )
 from lazarus_lib.schemas import validate_builtin_schemas, validate_document
@@ -39,6 +40,7 @@ def parser() -> argparse.ArgumentParser:
             "rpc-records",
             "proof-records",
             "anchor-records",
+            "receipt-witness",
             "manifest",
             "release",
         ),
@@ -120,6 +122,8 @@ def _validate(kind: str, path: Path | None) -> None:
         read_proof_records(path)
     elif kind == "anchor-records":
         read_anchor_records(path)
+    elif kind == "receipt-witness":
+        read_receipt_witness(path)
     else:
         validate_document(kind, load(path))
 
@@ -143,14 +147,29 @@ def run(argv: list[str] | None = None) -> int:
         print(verified["fixture_digest"])
         return 0
     if args.command == "capture":
-        from lazarus_lib.capture import capture_fixture
-
-        report = capture_fixture(
-            args.plan,
-            args.rpc_url,
-            args.out,
-            anchor_rpc_env=args.anchor_rpc_env,
+        from lazarus_lib.capture import (
+            capture_failure_terminal_result,
+            capture_fixture,
         )
+
+        terminal_context = {}
+        try:
+            report = capture_fixture(
+                args.plan,
+                args.rpc_url,
+                args.out,
+                anchor_rpc_env=args.anchor_rpc_env,
+                terminal_context=terminal_context,
+            )
+        except LazarusError as exc:
+            failure = capture_failure_terminal_result(terminal_context, exc)
+            if failure is None:
+                raise
+            print(dumps(failure).decode("utf-8"), file=sys.stderr)
+            return 1
+        if "terminal_result" in report:
+            print(dumps(report["terminal_result"]).decode("utf-8"))
+            return 0
         print(f"fixture: {report['fixture_digest']}")
         print(f"block: {report['block_hash']}")
         print(f"anchor-sources-declared: {len(args.anchor_rpc_env)}")
@@ -196,6 +215,13 @@ def run(argv: list[str] | None = None) -> int:
     print(f"proof-backed: {report['evidence_counts']['proof_backed']}")
     print(f"header-bound: {report['evidence_counts']['header_bound']}")
     print(f"recorded-rpc: {report['evidence_counts']['recorded_rpc']}")
+    if "receipt_trie_proved" in report["evidence_counts"]:
+        receipt = report["receipt_trie_proved"]
+        print(f"receipt-trie-proved: {receipt['relations']}")
+        print(f"receipts-root: {receipt['computed_root']}")
+        print(f"receipt-count: {receipt['receipt_count']}")
+        print(f"target-transaction-index: {receipt['target_transaction_index']}")
+        print(f"filtered-log-count: {receipt['filtered_log_count']}")
     print(f"chain-anchor-records: {report['chain_anchors']['records']}")
     return 0
 

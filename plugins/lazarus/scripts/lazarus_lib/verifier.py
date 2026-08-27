@@ -16,9 +16,11 @@ from .proofs import verify_proof_record
 from .records import (
     loads_anchor_records,
     loads_proof_records,
+    loads_receipt_witness,
     loads_rpc_records,
     request_key,
 )
+from .receipts import verify_receipt_relation
 from .schemas import validate_document
 from .text import listed
 
@@ -109,14 +111,29 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
         block_number=header_report["number"],
         block_hash=header_report["hash"],
     )
+    receipt_report = None
+    if plan["schema_version"] == 3:
+        if "receipt-witness.json" not in paths:
+            raise IntegrityError("plan-v3 requires receipt-witness.json")
+        witness = loads_receipt_witness(
+            _read_bound(root, "receipt-witness.json", claims, MAX_JSON_BYTES)
+        )
+        receipt_report = verify_receipt_relation(
+            witness,
+            header=header,
+            plan=plan,
+            rpc_records=rpc_records,
+        )
     counts = {
         "proof_backed": len(proof_records) + storage_included + storage_absent,
         "header_bound": 1,
         "recorded_rpc": len(rpc_records),
     }
+    if receipt_report is not None:
+        counts["receipt_trie_proved"] = receipt_report["relations"]
     if counts != manifest["evidence_counts"]:
         raise IntegrityError("manifest evidence counts do not match verified contents")
-    return {
+    report = {
         "manifest": manifest,
         "fixture_digest": manifest["fixture_digest"],
         "block_hash": header_report["hash"],
@@ -140,6 +157,10 @@ def verify_fixture(root: str | Path) -> dict[str, Any]:
             "optional_failures": len(manifest["optional_failures"]),
         },
     }
+    if receipt_report is not None:
+        report["receipts_root"] = receipt_report["computed_root"]
+        report["receipt_trie_proved"] = receipt_report
+    return report
 
 
 def _read_bound(

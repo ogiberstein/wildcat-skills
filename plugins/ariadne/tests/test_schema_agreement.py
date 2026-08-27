@@ -33,6 +33,7 @@ FOR_TYPE = {
     "https://ariadne.wildcat.finance/solidity-release/v1": "solidity-release-v1.json",
     "https://ariadne.wildcat.finance/dataset/v1": "dataset-v1.json",
     "https://ariadne.wildcat.finance/state-fixture/v1": "state-fixture-v1.json",
+    "https://ariadne.wildcat.finance/state-fixture/v2": "state-fixture-v2.json",
 }
 
 ACCEPTED_BY_THE_SCHEMA = {
@@ -41,6 +42,9 @@ ACCEPTED_BY_THE_SCHEMA = {
     # predicate, and no keyword reaches outside the body being validated.
     "fail-gate2-state-fixture-component-not-a-subject.json": (
         "a schema validates the predicate body and cannot see the subjects"
+    ),
+    "fail-check-subject-names-state-fixture-v2-duplicate-name.json": (
+        "the predicate schema cannot see or compare outer subject names"
     ),
     # Expressible and not yet expressed. `anyOf` over an input item would say
     # that a digest or a disposition has to be there.
@@ -129,6 +133,26 @@ class AgreementTests(unittest.TestCase):
                 self.assertEqual(
                     errors, [], [error.message for error in errors[:3]]
                 )
+
+    def test_named_failures_are_refused_by_their_schema_when_expressible(self):
+        validators = {uri: validator_for(uri) for uri in FOR_TYPE}
+        for name in sorted(os.listdir(FIXTURES)):
+            if (
+                not name.startswith("fail-")
+                or not name.endswith(".json")
+                or name in ACCEPTED_BY_THE_SCHEMA
+            ):
+                continue
+            with open(os.path.join(FIXTURES, name), "rb") as handle:
+                document = envelope.read(handle.read())
+            type_uri = document.statement.predicate_type
+            if type_uri not in validators:
+                continue
+            errors = list(
+                validators[type_uri].iter_errors(document.statement.predicate)
+            )
+            with self.subTest(fixture=name):
+                self.assertTrue(errors, "%s passed its published schema" % name)
 
     def test_every_exception_names_a_fixture_that_exists(self):
         """A stale entry would hide a disagreement that came back."""

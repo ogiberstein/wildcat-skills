@@ -16,7 +16,10 @@ Ariadne receives artefacts and evidence produced elsewhere. Lazarus can supply
 a verified state-fixture release, Alexandria or Tabularium can supply data
 releases, Berean can supply a grounded-agent release, and Hexaemeron can supply
 build and review records. Ariadne binds and gates those exact inputs; it does
-not rerun their work or turn a recorded result into a stronger verdict.
+not rerun their work or turn a recorded result into a stronger verdict. A
+state-fixture/v2 statement can carry Lazarus's receipts root and separately
+counted receipt-trie relations, but Ariadne does not reconstruct that trie or
+promote transaction hashes.
 
 The Promise Machine governs suite-wide hand-offs. Ariadne is the specialist
 that serialises a release-specific evidence claim into an in-toto statement,
@@ -61,10 +64,14 @@ Five of those belong to an artefact-neutral core and run for any predicate, incl
 
 - the executable [`ariadne.py`](./scripts/ariadne.py) capture, verifier and replay, standard library only;
 - the [Solidity release predicate](./docs/solidity-release.md) and [its published schema](./schemas/solidity-release-v1.json), tied together by a test so the two cannot drift;
+- dataset and state-fixture predicates, including state-fixture/v2 receipt-root
+  and receipt-trie evidence fields;
 - capture from a Foundry build that reads the compiler's own output, refuses to decide whether your tests passed, and scrubs a build command before recording it;
 - conformance fixtures with a passing statement and one breach per core gate, for anyone writing another producer or verifier;
-- two example attestations, one of them carrying a fuzz campaign that timed out and an audit covering an earlier revision; and
-- 310 tests, including a set that fails when a shipped document drifts from the code it describes, and an audit log ([`audit/AUDIT.md`](./audit/AUDIT.md)) recording every round.
+- two example attestations, one of them carrying a fuzz campaign that timed out
+  and an audit covering an earlier revision; and
+- a drift-checked offline test suite and an audit log
+  ([`audit/AUDIT.md`](./audit/AUDIT.md)) recording every round.
 
 ## Day to day
 
@@ -166,11 +173,19 @@ exiting 1 when one breaks. Exit codes are 0 for success, 1 for a breached gate,
 [`docs/`](./docs) has the design and its rejected alternatives, the predicate
 field by field, the conformance set, and the capture flags.
 
+The fixed release at
+`plugins/lazarus/examples/goldfinch-v1-release` demonstrates the
+state-fixture/v2 hand-off. Its statement records the fixture's
+`receipts_root` and two `receipt_trie_proved` relations, explicitly skips local
+receipt-trie re-verification, and leaves transaction-hash attribution in the
+recorded-RPC class.
+
 ## Where it stops
 
-The registry holds three predicates. The grounded-agent predicate is specified and
-not implemented here, so a statement of that type verifies its core gates and is
-told which gates went unchecked.
+The registry holds four predicates: Solidity release, dataset, and versions 1 and
+2 of state fixture. The grounded-agent predicate is specified and not implemented
+here, so a statement of that type verifies its core gates and is told which gates
+went unchecked.
 
 Nothing confirms a deployment against a chain, nothing signs, and nothing runs
 as a GitHub Action. Each is a deliberate boundary: the first needs a node, the

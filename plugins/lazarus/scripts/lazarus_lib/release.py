@@ -26,16 +26,18 @@ fixture nobody has verified is the thing this exists to prevent.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import shutil
+import stat
 from pathlib import Path
 from typing import Any
 
 from .binding import bind, predicate_type_of
 from .canonical import MAX_JSON_BYTES, dumps, loads
 from .errors import FormatError, IntegrityError, PathError
-from .manifest import MANIFEST_NAME, MAX_COMPONENT_BYTES
+from .manifest import MANIFEST_NAME
 from .paths import (
     confined_directory,
     read_confined_bytes,
@@ -80,8 +82,16 @@ def build_release(
     checks: list[str],
 ) -> dict[str, Any]:
     """The release document for a fixture that verified and a statement that bound."""
+    version = report["manifest"]["schema_version"]
+    verified = {
+        "block_hash": report["block_hash"],
+        "evidence_counts": dict(report["evidence_counts"]),
+        "canonical_chain_claim": False,
+    }
+    if version == 2:
+        verified["receipts_root"] = report["receipts_root"]
     release: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": version,
         "tool_version": __version__,
         "fixture": {
             "path": FIXTURE_DIRECTORY,
@@ -92,11 +102,7 @@ def build_release(
             "sha256": hashlib.sha256(statement_bytes).hexdigest(),
             "predicate_type": predicate_type_of(statement),
         },
-        "verified": {
-            "block_hash": report["block_hash"],
-            "evidence_counts": dict(report["evidence_counts"]),
-            "canonical_chain_claim": False,
-        },
+        "verified": verified,
         "binding": {"checks": list(checks)},
         "release_digest": "0" * 64,
     }
@@ -204,6 +210,12 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
 
     fixture = confined_directory(root, release["fixture"]["path"])
     report = verify_fixture(fixture)
+    fixture_version = report["manifest"]["schema_version"]
+    if release["schema_version"] != fixture_version:
+        raise IntegrityError(
+            f"release-v{release['schema_version']} holds a manifest-v{fixture_version} "
+            "fixture; preservation formats are never upgraded implicitly"
+        )
     if report["fixture_digest"] != release["fixture"]["fixture_digest"]:
         raise IntegrityError(
             f"the fixture verifies to {report['fixture_digest']} and the release "
@@ -237,11 +249,18 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
             f"recorded {verified['evidence_counts']}, verified "
             f"{report['evidence_counts']}"
         )
+    if release["schema_version"] == 2:
+        if verified["receipts_root"] != report["receipts_root"]:
+            raise IntegrityError(
+                "the release records receipts root "
+                f"{verified['receipts_root']} and the fixture reconstructs "
+                f"{report['receipts_root']}"
+            )
     # `verified.canonical_chain_claim` is not checked here. The schema pins it to
     # false, so a document claiming it does not get this far, and the binding
     # already refuses a report that claims it. A third check would be a third
     # authority on one question.
-    return {
+    result = {
         "release_digest": release["release_digest"],
         "fixture_digest": report["fixture_digest"],
         "block_hash": report["block_hash"],
@@ -250,6 +269,9 @@ def verify_release(directory: str | Path) -> dict[str, Any]:
         "statement_sha256": held,
         "checks": list(checks),
     }
+    if release["schema_version"] == 2:
+        result["receipts_root"] = report["receipts_root"]
+    return result
 
 
 def _read_inside(root: Path, relative: str, what: str) -> bytes:
@@ -272,16 +294,40 @@ def _refuse_unlisted(root: Path, release: dict[str, Any]) -> None:
     no way to check, sitting inside something whose whole claim is that every
     part of it was checked.
     """
-    fixture = validate_relative_path(release["fixture"]["path"]).split("/")[0]
-    allowed = {RELEASE_NAME, validate_relative_path(release["statement"]["path"])}
-    found: set[str] = set()
-    for entry in sorted(Path(root).iterdir()):
-        if entry.is_symlink():
-            raise PathError(f"release holds a symlink: {entry.name}")
-        found.add(entry.name)
-    extra = sorted(found - allowed - {fixture})
-    if extra:
-        raise IntegrityError("release holds files it does not account for: " + ", ".join(extra))
+    fixture = validate_relative_path(release["fixture"]["path"])
+    statement = validate_relative_path(release["statement"]["path"])
+
+    # Only the fixture subtree is opaque here; verify_fixture inventories it.
+    # Every ancestor leading to that subtree or to the statement must itself be
+    # exact, otherwise `inner/state` would make an unrelated `inner/note` look
+    # accounted for merely because both share the first path segment.
+    directories = {""}
+    for relative in (fixture, statement):
+        parts = relative.split("/")
+        directories.update("/".join(parts[:index]) for index in range(1, len(parts)))
+    allowed = {RELEASE_NAME, fixture, statement} | (directories - {""})
+
+    for directory in sorted(
+        directories, key=lambda value: (value.count("/"), value)
+    ):
+        absolute = root / directory if directory else root
+        try:
+            with os.scandir(absolute) as entries:
+                for entry in entries:
+                    relative = "/".join(
+                        part for part in (directory, entry.name) if part
+                    )
+                    if entry.is_symlink():
+                        raise PathError(f"release holds a symlink: {relative}")
+                    if relative not in allowed:
+                        raise IntegrityError(
+                            "release holds an entry it does not account for: "
+                            f"{relative}"
+                        )
+        except OSError as error:
+            raise PathError(
+                f"cannot inventory release directory: {directory or '.'}"
+            ) from error
 
 
 def _resolved(path: Path, what: str) -> Path:
@@ -345,15 +391,83 @@ def _refuse_statement_inside(source: Path, statement_path: str | Path) -> None:
 
 
 def _read_statement(path: str | Path) -> bytes:
-    """The statement's bytes, read once, capped, and never re-encoded."""
+    """The statement's bytes, read once, capped, and never re-encoded.
+
+    Every named path segment is opened relative to the descriptor above it.
+    `O_NOFOLLOW` on the final file alone still follows a symlinked parent, which
+    lets a path checked by `_refuse_statement_inside` name different bytes by the
+    time this read begins.
+    """
     handed = Path(path)
-    if handed.is_symlink():
-        raise PathError(f"statement is a symlink: {handed}")
-    if not handed.is_file():
+    absolute = Path(os.path.abspath(os.fspath(handed)))
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    file_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+    )
+    current: int | None = None
+    descriptor: int | None = None
+    failure = None
+    try:
+        current = os.open(os.sep, directory_flags)
+        for part in absolute.parts[1:-1]:
+            following = os.open(part, directory_flags, dir_fd=current)
+            os.close(current)
+            current = following
+        if absolute.name:
+            descriptor = os.open(absolute.name, file_flags, dir_fd=current)
+    except OSError as exc:
+        failure = exc.errno
+    finally:
+        if current is not None:
+            os.close(current)
+    if descriptor is None:
+        if failure in (errno.ELOOP, errno.ENOTDIR):
+            raise PathError(
+                f"statement path contains a symlink or non-directory: {handed}"
+            )
         raise PathError(f"statement is not a regular file: {handed}")
-    data = handed.read_bytes()
-    if len(data) > MAX_JSON_BYTES:
-        raise FormatError(f"statement exceeds {MAX_JSON_BYTES} bytes: {len(data)}")
+
+    problem: Exception | None = None
+    data = b""
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            problem = PathError(f"statement is not a regular file: {handed}")
+        elif before.st_size > MAX_JSON_BYTES:
+            problem = FormatError(
+                f"statement exceeds {MAX_JSON_BYTES} bytes: {before.st_size}"
+            )
+        else:
+            with os.fdopen(descriptor, "rb", closefd=False) as handle:
+                data = handle.read(MAX_JSON_BYTES + 1)
+            if len(data) > MAX_JSON_BYTES:
+                problem = FormatError(
+                    f"statement exceeds {MAX_JSON_BYTES} bytes: {len(data)}"
+                )
+            else:
+                after = os.fstat(descriptor)
+                if (
+                    before.st_size,
+                    before.st_mtime_ns,
+                    before.st_ctime_ns,
+                ) != (
+                    after.st_size,
+                    after.st_mtime_ns,
+                    after.st_ctime_ns,
+                ) or len(data) != before.st_size:
+                    problem = PathError(f"statement changed while it was read: {handed}")
+    except OSError:
+        problem = PathError(f"cannot read statement: {handed}")
+    finally:
+        os.close(descriptor)
+    if problem is not None:
+        raise problem
     return data
 
 
@@ -365,14 +479,30 @@ def _copy_fixture(source: Path, target: Path, manifest: dict[str, Any]) -> None:
     of the source already refused any such file, and this keeps the copy honest
     even if that ever stops being true.
     """
+    manifest_bytes = dumps(manifest) + b"\n"
+    expected = [
+        (
+            MANIFEST_NAME,
+            len(manifest_bytes),
+            hashlib.sha256(manifest_bytes).hexdigest(),
+        )
+    ] + [
+        (entry["path"], entry["bytes"], entry["sha256"])
+        for entry in manifest["components"]
+    ]
     target.mkdir(mode=0o700, parents=True)
-    for relative in [MANIFEST_NAME] + [
-        entry["path"] for entry in manifest["components"]
-    ]:
+    for relative, expected_bytes, expected_digest in expected:
         normalised = validate_relative_path(relative)
         data = read_confined_bytes(
-            source, normalised, max_bytes=MAX_COMPONENT_BYTES
+            source, normalised, max_bytes=expected_bytes
         )
+        if (
+            len(data) != expected_bytes
+            or hashlib.sha256(data).hexdigest() != expected_digest
+        ):
+            raise IntegrityError(
+                f"fixture component changed after verification: {normalised}"
+            )
         written = target / normalised
         written.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         _write_owner_only(written, data)

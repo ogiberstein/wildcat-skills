@@ -36,6 +36,11 @@ SKIP_REDACTED = "not run: arguments were redacted at capture"
 SKIP_PATH = "not run: the program name carries a path separator"
 SKIP_SHELL = "not run: the program is a shell, which is what shell=False avoids"
 SKIP_MALFORMED = "not run: the command has no argv of strings"
+SKIP_STATE_FIXTURE_V2 = (
+    "not run: state-fixture/v2 replay is local-file verification only"
+)
+
+STATE_FIXTURE_V2 = "https://ariadne.wildcat.finance/state-fixture/v2"
 
 SEPARATORS = ("/", "\\")
 """Both, whatever this platform uses. A statement captured on one system gets
@@ -97,6 +102,10 @@ def plan(statement):
     commands = core_predicate.commands(statement.predicate) or []
     for index, command in enumerate(commands):
         name = core_predicate.label(command, index, "command")
+        if statement.predicate_type == STATE_FIXTURE_V2:
+            argv = command.get("argv", []) if isinstance(command, dict) else []
+            steps.append(Step(name, argv, SKIP_STATE_FIXTURE_V2))
+            continue
         if not isinstance(command, dict):
             steps.append(Step(name, [], SKIP_MALFORMED))
             continue

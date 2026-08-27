@@ -17,11 +17,13 @@ from .paths import (
 from .records import (
     loads_anchor_records,
     loads_proof_records,
+    loads_receipt_witness,
     loads_rpc_records,
     request_key,
 )
+from .receipts import verify_receipt_relation
 from .schemas import validate_document
-from .version import __version__
+from .version import MANIFEST_V1_WRITER_VERSION, __version__
 
 
 MANIFEST_NAME = "manifest.json"
@@ -58,6 +60,8 @@ def fixture_digest(manifest: dict[str, Any]) -> str:
         "evidence_counts": manifest["evidence_counts"],
         "optional_failures": manifest["optional_failures"],
     }
+    if manifest["schema_version"] == 2:
+        identity["receipts_root"] = manifest["receipts_root"]
     return hashlib.sha256(dumps(identity)).hexdigest()
 
 
@@ -91,7 +95,8 @@ def build_manifest(
     total_bytes = sum(item["bytes"] for item in components)
     if total_bytes > max_fixture_bytes:
         raise ResourceLimitError(f"fixture components exceed {max_fixture_bytes} bytes")
-    observed_counts, observed_failures = _coverage(observed)
+    receipt_report = _receipt_report(observed)
+    observed_counts, observed_failures = _coverage(observed, receipt_report)
     if evidence_counts is not None and evidence_counts != observed_counts:
         raise IntegrityError("declared evidence counts disagree with fixture records")
     if optional_failures is not None:
@@ -100,8 +105,9 @@ def build_manifest(
             raise FormatError("duplicate optional failure request key")
         if failures != observed_failures:
             raise IntegrityError("declared optional failures disagree with RPC records")
+    schema_version = 2 if receipt_report is not None else 1
     manifest: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": schema_version,
         "tool_version": __version__,
         "chain_id": chain_id,
         "block": {"number": block_number, "hash": block_hash},
@@ -110,6 +116,8 @@ def build_manifest(
         "optional_failures": observed_failures,
         "fixture_digest": "0" * 64,
     }
+    if receipt_report is not None:
+        manifest["receipts_root"] = receipt_report["computed_root"]
     manifest["fixture_digest"] = fixture_digest(manifest)
     validate_document("manifest", manifest)
     _validate_observed(observed, manifest)
@@ -118,6 +126,30 @@ def build_manifest(
     extra = sorted(actual - allowed)
     if extra:
         raise IntegrityError(f"unlisted fixture files: {', '.join(extra)}")
+    if schema_version == 1 and MANIFEST_NAME in actual:
+        manifest = _preserve_exact_manifest_v1_writer(root, manifest)
+    return manifest
+
+
+def _preserve_exact_manifest_v1_writer(
+    root: str | Path, manifest: dict[str, Any]
+) -> dict[str, Any]:
+    """Keep legacy provenance only when rebuilding those exact manifest bytes.
+
+    A fresh capture has no manifest in its staging directory and therefore uses
+    the current writer. An existing manifest-v1 may retain writer 0.1.0 only
+    when every other field and the canonical digest already match the inspected
+    components. Schema selection alone cannot establish which writer ran.
+    """
+
+    historical = dict(manifest)
+    historical["tool_version"] = MANIFEST_V1_WRITER_VERSION
+    historical["fixture_digest"] = "0" * 64
+    historical["fixture_digest"] = fixture_digest(historical)
+    existing = read_confined_bytes(root, MANIFEST_NAME, max_bytes=MAX_JSON_BYTES)
+    if existing == dumps(historical) + b"\n":
+        validate_document("manifest", historical)
+        return historical
     return manifest
 
 
@@ -145,6 +177,7 @@ def verify_manifest(
         raise IntegrityError("manifest is not canonically encoded")
     declared_paths = [item["path"] for item in manifest["components"]]
     _require_core_components(declared_paths)
+    _require_version_components(manifest, declared_paths)
     actual_files = list_fixture_files(root)
     expected_files = set(declared_paths) | {MANIFEST_NAME}
     extra = sorted(actual_files - expected_files)
@@ -220,6 +253,8 @@ def _inspect_components(
             observed["rpc"] = loads_rpc_records(data, max_bytes=MAX_JSONL_BYTES)
         elif relative == "proofs.jsonl":
             observed["proofs"] = loads_proof_records(data, max_bytes=MAX_JSONL_BYTES)
+        elif relative == "receipt-witness.json":
+            observed["receipt_witness"] = loads_receipt_witness(data)
         elif relative == "anchors.jsonl":
             observed["anchors"] = loads_anchor_records(
                 data, max_bytes=MAX_JSONL_BYTES
@@ -227,8 +262,12 @@ def _inspect_components(
     return components, observed
 
 
-def _coverage(observed: dict[str, Any]) -> tuple[dict[str, int], list[str]]:
+def _coverage(
+    observed: dict[str, Any], receipt_report: dict[str, Any] | None = None
+) -> tuple[dict[str, int], list[str]]:
     counts = {"proof_backed": 0, "header_bound": 0, "recorded_rpc": 0}
+    if receipt_report is not None:
+        counts["receipt_trie_proved"] = receipt_report["relations"]
     if "header" in observed:
         counts["header_bound"] += 1
     counts["proof_backed"] += sum(
@@ -245,6 +284,9 @@ def _coverage(observed: dict[str, Any]) -> tuple[dict[str, int], list[str]]:
 
 def _validate_observed(observed: dict[str, Any], manifest: dict[str, Any]) -> None:
     plan = observed["plan"]
+    expected_manifest_version = 2 if plan["schema_version"] == 3 else 1
+    if manifest["schema_version"] != expected_manifest_version:
+        raise IntegrityError("manifest version disagrees with the capture plan")
     if plan["chain"]["chain_id"] != manifest["chain_id"]:
         raise IntegrityError("plan chain_id disagrees with manifest")
     if plan["block"]["number"] != manifest["block"]["number"]:
@@ -278,11 +320,42 @@ def _validate_observed(observed: dict[str, Any], manifest: dict[str, Any]) -> No
             block_hash=manifest["block"]["hash"],
         )
     _validate_plan_coverage(plan, observed)
-    counts, failures = _coverage(observed)
+    receipt_report = _receipt_report(observed)
+    counts, failures = _coverage(observed, receipt_report)
     if counts != manifest["evidence_counts"]:
         raise IntegrityError("manifest evidence counts disagree with fixture records")
+    if receipt_report is not None:
+        if manifest["receipts_root"].lower() != receipt_report["computed_root"]:
+            raise IntegrityError("manifest receipts root disagrees with verified witness")
+        if counts["receipt_trie_proved"] <= 0 or manifest["receipts_root"] == "0x" + "00" * 32:
+            raise IntegrityError("positive receipt proof count requires a nonzero receipts root")
     if failures != manifest["optional_failures"]:
         raise IntegrityError("manifest optional failures disagree with RPC records")
+
+
+def _require_version_components(manifest: dict[str, Any], paths: list[str]) -> None:
+    has_witness = "receipt-witness.json" in paths
+    if manifest["schema_version"] == 1 and has_witness:
+        raise IntegrityError("manifest-v1 refuses receipt-witness.json")
+    if manifest["schema_version"] == 2 and not has_witness:
+        raise IntegrityError("manifest-v2 requires receipt-witness.json")
+
+
+def _receipt_report(observed: dict[str, Any]) -> dict[str, Any] | None:
+    plan = observed["plan"]
+    witness = observed.get("receipt_witness")
+    if plan["schema_version"] != 3:
+        if witness is not None:
+            raise IntegrityError("legacy plans refuse receipt-witness.json")
+        return None
+    if witness is None:
+        raise IntegrityError("plan-v3 requires receipt-witness.json")
+    return verify_receipt_relation(
+        witness,
+        header=observed["header"],
+        plan=plan,
+        rpc_records=observed.get("rpc", []),
+    )
 
 
 def validate_anchor_records(

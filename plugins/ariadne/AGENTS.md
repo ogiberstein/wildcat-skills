@@ -55,6 +55,11 @@ Ariadne reaches no network of its own. The three capture subcommands --
 `--out` points, and every other subcommand prints. Each reads a directory that
 already exists and runs nothing in it.
 
+State-fixture/v2 carries a Lazarus manifest's `receipts_root` and separately
+counted `receipt_trie_proved` relations. Ariadne reads those verified fixture
+claims and binds them to component digests; it does not reconstruct the receipt
+trie, attribute transaction hashes through it, or replace Lazarus verification.
+
 `replay` is the one subcommand that executes anything, and it does so only with
 `--allow-execution`, a `--project` to run in, and a statement that verifies. It
 never uses a shell, and it refuses a command whose arguments were redacted at
@@ -85,6 +90,9 @@ not route around them:
 - No result nobody produced. A test disposition comes from the caller, and
   capture records `skipped` with a reason rather than guessing at a run it did
   not see. Do not pass `passed` for a run you did not watch.
+- No receipt-proof promotion. State-fixture/v2 may carry the receipts root and
+  Lazarus relation count, but Ariadne cannot turn a transaction hash, provider
+  label, canonical-chain claim or locally unchecked relation into proof.
 
 If a lint, a test, a gate or a signature check did not run, say so plainly and
 do not describe its result.

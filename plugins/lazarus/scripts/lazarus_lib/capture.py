@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 from datetime import datetime, timezone
 import errno
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -22,24 +23,42 @@ from .errors import (
     ResourceLimitError,
 )
 from .header import verify_header
-from .hexvalue import encode_hex, hex_bytes, quantity
-from .limits import CaptureLimits
+from .hexvalue import encode_hex, hash32_bytes, hex_bytes, quantity
+from .limits import (
+    MAX_RECEIPT_FIELDS,
+    MAX_RECEIPT_LOG_FIELDS,
+    CaptureLimits,
+)
 from .manifest import build_manifest, write_manifest
 from .proofs import verify_proof_record
 from .records import (
     make_rpc_record,
     write_anchor_records,
     write_proof_records,
+    write_receipt_witness,
     write_rpc_records,
+)
+from .receipts import (
+    MAX_LOGS,
+    MAX_RECEIPTS,
+    MAX_TOPICS,
+    _rpc_receipt,
+    verify_receipt_relation,
 )
 from .rpc import JsonRpcClient
 from .schemas import validate_document
-from .scrub import assert_no_secrets, provider_secret_union
+from .scrub import (
+    assert_no_secret_bytes,
+    assert_no_secrets,
+    provider_secret_union,
+    redact_text,
+)
 from .verifier import verify_fixture
 
 
 COMPONENTS = ("header.json", "plan.json", "proofs.jsonl", "rpc.jsonl")
 ANCHOR_COMPONENT = "anchors.jsonl"
+RECEIPT_COMPONENT = "receipt-witness.json"
 BLOCK_TAGS = {"earliest", "finalized", "latest", "pending", "safe"}
 SOURCE_ID = re.compile(r"^[a-z][a-z0-9_.-]{0,127}$")
 ENVIRONMENT_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
@@ -55,6 +74,7 @@ READ_ONLY_METHODS = {
     "eth_getbalance",
     "eth_getblockbyhash",
     "eth_getblockbynumber",
+    "eth_getblockreceipts",
     "eth_getcode",
     "eth_getlogs",
     "eth_getproof",
@@ -89,9 +109,16 @@ def capture_fixture(
     environment: Mapping[str, str] | None = None,
     client_factory: Callable[..., JsonRpcClient] = JsonRpcClient,
     finalizer: Callable[[str | Path, str | Path], Any] | None = None,
+    terminal_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     plan = validate_document("plan", load(plan_path))
+    if terminal_context is not None:
+        terminal_context.clear()
+    receipt_terminal = _receipt_terminal_context(plan)
+    if terminal_context is not None and receipt_terminal is not None:
+        terminal_context.update(receipt_terminal)
     _validate_capture_plan(plan)
+    _set_terminal_stage(terminal_context, "anchor-mapping")
     anchor_urls = _resolve_anchor_urls(
         plan,
         anchor_rpc_env,
@@ -102,13 +129,32 @@ def capture_fixture(
         raise ResourceLimitError("capture plan exceeds its max_component_bytes limit")
     if plan_bytes > plan["limits"]["max_total_bytes"]:
         raise ResourceLimitError("capture plan exceeds its max_total_bytes limit")
+    limits = CaptureLimits(plan["limits"], clock=clock)
+    secret_mapping_limit = False
+    secret_mapping_failed = False
+    try:
+        secrets = provider_secret_union(
+            ((rpc_url, headers), *((url, None) for url in anchor_urls.values())),
+            check_time=limits.check_time,
+        )
+    except ResourceLimitError:
+        secret_mapping_limit = True
+    except Exception:
+        secret_mapping_failed = True
+    if secret_mapping_limit:
+        limits.check_time()
+        raise ResourceLimitError("provider mapping exceeds capture resource limits")
+    if secret_mapping_failed:
+        raise CaptureError("provider secrets failed at mapping")
+    limits.check_time()
+    _set_terminal_safe_identities(terminal_context, plan, secrets)
+    _set_terminal_stage(terminal_context, "output-check")
     destination = Path(output)
     if destination.exists() or destination.is_symlink():
         raise PathError("capture output already exists")
     parent = destination.parent
     if not parent.is_dir() or parent.is_symlink():
         raise PathError("capture output parent must be an existing real directory")
-    limits = CaptureLimits(plan["limits"], clock=clock)
     client = client_factory(rpc_url, limits, headers=headers)
     anchor_clients: dict[str, JsonRpcClient] = {}
     for source_id, url in anchor_urls.items():
@@ -118,14 +164,17 @@ def capture_fixture(
             raise CaptureError(
                 f"anchor source {source_id} failed at mapping"
             ) from None
+    _set_terminal_stage(terminal_context, "staging")
     try:
-        secrets = provider_secret_union(
-            ((rpc_url, headers), *((url, None) for url in anchor_urls.values()))
+        stage = Path(
+            tempfile.mkdtemp(prefix=f".{destination.name}.lazarus-", dir=parent)
         )
-    except Exception:
-        raise CaptureError("provider secrets failed at mapping") from None
-    stage = Path(tempfile.mkdtemp(prefix=f".{destination.name}.lazarus-", dir=parent))
+    except OSError:
+        raise CaptureError("capture failed at staging") from None
     finalised = False
+    unexpected_failure = False
+    captured_error_type: type[LazarusError] | None = None
+    captured_error_message: str | None = None
     try:
         report = _capture_into(
             stage,
@@ -134,21 +183,40 @@ def capture_fixture(
             limits,
             anchor_clients=anchor_clients,
             wall_clock=wall_clock or _utc_now,
+            terminal_context=terminal_context,
+            terminal_secrets=secrets,
         )
         try:
-            assert_no_secrets(stage, secrets)
+            _set_terminal_stage(terminal_context, "secret-scan")
+            assert_no_secrets(stage, secrets, check_time=limits.check_time)
+            terminal = report.get("terminal_result")
+            if terminal is not None:
+                assert_no_secret_bytes(
+                    dumps(terminal),
+                    secrets,
+                    label="capture terminal result",
+                    check_time=limits.check_time,
+                )
         except IntegrityError:
             raise IntegrityError("capture failed at secret scan") from None
+        _set_terminal_stage(terminal_context, "finalisation")
+        limits.check_time()
         (finalizer or _atomic_no_replace)(stage, destination)
         finalised = True
         return report
-    except LazarusError:
-        raise
-    except Exception as exc:
-        raise CaptureError("capture failed before fixture finalisation") from exc
+    except LazarusError as error:
+        captured_error_type = type(error)
+        captured_error_message = redact_text(str(error), secrets=secrets)
+    except Exception:
+        unexpected_failure = True
     finally:
+        _update_terminal_limit_counts(terminal_context, limits)
         if not finalised:
             shutil.rmtree(stage, ignore_errors=True)
+    if captured_error_type is not None:
+        raise captured_error_type(captured_error_message)
+    if unexpected_failure:
+        raise CaptureError("capture failed before fixture finalisation")
 
 
 def _capture_into(
@@ -159,21 +227,45 @@ def _capture_into(
     *,
     anchor_clients: Mapping[str, JsonRpcClient],
     wall_clock: Callable[[], datetime],
+    terminal_context: dict[str, Any] | None = None,
+    terminal_secrets: set[str] | None = None,
 ) -> dict[str, Any]:
     expected_number = plan["block"]["number"]
     expected_hash = plan["block"]["hash"]
+    _set_terminal_stage(terminal_context, "transport")
     chain_id = client.call("eth_chainId", [])
     if chain_id != plan["chain"]["chain_id"]:
         raise IntegrityError("provider chain ID does not match the capture plan")
     first_header = _fetch_header(client, expected_number, expected_hash)
+    if terminal_context:
+        expected_root = first_header["rpc_result"].get("receiptsRoot")
+        if isinstance(expected_root, str):
+            terminal_context["expected_receipts_root"] = _safe_terminal_text(
+                expected_root, terminal_secrets or set()
+            )
+    _set_terminal_stage(terminal_context, "rpc-capture")
     rpc_records = _capture_requests(client, plan, expected_number, expected_hash)
+    receipt_witness = None
+    receipt_report = None
+    if plan["schema_version"] == 3:
+        _set_terminal_stage(terminal_context, "receipt-set-binding")
+        receipt_witness, receipt_report = _derive_receipt_witness(
+            plan,
+            first_header,
+            rpc_records,
+            limits,
+            terminal_context=terminal_context,
+        )
+    _set_terminal_stage(terminal_context, "state-proof")
     proof_records = [
         _capture_proof(client, target, first_header, expected_number, expected_hash)
         for target in plan["proof_targets"]
     ]
+    _set_terminal_stage(terminal_context, "block-bracket")
     second_header = _fetch_header(client, expected_number, expected_hash)
     if dumps(first_header["rpc_result"]) != dumps(second_header["rpc_result"]):
         raise IntegrityError("provider returned different header data across capture")
+    _set_terminal_stage(terminal_context, "chain-anchor")
     anchor_records = [
         _capture_anchor(
             source_id,
@@ -185,15 +277,47 @@ def _capture_into(
         )
         for source_id in sorted(anchor_clients)
     ]
+    if terminal_context is not None and receipt_report is not None:
+        terminal_context["counts"]["anchor_records"] = len(anchor_records)
     limits.check_time()
-    dump(stage / "plan.json", plan)
-    dump(stage / "header.json", first_header)
-    write_rpc_records(stage / "rpc.jsonl", rpc_records)
-    write_proof_records(stage / "proofs.jsonl", proof_records)
+    _set_terminal_stage(terminal_context, "component-write")
+    component_bytes = [
+        _checked_component(
+            limits, "plan.json", dump(stage / "plan.json", plan)
+        ),
+        _checked_component(
+            limits, "header.json", dump(stage / "header.json", first_header)
+        ),
+        _checked_component(
+            limits,
+            "rpc.jsonl",
+            write_rpc_records(stage / "rpc.jsonl", rpc_records),
+        ),
+        _checked_component(
+            limits,
+            "proofs.jsonl",
+            write_proof_records(stage / "proofs.jsonl", proof_records),
+        ),
+    ]
     components = COMPONENTS
-    if plan["schema_version"] == 2:
-        write_anchor_records(stage / ANCHOR_COMPONENT, anchor_records)
+    if plan["schema_version"] in (2, 3):
+        component_bytes.append(
+            _checked_component(
+                limits,
+                ANCHOR_COMPONENT,
+                write_anchor_records(stage / ANCHOR_COMPONENT, anchor_records),
+            )
+        )
         components = (*COMPONENTS, ANCHOR_COMPONENT)
+    if receipt_witness is not None:
+        component_bytes.append(
+            _checked_component(
+                limits,
+                RECEIPT_COMPONENT,
+                write_receipt_witness(stage / RECEIPT_COMPONENT, receipt_witness),
+            )
+        )
+        components = (*components, RECEIPT_COMPONENT)
     optional_failures = sorted(
         record["request_key"]
         for record in rpc_records
@@ -202,24 +326,443 @@ def _capture_into(
     proof_count = len(proof_records) + sum(
         len(record["storage_proof"]) for record in proof_records
     )
+    evidence_counts = {
+        "proof_backed": proof_count,
+        "header_bound": 1,
+        "recorded_rpc": len(rpc_records),
+    }
+    if receipt_report is not None:
+        evidence_counts["receipt_trie_proved"] = receipt_report["relations"]
     manifest = build_manifest(
         stage,
         components,
         chain_id=plan["chain"]["chain_id"],
         block_number=expected_number,
         block_hash=expected_hash,
-        evidence_counts={
-            "proof_backed": proof_count,
-            "header_bound": 1,
-            "recorded_rpc": len(rpc_records),
-        },
+        evidence_counts=evidence_counts,
         optional_failures=optional_failures,
     )
+    manifest_size = len(dumps(manifest)) + 1
+    limits.check_component_bytes(manifest_size, label="manifest.json")
+    limits.check_fixture_bytes(sum(component_bytes) + manifest_size)
     write_manifest(stage, manifest)
+    _set_terminal_stage(terminal_context, "final-verification")
+    verification_failed = False
     try:
-        return verify_fixture(stage)
+        report = verify_fixture(stage)
     except LazarusError:
-        raise CaptureError("capture failed at final verification") from None
+        verification_failed = True
+    if verification_failed:
+        raise CaptureError("capture failed at final verification")
+    limits.check_time()
+    if receipt_report is not None:
+        report["terminal_result"] = _receipt_terminal_result(
+            plan,
+            report,
+            limits,
+            terminal_context=terminal_context,
+            terminal_secrets=terminal_secrets,
+        )
+    return report
+
+
+def _checked_component(limits: CaptureLimits, label: str, data: bytes) -> int:
+    limits.check_component_bytes(len(data), label=label)
+    return len(data)
+
+
+def _derive_receipt_witness(
+    plan: dict[str, Any],
+    header: dict[str, Any],
+    rpc_records: list[dict[str, Any]],
+    limits: CaptureLimits,
+    *,
+    terminal_context: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Project one full recorded response into consensus-only witness bytes."""
+
+    relation = plan["receipt_witness"]
+    named_records = {
+        record.get("name"): record
+        for record in rpc_records
+        if isinstance(record.get("name"), str)
+    }
+    block_record = named_records.get(relation["block_receipts_request"])
+    if block_record is None:
+        raise IntegrityError("receipt capture has no recorded block receipts result")
+    outcome = block_record.get("outcome")
+    raw_receipts = outcome.get("result") if isinstance(outcome, dict) else None
+    if not isinstance(raw_receipts, list):
+        raise IntegrityError("recorded block receipts result is not an array")
+    limits.check_allocation(
+        len(raw_receipts), maximum=MAX_RECEIPTS, label="receipt count"
+    )
+    if terminal_context is not None:
+        terminal_context["counts"]["returned_receipts"] = len(raw_receipts)
+    target_result = _recorded_result(
+        named_records,
+        relation["target_receipt_lookup_request"],
+        label="target receipt",
+    )
+    _check_raw_receipt_shape(target_result, limits, label="target receipt")
+    filtered_result = _recorded_result(
+        named_records,
+        relation["filtered_logs_request"],
+        label="filtered logs",
+    )
+    if not isinstance(filtered_result, list):
+        raise IntegrityError("recorded filtered logs result is not an array")
+    limits.check_allocation(
+        len(filtered_result), maximum=MAX_LOGS, label="filtered log count"
+    )
+    if terminal_context is not None:
+        terminal_context["counts"]["selected_logs"] = len(filtered_result)
+    for raw_log in filtered_result:
+        _check_raw_log_shape(raw_log, limits, label="filtered log")
+
+    transaction_hashes = header["rpc_result"].get("transactions")
+    if not isinstance(transaction_hashes, list):
+        raise IntegrityError("recorded header transaction list is not an array")
+    limits.check_allocation(
+        len(transaction_hashes),
+        maximum=MAX_RECEIPTS,
+        label="header transaction count",
+    )
+    if terminal_context is not None:
+        terminal_context["counts"]["header_transactions"] = len(
+            transaction_hashes
+        )
+    if len(raw_receipts) != len(transaction_hashes):
+        raise IntegrityError("recorded block receipts do not cover every header slot")
+    receipts: list[dict[str, Any]] = []
+    total_logs = 0
+    block_number = header["number"]
+    block_hash = header["hash"]
+    _set_terminal_stage(terminal_context, "receipt-encoding")
+    for index, raw_receipt in enumerate(raw_receipts):
+        raw_logs = _check_raw_receipt_shape(
+            raw_receipt, limits, label="block receipt"
+        )
+        if total_logs + len(raw_logs) > MAX_LOGS:
+            raise ResourceLimitError(f"block log count exceeds {MAX_LOGS}")
+        projected = _rpc_receipt(
+            raw_receipt,
+            index=index,
+            first_log_index=total_logs,
+            block_number=block_number,
+            block_hash=block_hash,
+            expected_transaction_hash=hash32_bytes(
+                transaction_hashes[index], label="recorded header transaction hash"
+            ),
+        )
+        total_logs += len(projected["logs"])
+        receipts.append(projected)
+        if terminal_context is not None:
+            terminal_context["counts"]["encoded_receipts"] = len(receipts)
+            terminal_context["counts"]["logs"] = total_logs
+    if terminal_context is not None:
+        terminal_context["counts"].update(
+            {
+                "encoded_receipts": len(receipts),
+                "logs": total_logs,
+            }
+        )
+
+    target_index = quantity(
+        relation["target_transaction_index"], label="target transaction index"
+    )
+    if target_index >= len(receipts):
+        raise IntegrityError("target receipt is absent from the recorded receipt set")
+    filtered_request = next(
+        item
+        for item in plan["requests"]
+        if item["name"] == relation["filtered_logs_request"]
+    )
+    witness = validate_document(
+        "receipt-witness",
+        {
+            "schema_version": 1,
+            "header": {
+                "number": block_number,
+                "hash": block_hash,
+                "receipts_root": header["rpc_result"].get("receiptsRoot"),
+            },
+            "receipts": receipts,
+            "target_receipt": {"transaction_index": hex(target_index)},
+            "filtered_logs": {"filter": filtered_request["params"][0]},
+        },
+    )
+    _set_terminal_stage(terminal_context, "receipt-relation")
+    try:
+        relation_report = verify_receipt_relation(
+            witness,
+            header=header,
+            plan=plan,
+            rpc_records=rpc_records,
+        )
+    except LazarusError as exc:
+        _set_terminal_stage(terminal_context, _receipt_relation_failure_stage(exc))
+        raise
+    if terminal_context is not None:
+        terminal_context["counts"]["receipt_trie_proved"] = relation_report[
+            "relations"
+        ]
+    return witness, relation_report
+
+
+def _recorded_result(
+    records: Mapping[str, dict[str, Any]], name: str, *, label: str
+) -> Any:
+    record = records.get(name)
+    outcome = record.get("outcome") if isinstance(record, dict) else None
+    if not isinstance(outcome, dict) or "result" not in outcome:
+        raise IntegrityError(f"recorded {label} result is absent")
+    return outcome["result"]
+
+
+def _check_raw_receipt_shape(
+    value: Any, limits: CaptureLimits, *, label: str
+) -> list[Any]:
+    if not isinstance(value, dict):
+        raise IntegrityError(f"recorded {label} is not an object")
+    limits.check_allocation(
+        len(value), maximum=MAX_RECEIPT_FIELDS, label=f"{label} field count"
+    )
+    logs = value.get("logs")
+    if not isinstance(logs, list):
+        raise IntegrityError(f"recorded {label} logs are not an array")
+    limits.check_allocation(
+        len(logs), maximum=MAX_LOGS, label=f"{label} log count"
+    )
+    for log in logs:
+        _check_raw_log_shape(log, limits, label=f"{label} log")
+    return logs
+
+
+def _check_raw_log_shape(
+    value: Any, limits: CaptureLimits, *, label: str
+) -> None:
+    if not isinstance(value, dict):
+        raise IntegrityError(f"recorded {label} is not an object")
+    limits.check_allocation(
+        len(value), maximum=MAX_RECEIPT_LOG_FIELDS, label=f"{label} field count"
+    )
+    topics = value.get("topics")
+    if not isinstance(topics, list):
+        raise IntegrityError(f"recorded {label} topics are not an array")
+    limits.check_allocation(
+        len(topics), maximum=MAX_TOPICS, label=f"{label} topic count"
+    )
+
+
+def _receipt_terminal_context(plan: dict[str, Any]) -> dict[str, Any] | None:
+    """Build the safe context shared by successful and failed plan-v3 output."""
+
+    if plan["schema_version"] != 3:
+        return None
+    return {
+        "correlation_id": None,
+        "stage": "plan-validation",
+        "block": {
+            "number": None,
+            "hash": None,
+        },
+        "recorded_target_selector": {
+            "value": None,
+            "evidence": "recorded_rpc",
+            "transaction_index": None,
+        },
+        "counts": {
+            "rpc_requests": 0,
+            "rpc_response_bytes": 0,
+            "header_transactions": 0,
+            "returned_receipts": 0,
+            "encoded_receipts": 0,
+            "logs": 0,
+            "selected_logs": 0,
+            "anchor_records": 0,
+            "receipt_trie_proved": 0,
+        },
+        "versions": {
+            "plan": 3,
+            "receipt_witness": 1,
+        },
+    }
+
+
+def _set_terminal_safe_identities(
+    terminal_context: dict[str, Any] | None,
+    plan: dict[str, Any],
+    secrets: set[str],
+) -> None:
+    if terminal_context is None or not terminal_context:
+        return
+    relation = plan["receipt_witness"]
+    terminal_context["correlation_id"] = _safe_terminal_text(
+        _receipt_correlation_id(plan), secrets
+    )
+    target_request = next(
+        item
+        for item in plan["requests"]
+        if item["name"] == relation["target_receipt_lookup_request"]
+    )
+    terminal_context["block"] = {
+        "number": _safe_terminal_text(plan["block"]["number"], secrets),
+        "hash": _safe_terminal_text(plan["block"]["hash"], secrets),
+    }
+    terminal_context["recorded_target_selector"].update(
+        {
+            "value": _safe_terminal_text(target_request["params"][0], secrets),
+            "transaction_index": _safe_terminal_text(
+                relation["target_transaction_index"], secrets
+            ),
+        }
+    )
+
+
+def _safe_terminal_text(value: str, secrets: set[str]) -> str | None:
+    redacted = redact_text(value, secrets=secrets)
+    return value if redacted == value else None
+
+
+def _receipt_correlation_id(plan: dict[str, Any]) -> str:
+    return "lazarus-capture:" + hashlib.sha256(dumps(plan)).hexdigest()
+
+
+def _set_terminal_stage(
+    terminal_context: dict[str, Any] | None, stage: str
+) -> None:
+    if terminal_context is not None and terminal_context:
+        terminal_context["stage"] = stage
+
+
+def _update_terminal_limit_counts(
+    terminal_context: dict[str, Any] | None, limits: CaptureLimits
+) -> None:
+    if terminal_context is not None and terminal_context:
+        terminal_context["counts"]["rpc_requests"] = limits.requests
+        terminal_context["counts"]["rpc_response_bytes"] = limits.response_bytes
+
+
+def _receipt_relation_failure_stage(error: LazarusError) -> str:
+    message = str(error).lower()
+    if "filtered log" in message or "projection" in message:
+        return "filtered-log-equality"
+    if "root" in message:
+        return "receipts-root-equality"
+    if "transaction hash" in message or "block" in message:
+        return "recorded-identity"
+    if "encode" in message or "type" in message or "bloom" in message:
+        return "receipt-encoding"
+    return "receipt-set-binding"
+
+
+def capture_failure_terminal_result(
+    terminal_context: Mapping[str, Any], error: LazarusError
+) -> dict[str, Any] | None:
+    """Return one value-free plan-v3 failure event, or ``None`` without context."""
+
+    if not terminal_context:
+        return None
+    if isinstance(error, ResourceLimitError):
+        failure = "resource-limit"
+    elif isinstance(error, PathError):
+        failure = "path"
+    elif isinstance(error, IntegrityError):
+        failure = "integrity"
+    elif isinstance(error, FormatError):
+        failure = "format"
+    elif isinstance(error, CaptureError):
+        failure = "capture"
+    else:
+        failure = "transport"
+    result = {
+        "schema": "lazarus-capture-terminal/v1",
+        "event": "lazarus.capture.failed",
+        "correlation_id": terminal_context["correlation_id"],
+        "stage": terminal_context["stage"],
+        "block": terminal_context["block"],
+        "recorded_target_selector": terminal_context[
+            "recorded_target_selector"
+        ],
+        "counts": terminal_context["counts"],
+        "versions": terminal_context["versions"],
+        "failure": failure,
+    }
+    expected_root = terminal_context.get("expected_receipts_root")
+    if isinstance(expected_root, str):
+        result["roots"] = {"expected_receipts_root": expected_root}
+    return result
+
+
+def _receipt_terminal_result(
+    plan: dict[str, Any],
+    report: dict[str, Any],
+    limits: CaptureLimits,
+    *,
+    terminal_context: Mapping[str, Any] | None = None,
+    terminal_secrets: set[str] | None = None,
+) -> dict[str, Any]:
+    relation = report["receipt_trie_proved"]
+    relation_plan = plan["receipt_witness"]
+    target_request = next(
+        item
+        for item in plan["requests"]
+        if item["name"] == relation_plan["target_receipt_lookup_request"]
+    )
+    correlation_id = (
+        terminal_context.get("correlation_id")
+        if terminal_context is not None
+        else _safe_terminal_text(
+            _receipt_correlation_id(plan), terminal_secrets or set()
+        )
+    )
+    return {
+        "schema": "lazarus-capture-terminal/v1",
+        "event": "lazarus.capture.completed",
+        "correlation_id": correlation_id,
+        "stage": "fixture-finalised",
+        "block": {
+            "number": report["block_number"],
+            "hash": report["block_hash"],
+        },
+        "recorded_target_selector": {
+            "value": target_request["params"][0],
+            "evidence": "recorded_rpc",
+            "transaction_index": relation["target_transaction_index"],
+        },
+        "counts": {
+            "rpc_requests": limits.requests,
+            "rpc_response_bytes": limits.response_bytes,
+            "recorded_rpc": report["recorded_rpc"]["records"],
+            "anchor_records": report["chain_anchors"]["records"],
+            "header_transactions": relation["receipt_count"],
+            "returned_receipts": relation["receipt_count"],
+            "encoded_receipts": relation["receipt_count"],
+            "receipts": relation["receipt_count"],
+            "logs": relation["log_count"],
+            "selected_logs": relation["filtered_log_count"],
+            "receipt_trie_proved": relation["relations"],
+        },
+        "versions": {
+            "tool": report["manifest"]["tool_version"],
+            "plan": plan["schema_version"],
+            "manifest": report["manifest"]["schema_version"],
+            "receipt_witness": 1,
+        },
+        "roots": {
+            "expected_receipts_root": relation["expected_root"],
+            "computed_receipts_root": relation["computed_root"],
+        },
+        "relation_scope": {
+            "receipt_trie_proved": [
+                "consensus_receipt_payload_at_trie_index",
+                "consensus_log_projection",
+            ],
+            "transaction_hash_attribution": "recorded_rpc",
+        },
+        "fixture_digest": report["fixture_digest"],
+    }
 
 
 def _capture_anchor(
@@ -511,12 +1054,15 @@ def _normalise_slot(value: Any) -> str:
 def _validate_capture_plan(plan: dict[str, Any]) -> None:
     if "max_elapsed_seconds" not in plan["limits"]:
         raise FormatError("capture plan must declare max_elapsed_seconds")
+    block_receipt_calls = 0
     for item in plan["requests"]:
         if _contains_tag(item["params"]):
             raise FormatError(
                 f"effective request {item['name']} contains a moving block tag"
             )
         method = item["method"].lower()
+        if method == "eth_getblockreceipts":
+            block_receipt_calls += 1
         if method not in READ_ONLY_METHODS:
             raise FormatError(
                 f"capture refuses method not in the read-only set: {item['method']}"
@@ -525,6 +1071,15 @@ def _validate_capture_plan(plan: dict[str, Any]) -> None:
             raise FormatError(
                 f"declared request {item['name']} must be recorded-rpc evidence"
             )
+    if plan["schema_version"] == 3:
+        if block_receipt_calls != 1:
+            raise FormatError(
+                "plan-v3 capture requires exactly one eth_getBlockReceipts request"
+            )
+    elif block_receipt_calls:
+        raise FormatError(
+            "eth_getBlockReceipts capture requires plan-v3"
+        )
 
 
 def _contains_tag(value: Any) -> bool:

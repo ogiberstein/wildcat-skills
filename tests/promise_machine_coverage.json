@@ -2745,7 +2745,7 @@
         "transition": "allow-execution authority and replay exit joined to the canonical Authorises field",
         "unknowns": "redacted arguments, unchecked predicates and non-deterministic records"
       },
-      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
+      "sha256": "ba45c1fcfba8a2bf9cafbcf09b97c752d3c756eee97cd5d4124da94bea359412",
       "source": "plugins/ariadne/scripts/ariadne.py"
     },
     "ariadne-verify-statement": {
@@ -2759,7 +2759,7 @@
         "transition": "zero-exit gate result joined to the canonical Authorises field",
         "unknowns": "unchecked predicates, unsigned status and skipped records"
       },
-      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
+      "sha256": "ba45c1fcfba8a2bf9cafbcf09b97c752d3c756eee97cd5d4124da94bea359412",
       "source": "plugins/ariadne/scripts/ariadne.py"
     },
     "berean-release-promotion": {
@@ -3039,7 +3039,7 @@
         "transition": "verified replay binding joined to the canonical Authorises field",
         "unknowns": "uncaptured requests, recorded-only RPC relations and chain-anchor canonicality or independence"
       },
-      "sha256": "2088a8949896d672b18d4e7a79611cd32dc98da5d0057520015b0e432407e83c",
+      "sha256": "3d9e0d692ce7167eff795ed8d724026220613e2c90bf58aec2ffc99f9957113b",
       "source": "plugins/lazarus/scripts/lazarus.py"
     },
     "lazarus-fixture-capture": {

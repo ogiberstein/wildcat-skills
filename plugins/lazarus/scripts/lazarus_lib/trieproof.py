@@ -11,6 +11,10 @@ from .rlp import RLP, decode, encode
 EMPTY_TRIE_ROOT = keccak(b"\x80")
 MAX_PROOF_NODES = 2048
 MAX_NODE_BYTES = 1024 * 1024
+MAX_TRIE_ITEMS = 100_000
+MAX_TRIE_KEY_BYTES = 64
+MAX_TRIE_VALUE_BYTES = 16 * 1024 * 1024
+MAX_TRIE_INPUT_BYTES = 16 * 1024 * 1024
 
 
 def bytes_to_nibbles(value: bytes) -> list[int]:
@@ -38,6 +42,107 @@ def compact_path(value: bytes) -> tuple[list[int], bool]:
     if not leaf and not path:
         raise FormatError("extension trie path is empty")
     return path, leaf
+
+
+def trie_root(items: list[tuple[bytes, bytes]]) -> bytes:
+    """Build the canonical hexary trie root for bounded unique byte keys.
+
+    Production verification constructs the trie locally rather than trusting a
+    dependency's database or node encoding. Tests compare this builder with the
+    already pinned ``trie`` package as an independent implementation.
+    """
+
+    if not isinstance(items, list):
+        raise FormatError("trie items must be a list")
+    if len(items) > MAX_TRIE_ITEMS:
+        raise ResourceLimitError(f"trie item count exceeds {MAX_TRIE_ITEMS}")
+    entries: list[tuple[tuple[int, ...], bytes]] = []
+    seen: set[bytes] = set()
+    total = 0
+    for key, value in items:
+        if not isinstance(key, bytes) or not isinstance(value, bytes):
+            raise FormatError("trie keys and values must be bytes")
+        if not value:
+            raise FormatError("trie values must not be empty")
+        if len(key) > MAX_TRIE_KEY_BYTES:
+            raise ResourceLimitError(
+                f"trie key exceeds {MAX_TRIE_KEY_BYTES} bytes"
+            )
+        if len(value) > MAX_TRIE_VALUE_BYTES:
+            raise ResourceLimitError(
+                f"trie value exceeds {MAX_TRIE_VALUE_BYTES} bytes"
+            )
+        total += len(key) + len(value)
+        if total > MAX_TRIE_INPUT_BYTES:
+            raise ResourceLimitError(
+                f"trie input exceeds {MAX_TRIE_INPUT_BYTES} bytes"
+            )
+        if key in seen:
+            raise FormatError("trie contains duplicate keys")
+        seen.add(key)
+        entries.append((tuple(bytes_to_nibbles(key)), value))
+    if not entries:
+        return EMPTY_TRIE_ROOT
+    entries.sort(key=lambda item: item[0])
+    return keccak(encode(_build_node(entries)))
+
+
+def _build_node(entries: list[tuple[tuple[int, ...], bytes]]) -> list[RLP]:
+    if len(entries) == 1:
+        key, value = entries[0]
+        return [_encode_compact(key, leaf=True), value]
+
+    prefix_length = _common_prefix(entries)
+    if prefix_length:
+        child_entries = [
+            (key[prefix_length:], value) for key, value in entries
+        ]
+        return [
+            _encode_compact(entries[0][0][:prefix_length], leaf=False),
+            _node_reference(_build_node(child_entries)),
+        ]
+
+    branch: list[RLP] = [b""] * 17
+    groups: list[list[tuple[tuple[int, ...], bytes]]] = [[] for _ in range(16)]
+    for key, value in entries:
+        if not key:
+            if branch[16] != b"":
+                raise FormatError("trie contains duplicate branch values")
+            branch[16] = value
+        else:
+            groups[key[0]].append((key[1:], value))
+    for nibble, group in enumerate(groups):
+        if group:
+            branch[nibble] = _node_reference(_build_node(group))
+    return branch
+
+
+def _common_prefix(entries: list[tuple[tuple[int, ...], bytes]]) -> int:
+    shortest = min(len(key) for key, _ in entries)
+    first = entries[0][0]
+    length = 0
+    while length < shortest and all(key[length] == first[length] for key, _ in entries):
+        length += 1
+    return length
+
+
+def _encode_compact(path: tuple[int, ...], *, leaf: bool) -> bytes:
+    if any(not isinstance(nibble, int) or not 0 <= nibble <= 15 for nibble in path):
+        raise FormatError("trie path contains an invalid nibble")
+    flag = 2 if leaf else 0
+    if len(path) % 2:
+        packed = (flag + 1, *path)
+    else:
+        packed = (flag, 0, *path)
+    return bytes(
+        (packed[index] << 4) | packed[index + 1]
+        for index in range(0, len(packed), 2)
+    )
+
+
+def _node_reference(node: list[RLP]) -> RLP:
+    raw = encode(node)
+    return node if len(raw) < 32 else keccak(raw)
 
 
 def verify_proof(root_hash: bytes, key: bytes, proof: list[bytes]) -> bytes | None:

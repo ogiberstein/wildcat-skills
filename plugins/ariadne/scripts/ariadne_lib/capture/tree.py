@@ -20,8 +20,12 @@ state-fixture one.
 import os
 
 MAX_FILES = 4096
-"""A capture reads somebody's own output directory rather than a stranger's
-archive, but a cap keeps a mistaken `--release /` from walking a filesystem."""
+"""The maximum number of filesystem entries a capture will traverse.
+
+The name predates counting directories as well as files. A capture reads somebody's
+own output directory rather than a stranger's archive, but the cap keeps a mistaken
+`--release /` from walking a filesystem.
+"""
 
 REFUSED_NAMES = frozenset({".git", "__pycache__"})
 """Directories that have no business in something being digested.
@@ -84,7 +88,14 @@ def files(root, kind="release"):
         )
 
     found = []
+    seen_entries = 0
     for directory, names, entries in os.walk(root, onerror=unreadable):
+        seen_entries += len(names) + len(entries)
+        if seen_entries > MAX_FILES:
+            raise CaptureError(
+                "%s holds more than %d entries; name a narrower directory"
+                % (kind, MAX_FILES)
+            )
         for name in sorted(names):
             here = os.path.join(directory, name)
             shown = os.path.relpath(here, root)
@@ -121,11 +132,6 @@ def files(root, kind="release"):
                 )
             inside(root, absolute, "%s file" % kind, kind)
             found.append((relative, absolute))
-            if len(found) > MAX_FILES:
-                raise CaptureError(
-                    "%s holds more than %d files; name a narrower directory"
-                    % (kind, MAX_FILES)
-                )
     if not found:
         raise CaptureError("%s %s holds no files" % (kind, root))
     return found

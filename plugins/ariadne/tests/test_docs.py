@@ -31,6 +31,7 @@ DOCUMENTED = (
     (release, PREDICATE_DOC),
     (dataset, DATASET_DOC),
     (state_fixture, STATE_FIXTURE_DOC),
+    (state_fixture.V2, STATE_FIXTURE_DOC),
 )
 """Each shipped predicate and the document that describes its fields."""
 EXAMPLES = os.path.join(PLUGIN, "examples")

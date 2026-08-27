@@ -6,7 +6,7 @@ Seven subcommands:
     predicates  list the predicate types this build understands
     capture     read a build on disk into a statement
     capture-dataset  read a dataset release on disk into a statement
-    capture-state-fixture  read a Lazarus fixture on disk into a statement
+    capture-state-fixture  read a Lazarus v1 or v2 fixture into its matching statement
     inspect     read a statement or DSSE envelope and report what it covers
     verify      run the gates over a statement and report each one
     replay      re-run the deterministic commands a statement records
@@ -480,7 +480,8 @@ def build_parser():
 
     grab_fixture = subcommands.add_parser(
         "capture-state-fixture",
-        help="read a Lazarus state fixture on disk into a statement",
+        help="read a Lazarus v1 or v2 fixture into its matching statement",
+        description="read a Lazarus v1 or v2 fixture into its matching statement",
     )
     add_input_bounds(grab_fixture)
     grab_fixture.add_argument("--fixture", required=True)

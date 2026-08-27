@@ -33,6 +33,7 @@ SUPPORTED_READ_METHODS = {
     "eth_getbalance",
     "eth_getblockbyhash",
     "eth_getblockbynumber",
+    "eth_getblockreceipts",
     "eth_getcode",
     "eth_getlogs",
     "eth_getproof",
