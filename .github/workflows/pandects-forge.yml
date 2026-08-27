@@ -1,0 +1,33 @@
+name: pandects-forge
+
+on:
+  push:
+    paths:
+      - "plugins/pandects/**/*.sol"
+      - "plugins/pandects/foundry.toml"
+      - "plugins/pandects/catalogue/**"
+      - ".github/workflows/pandects-forge.yml"
+  pull_request:
+    paths:
+      - "plugins/pandects/**/*.sol"
+      - "plugins/pandects/foundry.toml"
+      - "plugins/pandects/catalogue/**"
+      - ".github/workflows/pandects-forge.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Build with no dependency to fetch
+        run: forge build
+        working-directory: plugins/pandects
+      - name: Every law against every specimen
+        run: forge test -vv
+        working-directory: plugins/pandects

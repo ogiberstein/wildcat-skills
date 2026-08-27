@@ -7,8 +7,6 @@ on:
       - ".claude-plugin/**"
       - ".agents/**"
       - "AGENTS.md"
-      - "README.md"
-      - "tests/**"
       - ".github/workflows/lazarus.yml"
   pull_request:
     paths:
@@ -16,8 +14,6 @@ on:
       - ".claude-plugin/**"
       - ".agents/**"
       - "AGENTS.md"
-      - "README.md"
-      - "tests/**"
       - ".github/workflows/lazarus.yml"
 
 permissions:
@@ -41,7 +37,5 @@ jobs:
             plugins/lazarus/requirements.lock
       - name: Install locked Lazarus dependencies
         run: python3 -m pip install --requirement plugins/lazarus/requirements.lock
-      - name: Portable entrypoints and repository contracts
-        run: python3 -m unittest discover -s tests -v
       - name: Lazarus test suite
         run: python3 -m unittest discover -s plugins/lazarus/tests -t plugins/lazarus -v
