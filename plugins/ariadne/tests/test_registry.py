@@ -88,6 +88,15 @@ class DefaultRegistryTests(unittest.TestCase):
         )
         self.assertTrue(len(shipped) >= 2)
 
+    def test_state_fixture_versions_are_distinct_registered_contracts(self):
+        from ariadne_lib import predicates
+
+        self.assertIs(registry.DEFAULT.get(predicates.state_fixture.TYPE),
+                      predicates.state_fixture)
+        self.assertIs(registry.DEFAULT.get(predicates.state_fixture_v2.TYPE),
+                      predicates.state_fixture_v2)
+        self.assertIsNot(predicates.state_fixture, predicates.state_fixture_v2)
+
 
 if __name__ == "__main__":
     unittest.main()

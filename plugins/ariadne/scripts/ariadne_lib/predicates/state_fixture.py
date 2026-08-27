@@ -39,6 +39,7 @@ Solidity release predicate already carries as an integer.
 import ntpath
 import posixpath
 import re
+import unicodedata
 
 from .. import deltas as deltas_module
 from .. import digests
@@ -47,6 +48,11 @@ from ..gates import Gate
 
 TYPE = "https://ariadne.wildcat.finance/state-fixture/v1"
 SUMMARY = "a state fixture: the pinned block, its components, and what was proved"
+
+TYPE_V2 = "https://ariadne.wildcat.finance/state-fixture/v2"
+SUMMARY_V2 = (
+    "a state fixture: independently proved state and consensus-receipt evidence"
+)
 
 EVIDENCE_CLASSES = ("proof_backed", "header_bound", "recorded_rpc")
 """The three classes, spelled as Lazarus spells them in its manifest schema.
@@ -82,6 +88,9 @@ its schema accepts, so every fixture it produces still carries one.
 
 CHAIN_FIELDS = CHAIN_REQUIRED + ("state_root",)
 """Every key the pin may carry."""
+RECEIPT_PROVED = "receipt_trie_proved"
+EVIDENCE_CLASSES_V2 = EVIDENCE_CLASSES + (RECEIPT_PROVED,)
+CHAIN_FIELDS_V2 = CHAIN_FIELDS + ("receipts_root",)
 CAPTURE_REQUIRED = ("tool", "tool_version", "command", "parameters_digest")
 FIXTURE_SUBJECT_REQUIRED = ("name", "path", "digest", "bytes")
 REPLAY_REQUIRED = ("reaches_network", "canonical_chain_claim")
@@ -134,6 +143,12 @@ MAX_BYTES = 536870912
 """One component's byte count, matching the ceiling Lazarus's manifest schema
 sets. A larger number describes a file neither tool would have written."""
 
+MAX_PATH = 1024
+"""The component-path ceiling published by the v2 schema."""
+
+MAX_FIXTURE_SUBJECTS_V2 = 1024
+"""The v2 component ceiling published by the schema and Lazarus manifest."""
+
 MAX_COUNT = 100000
 """One evidence class's count, matching the ceiling Lazarus's manifest schema sets.
 
@@ -169,6 +184,90 @@ def usable_path(value):
         return False
     parts = normalised.split("/")
     return ".." not in parts and "" not in parts[1:]
+
+
+def portable_name_v2(value):
+    """True when a v2 machine-read name contains one portable graphic.
+
+    JSON Schema regular expressions have no portable spelling for every Unicode
+    control, format, private-use and unassigned category.  Requiring one ASCII
+    graphic is exact in the schema and in Python, still permits surrounding
+    Unicode, and keeps a name made entirely of invisible code points from passing
+    one reader and failing another.
+    """
+    return isinstance(value, str) and any("!" <= char <= "~" for char in value)
+
+
+def subject_names_v2(statement):
+    """Refuse unreadable or normalisation-colliding v2 subject names.
+
+    Lazarus release binding identifies subjects for a reader as well as by
+    digest. Apply its name boundary to both the predicate's component list and
+    the in-toto subject list so a hand-authored statement cannot bypass the
+    capture adapter and reach a later release refusal.
+    """
+    groups = (
+        (
+            "fixture subject",
+            statement.predicate.get("fixture_subjects", [])
+            if isinstance(statement.predicate, dict)
+            else [],
+            lambda entry: entry.get("name") if isinstance(entry, dict) else None,
+        ),
+        ("statement subject", statement.subjects, lambda entry: entry.name),
+    )
+    faults = []
+    for label, entries, name_of in groups:
+        if not isinstance(entries, list):
+            continue
+        seen = set()
+        for index, entry in enumerate(entries):
+            name = name_of(entry)
+            if not portable_name_v2(name):
+                faults.append("%s %d has no portable name" % (label, index + 1))
+                continue
+            settled = unicodedata.normalize("NFC", name)
+            if settled in seen:
+                faults.append(
+                    "%s %d repeats a name after Unicode normalisation"
+                    % (label, index + 1)
+                )
+            seen.add(settled)
+    return Gate(
+        None,
+        "subject-names",
+        not faults,
+        "; ".join(faults) if faults else "subject names are portable and unique",
+    )
+
+
+def usable_path_v2(value):
+    """The portable component path published by the v2 schema.
+
+    Version 1 retains its historical POSIX backslash behaviour. Version 2 is a
+    new contract and refuses a backslash, which another host can interpret as a
+    separator, paths beyond its explicit schema ceiling, and a segment with no
+    portable graphic and therefore no cross-reader visible name.
+    """
+    if (
+        not usable_path(value)
+        or "\\" in value
+        or "\x00" in value
+        or len(value) > MAX_PATH
+    ):
+        return False
+    # `C:component.json` is drive-relative on Windows even though ntpath does
+    # not call it absolute. Dot segments likewise give multiple spellings of
+    # one component, and a trailing slash names a directory rather than a file.
+    # Every segment must also contain one printable ASCII graphic. Surrounding
+    # Unicode is retained, while a segment made only of control, format or
+    # private-use code points cannot look empty to one reader and named to
+    # another. Version 2 is the portable contract, so refuse these forms here.
+    drive, _ = ntpath.splitdrive(value)
+    parts = value.split("/")
+    return not drive and all(
+        part not in ("", ".", "..") and portable_name_v2(part) for part in parts
+    )
 
 
 def stated(value):
@@ -211,7 +310,14 @@ def exactly_false(record, field):
     return field in record and record[field] is False
 
 
-def gate_2_environment(statement):
+def _gate_2_environment(
+    statement,
+    chain_fields,
+    path_check=usable_path,
+    max_subjects=None,
+    strict_shape=False,
+    name_check=stated,
+):
     """A block number is not a pin.
 
     Recoverable means somebody else can find the same state again: the chain, the
@@ -254,15 +360,17 @@ def gate_2_environment(statement):
                 "block_hash must be a lowercase 0x-prefixed 32-byte hash, not %r"
                 % (chain["block_hash"],)
             )
-        # Present is checked; absent is the evidence check's question, because
-        # whether a fixture needs a state root depends on what it claims.
-        if "state_root" in chain and not hash32(chain["state_root"]):
-            faults.append(
-                "state_root must be a lowercase 0x-prefixed 32-byte hash, not %r"
-                % (chain["state_root"],)
-            )
+        # Present roots are checked here; absence is the evidence check's
+        # question, because whether a fixture needs either root depends on the
+        # independently counted class that claims its authority.
+        for root_field in sorted(set(chain_fields) - set(CHAIN_REQUIRED)):
+            if root_field in chain and not hash32(chain[root_field]):
+                faults.append(
+                    "%s must be a lowercase 0x-prefixed 32-byte hash, not %r"
+                    % (root_field, chain[root_field])
+                )
     if isinstance(chain, dict):
-        unknown = sorted(set(chain) - set(CHAIN_FIELDS))
+        unknown = sorted(set(chain) - set(chain_fields))
         if unknown:
             faults.append(
                 "chain carries fields this type does not define: %s"
@@ -274,11 +382,20 @@ def gate_2_environment(statement):
     if absent:
         faults.append("capture is missing %s" % ", ".join(absent))
     else:
+        if strict_shape:
+            unknown = sorted(set(capture) - set(CAPTURE_REQUIRED))
+            if unknown:
+                faults.append(
+                    "capture carries fields this type does not define: %s"
+                    % ", ".join(unknown)
+                )
         for field in ("tool", "tool_version"):
-            if not stated(capture.get(field)):
+            if not name_check(capture.get(field)):
                 faults.append("capture %s must name something" % field)
         command = capture.get("command")
-        if not isinstance(command, list) or not all(stated(word) for word in command):
+        if not isinstance(command, list) or not all(
+            name_check(word) for word in command
+        ):
             faults.append(
                 "capture command must be an argv of non-empty strings; a word "
                 "that is empty or only whitespace is not what ran"
@@ -291,6 +408,13 @@ def gate_2_environment(statement):
     subjects = predicate.get("fixture_subjects")
     if not isinstance(subjects, list) or not subjects:
         faults.append("fixture_subjects must be a non-empty array")
+    elif max_subjects is not None and len(subjects) > max_subjects:
+        # Refuse before walking a producer-sized list. Version 1 retains its
+        # historical behavior; version 2 publishes this exact schema ceiling.
+        faults.append(
+            "fixture_subjects lists %d components; this type reads at most %d"
+            % (len(subjects), max_subjects)
+        )
     else:
         seen = set()
         for entry in subjects:
@@ -314,14 +438,21 @@ def gate_2_environment(statement):
             if absent:
                 faults.append("%s is missing %s" % (label, ", ".join(absent)))
                 continue
-            if not stated(entry["name"]):
+            if strict_shape:
+                unknown = sorted(set(entry) - set(FIXTURE_SUBJECT_REQUIRED))
+                if unknown:
+                    faults.append(
+                        "%s carries fields this type does not define: %s"
+                        % (label, ", ".join(unknown))
+                    )
+            if not name_check(entry["name"]):
                 faults.append("fixture subject %d has no name" % (index + 1))
             if not whole_number(entry["bytes"]) or not 0 <= entry["bytes"] <= MAX_BYTES:
                 faults.append(
                     "%s bytes must be a whole number of bytes up to %d, not %r"
                     % (label, MAX_BYTES, entry["bytes"])
                 )
-            if not usable_path(entry["path"]):
+            if not path_check(entry["path"]):
                 faults.append(
                     "%s path %r is not a fixture-relative path; a reader "
                     "resolving it against the fixture would land outside it"
@@ -352,7 +483,12 @@ def gate_2_environment(statement):
     )
 
 
-def section_faults(section, body):
+def gate_2_environment(statement):
+    """Gate 2 for the stable state-fixture/v1 vocabulary."""
+    return _gate_2_environment(statement, CHAIN_FIELDS)
+
+
+def section_faults(section, body, strict_shape=False, name_check=stated):
     """Gate 5 inside a section: a listed change names both of its sides."""
     faults = []
     unknown = sorted(set(body) - set(COMPONENT_KEYS))
@@ -368,7 +504,7 @@ def section_faults(section, body):
             continue
         if key not in BOTH_SIDED:
             for index, entry in enumerate(entries):
-                if not stated(entry):
+                if not name_check(entry):
                     faults.append(
                         "deltas %s.%s[%d] identifies no component"
                         % (section, key, index)
@@ -380,6 +516,13 @@ def section_faults(section, body):
                     "deltas %s.%s[%d] is not an object" % (section, key, index)
                 )
                 continue
+            if strict_shape:
+                unknown = sorted(set(entry) - {"baseline", "current"})
+                if unknown:
+                    faults.append(
+                        "deltas %s.%s[%d] carries unknown fields: %s"
+                        % (section, key, index, ", ".join(unknown))
+                    )
             absent = [side for side in ("baseline", "current") if side not in entry]
             if absent:
                 faults.append(
@@ -388,7 +531,7 @@ def section_faults(section, body):
                 )
                 continue
             for side in ("baseline", "current"):
-                if not stated(entry[side]):
+                if not name_check(entry[side]):
                     faults.append(
                         "deltas %s.%s[%d] %s identifies no component"
                         % (section, key, index, side)
@@ -396,7 +539,12 @@ def section_faults(section, body):
     return faults
 
 
-def gate_5_deltas(statement):
+def _gate_5_deltas(
+    statement,
+    require_complete_shape=False,
+    strict_shape=False,
+    name_check=stated,
+):
     """A comparison fails when either end cannot be identified exactly.
 
     The absent case is a claim of its own. A first fixture carries
@@ -424,6 +572,10 @@ def gate_5_deltas(statement):
         return Gate(5, "deltas", False, "deltas must be an object")
 
     faults = []
+    if require_complete_shape:
+        for side in ("baseline", "current"):
+            if side not in deltas:
+                faults.append("deltas names no %s side" % side)
     content = {
         section: deltas.get(section)
         for section in DELTA_SECTIONS
@@ -440,10 +592,37 @@ def gate_5_deltas(statement):
         if not isinstance(deltas[section], dict):
             faults.append("deltas %s must be an object" % section)
             continue
-        faults.extend(section_faults(section, deltas[section]))
+        faults.extend(
+            section_faults(
+                section,
+                deltas[section],
+                strict_shape=strict_shape,
+                name_check=name_check,
+            )
+        )
+
+    if strict_shape:
+        for side in ("baseline", "current"):
+            value = deltas.get(side)
+            if isinstance(value, dict):
+                unknown = sorted(set(value) - {"name", "digest"})
+                if unknown:
+                    faults.append(
+                        "delta %s side carries unknown fields: %s"
+                        % (side, ", ".join(unknown))
+                    )
+        if "reason" in deltas and not isinstance(deltas["reason"], str):
+            faults.append("deltas reason must be a string")
 
     if "current" in deltas:
         check_side(deltas.get("current"), "current", faults)
+        current = deltas.get("current")
+        if (
+            isinstance(current, dict)
+            and stated(current.get("name"))
+            and not name_check(current["name"])
+        ):
+            faults.append("delta current side has no portable name")
         if not faults and not statement.covers(deltas["current"]["digest"]):
             faults.append("delta current side is not a subject of this statement")
 
@@ -455,6 +634,8 @@ def gate_5_deltas(statement):
             faults.append(
                 "deltas record %s against a null baseline" % ", ".join(sorted(content))
             )
+        elif require_complete_shape and "components" in deltas:
+            faults.append("deltas carries a components section against a null baseline")
         if faults:
             return Gate(5, "deltas", False, "; ".join(faults))
         named = ""
@@ -465,6 +646,13 @@ def gate_5_deltas(statement):
         )
 
     check_side(deltas.get("baseline"), "baseline", faults)
+    baseline = deltas.get("baseline")
+    if (
+        isinstance(baseline, dict)
+        and stated(baseline.get("name"))
+        and not name_check(baseline["name"])
+    ):
+        faults.append("delta baseline side has no portable name")
     if "current" not in deltas:
         faults.append("a comparison against a baseline names a current side")
     if faults:
@@ -483,7 +671,12 @@ def gate_5_deltas(statement):
     )
 
 
-def gate_evidence(statement):
+def gate_5_deltas(statement):
+    """Gate 5 for the stable state-fixture/v1 vocabulary."""
+    return _gate_5_deltas(statement)
+
+
+def _gate_evidence(statement, evidence_classes, roots):
     """Every class counted, and nothing counted as proved without a proof.
 
     The three classes are not interchangeable and this is the check that says so.
@@ -515,13 +708,13 @@ def gate_evidence(statement):
         return Gate(None, "evidence", False, "evidence must be an object")
 
     faults = []
-    unknown = sorted(set(evidence) - set(EVIDENCE_CLASSES))
+    unknown = sorted(set(evidence) - set(evidence_classes))
     if unknown:
         faults.append(
             "evidence carries classes this type does not define: %s"
             % ", ".join(unknown)
         )
-    for name in EVIDENCE_CLASSES:
+    for name in evidence_classes:
         if name not in evidence:
             faults.append(
                 "evidence has no %s count; a class left out reads as nothing of "
@@ -539,12 +732,14 @@ def gate_evidence(statement):
         return Gate(None, "evidence", False, "; ".join(faults))
 
     chain = predicate.get("chain")
-    root = chain.get("state_root") if isinstance(chain, dict) else None
-    if evidence[PROVED] > 0 and not hash32(root):
-        faults.append(
-            "evidence counts %d %s record(s) with no state root to have proved "
-            "them against" % (evidence[PROVED], PROVED)
-        )
+    chain = chain if isinstance(chain, dict) else {}
+    for evidence_class, (root_field, root_label) in roots.items():
+        if evidence[evidence_class] > 0 and not hash32(chain.get(root_field)):
+            faults.append(
+                "evidence counts %d %s record(s) with no %s to have proved "
+                "them against"
+                % (evidence[evidence_class], evidence_class, root_label)
+            )
 
     if faults:
         return Gate(None, "evidence", False, "; ".join(faults))
@@ -552,7 +747,16 @@ def gate_evidence(statement):
         None,
         "evidence",
         True,
-        ", ".join("%d %s" % (evidence[name], name) for name in EVIDENCE_CLASSES),
+        ", ".join("%d %s" % (evidence[name], name) for name in evidence_classes),
+    )
+
+
+def gate_evidence(statement):
+    """The v1 evidence split: only state proofs require a root."""
+    return _gate_evidence(
+        statement,
+        EVIDENCE_CLASSES,
+        {PROVED: ("state_root", "state root")},
     )
 
 
@@ -570,7 +774,16 @@ REFUSALS = {
 than the rule."""
 
 
-def gate_replay(statement):
+REFUSALS_V2 = dict(
+    REFUSALS,
+    provider_independence_claim=(
+        "matching operator-chosen source labels do not establish independent "
+        "providers"
+    ),
+)
+
+
+def _gate_replay(statement, replay_required, refusals, local_only=False):
     """A closed boundary, and no claim about the canonical chain.
 
     Both fields are required and both must be false. `reaches_network` records
@@ -597,19 +810,19 @@ def gate_replay(statement):
         return Gate(None, "replay", False, "replay must be an object")
 
     faults = []
-    unknown = sorted(set(replay) - set(REPLAY_REQUIRED))
+    unknown = sorted(set(replay) - set(replay_required))
     if unknown:
         faults.append(
             "replay carries fields this type does not define: %s"
             % ", ".join(unknown)
         )
-    for field in REPLAY_REQUIRED:
+    for field in replay_required:
         if field not in replay:
             faults.append("replay does not record %s" % field)
             continue
         if replay[field] is True:
             faults.append(
-                "replay %s is true; %s" % (field, REFUSALS[field])
+                "replay %s is true; %s" % (field, refusals[field])
             )
             continue
         if not exactly_false(replay, field):
@@ -618,16 +831,27 @@ def gate_replay(statement):
                 "and %r is not in its vocabulary"
                 % (field, replay[field], replay[field])
             )
+    commands = predicate.get("commands") if isinstance(predicate, dict) else None
+    if local_only and isinstance(commands, list) and commands:
+        faults.append(
+            "state-fixture/v2 replay is local-file verification only and records "
+            "no executable commands"
+        )
 
     if faults:
         return Gate(None, "replay", False, "; ".join(faults))
-    return Gate(
-        None,
-        "replay",
-        True,
-        "replay reaches no network and claims nothing about the canonical chain",
-    )
-def gate_fields(statement):
+    detail = "replay reaches no network and claims nothing about the canonical chain"
+    if "provider_independence_claim" in replay_required:
+        detail += " or provider independence"
+    return Gate(None, "replay", True, detail)
+
+
+def gate_replay(statement):
+    """The stable v1 replay boundary."""
+    return _gate_replay(statement, REPLAY_REQUIRED, REFUSALS)
+
+
+def gate_fields(statement, strict_shape=False):
     """Nothing outside the shape.
 
     Absence is left to the gate that owns each field: gate 2 for the pin, the
@@ -646,6 +870,22 @@ def gate_fields(statement):
             "predicate carries fields this type does not define: %s"
             % ", ".join(unknown),
         )
+    if strict_shape:
+        faults = []
+        claims = predicate.get("claims")
+        if isinstance(claims, list):
+            for index, claim in enumerate(claims):
+                if not isinstance(claim, dict):
+                    continue
+                label = "claim %d" % (index + 1)
+                if "name" not in claim or not portable_name_v2(claim["name"]):
+                    faults.append("%s name must contain a portable graphic" % label)
+                if "reason" in claim and not isinstance(claim["reason"], str):
+                    faults.append("%s reason must be a string" % label)
+                if "detail" in claim and not isinstance(claim["detail"], dict):
+                    faults.append("%s detail must be an object" % label)
+        if faults:
+            return Gate(None, "predicate-fields", False, "; ".join(faults))
     return Gate(None, "predicate-fields", True, "no fields outside the shape")
 
 
@@ -657,3 +897,74 @@ def check(statement):
         gate_evidence(statement),
         gate_replay(statement),
     ]
+
+
+class _StateFixtureV2(object):
+    """The separately registered receipt-aware predicate interface.
+
+    The implementation shares the stable v1 shape machinery, but the URI,
+    accepted fields and root-to-evidence rules are explicit here. Registering a
+    distinct object prevents a v1 statement from acquiring v2 meaning through
+    an implicit upgrade.
+    """
+
+    TYPE = TYPE_V2
+    SUMMARY = SUMMARY_V2
+    EVIDENCE_CLASSES = EVIDENCE_CLASSES_V2
+    PROVED = PROVED
+    RECEIPT_PROVED = RECEIPT_PROVED
+    CHAIN_REQUIRED = CHAIN_REQUIRED
+    CHAIN_FIELDS = CHAIN_FIELDS_V2
+    REPLAY_REQUIRED = REPLAY_REQUIRED + ("provider_independence_claim",)
+    PREDICATE_FIELDS = PREDICATE_FIELDS
+    REQUIRED_FIELDS = REQUIRED_FIELDS
+    MAX_PATH = MAX_PATH
+    MAX_FIXTURE_SUBJECTS = MAX_FIXTURE_SUBJECTS_V2
+
+    @staticmethod
+    def check(statement):
+        found = [
+            _gate_2_environment(
+                statement,
+                CHAIN_FIELDS_V2,
+                path_check=usable_path_v2,
+                max_subjects=MAX_FIXTURE_SUBJECTS_V2,
+                strict_shape=True,
+                name_check=portable_name_v2,
+            ),
+            _gate_5_deltas(
+                statement,
+                require_complete_shape=True,
+                strict_shape=True,
+                name_check=portable_name_v2,
+            ),
+            gate_fields(statement, strict_shape=True),
+            _gate_evidence(
+                statement,
+                EVIDENCE_CLASSES_V2,
+                {
+                    PROVED: ("state_root", "state root"),
+                    RECEIPT_PROVED: ("receipts_root", "receipts root"),
+                },
+            ),
+            subject_names_v2(statement),
+            _gate_replay(
+                statement,
+                REPLAY_REQUIRED + ("provider_independence_claim",),
+                REFUSALS_V2,
+                local_only=True,
+            ),
+        ]
+        return [
+            Gate(
+                gate.number,
+                gate.name,
+                gate.passed,
+                "state-fixture/v2 %s check %s"
+                % (gate.name, "passed" if gate.passed else "failed"),
+            )
+            for gate in found
+        ]
+
+
+V2 = _StateFixtureV2()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Any
 
@@ -60,6 +60,10 @@ SCHEMAS: dict[tuple[str, int], tuple[str, str]] = {
     ("release", 1): (
         "release-v1.json",
         "f7b8ce3eb37c40d79a23bdff1d88dd0e6e163c2d72ec67575b3b4e7023d5415d",
+    ),
+    ("release", 2): (
+        "release-v2.json",
+        "9e86949866f91e57fc90434d00a9db0ad9383739a151ef5f54166a123b09137a",
     ),
 }
 
@@ -190,7 +194,7 @@ def _validate_release(release: dict[str, Any]) -> None:
     statement = validate_relative_path(release["statement"]["path"])
     if fixture == statement:
         raise FormatError("release fixture and statement are the same path")
-    if statement.split("/")[0] == fixture:
+    if PurePosixPath(statement).is_relative_to(PurePosixPath(fixture)):
         raise FormatError(
             "release statement sits inside the fixture it describes; the fixture "
             "digest would cover the statement made about it"

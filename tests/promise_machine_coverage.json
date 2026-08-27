@@ -2704,7 +2704,7 @@
         "transition": "allow-execution authority and replay exit joined to the canonical Authorises field",
         "unknowns": "redacted arguments, unchecked predicates and non-deterministic records"
       },
-      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
+      "sha256": "ba45c1fcfba8a2bf9cafbcf09b97c752d3c756eee97cd5d4124da94bea359412",
       "source": "plugins/ariadne/scripts/ariadne.py"
     },
     "ariadne-verify-statement": {
@@ -2718,7 +2718,7 @@
         "transition": "zero-exit gate result joined to the canonical Authorises field",
         "unknowns": "unchecked predicates, unsigned status and skipped records"
       },
-      "sha256": "af69eb88dc6b927c6c715aa94baa2b09aa67a577ba75c0295f51711700d8132d",
+      "sha256": "ba45c1fcfba8a2bf9cafbcf09b97c752d3c756eee97cd5d4124da94bea359412",
       "source": "plugins/ariadne/scripts/ariadne.py"
     },
     "berean-release-promotion": {

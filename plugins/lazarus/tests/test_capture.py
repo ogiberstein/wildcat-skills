@@ -1007,6 +1007,25 @@ class ReceiptCaptureTests(unittest.TestCase):
             material["anchor_records"][0]["observed_at"].replace("Z", "+00:00")
         )
 
+    def rpc_without_fixture_port(self, dispatch, forbidden_bytes, **options):
+        """Bind a loopback port whose spelling is absent from fixed output."""
+        rejected = []
+        selected = None
+        try:
+            for _ in range(128):
+                candidate = FakeRpc(dispatch, **options)
+                port = str(candidate.server.server_address[1]).encode("ascii")
+                if port not in forbidden_bytes:
+                    selected = candidate
+                    break
+                rejected.append(candidate)
+        finally:
+            for candidate in rejected:
+                candidate.server.server_close()
+        if selected is None:
+            self.fail("could not allocate a fixture-neutral loopback port")
+        return selected
+
     def capture_material(
         self,
         material,
@@ -1020,16 +1039,23 @@ class ReceiptCaptureTests(unittest.TestCase):
         source_id = material["plan"]["anchor_sources"][0]["source_id"]
         plan_path = root / "receipt-plan.json"
         dump(plan_path, material["plan"])
+        forbidden_port_bytes = b"".join(
+            path.read_bytes()
+            for path in sorted(support.RECEIPT_PROOF_FIXTURE.iterdir())
+            if path.is_file()
+        )
         with ExitStack() as stack:
             primary = stack.enter_context(
-                FakeRpc(
+                self.rpc_without_fixture_port(
                     dispatch or receipt_material_dispatch(material),
+                    forbidden_port_bytes,
                     reverse_fields=reverse_fields,
                 )
             )
             anchor = stack.enter_context(
-                FakeRpc(
+                self.rpc_without_fixture_port(
                     receipt_material_dispatch(material),
+                    forbidden_port_bytes,
                     reverse_fields=reverse_fields,
                 )
             )

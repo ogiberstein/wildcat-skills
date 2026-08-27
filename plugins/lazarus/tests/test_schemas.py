@@ -31,9 +31,50 @@ class SchemaTests(unittest.TestCase):
         self.assertIn(("plan", 2), SCHEMAS)
         self.assertIn(("plan", 3), SCHEMAS)
         self.assertIn(("manifest", 2), SCHEMAS)
+        self.assertIn(("release", 2), SCHEMAS)
 
     def test_a_well_formed_release_document_passes(self):
         validate_document("release", support.sample_release())
+        validate_document("release", support.sample_release_v2())
+
+    def test_release_versions_keep_their_predicate_and_evidence_vocabularies(self):
+        v1 = support.sample_release()
+        v1["verified"]["evidence_counts"]["receipt_trie_proved"] = 2
+        v2 = support.sample_release_v2()
+        v2["statement"]["predicate_type"] = (
+            "https://ariadne.wildcat.finance/state-fixture/v1"
+        )
+        for document in (v1, v2):
+            with self.subTest(version=document["schema_version"]):
+                with self.assertRaises(FormatError):
+                    validate_document("release", document)
+
+    def test_release_v2_requires_a_nonzero_receipts_root_and_four_counts(self):
+        for field, value in (
+            ("receipts_root", None),
+            ("receipts_root", "0x" + "0" * 64),
+            ("receipts_root", "0x1234"),
+            ("receipt_trie_proved", None),
+            ("receipt_trie_proved", True),
+            ("receipt_trie_proved", 0),
+        ):
+            document = support.sample_release_v2()
+            target = document["verified"]
+            if field == "receipt_trie_proved":
+                target = target["evidence_counts"]
+            if value is None:
+                del target[field]
+            else:
+                target[field] = value
+            with self.subTest(field=field, value=value):
+                with self.assertRaises(FormatError):
+                    validate_document("release", document)
+
+    def test_release_v2_has_no_transaction_hash_proof_field(self):
+        document = support.sample_release_v2()
+        document["verified"]["transaction_hash_attribution"] = True
+        with self.assertRaises(FormatError):
+            validate_document("release", document)
 
     def test_a_release_missing_any_required_field_fails(self):
         for field in (
@@ -149,10 +190,15 @@ class SchemaTests(unittest.TestCase):
     def test_a_statement_inside_the_fixture_fails(self):
         """The fixture digest would otherwise cover the statement made about
         it, which makes the statement part of its own subject."""
-        document = support.sample_release()
-        document["statement"]["path"] = "fixture/statement.json"
-        with self.assertRaises(FormatError):
-            validate_document("release", document)
+        for fixture, statement in (
+            ("fixture", "fixture/statement.json"),
+            ("inner/fixture", "inner/fixture/statement.json"),
+        ):
+            document = support.sample_release()
+            document["fixture"]["path"] = fixture
+            document["statement"]["path"] = statement
+            with self.subTest(fixture=fixture), self.assertRaises(FormatError):
+                validate_document("release", document)
 
     def test_valid_plan_header_rpc_and_proof_documents_pass(self):
         validate_document("plan", support.sample_plan())
