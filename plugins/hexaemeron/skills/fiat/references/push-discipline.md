@@ -218,6 +218,41 @@ hexctl done push --pr-url <url> --head-commit <sha> --pr-base <ref>
 
 The receipt refuses a `--merge-commit` here. Merges belong to `integrate`.
 
+## Step checkpoint
+
+In force for every run until Wave Delta is complete, at the Creator's
+direction (2026-08-27). Once a step's `done push` receipt succeeds, and
+before acting on the next directive, upload a portable checkpoint so another
+contributor can pick up the completed steps in the interim:
+
+- Build the checkpoint in the fashion of
+  [the fiat-377 end-of-step-2 note](https://github.com/wildcat-finance/skills/issues/377#issuecomment-5435028801):
+  a self-contained Git bundle carrying the base, the run branch and every
+  step branch; the run worktree's complete `.hexaemeron` directory as a zip,
+  transient lock excluded; `MANIFEST.json` with the ref boundary, the run
+  commits with per-commit signature and trailer results, the signer
+  fingerprints, the artifact digests, the restore rule and the proof list;
+  `pubkey.asc`, the public key of whoever signed the run's commits;
+  the proof transcript from the producing machine; a `.sha256` sidecar for
+  each of the three main artifacts; and `CHECKPOINT-README.txt` with the
+  contents list and the restore rule.
+- Upload one zip into the HexaemeronCheckpoints Drive folder itself
+  (`1BXLR1eppDrYWU8RSK9e83scPkWb9u7Sq`), not a subfolder: the fiat-377 run's
+  subfolder returned 404 to anonymous readers while the parent-folder zip
+  stayed fetchable, and link accessibility is what the checkpoint exists for.
+- Post a note on the run's task issue carrying the SHA-256 digests. The
+  digests on the issue are the trust anchor, not the sidecars.
+
+A run picked up from a checkpoint zip verifies before anything else:
+recompute the digests against the issue note, import the bundled key and pin
+it to the fingerprints the MANIFEST records, verify the bundle and its ref
+boundary, then `git verify-commit` every run commit with an exactly-once
+count of both provenance trailers, compared against the bundled proof
+transcript. Work that already landed on `main` needs no clean-machine proof
+beyond that. A run that modifies the alexandria or lazarus plugins owes one
+more: the same battery run by a remote agent in a fresh Linux container
+(colima or Docker, empty keyring, checkpoint fetched inside the container).
+
 ## Bringing the stack down
 
 `next` returns `merge-step` once per step, in step order, starting at the
