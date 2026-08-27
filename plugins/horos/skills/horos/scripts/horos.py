@@ -67,6 +67,56 @@ GENERATED_MARKERS = (
     "automatically generated",
 )
 
+# A marker binds only on a comment-led line: a line whose first
+# non-whitespace characters are one of these fixed, language-independent
+# leaders. A generator declares itself in a comment banner; a marker inside
+# a string literal, a call argument or a JSON value is data about markers,
+# which is how this classifier once excluded its own source. `*` is in
+# because block comments continue lines with it, the shape Javadoc and
+# JSDoc banners take, and `--` because SQL, Haskell and Lua
+# comment with it; `<!--` covers HTML and Markdown, `;` assembly, ini and
+# Lisp, `%` TeX, MATLAB, Erlang and Prolog. The set is deliberately not
+# per-extension: a fixed set is deterministic on any byte sequence and
+# cannot be steered by a file's name.
+COMMENT_LEADERS = ("#", "//", "/*", "*", "<!--", "--", ";", "%")
+
+
+def marker_on_comment_led_line(lines):
+    """The first generated-file marker sitting on a comment-led line, or None.
+
+    Lines arrive as decoded text; the caller decides which lines are safe to
+    judge (the window pass hands over only lines wholly contained in its
+    window, so an offset landing mid-line cannot manufacture a match).
+    """
+    for line in lines:
+        if not line.lstrip().startswith(COMMENT_LEADERS):
+            continue
+        lowered = line.lower()
+        for marker in GENERATED_MARKERS:
+            if marker in lowered:
+                return marker
+    return None
+
+
+def contained_window_lines(window_text, offset, reached_end):
+    """The lines wholly contained in a window read at the given offset.
+
+    A window starting past byte zero is read blind: the byte before the
+    offset is never seen, so the first fragment is always dropped. Usually
+    that fragment is a partial line whose true start, and therefore leader,
+    lies outside the window; when the offset happens to land exactly on a
+    line's first byte, the drop instead costs that one whole line, a
+    bounded, fail-open recall loss. The final fragment is dropped unless
+    the window reached the end of the file, where the fragment is the
+    file's real last line.
+    """
+    lines = window_text.split("\n")
+    if offset > 0:
+        lines = lines[1:]
+    if not reached_end and lines:
+        lines = lines[:-1]
+    return lines
+
 GENERATED_DIR_NAMES = frozenset({"build", "dist", "out", "storybook-static"})
 
 VENDORED_DIR_NAMES = frozenset(
@@ -269,13 +319,16 @@ def classify_content(name, size, prefix):
             "candidate",
         )
 
-    for marker in GENERATED_MARKERS:
-        if marker in lowered:
-            return (
-                "generated",
-                f"marker {marker!r} in the first {PREFIX_BYTES} bytes",
-                "hard",
-            )
+    # The prefix starts at byte zero, so every line start it sees is real;
+    # only the last line can be truncated, and truncation can lose a marker
+    # (fail-open) but never invent one.
+    marker = marker_on_comment_led_line(text.splitlines())
+    if marker is not None:
+        return (
+            "generated",
+            f"marker {marker!r} on a comment-led line in the first {PREFIX_BYTES} bytes",
+            "hard",
+        )
 
     if name.endswith(".map") and '"mappings"' in text:
         return (
@@ -311,14 +364,18 @@ def classify_windows(fullpath, name, size):
         for offset in offsets:
             handle.seek(offset)
             window = handle.read(WINDOW_BYTES)
-            lowered = window.decode("utf-8", errors="replace").lower()
-            for marker in GENERATED_MARKERS:
-                if marker in lowered:
-                    return (
-                        "generated",
-                        f"marker {marker!r} in a {WINDOW_BYTES}-byte window at offset {offset}",
-                        "hard",
-                    )
+            text = window.decode("utf-8", errors="replace")
+            reached_end = offset + len(window) >= size
+            marker = marker_on_comment_led_line(
+                contained_window_lines(text, offset, reached_end)
+            )
+            if marker is not None:
+                return (
+                    "generated",
+                    f"marker {marker!r} on a comment-led line in a "
+                    f"{WINDOW_BYTES}-byte window at offset {offset}",
+                    "hard",
+                )
             newlines = window.count(b"\n")
             if newlines == 0:
                 return (
