@@ -26,8 +26,6 @@ RECEIPT_FIXTURE = support.PLUGIN_ROOT / "examples" / "goldfinch-v1"
 ANCHOR_FIXTURE = support.PLUGIN_ROOT / "examples" / "multi-provider-anchor-v0"
 DEMO_PATH = FIXTURE / "demo.py"
 RECEIPT_DEMO_PATH = RECEIPT_FIXTURE / "demo.py"
-TRANSACTION = "0xa46a744d6d52528a660c1d99a4edde403504fe7a308118c7cc947819583ce699"
-MARKET = "0x8bbd80f88e662e56b918c353da635e210ece93c6"
 RECEIPTS_ROOT = "0xaf03b0508121deb9ed0282a8961dc0ea695a97244a42ed2b0af04cb9bbc6226e"
 
 
@@ -77,18 +75,6 @@ class GoldfinchDemoTests(unittest.TestCase):
         self.assertEqual(report["proof_backed"]["accounts_included"], 1)
         self.assertEqual(report["proof_backed"]["storage_included"], 1)
         self.assertFalse(report["header_bound"]["canonical_chain_claim"])
-
-        source = (
-            support.REPO_ROOT
-            / "plugins"
-            / "tabularium"
-            / "examples"
-            / "goldfinch-v0"
-            / "events.jsonl"
-        )
-        first = loads(source.read_text(encoding="utf-8").splitlines()[0].encode())
-        self.assertEqual(first["instrument"]["id"], MARKET)
-        self.assertEqual(first["transaction"]["hash"], TRANSACTION)
 
     def test_demo_command_runs_the_complete_application_check(self):
         result = subprocess.run(

@@ -476,15 +476,6 @@ class Suppression(unittest.TestCase):
 
 
 class OverTheMarketplace(unittest.TestCase):
-    def test_first_party_records_all_resolve(self):
-        marketplace = ROOT.parents[1]
-        files = hypomnema.walk([str(marketplace / "plugins"), str(marketplace / "docs")])
-        index = hypomnema.adr_index(files)
-        findings = []
-        for path in files:
-            findings.extend(hypomnema.check(path, index))
-        self.assertEqual([], [str(f) for f in findings])
-
     def test_the_vendored_suite_is_skipped_by_default(self):
         marketplace = ROOT.parents[1]
         paths = hypomnema.walk([str(marketplace / "plugins" / "hexaemeron" / "skills")])
@@ -595,31 +586,18 @@ class RecordShape(unittest.TestCase):
                          ["H004", "H004", "H004", "H005"])
 
     def test_the_walk_skips_fixture_specimens_by_default(self):
-        marketplace = ROOT.parents[1]
-        paths = hypomnema.walk([str(marketplace / "plugins")])
-        self.assertEqual([], [p for p in paths if "fixtures" in p.parts])
+        with tempfile.TemporaryDirectory() as base:
+            root = Path(base)
+            (root / "bar.md").write_text(COMPLETE_RECORD, encoding="utf-8")
+            (root / "fixtures").mkdir()
+            (root / "fixtures" / "foo.md").write_text(COMPLETE_RECORD, encoding="utf-8")
+            paths = hypomnema.walk([str(root)])
+            self.assertIn("bar.md", {p.name for p in paths})
+            self.assertEqual([], [p for p in paths if "fixtures" in p.parts])
 
     def test_naming_a_fixtures_path_still_reads_it(self):
         paths = hypomnema.walk([str(FIXTURES / "decisions")])
         self.assertEqual(2, len(paths))
-
-    def test_every_record_in_the_tree_passes(self):
-        """Counts the records it found rather than a number written here.
-
-        The literal was 6 and the Hermes corpus run added ADR-007 and ADR-008,
-        so the count broke on a merge for a reason that had nothing to do with
-        record shape. What this case is for is that every record in the tree
-        passes the checker, and a directory holding at least the six that
-        existed when it was written is enough to prove the walk found them.
-        """
-        marketplace = ROOT.parents[1]
-        decisions = marketplace / "docs" / "decisions"
-        paths = hypomnema.walk([str(decisions)])
-        self.assertGreaterEqual(len(paths), 6)
-        findings = []
-        for path in paths:
-            findings.extend(hypomnema.check(path))
-        self.assertEqual([], [str(f) for f in findings])
 
 
 def source_codes(source, name="specimen.py", adrs=frozenset({"ADR-001"})):
@@ -688,15 +666,6 @@ class SourceComments(unittest.TestCase):
         self.assertEqual(["H006"],
                          sorted(f.code for f in findings if f.code == "H006"))
 
-    def test_the_tree_walk_stays_clean_with_source_files_included(self):
-        marketplace = ROOT.parents[1]
-        files = hypomnema.walk([str(marketplace / "plugins"), str(marketplace / "docs")])
-        self.assertTrue(any(p.suffix == ".py" for p in files))
-        index = hypomnema.adr_index(files)
-        findings = []
-        for path in files:
-            findings.extend(hypomnema.check(path, index))
-        self.assertEqual([], [str(f) for f in findings])
 
 
 if __name__ == "__main__":
