@@ -221,7 +221,9 @@ The receipt refuses a `--merge-commit` here. Merges belong to `integrate`.
 ## Step checkpoint
 
 In force for every run until Wave Delta is complete, at the Creator's
-direction (2026-08-27). Once a step's `done push` receipt succeeds, and
+direction (2026-08-27). Anyone directing a run may waive it for that run by
+saying so explicitly; record that waiver and its wording in the run's
+evidence. Nothing else opts out. Once a step's `done push` receipt succeeds, and
 before acting on the next directive, upload a portable checkpoint so another
 contributor can pick up the completed steps in the interim:
 
@@ -240,6 +242,11 @@ contributor can pick up the completed steps in the interim:
   (`1BXLR1eppDrYWU8RSK9e83scPkWb9u7Sq`), not a subfolder: the fiat-377 run's
   subfolder returned 404 to anonymous readers while the parent-folder zip
   stayed fetchable, and link accessibility is what the checkpoint exists for.
+- Upload the zip's own `.sha256` sidecar beside it in the same folder. The
+  digest is computed over the archive's contents, so it cannot travel inside
+  the archive; the sidecar is what a reader checks before opening the
+  download, and the inner sidecars only cover member artifacts after
+  extraction. The digests on the issue remain the trust anchor.
 - Post a note on the run's task issue carrying the SHA-256 digests. The
   digests on the issue are the trust anchor, not the sidecars.
 
