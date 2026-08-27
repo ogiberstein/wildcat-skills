@@ -101,10 +101,14 @@ def marker_on_comment_led_line(lines):
 def contained_window_lines(window_text, offset, reached_end):
     """The lines wholly contained in a window read at the given offset.
 
-    A window starting past byte zero begins mid-line, so its first fragment
-    is dropped: its true start, and therefore its leader, lies outside the
-    window. The final fragment is dropped unless the window reached the end
-    of the file, where the fragment is the file's real last line.
+    A window starting past byte zero is read blind: the byte before the
+    offset is never seen, so the first fragment is always dropped. Usually
+    that fragment is a partial line whose true start, and therefore leader,
+    lies outside the window; when the offset happens to land exactly on a
+    line's first byte, the drop instead costs that one whole line, a
+    bounded, fail-open recall loss. The final fragment is dropped unless
+    the window reached the end of the file, where the fragment is the
+    file's real last line.
     """
     lines = window_text.split("\n")
     if offset > 0:
