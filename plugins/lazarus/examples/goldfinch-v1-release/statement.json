@@ -10,7 +10,7 @@
     {
       "name": "demo.py",
       "digest": {
-        "sha256": "ceeedc8be11ce1890241b68fcba6d7ba0c0369b2e1b9bac5f216ffb2b9c534dd"
+        "sha256": "88fa4a59a4387e8ca2fbc267607911d0b972e7d63ddd2782cd9bf18701084d27"
       }
     },
     {
@@ -46,7 +46,7 @@
     {
       "name": "goldfinch-v1",
       "digest": {
-        "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+        "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
       }
     }
   ],
@@ -63,7 +63,9 @@
       "tool": "lazarus",
       "tool_version": "0.2.0",
       "command": [
-        "lazarus capture goldfinch-v1"
+        "lazarus",
+        "capture",
+        "goldfinch-v1"
       ],
       "parameters_digest": {
         "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
@@ -82,9 +84,9 @@
         "name": "demo.py",
         "path": "demo.py",
         "digest": {
-          "sha256": "ceeedc8be11ce1890241b68fcba6d7ba0c0369b2e1b9bac5f216ffb2b9c534dd"
+          "sha256": "88fa4a59a4387e8ca2fbc267607911d0b972e7d63ddd2782cd9bf18701084d27"
         },
-        "bytes": 15024
+        "bytes": 15120
       },
       {
         "name": "header.json",
@@ -143,7 +145,7 @@
       "current": {
         "name": "goldfinch-v1",
         "digest": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         }
       },
       "reason": "first receipts-root-proved Goldfinch fixture"
@@ -163,12 +165,12 @@
       {
         "name": "digest and byte count read from the component on disk",
         "subject": {
-          "sha256": "ceeedc8be11ce1890241b68fcba6d7ba0c0369b2e1b9bac5f216ffb2b9c534dd"
+          "sha256": "88fa4a59a4387e8ca2fbc267607911d0b972e7d63ddd2782cd9bf18701084d27"
         },
         "disposition": "passed",
         "detail": {
           "path": "demo.py",
-          "bytes": 15024
+          "bytes": 15120
         }
       },
       {
@@ -229,7 +231,7 @@
       {
         "name": "evidence counts read from the manifest",
         "subject": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         },
         "disposition": "passed",
         "detail": {
@@ -242,7 +244,7 @@
       {
         "name": "receipt-trie relations re-checked by this capture",
         "subject": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         },
         "disposition": "skipped",
         "reason": "this capture reads local manifest evidence and component bytes; Lazarus verification owns receipt-trie proof"
@@ -250,7 +252,7 @@
       {
         "name": "independent providers established",
         "subject": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         },
         "disposition": "skipped",
         "reason": "operator-chosen source labels do not establish provider independence"
@@ -258,7 +260,7 @@
       {
         "name": "transaction hash attributed by the receipt trie",
         "subject": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         },
         "disposition": "skipped",
         "reason": "transaction hashes are recorded RPC decorations outside the consensus receipt and log-projection proof"
@@ -266,7 +268,7 @@
       {
         "name": "state proofs re-checked by this capture",
         "subject": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         },
         "disposition": "skipped",
         "reason": "this capture reads what Lazarus recorded and does not re-verify a trie proof; the counts come from the manifest and re-deriving one would put a judgement in the statement that Ariadne did not make"
@@ -274,7 +276,7 @@
       {
         "name": "the pinned block placed on the canonical chain",
         "subject": {
-          "sha256": "ecefdb08517623adca8919f10bc5b1103bf7eae3f3a22bdbdaf3b54ea73b31bc"
+          "sha256": "101e352f62c833b6fdf8cf2ae5c90c7ba615a0ae11e8a1b9044fdd2f19f4b3a6"
         },
         "disposition": "skipped",
         "reason": "neither tool re-derives a chain, so whether this block is canonical is not established here"

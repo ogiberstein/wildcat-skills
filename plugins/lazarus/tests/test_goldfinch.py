@@ -162,7 +162,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         report = verify_fixture(RECEIPT_FIXTURE)
         self.assertEqual(
             report["fixture_digest"],
-            "64c4fdb4ae977e5588f6ceb14e8ba42992d7cfa958ce46e66ecb8bacc885c0e5",
+            "fbdf01301a2a972bdbe2ee18405083c0f08fd918181e5e414c7fc3cceab2e85c",
         )
         self.assertEqual(
             report["evidence_counts"],

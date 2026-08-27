@@ -154,15 +154,15 @@ class ShippedReceiptReleaseTests(unittest.TestCase):
         report = verify_release(RECEIPT_SHIPPED)
         self.assertEqual(
             report["fixture_digest"],
-            "64c4fdb4ae977e5588f6ceb14e8ba42992d7cfa958ce46e66ecb8bacc885c0e5",
+            "fbdf01301a2a972bdbe2ee18405083c0f08fd918181e5e414c7fc3cceab2e85c",
         )
         self.assertEqual(
             report["statement_sha256"],
-            "076abcbefb1ada13d01c50d709584412e55e9ec32c72b2986ad7ebb53fb88e90",
+            "cbc280fbca4dc6d7d7d70f90df983ac4957fee0ed521a342a2ae29c2a8c1b9e7",
         )
         self.assertEqual(
             report["release_digest"],
-            "a374e87b6f9d082edfef2bf698c1a19330e67c756a1bd23601889a41b6c7a5f7",
+            "c3bec771eb6b47d5435159b01057658c0a886a3a2de14b408482b2c606518ccc",
         )
         self.assertEqual(
             hashlib.sha256(
@@ -194,6 +194,10 @@ class ShippedReceiptReleaseTests(unittest.TestCase):
         self.assertFalse(held["verified"]["canonical_chain_claim"])
         self.assertNotIn("transaction_hash", held["verified"])
         statement = loads((RECEIPT_SHIPPED / STATEMENT_NAME).read_bytes())
+        self.assertEqual(
+            statement["predicate"]["capture"]["command"],
+            ["lazarus", "capture", "goldfinch-v1"],
+        )
         skipped = {
             claim["name"]: claim.get("reason", "")
             for claim in statement["predicate"]["claims"]

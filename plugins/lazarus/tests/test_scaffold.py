@@ -182,6 +182,29 @@ class ScaffoldTests(unittest.TestCase):
             "issue mutation ran in this step.",
             compact_proof,
         )
+        self.assertIn("Seven observed failures were localised", proof)
+        self.assertEqual(proof.count("\n7. "), 1)
+
+        delivery_runbook = (
+            support.REPO_ROOT
+            / "docs"
+            / "lazarus-receipt-inclusion-proofs"
+            / "runbook.md"
+        )
+        self.assertTrue(delivery_runbook.is_file())
+        delivery_runbook = delivery_runbook.read_text(encoding="utf-8")
+        latest_amendment = delivery_runbook.rsplit(
+            "### Amendment -- 2026-08-27", 1
+        )[-1]
+        self.assertIn(
+            "--capture-command lazarus --capture-command capture "
+            "--capture-command goldfinch-v1",
+            latest_amendment,
+        )
+        self.assertNotIn(
+            '--capture-command "lazarus capture goldfinch-v1"',
+            latest_amendment,
+        )
 
     def test_requirements_are_exact_direct_pins(self):
         requirements = (support.PLUGIN_ROOT / "requirements.txt").read_text().splitlines()
@@ -239,7 +262,7 @@ class ScaffoldTests(unittest.TestCase):
         )
         self.assertEqual(
             hashlib.sha256((root / "runbook.md").read_bytes()).hexdigest(),
-            "198d6d2e5c400d0af12cc5a0248839a6761a7085931c2149c74dc0ad31c5f607",
+            "4db54f9a697234e63ff603eed86eaa82f32173487274b25ceb6b4d5afbcc9d44",
         )
 
     def test_receipt_proof_decision_is_discoverable(self):
