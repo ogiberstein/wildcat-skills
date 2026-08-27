@@ -154,15 +154,15 @@ class ShippedReceiptReleaseTests(unittest.TestCase):
         report = verify_release(RECEIPT_SHIPPED)
         self.assertEqual(
             report["fixture_digest"],
-            "fbdf01301a2a972bdbe2ee18405083c0f08fd918181e5e414c7fc3cceab2e85c",
+            "484a474df79e2c28fde42069c55545432645c541abb86f72ec76bdf653858d6e",
         )
         self.assertEqual(
             report["statement_sha256"],
-            "cbc280fbca4dc6d7d7d70f90df983ac4957fee0ed521a342a2ae29c2a8c1b9e7",
+            "d2364e3f2966143d8ffa49ef68250af544847c409f6bca67d2ba8f011979824c",
         )
         self.assertEqual(
             report["release_digest"],
-            "c3bec771eb6b47d5435159b01057658c0a886a3a2de14b408482b2c606518ccc",
+            "fe601b843da5a3f20e02426370bc148b85d0b1beb2de7d5d4c3862f761675bf1",
         )
         self.assertEqual(
             hashlib.sha256(
@@ -196,7 +196,13 @@ class ShippedReceiptReleaseTests(unittest.TestCase):
         statement = loads((RECEIPT_SHIPPED / STATEMENT_NAME).read_bytes())
         self.assertEqual(
             statement["predicate"]["capture"]["command"],
-            ["lazarus", "capture", "goldfinch-v1"],
+            [
+                "python3",
+                "plugins/lazarus/examples/goldfinch-v1/demo.py",
+                "build-fixture",
+                "--out",
+                "tmp/goldfinch-v1-rebuild",
+            ],
         )
         skipped = {
             claim["name"]: claim.get("reason", "")

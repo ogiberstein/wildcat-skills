@@ -3,6 +3,7 @@
 import ipaddress
 from pathlib import Path
 import runpy
+import shutil
 import socket
 import subprocess
 import sys
@@ -12,6 +13,7 @@ import unittest
 from unittest import mock
 
 from lazarus_lib.canonical import load, loads
+from lazarus_lib.errors import LazarusError
 from lazarus_lib.verifier import verify_fixture
 
 from . import support
@@ -162,7 +164,7 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
         report = verify_fixture(RECEIPT_FIXTURE)
         self.assertEqual(
             report["fixture_digest"],
-            "fbdf01301a2a972bdbe2ee18405083c0f08fd918181e5e414c7fc3cceab2e85c",
+            "484a474df79e2c28fde42069c55545432645c541abb86f72ec76bdf653858d6e",
         )
         self.assertEqual(
             report["evidence_counts"],
@@ -236,10 +238,109 @@ class GoldfinchReceiptProofDemoTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual((root / "manifest.json").read_bytes(), expected)
 
+    def test_builder_command_materializes_the_byte_identical_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rebuilt = Path(directory) / "tmp" / "goldfinch-v1"
+            self.assertFalse(rebuilt.parent.exists())
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(RECEIPT_DEMO_PATH),
+                    "build-fixture",
+                    "--out",
+                    str(rebuilt),
+                ],
+                cwd=support.REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(rebuilt.is_dir())
+            self.assertEqual(
+                load_receipt_demo()._tree_bytes(rebuilt),
+                load_receipt_demo()._tree_bytes(RECEIPT_FIXTURE),
+            )
+            event = loads(result.stdout.encode("utf-8"))
+            self.assertEqual(event["event"], "goldfinch_fixture_build")
+            self.assertEqual(event["stage"], "complete")
+            before = load_receipt_demo()._tree_bytes(rebuilt)
+            repeated = subprocess.run(
+                [
+                    sys.executable,
+                    str(RECEIPT_DEMO_PATH),
+                    "build-fixture",
+                    "--out",
+                    str(rebuilt),
+                ],
+                cwd=support.REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+            self.assertNotEqual(repeated.returncode, 0)
+            self.assertEqual(load_receipt_demo()._tree_bytes(rebuilt), before)
+            self.assertEqual(
+                list(rebuilt.parent.glob(f".{rebuilt.name}.stage-*")), []
+            )
+            with self.assertRaises(LazarusError):
+                load_receipt_demo().build_fixture(RECEIPT_FIXTURE / "nested")
+            self.assertFalse((RECEIPT_FIXTURE / "nested").exists())
+
+    def test_every_fixture_mutation_materializes_before_verification(self):
+        demo = load_receipt_demo()
+        mutations = {
+            "receipt": demo._receipt_mutation,
+            "index": demo._index_mutation,
+            "log": demo._log_mutation,
+            "root": demo._root_mutation,
+            "count": demo._count_mutation,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            for label, mutate in mutations.items():
+                with self.subTest(label=label):
+                    changed = workspace / label
+                    shutil.copytree(RECEIPT_FIXTURE, changed)
+                    before = demo._tree_bytes(changed)
+                    try:
+                        mutate(changed)
+                    except LazarusError as error:
+                        self.fail(
+                            f"{label} mutation did not materialize: {type(error).__name__}"
+                        )
+                    after = demo._tree_bytes(changed)
+                    self.assertNotEqual(after, before)
+                    self.assertNotEqual(
+                        after["manifest.json"], before["manifest.json"]
+                    )
+                    with self.assertRaises(LazarusError):
+                        verify_fixture(changed)
+
+            changed = workspace / "log"
+            before_log = load(RECEIPT_FIXTURE / "receipt-witness.json")[
+                "receipts"
+            ][0xBF]["logs"][0]
+            after_log = load(changed / "receipt-witness.json")["receipts"][0xBF][
+                "logs"
+            ][0]
+            # ephoros: allow receipt-witness field access is test data, not telemetry
+            before_address = bytes.fromhex(before_log["address"][2:])
+            # ephoros: allow receipt-witness field access is test data, not telemetry
+            after_address = bytes.fromhex(after_log["address"][2:])
+            self.assertEqual(len(before_address), len(after_address))
+            self.assertEqual(
+                sum(left != right for left, right in zip(before_address, after_address)),
+                1,
+            )
+
     def test_demo_guards_every_mutation_and_the_transaction_hash_boundary(self):
         report = load_receipt_demo().run_demo()
         self.assertEqual(report["stage"], "complete")
         self.assertEqual(report["network"], "denied")
+        self.assertEqual(report.get("fixture_rebuild"), "identical")
         self.assertEqual(
             report["mutations"],
             {

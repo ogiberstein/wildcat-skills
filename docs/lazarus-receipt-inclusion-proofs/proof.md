@@ -14,16 +14,18 @@ The controlling evidence for the final Files boundary is:
 | Record | SHA-256 | Authority |
 | --- | --- | --- |
 | Study | `f8dd4bad531e8dbc236fec0bf0580d4a6a3a6284ce293a57a4d37af8555f9b79` | Design facts |
-| Canonical runbook after the Step 5 amendments | `053fbf18b5fe1ab76e7a83b7e4b2d6e0cd2c7a9dfa3c62548b0f7977644de681` | Step contract |
-| Effective Step 5 | `1f302c6ee852d54055f3dad157dd788770bcb06229dcb3b3ce6587288f0b8166` | Current source packet |
+| Canonical runbook after the Step 5 amendments | `bcc4e6e752fea71c1df484db0f3a684936c52c3c6e3338317672d8f47c9ba12f` | Step contract |
+| Effective Step 5 | `34e65f2a8f16d1ed502f036752e9810803d1f7bd14ba0dc3fe1d54c1944bfb50` | Current source packet |
 | Implementation packet state | `be7ece5732424cd67ab5a9cbc7bcd38a40c51fa71e16ed1b7f265aadae12b9eb` | Implementation hand-off |
 | Round 2 source packet state | `dd4b61c7218e2c62b71ef290cc5b4f753ac2ef5343bcc89efe3aa73b58daaa86` | Audit repair authority |
+| Round 3 source packet state | `7c8e35954a1027cb95febfb8ed1fbe1f5210e5a98773cf29c8109395c84053f6` | Audit repair authority |
 | Entry-repair amendment | `8df12aee81fc0b381793c659920314bb8124382fa8432c313e380c5607a8d015` | Entry repair |
 | Lazarus marketplace-copy Files amendment | `508be2c58135a2b0c6aeb180343c7f9a4b2e56e3efe8adec4e24ad1feb453cb5` | Two prose copies |
 | Manifest writer-selection Files amendment | `86ff0bd9c61febf3f087cb9da259902692f2805282afdbd8ea38150cbc8714d9` | Cause fix |
 | Receipt fixture restamp Files amendment | `7ca1ee04ab6910d5f19769bd249156c31d0f02239dc79655bcb7b4de8d6e3544` | Version propagation |
 | Preservation-guide Files amendment | `2423b45f020338cef35c7d6b234104ae7cb65a44a21533c10d4eadf820160880` | Governed context repair |
-| Capture-command amendment | `d3bd6d19588cf55f321810e4e7381d10bd5f188b6cbde80548b7c502b913b5b8` | Executable argv and tracked runbook |
+| Capture-command amendment | `d3bd6d19588cf55f321810e4e7381d10bd5f188b6cbde80548b7c502b913b5b8` | Split argv and tracked runbook |
+| Truthful-builder amendment | `11cd6e4fcb860da76e6f655790049695a9c9f5c1e6e9c4a2f3d9e815913cc1d0` | Producer provenance and materialized mutations |
 
 Each repair added only the paths named by its receipt. The Step 5 implementation
 worker ran no controller command, network capture, push, publication, merge or
@@ -51,16 +53,19 @@ The public fixture copies the six captured source components from
 `plugins/lazarus/tests/fixtures/receipt-proof-v1` byte for byte: `anchors.jsonl`,
 `header.json`, `plan.json`, `proofs.jsonl`, `receipt-witness.json` and
 `rpc.jsonl`. Its own `demo.py` and manifest make the published demonstration a
-separate deterministic fixture. The internal manifest-v2 was restamped from
-writer 0.1.0 to 0.2.0 without changing any raw source component.
+separate deterministic fixture. Its offline builder verifies the pinned source
+fixture, copies those six components and the current demo bytes into a private
+stage, builds and verifies the manifest, and atomically publishes only to a new
+destination. The internal manifest-v2 was restamped from writer 0.1.0 to 0.2.0
+without changing any raw source component.
 
 | Artefact identity | SHA-256 | Digest scope |
 | --- | --- | --- |
-| Goldfinch v1 fixture digest | `fbdf01301a2a972bdbe2ee18405083c0f08fd918181e5e414c7fc3cceab2e85c` | Semantic manifest identity |
-| Goldfinch v1 manifest file | `40df9c65f673df52db0508a51fa882a05fdf00203dd46c28e1d902ac974e93f0` | Raw file bytes |
-| Ariadne state-fixture/v2 statement file | `cbc280fbca4dc6d7d7d70f90df983ac4957fee0ed521a342a2ae29c2a8c1b9e7` | Raw file bytes |
-| Goldfinch v1 release digest | `c3bec771eb6b47d5435159b01057658c0a886a3a2de14b408482b2c606518ccc` | Semantic release identity |
-| Goldfinch v1 release file | `22f33cf9c42a1dbdd26c72f1fffd0eaa558a9c90f86078462cd8608c16c0fb98` | Raw file bytes |
+| Goldfinch v1 fixture digest | `484a474df79e2c28fde42069c55545432645c541abb86f72ec76bdf653858d6e` | Semantic manifest identity |
+| Goldfinch v1 manifest file | `77d115e807dc65a06f920ff6807276732afe9e47e869bd0f3ca74045968ad831` | Raw file bytes |
+| Ariadne state-fixture/v2 statement file | `d2364e3f2966143d8ffa49ef68250af544847c409f6bca67d2ba8f011979824c` | Raw file bytes |
+| Goldfinch v1 release digest | `fe601b843da5a3f20e02426370bc148b85d0b1beb2de7d5d4c3862f761675bf1` | Semantic release identity |
+| Goldfinch v1 release file | `9f52c417abe3cce9d33eb191b76ab58835e2f06f675a2c79b5a09c379eece59c` | Raw file bytes |
 | Restamped internal receipt manifest file | `f9bd4a3e9192ec4d472b4b9127fd66871f87d5b60f75b34a3f82c7d6e1213558` | Raw file bytes |
 | Restamped internal fixture digest | `a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec` | Semantic manifest identity |
 
@@ -86,13 +91,12 @@ Lazarus 1.1.2 and Ariadne 1.2.2. The governed skill labels are `lazarus-v2.2.0` 
 
 ## Elenchus guards
 
-Seven observed failures were localised before the final run:
+Ten observed failures were localised before the final run:
 
-1. The index mutation failed while canonical witness bytes were being written,
-   before the helper's original verification-only exception boundary. The
-   helper now treats rejection during mutation write or final verification as
-   the same expected fail-closed result. The index mutation test fails if that
-   rejection disappears.
+1. The index mutation failed while validated witness bytes were being written,
+   before the helper's original verification-only exception boundary. That
+   first repair accepted either construction or verification rejection; guard
+   9 below closes the remaining evidence gap.
 2. Raising the writer to 0.2.0 caused the unchanged Goldfinch v0 demo's
    byte-identical manifest rebuild to relabel manifest-v1. The first repair then
    selected writer 0.1.0 by schema and mislabeled fresh plan-v1 captures made by
@@ -116,12 +120,28 @@ Seven observed failures were localised before the final run:
    structural prose gate; the 165-file inventory includes its exact bytes.
 6. The first Goldfinch v1 statement recorded `lazarus capture goldfinch-v1` as
    one argv element even though Ariadne requires one `--capture-command` per
-   word. The receipted runbook amendment, demo and shipped statement now record
-   `lazarus`, `capture` and `goldfinch-v1` as three elements; the release test
-   holds that exact vector.
+   word. The first receipted repair split that vector; guard 8 below replaces
+   the resulting fictitious command with the real producer.
 7. This proof said four observed failures while enumerating five. Its count now
-   agrees with the seven numbered guards after the two round-2 repairs, and the
-   scaffold test holds both the count and final numbered entry.
+   agrees with the numbered guards, and the scaffold test holds both the count
+   and final numbered entry.
+8. The split `lazarus`, `capture`, `goldfinch-v1` vector still named no installed
+   executable or implemented Goldfinch command. The shipped statement now
+   records the exact five-word Python builder argv that materialized the
+   byte-identical fixture from pinned local sources.
+9. The demo caught `LazarusError` around mutation construction as well as
+   verification. Its index mutator failed validation before writing, while its
+   log mutator turned empty data into invalid hex; both were reported rejected
+   without tampered fixture bytes. Mutation construction now completes before
+   the rejection boundary, writes canonical raw JSON for intentional invalid
+   structure, and flips one valid address byte. Tests prove every named fixture
+   mutation changes canonical bytes before verification refuses it.
+10. The whole-tree Ephoros gate interpreted the receipt witness's `address`
+    field access in the log mutator and its guard as telemetry keyed by wallet
+    address. Those reads alter and inspect local fixture evidence; they emit no
+    telemetry. Reason-bearing exceptions state that boundary at each access,
+    and the whole-tree gate now passes while the byte-level mutation guard
+    remains intact.
 
 The end-to-end demonstration independently rejects a one-byte consensus
 receipt, index, consensus log, receipts root, evidence count and release
@@ -134,17 +154,22 @@ diagnostic.
 
 **Phylax.** Step 5 performed no provider capture. It reused the fixed bounded
 source captured under Step 3's request, byte, time, secret-union and atomic
-controls. Fixture verification, statement capture, release build and release
-verification accept local paths only. The demo patches both socket connection
-entry points to fail on use and reports `network=denied`. No dependency changed.
-An independent `strace -f -e trace=network` run observed no socket, connect,
-bind, listen, accept, endpoint send/receive or socket-option syscall.
+controls. The builder verifies that pinned source, rereads each component
+through a bounded no-follow descriptor, rechecks the copied claims, uses an
+adjacent private stage, refuses source-contained or existing destinations, and
+publishes with atomic no-replace. Fixture verification, statement capture,
+release build and release verification accept local paths only. The demo
+patches both socket connection entry points to fail on use and reports
+`network=denied`. No dependency changed. An independent
+`strace -f -e trace=network` run observed no socket, connect, bind, listen,
+accept, endpoint send/receive or socket-option syscall.
 
 **Ephoros.** The demo emits one canonical JSON line with correlation ID
 `goldfinch-v1-offline-demo`. It includes the safe block identity, root, bounded
 counts, scoped relation, versions, digests and named mutation verdicts. Tests
-refuse extra lines and scan the event for topics, data, RPC URL forms,
-credentials and bearer material. Receipt bodies and log payloads are absent.
+refuse extra lines, require the byte-identical rebuild verdict, and scan the
+event for topics, data, RPC URL forms, credentials and bearer material. Receipt
+bodies and log payloads are absent.
 
 **Metron.** No performance claim is made. The test durations below establish
 only that the fixed offline checks completed in the locked environment; they do
@@ -206,22 +231,27 @@ unchanged, and the marketplace-prose gate found no disagreement to file.
 
 ## Verification ledger
 
-All commands ran from the final Step 5 worktree in the locked Python 3.12.3
-environment at `/tmp/fiat383-r6-venv.iPGZQK`. The final exhaustive exits and
-counts are recorded here after the final bytes are fixed.
+All Python commands ran from the final Step 5 worktree under
+`uv run --offline --python 3.12.13 --with-requirements
+plugins/lazarus/requirements.lock`, except the dependency-free repository
+discipline scripts. The final exhaustive exits and counts are recorded here
+after the final source bytes are fixed.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
 | Exact Step 5 entry combined runner | exit 0, 1259 tests, 85.516 seconds | Entry report |
 | Round 1 Warden source-bound entry runner | exit 0, 1,270 tests, 96.324 seconds | Report SHA-256 `410f723d860c7c3ae5ecd9e738fe9797ed6898b83a1a3fc115ea12e5411976a7` |
 | Round 2 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
-| New and legacy Goldfinch/release/scaffold focus | exit 0, 49 tests | Focused unittest output |
+| Round 3 Warden source-bound entry runner | exit 0, 1,271 tests, 92.086 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
+| New and legacy Goldfinch/release/scaffold focus | exit 0, 51 tests | Focused unittest output |
 | Marketplace, version, evolution and portable-skill focus | exit 0, 41 tests | Focused unittest output |
-| Ariadne plugin suite | exit 0, 689 tests in 1.632 seconds | Explicit plugin-suite output |
-| Lazarus plugin suite | exit 0, 582 tests in 100.439 seconds | Explicit plugin-suite output |
+| Ariadne plugin suite | exit 0, 689 tests | Complete source-bound runner |
+| Lazarus plugin suite | exit 0, 584 tests | Complete source-bound runner |
 | Canonical round-2 Elenchus parent comparison | guarded, 1,271 tests, 5 assertion failures, 0 errors, 0 skips | Candidate `f3568e6`; all three changed test files copied to signed parent `c861b49305c45829d0bd938b68e7083d857eaeb8` |
-| Final combined receipt-delivery runner | exit 0, 1,271 tests, 99.363 seconds | Report SHA-256 `217b368e207bac22d5fc81501a92e5bf47de5ff801a5d07b213d29d106fec68a` |
-| Root suite | exit 0, 396 tests in 30.280 seconds | Root unittest output; 1,258 inoculation cases, 0 crashes, 0 unexpected clean |
+| First round-3 Elenchus parent comparison | inconclusive, 1,273 tests, 9 assertion failures, 1 error, 0 skips | The parent lacked the new fixture-rebuild event key, so the guard indexed through the compatibility boundary |
+| Canonical round-3 Elenchus parent comparison | guarded, 1,273 tests, 10 assertion failures, 0 errors, 0 skips | All three changed test files copied to signed entry `6f20c92aed7c07017f6a53f3195e42a159de0b57`; the compatibility guard uses `.get()` |
+| Final combined receipt-delivery runner | exit 0, 1,273 tests, 92.879 seconds | Complete report SHA-256 `3623123f4b314d75adbbfa660fea87584127ca40df40d4d999f00c800c930108` |
+| Root suite | exit 0, 396 tests | Root unittest output; 1,258 inoculation cases, 0 crashes, 0 unexpected clean |
 | Promise Machine, demonstrations, repository lints and currency checks | exit 0 | Command exits |
 
 The signed implementation and Warden commits plus the final clean-tree check are

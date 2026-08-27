@@ -182,8 +182,8 @@ class ScaffoldTests(unittest.TestCase):
             "issue mutation ran in this step.",
             compact_proof,
         )
-        self.assertIn("Seven observed failures were localised", proof)
-        self.assertEqual(proof.count("\n7. "), 1)
+        self.assertIn("Ten observed failures were localised", proof)
+        self.assertEqual(proof.count("\n10. "), 1)
 
         delivery_runbook = (
             support.REPO_ROOT
@@ -197,12 +197,15 @@ class ScaffoldTests(unittest.TestCase):
             "### Amendment -- 2026-08-27", 1
         )[-1]
         self.assertIn(
-            "--capture-command lazarus --capture-command capture "
-            "--capture-command goldfinch-v1",
+            "--capture-command python3 --capture-command "
+            "plugins/lazarus/examples/goldfinch-v1/demo.py --capture-command "
+            "build-fixture --capture-command=--out --capture-command "
+            "tmp/goldfinch-v1-rebuild",
             latest_amendment,
         )
         self.assertNotIn(
-            '--capture-command "lazarus capture goldfinch-v1"',
+            "--capture-command lazarus --capture-command capture "
+            "--capture-command goldfinch-v1",
             latest_amendment,
         )
 
@@ -262,7 +265,7 @@ class ScaffoldTests(unittest.TestCase):
         )
         self.assertEqual(
             hashlib.sha256((root / "runbook.md").read_bytes()).hexdigest(),
-            "4db54f9a697234e63ff603eed86eaa82f32173487274b25ceb6b4d5afbcc9d44",
+            "7ffd2d1f13d69d473f1ea13862f4bef8a42c44c5b357de2cc03392d4cb919f03",
         )
 
     def test_receipt_proof_decision_is_discoverable(self):

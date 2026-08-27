@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 from contextlib import redirect_stderr, redirect_stdout
 import hashlib
 import importlib.util
@@ -29,12 +30,18 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from lazarus_lib.canonical import dump, dumps, load
-from lazarus_lib.errors import LazarusError
-from lazarus_lib.manifest import component_claim, fixture_digest, write_manifest
+from lazarus_lib.capture import _atomic_no_replace
+from lazarus_lib.errors import IntegrityError, LazarusError, PathError
+from lazarus_lib.manifest import (
+    build_manifest,
+    component_claim,
+    fixture_digest,
+    write_manifest,
+)
+from lazarus_lib.paths import read_confined_bytes
 from lazarus_lib.records import (
     read_rpc_records,
     request_key,
-    write_receipt_witness,
     write_rpc_records,
 )
 from lazarus_lib.release import RELEASE_NAME, release_digest, verify_release, write_release
@@ -49,6 +56,26 @@ RECEIPTS_ROOT = "0xaf03b0508121deb9ed0282a8961dc0ea695a97244a42ed2b0af04cb9bbc62
 TARGET_INDEX = 0xBF
 STATEMENT_TYPE = "https://ariadne.wildcat.finance/state-fixture/v2"
 CORRELATION_ID = "goldfinch-v1-offline-demo"
+SOURCE_FIXTURE = PLUGIN_ROOT / "tests" / "fixtures" / "receipt-proof-v1"
+SOURCE_FIXTURE_DIGEST = (
+    "a88218e27b979a67941bd66f04eec9e0d1208178697c0c3f59a245f22dba0eec"
+)
+SOURCE_COMPONENTS = (
+    "anchors.jsonl",
+    "header.json",
+    "plan.json",
+    "proofs.jsonl",
+    "receipt-witness.json",
+    "rpc.jsonl",
+)
+FIXTURE_COMPONENTS = SOURCE_COMPONENTS + ("demo.py",)
+PRODUCER_COMMAND = (
+    "python3",
+    "plugins/lazarus/examples/goldfinch-v1/demo.py",
+    "build-fixture",
+    "--out",
+    "tmp/goldfinch-v1-rebuild",
+)
 LEGACY_DIGESTS = {
     "fixture": "d93cd09fcb2c6bd689a223398ebd4ae4dc480ec7d8fd8e64283b88341d0a7e49",
     "manifest": "c37cd789e5386a1347abd4dff24c8b1db96cdab771df4eb4d63056ba56145fa9",
@@ -76,25 +103,26 @@ def _run_ariadne(module: ModuleType, arguments: list[str]) -> None:
         )
 
 
-def _capture_statement(module: ModuleType, out: Path) -> None:
+def _capture_statement(module: ModuleType, fixture: Path, out: Path) -> None:
+    command_arguments: list[str] = []
+    for word in PRODUCER_COMMAND:
+        if word.startswith("-"):
+            command_arguments.append(f"--capture-command={word}")
+        else:
+            command_arguments.extend(("--capture-command", word))
     _run_ariadne(
         module,
         [
             "capture-state-fixture",
             "--fixture",
-            str(FIXTURE),
+            str(fixture),
             "--name",
             "goldfinch-v1",
             "--capture-tool",
             "lazarus",
             "--capture-version",
             "0.2.0",
-            "--capture-command",
-            "lazarus",
-            "--capture-command",
-            "capture",
-            "--capture-command",
-            "goldfinch-v1",
+            *command_arguments,
             "--first-capture-reason",
             "first receipts-root-proved Goldfinch fixture",
             "--out",
@@ -112,8 +140,91 @@ def _tree_bytes(root: Path) -> dict[str, bytes]:
     }
 
 
+def build_fixture(output: str | Path) -> dict[str, Any]:
+    """Materialise the published fixture from its pinned source components."""
+
+    source_report = verify_fixture(SOURCE_FIXTURE)
+    if source_report["fixture_digest"] != SOURCE_FIXTURE_DIGEST:
+        raise IntegrityError("pinned receipt-proof-v1 fixture changed")
+    source_claims = source_report["manifest"]["components"]
+    if tuple(item["path"] for item in source_claims) != SOURCE_COMPONENTS:
+        raise IntegrityError("pinned receipt-proof-v1 component inventory changed")
+
+    requested = Path(output)
+    if not requested.name or requested.name in {".", ".."}:
+        raise PathError("fixture output must name a new directory")
+    parent_path = requested.parent
+    try:
+        parent = parent_path.resolve(strict=True)
+    except FileNotFoundError:
+        try:
+            parent_path.mkdir(mode=0o700)
+            parent = parent_path.resolve(strict=True)
+        except OSError:
+            raise PathError("fixture output parent cannot be created") from None
+    except OSError:
+        raise PathError("fixture output parent cannot be resolved") from None
+    if not parent.is_dir():
+        raise PathError("fixture output parent is not a directory")
+    destination = parent / requested.name
+    if destination.exists() or destination.is_symlink():
+        raise PathError("fixture output already exists")
+    for source_root in (FIXTURE.resolve(), SOURCE_FIXTURE.resolve()):
+        if destination == source_root or source_root in destination.parents:
+            raise PathError("fixture output cannot be inside a source fixture")
+
+    stage = Path(
+        tempfile.mkdtemp(prefix=f".{destination.name}.stage-", dir=parent)
+    )
+    published = False
+    try:
+        for claim in source_claims:
+            relative = claim["path"]
+            data = read_confined_bytes(
+                SOURCE_FIXTURE,
+                relative,
+                max_bytes=claim["bytes"],
+            )
+            if len(data) != claim["bytes"] or hashlib.sha256(data).hexdigest() != claim[
+                "sha256"
+            ]:
+                raise IntegrityError(
+                    "pinned receipt-proof-v1 source changed during build"
+                )
+            (stage / relative).write_bytes(data)
+        copied_claims = [
+            component_claim(stage, relative) for relative in SOURCE_COMPONENTS
+        ]
+        if copied_claims != source_claims:
+            raise IntegrityError("pinned receipt-proof-v1 source changed during build")
+        demo_bytes = read_confined_bytes(FIXTURE, "demo.py", max_bytes=1024 * 1024)
+        (stage / "demo.py").write_bytes(demo_bytes)
+
+        manifest = build_manifest(
+            stage,
+            FIXTURE_COMPONENTS,
+            chain_id="0x1",
+            block_number=BLOCK_NUMBER,
+            block_hash=BLOCK_HASH,
+        )
+        write_manifest(stage, manifest)
+        report = verify_fixture(stage)
+        _atomic_no_replace(stage, destination)
+        published = True
+        return report
+    finally:
+        if not published and stage.exists():
+            shutil.rmtree(stage)
+
+
 def _flip_last_hex(value: str) -> str:
     return value[:-1] + ("0" if value[-1] != "0" else "1")
+
+
+def _flip_last_byte_hex(value: str) -> str:
+    if not value.startswith("0x") or len(value) < 4 or len(value) % 2 != 0:
+        raise AssertionError("mutation target is not a non-empty byte string")
+    return value[:-2] + f"{int(value[-2:], 16) ^ 1:02x}"
 
 
 def _refresh_component(root: Path, relative: str) -> None:
@@ -129,7 +240,7 @@ def _refresh_component(root: Path, relative: str) -> None:
 def _mutate_witness(root: Path, change: Callable[[dict[str, Any]], None]) -> None:
     witness = load(root / "receipt-witness.json")
     change(witness)
-    write_receipt_witness(root / "receipt-witness.json", witness)
+    dump(root / "receipt-witness.json", witness)
     _refresh_component(root, "receipt-witness.json")
 
 
@@ -140,8 +251,8 @@ def _expect_fixture_rejection(
 ) -> str:
     changed = workspace / f"mutated-{label}"
     shutil.copytree(FIXTURE, changed)
+    change(changed)
     try:
-        change(changed)
         verify_fixture(changed)
     except LazarusError:
         return "rejected"
@@ -167,7 +278,8 @@ def _index_mutation(root: Path) -> None:
 def _log_mutation(root: Path) -> None:
     def change(witness: dict[str, Any]) -> None:
         log = witness["receipts"][TARGET_INDEX]["logs"][0]
-        log["data"] = _flip_last_hex(log["data"])
+        # ephoros: allow receipt-witness field access is mutation evidence, not telemetry
+        log["address"] = _flip_last_byte_hex(log["address"])
 
     _mutate_witness(root, change)
 
@@ -315,10 +427,14 @@ def run_demo() -> dict[str, Any]:
         ariadne = _ariadne_module()
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
+            rebuilt_fixture = workspace / "goldfinch-v1-rebuild"
+            build_fixture(rebuilt_fixture)
+            if _tree_bytes(rebuilt_fixture) != _tree_bytes(FIXTURE):
+                raise AssertionError("shipped fixture differs from a fresh build")
             statement_a = workspace / "statement-a.json"
             statement_b = workspace / "statement-b.json"
-            _capture_statement(ariadne, statement_a)
-            _capture_statement(ariadne, statement_b)
+            _capture_statement(ariadne, rebuilt_fixture, statement_a)
+            _capture_statement(ariadne, rebuilt_fixture, statement_b)
             if statement_a.read_bytes() != statement_b.read_bytes():
                 raise AssertionError("state-fixture/v2 capture is not deterministic")
             if statement_a.read_bytes() != (SHIPPED_RELEASE / "statement.json").read_bytes():
@@ -326,8 +442,8 @@ def run_demo() -> dict[str, Any]:
 
             release_a = workspace / "release-a"
             release_b = workspace / "release-b"
-            write_release(FIXTURE, statement_a, release_a)
-            write_release(FIXTURE, statement_b, release_b)
+            write_release(rebuilt_fixture, statement_a, release_a)
+            write_release(rebuilt_fixture, statement_b, release_b)
             if _tree_bytes(release_a) != _tree_bytes(release_b):
                 raise AssertionError("release-v2 rebuild is not deterministic")
             if _tree_bytes(release_a) != _tree_bytes(SHIPPED_RELEASE):
@@ -358,6 +474,7 @@ def run_demo() -> dict[str, Any]:
             "correlation_id": CORRELATION_ID,
             "stage": "complete",
             "network": "denied",
+            "fixture_rebuild": "identical",
             "block": {"number": BLOCK_NUMBER, "hash": BLOCK_HASH},
             "recorded_target_selector": TARGET_SELECTOR,
             "relation": {
@@ -390,7 +507,32 @@ def run_demo() -> dict[str, Any]:
         }
 
 
-def main() -> int:
+def main(arguments: list[str] | None = None) -> int:
+    words = list(sys.argv[1:] if arguments is None else arguments)
+    if words:
+        parser = argparse.ArgumentParser(
+            description="Build the fixed Goldfinch fixture or run its offline demo."
+        )
+        commands = parser.add_subparsers(dest="command", required=True)
+        builder = commands.add_parser(
+            "build-fixture",
+            help="materialise the byte-exact fixture from pinned local sources",
+        )
+        builder.add_argument("--out", required=True)
+        parsed = parser.parse_args(words)
+        if parsed.command == "build-fixture":
+            report = build_fixture(parsed.out)
+            print(
+                dumps(
+                    {
+                        "event": "goldfinch_fixture_build",
+                        "stage": "complete",
+                        "fixture_digest": report["fixture_digest"],
+                    }
+                ).decode("utf-8")
+            )
+            return 0
+        raise AssertionError("unreachable Goldfinch command")
     print(dumps(run_demo()).decode("utf-8"))
     return 0
 
