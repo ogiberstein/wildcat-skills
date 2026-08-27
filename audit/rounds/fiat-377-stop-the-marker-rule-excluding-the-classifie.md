@@ -1,0 +1,48 @@
+## Step 1, round 1 -- 2026-08-27T04:24:29Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: window-partial-lines=not-applicable; string-at-line-start=not-applicable; comment-invited-exclusion=not-applicable; monotone-narrowing=not-applicable; boundary-regeneration=not-applicable; recall-loss-docstring=not-applicable; evidence-wording=not-applicable; prose-reconciliation=not-applicable; corroboration-flow=not-applicable
+
+Not checked: the study's technical claims against plugins/horos source (no rule code changed this step; the later code steps gate them), and the horos unit suites (no fixes commit, so the Elenchus runner was not invoked). Coverage note: every register id names classifier behaviour changed in later steps; this diff adds two verbatim doc copies and touches no code, hence not-applicable across the register.
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | plugins/horos/docs/marker-self-exclusion/study.md | hypomnema exited 1 with five H001 hits (phylax and ephoros exited 0 on both copies): relative discipline links resolve to nothing at the copy location — line 341 `../ephoros/SKILL.md`, 359 `../phylax/SKILL.md`, 379 `../metron/SKILL.md`, 391 `../elenchus/SKILL.md`, 407 `../hypomnema/SKILL.md`. The copy is byte-identical to the receipted study (sha256 3316b6fa5635a60ba6376f4717c2c89999f5ccd17e77cab9700cfa4bb400625f), the runbook copy matches the run runbook (sha256 2d23073ee22ac939151ec9c9878b9257af30355776b16835f0fda58c79190d4d), and editing the links would break the byte fidelity this step exists to provide; the links dangle in the receipted original too. | accepted |
+
+Leads not pursued: adding a sibling README in plugins/horos/docs/marker-self-exclusion/ stating the copies are verbatim and the discipline links resolve relative to the hexaemeron skills tree — not pursued because the runbook step names exactly the two copies and an extra file is the controller's call, not an audit fix; raised in the round report instead.
+
+## Step 1, round 2 -- 2026-08-27T04:37:13Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: window-partial-lines=not-applicable; string-at-line-start=not-applicable; comment-invited-exclusion=reviewed; monotone-narrowing=not-applicable; boundary-regeneration=reviewed; recall-loss-docstring=not-applicable; evidence-wording=not-applicable; prose-reconciliation=not-applicable; corroboration-flow=not-applicable
+
+Not checked: the study's technical claims against plugins/horos source (the later code steps gate them). Coverage note: boundary-regeneration and comment-invited-exclusion move from round 1's not-applicable to reviewed because round 2 exercised both -- the committed boundary drifted and was regenerated, and content-invited self-exclusion was observed on the study copy itself; the remaining ids still name classifier behaviour that changes only in later steps. Round 2 gates: phylax, ephoros and hypomnema all exit 0 on both copies; the step Elenchus runner (horos suite) ran 217 tests OK with its report at .hexaemeron/elenchus-step-1.txt; the root suite (unittest discover -s tests) ran 399 tests OK.
+
+Elenchus verdict: passed
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S1-R1-01 | low | plugins/horos/docs/marker-self-exclusion/study.md | round 1's five dangling discipline links (lines 341, 359, 379, 391, 407) now target `../../../hexaemeron/skills/<name>/SKILL.md` for ephoros, phylax, metron, elenchus and hypomnema, each verified to resolve from the file's directory; fixed on the step branch in commit 6f36bee9560638376e3609bfd5831661dc118390 (signed, verify-commit good); byte fidelity was dropped as a requirement by the controller, and the pinned receipted original .hexaemeron/study.md was not touched | fixed |
+| S1-R2-01 | medium | .horos/boundary.json | pre-existing at step commit 8942785: the committed boundary was stale because the committed study copy quotes the marker 'do not edit' inside its first 4096 bytes and self-excludes under the current rule -- a fresh scan adds a hard generated entry (bytes 26602, evidence: marker 'do not edit' in the first 4096 bytes) and tests/test_boundary_currency.py failed at unmodified HEAD, verified by stashing round 2's link edit, which sits past byte 4096 and cannot have caused it; regenerated via `python3 plugins/horos/skills/horos/scripts/horos.py scan . --write` and committed as 52b33a59feb01cc081ccbabb27fe64149c1603a7 (signed, verify-commit good); this is the run's motivating self-exclusion defect surfacing on its own spec copy, and the entry un-excludes when a later step narrows the rule and regenerates the boundary | fixed |
+
+Leads not pursued: the sibling README in plugins/horos/docs/marker-self-exclusion/ explaining the copy convention, carried from round 1 (the controller's call, not an audit fix); no new guard test for spec-copy boundary currency, because tests/test_boundary_currency.py already fails on any drift and is the guard that caught S1-R2-01.
+
+## Step 1, round 3 -- 2026-08-27T04:40:24Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: window-partial-lines=not-applicable; string-at-line-start=not-applicable; comment-invited-exclusion=reviewed; monotone-narrowing=not-applicable; boundary-regeneration=reviewed; recall-loss-docstring=not-applicable; evidence-wording=not-applicable; prose-reconciliation=not-applicable; corroboration-flow=not-applicable
+
+Not checked: the study's technical claims against plugins/horos source (the later code steps gate them); the seven not-applicable ids still name classifier behaviour that changes only in later steps. Round 3 gates against the fixed tree at 52b33a59feb01cc081ccbabb27fe64149c1603a7: phylax, ephoros and hypomnema all exit 0 on both copies; horos.py check exits 0 (boundary matches the tree); the horos suite ran 217 tests OK and the root suite ran 399 tests OK, both under the GIT_CONFIG prefix. The round-2 diff 8942785..52b33a5 re-reviewed in full: study.md carries exactly the five link retargets, and .horos/boundary.json carries exactly the one self-exclusion entry for the study copy plus the two count fields that follow from it; no regressions, nothing else rode in.
+
+Elenchus verdict: null
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: the sibling README in plugins/horos/docs/marker-self-exclusion/ explaining the copy convention, carried from rounds 1 and 2 (the controller's call, not an audit fix); the committed boundary's files_walked count (1654) absorbed four untracked working files present at scan time -- not pursued as a finding because drift comparison in horos.py (drifted paths, a symmetric entries-only compare) never reads the counts, so the snapshot is cosmetic metadata with no gate effect.
